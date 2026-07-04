@@ -15,7 +15,6 @@ import {
   validateUploadServer,
 } from "@/app/_lib/upload-constraints";
 
-export const runtime = "nodejs";
 export const maxDuration = 60;
 
 // Persists the upload to a stable dir and starts a background `analyze` task,

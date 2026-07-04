@@ -7,10 +7,13 @@ export const metadata = { title: "Voice interview lab" };
 // The lab gate reads INTERVIEW_LAB_ENABLED at request time; without this the
 // page would be statically prerendered and bake the BUILD-time flag value in,
 // drifting from the /connect route's runtime decision.
-export const dynamic = "force-dynamic";
 
 // Internal A/B harness: switch OpenAI ↔ ElevenLabs and run a short screen to
 // compare Czech/English quality, latency, turn-taking, and transcript fidelity.
+// Blocked under Cache Components: dynamic per-request route (previously
+// force-dynamic) with no useful static shell to prerender.
+export const instant = false;
+
 export default function InterviewLabPage() {
   // The lab exercises the tokenless credential-minting path, which is gated in
   // production (idea-6236b597; see interview-lab.ts). Say so instead of

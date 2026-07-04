@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { resetSim } from "@/app/_lib/sim-store";
 import { jsonError } from "@/app/_lib/api-response";
 
-export const runtime = "nodejs";
 
 // Clear all artifacts from prior simulation runs so the demo re-runs cleanly.
 export async function POST() {

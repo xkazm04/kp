@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { getDevCase } from "@/app/_lib/db";
 import { runSourceForRole, seedPipelineFromMatches } from "@/app/_lib/devcase-run";
 
-export const runtime = "nodejs";
 
 // Phase C — proactive sourcing for an approved case: rank the candidate DB against the
 // role and seed the pipeline at the Accepted stage. Deterministic (matching, no LLM).

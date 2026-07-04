@@ -3,7 +3,6 @@ import { interviewStatusByEntries, latestInterviewByEntry } from "@/app/_lib/db"
 import { safeJsonError } from "@/app/_lib/api-response";
 import { parseEntriesParam } from "@/app/_lib/entries-param";
 
-export const runtime = "nodejs";
 
 // GET ?entries=a,b,c → { status: { <entryId>: { sessionId, status, hasTranscript, endedAt } } }
 // GET ?entry=<id>    → { session } (the latest interview session for one entry, with transcript + scorecard)

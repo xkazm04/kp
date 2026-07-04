@@ -4,8 +4,6 @@ import { computeCalibration } from "@/app/_lib/calibration";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { jsonError } from "@/app/_lib/api-response";
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
 
 // Calibration Engine (moonshot A/C, foundational primitive P1) — the MEASURED
 // reliability of a fit score, binned into a reliability curve + Brier score +

@@ -2,8 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { aggregateLlmUsage, promptCacheStats } from "@/app/_lib/db";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
 
 // Usage/cost read surface for the Models tab — the first reader of the llm_usage
 // ledger (docs/LLM_PROVIDER_LAYER.md, T0.1): per (day × use_case × provider ×

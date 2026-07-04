@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
 import { isRelayConfigured } from "@/app/_lib/comms-truth";
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
 
 // REC-10 — the one capability bit the delivery truth-language keys off:
 // is a real relay wired (COMMS_WEBHOOK_URL), or is every "send" a terminal

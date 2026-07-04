@@ -268,6 +268,27 @@ class TestDevcaseCliProvenanceContract(unittest.TestCase):
             self.assertEqual(row["use_case"], "devcase_case_design")
             self.assertEqual(row["cost_usd"], 0.0)
 
+    def test_role_only_skips_case_design(self):
+        """--role-only (the jd_build path when 'Case analysis' is unticked) designs
+        the role but NOT the case: the result carries only `role`, and exactly one
+        deterministic ledger line is written (role), not two."""
+        with tempfile.TemporaryDirectory() as d:
+            need, analysis = Path(d) / "need.json", Path(d) / "analysis.json"
+            need.write_text(json.dumps({"title": "Backend", "stack": ["Python"]}), encoding="utf-8")
+            analysis.write_text(json.dumps({"realStack": ["Python"], "trueComplexity": "medium"}), encoding="utf-8")
+            ledger = Path(d) / "usage.ndjson"
+            with mock.patch.dict(os.environ, {"KP_LLM_USAGE_LOG": str(ledger)}, clear=False):
+                code, out, _err = _run(
+                    ["design-artifacts", "--no-llm", "--role-only", "--need-json", str(need), "--analysis-json", str(analysis)]
+                )
+            self.assertEqual(code, 0)
+            payload = _last_json(out)
+            self._assert_envelope(payload)
+            self.assertEqual(set(payload["result"]), {"role"}, "case must be skipped")
+            self.assertEqual(set(payload["perStepSources"]), {"role"})
+            rows = [json.loads(l) for l in ledger.read_text(encoding="utf-8").splitlines() if l.strip()]
+        self.assertEqual(len(rows), 1)  # only the role step ran
+
 
 class TestDevcaseCliInputGuards(unittest.TestCase):
     """Missing required flags (idea-1352c4e9) and wrong-SHAPE-but-valid-JSON inputs

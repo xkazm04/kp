@@ -3,7 +3,6 @@ import { createTemplate, listTemplates } from "@/app/_lib/templates-store";
 import { safeJsonError } from "@/app/_lib/api-response";
 import { findUnknownPlaceholders, unknownPlaceholderMessage, validateTemplateFields } from "@/app/features/sub_library/render-template";
 
-export const runtime = "nodejs";
 
 export async function GET() {
   try {

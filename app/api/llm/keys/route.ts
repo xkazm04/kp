@@ -3,8 +3,6 @@ import { deleteProviderKey } from "@/app/_lib/db";
 import { isKeyableProvider, isLlmProvider, KEYABLE_PROVIDERS, listProviderKeyMeta, saveProviderKey } from "@/app/_lib/llm-config";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
 
 // Provider key store (BYOM + hosted-platform keys), headless-first. Secrets are
 // write-only: GET returns metadata, never key material. Saving requires

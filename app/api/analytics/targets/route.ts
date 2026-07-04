@@ -2,8 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { RECRUITER_HOURLY_TARGET_KEY, setAnalyticsTarget, TIME_TO_HIRE_TARGET_KEY } from "@/app/_lib/db";
 import { FUNNEL_STAGES } from "@/app/_lib/pipeline-stages";
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
 
 // 82c2b8e8 / b39992b1 — recruiter-set analytics settings (mirrors
 // /api/analytics/spend). A metric is a funnel stage name (conversion % goal,

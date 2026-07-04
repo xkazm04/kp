@@ -7,10 +7,13 @@ import { coerceLeadTokenParam, seedLeadPrefillAnswers, trimSeededSteps } from "@
 import { LanguageSwitcher } from "@/app/_components/LanguageSwitcher";
 import { ConversationalApply } from "./ConversationalApply";
 
-export const dynamic = "force-dynamic";
 
 // Public, formless conversational apply for a role. A short chat runs knockout
 // questions, then drops a passing candidate into the pipeline as Accepted.
+// Blocked under Cache Components: dynamic per-request route (previously
+// force-dynamic) with no useful static shell to prerender.
+export const instant = false;
+
 export default async function ApplyPage({
   params,
   searchParams,

@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { ingestJobAd, insertJob, jobContentHash } from "@/app/_lib/job-ingest";
 import { MIN_AD_CHARS } from "@/app/_lib/split-ads";
 
-export const runtime = "nodejs";
 // The parser this route spawns builds ClaudeCliProvider(timeout=120) for the LLM
 // ad-parse (pipeline/jobfit/jobs_cli.py). maxDuration must comfortably exceed that
 // provider timeout, or a platform enforcing it (e.g. Vercel) kills a slow-but-valid

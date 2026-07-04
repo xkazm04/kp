@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { closeEntriesByJobId, getJob } from "@/app/_lib/db";
 import { getJobStatus, setJobStatus } from "@/app/_lib/job-ingest";
 
-export const runtime = "nodejs";
 
 // W8-1 (JOB1) — retire a role. The lifecycle was a one-way ratchet (NULL/draft
 // → published, full stop): a filled role kept its apply link live, kept

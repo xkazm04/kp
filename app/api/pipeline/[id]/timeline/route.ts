@@ -2,8 +2,6 @@ import { NextResponse } from "next/server";
 import { candidateTimeline } from "@/app/_lib/candidate-timeline";
 import { safeJsonError } from "@/app/_lib/api-response";
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
 
 // c6524f2f — the candidate-timeline join for the drawer: analyses, interview,
 // invites, offer and comms for one entry, time-ordered. Entry-keyed recruiter

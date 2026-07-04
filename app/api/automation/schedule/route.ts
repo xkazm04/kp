@@ -11,7 +11,6 @@ import {
 import { tickScheduler } from "@/app/_lib/scheduler";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 
-export const runtime = "nodejs";
 
 // AUTO6 — both registered jobs ride one payload: the policy pass (schedule/runs,
 // the historical shape) plus the reminders job and its recent send/failure runs.

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Loader2, Pencil, Plus, Star, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Modal } from "@/app/_components/Modal";
+import { RichTextEditor } from "@/app/_components/RichTextEditor";
 import { DEFAULT_TEMPLATE_BODY, fetchTemplates, findUnknownPlaceholders, TEMPLATE_BODY_MAX_LENGTH, TEMPLATE_NAME_MAX_LENGTH, TEMPLATE_PLACEHOLDERS, unknownPlaceholderMessage, validateTemplateFields, type Template, type TemplateData } from "./render-template";
 
 type Editing = { id?: string; name: string; body: string };
@@ -110,13 +111,11 @@ export function JdTemplateManager({ onClose, onChanged }: { onClose: () => void;
             aria-label={t("namePlaceholder")}
             className="focus-ring w-full rounded-md border border-stone-200 px-2.5 py-1.5 text-sm font-semibold"
           />
-          <textarea
+          <RichTextEditor
             value={editing.body}
-            onChange={(e) => setEditing({ ...editing, body: e.target.value })}
-            maxLength={TEMPLATE_BODY_MAX_LENGTH}
-            rows={16}
-            aria-label={t("bodyAria")}
-            className="focus-ring w-full rounded-md border border-stone-200 p-3 font-mono text-sm"
+            onChange={(body) => setEditing({ ...editing, body })}
+            ariaLabel={t("bodyAria")}
+            minHeight="18rem"
           />
           <div className="flex items-center justify-between gap-2">
             <p className="text-sm text-steel">

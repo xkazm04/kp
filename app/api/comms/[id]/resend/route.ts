@@ -3,7 +3,6 @@ import { getOutboxEntry, getPipelineEntry, listOutboxFiltered, recordAutomationE
 import { sendComm } from "@/app/_lib/comms";
 import { safeJsonError } from "@/app/_lib/api-response";
 
-export const runtime = "nodejs";
 
 // In-flight resends for the current process, keyed by outbox id, so a double-click
 // (or a retried fetch, or two recruiters on the dead-letter list) that races BEFORE

@@ -7,10 +7,13 @@ import { AiDisclosure } from "@/app/_components/AiDisclosure";
 import { VoiceInterviewClient } from "@/app/_components/voice/VoiceInterviewClient";
 import { InterviewSidebar } from "@/app/_components/voice/InterviewSidebar";
 
-export const dynamic = "force-dynamic";
 
 // Candidate-facing portal: a tokenized link runs the first-round voice screen
 // with the provider fixed per session. Seed of the future candidate portal.
+// Blocked under Cache Components: dynamic per-request route (previously
+// force-dynamic) with no useful static shell to prerender.
+export const instant = false;
+
 export default async function InterviewPortalPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
   const session = getInterviewSessionByToken(token);

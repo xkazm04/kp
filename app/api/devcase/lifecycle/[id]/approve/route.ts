@@ -5,7 +5,6 @@ import { recordAudit } from "@/app/_lib/dev-control";
 import { startTask } from "@/app/_lib/tasks";
 import { auditProbeStrength } from "@/app/_lib/devcase-probe-audit";
 
-export const runtime = "nodejs";
 
 // W5-4 — the editable subset of the designed case a reviewer may correct at
 // the gate without a regenerate: bounded scalars + the task list. Probes and

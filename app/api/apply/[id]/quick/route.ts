@@ -23,8 +23,6 @@ function safeStatusToken(entryId: string): string | null {
   }
 }
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
 
 // E2 (Erika gap) — the quick-apply LEAD form: the ≤30-second, ~3-field intake for
 // ad/social traffic. Captures name + contact email + this job's own knockout

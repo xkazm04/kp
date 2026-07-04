@@ -4,7 +4,6 @@ import { jdJobId, validateJdFields } from "@/app/_lib/jd-limits";
 import { safeJsonError } from "@/app/_lib/api-response";
 import { ingestStructuredJob } from "./ingest-job";
 
-export const runtime = "nodejs";
 export const maxDuration = 60;
 
 // Save a generated JD to the library and ingest its role as a structured Job —

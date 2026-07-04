@@ -3,8 +3,6 @@ import { coerceDumpPayload, loadWorkspace, planImport } from "@/app/_lib/db-port
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { multiWorkspaceEnabled } from "@/app/_lib/workspace-lock";
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
 
 // DATA3 — restore a kp-db-dump file into the live workspace. Two-step by
 // design: the default call is a DRY RUN returning the plan (per-table row

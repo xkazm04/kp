@@ -4,7 +4,6 @@ import { createTemplate, listRuns, listTemplates, runForEntry, startRun } from "
 import { coerceTasks } from "@/app/_lib/onboarding";
 import { safeJsonError } from "@/app/_lib/api-response";
 
-export const runtime = "nodejs";
 
 // Onboarding hand-off (#6). GET returns the Hired candidates (the hand-off source)
 // annotated with whether a run exists, plus all active runs and the templates.

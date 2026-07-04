@@ -13,6 +13,7 @@ from typing import Any
 
 from .models import DevNeed, RepoSnapshot
 from .provenance import generate_with_fallback, str_list as _str_list
+from ..i18n import language_directive
 
 ANALYZE_NEED_PROMPT_VERSION = "need-analysis-v3"  # v3: de-industry-locked — non-software roles reflected in their OWN terms (realStack = the role's tools/materials), no codebase hand-wringing
 
@@ -44,6 +45,7 @@ def analyze_need(
     snapshot: RepoSnapshot | list[RepoSnapshot] | None = None,
     *,
     provider: Any | None = None,
+    lang: object | None = None,
 ) -> tuple[dict, str]:
     # Multi-repo: a role can span up to a few codebases. Accept one snapshot (legacy
     # callers/tests) or a list; everything below reasons over the list.
@@ -79,7 +81,11 @@ def analyze_need(
         'Return JSON: { "realStack": [str] (the role\'s real tools/skills/materials — a tech stack for '
         'software, the role\'s systems/documents otherwise), "coreResponsibilities": [str], '
         '"statedVsRealGaps": [str], "trueComplexity": "low|medium|high", "riskAreas": [str], '
-        '"reflection": str, "confidence": number 0..1 }. JSON only.'
+        '"reflection": str, "confidence": number 0..1 }. JSON only.\n'
+        # DEVP5/#6 — the free-text fields (reflection, gaps, responsibilities) feed
+        # the downstream role/case design, so write them in the JD's language for a
+        # consistent artifact; enum values (trueComplexity) stay verbatim per the directive.
+        f"{language_directive(lang)}"
     )
 
     def deterministic() -> dict:

@@ -1,6 +1,7 @@
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
 import { getJob, getProfileRecord, loadAnalysis, type JobRecord } from "./db";
+import { getWorkspaceDefaultLocale } from "./db/workspaces";
 import { runReasoning } from "./reasoning-run";
 import { saveGroupEval } from "./group-eval";
 import { isEarlyCareer } from "./archetypes";
@@ -225,7 +226,14 @@ async function runGroupCompare(
     const inputPath = path.join(workdir, "compare.json");
     await writeFile(inputPath, JSON.stringify(context), "utf-8");
 
-    const { result } = spawnPython(["-m", "pipeline.jobfit.group_compare_cli", "--input-json", inputPath], { signal });
+    // The comparison narrative (headline, keyPoints, recommendation) is a shared,
+    // saved eval — render it in the org's configured language. The workspace
+    // default is the org language authority available in every context (this runs
+    // on-demand and in the background eval pass, which has no request cookie).
+    const { result } = spawnPython(
+      ["-m", "pipeline.jobfit.group_compare_cli", "--input-json", inputPath, "--lang", getWorkspaceDefaultLocale()],
+      { signal }
+    );
     const { stdout, stderr, exitCode } = await result;
     if (exitCode !== 0) {
       const err = parseStderrError(stderr, exitCode);

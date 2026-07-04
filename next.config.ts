@@ -8,6 +8,15 @@ import createNextIntlPlugin from "next-intl/plugin";
 const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
 
 const nextConfig: NextConfig = {
+  // Instant Navigations (Next 16.3) — "instant routing". cacheComponents flips
+  // the app to dynamic-by-default with no implicit caching; any route that
+  // awaits data must then Stream (<Suspense>), Cache ('use cache'), or Block
+  // (`export const instant = false`) or it becomes a dev error. partialPrefetching
+  // makes prefetch send one reusable shell per route instead of one per link.
+  // Both are top-level (not under experimental) as of 16.3 and are slated to
+  // become defaults in a future major. See docs/INSTANT_NAVIGATIONS.md.
+  cacheComponents: true,
+  partialPrefetching: true,
   // This project sits in a multi-app workspace with a parent-level lockfile; pin
   // the Turbopack root to this directory so module resolution (and the
   // DevInspector loader's asset filesystem) stay scoped to the app rather than

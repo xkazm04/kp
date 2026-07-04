@@ -81,6 +81,13 @@ test("ALTER-loop migrations landed: pipeline_entries carries every post-launch c
   }
 });
 
+test("ALTER-loop migrations landed: jds carries the backgrounded-analysis columns", () => {
+  const cols = columnNames("jds");
+  for (const col of ["archived_at", "analysis_status", "analysis_task_id", "analysis_error", "analysis_json"]) {
+    assert.ok(cols.has(col), `jds is missing migrated column "${col}"`);
+  }
+});
+
 test("the llm_usage ledger exists with its metering columns and both indexes", () => {
   const cols = columnNames("llm_usage");
   for (const col of ["ts", "use_case", "provider", "model", "input_tokens", "output_tokens", "cost_usd", "source"]) {

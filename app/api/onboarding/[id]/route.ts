@@ -8,7 +8,6 @@ import {
 } from "@/app/_lib/onboarding-store";
 import { safeJsonError } from "@/app/_lib/api-response";
 
-export const runtime = "nodejs";
 
 // One onboarding run: GET the full detail, PATCH a checklist task / the entry
 // questionnaire / a signature request or completion (the e-sign provider seam).

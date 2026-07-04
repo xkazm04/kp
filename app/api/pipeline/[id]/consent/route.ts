@@ -3,7 +3,6 @@ import { getPipelineEntry, listConsentEvents } from "@/app/_lib/db";
 import { consentStatus } from "@/app/_lib/consent";
 import { safeJsonError } from "@/app/_lib/api-response";
 
-export const runtime = "nodejs";
 
 // Recruiter-facing GDPR consent snapshot + audit trail for one entry — backs the
 // candidate drawer's "Data & consent" section. Internal route (the board is behind

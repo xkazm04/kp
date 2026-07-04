@@ -5,8 +5,6 @@ import { getHumanScorecard } from "@/app/_lib/interview-prep";
 import { safeJsonError } from "@/app/_lib/api-response";
 import { INTERVIEW_RUBRICS, RATING_ANCHORS } from "@/app/_lib/interview-rubric";
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
 
 // Side-by-side interview comparison for one job. Returns the rubrics keyed by
 // scoringModel + each interviewed candidate's scorecard (which carries its own

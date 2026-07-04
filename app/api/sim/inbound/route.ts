@@ -4,7 +4,6 @@ import { inferProfileLocale } from "@/app/_lib/comms-locale";
 import { jsonError } from "@/app/_lib/api-response";
 import { SIM_SCREEN_POLICY } from "@/app/features/simulation/constants";
 
-export const runtime = "nodejs";
 
 // Simulate an inbound application arriving via a channel (the careers/apply page):
 // a candidate lands at "Accepted" — the new pipeline front for inbound apps.

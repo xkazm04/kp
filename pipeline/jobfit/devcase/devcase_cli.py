@@ -209,6 +209,10 @@ def main(argv: list[str] | None = None) -> int:
     # seed README/DECISIONS and spoken narration render in the candidate's
     # language. normalize_lang guards a fat-fingered value to the default.
     parser.add_argument("--lang", type=str, default="en")
+    # design-artifacts only: skip the (LLM) case design and emit just the role.
+    # The JD builder uses this when the recruiter didn't tick "Case analysis" — so
+    # a plain description build no longer pays for a case-design call it discards.
+    parser.add_argument("--role-only", action="store_true")
     parser.add_argument("--no-llm", action="store_true")
     args = parser.parse_args(argv)
     from ..i18n import normalize_lang
@@ -383,7 +387,7 @@ def main(argv: list[str] | None = None) -> int:
                 snapshot = RepoSnapshot.model_validate(json.loads(args.snapshot_json.read_text(encoding="utf-8")))
             else:
                 snapshot = None
-            result, source = _analyze.analyze_need(need, snapshot, provider=provider)
+            result, source = _analyze.analyze_need(need, snapshot, provider=provider, lang=lang)
             _emit(result, {"analyze": source}, _confidences(analyze=result), _fallback_reasons(analyze=result), use_case=use_case)
             return 0
 
@@ -392,6 +396,16 @@ def main(argv: list[str] | None = None) -> int:
                 raise ValueError("design-artifacts requires --analysis-json")
             analysis = NeedAnalysis.model_validate(json.loads(args.analysis_json.read_text(encoding="utf-8")))
             role, role_src = _design.design_role(need, analysis, provider=provider, lang=lang)
+            if args.role_only:
+                # Role only — the case-design LLM call is skipped entirely (no
+                # wasted spend). The "case" key is simply absent from the payload.
+                _emit(
+                    {"role": role},
+                    {"role": role_src},
+                    fallback_reasons=_fallback_reasons(role=role),
+                    use_case=use_case,
+                )
+                return 0
             case, case_src = _design.design_case(need, analysis, role, provider=provider, feedback=args.feedback, lang=lang)
             _emit(
                 {"role": role, "case": case},

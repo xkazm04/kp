@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
 import { revokeChannelWebhook } from "@/app/_lib/db";
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
 
 // E3 — revoke an inbound webhook. The row (and its receipt history) is kept for
 // audit; the public receiver answers 404 for a revoked token from then on.

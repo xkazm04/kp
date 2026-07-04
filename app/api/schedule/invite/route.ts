@@ -8,7 +8,6 @@ import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import { jsonOk, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
 
-export const runtime = "nodejs";
 
 // POST → recruiter mints a self-scheduling link for a pipeline entry. The
 // candidate opens /schedule/<token> and picks a slot.

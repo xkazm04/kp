@@ -2,8 +2,6 @@ import { NextResponse } from "next/server";
 import { countPipelineEvents, listPipelineEvents } from "@/app/_lib/db";
 import { DECISION_META } from "@/app/_lib/decision-attribution";
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 50;

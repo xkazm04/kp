@@ -5,7 +5,6 @@ import { candidateStatusFor } from "@/app/_lib/application-status";
 import { isRelayConfigured } from "@/app/_lib/comms-truth";
 import { jsonOk, safeJsonError } from "@/app/_lib/api-response";
 
-export const runtime = "nodejs";
 
 // Public, token-gated candidate application status (idea-e76a6fb2). Returns a
 // candidate-safe projection only — the friendly status, the role title/company,

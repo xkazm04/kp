@@ -7,13 +7,16 @@ import { LanguageSwitcher } from "@/app/_components/LanguageSwitcher";
 import { isRelayConfigured } from "@/app/_lib/comms-truth";
 import { QuickApplyForm } from "./QuickApplyForm";
 
-export const dynamic = "force-dynamic";
 
 // E2 (Erika gap) — public quick-apply LEAD form: the ≤30-second, mobile-first
 // intake for ad/social traffic. Three fields (name, email, this job's own
 // knockout questions), one tap, done — the full conversational apply at
 // /apply/[id] stays the rich path and doubles as this form's enrichment
 // follow-up (linked from the acknowledgement email and the success screen).
+// Blocked under Cache Components: dynamic per-request route (previously
+// force-dynamic) with no useful static shell to prerender.
+export const instant = false;
+
 export default async function QuickApplyPage({
   params,
   searchParams,

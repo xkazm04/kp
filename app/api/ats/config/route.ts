@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { AtsConfigError, getAtsConfig, setAtsConfig } from "@/app/_lib/ats-config-store";
 
-export const runtime = "nodejs";
 
 // P1-5 — read / update the outbound-webhook integration config. The GET never
 // returns the signing secret (only `hasSecret`); see the secret doctrine in

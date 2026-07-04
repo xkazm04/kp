@@ -757,6 +757,20 @@ export function ensureDb(): Database.Database {
     // JD archive (W8-4/JDL1): archived JDs drop out of listJds and the pickers,
     // but loadJd keeps serving them so existing analysis links never 404.
     "ALTER TABLE jds ADD COLUMN archived_at TEXT",
+    // Backgrounded AI generation: a JD is created up front in an 'analyzing' state
+    // and filled in by the detached jd_build task (survives navigation). NULL =
+    // a legacy/manually-saved draft (treated as ready). 'ready' once the handler
+    // wrote the body; 'failed' if the build errored (analysis_error carries why).
+    "ALTER TABLE jds ADD COLUMN analysis_status TEXT",
+    // The jd_build task that owns this JD's analysis — links the row to live
+    // progress and lets a stuck build be found/retried.
+    "ALTER TABLE jds ADD COLUMN analysis_task_id TEXT",
+    // Failure message when analysis_status='failed'.
+    "ALTER TABLE jds ADD COLUMN analysis_error TEXT",
+    // Structured artifacts the build produced beyond the markdown body (role,
+    // salary band + sources + provenance, repo snapshot, interview case, and the
+    // selected options) — JSON, read by the JD detail view. NULL until ready.
+    "ALTER TABLE jds ADD COLUMN analysis_json TEXT",
     // DEVP5 — the candidate-facing language for this role's case artifacts
     // (brief/tasks, seed README+DECISIONS, interview narration), captured at
     // need intake. NULL ⇒ "en" when threaded to the dev-case CLIs.

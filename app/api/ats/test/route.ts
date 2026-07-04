@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { deliver } from "@/app/_lib/ats-egress";
 
-export const runtime = "nodejs";
 
 // P1-5 — send a signed `ping` to the configured webhook so an integrator can
 // confirm reachability + signature verification before wiring real events. Reports

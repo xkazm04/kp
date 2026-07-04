@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { listAnalysesByJd, loadJd } from "@/app/_lib/db";
 import { safeJsonError } from "@/app/_lib/api-response";
 
-export const runtime = "nodejs";
 
 // Recruiter-side read behind the Library tab's expandable "Candidates (N)" row
 // section (biz-ui scan 2026-06-12 #1). This list — candidate_label (typically a

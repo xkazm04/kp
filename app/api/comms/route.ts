@@ -5,8 +5,6 @@ import { isRelayConfigured } from "@/app/_lib/comms-truth";
 import { deriveCommsView } from "@/app/_lib/comms-view";
 import { safeJsonError } from "@/app/_lib/api-response";
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
 
 // W6-2 (SIM1) — the recruiter comms read. Every candidate-facing message (8
 // kinds) lands in dev_outbox with ref = pipeline entry id, but the only UI was

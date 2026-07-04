@@ -1812,8 +1812,7 @@
       "candidatesToggle": "Kandidáti ({count})",
       "candidatesLoading": "Načítání kandidátů…",
       "candidatesLoadFailed": "Kandidáty se teď nepodařilo načíst.",
-      "candidatesEmpty": "Proti tomuto popisu pozice zatím nebyl analyzován žádný kandidát. Vygenerované pozice také přivádějí kandidáty do Pipeline.",
-      "orPasteManually": "Nebo vložte popis pozice ručně"
+      "candidatesEmpty": "Proti tomuto popisu pozice zatím nebyl analyzován žádný kandidát. Vygenerované pozice také přivádějí kandidáty do Pipeline."
     },
     "form": {
       "saveAjd": "Uložit popis pozice",
@@ -1856,7 +1855,25 @@
       "generateJd": "Vygenerovat popis pozice",
       "generatingNote": "Toto spustí několik kroků AI a trvá ~1–2 minuty — pokračuje, i když odejdete.",
       "genFailed": "Generování selhalo.",
-      "startFailed": "Sestavení se nepodařilo spustit."
+      "startFailed": "Sestavení se nepodařilo spustit.",
+      "saveDraft": "Uložit jako koncept",
+      "savingDraft": "Ukládání…",
+      "draftSaved": "Uloženo jako koncept",
+      "saveDraftFailed": "Koncept se nepodařilo uložit.",
+      "saveDraftFailedStatus": "Koncept se nepodařilo uložit (stav {status}).",
+      "checklistTitle": "Co má AI vygenerovat?",
+      "optDescription": "Popis pozice",
+      "optDescriptionHint": "Sepíše odpovědnosti a požadavky z vaší potřeby",
+      "optMarket": "Průzkum trhu",
+      "optMarketHint": "Mzdové rozpětí podložené webem s citovanými zdroji",
+      "optCase": "Případová studie",
+      "optCaseHint": "Praktické zadání pro prověření užšího výběru kandidátů",
+      "checklistHint": "Běží na pozadí — popis pozice se objeví v knihovně a doplní se během analýzy.",
+      "startAnalysis": "Spustit",
+      "queued": "Zařazeno — vytváří se ve vaší knihovně",
+      "needMoreInput": "Doplňte název pozice (a dostatek detailů v potřebě).",
+      "pickAtLeastOne": "Vyberte alespoň jednu položku ke generování.",
+      "generateFailedStatus": "Sestavení se nepodařilo spustit (stav {status})."
     },
     "result": {
       "sourceWebGrounded": "ověřeno na webu",

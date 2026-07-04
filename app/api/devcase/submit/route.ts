@@ -3,7 +3,6 @@ import { getPostingByToken } from "@/app/_lib/db";
 import { intakeSubmission, PostingClosedError } from "@/app/_lib/distribution";
 import { resumeCollectingLifecycle } from "@/app/_lib/tasks";
 
-export const runtime = "nodejs";
 
 // IN: a candidate submission arrives for a posting (local stub / future webhook target).
 export async function POST(request: NextRequest) {

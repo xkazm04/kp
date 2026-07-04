@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { appendDevSessionEvents, getDevSession, saveDevSessionFiles } from "@/app/_lib/db";
 import { jsonError } from "@/app/_lib/api-response";
 
-export const runtime = "nodejs";
 
 // Live Work Surface (moonshot E) — append observed events + save the (editable)
 // seed tree for an active session. Hand-rolled boundary coercion + bounds (the

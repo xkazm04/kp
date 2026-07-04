@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { getPosting, getSubmission, recordOutbox } from "@/app/_lib/db";
 import { buildFeedbackBrief } from "@/app/_lib/devcase-feedback";
 
-export const runtime = "nodejs";
 
 // d142462d — queue a kind, non-adverse strengths/growth feedback brief for a
 // non-promoted candidate, assembled from their already-computed evaluation

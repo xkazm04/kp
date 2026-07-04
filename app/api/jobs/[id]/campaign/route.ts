@@ -6,8 +6,6 @@ import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "@/app/_lib/python-runner";
 import { DEFAULT_LOCALE, isLocale, type Locale } from "@/i18n/locales";
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
 
 // E1 (Erika gap) — the sourcing campaign pack for one job: feed-ready ad-copy
 // variants + 15s video scripts, generated per candidate language. GET returns

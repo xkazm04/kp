@@ -17,7 +17,11 @@ export { isAnyModalOpen } from "./useDialogA11y";
 // transform-based fade-in animation), which otherwise pinned it to tab content.
 // The focus-trap / scroll-lock / Escape-stack machinery is the shared useDialogA11y
 // hook, so the side drawers share the exact same implementation + stack.
-const SIZE: Record<string, string> = { md: "max-w-md", lg: "max-w-lg", xl: "max-w-xl", "2xl": "max-w-2xl", "3xl": "max-w-3xl", "4xl": "max-w-4xl", full: "max-w-[1600px]" };
+// Widths are 20% larger than the Tailwind max-w-* scale they map from (md 28→33.6,
+// lg 32→38.4, xl 36→43.2, 2xl 42→50.4, 3xl 48→57.6, 4xl 56→67.2rem; full 1600→1920px)
+// — a deliberate roomier dialog, so they're arbitrary values rather than the named
+// classes.
+const SIZE: Record<string, string> = { md: "max-w-[33.6rem]", lg: "max-w-[38.4rem]", xl: "max-w-[43.2rem]", "2xl": "max-w-[50.4rem]", "3xl": "max-w-[57.6rem]", "4xl": "max-w-[67.2rem]", full: "max-w-[1920px]" };
 
 export function Modal({
   title,

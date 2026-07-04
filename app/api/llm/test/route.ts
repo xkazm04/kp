@@ -5,7 +5,6 @@ import { parsePythonJson, spawnPython } from "@/app/_lib/python-runner";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { redactSecrets } from "@/app/_lib/redact-secrets";
 
-export const runtime = "nodejs";
 export const maxDuration = 90;
 
 // Models admin "Test" button: one canary completion through the REAL

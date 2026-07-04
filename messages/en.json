@@ -1812,8 +1812,7 @@
       "candidatesToggle": "Candidates ({count})",
       "candidatesLoading": "Loading candidates…",
       "candidatesLoadFailed": "Couldn't load candidates right now.",
-      "candidatesEmpty": "No candidates analyzed against this JD yet. Generated roles also source candidates into the Pipeline.",
-      "orPasteManually": "Or paste a job description manually"
+      "candidatesEmpty": "No candidates analyzed against this JD yet. Generated roles also source candidates into the Pipeline."
     },
     "form": {
       "saveAjd": "Save a JD",
@@ -1856,7 +1855,25 @@
       "generateJd": "Generate job description",
       "generatingNote": "This runs a few AI steps and takes ~1–2 minutes — it keeps going if you navigate away.",
       "genFailed": "Generation failed.",
-      "startFailed": "Couldn't start the build."
+      "startFailed": "Couldn't start the build.",
+      "saveDraft": "Save as draft",
+      "savingDraft": "Saving…",
+      "draftSaved": "Saved as draft",
+      "saveDraftFailed": "Couldn't save the draft.",
+      "saveDraftFailedStatus": "Couldn't save the draft (status {status}).",
+      "checklistTitle": "What should AI generate?",
+      "optDescription": "Job description",
+      "optDescriptionHint": "Draft the role's responsibilities and requirements from your need",
+      "optMarket": "Market research",
+      "optMarketHint": "A web-grounded salary band with cited sources",
+      "optCase": "Interview case",
+      "optCaseHint": "A work-sample exercise to screen shortlisted candidates",
+      "checklistHint": "Runs in the background — the JD appears in your library and fills in as it's analyzed.",
+      "startAnalysis": "Start",
+      "queued": "Queued — building in your library",
+      "needMoreInput": "Add a role title (and enough detail in the need).",
+      "pickAtLeastOne": "Pick at least one thing to generate.",
+      "generateFailedStatus": "Couldn't start the build (status {status})."
     },
     "result": {
       "sourceWebGrounded": "web-grounded",

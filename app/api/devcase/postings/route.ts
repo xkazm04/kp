@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { listPostings, listSubmissions } from "@/app/_lib/db";
 import { latestOutcomeByRefs } from "@/app/_lib/dev-outcomes";
 
-export const runtime = "nodejs";
 
 // Postings (OUT) with their received submissions (IN) inlined, each carrying its latest
 // recorded outcome from the dev-outcomes store (submission.id is the `ref` by contract).

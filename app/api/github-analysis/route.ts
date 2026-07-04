@@ -17,7 +17,6 @@ import { withGeminiRetry } from "@/app/_lib/gemini-retry";
 import { resolveProviderKey } from "@/app/_lib/llm-config";
 import { insertLlmUsage } from "@/app/_lib/db/llm";
 
-export const runtime = "nodejs";
 export const maxDuration = 60;
 
 const GEMINI_MODEL = "gemini-3-flash-preview";

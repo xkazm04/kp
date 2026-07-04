@@ -68,8 +68,8 @@ export function normalizeSalaryBand(min: unknown, max: unknown): SalaryBand | nu
 
 // The grounded market-salary band the JD builder renders and persists, as
 // produced by `market_salary_cli`. This is the canonical shape — `jd-build-run`
-// (server) and `JdBuilderResult` (client) both import it instead of redeclaring
-// it, so the producer and the renderer can't drift.
+// (server) and the Ledger detail's SalaryCard (client) both import it instead of
+// redeclaring it, so the producer and the renderer can't drift.
 //
 // `available` is the trust-boundary discriminant: the CLI result reaches us via
 // `parsePythonJson` and a lying `as` cast, so any field may be missing, NaN, the

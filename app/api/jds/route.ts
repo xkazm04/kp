@@ -1,10 +1,9 @@
 import { NextResponse } from "next/server";
 import { countAnalysesByJd, listJds, saveJd } from "@/app/_lib/db";
-import { listJobStatuses } from "@/app/_lib/job-ingest";
+import { listJobRoleMeta, listJobStatuses } from "@/app/_lib/job-ingest";
 import { jdJobId, validateJdFields } from "@/app/_lib/jd-limits";
 import { safeJsonError } from "@/app/_lib/api-response";
 
-export const runtime = "nodejs";
 
 export async function GET() {
   try {
@@ -17,11 +16,22 @@ export async function GET() {
     // candidate count (one GROUP BY for all rows) feeds the Library tab's
     // "Candidates (N)" toggle, which replaced the public JD page's aside.
     const counts = countAnalysesByJd();
-    const jds = rows.map((row) => ({
-      ...row,
-      jobStatus: statuses[jdJobId(row.slug)] ?? null,
-      analysisCount: counts[row.slug] ?? 0,
-    }));
+    // The linked jd-<slug> job's role family + seniority (one query for all rows)
+    // feed the library's Field and Seniority columns; an analysis-only JD with no
+    // job behind it has neither and renders "—".
+    const roleMeta = listJobRoleMeta();
+    const jds = rows.map((row) => {
+      const jobId = jdJobId(row.slug);
+      const meta = roleMeta[jobId];
+      return {
+        ...row,
+        jobStatus: statuses[jobId] ?? null,
+        analysisCount: counts[row.slug] ?? 0,
+        roleFamily: meta?.roleFamily ?? null,
+        seniority: meta?.seniority ?? null,
+        company: meta?.company ?? null,
+      };
+    });
     return NextResponse.json({ jds });
   } catch (error) {
     return safeJsonError(error, "api:jds", "JD_LIST_FAILED");

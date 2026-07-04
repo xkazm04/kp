@@ -5,10 +5,10 @@ import { useTranslations } from "next-intl";
 import type { JdLintFinding } from "@/app/_lib/jd-lint";
 
 // The inclusivity + specificity lint findings panel, extracted so the SAME panel
-// renders on every authoring surface — the AI builder (JdBuilderResult), the paste
-// form (LibraryJdForm), and the public-page in-place editor (JdActions). It used to
-// be inline in the builder only, so a pasted or hand-edited JD shipped with no
-// inclusivity/quality check at all. Reads the existing `library.result.lint*` keys.
+// renders on every authoring surface — the public-page in-place editor
+// (JdActions) and any future builder-side lint. It used to be inline in the
+// builder only, so a hand-edited JD shipped with no inclusivity/quality check at all.
+// Reads the existing `library.result.lint*` keys.
 export function JdLintPanel({ findings }: { findings: JdLintFinding[] }) {
   const t = useTranslations("library.result");
   if (!findings.length) {

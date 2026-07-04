@@ -2,8 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { BillingConfigError, ingestBillingWebhook, polarGatewayFromEnv } from "@/app/_lib/billing";
 import { WebhookVerificationError } from "@/app/_lib/billing/webhook-verify";
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
 
 // Provider → us. The ONLY write path for money state (billing_state /
 // billing_credits): signature-verified (standard-webhooks HMAC), idempotent on

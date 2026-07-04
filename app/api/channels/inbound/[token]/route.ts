@@ -11,8 +11,6 @@ import { readTextWithLimit } from "@/app/_lib/request-body";
 import { claimWebhookIdempotency, releaseWebhookIdempotency, webhookIdempotencyKey } from "@/app/_lib/webhook-idempotency";
 import { DEFAULT_LOCALE, isLocale, type Locale } from "@/i18n/locales";
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
 
 // E3 (Erika gap) — the PUBLIC inbound lead receiver: external lead sources (ad
 // platform integrations, job boards, plain HTML forms) POST JSON here and the

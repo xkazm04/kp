@@ -269,7 +269,9 @@ def evaluate_entry(entry: dict[str, Any]) -> dict[str, Any]:
 # ============================================================================
 
 
-def screen_candidate(candidate: MatchCandidate, job: Job, m, *, provider: Any | None = None, github: Any | None = None) -> tuple[dict, str]:
+def screen_candidate(candidate: MatchCandidate, job: Job, m, *, lang: str = "en", provider: Any | None = None, github: Any | None = None) -> tuple[dict, str]:
+    from .i18n import language_directive
+
     ctx = reasoning_context(candidate, job, m)
     early = candidate.archetype in _EARLY_CAREER
     # PRE-LLM FAIRNESS GATE: a learnable-gap early-career candidate is never auto-rejected.
@@ -288,7 +290,12 @@ def screen_candidate(candidate: MatchCandidate, job: Job, m, *, provider: Any | 
             else ""
         )
         + f'Return JSON: {{ "recommendation": "{RECOMMENDATION_CHOICES}", "confidence": int 0-100, '
-        '"rationale": str, "strengths": [str], "redFlags": [str] }. JSON only.'
+        '"rationale": str, "strengths": [str], "redFlags": [str] }. JSON only.\n'
+        # rationale / strengths / redFlags are the recruiter-facing screening prose
+        # (surfaced in Decisions); generate them in the requested language while the
+        # recommendation code value stays verbatim. Deterministic fallback below
+        # stays English.
+        + language_directive(lang)
     )
 
     def deterministic() -> dict:
@@ -578,7 +585,9 @@ def _scorecard_confidence(notes: str, ratings: list[dict], total: int) -> dict:
     return {"level": "moderate", "reason": "Partial evidence across the competencies."}
 
 
-def interview_scorecard(candidate: MatchCandidate, job: Job, notes: str, *, provider: Any | None = None, github: Any | None = None):
+def interview_scorecard(candidate: MatchCandidate, job: Job, notes: str, *, lang: str = "en", provider: Any | None = None, github: Any | None = None):
+    from .i18n import language_directive
+
     # `model` is the base scoring model (experienced / early_career) — still the
     # value reported as result["scoringModel"] and used by the compare grid for
     # grouping. The scored rubric is that base PLUS any industry axes for the
@@ -619,7 +628,12 @@ def interview_scorecard(candidate: MatchCandidate, job: Job, notes: str, *, prov
         'Return JSON: { "ratings": [ { "competency": str (exactly one of the above), "rating": int 1-5, '
         '"evidence": str (verbatim candidate quote, or "") } ], "summary": str, '
         f'"recommendation": "{RECOMMENDATION_CHOICES}" }}. '
-        "Include every competency, in the order listed. JSON only."
+        "Include every competency, in the order listed. JSON only.\n"
+        # summary + the recommendation rationale are recruiter-facing prose;
+        # generate them in the requested language. The per-competency `evidence`
+        # stays a verbatim candidate quote and the competency + recommendation code
+        # values stay verbatim. Deterministic fallback below stays English.
+        + language_directive(lang)
     )
 
     def deterministic() -> dict:

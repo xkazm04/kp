@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { getPostingByToken, startDevSession } from "@/app/_lib/db";
 import { jsonError } from "@/app/_lib/api-response";
 
-export const runtime = "nodejs";
 
 // Live Work Surface (moonshot E) — start an in-product work session for a dev-case
 // apply token. Validates the token maps to an OPEN posting (don't orphan sessions

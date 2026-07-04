@@ -36,6 +36,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Comparative summary across a role's candidates.")
     parser.add_argument("--input-json", type=Path, help="Comparison context JSON. Reads stdin if omitted.")
     parser.add_argument("--no-llm", action="store_true", help="Force the deterministic synthesis.")
+    parser.add_argument("--lang", default="en", help="Output locale for the narrative (en, cs).")
     args = parser.parse_args(argv)
 
     try:
@@ -47,7 +48,7 @@ def main(argv: list[str] | None = None) -> int:
         provider = None if args.no_llm else resolve_provider("group_compare", timeout=120)
         if provider is not None and not provider.available():
             provider = None
-        comparison, source = generate(context, provider=provider)
+        comparison, source = generate(context, lang=args.lang, provider=provider)
         if source == "deterministic":
             # Keyless/failed fallback served — record it in the usage ledger so
             # template traffic stops being invisible (no-op without KP_LLM_USAGE_LOG).

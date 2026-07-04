@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { getDevSession, getPostingByToken, submitDevSession } from "@/app/_lib/db";
 import { jsonError } from "@/app/_lib/api-response";
 
-export const runtime = "nodejs";
 
 // Live Work Surface (moonshot E) — finalize a session: resolve the posting from the
 // session's token and create the linked submission (idempotent via submitDevSession).

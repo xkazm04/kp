@@ -4,7 +4,6 @@ import { AutomationError, runAutomationTask } from "@/app/_lib/automation-run";
 import { inferProfileLocale } from "@/app/_lib/comms-locale";
 import { safeJsonError } from "@/app/_lib/api-response";
 
-export const runtime = "nodejs";
 // The outreach draft spawns the Claude CLI (automation_cli) — comfortably exceed
 // its provider timeout so a slow-but-valid draft isn't killed at 60s (matches the
 // analyze/ingest routes).

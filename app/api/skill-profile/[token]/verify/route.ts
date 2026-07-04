@@ -2,8 +2,6 @@ import { NextResponse } from "next/server";
 import { verifySkillProfileToken } from "@/app/_lib/db";
 import { jsonError } from "@/app/_lib/api-response";
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
 
 // Durable Skill Profile (moonshot A) — the public verification lookup. A third
 // party (or a candidate's embedded badge) confirms a presented token is a genuine,

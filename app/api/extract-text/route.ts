@@ -10,7 +10,6 @@ import {
 import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
 import { validateUploadServer } from "@/app/_lib/upload-constraints";
 
-export const runtime = "nodejs";
 export const maxDuration = 60;
 
 // Kill the Python child a few seconds INSIDE the function's own hard limit

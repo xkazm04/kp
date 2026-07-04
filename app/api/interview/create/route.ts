@@ -15,7 +15,6 @@ import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import { coerceLanguage, pickDefaultProvider, voiceAvailability, type VoiceProviderId } from "@/app/_lib/voice";
 import { GROUNDED_DEFAULT_MIN } from "@/app/_lib/interview-duration.mjs";
 
-export const runtime = "nodejs";
 
 // POST → recruiter creates a candidate-mode voice screen for a pipeline entry.
 // Builds grounded interviewer questions (Task 4) and returns a tokenized link

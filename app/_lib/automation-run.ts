@@ -19,6 +19,8 @@ import { buildLlmConfigEnv } from "./llm-config";
 import { computeAutomationCacheKey, computeCorpusFingerprint, GITHUB_EVIDENCE_TASKS } from "./automation-cache-key";
 import { screenStageOutcome } from "./pipeline-stages";
 import { resolveCommsLocale } from "./comms-locale";
+import { getWorkspaceDefaultLocale } from "./db/workspaces";
+import { isLocale, type Locale } from "@/i18n/locales";
 import { dispatchOutreach } from "./comms-dispatch";
 import {
   coerceInterviewRecommendation,
@@ -51,6 +53,12 @@ export const AUTOMATION_VERSION: Record<string, string> = {
 // letter and its deterministic chrome (subject fallback, offer terms/response
 // footers, GDPR footer) can never disagree (OO-L1-03's two-authorities defect).
 const LETTER_TASKS = new Set(["outreach", "rejection", "offer"]);
+// The tasks whose output is recruiter-facing NARRATIVE (screening rationale,
+// interview prep, scorecard summary — all surfaced in Decisions): their language
+// is the recruiter's UI locale (getServerLocale = the org's app language), passed
+// as --lang. It is also a cache axis so a locale change can't serve a cached
+// wrong-language narrative for the 168h TTL.
+const UI_LANG_TASKS = new Set(["prep", "screen", "scorecard"]);
 // Event kind for the generic "drafted" tasks — ONLY those that fall through to the
 // catch-all branch below (currently rejection + prep). screen/scorecard/offer/
 // rematch/outreach each have their own branch and record their own event, so they
@@ -142,6 +150,15 @@ export async function runAutomationTask(entryId: string, task: string, notes = "
   // resolved HERE — not left to the CV-language guess inside Python — so the
   // letter provably matches the locale comms-dispatch wraps it in.
   const letterLang = LETTER_TASKS.has(task) ? resolveCommsLocale(entry.locale) : undefined;
+  // Recruiter-narrative tasks (prep/screen/scorecard) render in the caller's UI
+  // locale when it passed one (getServerLocale, request scope), else the org's
+  // configured language (the workspace default) — so a background pass localizes
+  // too, never a silent English default. Mirrors resolveCommsLocale's fallback.
+  const uiLang: Locale | undefined = UI_LANG_TASKS.has(task)
+    ? isLocale(lang)
+      ? lang
+      : getWorkspaceDefaultLocale()
+    : undefined;
   const cacheKey = computeAutomationCacheKey({
     version,
     task,
@@ -151,10 +168,11 @@ export async function runAutomationTask(entryId: string, task: string, notes = "
     stage: entry.stage,
     notes,
     corpusFingerprint: corpusJobs ? computeCorpusFingerprint(corpusJobs.map((j) => j.id)) : undefined,
-    // PREP2 — the prep narrative locale is a cache axis; for the letter tasks the
-    // RESOLVED letter locale is one too (a locale fix must not serve a cached
-    // wrong-language letter for up to 7 days). Other tasks ignore it.
-    lang: task === "prep" ? (lang === "cs" ? "cs" : "en") : letterLang,
+    // PREP2 — the recruiter-narrative locale (prep/screen/scorecard, uiLang) is a
+    // cache axis; for the letter tasks the RESOLVED letter locale is one too (a
+    // locale fix must not serve a cached wrong-language output for up to 7 days).
+    // Tasks in neither set (rematch) ignore it.
+    lang: uiLang ?? letterLang,
     githubEvidenceJson: githubEvidenceJson ?? undefined,
   });
 
@@ -186,11 +204,12 @@ export async function runAutomationTask(entryId: string, task: string, notes = "
         await writeFile(notesPath, notes, "utf-8");
         args.push("--notes-file", notesPath);
       }
-      // PREP2 — the prep narrative renders in the recruiter's UI locale; the
-      // LETTER tasks (outreach/rejection/offer) render in the CANDIDATE'S
-      // resolved comms locale, so the Python-drafted letter and the TS-rendered
-      // chrome around it are one language authority.
-      if (task === "prep") args.push("--lang", lang === "cs" ? "cs" : "en");
+      // PREP2 — the recruiter-narrative tasks (prep/screen/scorecard) render in the
+      // resolved uiLang (the org's app language); the LETTER tasks
+      // (outreach/rejection/offer) render in the CANDIDATE'S resolved comms locale,
+      // so the Python-drafted letter and the TS-rendered chrome around it are one
+      // language authority. The two sets are disjoint — at most one --lang is pushed.
+      if (uiLang) args.push("--lang", uiLang);
       if (letterLang) args.push("--lang", letterLang);
       // GH7 — hand the persisted GitHub evidence to the screen/prep/scorecard
       // prompts (mirrors the --notes-file pattern). Python renders it as a

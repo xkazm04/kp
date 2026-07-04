@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { setChannelSpend } from "@/app/_lib/db";
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
 
 // E5 — recruiter-entered spend per inbound source channel (CZK), the
 // denominator for the cost-per-applicant / cost-per-hire columns. A null (or

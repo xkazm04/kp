@@ -8,6 +8,12 @@ import { BTN_PRIMARY, EYEBROW, INTRO, PANEL, TITLE_DISPLAY } from "@/app/_compon
 // default. Server component: the locale resolves through the same per-request
 // path as every other server page (i18n/request.ts → cookie → Accept-Language
 // → default), so the copy is bilingual without any client JS.
+// This 404 renders per-request localized copy — getTranslations resolves the
+// locale from the cookie/Accept-Language header, which is runtime data. Under
+// Cache Components that can't be statically prerendered, so Block the route
+// (render it dynamically at request time, its behavior before this flag).
+export const instant = false;
+
 export default async function NotFound() {
   const t = await getTranslations("resilience");
   return (

@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { issueSkillProfile } from "@/app/_lib/db";
 import { jsonError } from "@/app/_lib/api-response";
 
-export const runtime = "nodejs";
 
 // Durable Skill Profile (moonshot A) — mint a signed credential from an evaluated
 // dev-case submission (recruiter-triggered from the dev studio). Idempotent per

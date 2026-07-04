@@ -2,8 +2,6 @@ import { NextResponse } from "next/server";
 import { pipelineAnalytics } from "@/app/_lib/db";
 import { periodDeltas } from "@/app/_lib/analytics-deltas";
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
 
 // ANA2 — bounds for the optional ?days= window. Absent/invalid → all time (the
 // historical behavior); a numeric value clamps into range (same defensive-param

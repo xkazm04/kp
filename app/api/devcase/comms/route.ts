@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { listOutbox } from "@/app/_lib/db";
 
-export const runtime = "nodejs";
 
 // The comms outbox — every outbound message (acks, invites), the audit log of what the
 // pipeline sent. Status is the three-state delivery contract (comms-status.ts):

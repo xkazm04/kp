@@ -3,7 +3,6 @@ import { DEMO_WORKSPACE, SESSION_COOKIE, signSession } from "@/app/_lib/auth/ses
 import { demoSessionAllowed } from "@/app/_lib/workspace-lock";
 import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
 
-export const runtime = "nodejs";
 
 // Public, anonymous entry to the guided product simulation (B1 / UAT). A prospect
 // has no operator session, so the fail-closed proxy (proxy.ts) would 401 every

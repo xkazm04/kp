@@ -14,7 +14,6 @@ import {
   studentRunOfShow,
 } from "@/app/_lib/student-interview";
 
-export const runtime = "nodejs";
 
 type SimMode = "student" | "student-case" | "regular";
 

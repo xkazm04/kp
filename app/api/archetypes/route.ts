@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createArchetype, listArchetypes } from "@/app/_lib/archetype-registry";
 
-export const runtime = "nodejs";
 
 // Live archetype registry for the Profile management UI (reads the shared JSON
 // fresh, so an edit is reflected immediately regardless of the static import).

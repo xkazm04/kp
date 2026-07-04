@@ -134,7 +134,7 @@ def main(argv: list[str] | None = None) -> int:
         m = score_job(candidate, job)
 
         if args.command == "screen":
-            result, source = automation.screen_candidate(candidate, job, m, provider=provider, github=github)
+            result, source = automation.screen_candidate(candidate, job, m, lang=lang or "en", provider=provider, github=github)
         elif args.command == "outreach":
             strengths = json.loads(args.strengths_json.read_text(encoding="utf-8")) if args.strengths_json else m.matched_skills
             result, source = automation.draft_outreach(candidate, job, strengths, lang=lang, provider=provider)
@@ -144,7 +144,7 @@ def main(argv: list[str] | None = None) -> int:
             result, source = automation.interview_prep(candidate, job, m, lang=lang or "en", provider=provider, github=github)
         elif args.command == "scorecard":
             notes = args.notes_file.read_text(encoding="utf-8") if args.notes_file else ""
-            result, source = automation.interview_scorecard(candidate, job, notes, provider=provider, github=github)
+            result, source = automation.interview_scorecard(candidate, job, notes, lang=lang or "en", provider=provider, github=github)
         elif args.command == "offer":
             result, source = automation.draft_offer(candidate, job, m, lang=lang, provider=provider)
         else:  # pragma: no cover

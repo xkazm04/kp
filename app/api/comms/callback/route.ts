@@ -3,8 +3,6 @@ import { recordOutbox } from "@/app/_lib/db";
 import { isBounceOutcome } from "@/app/_lib/comms-status";
 import { jsonError, jsonOk, safeJsonError } from "@/app/_lib/api-response";
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
 
 // CW-2 (communications-inbound-channels #2) — the relay delivery-status callback.
 // The WebhookChannel marks a message `sent` on the relay's HTTP 2xx, which means

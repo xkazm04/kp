@@ -39,8 +39,6 @@ function safeStatusLink(entryId: string): string | null {
   }
 }
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
 
 // Input caps for this PUBLIC, unauthenticated, side-effecting endpoint. Without
 // them a single POST can buffer a multi-hundred-MB body in the Node heap

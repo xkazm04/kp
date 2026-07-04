@@ -2,8 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { createChannelWebhook, getJob, isWebhookChannel, listChannelWebhooks } from "@/app/_lib/db";
 import { isLocale } from "@/i18n/locales";
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
 
 // E3 (Erika gap) — recruiter management of inbound channel webhooks. Each
 // webhook binds one (channel, job, candidate-language) and yields the public

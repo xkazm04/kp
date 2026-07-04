@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { getGroupEval, listEvaluatedRoles } from "@/app/_lib/group-eval";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 
-export const runtime = "nodejs";
 
 // Read saved group evaluations. The evaluation is GENERATED via the background
 // task system (kind "group_eval" → runGroupEval saves here); this route only

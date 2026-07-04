@@ -5,7 +5,6 @@ import { startTask } from "@/app/_lib/tasks";
 import { getServerLocale } from "@/i18n/server";
 import { isLocale } from "@/i18n/locales";
 
-export const runtime = "nodejs";
 
 // Direction A: start an automated lifecycle from a need, or list active ones.
 export async function GET() {

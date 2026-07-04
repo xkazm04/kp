@@ -3,7 +3,6 @@ import { getJob, getPipelineEntry, setApproval } from "@/app/_lib/db";
 import { jsonError } from "@/app/_lib/api-response";
 import { normalizeSalaryBand } from "@/app/_lib/salary-band";
 
-export const runtime = "nodejs";
 
 // Deterministic offer draft for the simulation spine — NO LLM (salary from the
 // job-band midpoint), so the keyless run doesn't depend on the Claude CLI offer

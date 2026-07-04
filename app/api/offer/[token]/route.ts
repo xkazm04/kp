@@ -3,7 +3,6 @@ import { offerView, respondToOffer } from "@/app/_lib/offer-finalize";
 import { jsonOk, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
 
-export const runtime = "nodejs";
 
 // Candidate-facing offer response (token-gated). GET renders the summary for the
 // public /offer/[token] page; POST captures accept/decline and runs the terminal

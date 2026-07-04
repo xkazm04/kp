@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { getActiveRegimeId } from "@/app/_lib/decision-config-store";
 import { consentRetentionMonths } from "@/app/_lib/consent";
 
-export const runtime = "nodejs";
 
 // P1-1 — the workspace's active compliance jurisdiction, read by the public
 // candidate-facing AiDisclosure (a client component that can't reach the DB) so

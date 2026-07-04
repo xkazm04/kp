@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { listDevCases, saveDevCase } from "@/app/_lib/db";
 
-export const runtime = "nodejs";
 
 // GET: approved case scenarios. POST: the human gate — approve a designed role+case.
 export async function GET() {

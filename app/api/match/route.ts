@@ -11,7 +11,6 @@ import {
   spawnPython,
 } from "@/app/_lib/python-runner";
 
-export const runtime = "nodejs";
 
 // match() does scored[:limit] in Python, so the limit must be a sane positive
 // integer: a negative value silently drops the last N matches, 0 returns nothing

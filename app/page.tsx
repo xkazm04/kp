@@ -20,6 +20,13 @@ import { HomeGate } from "@/app/_components/auth/HomeGate";
 // so HomeGate needs no useSearchParams (and no extra Suspense). The param
 // persists across the sim's navigations (it isn't tab-scoped), so demo mode holds
 // for the whole run.
+// '/' awaits searchParams (?sim=auto) and gates on the auth cookie (HomeGate),
+// both per-request and outside the Workspace Suspense boundary, so it can't be
+// statically prerendered under Cache Components. Block it — its prior behavior.
+// (Section switching inside the workspace is ?tab= query state handled
+// client-side by Workspace, so it stays instant regardless.)
+export const instant = false;
+
 export default async function Home({
   searchParams,
 }: {

@@ -4,7 +4,6 @@ import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { multiWorkspaceEnabled } from "@/app/_lib/workspace-lock";
 import { jsonError } from "@/app/_lib/api-response";
 
-export const runtime = "nodejs";
 
 // Workspace CRUD (P2). Recruiter-gated (the proxy allow-list excludes it). GET
 // lists workspaces + the session's active one; POST creates one. Switching the

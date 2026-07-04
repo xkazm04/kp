@@ -6,7 +6,6 @@ import { withCanonicalScores } from "@/app/_lib/match-score-resolve";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { safeJsonError } from "@/app/_lib/api-response";
 
-export const runtime = "nodejs";
 
 export async function GET() {
   try {

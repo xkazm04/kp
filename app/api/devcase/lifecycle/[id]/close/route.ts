@@ -3,7 +3,6 @@ import { getLifecycle, listPostings, listSubmissions, setPostingStatus, updateLi
 import { sendComm } from "@/app/_lib/comms";
 import { recordAudit } from "@/app/_lib/dev-control";
 
-export const runtime = "nodejs";
 
 // W5-3 (DEVO3) — human-gated case close-out. "closed" sat in the lifecycle
 // STAGES (and the control room's TERMINAL set) with no writer: a lifecycle

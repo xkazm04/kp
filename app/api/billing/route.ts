@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
 import { billingOverview, PACKS, PLANS, polarGatewayFromEnv } from "@/app/_lib/billing";
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
 
 // Billing overview (docs/BILLING.md): the entitled plan, per-meter allowance
 // state (included limit, month's usage, prepaid credits, remaining), and the

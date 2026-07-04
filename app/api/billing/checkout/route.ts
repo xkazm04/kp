@@ -3,8 +3,6 @@ import { isPackId, isPlanId, polarGatewayFromEnv, type CheckoutRequest } from "@
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
 
 // Start a checkout: body { plan: "starter"|"growth"|"byom" } XOR { pack:
 // "minutes_100" }. Returns the provider-hosted checkout URL — the client

@@ -3,8 +3,6 @@ import { listDecisionRecords, verifyDecisionChain } from "@/app/_lib/decision-re
 import { jsonError } from "@/app/_lib/api-response";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
 
 // Decision System of Record (moonshot D) — read the sealed, hash-chained decision
 // records (today: the auto-rejections sealed by screen-wave) plus a tamper-evidence

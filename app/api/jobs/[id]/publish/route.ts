@@ -6,7 +6,6 @@ import { runSourceForRole } from "@/app/_lib/devcase-run";
 import { raiseRediscoveryAlertsForJob } from "@/app/_lib/rediscover";
 import { splitRequirements } from "@/app/features/sub_jobs/JobsTypes";
 
-export const runtime = "nodejs";
 export const maxDuration = 60;
 
 // Take a draft job live: flip its status to 'published' and source candidates

@@ -46,6 +46,17 @@ export function getWorkspaceDefaultLocale(id: string = DEFAULT_WORKSPACE_ID): Lo
   return isLocale(value) ? value : WORKSPACE_LOCALE_FALLBACK;
 }
 
+/** Set the workspace's default locale — the org's configured language. Validated
+ *  before write so the column can only ever hold a supported locale. This is the
+ *  authority available OUTSIDE a request (background automation passes, candidate-
+ *  comms fallback via getWorkspaceDefaultLocale); the NEXT_LOCALE cookie is its
+ *  request-scoped counterpart. Settings → Organization writes both together. */
+export function setWorkspaceDefaultLocale(locale: Locale, id: string = DEFAULT_WORKSPACE_ID): void {
+  if (!isLocale(locale)) return;
+  const db = ensureDb();
+  db.prepare(`UPDATE workspaces SET default_locale = ? WHERE id = ?`).run(locale, id);
+}
+
 export function createWorkspace(name: string): Workspace {
   const db = ensureDb();
   const id = randomId("ws");

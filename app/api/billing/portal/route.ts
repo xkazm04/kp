@@ -3,8 +3,6 @@ import { polarGatewayFromEnv } from "@/app/_lib/billing";
 import { getBillingState } from "@/app/_lib/db";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
 
 // Customer portal (manage/cancel the subscription, download MoR invoices):
 // mints a provider customer-session and returns its URL. Needs a synced

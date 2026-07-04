@@ -2,8 +2,6 @@ import { NextResponse } from "next/server";
 import { dumpWorkspace } from "@/app/_lib/db-portability";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
 
 // DATA3 — download the ENTIRE kp database as one portable kp-db-dump JSON file
 // (the db-dump.mjs format; db-load.mjs and the import endpoint both restore

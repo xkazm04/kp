@@ -4,7 +4,6 @@ import { DecisionConfigError, validateScreeningOverride } from "@/app/_lib/decis
 import { operatorApprover } from "@/app/_lib/auth/operator-approver";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 
-export const runtime = "nodejs";
 export const maxDuration = 60;
 
 // Run the screening auto-reject wave over one role's matched cohort. An optional

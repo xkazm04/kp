@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { createHash, timingSafeEqual } from "node:crypto";
 import { SESSION_COOKIE, SESSION_TTL_MS, signSession } from "@/app/_lib/auth/session";
 
-export const runtime = "nodejs";
 
 // Constant-time compare via fixed-length sha256 digests (no length-leak, no early
 // return) — the operator password is the only secret here.

@@ -2,8 +2,6 @@ import { NextResponse } from "next/server";
 import { searchEntities } from "@/app/_lib/db";
 import { safeJsonError } from "@/app/_lib/api-response";
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
 
 // SHELL1 — the command palette's cross-entity search. Read-only LIKE lookup
 // across profiles / pipeline entries / jobs / saved JDs / analyses (capped per

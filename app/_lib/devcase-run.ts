@@ -22,6 +22,7 @@ import { MAX_CODEBASES } from "./devcase-constraints";
 import { scoreAuthenticity, PASTE_BULK_CHARS, type Authenticity } from "./devcase-authenticity";
 import { seedDiffEvidence, type SeedDiff } from "./devcase-seed-diff";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, PipelineError, spawnPython } from "./python-runner";
+import { buildLlmConfigEnv } from "./llm-config";
 import { buildRepoSnapshot, fetchRepoSignals, type RepoSnapshot } from "./repo-snapshot";
 import { isEarlyCareer } from "./archetypes";
 import { devCaseIdFromJobId } from "./student-interview";
@@ -42,7 +43,11 @@ async function runDevcaseCli<T>(
   const workdir = await createWorkdir();
   try {
     const args = await build(workdir);
-    const { result } = spawnPython(["-m", "pipeline.jobfit.devcase.devcase_cli", ...args], { signal });
+    // Route the devcase LLM steps (analyze-need, design-artifacts) through the
+    // workspace Models config so model/max-tokens/timeout are configurable — same
+    // wiring automation-run/reasoning-run use. `{}` when nothing is configured
+    // (Python then defaults to the Claude CLI, unchanged).
+    const { result } = spawnPython(["-m", "pipeline.jobfit.devcase.devcase_cli", ...args], { signal, env: buildLlmConfigEnv() });
     const { stdout, stderr, exitCode } = await result;
     if (exitCode !== 0) throw new PipelineError(parseStderrError(stderr, exitCode));
     return parsePythonJson<T>(stdout, stderr);
@@ -85,7 +90,10 @@ export type NeedAnalysisResult = {
 };
 
 // D2 core: pull the real codebase(s), then reflect the need against them (LLM + fallback).
-export async function runNeedAnalysis(need: DevNeed, signal?: AbortSignal): Promise<NeedAnalysisResult> {
+// `lang` (#6) writes the analysis free-text in the JD language so the downstream
+// role/case design reads a language-consistent artifact; defaults to en (the
+// analysis is internal, so callers that don't care can omit it).
+export async function runNeedAnalysis(need: DevNeed, signal?: AbortSignal, lang?: string | null): Promise<NeedAnalysisResult> {
   const ghRefs = (need.codebaseRefs ?? [])
     .filter((r) => r.kind === "github" || /github\.com/.test(r.ref))
     .slice(0, MAX_CODEBASES);
@@ -97,7 +105,7 @@ export async function runNeedAnalysis(need: DevNeed, signal?: AbortSignal): Prom
     async (workdir) => {
       const needPath = path.join(workdir, "need.json");
       await writeFile(needPath, JSON.stringify(need), "utf-8");
-      const args = ["analyze-need", "--need-json", needPath];
+      const args = ["analyze-need", "--need-json", needPath, "--lang", lang || "en"];
       if (snapshots.length > 0) {
         const snapPath = path.join(workdir, "snapshots.json");
         await writeFile(snapPath, JSON.stringify(snapshots), "utf-8");
@@ -126,9 +134,14 @@ export async function runDesignArtifacts(
   analysis: Record<string, unknown>,
   signal?: AbortSignal,
   feedback?: string,
-  lang?: string | null
+  lang?: string | null,
+  // withCase=false skips the case-design LLM call (`--role-only`) and returns
+  // `case: {}`. The JD builder passes false when "Case analysis" isn't ticked, so
+  // a description-only build no longer pays for a case it discards. All other
+  // callers (lifecycle, redesign) keep the default and always get a real case.
+  withCase: boolean = true
 ): Promise<DesignArtifactsResult> {
-  const payload = await runDevcaseCli<{ result: { role: Record<string, unknown>; case: Record<string, unknown> }; source: string; perStepSources?: Record<string, string>; fallbackReason?: Record<string, string> }>(
+  const payload = await runDevcaseCli<{ result: { role: Record<string, unknown>; case?: Record<string, unknown> }; source: string; perStepSources?: Record<string, string>; fallbackReason?: Record<string, string> }>(
     async (workdir) => {
       const needPath = path.join(workdir, "need.json");
       const analysisPath = path.join(workdir, "analysis.json");
@@ -143,12 +156,13 @@ export async function runDesignArtifacts(
         // DEVP5 — the case brief/tasks the candidate reads render in this language.
         "--lang",
         lang || "en",
+        ...(withCase ? [] : ["--role-only"]),
         ...(feedback && feedback.trim() ? ["--feedback", feedback.trim()] : []),
       ];
     },
     signal,
   );
-  return { role: payload.result.role, case: payload.result.case, source: payload.source, perStepSources: payload.perStepSources ?? {}, fallbackReason: payload.fallbackReason ?? {} };
+  return { role: payload.result.role, case: payload.result.case ?? {}, source: payload.source, perStepSources: payload.perStepSources ?? {}, fallbackReason: payload.fallbackReason ?? {} };
 }
 
 export type InterviewScenarioResult = {

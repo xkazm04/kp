@@ -1,190 +1,178 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Loader2, Settings2, Sparkles } from "lucide-react";
+import { Check, ChevronDown, Loader2, Save, Settings2, Sparkles } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { isLocale, LOCALES } from "@/i18n/locales";
-import { useTasks, useTaskResult } from "@/app/features/tasks/TasksProvider";
-import { JdBuilderResult, type JdBuildResult } from "./JdBuilderResult";
+import type { GeneratePrefill } from "./jd-library";
 import { JdTemplateManager } from "./JdTemplateManager";
-import { fetchTemplates, renderTemplate, type Template } from "./render-template";
-import { marketSalaryLabel, normalizeMarketSalary } from "@/app/_lib/salary-band";
-import { validateJdBuildInput } from "@/app/_lib/jd-limits";
+import { fetchTemplates, type Template } from "./render-template";
+import { validateJdBuildInput, validateJdFields } from "@/app/_lib/jd-limits";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { ROLE_FAMILY_SLUGS } from "@/app/_lib/role-families";
+import { readClientOrgName } from "@/app/_lib/org-settings";
+import { RichTextEditor } from "@/app/_components/RichTextEditor";
 
 const SENIORITIES = ["junior", "medior", "senior", "lead"];
 // Role-family slugs (canonical; the display label comes from the enums catalog).
 const FAMILIES = ROLE_FAMILY_SLUGS;
 const INP = "focus-ring w-full rounded-md border border-stone-200 px-2.5 py-1.5 text-sm";
 
-// AI job-description builder: free-text need (+ optional public GitHub repo for
-// dev roles) → our need→design machinery → an editable, publishable JD with a
-// web-grounded market-salary analysis.
-export function JdBuilder({ onSaved }: { onSaved: () => void }) {
+// AI job-description builder. "Generate" opens a checklist (description / market
+// research / interview case) and hands the work to the detached jd_build task via
+// POST /api/jds/generate: the JD appears in the Ledger immediately as "Analyzing"
+// and fills in server-side, so it completes even if the recruiter navigates away.
+// "Save as draft" still persists the form's own input straight to the library
+// without any AI round-trip.
+export function JdBuilder({ onSaved, prefill }: { onSaved: () => void; prefill?: GeneratePrefill }) {
   const t = useTranslations("library.builder");
   const enumLabel = useEnumLabel();
-  const { startTask, fetchTask } = useTasks();
   // Deep-link / simulation prefill (jd* query params) — mirrors MatchTab's pattern.
+  // A `prefill` prop (Duplicate → Generate) takes precedence over the query params;
+  // the component remounts per duplicate, so these mount-time seeds re-read it.
   const sp = useSearchParams();
-  const [title, setTitle] = useState(sp.get("jdTitle") ?? "");
-  const [company, setCompany] = useState(sp.get("jdCompany") ?? "");
-  const [seniority, setSeniority] = useState(sp.get("jdSeniority") ?? "medior");
-  const [roleFamily, setRoleFamily] = useState(sp.get("jdFamily") ?? "software_engineering");
-  const [needText, setNeedText] = useState(sp.get("jdNeed") ?? "");
+  const [title, setTitle] = useState(prefill?.title ?? sp.get("jdTitle") ?? "");
+  // Company defaults to the Duplicate source, then a deep-link prefill (?jdCompany),
+  // then the organization name (Settings → Organization). Lazy init reads the org
+  // cookie once on first render; the user's edits win after.
+  const [company, setCompany] = useState(() => prefill?.company ?? sp.get("jdCompany") ?? readClientOrgName());
+  const [seniority, setSeniority] = useState(prefill?.seniority ?? sp.get("jdSeniority") ?? "medior");
+  const [roleFamily, setRoleFamily] = useState(prefill?.roleFamily ?? sp.get("jdFamily") ?? "software_engineering");
+  const [needText, setNeedText] = useState(prefill?.need ?? sp.get("jdNeed") ?? "");
   const [repoUrl, setRepoUrl] = useState("");
   // JDL5 — the generated JD's output language, defaulting to the active locale
-  // (a Czech-market recruiter gets a Czech JD without hand-translating). The
-  // role content + salary summary generate in it; composeMarkdown headings too.
+  // (a Czech-market recruiter gets a Czech JD without hand-translating).
   const appLocale = useLocale();
   const [outputLang, setOutputLang] = useState(isLocale(appLocale) ? appLocale : "en");
 
-  // Template-first authoring: pick a company format, then let AI fill it. An
-  // empty templateId means "use the AI's own default formatting".
+  // Template-first authoring: pick a company format, then let AI fill it. An empty
+  // templateId means "use the AI's own default formatting". The build renders
+  // through the chosen template server-side (render-template.ts).
   const [templates, setTemplates] = useState<Template[]>([]);
   const [templateId, setTemplateId] = useState("");
   const [manageOpen, setManageOpen] = useState(false);
-  // Template-switch contract (see docs/JD_LIFECYCLE.md): templates are a LIVE
-  // reformat — switching after generation re-renders the AI output through the
-  // new format, which replaces the editable body. That is the intended behavior
-  // when the body is untouched, but it would silently discard manual edits. So
-  // when the result has been hand-edited (resultDirty), a switch is staged in
-  // pendingTemplateId and an inline confirm gates it instead of applying at once.
-  const [resultDirty, setResultDirty] = useState(false);
-  const [pendingTemplateId, setPendingTemplateId] = useState<string | null>(null);
-
-  // Tasks-tab outcome link (?jdTask=<id>) — rehydrate a finished jd_build whose
-  // result this builder lost when a tab switch unmounted it. Seeding it as the
-  // INITIAL taskId keeps the "generating" treatment up while the restore effect
-  // below fetches the full record (no flash of the empty state), and lets the
-  // useTaskResult bridge take over unchanged if the task is somehow still live.
-  const jdTaskParam = sp.get("jdTask");
-  const [taskId, setTaskId] = useState<string | null>(jdTaskParam);
-  const [result, setResult] = useState<JdBuildResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const loadTemplates = () =>
     fetchTemplates().then((list) => {
       setTemplates(list);
-      // Keep the current selection if it still exists; else default to the
-      // marked default, else the first (matches JdTemplates' reconciliation).
-      setTemplateId((cur) => (list.some((t) => t.id === cur) ? cur : list.find((t) => t.isDefault)?.id ?? list[0]?.id ?? ""));
+      // Keep the current selection if it still exists; else default to the marked
+      // default, else the first (matches JdTemplates' reconciliation).
+      setTemplateId((cur) => (list.some((tp) => tp.id === cur) ? cur : list.find((tp) => tp.isDefault)?.id ?? list[0]?.id ?? ""));
     });
   useEffect(() => {
     loadTemplates();
   }, []);
 
-  // taskId brackets the whole in-progress lifecycle: it's held until the on-demand
-  // result fetch lands (success) or an error is recorded (failure), so it doubles
-  // as the "generating" signal — no flash of the empty state during the fetch.
-  const { status: buildStatus, error: buildError, progressMsg: buildProgress, full: buildFull } = useTaskResult(taskId);
-  const generating = Boolean(taskId);
+  // Field = Software gates the "Codebase to analyze" input — public-repo enrichment
+  // is a dev-role feature, so it's shown AND submitted only for software roles.
+  const isSoftware = roleFamily === "software_engineering";
+  // Field options sorted by display name ascending (the raw slug order is grouped
+  // by domain, not alphabetical).
+  const familyOptions = useMemo(
+    () => FAMILIES.map((f) => ({ value: f, label: enumLabel("family", f) })).sort((a, b) => a.label.localeCompare(b.label)),
+    [enumLabel]
+  );
 
-  // Consume the ?jdTask deep link: fetch the full record once (the polled list
-  // omits result/params — and a history-aged task never appears on it at all)
-  // and restore both the form inputs and the generated JD. Mount-only by design:
-  // the link is consumed once, and the tab switch clears jdTask anyway. An
-  // unknown/expired/foreign id degrades silently to the empty builder; the
-  // guarded clear leaves a build the user started in the meantime watched.
-  useEffect(() => {
-    if (!jdTaskParam) return;
-    let cancelled = false;
-    void fetchTask(jdTaskParam).then((found) => {
-      if (cancelled) return;
-      const task = found && found.kind === "jd_build" ? found : null;
-      if (task) {
-        // Seed the inputs from the run's persisted params — the same fields
-        // generate() sent, so the restored form matches what produced the JD.
-        const p = (task.params ?? {}) as Record<string, unknown>;
-        if (typeof p.title === "string") setTitle(p.title);
-        if (typeof p.company === "string") setCompany(p.company);
-        if (typeof p.seniority === "string") setSeniority(p.seniority);
-        if (typeof p.roleFamily === "string") setRoleFamily(p.roleFamily);
-        if (typeof p.needText === "string") setNeedText(p.needText);
-        if (typeof p.repoUrl === "string") setRepoUrl(p.repoUrl);
-        if (typeof p.lang === "string" && isLocale(p.lang)) setOutputLang(p.lang);
-      }
-      // Still running? Keep watching — the poll + render bridge finish the job.
-      if (task && (task.status === "queued" || task.status === "running")) return;
-      if (task && task.status === "succeeded" && task.result) setResult(task.result as JdBuildResult);
-      setTaskId((cur) => (cur === jdTaskParam ? null : cur));
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  // ── Generate: the backgrounded, checklist-driven AI build ──────────────────
+  const [options, setOptions] = useState({ description: true, marketResearch: true, caseDesign: false });
+  const [checklistOpen, setChecklistOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [queued, setQueued] = useState(false);
+  const queuedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (queuedTimer.current) clearTimeout(queuedTimer.current); }, []);
 
-  // The AI build produces a structured RoleSpec + salary; if a template is
-  // selected we render those fields THROUGH it (so the AI output adopts the
-  // chosen company format), otherwise we keep the builder's default markdown.
-  const displayResult = useMemo<JdBuildResult | null>(() => {
-    if (!result) return null;
-    const tpl = templates.find((t) => t.id === templateId);
-    if (!tpl) return result;
-    const role = (result.role ?? {}) as {
-      responsibilities?: string[];
-      mustHaves?: string[];
-      niceToHaves?: string[];
-    };
-    // Normalize at this boundary too: the template label must never bake a
-    // bogus "0–N" range (or "undefined") from a partial CLI band into the
-    // rendered JD body — an unavailable band yields an empty label, so the
-    // template's salary slot simply renders blank.
-    const salaryLabel = marketSalaryLabel(normalizeMarketSalary(result.salary));
-    const markdown = renderTemplate(tpl.body, {
-      title: title.trim(),
-      company: company.trim(),
-      seniority,
-      salary: salaryLabel,
-      responsibilities: role.responsibilities ?? [],
-      mustHaves: role.mustHaves ?? [],
-      niceToHaves: role.niceToHaves ?? [],
-    });
-    return { ...result, markdown };
-  }, [result, templates, templateId, title, company, seniority]);
+  const anyOption = options.description || options.marketResearch || options.caseDesign;
+  // A role (for the description and/or the case) needs a real need; market research
+  // alone only needs a title — same contract the generate route + handler enforce.
+  const needsNeed = options.description || options.caseDesign;
+  const inputOk = needsNeed ? validateJdBuildInput(title, needText).ok : title.trim().length >= 2;
+  const canStart = anyOption && inputOk && !submitting;
 
-  // Build-task completion is consumed DURING render (guarded: the task id is
-  // cleared in the same pass, so this runs once per task) — the guarded
-  // render-phase pattern instead of an effect round-trip.
-  if (taskId && buildStatus === "succeeded" && buildFull) {
-    setResult((buildFull.result as JdBuildResult) ?? null);
-    setTaskId(null);
-  } else if (taskId && (buildStatus === "failed" || buildStatus === "canceled" || buildStatus === "interrupted")) {
-    setError(buildError ?? t("genFailed"));
-    setTaskId(null);
-  }
-
-  // Commit a template choice: re-render the body through it (the JdBuilderResult
-  // remount keyed by templateId does the actual reformat) and clear any staged
-  // switch. The freshly mounted result reports edited=false, resetting resultDirty.
-  const applyTemplate = (id: string) => {
-    setTemplateId(id);
-    setPendingTemplateId(null);
-  };
-
-  // Selector entry point. With unsaved hand-edits we stage the switch and let the
-  // inline confirm decide; otherwise we reformat immediately (the common case,
-  // kept frictionless). No result on screen → nothing to protect, apply at once.
-  const onSelectTemplate = (id: string) => {
-    if (resultDirty && displayResult) setPendingTemplateId(id);
-    else applyTemplate(id);
-  };
-
-  const generate = async () => {
+  const runGenerate = async () => {
+    if (!canStart) return;
+    setSubmitting(true);
     setError(null);
-    setResult(null);
-    // A new build replaces any prior result, so no edits are pending discard.
-    setResultDirty(false);
-    setPendingTemplateId(null);
-    const started = await startTask("jd_build", { title: title.trim(), company: company.trim(), seniority, roleFamily, needText: needText.trim(), repoUrl: repoUrl.trim(), lang: outputLang });
-    if (started) setTaskId(started.id);
-    else setError(t("startFailed"));
+    try {
+      const r = await fetch("/api/jds/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: title.trim(),
+          company: company.trim(),
+          seniority,
+          roleFamily,
+          needText: needText.trim(),
+          repoUrl: isSoftware ? repoUrl.trim() : "",
+          lang: outputLang,
+          templateId,
+          options,
+        }),
+      });
+      if (!r.ok) {
+        const p = await r.json().catch(() => ({}));
+        throw new Error(p.error ?? t("generateFailedStatus", { status: r.status }));
+      }
+      // The JD now lives in the Ledger as "Analyzing" and fills in server-side.
+      // Clear the role-specific inputs so the next role starts fresh (reusable
+      // company/seniority/field/template/language stay), reload the Ledger, and
+      // show a transient confirmation.
+      setChecklistOpen(false);
+      setTitle("");
+      setNeedText("");
+      setRepoUrl("");
+      onSaved();
+      setQueued(true);
+      if (queuedTimer.current) clearTimeout(queuedTimer.current);
+      queuedTimer.current = setTimeout(() => setQueued(false), 4000);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t("genFailed"));
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  // Same minimum-need contract the server enforces in runJdBuild — shared so the
-  // disabled-button gate and the AI boundary can never drift on the thresholds.
-  const canGenerate = validateJdBuildInput(title, needText).ok && !generating;
+  // ── Save as draft: persist the form's own input, no AI round-trip ──────────
+  const [savingDraft, setSavingDraft] = useState(false);
+  const [draftSaved, setDraftSaved] = useState(false);
+  const draftSavedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (draftSavedTimer.current) clearTimeout(draftSavedTimer.current); }, []);
+
+  const saveDraft = async () => {
+    // Same validator + wording as POST /api/jds, so the gate fails fast with the
+    // identical message instead of a round-trip 400. The "Describe the need" body
+    // (a full markdown editor) becomes the JD body.
+    const fields = validateJdFields(title, needText);
+    if (!fields.ok) {
+      setError(fields.error);
+      return;
+    }
+    setSavingDraft(true);
+    setError(null);
+    setDraftSaved(false);
+    try {
+      const r = await fetch("/api/jds", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: fields.title, body: fields.body }),
+      });
+      if (!r.ok) {
+        const p = await r.json().catch(() => ({}));
+        throw new Error(p.error ?? t("saveDraftFailedStatus", { status: r.status }));
+      }
+      onSaved();
+      setDraftSaved(true);
+      if (draftSavedTimer.current) clearTimeout(draftSavedTimer.current);
+      draftSavedTimer.current = setTimeout(() => setDraftSaved(false), 2500);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t("saveDraftFailed"));
+    } finally {
+      setSavingDraft(false);
+    }
+  };
+
+  const canSaveDraft = validateJdFields(title, needText).ok && !savingDraft && !submitting;
 
   return (
     <div data-sim="jd-builder" className="rounded-lg border border-stone-200 bg-white p-4 shadow-panel">
@@ -193,13 +181,11 @@ export function JdBuilder({ onSaved }: { onSaved: () => void }) {
       </p>
       <p className="mt-1 text-sm text-steel">{t("intro")}</p>
 
-      {/* Step 1: pick the output format. The AI fills whichever template is chosen.
-          After generation this doubles as a live reformat — see the switch contract
-          on pendingTemplateId above. The selector reflects a staged switch
-          (pendingTemplateId) until the inline confirm below resolves it. */}
+      {/* Pick the output format. The build renders the role through the chosen
+          template server-side; an empty selection uses the AI's default layout. */}
       <div className="mt-3 flex items-end gap-2">
         <Field label={t("templateLabel")} className="flex-1">
-          <select value={pendingTemplateId ?? templateId} onChange={(e) => onSelectTemplate(e.target.value)} className={INP}>
+          <select value={templateId} onChange={(e) => setTemplateId(e.target.value)} className={INP}>
             <option value="">{t("aiDefaultFormat")}</option>
             {templates.map((tpl) => (
               <option key={tpl.id} value={tpl.id}>
@@ -219,32 +205,6 @@ export function JdBuilder({ onSaved }: { onSaved: () => void }) {
         </button>
       </div>
 
-      {/* Guard the destructive reformat: a staged switch (only set when the body
-          has unsaved hand-edits) waits here for explicit confirmation. Mirrors the
-          inline Confirm/Cancel idiom in JdTemplateManager. */}
-      {pendingTemplateId !== null ? (
-        <div className="animate-fade-in mt-2 flex flex-wrap items-center gap-2 rounded-md border border-amber-200 bg-amber-50/60 px-3 py-2 text-sm text-amber-800" role="group" aria-label={t("confirmSwitchAria")}>
-          <span>{t("switchWarning")}</span>
-          <span className="ml-auto inline-flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => applyTemplate(pendingTemplateId)}
-              className="focus-ring rounded-md border border-red-300 bg-red-50 px-2.5 py-1 font-semibold text-red-700 hover:bg-red-100"
-            >
-              {t("replaceEdits")}
-            </button>
-            <button
-              type="button"
-              autoFocus
-              onClick={() => setPendingTemplateId(null)}
-              className="focus-ring rounded-md px-2.5 py-1 font-semibold text-steel hover:bg-stone-100"
-            >
-              {t("keepEditing")}
-            </button>
-          </span>
-        </div>
-      ) : null}
-
       <div className="mt-3 grid gap-2 sm:grid-cols-2">
         <Field label={t("roleTitle")}>
           <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("roleTitlePlaceholder")} className={INP} />
@@ -261,8 +221,8 @@ export function JdBuilder({ onSaved }: { onSaved: () => void }) {
         </Field>
         <Field label={t("field")}>
           <select value={roleFamily} onChange={(e) => setRoleFamily(e.target.value)} className={INP}>
-            {FAMILIES.map((f) => (
-              <option key={f} value={f}>{enumLabel("family", f)}</option>
+            {familyOptions.map(({ value, label }) => (
+              <option key={value} value={value}>{label}</option>
             ))}
           </select>
         </Field>
@@ -281,38 +241,91 @@ export function JdBuilder({ onSaved }: { onSaved: () => void }) {
       </div>
 
       <Field label={t("describeNeed")} className="mt-2">
-        <textarea
+        <RichTextEditor
           value={needText}
-          onChange={(e) => setNeedText(e.target.value)}
-          rows={4}
+          onChange={setNeedText}
           placeholder={t("needPlaceholder")}
-          className={INP}
+          ariaLabel={t("describeNeed")}
+          minHeight="8rem"
         />
       </Field>
-      <Field label={t("codebaseLabel")} className="mt-2">
-        <input value={repoUrl} onChange={(e) => setRepoUrl(e.target.value)} placeholder={t("codebasePlaceholder")} className={INP} />
-      </Field>
-
-      <button
-        type="button"
-        onClick={generate}
-        disabled={!canGenerate}
-        className="focus-ring mt-3 inline-flex h-10 items-center gap-2 rounded-md bg-coral px-4 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
-      >
-        {generating ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
-        {generating ? buildProgress || t("generating") : t("generateJd")}
-      </button>
-      {generating ? <p className="mt-1.5 text-sm text-steel">{t("generatingNote")}</p> : null}
-      {error ? <p role="alert" className="mt-2 rounded-md bg-red-50 p-2.5 text-sm text-red-700">{error}</p> : null}
-
-      {displayResult ? (
-        // Keyed by template so switching the format after generation re-renders
-        // the AI output through the newly chosen template. The key change remounts
-        // this component and reformats the editable body — which is why a switch
-        // over hand-edited text is gated by the confirm above (onEditedChange feeds
-        // resultDirty). See the template-switch contract in docs/JD_LIFECYCLE.md.
-        <JdBuilderResult key={templateId} result={displayResult} title={title.trim()} company={company.trim()} onSaved={onSaved} onEditedChange={setResultDirty} />
+      {/* Codebase enrichment is a dev-role feature — shown only when Field = Software. */}
+      {isSoftware ? (
+        <Field label={t("codebaseLabel")} className="mt-2">
+          <input value={repoUrl} onChange={(e) => setRepoUrl(e.target.value)} placeholder={t("codebasePlaceholder")} className={INP} />
+        </Field>
       ) : null}
+
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        {/* Generate → checklist popover → backgrounded build. */}
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setChecklistOpen((v) => !v)}
+            aria-expanded={checklistOpen}
+            aria-haspopup="dialog"
+            disabled={submitting}
+            className="focus-ring inline-flex h-10 items-center gap-2 rounded-md bg-coral px-4 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
+          >
+            {submitting ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
+            {t("generateJd")}
+            <ChevronDown size={15} aria-hidden className={`transition-transform ${checklistOpen ? "rotate-180" : ""}`} />
+          </button>
+          {checklistOpen ? (
+            <>
+              {/* Click-away backdrop. */}
+              <button type="button" aria-hidden tabIndex={-1} onClick={() => setChecklistOpen(false)} className="fixed inset-0 z-40 cursor-default" />
+              <div
+                role="dialog"
+                aria-label={t("checklistTitle")}
+                className="animate-fade-in absolute left-0 top-full z-50 mt-2 w-80 max-w-[calc(100vw-2rem)] rounded-lg border border-stone-200 bg-white p-3 shadow-panel"
+              >
+                <p className="text-meta uppercase tracking-wide text-steel">{t("checklistTitle")}</p>
+                <div className="mt-2 space-y-0.5">
+                  <OptionRow checked={options.description} onChange={(v) => setOptions((o) => ({ ...o, description: v }))} label={t("optDescription")} hint={t("optDescriptionHint")} />
+                  <OptionRow checked={options.marketResearch} onChange={(v) => setOptions((o) => ({ ...o, marketResearch: v }))} label={t("optMarket")} hint={t("optMarketHint")} />
+                  <OptionRow checked={options.caseDesign} onChange={(v) => setOptions((o) => ({ ...o, caseDesign: v }))} label={t("optCase")} hint={t("optCaseHint")} />
+                </div>
+                <p className="mt-2 border-t border-stone-200 pt-2 text-sm text-steel">{t("checklistHint")}</p>
+                {!anyOption ? (
+                  <p className="mt-1.5 text-sm text-coral">{t("pickAtLeastOne")}</p>
+                ) : !inputOk ? (
+                  <p className="mt-1.5 text-sm text-coral">{t("needMoreInput")}</p>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={runGenerate}
+                  disabled={!canStart}
+                  className="focus-ring mt-2 inline-flex h-9 w-full items-center justify-center gap-2 rounded-md bg-coral px-4 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
+                >
+                  {submitting ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
+                  {t("startAnalysis")}
+                </button>
+              </div>
+            </>
+          ) : null}
+        </div>
+        <button
+          type="button"
+          onClick={saveDraft}
+          disabled={!canSaveDraft}
+          title={t("saveDraft")}
+          className="focus-ring inline-flex h-10 items-center gap-2 rounded-md border border-stone-200 px-4 text-sm font-semibold text-ink hover:bg-stone-50 disabled:opacity-50"
+        >
+          {savingDraft ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+          {savingDraft ? t("savingDraft") : t("saveDraft")}
+        </button>
+        {queued ? (
+          <span className="animate-fade-in inline-flex items-center gap-1 text-sm font-semibold text-moss" role="status">
+            <Check size={16} aria-hidden /> {t("queued")}
+          </span>
+        ) : draftSaved ? (
+          <span className="animate-fade-in inline-flex items-center gap-1 text-sm font-semibold text-moss" role="status">
+            <Check size={16} aria-hidden /> {t("draftSaved")}
+          </span>
+        ) : null}
+      </div>
+      {error ? <p role="alert" className="mt-2 rounded-md bg-red-50 p-2.5 text-sm text-red-700">{error}</p> : null}
 
       {manageOpen ? <JdTemplateManager onClose={() => setManageOpen(false)} onChanged={loadTemplates} /> : null}
     </div>
@@ -324,6 +337,25 @@ function Field({ label, children, className = "" }: { label: string; children: R
     <label className={`block ${className}`}>
       <span className="mb-1 block text-sm font-medium text-steel">{label}</span>
       {children}
+    </label>
+  );
+}
+
+// One checklist row: a checkbox + a bold label and a one-line explanation of what
+// that step produces.
+function OptionRow({ checked, onChange, label, hint }: { checked: boolean; onChange: (v: boolean) => void; label: string; hint: string }) {
+  return (
+    <label className="flex cursor-pointer items-start gap-2 rounded-md p-1.5 hover:bg-stone-50">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        className="focus-ring mt-0.5 h-4 w-4 shrink-0 accent-coral"
+      />
+      <span className="min-w-0">
+        <span className="block text-sm font-semibold text-ink">{label}</span>
+        <span className="block text-sm text-steel">{hint}</span>
+      </span>
     </label>
   );
 }

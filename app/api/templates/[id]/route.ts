@@ -3,7 +3,6 @@ import { deleteTemplate, getTemplate, setDefaultTemplate, updateTemplate } from 
 import { safeJsonError } from "@/app/_lib/api-response";
 import { findUnknownPlaceholders, unknownPlaceholderMessage, validateTemplateUpdate } from "@/app/features/sub_library/render-template";
 
-export const runtime = "nodejs";
 
 export async function GET(_request: NextRequest, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;

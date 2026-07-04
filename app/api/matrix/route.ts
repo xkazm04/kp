@@ -6,7 +6,6 @@ import { getJobsByIds, listMatrixProfiles, listOpenPositions, pipelinePlacements
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "@/app/_lib/python-runner";
 
-export const runtime = "nodejs";
 
 // koKeys: stable KoReason.key categories naming WHY a cell is blocked (MAT2);
 // present only on blocked cells, localized client-side by key.

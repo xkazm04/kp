@@ -86,6 +86,22 @@ test("batch_screen is an intentional singleton constant", () => {
   assert.equal(buildDedupeKey("batch_screen", {}), "batch_screen");
 });
 
+test("jd_build keys by jdSlug in the backgrounded flow, by input otherwise", () => {
+  // Backgrounded generate: the placeholder JD's slug is the identity, so each
+  // Generate is a distinct build and a retry (same slug) dedupes onto it.
+  assert.equal(buildDedupeKey("jd_build", { jdSlug: "abcd2345", title: "Eng" }), "jd_build:abcd2345");
+  // Legacy (no slug): the historical input-shaped key is byte-identical.
+  assert.equal(
+    buildDedupeKey("jd_build", { title: "Backend Engineer", needText: "hello world", repoUrl: "" }),
+    "jd_build:Backend Engineer:11:"
+  );
+  // Two placeholder JDs with identical inputs must NOT collapse into one build.
+  assert.notEqual(
+    buildDedupeKey("jd_build", { jdSlug: "aaaa1111", title: "Eng", needText: "x" }),
+    buildDedupeKey("jd_build", { jdSlug: "bbbb2222", title: "Eng", needText: "x" })
+  );
+});
+
 test("an unknown kind has no builder and yields null (safe: forces a unique key)", () => {
   assert.equal(buildDedupeKey("does_not_exist", { anything: 1 }), null);
 });

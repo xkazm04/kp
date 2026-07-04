@@ -7,8 +7,8 @@ import {
   parseStderrError,
   spawnPython,
 } from "@/app/_lib/python-runner";
+import { getServerLocale } from "@/i18n/server";
 
-export const runtime = "nodejs";
 
 // AI-assisted intake: free-text notes -> a routed CandidateProfileV2 draft the
 // Profile editor loads for review. Does NOT persist — the recruiter edits then
@@ -27,7 +27,10 @@ export async function POST(request: NextRequest) {
     const inputPath = path.join(workdir, "notes.json");
     await writeFile(inputPath, JSON.stringify({ text }), "utf-8");
 
-    const { result } = spawnPython(["-m", "pipeline.jobfit.profile_draft_cli", "--input-json", inputPath]);
+    // Draft the profile's free-form narrative (basics, skill-claim evidence) in the
+    // org language — the CLI already accepts --lang and appends the directive.
+    const lang = await getServerLocale();
+    const { result } = spawnPython(["-m", "pipeline.jobfit.profile_draft_cli", "--input-json", inputPath, "--lang", lang]);
     const { stdout, stderr, exitCode } = await result;
     if (exitCode !== 0) {
       const err = parseStderrError(stderr, exitCode);

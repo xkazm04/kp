@@ -1,6 +1,10 @@
 import { chunk, SQL_IN_CHUNK } from "../entries-param";
 import { ensureDb, insertWithUniqueSlug, safeRowParse, type JobRecord } from "./core";
 
+// Backgrounded AI generation state on a JD (see the core.ts migration). NULL/absent
+// analysis_status = a legacy or manually-saved draft, treated as ready.
+export type JdAnalysisStatus = "analyzing" | "ready" | "failed";
+
 export type JdRow = {
   slug: string;
   title: string;
@@ -8,17 +12,26 @@ export type JdRow = {
   created_at: string;
   // W8-4 — set when archived; loadJd still serves the row (banner, no 404).
   archived_at?: string | null;
+  analysis_status?: JdAnalysisStatus | null;
+  analysis_task_id?: string | null;
+  analysis_error?: string | null;
+  // JSON string: { role, salary, salarySources, salarySource, snapshot, case, options }
+  // once ready; { options } while analyzing. Parsed by the JD detail view.
+  analysis_json?: string | null;
 };
 
 // What the list endpoint exposes: identity + a short, server-truncated preview
 // instead of the full body, so the list response stays bounded no matter how
 // large individual JD bodies grow. Full bodies remain behind loadJd /
-// GET /api/jds/[slug].
+// GET /api/jds/[slug]. Carries the analysis state so the Ledger can render the
+// "Analyzing"/"Failed" chip and link to live task progress.
 export type JdListItem = {
   slug: string;
   title: string;
   preview: string;
   created_at: string;
+  analysis_status?: JdAnalysisStatus | null;
+  analysis_task_id?: string | null;
 };
 
 const JD_PREVIEW_CHARS = 280;
@@ -36,13 +49,59 @@ export function saveJd(input: SaveJdInput): { slug: string; createdAt: string } 
   return { slug, createdAt };
 }
 
+// Backgrounded AI generation writers. The generate route inserts a placeholder JD
+// up front (analysis_status='analyzing', empty body) so it appears in the Ledger
+// immediately; the detached jd_build handler then flips it to ready/failed — which
+// is why the JD survives the user navigating away (see docs/JD_LIFECYCLE.md).
+
+/** Create the up-front placeholder for a backgrounded build. `options` (the ticked
+ *  checklist) is stashed in analysis_json so the row knows what was requested even
+ *  before the build finishes. Returns the minted slug. */
+export function insertAnalyzingJd(input: { title: string; options: unknown }): { slug: string; createdAt: string } {
+  const db = ensureDb();
+  const createdAt = new Date().toISOString();
+  const stmt = db.prepare(
+    `INSERT INTO jds (slug, title, body, created_at, analysis_status, analysis_json)
+     VALUES (?, ?, '', ?, 'analyzing', ?)`
+  );
+  const analysisJson = JSON.stringify({ options: input.options });
+  const slug = insertWithUniqueSlug((s) => stmt.run(s, input.title, createdAt, analysisJson));
+  return { slug, createdAt };
+}
+
+/** Link the placeholder to the task now running its build (progress / retry). */
+export function setJdAnalysisTask(slug: string, taskId: string): void {
+  ensureDb().prepare(`UPDATE jds SET analysis_task_id = ? WHERE slug = ?`).run(taskId, slug);
+}
+
+/** The build finished — write the body + structured artifacts and mark ready. Direct
+ *  UPDATE (no jd_revisions snapshot): this is the first fill, not a user edit. */
+export function finishJdAnalysis(slug: string, input: { body: string; analysisJson: unknown }): void {
+  ensureDb()
+    .prepare(`UPDATE jds SET body = ?, analysis_json = ?, analysis_status = 'ready', analysis_error = NULL WHERE slug = ?`)
+    .run(input.body, JSON.stringify(input.analysisJson), slug);
+}
+
+/** The build errored — surface it on the row so the Ledger shows a failed chip + retry. */
+export function failJdAnalysis(slug: string, error: string): void {
+  ensureDb()
+    .prepare(`UPDATE jds SET analysis_status = 'failed', analysis_error = ? WHERE slug = ?`)
+    .run(error.slice(0, 2000), slug);
+}
+
+/** Reset a failed JD back to 'analyzing' for a retry (clears the prior error) so the
+ *  Ledger reflects the re-run immediately, before the replayed build lands. */
+export function markJdAnalyzing(slug: string): void {
+  ensureDb().prepare(`UPDATE jds SET analysis_status = 'analyzing', analysis_error = NULL WHERE slug = ?`).run(slug);
+}
+
 export function listJds(limit = 100): JdListItem[] {
   const db = ensureDb();
   // Pull only one char past the preview window to detect truncation, so the
   // full body is never read into memory for the list view.
   const rows = db
     .prepare(
-      `SELECT slug, title, created_at,
+      `SELECT slug, title, created_at, analysis_status, analysis_task_id,
               substr(body, 1, ${JD_PREVIEW_CHARS + 1}) AS body_head,
               length(body) AS body_len
        FROM jds WHERE archived_at IS NULL ORDER BY created_at DESC LIMIT ?`
@@ -51,6 +110,8 @@ export function listJds(limit = 100): JdListItem[] {
     slug: string;
     title: string;
     created_at: string;
+    analysis_status: JdAnalysisStatus | null;
+    analysis_task_id: string | null;
     body_head: string;
     body_len: number;
   }>;
@@ -58,6 +119,8 @@ export function listJds(limit = 100): JdListItem[] {
     slug: r.slug,
     title: r.title,
     created_at: r.created_at,
+    analysis_status: r.analysis_status,
+    analysis_task_id: r.analysis_task_id,
     preview: r.body_len > JD_PREVIEW_CHARS ? `${r.body_head.slice(0, JD_PREVIEW_CHARS)}…` : r.body_head,
   }));
 }
@@ -67,7 +130,11 @@ export function loadJd(slug: string): JdRow | null {
   // Archived rows still load (W8-4): the public page renders them with a
   // banner so existing analysis/report links never 404.
   const row = db
-    .prepare(`SELECT slug, title, body, created_at, archived_at FROM jds WHERE slug = ?`)
+    .prepare(
+      `SELECT slug, title, body, created_at, archived_at,
+              analysis_status, analysis_task_id, analysis_error, analysis_json
+       FROM jds WHERE slug = ?`
+    )
     .get(slug) as JdRow | undefined;
   return row ?? null;
 }

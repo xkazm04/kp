@@ -4,8 +4,6 @@ import { engineAvailability } from "@/app/_lib/engine-preflight";
 import { analyzeTelemetry, commsTelemetry, engineTelemetry } from "@/app/_lib/ops-telemetry";
 import { getScheduleNoSlotsCount, getScheduleReconcileCount } from "@/app/_lib/logger";
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
 
 // DATA2 — the operator's read of everything the app records and nothing read:
 // the /api/health readiness signals, engine preflight (DATA4), prompt-cache

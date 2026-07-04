@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { getSeedHealth, coreTableCounts, countActiveTasks } from "@/app/_lib/db";
 import { engineAvailability } from "@/app/_lib/engine-preflight";
 
-export const runtime = "nodejs";
 
 // Readiness probe: confirms the DB opens, seeds loaded cleanly, and reports the
 // task queue depth. Returns 200 when healthy, 503 when degraded — so a deploy

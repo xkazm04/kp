@@ -3,7 +3,6 @@ import { getActiveTaskByDedupe, listLifecycles } from "@/app/_lib/db";
 import { getAutonomy, listAudit, recordAudit, setAutonomy } from "@/app/_lib/dev-control";
 import { startTask } from "@/app/_lib/tasks";
 
-export const runtime = "nodejs";
 
 const TERMINAL = new Set(["promoted", "closed", "awaiting_approval"]);
 

@@ -11,7 +11,6 @@ import {
   spawnPython,
 } from "@/app/_lib/python-runner";
 
-export const runtime = "nodejs";
 
 // idea-aa039d0c — pre-publish winnability coach. Grades a (draft) JD against the
 // SAME shared pool the recruiter ranking scores, reusing the production ko_filter

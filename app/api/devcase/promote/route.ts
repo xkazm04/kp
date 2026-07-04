@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSubmission } from "@/app/_lib/db";
 import { mintObservedFromSubmission, promoteSubmission } from "@/app/_lib/devcase-run";
 
-export const runtime = "nodejs";
 
 // Bridge: an evaluated submission becomes a pipeline entry + a Decisions review card.
 // Shares promoteSubmission with the lifecycle orchestrator.

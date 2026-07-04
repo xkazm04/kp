@@ -142,6 +142,17 @@ export function listJobStatuses(): Record<string, string> {
   return Object.fromEntries(rows.map((r) => [r.id, r.status]));
 }
 
+/** role_family + seniority + company for every job, keyed by job id (jd-<slug> for
+ *  a builder-authored JD) — the JD library's Field and Seniority columns, plus the
+ *  company used to prefill the Generate form on Duplicate. One query for all rows,
+ *  mirroring listJobStatuses; a JD with no linked job has no entry (columns "—"). */
+export function listJobRoleMeta(): Record<string, { roleFamily: string | null; seniority: string | null; company: string | null }> {
+  const rows = db()
+    .prepare(`SELECT id, role_family, seniority, company FROM jobs`)
+    .all() as { id: string; role_family: string | null; seniority: string | null; company: string | null }[];
+  return Object.fromEntries(rows.map((r) => [r.id, { roleFamily: r.role_family, seniority: r.seniority, company: r.company }]));
+}
+
 /** Draft JDs awaiting publish, newest first. */
 export function listDraftJobs(): { id: string; title: string; company: string | null }[] {
   return db()

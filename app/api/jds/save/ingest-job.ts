@@ -34,8 +34,8 @@ export async function ingestStructuredJob(input: {
   // it carries that analysis's provenance, confidence, and cited sources, so a
   // hand-typed override (e.g. a number edited into the JD markdown) is NOT honored
   // here — that would let an arbitrary figure masquerade as web-grounded research.
-  // The builder's salary card is read-only and says so (JdBuilderResult.tsx);
-  // editing the salary line in the markdown changes the published wording only.
+  // The Ledger detail's salary card is read-only and says so (LibrarySavedJdsLedger's
+  // SalaryCard); editing the salary line in the markdown changes the published wording only.
   // Clamp/swap a backwards or non-positive band rather than dropping it, so the
   // matchable Job's band never silently disagrees with the analysis it came from.
   const band = normalizeSalaryBand(input.salary?.suggestedMinimum, input.salary?.suggestedMaximum);

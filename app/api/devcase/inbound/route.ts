@@ -3,7 +3,6 @@ import { getPostingByToken } from "@/app/_lib/db";
 import { intakeSubmission, PostingClosedError } from "@/app/_lib/distribution";
 import { resumeCollectingLifecycle } from "@/app/_lib/tasks";
 
-export const runtime = "nodejs";
 
 // Direction B — the public application webhook. An external channel (job board / ATS / an
 // apply form) POSTs a candidate's application here using the posting's apply token; we

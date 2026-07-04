@@ -7,7 +7,6 @@ import { sealDecisionSafe } from "@/app/_lib/decision-record-store";
 import { safeJsonError } from "@/app/_lib/api-response";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
 
-export const runtime = "nodejs";
 
 const ACTIONS: PipelineAction[] = ["accept", "reject", "approve_event"];
 

@@ -6,7 +6,6 @@ import { describeCommand, isMutating, parseCommand, type ParsedCommand } from "@
 import { compareByMatchScoreDesc } from "@/app/_lib/match-score";
 import { safeJsonError } from "@/app/_lib/api-response";
 
-export const runtime = "nodejs";
 
 const PREVIEW_CAP = 50;
 

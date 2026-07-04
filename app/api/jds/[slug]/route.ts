@@ -5,7 +5,6 @@ import { jdJobId, validateJdFields } from "@/app/_lib/jd-limits";
 import { safeJsonError } from "@/app/_lib/api-response";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 
-export const runtime = "nodejs";
 // The best-effort re-ingest on a body edit is one LLM parse.
 export const maxDuration = 60;
 

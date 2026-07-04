@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { listJobs, jobStats, getSeedHealth } from "@/app/_lib/db";
 
-export const runtime = "nodejs";
 
 const LIMIT_MIN = 1;
 const LIMIT_MAX = 500;

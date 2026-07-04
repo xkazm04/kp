@@ -23,7 +23,6 @@ import { isShortNoticeBooking } from "@/app/_lib/interview-reminder-policy";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
 
-export const runtime = "nodejs";
 
 // Candidate-facing projection of an invite (idea-69d1e4fd). The route used to
 // return the WHOLE ScheduleInvite row to the public token holder — including

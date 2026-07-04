@@ -23,7 +23,6 @@ import { rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
 import { CONSENT_REQUIRED_ERROR, isConnectConsentSatisfied } from "@/app/_lib/interview-consent";
 import { INTERVIEW_LAB_DISABLED_ERROR, isInterviewLabEnabled } from "@/app/_lib/interview-lab";
 
-export const runtime = "nodejs";
 
 // GET → which providers are configured (used by the UI to enable/disable the switcher).
 export async function GET() {

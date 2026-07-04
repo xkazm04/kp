@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { listReconsiderQueue } from "@/app/_lib/db";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 
-export const runtime = "nodejs";
 
 // Recruiter-facing "Reconsider" queue (idea-e43fa801): the auto-rejected cohort a
 // recruiter can put back for a fresh look. Projects only what the Decisions UI

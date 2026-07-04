@@ -3,7 +3,6 @@ import { activePromoteFloor } from "@/app/_lib/devcase-orchestrator";
 import { recordAudit, setPromoteFloor } from "@/app/_lib/dev-control";
 import { calibrate, listOutcomes, outcomeInputSchema, recordOutcome } from "@/app/_lib/dev-outcomes";
 
-export const runtime = "nodejs";
 
 const activeFloor = activePromoteFloor;
 

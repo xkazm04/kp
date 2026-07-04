@@ -15,7 +15,6 @@ import { capTranscriptTurns, clampTurn } from "@/app/_lib/interview-transcript";
 import { safeJsonError } from "@/app/_lib/api-response";
 import { CONSENT_NOT_RECORDED_ERROR, isPersistConsentSatisfied } from "@/app/_lib/interview-consent";
 
-export const runtime = "nodejs";
 
 // POST → end of call: persist the transcript (transcript-only, no audio). When
 // the session is linked to a pipeline entry, also synthesize the scorecard

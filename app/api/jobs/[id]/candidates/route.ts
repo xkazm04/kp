@@ -4,7 +4,6 @@ import { buildCandidatePool } from "@/app/_lib/candidate-pool";
 import { rankPoolForJob } from "@/app/_lib/recruiter-run";
 import { PipelineError } from "@/app/_lib/python-runner";
 
-export const runtime = "nodejs";
 
 export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;

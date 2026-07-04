@@ -19,7 +19,6 @@ import {
 import type { ProfileCliOutput } from "@/app/features/sub_profile/ProfileTypes";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 
-export const runtime = "nodejs";
 
 type RouteOutcome = { data: ProfileCliOutput } | { error: { message: string; status: number } };
 

@@ -8,8 +8,6 @@ import {
   listRediscoveryAlerts,
 } from "@/app/_lib/rediscovery-alert-store";
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
 
 // Standing silver-medalist feed (idea-fdb45cd0). GET = the active, still-relevant
 // alerts; PATCH {id} dismisses one; POST runs a pool-change sweep over published

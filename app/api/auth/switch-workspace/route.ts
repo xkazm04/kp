@@ -5,7 +5,6 @@ import { getWorkspace, DEFAULT_WORKSPACE_ID } from "@/app/_lib/db";
 import { canSwitchWorkspace } from "@/app/_lib/workspace-lock";
 import { jsonError } from "@/app/_lib/api-response";
 
-export const runtime = "nodejs";
 
 // Workspace switch (P2) — re-mint the session cookie with the chosen workspace, so
 // currentWorkspace() (and the scoped stores) resolve to it. This route is under

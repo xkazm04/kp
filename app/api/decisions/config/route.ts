@@ -3,7 +3,6 @@ import { getAllDecisionConfigs, setDecisionConfig } from "@/app/_lib/decision-co
 import { DecisionConfigError, validateDecisionConfig } from "@/app/_lib/decision-config-schema";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 
-export const runtime = "nodejs";
 
 // Read / update the per-phase decision rules (Phase 3 decision module config).
 // Operator-gated (backlog #30 / SD-L1-010): these rules drive the auto-reject
