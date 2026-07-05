@@ -1,0 +1,40 @@
+# KP self-host — the app + its Python pipeline in one container, SQLite on a
+# named volume so your data (all candidate PII) stays on your host, in your region.
+#
+#   cp .env.example .env      # then set KP_OPERATOR_PASSWORD + KP_SECRET (required)
+#   docker compose up -d --build
+#
+# Full guide, egress inventory and air-gap notes: docs/SELF_HOSTING.md.
+services:
+  kp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: kp:local
+    restart: unless-stopped
+    ports:
+      - "${KP_PORT:-3000}:3000"
+    # Your keys/secrets come from .env (gitignored). Provider keys are OPTIONAL —
+    # omit them to run with no external AI egress (deterministic fallbacks).
+    env_file:
+      - .env
+    environment:
+      # DB lives on the volume below, not in the image layer.
+      KP_DB_PATH: /data/kp.sqlite
+      NODE_ENV: production
+      NEXT_TELEMETRY_DISABLED: "1"
+    volumes:
+      - kp-data:/data
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 45s
+
+volumes:
+  kp-data:

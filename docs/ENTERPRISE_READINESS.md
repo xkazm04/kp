@@ -161,14 +161,22 @@ packaged/air-gapped deploy; egress isn't provably off; self-hosted model
   access + the right to self-host and audit *without* open-sourcing the commercial
   core. True OSS (MIT/Apache) gives away the business; pick deliberately. — **decision**
 - **E-SH-2** Packaged deploy: finish #27 (Dockerfile), add `docker-compose` /
-  **Helm chart**, prod env checklist, license-key gating. — **M–L**
+  **Helm chart**, prod env checklist, license-key gating. — **M–L** — ✅ **DONE
+  (first increment, 2026-07-05):** multi-stage `Dockerfile` (Node 24 + Python,
+  native better-sqlite3, non-root, tini), `docker-compose.yml`, `.dockerignore`,
+  `.env.example` deploy block, and **docs/SELF_HOSTING.md** (quick-start, egress
+  inventory, air-gap notes, production checklist). Remaining: Helm chart +
+  license-key gating.
 - **E-SH-3** **Postgres** backend (SQLite is single-writer; a real org needs
   concurrent multi-user) behind the existing DB seam. — **L**
 - **E-SH-4** **Air-gap / no-egress mode**: a switch that hard-disables every
   external call except the customer's own model endpoints; document the full
   egress list (Polar, model providers, LightTrack) and make each optional. — **M**
+  — egress list + air-gap-via-config **documented** (SELF_HOSTING.md §6–7); the
+  hard `KP_OFFLINE` enforcement flag is still open.
 - **E-SH-5** First-class **self-hosted model endpoints** (Azure OpenAI in-tenant,
-  vLLM/Ollama base-URL) — extends BYOM to fully private inference. — **M**
+  vLLM/Ollama base-URL) — extends BYOM to fully private inference. — **M** ← **next
+  increment on this branch.**
 - **E-SH-6** **Data residency**: pin managed hosting to EU regions; document data
   flows. — **S–M** (policy + config)
 - **Depends on:** E0 (coherent tenancy) for a credible multi-user self-host.

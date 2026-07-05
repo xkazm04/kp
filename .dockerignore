@@ -1,0 +1,38 @@
+# Rebuilt inside the image — never copy host artifacts in (wrong-ABI native
+# modules, stale builds).
+node_modules
+**/node_modules
+.next
+out
+
+# SECRETS + the local SQLite DB — MUST NOT enter the image or build context.
+.env
+.env.*
+!.env.example
+*.sqlite
+*.sqlite-*
+# Dev-only seed fixtures (~8 MB) — used by the seed scripts, not at build or
+# runtime. KEEP the required data files (data/salary_benchmarks.json,
+# data/taxonomy.json) that schemas:gen and role-families.ts read.
+data/seed_*
+
+# VCS, CI, agent tooling.
+.git
+.gitignore
+.github
+.claude
+
+# Tests, e2e, reports, evidence — not needed at runtime.
+e2e
+playwright-report
+test-results
+coverage
+uat
+docs/harness
+
+# Editor / OS / logs / scratch.
+.vscode
+.idea
+*.log
+.DS_Store
+Thumbs.db
