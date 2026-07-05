@@ -22,6 +22,10 @@ function db(): Database.Database {
       id TEXT PRIMARY KEY,
       token TEXT UNIQUE,
       entry_id TEXT,
+      -- Tenant (P1): the team that owns this scheduling link (the linked entry's
+      -- workspace). Recruiter agenda reads + slot-collision checks filter on it; the
+      -- candidate token flow and the global reminder sweep do not (token = capability).
+      workspace_id TEXT,
       candidate_label TEXT,
       job_title TEXT,
       status TEXT NOT NULL DEFAULT 'pending',
@@ -91,6 +95,7 @@ function db(): Database.Database {
     "attendance_status TEXT",
     "attendance_at TEXT",
     "meeting_url TEXT",
+    "workspace_id TEXT",
   ]) {
     try {
       d.exec(`ALTER TABLE schedule_invites ADD COLUMN ${col}`);
@@ -98,6 +103,13 @@ function db(): Database.Database {
       /* column already exists */
     }
   }
+  // Tenant backfill (P1): tag existing invites from their linked pipeline entry (an
+  // orphan invite with no matching entry falls back to the default workspace).
+  // Idempotent (only touches NULL rows), so it's a no-op once every row is stamped.
+  d.exec(
+    `UPDATE schedule_invites SET workspace_id = COALESCE((SELECT p.workspace_id FROM pipeline_entries p WHERE p.id = schedule_invites.entry_id), 'workspace') WHERE workspace_id IS NULL`
+  );
+  d.exec(`CREATE INDEX IF NOT EXISTS idx_sched_workspace ON schedule_invites (workspace_id)`);
   // Partial index matching the heartbeat's due-reminder query exactly, so the
   // every-60s sweep is an index range over only un-reminded confirmed invites
   // rather than a full table scan. CREATED AFTER the migration loop on purpose:
@@ -139,6 +151,7 @@ export type ScheduleInvite = {
   attendanceAt: string | null; // ISO time the RSVP was recorded
   meetingUrl: string | null; // optional interview join link (Meet/Teams/Zoom…); null until the recruiter sets it
   locale: string | null; // SIM3 — the linked entry's applicant locale, when joined (dueReminders); null otherwise
+  workspaceId: string; // P1 — the owning team (the linked entry's workspace)
   createdAt: string;
   confirmedAt: string | null;
 };
@@ -168,6 +181,7 @@ function rowTo(r: Record<string, unknown>): ScheduleInvite {
     meetingUrl: (r.meeting_url as string) ?? null,
     // Only the dueReminders join selects entry_locale; every other read leaves it null.
     locale: (r.entry_locale as string) ?? null,
+    workspaceId: (r.workspace_id as string) ?? "workspace",
     createdAt: r.created_at as string,
     confirmedAt: (r.confirmed_at as string) ?? null,
   };
@@ -183,14 +197,20 @@ export function createScheduleInvite(input: {
   const now = new Date().toISOString();
   const id = randomId("sch");
   const token = randomToken("st");
+  // Tenant (P1): derive the owning team from the linked entry (a by-id lookup on the
+  // shared file) so callers don't thread it; an orphan entry falls back to the default.
+  const wsRow = d.prepare(`SELECT workspace_id FROM pipeline_entries WHERE id = ?`).get(input.entryId) as
+    | { workspace_id?: string }
+    | undefined;
+  const workspaceId = wsRow?.workspace_id ?? "workspace";
   // RETURNING * hands the freshly-inserted row back in the same statement, so we
   // don't issue a second SELECT to read what we just wrote.
   const row = d
     .prepare(
-      `INSERT INTO schedule_invites (id, token, entry_id, candidate_label, job_title, status, duration_min, created_at)
-       VALUES (?, ?, ?, ?, ?, 'pending', ?, ?) RETURNING *`
+      `INSERT INTO schedule_invites (id, token, entry_id, workspace_id, candidate_label, job_title, status, duration_min, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?) RETURNING *`
     )
-    .get(id, token, input.entryId, input.candidateLabel ?? null, input.jobTitle ?? null, input.durationMin ?? null, now) as Record<
+    .get(id, token, input.entryId, workspaceId, input.candidateLabel ?? null, input.jobTitle ?? null, input.durationMin ?? null, now) as Record<
     string,
     unknown
   >;
@@ -208,14 +228,15 @@ export function getScheduleInviteByToken(token: string): ScheduleInvite | null {
  *  invites, and the two operator flags written for exactly this surface
  *  (needs_more_slots, needs_reconcile) had zero readers. Confirmed bookings
  *  first by slot time, then pending newest-first. */
-export function listScheduleInvites(limit = 200): ScheduleInvite[] {
+export function listScheduleInvites(limit = 200, workspaceId: string = "workspace"): ScheduleInvite[] {
   const rows = db()
     .prepare(
       `SELECT * FROM schedule_invites
+       WHERE workspace_id = ?
        ORDER BY (slot_at IS NULL) ASC, slot_at ASC, created_at DESC
        LIMIT ?`
     )
-    .all(Math.min(Math.max(limit, 1), 500)) as Record<string, unknown>[];
+    .all(workspaceId, Math.min(Math.max(limit, 1), 500)) as Record<string, unknown>[];
   return rows.map(rowTo);
 }
 
@@ -489,5 +510,4 @@ export function markReminderSent(id: string): void {
 
 // Slot proposal + structural validation live in schedule-slots.ts (pure, no
 // DB, unit-testable) so the confirm-side validation (idea-e05aedfb) and the
-// proposal can never drift apart. This store keeps only the persistence side
-// (bookedSlots/confirmScheduleInvite are the collision authority).
+// proposal can never drift apart. This store keeps only the persiste

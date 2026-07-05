@@ -1,5 +1,6 @@
 import Database from "better-sqlite3";
 import { openStore } from "./db-path";
+import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 import { SIM_TITLE_LIKE } from "@/app/features/simulation/constants";
 
 // Pipeline simulation — reset helper. Isolated connection (job-ingest/offers
@@ -36,9 +37,9 @@ function db(): Database.Database {
   return d;
 }
 
-export function resetSim(): { entries: number; offers: number; jobs: number; jds: number } {
+export function resetSim(workspaceId: string = DEFAULT_WORKSPACE_ID): { entries: number; offers: number; jobs: number; jds: number } {
   const d = db();
-  const ids = (d.prepare(`SELECT id FROM pipeline_entries WHERE job_title LIKE ?`).all(MARKER) as { id: string }[]).map(
+  const ids = (d.prepare(`SELECT id FROM pipeline_entries WHERE job_title LIKE ? AND workspace_id = ?`).all(MARKER, workspaceId) as { id: string }[]).map(
     (r) => r.id
   );
 
@@ -51,9 +52,9 @@ export function resetSim(): { entries: number; offers: number; jobs: number; jds
       } catch (err) {
         if (!isNoSuchTable(err)) throw err; // tolerate only a not-yet-created table
       }
-      d.prepare(`DELETE FROM pipeline_events WHERE entry_id IN (${placeholders})`).run(...ids);
+      d.prepare(`DELETE FROM pipeline_events WHERE entry_id IN (${placeholders}) AND workspace_id = ?`).run(...ids, workspaceId);
     }
-    const entries = d.prepare(`DELETE FROM pipeline_entries WHERE job_title LIKE ?`).run(MARKER).changes;
+    const entries = d.prepare(`DELETE FROM pipeline_entries WHERE job_title LIKE ? AND workspace_id = ?`).run(MARKER, workspaceId).changes;
     const jobs = d.prepare(`DELETE FROM jobs WHERE title LIKE ?`).run(MARKER).changes;
     let jds = 0;
     try {

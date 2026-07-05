@@ -2,6 +2,7 @@ import { coerceOutboxStatus, type OutboxStatus } from "../comms-status";
 import { randomId } from "../random-id";
 import type { DevNeed } from "../devcase-run";
 import { ensureDb, safeRowParse } from "./core";
+import { DEFAULT_WORKSPACE_ID } from "./workspaces";
 
 // ---- Dev extension — approved case scenarios (Phase D3) -------------------
 
@@ -311,10 +312,17 @@ export function recordOutbox(input: {
   const db = ensureDb();
   const now = new Date().toISOString();
   const id = randomId("out");
+  // Tenant (P1): derive from the referenced pipeline entry (ref = entry id — comms.ts
+  // resolves it via getPipelineEntry) so no comms call site threads a workspace; an
+  // entry-less / system message falls back to the default workspace.
+  const wsRow = input.ref
+    ? (db.prepare(`SELECT workspace_id FROM pipeline_entries WHERE id = ?`).get(input.ref) as { workspace_id?: string } | undefined)
+    : undefined;
+  const workspaceId = wsRow?.workspace_id ?? "workspace";
   db.prepare(
-    `INSERT INTO dev_outbox (id, recipient, subject, body, kind, channel, status, ref, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-  ).run(id, input.recipient, input.subject, input.body, input.kind, input.channel, input.status, input.ref ?? null, now);
+    `INSERT INTO dev_outbox (id, recipient, subject, body, kind, channel, status, ref, created_at, workspace_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(id, input.recipient, input.subject, input.body, input.kind, input.channel, input.status, input.ref ?? null, now, workspaceId);
   return { id, ...input, ref: input.ref ?? null, createdAt: now };
 }
 
@@ -334,42 +342,51 @@ function rowToOutboxEntry(r: Record<string, unknown>): OutboxEntry {
   };
 }
 
-export function listOutbox(limit = 50): OutboxEntry[] {
+export function listOutbox(limit = 50, workspaceId: string = DEFAULT_WORKSPACE_ID): OutboxEntry[] {
   const db = ensureDb();
-  const rows = db.prepare(`SELECT * FROM dev_outbox ORDER BY created_at DESC LIMIT ?`).all(limit) as Array<Record<string, unknown>>;
+  const rows = db
+    .prepare(`SELECT * FROM dev_outbox WHERE workspace_id = ? ORDER BY created_at DESC LIMIT ?`)
+    .all(workspaceId, limit) as Array<Record<string, unknown>>;
   return rows.map(rowToOutboxEntry);
 }
 
 /** One outbox row by id — the resend route's read (W6-1). */
-export function getOutboxEntry(id: string): OutboxEntry | null {
+export function getOutboxEntry(id: string, workspaceId: string = DEFAULT_WORKSPACE_ID): OutboxEntry | null {
   const db = ensureDb();
-  const r = db.prepare(`SELECT * FROM dev_outbox WHERE id = ?`).get(id) as Record<string, unknown> | undefined;
+  const r = db.prepare(`SELECT * FROM dev_outbox WHERE id = ? AND workspace_id = ?`).get(id, workspaceId) as
+    | Record<string, unknown>
+    | undefined;
   return r ? rowToOutboxEntry(r) : null;
 }
 
 /** Filterable outbox read (W6-1/SIM1) — per-candidate ("what did this person
  *  receive?"), per-status (dead-letter triage) and per-kind views for the Comms
  *  Center and the drawer's Messages section. All filters optional. */
-export function listOutboxFiltered(opts: { ref?: string; status?: OutboxStatus; kind?: string; limit?: number }): OutboxEntry[] {
+export function listOutboxFiltered(
+  opts: { ref?: string; status?: OutboxStatus; kind?: string; limit?: number },
+  workspaceId: string = DEFAULT_WORKSPACE_ID
+): OutboxEntry[] {
   const db = ensureDb();
-  const where: string[] = [];
-  const vals: unknown[] = [];
+  // workspace_id is the ALWAYS-present base filter (P1 tenant scope); the optional
+  // ref/status/kind facets AND onto it.
+  const extra: string[] = [];
+  const vals: unknown[] = [workspaceId];
   if (opts.ref) {
-    where.push("ref = ?");
+    extra.push("ref = ?");
     vals.push(opts.ref);
   }
   if (opts.status) {
-    where.push("status = ?");
+    extra.push("status = ?");
     vals.push(opts.status);
   }
   if (opts.kind) {
-    where.push("kind = ?");
+    extra.push("kind = ?");
     vals.push(opts.kind);
   }
   vals.push(Math.min(Math.max(opts.limit ?? 100, 1), 500));
   const rows = db
     .prepare(
-      `SELECT * FROM dev_outbox ${where.length ? `WHERE ${where.join(" AND ")}` : ""} ORDER BY created_at DESC LIMIT ?`
+      `SELECT * FROM dev_outbox WHERE workspace_id = ?${extra.length ? ` AND ${extra.join(" AND ")}` : ""} ORDER BY created_at DESC LIMIT ?`
     )
     .all(...vals) as Array<Record<string, unknown>>;
   return rows.map(rowToOutboxEntry);

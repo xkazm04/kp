@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { listJobs, jobStats, getSeedHealth } from "@/app/_lib/db";
+import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 
 
 const LIMIT_MIN = 1;
@@ -21,17 +22,21 @@ export async function GET(request: NextRequest) {
     const sp = request.nextUrl.searchParams;
     const entry = sp.get("entryEligible");
     const open = sp.get("openOnly");
-    const jobs = listJobs({
-      roleFamily: sp.get("roleFamily") ?? undefined,
-      seniority: sp.get("seniority") ?? undefined,
-      workMode: sp.get("workMode") ?? undefined,
-      entryEligible: entry === null ? undefined : entry === "true" || entry === "1",
-      // Opt-in: only roles open for applications (NULL/'published' status).
-      openOnly: open === "true" || open === "1" ? true : undefined,
-      q: sp.get("q") ?? undefined,
-      limit: parseLimit(sp.get("limit")),
-    });
-    const stats = jobStats();
+    const ws = await currentWorkspace();
+    const jobs = listJobs(
+      {
+        roleFamily: sp.get("roleFamily") ?? undefined,
+        seniority: sp.get("seniority") ?? undefined,
+        workMode: sp.get("workMode") ?? undefined,
+        entryEligible: entry === null ? undefined : entry === "true" || entry === "1",
+        // Opt-in: only roles open for applications (NULL/'published' status).
+        openOnly: open === "true" || open === "1" ? true : undefined,
+        q: sp.get("q") ?? undefined,
+        limit: parseLimit(sp.get("limit")),
+      },
+      ws
+    );
+    const stats = jobStats(ws);
     // An empty corpus caused by a corrupt seed used to be invisible — surface it
     // with the failing path + reason instead of serving a silent empty catalog.
     if (stats.total === 0) {

@@ -31,6 +31,41 @@ export const TENANCY_SCOPED_TABLES: ReadonlySet<string> = new Set([
   "jd_revisions",
   // Phase 1 — a team's generated campaign packs (job-posting copy), keyed by their job.
   "campaign_packs",
+  // Phase 1 — the jobs corpus + its ingest dedup. DUAL model: seeded corpus rows
+  // (workspace_id NULL) are the SHARED cross-company reference every team matches
+  // against; authored openings carry a team's id. Enumeration reads use
+  // (workspace_id IS NULL OR = ?); by-id point reads (getJob/getJobStatus/setJobStatus)
+  // are exempted in jobs-tenancy.test.ts (a job id is a globally-unique PK). The
+  // job_ingests dedup PK is (content_hash, workspace_id) — dedup never crosses teams.
+  "jobs",
+  "job_ingests",
+  // Phase 1 — a team's Decisions "group evaluations", keyed by role. Reads filter by
+  // workspace_id; the upsert is workspace-guarded so a shared role_key can't clobber
+  // another team's row (group-eval-tenancy.test.ts).
+  "group_evals",
+  // Phase 1 — the candidate pipeline (highest-PII table). Scoped across ALL files that
+  // query it (pipeline.ts, analytics.ts, profiles.ts, sim-store.ts, offers-store.ts);
+  // recruiter by-id reads/writes filter workspace_id so a session can't read or mutate
+  // another team's entry (the IDOR the scan flagged). The two candidate-facing token
+  // reads (lead_token/erasure_token) are exempted in pipeline-tenancy.test.ts. NOTE:
+  // the entry-id scheme needs a workspace component before KP_MULTI_WORKSPACE is enabled.
+  "pipeline_entries",
+  // Phase 1 — the pipeline audit trails. Every read filters workspace_id (across
+  // core.ts recordEvent, pipeline.ts, analytics.ts, sim-store.ts); recordEvent +
+  // logConsentEvent auto-derive the tenant from the linked entry so the write side
+  // needs no per-call-site threading (pipeline-events-tenancy.test.ts).
+  "pipeline_events",
+  "consent_events",
+  // Phase 1 — the Channels surface. channel_webhooks (inbound lead bindings) +
+  // channel_spend (per-team spend; PK widened to (channel, workspace_id)) filter on
+  // workspace_id; dev_outbox (the comms outbox) auto-derives each message's tenant
+  // from its referenced entry. The public receiver's token-keyed liveness counters
+  // are exempt (channels-tenancy.test.ts). NOTE: the inbound receiver still files a
+  // lead via intakeLead on the DEFAULT workspace — thread webhook.workspaceId through
+  // the intake chain (lead-intake/cv-intake) before KP_MULTI_WORKSPACE is enabled.
+  "channel_webhooks",
+  "channel_spend",
+  "dev_outbox",
 ]);
 
 /** Tables that legitimately hold NO per-tenant data: the tenant registry itself,

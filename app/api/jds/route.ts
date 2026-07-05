@@ -13,7 +13,7 @@ export async function GET() {
     // W8-3 (JDL3) — each row's linked-job status (one query for all rows): the
     // library can show which JDs are matchable and offer "Ingest as job" on the
     // rest. null = no jd-<slug> job exists yet (analysis-only JD).
-    const statuses = listJobStatuses();
+    const statuses = listJobStatuses(ws);
     // Privacy relocation (biz-ui scan 2026-06-12 #1) — each row's analyzed-
     // candidate count (one GROUP BY for all rows) feeds the Library tab's
     // "Candidates (N)" toggle. Scoped to the caller's workspace like listJds above:
@@ -24,7 +24,7 @@ export async function GET() {
     // The linked jd-<slug> job's role family + seniority (one query for all rows)
     // feed the library's Field and Seniority columns; an analysis-only JD with no
     // job behind it has neither and renders "—".
-    const roleMeta = listJobRoleMeta();
+    const roleMeta = listJobRoleMeta(ws);
     const jds = rows.map((row) => {
       const jobId = jdJobId(row.slug);
       const meta = roleMeta[jobId];

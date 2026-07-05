@@ -12,7 +12,8 @@ export async function GET() {
     // Canonical match-score read path (REC-01 / OO-L2-10): every entry rides
     // out with `canonicalScore` + `scoreProvenance` so board/drawer/decisions
     // surfaces render ONE number and can label where it came from.
-    const entries = withCanonicalScores(listPipeline(), await currentWorkspace());
+    const ws = await currentWorkspace();
+    const entries = withCanonicalScores(listPipeline(ws), ws);
     return NextResponse.json({ entries, stages: PIPELINE_STAGES });
   } catch (error) {
     return safeJsonError(error, "api:pipeline", "PIPELINE_LIST_FAILED");
@@ -80,6 +81,7 @@ export async function POST(request: NextRequest) {
       // speak their language; no signal stays NULL and resolves to the workspace
       // default at dispatch (backlog #34 / pa-l2-null-locale).
       locale: inferProfileLocale(body.candidateId),
+      workspaceId: await currentWorkspace(),
     });
     return NextResponse.json(result);
   } catch (error) {

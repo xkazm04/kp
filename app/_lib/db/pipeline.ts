@@ -10,6 +10,7 @@ import { coerceGithubEvidenceSummary, type GithubEvidenceSummary } from "../gith
 import { recordPipelineOutcome } from "../dev-outcomes";
 import { recordAudit } from "../dev-control";
 import { ensureDb, recordEvent, type PipelineEntry } from "./core";
+import { DEFAULT_WORKSPACE_ID } from "./workspaces";
 import { revokeOpenInterviewSessions } from "./interviews";
 
 // ---- Hiring pipeline (Phase 10) -------------------------------------------
@@ -61,18 +62,19 @@ const EVENT_KIND_FILTER_MAX = 64;
 function eventKindClause(kinds?: readonly string[]): { sql: string; params: string[] } {
   if (!kinds || kinds.length === 0) return { sql: "", params: [] };
   const bounded = kinds.slice(0, EVENT_KIND_FILTER_MAX);
-  return { sql: ` WHERE kind IN (${bounded.map(() => "?").join(", ")})`, params: [...bounded] };
+  // AND-clause — the caller always prepends `WHERE workspace_id = ?` (P1 tenant scope).
+  return { sql: ` AND kind IN (${bounded.map(() => "?").join(", ")})`, params: [...bounded] };
 }
 
-export function listPipelineEvents(limit = 40, offset = 0, kinds?: readonly string[]): PipelineEvent[] {
+export function listPipelineEvents(limit = 40, offset = 0, kinds?: readonly string[], workspaceId: string = DEFAULT_WORKSPACE_ID): PipelineEvent[] {
   const db = ensureDb();
   const filter = eventKindClause(kinds);
   const rows = db
     .prepare(
       `SELECT id, entry_id, candidate_label, job_title, archetype, kind, from_stage, to_stage, detail, created_at
-       FROM pipeline_events${filter.sql} ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?`
+       FROM pipeline_events WHERE workspace_id = ?${filter.sql} ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?`
     )
-    .all(...filter.params, limit, offset) as Array<{
+    .all(workspaceId, ...filter.params, limit, offset) as Array<{
     id: number;
     entry_id: string | null;
     candidate_label: string | null;
@@ -103,14 +105,14 @@ export function listPipelineEvents(limit = 40, offset = 0, kinds?: readonly stri
  *  (PIPE3). Full detail (kind/from-to stage/detail), unlike the anonymized public
  *  activity feed: this is keyed by the internal entry id a recruiter surface
  *  already holds, so it's the same recruiter-data posture as /api/interview/by-entry. */
-export function listPipelineEventsForEntry(entryId: string, limit = 50): PipelineEvent[] {
+export function listPipelineEventsForEntry(entryId: string, limit = 50, workspaceId: string = DEFAULT_WORKSPACE_ID): PipelineEvent[] {
   const db = ensureDb();
   const rows = db
     .prepare(
       `SELECT id, entry_id, candidate_label, job_title, archetype, kind, from_stage, to_stage, detail, created_at
-       FROM pipeline_events WHERE entry_id = ? ORDER BY created_at ASC, id ASC LIMIT ?`
+       FROM pipeline_events WHERE entry_id = ? AND workspace_id = ? ORDER BY created_at ASC, id ASC LIMIT ?`
     )
-    .all(entryId, limit) as Array<{
+    .all(entryId, workspaceId, limit) as Array<{
     id: number;
     entry_id: string | null;
     candidate_label: string | null;
@@ -143,14 +145,14 @@ export function listPipelineEventsForEntry(entryId: string, limit = 50): Pipelin
  *  the OLDEST pending events and advances its cursor to the last id returned,
  *  catching up across polls — a newest-first LIMIT would silently drop the
  *  middle of the burst, which is exactly the bug this replaces. */
-export function listPipelineEventsSince(sinceId: number, limit = 200): PipelineEvent[] {
+export function listPipelineEventsSince(sinceId: number, limit = 200, workspaceId: string = DEFAULT_WORKSPACE_ID): PipelineEvent[] {
   const db = ensureDb();
   const rows = db
     .prepare(
       `SELECT id, entry_id, candidate_label, job_title, archetype, kind, from_stage, to_stage, detail, created_at
-       FROM pipeline_events WHERE id > ? ORDER BY id ASC LIMIT ?`
+       FROM pipeline_events WHERE id > ? AND workspace_id = ? ORDER BY id ASC LIMIT ?`
     )
-    .all(sinceId, limit) as Array<{
+    .all(sinceId, workspaceId, limit) as Array<{
     id: number;
     entry_id: string | null;
     candidate_label: string | null;
@@ -178,10 +180,10 @@ export function listPipelineEventsSince(sinceId: number, limit = 200): PipelineE
 
 // Total recorded events — lets the decision-log endpoint compute `hasMore`
 // without over-fetching, so the UI can page through the full audit trail.
-export function countPipelineEvents(kinds?: readonly string[]): number {
+export function countPipelineEvents(kinds?: readonly string[], workspaceId: string = DEFAULT_WORKSPACE_ID): number {
   const db = ensureDb();
   const filter = eventKindClause(kinds);
-  const row = db.prepare(`SELECT COUNT(*) AS n FROM pipeline_events${filter.sql}`).get(...filter.params) as {
+  const row = db.prepare(`SELECT COUNT(*) AS n FROM pipeline_events WHERE workspace_id = ?${filter.sql}`).get(workspaceId, ...filter.params) as {
     n: number;
   };
   return row.n;
@@ -301,20 +303,19 @@ const TERMINAL_STATUS_SQL_LIST = `(${TERMINAL_ENTRY_STATUSES.map((s) => `'${s}'`
 //     statuses there (declined/role_closed/rematched): not a screen verdict.
 //     Unscored entries never enter (no fabricated 0 — the REC-03 policy).
 //
-// Deliberately workspace-blind like every other pipeline_entries read (the
-// REC-09 tenancy gap is tracked in app/_lib/tenancy.ts, not fixed piecemeal here).
+// Tenant scope (P1): the calibration curve is a per-team reliability metric.
 export type PipelineCalibrationPair = { score: number; outcome: 0 | 1; roleFamily: string | null };
 
 const CALIBRATION_ADVANCED_STAGES = new Set(["Interview", "Offer", "Hired"]);
 
-export function pipelineCalibrationPairs(): PipelineCalibrationPair[] {
+export function pipelineCalibrationPairs(workspaceId: string = DEFAULT_WORKSPACE_ID): PipelineCalibrationPair[] {
   const db = ensureDb();
   const rows = db
     .prepare(
       `SELECT match_score AS score, stage, status, role_family FROM pipeline_entries
-       WHERE match_score IS NOT NULL`
+       WHERE match_score IS NOT NULL AND workspace_id = ?`
     )
-    .all() as { score: number; stage: string; status: string; role_family: string | null }[];
+    .all(workspaceId) as { score: number; stage: string; status: string; role_family: string | null }[];
   const pairs: PipelineCalibrationPair[] = [];
   for (const r of rows) {
     if (!Number.isFinite(r.score)) continue; // bad migration/manual edit — never NaN into the math
@@ -327,7 +328,7 @@ export function pipelineCalibrationPairs(): PipelineCalibrationPair[] {
   return pairs;
 }
 
-export function listPipeline(): PipelineEntry[] {
+export function listPipeline(workspaceId: string = DEFAULT_WORKSPACE_ID): PipelineEntry[] {
   const db = ensureDb();
   const rows = db
     .prepare(
@@ -342,10 +343,10 @@ export function listPipeline(): PipelineEntry[] {
       `SELECT id, candidate_id, candidate_label, archetype, role_family, job_id, job_title,
               stage, match_score, status, approval_kind, approval_detail, created_at, stage_changed_at,
               intake_degraded, intake_degraded_reason, github_json, github_handle, notes
-       FROM pipeline_entries WHERE status NOT IN ${TERMINAL_STATUS_SQL_LIST}
+       FROM pipeline_entries WHERE status NOT IN ${TERMINAL_STATUS_SQL_LIST} AND workspace_id = ?
        ORDER BY job_title, match_score DESC`
     )
-    .all() as PipelineRow[];
+    .all(workspaceId) as PipelineRow[];
   return rows.map(rowToEntry);
 }
 
@@ -357,18 +358,18 @@ export function listPipeline(): PipelineEntry[] {
  *  event per entry for the timeline, and returns how many were withdrawn. The Hired entry
  *  (the candidate the role was filled with) keeps status 'active' and is left untouched.
  *  Atomic: the select + per-row update + event all run in one synchronous transaction. */
-export function closeEntriesByJobId(jobId: string): number {
+export function closeEntriesByJobId(jobId: string, workspaceId: string = DEFAULT_WORKSPACE_ID): number {
   const db = ensureDb();
   const now = new Date().toISOString();
   const tx = db.transaction((): number => {
     const rows = db
       .prepare(
         `SELECT id, candidate_label, job_title, archetype, stage
-           FROM pipeline_entries WHERE job_id = ? AND status = 'active' AND stage != 'Hired'`
+           FROM pipeline_entries WHERE job_id = ? AND status = 'active' AND stage != 'Hired' AND workspace_id = ?`
       )
-      .all(jobId) as { id: string; candidate_label: string; job_title: string | null; archetype: string; stage: string }[];
+      .all(jobId, workspaceId) as { id: string; candidate_label: string; job_title: string | null; archetype: string; stage: string }[];
     for (const r of rows) {
-      db.prepare(`UPDATE pipeline_entries SET status='role_closed', approval_kind=NULL, updated_at=? WHERE id=?`).run(now, r.id);
+      db.prepare(`UPDATE pipeline_entries SET status='role_closed', approval_kind=NULL, updated_at=? WHERE id=? AND workspace_id=?`).run(now, r.id, workspaceId);
       recordEvent(db, {
         entryId: r.id,
         candidateLabel: r.candidate_label,
@@ -389,10 +390,10 @@ export function closeEntriesByJobId(jobId: string): number {
 // "silver medalists" (rejected/closed elsewhere) who fit a different role.
 export type CandidateOutcome = { jobId: string | null; jobTitle: string | null; stage: string; status: string };
 
-export function candidateOutcomes(): Map<string, CandidateOutcome[]> {
+export function candidateOutcomes(workspaceId: string = DEFAULT_WORKSPACE_ID): Map<string, CandidateOutcome[]> {
   const rows = ensureDb()
-    .prepare(`SELECT candidate_id, job_id, job_title, stage, status FROM pipeline_entries WHERE candidate_id IS NOT NULL`)
-    .all() as { candidate_id: string; job_id: string | null; job_title: string | null; stage: string; status: string }[];
+    .prepare(`SELECT candidate_id, job_id, job_title, stage, status FROM pipeline_entries WHERE candidate_id IS NOT NULL AND workspace_id = ?`)
+    .all(workspaceId) as { candidate_id: string; job_id: string | null; job_title: string | null; stage: string; status: string }[];
   const m = new Map<string, CandidateOutcome[]>();
   for (const r of rows) {
     const arr = m.get(r.candidate_id) ?? [];
@@ -405,15 +406,15 @@ export function candidateOutcomes(): Map<string, CandidateOutcome[]> {
 /** Which of these entries carry an event of `kind` (W8-5 — e.g. the durable
  *  outreach_sent markers backing the sourcing ranking's persisted state).
  *  Chunked IN query under the SQLite variable limit. */
-export function entryIdsWithEvent(entryIds: string[], kind: string): Set<string> {
+export function entryIdsWithEvent(entryIds: string[], kind: string, workspaceId: string = DEFAULT_WORKSPACE_ID): Set<string> {
   const out = new Set<string>();
   if (entryIds.length === 0) return out;
   const db = ensureDb();
   for (const ids of chunk(entryIds, SQL_IN_CHUNK)) {
     const placeholders = ids.map(() => "?").join(",");
     const rows = db
-      .prepare(`SELECT DISTINCT entry_id FROM pipeline_events WHERE kind = ? AND entry_id IN (${placeholders})`)
-      .all(kind, ...ids) as { entry_id: string }[];
+      .prepare(`SELECT DISTINCT entry_id FROM pipeline_events WHERE kind = ? AND entry_id IN (${placeholders}) AND workspace_id = ?`)
+      .all(kind, ...ids, workspaceId) as { entry_id: string }[];
     for (const r of rows) out.add(r.entry_id);
   }
   return out;
@@ -421,11 +422,11 @@ export function entryIdsWithEvent(entryIds: string[], kind: string): Set<string>
 
 /** All pipeline entries filed under a job (PREP1 — the compare grid unions the
  *  voice-interviewed cohort with human-scorecard-only entries from here). */
-export function listEntriesForJob(jobId: string): PipelineEntry[] {
+export function listEntriesForJob(jobId: string, workspaceId: string = DEFAULT_WORKSPACE_ID): PipelineEntry[] {
   const db = ensureDb();
   const rows = db
-    .prepare(`SELECT * FROM pipeline_entries WHERE job_id = ? ORDER BY created_at ASC, id ASC`)
-    .all(jobId) as PipelineRow[];
+    .prepare(`SELECT * FROM pipeline_entries WHERE job_id = ? AND workspace_id = ? ORDER BY created_at ASC, id ASC`)
+    .all(jobId, workspaceId) as PipelineRow[];
   return rows.map(rowToEntry);
 }
 
@@ -443,7 +444,7 @@ export type ReconsiderItem = { entry: PipelineEntry; rejectedAt: string | null }
  *  Only entries carrying an `auto_rejected` event surface here — a manual human
  *  reject is a deliberate decision, not a queue item. GROUP BY e.id dedups an
  *  entry that was auto-rejected more than once; MAX(created_at) is its latest. */
-export function listReconsiderQueue(limit = 50): ReconsiderItem[] {
+export function listReconsiderQueue(limit = 50, workspaceId: string = DEFAULT_WORKSPACE_ID): ReconsiderItem[] {
   const db = ensureDb();
   const rows = db
     .prepare(
@@ -453,12 +454,12 @@ export function listReconsiderQueue(limit = 50): ReconsiderItem[] {
               MAX(ev.created_at) AS rejected_at
          FROM pipeline_entries e
          JOIN pipeline_events ev ON ev.entry_id = e.id AND ev.kind = 'auto_rejected'
-        WHERE e.status = 'rejected'
+        WHERE e.status = 'rejected' AND e.workspace_id = ?
         GROUP BY e.id
         ORDER BY rejected_at DESC
         LIMIT ?`
     )
-    .all(Math.min(Math.max(limit, 1), 200)) as (PipelineRow & { rejected_at: string | null })[];
+    .all(workspaceId, Math.min(Math.max(limit, 1), 200)) as (PipelineRow & { rejected_at: string | null })[];
   return rows.map((r) => ({ entry: rowToEntry(r), rejectedAt: r.rejected_at ?? null }));
 }
 
@@ -469,10 +470,10 @@ export function listReconsiderQueue(limit = 50): ReconsiderItem[] {
  *  no-op. Returns the reinstated entry, or null if it wasn't reinstatable. NB: the
  *  candidate already received a rejection note — re-notifying them is a deliberate
  *  recruiter follow-up, not auto-sent here. */
-export function reinstatePipelineEntry(id: string): PipelineEntry | null {
+export function reinstatePipelineEntry(id: string, workspaceId: string = DEFAULT_WORKSPACE_ID): PipelineEntry | null {
   const db = ensureDb();
   const tx = db.transaction((): PipelineEntry | null => {
-    const row = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ?`).get(id) as PipelineRow | undefined;
+    const row = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ? AND workspace_id = ?`).get(id, workspaceId) as PipelineRow | undefined;
     if (!row || row.status !== "rejected") return null;
     const now = new Date().toISOString();
     const res = db
@@ -480,9 +481,9 @@ export function reinstatePipelineEntry(id: string): PipelineEntry | null {
         `UPDATE pipeline_entries
             SET status='active', stage='Screened', approval_kind=NULL, approval_detail=NULL,
                 stage_changed_at=?, updated_at=?
-          WHERE id=? AND status='rejected'`
+          WHERE id=? AND status='rejected' AND workspace_id=?`
       )
-      .run(now, now, id);
+      .run(now, now, id, workspaceId);
     if (res.changes === 0) return null; // lost a race to another writer
     recordEvent(db, {
       entryId: id,
@@ -494,7 +495,7 @@ export function reinstatePipelineEntry(id: string): PipelineEntry | null {
       toStage: "Screened",
       detail: "Auto-rejection reversed for re-review.",
     });
-    return getPipelineEntry(id);
+    return getPipelineEntry(id, workspaceId);
   });
   return tx();
 }
@@ -556,38 +557,46 @@ export type CreatePipelineInput = {
 // entry already existed, letting the caller surface the repeat.
 export function createPipelineEntry(input: CreatePipelineInput): { entry: PipelineEntry; created: boolean } {
   const db = ensureDb();
+  // Tenant scope (P1): stamp + scope every by-id lookup to the owning team. NOTE:
+  // the entry id (`m-<candidate>-<job>`) is a GLOBAL PK; a workspace component in
+  // the id is a multi-tenant-enable prerequisite (two teams sourcing the same
+  // candidate→job would collide) — tracked, not needed under the single-tenant lock.
+  const workspaceId = input.workspaceId ?? DEFAULT_WORKSPACE_ID;
   const keySource = input.dedupeKey || input.candidateId;
   const id = `m-${keySource}-${input.jobId}`.replace(/[^A-Za-z0-9_-]/g, "").slice(0, 90);
-  const existing = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ?`).get(id) as PipelineRow | undefined;
+  const existing = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ? AND workspace_id = ?`).get(id, workspaceId) as PipelineRow | undefined;
   if (existing) {
     // A re-add carrying GitHub evidence backfills an entry that has none —
     // additive only, never an overwrite of evidence already attached.
     if (input.githubJson && !existing.github_json) {
-      db.prepare(`UPDATE pipeline_entries SET github_json=?, updated_at=? WHERE id=?`).run(
+      db.prepare(`UPDATE pipeline_entries SET github_json=?, updated_at=? WHERE id=? AND workspace_id=?`).run(
         input.githubJson,
         new Date().toISOString(),
-        id
+        id,
+        workspaceId
       );
     }
     // Same additive discipline for the self-reported handle: a repeat that
     // brings one fills an entry that has none, never overwrites one on file.
     if (input.githubHandle && !existing.github_handle) {
-      db.prepare(`UPDATE pipeline_entries SET github_handle=?, updated_at=? WHERE id=?`).run(
+      db.prepare(`UPDATE pipeline_entries SET github_handle=?, updated_at=? WHERE id=? AND workspace_id=?`).run(
         input.githubHandle,
         new Date().toISOString(),
-        id
+        id,
+        workspaceId
       );
     }
     // re-surface a previously-closed candidate if a recruiter re-adds them —
     // either a company reject OR a candidate decline (both terminal; a re-add
     // means "let's reconsider them", which applies equally to a past decline).
     if (isTerminalEntryStatus(existing.status)) {
-      db.prepare(`UPDATE pipeline_entries SET status='active', updated_at=? WHERE id=?`).run(
+      db.prepare(`UPDATE pipeline_entries SET status='active', updated_at=? WHERE id=? AND workspace_id=?`).run(
         new Date().toISOString(),
-        id
+        id,
+        workspaceId
       );
     }
-    const row = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ?`).get(id) as PipelineRow;
+    const row = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ? AND workspace_id = ?`).get(id, workspaceId) as PipelineRow;
     return { entry: rowToEntry(row), created: false };
   }
   const now = new Date().toISOString();
@@ -624,7 +633,7 @@ export function createPipelineEntry(input: CreatePipelineInput): { entry: Pipeli
     source_channel: input.sourceChannel ?? null,
     source_campaign: input.sourceCampaign ?? null,
     source_variant: input.sourceVariant ?? null,
-    workspace_id: input.workspaceId ?? "workspace",
+    workspace_id: workspaceId,
   });
   recordEvent(db, {
     entryId: id,
@@ -635,7 +644,7 @@ export function createPipelineEntry(input: CreatePipelineInput): { entry: Pipeli
     toStage: stage,
     detail: intakeDegraded ? intakeDegradedReason : "added to pipeline",
   });
-  const row = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ?`).get(id) as PipelineRow;
+  const row = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ? AND workspace_id = ?`).get(id, workspaceId) as PipelineRow;
   return { entry: rowToEntry(row), created: true };
 }
 
@@ -661,9 +670,9 @@ export function findActiveEntriesByCandidateLabel(candidateLabel: string, worksp
 // record. Recruiter-initiated and annotation-only by design: the sim's "demo
 // sessions move nothing in the pipeline" contract holds — this records an event
 // for the drawer history, it does NOT link the session or touch stage/approval.
-export function recordSimTranscriptAttached(entryId: string, detail: string | null): boolean {
+export function recordSimTranscriptAttached(entryId: string, detail: string | null, workspaceId: string = DEFAULT_WORKSPACE_ID): boolean {
   const db = ensureDb();
-  const row = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ?`).get(entryId) as PipelineRow | undefined;
+  const row = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ? AND workspace_id = ?`).get(entryId, workspaceId) as PipelineRow | undefined;
   if (!row) return false;
   recordEvent(db, {
     entryId: row.id,
@@ -721,15 +730,15 @@ export function recordAnalysisDispositionEvents(
 // primary, pre-build check the POST handler runs to avoid both a duplicate
 // pipeline row AND a wasted profile build; createPipelineEntry's `dedupeKey`
 // backstops the rare concurrent-submission race.
-export function findApplicationByApplicant(jobId: string, name: string, email?: string | null): PipelineEntry | null {
+export function findApplicationByApplicant(jobId: string, name: string, email?: string | null, workspaceId: string = DEFAULT_WORKSPACE_ID): PipelineEntry | null {
   const emailKey = normalizeContact(email);
   const nameKey = normalizeApplicantName(name);
   // Nothing to key on (anonymous, no email) — never merge.
   if (!emailKey && !nameKey) return null;
   const db = ensureDb();
   const rows = db
-    .prepare(`SELECT * FROM pipeline_entries WHERE job_id = ? ORDER BY created_at ASC, id ASC`)
-    .all(jobId) as PipelineRow[];
+    .prepare(`SELECT * FROM pipeline_entries WHERE job_id = ? AND workspace_id = ? ORDER BY created_at ASC, id ASC`)
+    .all(jobId, workspaceId) as PipelineRow[];
   // When the applicant gave an email, identity is the EMAIL: a repeat is an entry
   // sharing that contact. A row holding a DIFFERENT address is never matched —
   // two real people who share a name but gave different addresses are different
@@ -767,29 +776,30 @@ export function findApplicationByApplicant(jobId: string, name: string, email?: 
 // entry, or null when the id is unknown.
 export function mergeReapplication(
   id: string,
-  updates: { contact?: string | null; candidateId?: string | null; archetype?: string | null; githubHandle?: string | null }
+  updates: { contact?: string | null; candidateId?: string | null; archetype?: string | null; githubHandle?: string | null },
+  workspaceId: string = DEFAULT_WORKSPACE_ID
 ): PipelineEntry | null {
   const db = ensureDb();
   const now = new Date().toISOString();
   if (updates.contact) {
     db.prepare(
-      `UPDATE pipeline_entries SET contact = ?, updated_at = ? WHERE id = ? AND (contact IS NULL OR contact = '')`
-    ).run(updates.contact, now, id);
+      `UPDATE pipeline_entries SET contact = ?, updated_at = ? WHERE id = ? AND (contact IS NULL OR contact = '') AND workspace_id = ?`
+    ).run(updates.contact, now, id, workspaceId);
   }
   if (updates.githubHandle) {
     db.prepare(
-      `UPDATE pipeline_entries SET github_handle = ?, updated_at = ? WHERE id = ? AND (github_handle IS NULL OR github_handle = '')`
-    ).run(updates.githubHandle, now, id);
+      `UPDATE pipeline_entries SET github_handle = ?, updated_at = ? WHERE id = ? AND (github_handle IS NULL OR github_handle = '') AND workspace_id = ?`
+    ).run(updates.githubHandle, now, id, workspaceId);
   }
   if (updates.candidateId) {
     db.prepare(
       `UPDATE pipeline_entries
          SET candidate_id = ?, archetype = COALESCE(?, archetype),
              intake_degraded = 0, intake_degraded_reason = NULL, updated_at = ?
-       WHERE id = ?`
-    ).run(updates.candidateId, updates.archetype ?? null, now, id);
+       WHERE id = ? AND workspace_id = ?`
+    ).run(updates.candidateId, updates.archetype ?? null, now, id, workspaceId);
   }
-  const row = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ?`).get(id) as PipelineRow | undefined;
+  const row = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ? AND workspace_id = ?`).get(id, workspaceId) as PipelineRow | undefined;
   return row ? rowToEntry(row) : null;
 }
 
@@ -797,14 +807,14 @@ export function mergeReapplication(
 // captured manually the flag is cleared and an event logged, so the audit trail
 // shows the gap was recovered rather than the entry silently slipping through.
 // Returns the updated entry, or null when the id is unknown or wasn't degraded.
-export function clearIntakeDegraded(id: string): PipelineEntry | null {
+export function clearIntakeDegraded(id: string, workspaceId: string = DEFAULT_WORKSPACE_ID): PipelineEntry | null {
   const db = ensureDb();
-  const row = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ?`).get(id) as PipelineRow | undefined;
+  const row = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ? AND workspace_id = ?`).get(id, workspaceId) as PipelineRow | undefined;
   if (!row || row.intake_degraded !== 1) return null;
   const now = new Date().toISOString();
   db.prepare(
-    `UPDATE pipeline_entries SET intake_degraded=0, intake_degraded_reason=NULL, updated_at=? WHERE id=?`
-  ).run(now, id);
+    `UPDATE pipeline_entries SET intake_degraded=0, intake_degraded_reason=NULL, updated_at=? WHERE id=? AND workspace_id=?`
+  ).run(now, id, workspaceId);
   recordEvent(db, {
     entryId: id,
     candidateLabel: row.candidate_label,
@@ -814,7 +824,7 @@ export function clearIntakeDegraded(id: string): PipelineEntry | null {
     toStage: row.stage,
     detail: "intake captured manually",
   });
-  const updated = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ?`).get(id) as PipelineRow;
+  const updated = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ? AND workspace_id = ?`).get(id, workspaceId) as PipelineRow;
   return rowToEntry(updated);
 }
 
@@ -832,9 +842,9 @@ const LEAD_PASSED_KO_MAX_IDS = 12;
 //   - `passedKoIds` REFRESHES whenever provided — the caller just re-verified
 //     those gates, so the newest verdict is the truthful one.
 // Returns the canonical token, or null when the entry id is unknown.
-export function ensureLeadEnrichToken(entryId: string, passedKoIds?: readonly string[]): string | null {
+export function ensureLeadEnrichToken(entryId: string, passedKoIds?: readonly string[], workspaceId: string = DEFAULT_WORKSPACE_ID): string | null {
   const db = ensureDb();
-  const row = db.prepare(`SELECT lead_token FROM pipeline_entries WHERE id = ?`).get(entryId) as
+  const row = db.prepare(`SELECT lead_token FROM pipeline_entries WHERE id = ? AND workspace_id = ?`).get(entryId, workspaceId) as
     | { lead_token: string | null }
     | undefined;
   if (!row) return null;
@@ -845,10 +855,10 @@ export function ensureLeadEnrichToken(entryId: string, passedKoIds?: readonly st
         SET lead_token = COALESCE(lead_token, ?),
             lead_passed_ko_json = COALESCE(?, lead_passed_ko_json),
             updated_at = ?
-      WHERE id = ?`
-  ).run(row.lead_token ?? randomToken("ld"), passedJson, new Date().toISOString(), entryId);
+      WHERE id = ? AND workspace_id = ?`
+  ).run(row.lead_token ?? randomToken("ld"), passedJson, new Date().toISOString(), entryId, workspaceId);
   // Re-read so a concurrent mint race returns the COALESCE winner, not our loser.
-  const after = db.prepare(`SELECT lead_token FROM pipeline_entries WHERE id = ?`).get(entryId) as
+  const after = db.prepare(`SELECT lead_token FROM pipeline_entries WHERE id = ? AND workspace_id = ?`).get(entryId, workspaceId) as
     | { lead_token: string | null }
     | undefined;
   return after?.lead_token ?? null;
@@ -901,15 +911,15 @@ function parseLeadPassedKo(json: string | null | undefined, entryId: string): st
 // (the route validates via coerceGithubEvidenceSummary before stringifying);
 // an event is logged on a real attach so the candidate's history shows where
 // the evidence came from. Returns the fresh entry, or null for an unknown id.
-export function setEntryGithubEvidence(id: string, githubJson: string): PipelineEntry | null {
+export function setEntryGithubEvidence(id: string, githubJson: string, workspaceId: string = DEFAULT_WORKSPACE_ID): PipelineEntry | null {
   const db = ensureDb();
-  const row = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ?`).get(id) as PipelineRow | undefined;
+  const row = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ? AND workspace_id = ?`).get(id, workspaceId) as PipelineRow | undefined;
   if (!row) return null;
   const res = db
     .prepare(
-      `UPDATE pipeline_entries SET github_json = ?, updated_at = ? WHERE id = ? AND (github_json IS NULL OR github_json = '')`
+      `UPDATE pipeline_entries SET github_json = ?, updated_at = ? WHERE id = ? AND (github_json IS NULL OR github_json = '') AND workspace_id = ?`
     )
-    .run(githubJson, new Date().toISOString(), id);
+    .run(githubJson, new Date().toISOString(), id, workspaceId);
   if (res.changes > 0) {
     recordEvent(db, {
       entryId: id,
@@ -921,7 +931,7 @@ export function setEntryGithubEvidence(id: string, githubJson: string): Pipeline
       detail: "GitHub deep-dive run from the drawer",
     });
   }
-  const updated = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ?`).get(id) as PipelineRow;
+  const updated = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ? AND workspace_id = ?`).get(id, workspaceId) as PipelineRow;
   return rowToEntry(updated);
 }
 
@@ -932,13 +942,13 @@ export function setEntryGithubEvidence(id: string, githubJson: string): Pipeline
 // truth; null clears it. `notes` arrives trimmed and length-bounded by the
 // route (set_notes). No event — a per-pause autosave would spam the candidate's
 // history. Returns the fresh entry, or null for an unknown id.
-export function setEntryNotes(id: string, notes: string | null): PipelineEntry | null {
+export function setEntryNotes(id: string, notes: string | null, workspaceId: string = DEFAULT_WORKSPACE_ID): PipelineEntry | null {
   const db = ensureDb();
   const res = db
-    .prepare(`UPDATE pipeline_entries SET notes = ?, updated_at = ? WHERE id = ?`)
-    .run(notes, new Date().toISOString(), id);
+    .prepare(`UPDATE pipeline_entries SET notes = ?, updated_at = ? WHERE id = ? AND workspace_id = ?`)
+    .run(notes, new Date().toISOString(), id, workspaceId);
   if (res.changes === 0) return null;
-  const updated = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ?`).get(id) as PipelineRow;
+  const updated = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ? AND workspace_id = ?`).get(id, workspaceId) as PipelineRow;
   return rowToEntry(updated);
 }
 
@@ -959,22 +969,29 @@ export type ConsentEventKind =
 
 /** Append one row to the consent audit trail. Internal helper (takes the open
  *  db/transaction handle) so a transition + its audit row commit atomically. */
-function logConsentEvent(db: Database.Database, entryId: string, kind: ConsentEventKind, detail?: string): void {
-  db.prepare(`INSERT INTO consent_events (entry_id, kind, detail, created_at) VALUES (?, ?, ?, ?)`).run(
+function logConsentEvent(
+  db: Database.Database,
+  entryId: string,
+  kind: ConsentEventKind,
+  detail?: string,
+  workspaceId: string = DEFAULT_WORKSPACE_ID
+): void {
+  db.prepare(`INSERT INTO consent_events (entry_id, kind, detail, created_at, workspace_id) VALUES (?, ?, ?, ?, ?)`).run(
     entryId,
     kind,
     detail ?? null,
-    new Date().toISOString()
+    new Date().toISOString(),
+    workspaceId
   );
 }
 
 export type ConsentEvent = { id: number; kind: string; detail: string | null; createdAt: string };
 
 /** The audit trail for one entry, newest-first (drawer "Data & consent" panel). */
-export function listConsentEvents(entryId: string): ConsentEvent[] {
+export function listConsentEvents(entryId: string, workspaceId: string = DEFAULT_WORKSPACE_ID): ConsentEvent[] {
   return ensureDb()
-    .prepare(`SELECT id, kind, detail, created_at FROM consent_events WHERE entry_id = ? ORDER BY id DESC`)
-    .all(entryId)
+    .prepare(`SELECT id, kind, detail, created_at FROM consent_events WHERE entry_id = ? AND workspace_id = ? ORDER BY id DESC`)
+    .all(entryId, workspaceId)
     .map((r) => {
       const row = r as { id: number; kind: string; detail: string | null; created_at: string };
       return { id: row.id, kind: row.kind, detail: row.detail, createdAt: row.created_at };
@@ -988,20 +1005,21 @@ export function listConsentEvents(entryId: string): ConsentEvent[] {
 export function recordEntryConsent(
   entryId: string,
   source: string,
-  ttlDays: number = CONSENT_TTL_DAYS
+  ttlDays: number = CONSENT_TTL_DAYS,
+  workspaceId: string = DEFAULT_WORKSPACE_ID
 ): PipelineEntry | null {
   const db = ensureDb();
   const now = new Date();
   const tx = db.transaction((): PipelineEntry | null => {
-    const existing = db.prepare(`SELECT consent_given_at FROM pipeline_entries WHERE id = ?`).get(entryId) as
+    const existing = db.prepare(`SELECT consent_given_at FROM pipeline_entries WHERE id = ? AND workspace_id = ?`).get(entryId, workspaceId) as
       | { consent_given_at: string | null }
       | undefined;
     if (!existing) return null;
     db.prepare(
-      `UPDATE pipeline_entries SET consent_given_at = ?, consent_expires_at = ?, consent_source = ?, updated_at = ? WHERE id = ?`
-    ).run(now.toISOString(), consentExpiresAt(now.getTime(), ttlDays), source, now.toISOString(), entryId);
-    logConsentEvent(db, entryId, existing.consent_given_at ? "renewed" : "granted", `via ${source}`);
-    const row = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ?`).get(entryId) as PipelineRow;
+      `UPDATE pipeline_entries SET consent_given_at = ?, consent_expires_at = ?, consent_source = ?, updated_at = ? WHERE id = ? AND workspace_id = ?`
+    ).run(now.toISOString(), consentExpiresAt(now.getTime(), ttlDays), source, now.toISOString(), entryId, workspaceId);
+    logConsentEvent(db, entryId, existing.consent_given_at ? "renewed" : "granted", `via ${source}`, workspaceId);
+    const row = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ? AND workspace_id = ?`).get(entryId, workspaceId) as PipelineRow;
     return rowToEntry(row);
   });
   return tx();
@@ -1011,17 +1029,17 @@ export function recordEntryConsent(
  *  capability the "manage your data" email footer carries to the public
  *  /data/[token] page. FILL-ONLY (COALESCE-guarded) so the link already emailed
  *  stays valid; CSPRNG (randomToken), never the raw entry id. Null for unknown id. */
-export function ensureErasureToken(entryId: string): string | null {
+export function ensureErasureToken(entryId: string, workspaceId: string = DEFAULT_WORKSPACE_ID): string | null {
   const db = ensureDb();
-  const row = db.prepare(`SELECT erasure_token FROM pipeline_entries WHERE id = ?`).get(entryId) as
+  const row = db.prepare(`SELECT erasure_token FROM pipeline_entries WHERE id = ? AND workspace_id = ?`).get(entryId, workspaceId) as
     | { erasure_token: string | null }
     | undefined;
   if (!row) return null;
   if (row.erasure_token) return row.erasure_token;
   db.prepare(
-    `UPDATE pipeline_entries SET erasure_token = COALESCE(erasure_token, ?), updated_at = ? WHERE id = ?`
-  ).run(randomToken("er"), new Date().toISOString(), entryId);
-  const after = db.prepare(`SELECT erasure_token FROM pipeline_entries WHERE id = ?`).get(entryId) as
+    `UPDATE pipeline_entries SET erasure_token = COALESCE(erasure_token, ?), updated_at = ? WHERE id = ? AND workspace_id = ?`
+  ).run(randomToken("er"), new Date().toISOString(), entryId, workspaceId);
+  const after = db.prepare(`SELECT erasure_token FROM pipeline_entries WHERE id = ? AND workspace_id = ?`).get(entryId, workspaceId) as
     | { erasure_token: string | null }
     | undefined;
   return after?.erasure_token ?? null;
@@ -1046,10 +1064,10 @@ export function findEntryByErasureToken(token: string): PipelineEntry | null {
  *  Stamps anonymized_at and audits it. Idempotent (a second run is a no-op via the
  *  anonymized_at guard). `reason` distinguishes the consent-expiry sweep from a
  *  candidate erasure request in the audit trail. Returns the entry, or null. */
-export function anonymizeEntry(entryId: string, reason: "expiry" | "erasure" = "expiry"): PipelineEntry | null {
+export function anonymizeEntry(entryId: string, reason: "expiry" | "erasure" = "expiry", workspaceId: string = DEFAULT_WORKSPACE_ID): PipelineEntry | null {
   const db = ensureDb();
   const tx = db.transaction((): PipelineEntry | null => {
-    const row = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ?`).get(entryId) as PipelineRow | undefined;
+    const row = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ? AND workspace_id = ?`).get(entryId, workspaceId) as PipelineRow | undefined;
     if (!row) return null;
     if (row.anonymized_at) return rowToEntry(row); // already scrubbed — no-op
     const now = new Date().toISOString();
@@ -1058,11 +1076,11 @@ export function anonymizeEntry(entryId: string, reason: "expiry" | "erasure" = "
       `UPDATE pipeline_entries
           SET candidate_label = ?, contact = NULL, github_handle = NULL, github_json = NULL,
               erasure_token = NULL, anonymized_at = ?, updated_at = ?
-        WHERE id = ?`
-    ).run(masked, now, now, entryId);
+        WHERE id = ? AND workspace_id = ?`
+    ).run(masked, now, now, entryId, workspaceId);
     // The label is snapshotted onto every audit event — mask those too so the
     // activity feed can't reconstruct the name after the row is scrubbed.
-    db.prepare(`UPDATE pipeline_events SET candidate_label = ? WHERE entry_id = ?`).run(masked, entryId);
+    db.prepare(`UPDATE pipeline_events SET candidate_label = ? WHERE entry_id = ? AND workspace_id = ?`).run(masked, entryId, workspaceId);
     // Scrub the linked CV profile (PII out, scores kept). Best-effort: a missing
     // profile (recruiter stub) just means there was no CV blob to scrub.
     if (row.candidate_id) anonymizeProfile(row.candidate_id);
@@ -1094,8 +1112,8 @@ export function anonymizeEntry(entryId: string, reason: "expiry" | "erasure" = "
         scrubAnalysis.run(masked, scrubbedPayload, a.slug);
       }
     }
-    logConsentEvent(db, entryId, reason === "erasure" ? "erased" : "anonymized", `reason: ${reason}`);
-    const updated = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ?`).get(entryId) as PipelineRow;
+    logConsentEvent(db, entryId, reason === "erasure" ? "erased" : "anonymized", `reason: ${reason}`, workspaceId);
+    const updated = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ? AND workspace_id = ?`).get(entryId, workspaceId) as PipelineRow;
     return rowToEntry(updated);
   });
   return tx();
@@ -1108,16 +1126,18 @@ export function anonymizeEntry(entryId: string, reason: "expiry" | "erasure" = "
  *  rejected candidate must still be honored. */
 export function anonymizeExpiredConsents(nowIso: string = new Date().toISOString()): number {
   const db = ensureDb();
+  // GLOBAL GDPR sweep — process EVERY tenant's expired consents (deliberately not
+  // filtered by workspace); thread each entry's workspace_id to the scoped anonymizeEntry.
   const due = db
     .prepare(
-      `SELECT id FROM pipeline_entries
+      `SELECT id, workspace_id FROM pipeline_entries
         WHERE consent_expires_at IS NOT NULL AND consent_expires_at <= ? AND anonymized_at IS NULL`
     )
-    .all(nowIso) as { id: string }[];
+    .all(nowIso) as { id: string; workspace_id: string }[];
   let count = 0;
-  for (const { id } of due) {
+  for (const { id, workspace_id } of due) {
     try {
-      if (anonymizeEntry(id, "expiry")) count += 1;
+      if (anonymizeEntry(id, "expiry", workspace_id)) count += 1;
     } catch (error) {
       console.error(`[consent] anonymize sweep failed for entry ${id}`, error);
     }
@@ -1137,30 +1157,30 @@ export const SCREENING_OVERRIDE_GUARD_HOURS = 24;
 
 export type AutomationEntry = PipelineEntry & { daysInStage: number; recentScreening: boolean };
 
-export function getPipelineEntry(id: string): PipelineEntry | null {
+export function getPipelineEntry(id: string, workspaceId: string = DEFAULT_WORKSPACE_ID): PipelineEntry | null {
   const db = ensureDb();
-  const row = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ?`).get(id) as PipelineRow | undefined;
+  const row = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ? AND workspace_id = ?`).get(id, workspaceId) as PipelineRow | undefined;
   return row ? rowToEntry(row) : null;
 }
 
 /** Active entries enriched with daysInStage + whether a screening decision is newer than
  *  SCREENING_OVERRIDE_GUARD_HOURS (the recentScreening guard, Task 7 input). */
-export function listActiveEntriesForAutomation(): AutomationEntry[] {
+export function listActiveEntriesForAutomation(workspaceId: string = DEFAULT_WORKSPACE_ID): AutomationEntry[] {
   const db = ensureDb();
   const rows = db
     .prepare(
       `SELECT id, candidate_id, candidate_label, archetype, role_family, job_id, job_title,
               stage, match_score, status, approval_kind, approval_detail, created_at, stage_changed_at,
               intake_degraded, intake_degraded_reason
-       FROM pipeline_entries WHERE status = 'active'`
+       FROM pipeline_entries WHERE status = 'active' AND workspace_id = ?`
     )
-    .all() as PipelineRow[];
+    .all(workspaceId) as PipelineRow[];
   const cutoff = new Date(Date.now() - SCREENING_OVERRIDE_GUARD_HOURS * 3600 * 1000).toISOString();
   const recent = new Set(
     (
       db
-        .prepare(`SELECT DISTINCT entry_id FROM pipeline_events WHERE kind LIKE 'screening%' AND created_at > ?`)
-        .all(cutoff) as { entry_id: string }[]
+        .prepare(`SELECT DISTINCT entry_id FROM pipeline_events WHERE kind LIKE 'screening%' AND created_at > ? AND workspace_id = ?`)
+        .all(cutoff, workspaceId) as { entry_id: string }[]
     ).map((r) => r.entry_id)
   );
   return rows.map((r) => {
@@ -1172,30 +1192,31 @@ export function listActiveEntriesForAutomation(): AutomationEntry[] {
 /** Fill an entry's missing match score (AUTO1 — the auto-score sweep). FILL-ONLY:
  *  the WHERE clause refuses to clobber a score already present (entry creation,
  *  a recruiter's re-file), so the sweep can never overwrite a human-era value. */
-export function setEntryMatchScore(entryId: string, score: number): boolean {
+export function setEntryMatchScore(entryId: string, score: number, workspaceId: string = DEFAULT_WORKSPACE_ID): boolean {
   const db = ensureDb();
   const res = db
-    .prepare(`UPDATE pipeline_entries SET match_score=?, updated_at=? WHERE id=? AND match_score IS NULL`)
-    .run(score, new Date().toISOString(), entryId);
+    .prepare(`UPDATE pipeline_entries SET match_score=?, updated_at=? WHERE id=? AND match_score IS NULL AND workspace_id=?`)
+    .run(score, new Date().toISOString(), entryId, workspaceId);
   return res.changes > 0;
 }
 
 /** Set/clear a pending approval without a stage change (Task 1 hold, Task 5 scorecard gate). */
-export function setApproval(entryId: string, approvalKind: ApprovalKind | null, approvalDetail: string): void {
+export function setApproval(entryId: string, approvalKind: ApprovalKind | null, approvalDetail: string, workspaceId: string = DEFAULT_WORKSPACE_ID): void {
   const db = ensureDb();
-  db.prepare(`UPDATE pipeline_entries SET approval_kind=?, approval_detail=?, updated_at=? WHERE id=?`).run(
+  db.prepare(`UPDATE pipeline_entries SET approval_kind=?, approval_detail=?, updated_at=? WHERE id=? AND workspace_id=?`).run(
     approvalKind,
     approvalDetail,
     new Date().toISOString(),
-    entryId
+    entryId,
+    workspaceId
   );
 }
 
-export function recordAutomationEvent(entryId: string, kind: string, detail?: string): void {
+export function recordAutomationEvent(entryId: string, kind: string, detail?: string, workspaceId: string = DEFAULT_WORKSPACE_ID): void {
   const db = ensureDb();
   const row = db
-    .prepare(`SELECT candidate_label, job_title, archetype, stage FROM pipeline_entries WHERE id = ?`)
-    .get(entryId) as { candidate_label: string; job_title: string | null; archetype: string | null; stage: string } | undefined;
+    .prepare(`SELECT candidate_label, job_title, archetype, stage FROM pipeline_entries WHERE id = ? AND workspace_id = ?`)
+    .get(entryId, workspaceId) as { candidate_label: string; job_title: string | null; archetype: string | null; stage: string } | undefined;
   recordEvent(db, {
     entryId,
     candidateLabel: row?.candidate_label ?? null,
@@ -1238,11 +1259,11 @@ export function recordKnockoutDecline(input: {
  *  to make a real-world side effect idempotent across a multi-day window — e.g. a
  *  cached outreach draft (7-day prompt-cache TTL) must not re-deliver, where the
  *  per-day hasEventToday would let a resend slip through after midnight. */
-export function hasEvent(entryId: string, kind: string): boolean {
+export function hasEvent(entryId: string, kind: string, workspaceId: string = DEFAULT_WORKSPACE_ID): boolean {
   const db = ensureDb();
   return !!db
-    .prepare(`SELECT 1 FROM pipeline_events WHERE entry_id=? AND kind=? LIMIT 1`)
-    .get(entryId, kind);
+    .prepare(`SELECT 1 FROM pipeline_events WHERE entry_id=? AND kind=? AND workspace_id=? LIMIT 1`)
+    .get(entryId, kind, workspaceId);
 }
 
 // Per-day alert dedup is bucketed by the BUSINESS timezone, not UTC: kp serves the
@@ -1263,11 +1284,11 @@ function businessDay(iso: string): string {
  *  business timezone, BUSINESS_TZ) — alert dedup. Compares the local-date of the
  *  most recent matching event to today's local-date, so the once-per-day window
  *  aligns with the operator's day rather than UTC midnight. */
-export function hasEventToday(entryId: string, kind: string): boolean {
+export function hasEventToday(entryId: string, kind: string, workspaceId: string = DEFAULT_WORKSPACE_ID): boolean {
   const db = ensureDb();
   const row = db
-    .prepare(`SELECT created_at FROM pipeline_events WHERE entry_id=? AND kind=? ORDER BY created_at DESC LIMIT 1`)
-    .get(entryId, kind) as { created_at: string } | undefined;
+    .prepare(`SELECT created_at FROM pipeline_events WHERE entry_id=? AND kind=? AND workspace_id=? ORDER BY created_at DESC LIMIT 1`)
+    .get(entryId, kind, workspaceId) as { created_at: string } | undefined;
   return !!row && businessDay(row.created_at) === businessDay(new Date().toISOString());
 }
 
@@ -1295,11 +1316,12 @@ export function actOnPipelineEntry(
   // advance — recruiter click included — landed as one kind the analytics
   // attributed to automation, and policy rejects wrote BOTH rejected (human)
   // and auto_rejected (auto), double-counting in momentum and the rollup.
-  opts?: { expectedStage?: string; actor?: "human" | "system" }
+  opts?: { expectedStage?: string; actor?: "human" | "system" },
+  workspaceId: string = DEFAULT_WORKSPACE_ID
 ): PipelineEntry | null {
   const db = ensureDb();
   const tx = db.transaction((): PipelineEntry | null => {
-  const row = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ?`).get(id) as PipelineRow | undefined;
+  const row = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ? AND workspace_id = ?`).get(id, workspaceId) as PipelineRow | undefined;
   if (!row) return null;
   if (opts?.expectedStage !== undefined && row.stage !== opts.expectedStage) {
     console.warn(
@@ -1335,7 +1357,7 @@ export function actOnPipelineEntry(
   const decisionNote = detail && detail.trim() ? detail.trim() : null;
   const auto = opts?.actor === "system";
   if (action === "reject") {
-    db.prepare(`UPDATE pipeline_entries SET status='rejected', approval_kind=NULL, updated_at=? WHERE id=?`).run(now, id);
+    db.prepare(`UPDATE pipeline_entries SET status='rejected', approval_kind=NULL, updated_at=? WHERE id=? AND workspace_id=?`).run(now, id, workspaceId);
     recordEvent(db, { ...meta, kind: auto ? "auto_rejected" : "rejected", toStage: row.stage, detail: decisionNote });
   } else if (action === "approve_event") {
     // A rejected/declined entry is terminal — a stale/reused schedule token must not
@@ -1353,14 +1375,14 @@ export function actOnPipelineEntry(
     const toStage = curIdx > interviewIdx ? row.stage : "Interview";
     if (toStage !== row.stage) {
       db.prepare(
-        `UPDATE pipeline_entries SET stage=?, approval_kind=NULL, approval_detail=NULL, stage_changed_at=?, updated_at=? WHERE id=?`
-      ).run(toStage, now, now, id);
+        `UPDATE pipeline_entries SET stage=?, approval_kind=NULL, approval_detail=NULL, stage_changed_at=?, updated_at=? WHERE id=? AND workspace_id=?`
+      ).run(toStage, now, now, id, workspaceId);
     } else {
       // Reschedule / already past Interview: clear the approval but leave
       // stage_changed_at untouched so time-in-stage and time-to-hire stay honest.
       db.prepare(
-        `UPDATE pipeline_entries SET approval_kind=NULL, approval_detail=NULL, updated_at=? WHERE id=?`
-      ).run(now, id);
+        `UPDATE pipeline_entries SET approval_kind=NULL, approval_detail=NULL, updated_at=? WHERE id=? AND workspace_id=?`
+      ).run(now, id, workspaceId);
     }
     recordEvent(db, { ...meta, kind: "scheduled", toStage, detail: slot });
   } else if (row.approval_kind === "screening_review") {
@@ -1370,8 +1392,8 @@ export function actOnPipelineEntry(
     const idx = PIPELINE_STAGES.indexOf(row.stage as PipelineStage);
     const next = PIPELINE_STAGES[Math.min(idx + 1, PIPELINE_STAGES.length - 1)];
     db.prepare(
-      `UPDATE pipeline_entries SET stage=?, approval_kind='calendar', approval_detail=?, stage_changed_at=?, updated_at=? WHERE id=?`
-    ).run(next, "Tue 14:00", now, now, id);
+      `UPDATE pipeline_entries SET stage=?, approval_kind='calendar', approval_detail=?, stage_changed_at=?, updated_at=? WHERE id=? AND workspace_id=?`
+    ).run(next, "Tue 14:00", now, now, id, workspaceId);
     recordEvent(db, { ...meta, kind: auto ? "auto_advanced" : "advanced", toStage: next, detail: decisionNote });
   } else {
     // accept: advance one stage, clear any pending approval
@@ -1379,18 +1401,18 @@ export function actOnPipelineEntry(
     const next = PIPELINE_STAGES[Math.min(idx + 1, PIPELINE_STAGES.length - 1)];
     if (next !== row.stage) {
       db.prepare(
-        `UPDATE pipeline_entries SET stage=?, approval_kind=NULL, approval_detail=NULL, stage_changed_at=?, updated_at=? WHERE id=?`
-      ).run(next, now, now, id);
+        `UPDATE pipeline_entries SET stage=?, approval_kind=NULL, approval_detail=NULL, stage_changed_at=?, updated_at=? WHERE id=? AND workspace_id=?`
+      ).run(next, now, now, id, workspaceId);
       recordEvent(db, { ...meta, kind: auto ? "auto_advanced" : "advanced", toStage: next, detail: decisionNote });
     } else {
       // Already at the terminal stage (Hired): clear the approval but don't bump
       // stage_changed_at — that timestamp anchors time-to-hire and must not move.
       db.prepare(
-        `UPDATE pipeline_entries SET approval_kind=NULL, approval_detail=NULL, updated_at=? WHERE id=?`
-      ).run(now, id);
+        `UPDATE pipeline_entries SET approval_kind=NULL, approval_detail=NULL, updated_at=? WHERE id=? AND workspace_id=?`
+      ).run(now, id, workspaceId);
     }
   }
-  const updated = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ?`).get(id) as PipelineRow;
+  const updated = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ? AND workspace_id = ?`).get(id, workspaceId) as PipelineRow;
   return rowToEntry(updated);
   });
   // IMMEDIATE: take the write lock at BEGIN (not at first write), so the SELECT
@@ -1438,12 +1460,13 @@ export function actOnPipelineEntry(
 export function setPipelineEntryStage(
   id: string,
   toStage: string,
-  opts?: { expectedStage?: string }
+  opts?: { expectedStage?: string },
+  workspaceId: string = DEFAULT_WORKSPACE_ID
 ): PipelineEntry | null {
   if (!(PIPELINE_STAGES as readonly string[]).includes(toStage)) return null;
   const db = ensureDb();
   const tx = db.transaction((): PipelineEntry | null => {
-    const row = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ?`).get(id) as PipelineRow | undefined;
+    const row = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ? AND workspace_id = ?`).get(id, workspaceId) as PipelineRow | undefined;
     if (!row) return null;
     if (opts?.expectedStage !== undefined && row.stage !== opts.expectedStage) {
       console.warn(
@@ -1458,8 +1481,8 @@ export function setPipelineEntryStage(
     if (row.stage === toStage) return rowToEntry(row); // no-op: already there
     const now = new Date().toISOString();
     db.prepare(
-      `UPDATE pipeline_entries SET stage=?, approval_kind=NULL, approval_detail=NULL, stage_changed_at=?, updated_at=? WHERE id=?`
-    ).run(toStage, now, now, id);
+      `UPDATE pipeline_entries SET stage=?, approval_kind=NULL, approval_detail=NULL, stage_changed_at=?, updated_at=? WHERE id=? AND workspace_id=?`
+    ).run(toStage, now, now, id, workspaceId);
     recordEvent(db, {
       entryId: id,
       candidateLabel: row.candidate_label,
@@ -1470,7 +1493,7 @@ export function setPipelineEntryStage(
       toStage,
       detail: "manual",
     });
-    const updated = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ?`).get(id) as PipelineRow;
+    const updated = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ? AND workspace_id = ?`).get(id, workspaceId) as PipelineRow;
     return rowToEntry(updated);
   });
   return tx.immediate();
@@ -1509,12 +1532,13 @@ export type RematchSourceResult = {
 export function rematchSourceEntry(
   sourceId: string,
   targetEntryId: string,
-  targetJobId: string
+  targetJobId: string,
+  workspaceId: string = DEFAULT_WORKSPACE_ID
 ): RematchSourceResult {
   const db = ensureDb();
   const hiredStage = PIPELINE_STAGES[PIPELINE_STAGES.length - 1]; // terminal STAGE ("Hired")
   const tx = db.transaction((): RematchSourceResult => {
-    const row = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ?`).get(sourceId) as PipelineRow | undefined;
+    const row = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ? AND workspace_id = ?`).get(sourceId, workspaceId) as PipelineRow | undefined;
     if (!row) return { closed: false, outcome: "missing" };
     // A placed candidate (Hired keeps status='active') is never redirected — and
     // is left entirely untouched so no rematch link attaches to a hire.
@@ -1534,8 +1558,8 @@ export function rematchSourceEntry(
     }
     const now = new Date().toISOString();
     db.prepare(
-      `UPDATE pipeline_entries SET status='rematched', approval_kind=NULL, approval_detail=NULL, updated_at=? WHERE id=?`
-    ).run(now, sourceId);
+      `UPDATE pipeline_entries SET status='rematched', approval_kind=NULL, approval_detail=NULL, updated_at=? WHERE id=?  AND workspace_id=?`
+    ).run(now, sourceId, workspaceId);
     recordEvent(db, { ...meta, kind: "rematched", toStage: row.stage, detail: linkDetail });
     return { closed: true, outcome: "closed" };
   });

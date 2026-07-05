@@ -1,6 +1,7 @@
 import Database from "better-sqlite3";
 import { openStore } from "./db-path";
 import { randomId, randomToken } from "./random-id";
+import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 import { TERMINAL_ENTRY_STATUSES, type PipelineEntryStatus } from "./pipeline-status";
 import { PIPELINE_STAGES } from "./pipeline-stages";
 import { isOfferExpired, OFFER_REMINDER_LEAD_MS, offerExpiresAtMs } from "./offer-policy";
@@ -318,13 +319,13 @@ const HIRED_STAGE = PIPELINE_STAGES[PIPELINE_STAGES.length - 1];
  *  symmetric stale-schedule-token path, and the isEntryReminderEligible predicate.
  *  Returns true only when the row actually transitioned; logs when the guard blocks
  *  the write so the dropped decline is never silent. */
-export function markEntryStatus(entryId: string, status: PipelineEntryStatus): boolean {
+export function markEntryStatus(entryId: string, status: PipelineEntryStatus, workspaceId: string = DEFAULT_WORKSPACE_ID): boolean {
   const res = db()
     .prepare(
       `UPDATE pipeline_entries SET status = ?, updated_at = ?
-        WHERE id = ? AND status NOT IN ${TERMINAL_STATUS_SQL_LIST} AND stage != ?`
+        WHERE id = ? AND status NOT IN ${TERMINAL_STATUS_SQL_LIST} AND stage != ? AND workspace_id = ?`
     )
-    .run(status, new Date().toISOString(), entryId, HIRED_STAGE);
+    .run(status, new Date().toISOString(), entryId, HIRED_STAGE, workspaceId);
   if (res.changes === 0) {
     console.warn(
       `[offers-store] markEntryStatus('${status}') blocked for entry ${entryId}: ` +

@@ -821,6 +821,11 @@ export function ensureDb(): Database.Database {
     // boot. NULL status = a seeded/live corpus job; authored JDs are 'draft' until
     // published.
     "ALTER TABLE jobs ADD COLUMN status TEXT",
+    // Tenant scope (P1): a team's authored openings. Seeded corpus rows keep
+    // workspace_id NULL = the SHARED cross-company reference every team matches
+    // against; authored JDs (a status was set) are backfilled to the default team
+    // below. job-ingest.ts mirrors this ALTER on its own connection.
+    "ALTER TABLE jobs ADD COLUMN workspace_id TEXT",
     // Human disposition + reason on a saved analysis (RES5) — see the table CREATE.
     "ALTER TABLE analyses ADD COLUMN disposition TEXT",
     "ALTER TABLE analyses ADD COLUMN decision_note TEXT",
@@ -841,6 +846,16 @@ export function ensureDb(): Database.Database {
     // their edit history. Backfilled to the default workspace below.
     "ALTER TABLE jds ADD COLUMN workspace_id TEXT",
     "ALTER TABLE jd_revisions ADD COLUMN workspace_id TEXT",
+    // Tenant scope (P1): the pipeline audit trails — one team's events + GDPR consent
+    // trail. Backfilled from each row's linked entry (entry-less events → default) below.
+    "ALTER TABLE pipeline_events ADD COLUMN workspace_id TEXT",
+    "ALTER TABLE consent_events ADD COLUMN workspace_id TEXT",
+    // Tenant scope (P1): the Channels surface — inbound webhook bindings + the comms
+    // outbox (a team's outbound candidate messages). Backfilled below (the outbox from
+    // its referenced entry; webhooks to the default workspace). channel_spend is rebuilt
+    // separately — its single-column PK must widen to (channel, workspace_id).
+    "ALTER TABLE channel_webhooks ADD COLUMN workspace_id TEXT",
+    "ALTER TABLE dev_outbox ADD COLUMN workspace_id TEXT",
     // JD archive (W8-4/JDL1): archived JDs drop out of listJds and the pickers,
     // but loadJd keeps serving them so existing analysis links never 404.
     "ALTER TABLE jds ADD COLUMN archived_at TEXT",
@@ -919,6 +934,11 @@ export function ensureDb(): Database.Database {
     db.exec(`CREATE INDEX IF NOT EXISTS idx_profiles_workspace ON profiles (workspace_id)`);
     db.exec(`CREATE INDEX IF NOT EXISTS idx_jds_workspace ON jds (workspace_id)`);
     db.exec(`CREATE INDEX IF NOT EXISTS idx_jd_revisions_workspace ON jd_revisions (workspace_id)`);
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_jobs_workspace ON jobs (workspace_id)`);
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_pipeline_events_workspace ON pipeline_events (workspace_id)`);
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_consent_events_workspace ON consent_events (workspace_id)`);
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_channel_webhooks_workspace ON channel_webhooks (workspace_id)`);
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_dev_outbox_workspace ON dev_outbox (workspace_id)`);
   } catch {
     /* index already exists */
   }
@@ -937,6 +957,43 @@ export function ensureDb(): Database.Database {
   db.prepare(`UPDATE profiles SET workspace_id = ? WHERE workspace_id IS NULL`).run("workspace");
   db.prepare(`UPDATE jds SET workspace_id = ? WHERE workspace_id IS NULL`).run("workspace");
   db.prepare(`UPDATE jd_revisions SET workspace_id = ? WHERE workspace_id IS NULL`).run("workspace");
+  // Jobs: authored openings (a status was set) belong to the default team; seeded
+  // corpus jobs (NULL status) stay workspace_id NULL = the shared reference corpus.
+  db.prepare(`UPDATE jobs SET workspace_id = 'workspace' WHERE workspace_id IS NULL AND status IS NOT NULL`).run();
+  // Pipeline audit trails: backfill each row's workspace from its linked entry (an
+  // entry-less event, e.g. ko_declined, falls back to the default workspace).
+  db.prepare(
+    `UPDATE pipeline_events SET workspace_id = COALESCE((SELECT pe.workspace_id FROM pipeline_entries pe WHERE pe.id = pipeline_events.entry_id), 'workspace') WHERE workspace_id IS NULL`
+  ).run();
+  db.prepare(
+    `UPDATE consent_events SET workspace_id = COALESCE((SELECT pe.workspace_id FROM pipeline_entries pe WHERE pe.id = consent_events.entry_id), 'workspace') WHERE workspace_id IS NULL`
+  ).run();
+  // Channels: inbound webhooks belong to the team that minted them (default). The comms
+  // outbox derives each message's workspace from its referenced entry (ref = entry id),
+  // falling back to the default for entry-less/system messages.
+  db.prepare(`UPDATE channel_webhooks SET workspace_id = 'workspace' WHERE workspace_id IS NULL`).run();
+  db.prepare(
+    `UPDATE dev_outbox SET workspace_id = COALESCE((SELECT pe.workspace_id FROM pipeline_entries pe WHERE pe.id = dev_outbox.ref), 'workspace') WHERE workspace_id IS NULL`
+  ).run();
+  // channel_spend: widen the single-column PK to (channel, workspace_id) so each team
+  // keeps its own per-channel spend. One-time rebuild (SQLite can't alter a PK); guarded
+  // by the absence of the workspace_id column so it runs exactly once.
+  const spendCols = db.prepare(`PRAGMA table_info(channel_spend)`).all() as { name: string }[];
+  if (!spendCols.some((c) => c.name === "workspace_id")) {
+    db.exec(
+      `CREATE TABLE channel_spend_new (
+         channel TEXT NOT NULL,
+         amount_czk REAL NOT NULL,
+         updated_at TEXT NOT NULL,
+         workspace_id TEXT NOT NULL DEFAULT 'workspace',
+         PRIMARY KEY (channel, workspace_id)
+       );
+       INSERT INTO channel_spend_new (channel, amount_czk, updated_at, workspace_id)
+         SELECT channel, amount_czk, updated_at, 'workspace' FROM channel_spend;
+       DROP TABLE channel_spend;
+       ALTER TABLE channel_spend_new RENAME TO channel_spend;`
+    );
+  }
   // Null-contract heal: `approval_detail` is nullable and "no detail" is NULL (its
   // sibling approval_kind clears to NULL), but earlier clear/insert paths wrote '',
   // so a "cleared" detail read back as "" on some rows and NULL on others. Now that
@@ -1357,11 +1414,23 @@ export function recordEvent(
     toStage?: string | null;
     detail?: string | null;
     createdAt?: string;
+    // Tenant (P1): the team the event belongs to. AUTO-DERIVED from the linked
+    // entry when omitted (the common case — an event always mirrors its entry's
+    // tenant), so the ~15 recordEvent call sites don't each have to thread it.
+    // Entry-less events (ko_declined) pass it explicitly or default to 'workspace'.
+    workspaceId?: string;
   }
 ): void {
+  const workspaceId =
+    e.workspaceId ??
+    (e.entryId
+      ? (db.prepare(`SELECT workspace_id FROM pipeline_entries WHERE id = ?`).get(e.entryId) as { workspace_id?: string } | undefined)
+          ?.workspace_id
+      : undefined) ??
+    "workspace";
   db.prepare(
-    `INSERT INTO pipeline_events (entry_id, candidate_label, job_title, archetype, kind, from_stage, to_stage, detail, created_at)
-     VALUES (@entry_id, @candidate_label, @job_title, @archetype, @kind, @from_stage, @to_stage, @detail, @created_at)`
+    `INSERT INTO pipeline_events (entry_id, candidate_label, job_title, archetype, kind, from_stage, to_stage, detail, created_at, workspace_id)
+     VALUES (@entry_id, @candidate_label, @job_title, @archetype, @kind, @from_stage, @to_stage, @detail, @created_at, @workspace_id)`
   ).run({
     entry_id: e.entryId ?? null,
     candidate_label: e.candidateLabel ?? null,
@@ -1372,6 +1441,7 @@ export function recordEvent(
     to_stage: e.toStage ?? null,
     detail: e.detail ?? null,
     created_at: e.createdAt ?? new Date().toISOString(),
+    workspace_id: workspaceId,
   });
 }
 

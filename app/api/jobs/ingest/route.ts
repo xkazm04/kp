@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ingestJobAd, insertJob, jobContentHash } from "@/app/_lib/job-ingest";
 import { MIN_AD_CHARS } from "@/app/_lib/split-ads";
+import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 
 // The parser this route spawns builds ClaudeCliProvider(timeout=120) for the LLM
 // ad-parse (pipeline/jobfit/jobs_cli.py). maxDuration must comfortably exceed that
@@ -28,7 +29,7 @@ export async function POST(request: NextRequest) {
     // draft → publish → source-into-pipeline lifecycle that JD-builder roles get; born
     // "published" it skipped publish, so the role was live but never sourced candidates.
     // Publishing it (Jobs tab) then runs sourcing exactly like an authored JD.
-    const { id, created } = insertJob(job, jobContentHash(adText), "draft");
+    const { id, created } = insertJob(job, jobContentHash(adText), "draft", await currentWorkspace());
     return NextResponse.json({ jobId: id, created, source, title: job.title });
   } catch (error) {
     return NextResponse.json(

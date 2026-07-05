@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { candidateOutcomes } from "@/app/_lib/db";
 import { listJobStatuses } from "@/app/_lib/job-ingest";
+import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { safeJsonError } from "@/app/_lib/api-response";
 import { filterRelevantAlerts, sweepRediscoveryAlerts } from "@/app/_lib/rediscover";
 import {
@@ -17,8 +18,8 @@ import {
 // Relevance is filtered at read time against LIVE state — an alert for a role
 // since unpublished, or a candidate since pipelined into it, is no longer a
 // silver medalist even though its row persists (dismissed state is sticky).
-function relevantAlerts() {
-  const statuses = listJobStatuses();
+function relevantAlerts(workspaceId: string) {
+  const statuses = listJobStatuses(workspaceId);
   const outcomes = candidateOutcomes();
   return filterRelevantAlerts(
     listRediscoveryAlerts(),
@@ -30,7 +31,7 @@ function relevantAlerts() {
 
 export async function GET() {
   try {
-    const alerts = relevantAlerts();
+    const alerts = relevantAlerts(await currentWorkspace());
     return NextResponse.json({ alerts, count: alerts.length });
   } catch (error) {
     return safeJsonError(error, "api:rediscovery-alerts", "REDISCOVERY_ALERTS_FAILED");
@@ -52,7 +53,7 @@ export async function PATCH(request: Request) {
 export async function POST(request: Request) {
   try {
     const { jobsSwept, newAlerts } = await sweepRediscoveryAlerts({ signal: request.signal });
-    const alerts = relevantAlerts();
+    const alerts = relevantAlerts(await currentWorkspace());
     return NextResponse.json({ alerts, count: alerts.length, jobsSwept, newAlerts });
   } catch (error) {
     return safeJsonError(error, "api:rediscovery-alerts", "REDISCOVERY_ALERTS_FAILED");

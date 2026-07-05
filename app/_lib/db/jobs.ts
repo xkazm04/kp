@@ -268,10 +268,10 @@ export type JobFilter = {
   limit?: number;
 };
 
-export function listJobs(filter: JobFilter = {}): JobRecord[] {
+export function listJobs(filter: JobFilter = {}, workspaceId: string = DEFAULT_WORKSPACE_ID): JobRecord[] {
   const db = ensureDb();
   const where: string[] = [];
-  const params: Record<string, unknown> = {};
+  const params: Record<string, unknown> = { workspaceId };
   if (filter.roleFamily) {
     where.push("role_family = @roleFamily");
     params.roleFamily = filter.roleFamily;
@@ -296,7 +296,9 @@ export function listJobs(filter: JobFilter = {}): JobRecord[] {
     where.push("(title LIKE @q OR company LIKE @q)");
     params.q = `%${filter.q}%`;
   }
-  const clause = where.length ? `WHERE ${where.join(" AND ")}` : "";
+  // Tenant scope (P1): the shared reference corpus (workspace_id NULL) + this team's
+  // OWN authored openings; a team never sees another team's openings.
+  const extra = where.length ? `AND ${where.join(" AND ")}` : "";
   // Defensive clamp: never bind a NaN/negative/huge LIMIT even if a caller
   // skips validation. SQLite treats LIMIT -1 as unbounded, so guard the floor.
   params.limit =
@@ -305,7 +307,8 @@ export function listJobs(filter: JobFilter = {}): JobRecord[] {
       : 300;
   const rows = db
     .prepare(
-      `SELECT payload_json, status FROM jobs ${clause}
+      `SELECT payload_json, status FROM jobs
+       WHERE (workspace_id IS NULL OR workspace_id = @workspaceId) ${extra}
        ORDER BY is_entry_eligible DESC, graduate_friendliness DESC, id LIMIT @limit`
     )
     .all(params) as { payload_json: string; status: JobRecord["status"] }[];
@@ -365,11 +368,17 @@ export function getJobsByIds(ids: string[]): JobRecord[] {
 // `status != 'draft'` kept 'closed' roles in the rematch corpus, so a recruiter who
 // closed a filled role still had candidates ranked/routed to it — and the close didn't
 // even change the cache fingerprint, persisting the stale result for the full TTL.
-export function listCorpusJobs(): JobRecord[] {
+export function listCorpusJobs(workspaceId: string = DEFAULT_WORKSPACE_ID): JobRecord[] {
   const db = ensureDb();
+  // Tenant scope (P1): the shared reference corpus (workspace_id NULL) + this team's
+  // published openings — so a team's matching scores against reference + its own
+  // live roles, never another team's openings.
   const rows = db
-    .prepare(`SELECT payload_json FROM jobs WHERE status IS NULL OR status = 'published' ORDER BY id`)
-    .all() as { payload_json: string }[];
+    .prepare(
+      `SELECT payload_json FROM jobs
+       WHERE (status IS NULL OR status = 'published') AND (workspace_id IS NULL OR workspace_id = ?) ORDER BY id`
+    )
+    .all(workspaceId) as { payload_json: string }[];
   return rows
     .map((r) => safeRowParse<JobRecord>(r.payload_json, "listCorpusJobs"))
     .filter((j): j is JobRecord => j !== null);
@@ -383,17 +392,18 @@ export type JobStats = {
   byWorkMode: Record<string, number>;
 };
 
-export function jobStats(): JobStats {
+export function jobStats(workspaceId: string = DEFAULT_WORKSPACE_ID): JobStats {
   const db = ensureDb();
-  const total = (db.prepare(`SELECT COUNT(*) AS n FROM jobs`).get() as { n: number }).n;
+  // Tenant scope (P1): shared corpus (workspace_id NULL) + this team's own openings.
+  const total = (db.prepare(`SELECT COUNT(*) AS n FROM jobs WHERE (workspace_id IS NULL OR workspace_id = ?)`).get(workspaceId) as { n: number }).n;
   const entryEligible = (
-    db.prepare(`SELECT COUNT(*) AS n FROM jobs WHERE is_entry_eligible = 1`).get() as { n: number }
+    db.prepare(`SELECT COUNT(*) AS n FROM jobs WHERE is_entry_eligible = 1 AND (workspace_id IS NULL OR workspace_id = ?)`).get(workspaceId) as { n: number }
   ).n;
   // Column names are fixed literals (not user input) — safe to interpolate.
   const group = (col: "role_family" | "seniority" | "work_mode"): Record<string, number> => {
     const rows = db
-      .prepare(`SELECT ${col} AS k, COUNT(*) AS n FROM jobs GROUP BY ${col} ORDER BY n DESC`)
-      .all() as { k: string | null; n: number }[];
+      .prepare(`SELECT ${col} AS k, COUNT(*) AS n FROM jobs WHERE (workspace_id IS NULL OR workspace_id = ?) GROUP BY ${col} ORDER BY n DESC`)
+      .all(workspaceId) as { k: string | null; n: number }[];
     return Object.fromEntries(rows.map((r) => [r.k ?? "—", r.n]));
   };
   return {

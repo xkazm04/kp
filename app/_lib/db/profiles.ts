@@ -149,7 +149,7 @@ export function listMatrixProfiles(limit = 200, workspaceId: string = DEFAULT_WO
 }
 
 /** Distinct positions we are actively hiring for = jobs that appear in the pipeline. */
-export function listOpenPositions(): { id: string; title: string; roleFamily: string | null }[] {
+export function listOpenPositions(workspaceId: string = DEFAULT_WORKSPACE_ID): { id: string; title: string; roleFamily: string | null }[] {
   const db = ensureDb();
   // DISTINCT on the (job_id, title, role_family) tuple is NOT distinct by position:
   // one job_id recorded with two titles/families (a title edited between pipeline
@@ -162,10 +162,10 @@ export function listOpenPositions(): { id: string; title: string; roleFamily: st
     .prepare(
       `SELECT job_id AS id, job_title AS title, role_family AS roleFamily
        FROM pipeline_entries
-       WHERE job_id IS NOT NULL
+       WHERE job_id IS NOT NULL AND workspace_id = ?
        ORDER BY created_at DESC, id DESC`
     )
-    .all() as { id: string; title: string; roleFamily: string | null }[];
+    .all(workspaceId) as { id: string; title: string; roleFamily: string | null }[];
   const byId = new Map<string, { id: string; title: string; roleFamily: string | null }>();
   for (const r of rows) if (!byId.has(r.id)) byId.set(r.id, r);
   // Columns are presented alphabetically by title, preserving the prior ORDER BY job_title.
@@ -173,11 +173,11 @@ export function listOpenPositions(): { id: string; title: string; roleFamily: st
 }
 
 /** candidateId|jobId -> {stage,status} for overlaying pipeline placement onto the matrix. */
-export function pipelinePlacements(): Record<string, { stage: string; status: string }> {
+export function pipelinePlacements(workspaceId: string = DEFAULT_WORKSPACE_ID): Record<string, { stage: string; status: string }> {
   const db = ensureDb();
   const rows = db
-    .prepare(`SELECT candidate_id, job_id, stage, status FROM pipeline_entries WHERE candidate_id IS NOT NULL AND job_id IS NOT NULL`)
-    .all() as { candidate_id: string; job_id: string; stage: string; status: string }[];
+    .prepare(`SELECT candidate_id, job_id, stage, status FROM pipeline_entries WHERE candidate_id IS NOT NULL AND job_id IS NOT NULL AND workspace_id = ?`)
+    .all(workspaceId) as { candidate_id: string; job_id: string; stage: string; status: string }[];
   const map: Record<string, { stage: string; status: string }> = {};
   for (const r of rows) map[`${r.candidate_id}|${r.job_id}`] = { stage: r.stage, status: r.status };
   return map;

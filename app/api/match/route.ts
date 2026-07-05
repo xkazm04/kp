@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
 import { listCorpusJobs } from "@/app/_lib/db";
+import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { writeMatchInput, type MatchInputBody } from "@/app/_lib/match-input";
 import {
   cleanupWorkdir,
@@ -43,7 +44,7 @@ export async function POST(request: NextRequest) {
     // at any rank. Hand the live DB corpus over as --jobs-json overrides (DB wins
     // on id collision) — mirrors /api/matrix's --jobs-json and rematch's
     // live-corpus hand-off in automation-run.ts.
-    const corpusJobs = listCorpusJobs();
+    const corpusJobs = listCorpusJobs(await currentWorkspace());
     if (corpusJobs.length > 0) {
       const jobsPath = path.join(workdir, "jobs.json");
       await writeFile(jobsPath, JSON.stringify(corpusJobs), "utf-8");

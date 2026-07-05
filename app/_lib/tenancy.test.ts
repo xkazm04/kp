@@ -9,10 +9,11 @@ import {
 } from "./tenancy.ts";
 
 test("tenancyGaps treats every non-scoped, non-exempt table as a gap (fail closed)", () => {
-  const tables = ["analyses", "profiles", "workspaces", "pipeline_entries", "jobs", "offers"];
+  // Synthetic table names so this LOGIC test stays stable as real tables get scoped.
+  const tables = ["analyses", "profiles", "workspaces", "alpha_widget", "beta_gadget"];
   const gaps = tenancyGaps(tables);
-  // analyses/profiles are scoped, workspaces is exempt; the rest are gaps.
-  assert.deepEqual(gaps, ["jobs", "offers", "pipeline_entries"]);
+  // analyses/profiles are scoped, workspaces is exempt; the two synthetic tables are gaps.
+  assert.deepEqual(gaps, ["alpha_widget", "beta_gadget"]);
 });
 
 test("a brand-new table is a gap by default", () => {
@@ -40,8 +41,8 @@ test("assertTenancyReady is a no-op in the single-tenant lock even with gaps", (
 
 test("assertTenancyReady refuses multi-workspace while a per-tenant table is unscoped", () => {
   assert.throws(
-    () => assertTenancyReady(["analyses", "jobs"], true),
-    /KP_MULTI_WORKSPACE is enabled but 1 table\(s\) are not workspace-scoped: jobs/,
+    () => assertTenancyReady(["analyses", "unscoped_widget"], true),
+    /KP_MULTI_WORKSPACE is enabled but 1 table\(s\) are not workspace-scoped: unscoped_widget/,
   );
 });
 

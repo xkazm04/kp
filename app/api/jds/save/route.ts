@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
     // Ingest the role into the corpus as a DRAFT structured Job (best-effort).
     let jobIngested = false;
     try {
-      jobIngested = await ingestStructuredJob({ slug, title: fields.title, markdown: fields.body, role, salary: body.salary, company: body.company });
+      jobIngested = await ingestStructuredJob({ slug, title: fields.title, markdown: fields.body, role, salary: body.salary, company: body.company }, ws);
     } catch {
       /* job ingestion is best-effort — never block the JD save */
     }

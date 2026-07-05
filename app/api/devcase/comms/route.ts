@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { listOutbox } from "@/app/_lib/db";
+import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 
 
 // The comms outbox — every outbound message (acks, invites), the audit log of what the
@@ -9,7 +10,7 @@ import { listOutbox } from "@/app/_lib/db";
 // queued means "offline" (false) or is unexpected (true).
 export async function GET() {
   try {
-    return NextResponse.json({ outbox: listOutbox(), relayConfigured: Boolean(process.env.COMMS_WEBHOOK_URL) });
+    return NextResponse.json({ outbox: listOutbox(50, await currentWorkspace()), relayConfigured: Boolean(process.env.COMMS_WEBHOOK_URL) });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Failed to list outbox." }, { status: 500 });
   }

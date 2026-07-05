@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { activeJobsGate } from "@/app/_lib/billing";
 import { createPipelineEntry, ensureDb, getJob } from "@/app/_lib/db";
 import { countPublishedJobs, getJobStatus, setJobStatus } from "@/app/_lib/job-ingest";
+import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { runSourceForRole } from "@/app/_lib/devcase-run";
 import { raiseRediscoveryAlertsForJob } from "@/app/_lib/rediscover";
 import { splitRequirements } from "@/app/features/sub_jobs/JobsTypes";
@@ -17,6 +18,7 @@ export const maxDuration = 60;
 // as a stable contract. See docs/JD_LIFECYCLE.md.
 export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
+  const ws = await currentWorkspace();
   try {
     const job = getJob(id);
     if (!job) return NextResponse.json({ error: "Job not found." }, { status: 404 });
@@ -31,7 +33,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     const gate = ensureDb().transaction((): { already: boolean; quota: ReturnType<typeof activeJobsGate> } => {
       const wasPublished = getJobStatus(id) === "published";
       if (wasPublished) return { already: true, quota: null };
-      const quota = activeJobsGate(countPublishedJobs());
+      const quota = activeJobsGate(countPublishedJobs(ws));
       if (!quota) setJobStatus(id, "published");
       return { already: false, quota };
     })();

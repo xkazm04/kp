@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPipelineEntry, listOutboxFiltered } from "@/app/_lib/db";
+import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { coerceOutboxStatus } from "@/app/_lib/comms-status";
 import { isRelayConfigured } from "@/app/_lib/comms-truth";
 import { deriveCommsView } from "@/app/_lib/comms-view";
@@ -23,7 +24,8 @@ export async function GET(request: NextRequest) {
     // and async bounce reporting are append-only by design (the original row stays
     // as audit); `recovered`/`bounced`/`deliverable` are the derived bits the Comms
     // Center needs. Bounce receipt rows are folded onto their sent row in there.
-    const base = listOutboxFiltered({ ref: entry, limit: 200 });
+    const ws = await currentWorkspace();
+    const base = listOutboxFiltered({ ref: entry, limit: 200 }, ws);
     const view = deriveCommsView(base);
     const messages = status ? view.filter((m) => m.status === status) : view;
 
@@ -33,7 +35,7 @@ export async function GET(request: NextRequest) {
     const entries: Record<string, { label: string; jobTitle: string | null }> = {};
     for (const m of messages) {
       if (!m.ref || entries[m.ref] !== undefined) continue;
-      const e = getPipelineEntry(m.ref);
+      const e = getPipelineEntry(m.ref, ws);
       if (e) entries[m.ref] = { label: e.candidateLabel, jobTitle: e.jobTitle };
     }
     // relayConfigured = is a real delivery relay wired? When false, every message

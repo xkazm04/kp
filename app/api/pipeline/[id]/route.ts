@@ -6,6 +6,7 @@ import { getOrCreateOpenOffer } from "@/app/_lib/offers-store";
 import { sealDecisionSafe } from "@/app/_lib/decision-record-store";
 import { safeJsonError } from "@/app/_lib/api-response";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
+import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 
 
 const ACTIONS: PipelineAction[] = ["accept", "reject", "approve_event"];
@@ -30,7 +31,7 @@ const SIM_SEAL_ACTOR = "auto:sim"; // decision-chain vocabulary: "auto:*" | "hum
 // Human gate for the offer: approving a drafted offer EXTENDS it to the candidate
 // with a secure accept/decline link, rather than bare-advancing to Hired. The
 // Hired move happens only when the candidate accepts (see /api/offer/[token]).
-async function extendOffer(request: NextRequest, entry: PipelineEntry, bodyTtlDays?: unknown, sealActor = "human:recruiter") {
+async function extendOffer(request: NextRequest, entry: PipelineEntry, workspaceId: string, bodyTtlDays?: unknown, sealActor = "human:recruiter") {
   let draft: { subject?: unknown; body?: unknown; recommended?: unknown; currency?: unknown; ttlDays?: unknown; startDate?: unknown } = {};
   try {
     draft = entry.approvalDetail ? JSON.parse(entry.approvalDetail) : {};
@@ -90,12 +91,13 @@ async function extendOffer(request: NextRequest, entry: PipelineEntry, bodyTtlDa
   });
 
   // The offer is out — clear the recruiter approval; now awaiting the candidate.
-  setApproval(entry.id, null, "");
-  return NextResponse.json({ entry: getPipelineEntry(entry.id), offerExtended: true, link });
+  setApproval(entry.id, null, "", workspaceId);
+  return NextResponse.json({ entry: getPipelineEntry(entry.id, workspaceId), offerExtended: true, link });
 }
 
 export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
+  const ws = await currentWorkspace();
   try {
     const body = (await request.json()) as { action?: string; detail?: string; expectedStage?: string; toStage?: string; github?: unknown; notes?: unknown; ttlDays?: unknown; actor?: unknown };
     // See SIM_ACTOR above: an unrecognized/absent value stays "human" (real clicks).
@@ -126,9 +128,9 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
         );
       }
       const expected = typeof body.expectedStage === "string" ? body.expectedStage : undefined;
-      const moved = setPipelineEntryStage(id, toStage, expected ? { expectedStage: expected } : undefined);
+      const moved = setPipelineEntryStage(id, toStage, expected ? { expectedStage: expected } : undefined, ws);
       if (!moved) {
-        const fresh = getPipelineEntry(id);
+        const fresh = getPipelineEntry(id, ws);
         if (!fresh) return NextResponse.json({ error: "Pipeline entry not found." }, { status: 404 });
         // Missing was handled above, so null here means the CAS lost in the gap or
         // the entry is closed out — either way the caller's view is stale.
@@ -154,7 +156,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       if (!summary) {
         return NextResponse.json({ error: "Invalid GitHub evidence payload." }, { status: 400 });
       }
-      const updated = setEntryGithubEvidence(id, JSON.stringify(summary));
+      const updated = setEntryGithubEvidence(id, JSON.stringify(summary), ws);
       if (!updated) return NextResponse.json({ error: "Pipeline entry not found." }, { status: 404 });
       return NextResponse.json({ entry: updated });
     }
@@ -175,7 +177,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
           { status: 400 }
         );
       }
-      const updated = setEntryNotes(id, trimmed === "" ? null : trimmed);
+      const updated = setEntryNotes(id, trimmed === "" ? null : trimmed, ws);
       if (!updated) return NextResponse.json({ error: "Pipeline entry not found." }, { status: 404 });
       return NextResponse.json({ entry: updated });
     }
@@ -184,7 +186,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // back to active at Screened, audited. Guarded server-side to a still-rejected
     // entry, so a double-click / stale "Reconsider" view 409s instead of churning.
     if (body.action === "reinstate") {
-      const restored = reinstatePipelineEntry(id);
+      const restored = reinstatePipelineEntry(id, ws);
       if (!restored) {
         return NextResponse.json(
           { error: "Couldn't reinstate — this candidate isn't in a rejected state (already reinstated, or closed differently)." },
@@ -211,7 +213,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // Resolving a degraded-intake stub: the recruiter has manually captured the
     // candidate's profile, so clear the flag (not a stage move) and keep the entry.
     if (body.action === "resolve_intake") {
-      const cleared = clearIntakeDegraded(id);
+      const cleared = clearIntakeDegraded(id, ws);
       if (!cleared) {
         return NextResponse.json({ error: "No degraded-intake flag to resolve." }, { status: 404 });
       }
@@ -236,7 +238,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
         { error: "This candidate's stage changed since the view was opened — refresh and decide again.", entry },
         { status: 409 }
       );
-    const current = getPipelineEntry(id);
+    const current = getPipelineEntry(id, ws);
     if (!current) {
       return NextResponse.json({ error: "Pipeline entry not found." }, { status: 404 });
     }
@@ -244,7 +246,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
 
     // Approving a drafted offer extends it to the candidate (not a bare Hire click).
     if (action === "accept" && current.stage === "Offer" && current.approvalKind === "offer_review") {
-      return await extendOffer(request, current, body.ttlDays, simActor ? SIM_SEAL_ACTOR : "human:recruiter");
+      return await extendOffer(request, current, ws, body.ttlDays, simActor ? SIM_SEAL_ACTOR : "human:recruiter");
     }
 
     // Hired is terminal and OUTCOME-bearing (same rule as the set_stage guard
@@ -265,12 +267,13 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       id,
       action,
       typeof body.detail === "string" ? body.detail : undefined,
-      { ...(expectedStage ? { expectedStage } : {}), actor: simActor ? "system" : "human" }
+      { ...(expectedStage ? { expectedStage } : {}), actor: simActor ? "system" : "human" },
+      ws
     );
     if (!updated) {
       // The pre-check passed but the guarded write refused — a concurrent actor
       // moved the stage in the gap (the CAS held) or the row vanished.
-      const fresh = getPipelineEntry(id);
+      const fresh = getPipelineEntry(id, ws);
       if (!fresh) return NextResponse.json({ error: "Pipeline entry not found." }, { status: 404 });
       return staleResponse(fresh);
     }

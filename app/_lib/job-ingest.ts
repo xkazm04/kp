@@ -4,6 +4,7 @@ import { createHash } from "node:crypto";
 import Database from "better-sqlite3";
 import { openStore } from "./db-path";
 import type { JobRecord } from "./db";
+import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "./python-runner";
 
 // Direction #1: turn authored/ingested job descriptions into structured,
@@ -23,16 +24,33 @@ function db(): Database.Database {
       languages TEXT, is_entry_eligible INTEGER DEFAULT 0, graduate_friendliness REAL DEFAULT 0,
       salary_min INTEGER, salary_max INTEGER, payload_json TEXT NOT NULL, created_at TEXT NOT NULL
     );
-    CREATE TABLE IF NOT EXISTS job_ingests (content_hash TEXT PRIMARY KEY, job_id TEXT NOT NULL, created_at TEXT NOT NULL);
   `);
-  // Phase 1: draft → publish lifecycle. The jobs table predates this column, so
-  // ALTER it in (no-op if already present). NULL status = a seeded/live corpus
-  // job; authored JDs are 'draft' until published.
-  try {
-    d.exec(`ALTER TABLE jobs ADD COLUMN status TEXT`);
-  } catch {
-    /* column already exists */
+  // Phase 1: draft → publish lifecycle + tenancy. The jobs table predates these
+  // columns; ALTER them in (no-op if present, mirroring core.ts on this connection).
+  // status: NULL = seeded/live corpus, authored JDs are 'draft' until published.
+  // workspace_id: NULL = the shared reference corpus, a team's authored openings
+  // carry their id.
+  for (const sql of [`ALTER TABLE jobs ADD COLUMN status TEXT`, `ALTER TABLE jobs ADD COLUMN workspace_id TEXT`]) {
+    try {
+      d.exec(sql);
+    } catch {
+      /* column already exists */
+    }
   }
+  // job_ingests: content-hash dedup, scoped PER WORKSPACE (composite PK) so a team
+  // never reuses another team's job for identical ad text. Rebuild a pre-P1 table
+  // (single content_hash PK, no workspace_id) — it's a rebuildable cache that just
+  // re-populates on the next ingest.
+  const ingestCols = d.prepare(`PRAGMA table_info(job_ingests)`).all() as { name: string }[];
+  if (ingestCols.length > 0 && !ingestCols.some((c) => c.name === "workspace_id")) {
+    d.exec(`DROP TABLE job_ingests`);
+  }
+  d.exec(
+    `CREATE TABLE IF NOT EXISTS job_ingests (
+       content_hash TEXT NOT NULL, job_id TEXT NOT NULL, created_at TEXT NOT NULL,
+       workspace_id TEXT NOT NULL DEFAULT 'workspace', PRIMARY KEY (content_hash, workspace_id)
+     )`
+  );
   _db = d;
   return d;
 }
@@ -47,7 +65,12 @@ export const jobContentHash = (s: string) => createHash("sha256").update(s).dige
  * `status` seeds the lifecycle ONLY when a brand-new row is inserted; updating an
  * existing row preserves its stored status (setJobStatus owns transitions).
  */
-export function insertJob(job: JobRecord, contentHash?: string, status: string = "published"): { id: string; created: boolean } {
+export function insertJob(
+  job: JobRecord,
+  contentHash?: string,
+  status: string = "published",
+  workspaceId: string = DEFAULT_WORKSPACE_ID
+): { id: string; created: boolean } {
   const d = db();
   // Contract for content-hash dedup vs. an explicit jobId:
   //   • If job.id already names an EXISTING row, the caller means "update THIS
@@ -57,7 +80,11 @@ export function insertJob(job: JobRecord, contentHash?: string, status: string =
   //     reuses the prior job (created=false) instead of forking a duplicate.
   const targetsExisting = !!d.prepare(`SELECT 1 FROM jobs WHERE id = ?`).get(job.id);
   if (contentHash && !targetsExisting) {
-    const seen = d.prepare(`SELECT job_id FROM job_ingests WHERE content_hash = ?`).get(contentHash) as { job_id: string } | undefined;
+    // Dedup is per-workspace: a team only reuses its OWN prior ingest of identical
+    // ad text — never another team's job (job_ingests PK is (content_hash, workspace_id)).
+    const seen = d.prepare(`SELECT job_id FROM job_ingests WHERE content_hash = ? AND workspace_id = ?`).get(contentHash, workspaceId) as
+      | { job_id: string }
+      | undefined;
     if (seen && d.prepare(`SELECT 1 FROM jobs WHERE id = ?`).get(seen.job_id)) {
       return { id: seen.job_id, created: false };
     }
@@ -71,9 +98,9 @@ export function insertJob(job: JobRecord, contentHash?: string, status: string =
   // a prose ad under an explicit jobId would force-flip it to 'published'.
   d.prepare(
     `INSERT INTO jobs (id, title, company, location, work_mode, seniority, role_family, employment_type,
-       min_years, min_education, languages, is_entry_eligible, graduate_friendliness, salary_min, salary_max, payload_json, status, created_at)
+       min_years, min_education, languages, is_entry_eligible, graduate_friendliness, salary_min, salary_max, payload_json, status, workspace_id, created_at)
      VALUES (@id, @title, @company, @location, @work_mode, @seniority, @role_family, @employment_type,
-       @min_years, @min_education, @languages, @is_entry_eligible, @graduate_friendliness, @salary_min, @salary_max, @payload_json, @status, @created_at)
+       @min_years, @min_education, @languages, @is_entry_eligible, @graduate_friendliness, @salary_min, @salary_max, @payload_json, @status, @workspace_id, @created_at)
      ON CONFLICT(id) DO UPDATE SET title=excluded.title, company=excluded.company, location=excluded.location,
        work_mode=excluded.work_mode, seniority=excluded.seniority, role_family=excluded.role_family,
        employment_type=excluded.employment_type, min_years=excluded.min_years, min_education=excluded.min_education,
@@ -97,10 +124,14 @@ export function insertJob(job: JobRecord, contentHash?: string, status: string =
     salary_max: job.salaryBand?.[1] ?? null,
     payload_json: JSON.stringify(job),
     status,
+    workspace_id: workspaceId,
     created_at: now,
   });
   if (contentHash) {
-    d.prepare(`INSERT INTO job_ingests (content_hash, job_id, created_at) VALUES (?, ?, ?) ON CONFLICT(content_hash) DO UPDATE SET job_id=excluded.job_id`).run(contentHash, job.id, now);
+    d.prepare(
+      `INSERT INTO job_ingests (content_hash, job_id, created_at, workspace_id) VALUES (?, ?, ?, ?)
+       ON CONFLICT(content_hash, workspace_id) DO UPDATE SET job_id=excluded.job_id`
+    ).run(contentHash, job.id, now, workspaceId);
   }
   // created=false when we updated an existing row (explicit-jobId update path).
   return { id: job.id, created: !targetsExisting };
@@ -130,15 +161,15 @@ export function getJobStatus(jobId: string): string | null {
 
 /** Authored jobs currently live — the count the billing active-jobs cap reads.
  *  Seeded corpus jobs carry NULL status and deliberately don't count. */
-export function countPublishedJobs(): number {
-  const r = db().prepare(`SELECT COUNT(*) AS n FROM jobs WHERE status = 'published'`).get() as { n: number };
+export function countPublishedJobs(workspaceId: string = DEFAULT_WORKSPACE_ID): number {
+  const r = db().prepare(`SELECT COUNT(*) AS n FROM jobs WHERE status = 'published' AND workspace_id = ?`).get(workspaceId) as { n: number };
   return r.n;
 }
 
 /** Map of jobId → status for jobs that carry one (the authored JDs). Seeded
  *  corpus jobs have NULL status and are treated as already live. */
-export function listJobStatuses(): Record<string, string> {
-  const rows = db().prepare(`SELECT id, status FROM jobs WHERE status IS NOT NULL`).all() as { id: string; status: string }[];
+export function listJobStatuses(workspaceId: string = DEFAULT_WORKSPACE_ID): Record<string, string> {
+  const rows = db().prepare(`SELECT id, status FROM jobs WHERE status IS NOT NULL AND workspace_id = ?`).all(workspaceId) as { id: string; status: string }[];
   return Object.fromEntries(rows.map((r) => [r.id, r.status]));
 }
 
@@ -146,18 +177,20 @@ export function listJobStatuses(): Record<string, string> {
  *  a builder-authored JD) — the JD library's Field and Seniority columns, plus the
  *  company used to prefill the Generate form on Duplicate. One query for all rows,
  *  mirroring listJobStatuses; a JD with no linked job has no entry (columns "—"). */
-export function listJobRoleMeta(): Record<string, { roleFamily: string | null; seniority: string | null; company: string | null }> {
+export function listJobRoleMeta(
+  workspaceId: string = DEFAULT_WORKSPACE_ID
+): Record<string, { roleFamily: string | null; seniority: string | null; company: string | null }> {
   const rows = db()
-    .prepare(`SELECT id, role_family, seniority, company FROM jobs`)
-    .all() as { id: string; role_family: string | null; seniority: string | null; company: string | null }[];
+    .prepare(`SELECT id, role_family, seniority, company FROM jobs WHERE (workspace_id IS NULL OR workspace_id = ?)`)
+    .all(workspaceId) as { id: string; role_family: string | null; seniority: string | null; company: string | null }[];
   return Object.fromEntries(rows.map((r) => [r.id, { roleFamily: r.role_family, seniority: r.seniority, company: r.company }]));
 }
 
 /** Draft JDs awaiting publish, newest first. */
-export function listDraftJobs(): { id: string; title: string; company: string | null }[] {
+export function listDraftJobs(workspaceId: string = DEFAULT_WORKSPACE_ID): { id: string; title: string; company: string | null }[] {
   return db()
-    .prepare(`SELECT id, title, company FROM jobs WHERE status = 'draft' ORDER BY created_at DESC`)
-    .all() as { id: string; title: string; company: string | null }[];
+    .prepare(`SELECT id, title, company FROM jobs WHERE status = 'draft' AND workspace_id = ? ORDER BY created_at DESC`)
+    .all(workspaceId) as { id: string; title: string; company: string | null }[];
 }
 
 type JobCliOut = { job: JobRecord; source: string };

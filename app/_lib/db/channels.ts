@@ -1,5 +1,6 @@
 import { randomToken } from "../random-id";
 import { ensureDb } from "./core";
+import { DEFAULT_WORKSPACE_ID } from "./workspaces";
 
 // ---- Inbound channel webhooks (Erika gap E3) --------------------------------
 
@@ -31,6 +32,8 @@ export type ChannelWebhookRecord = {
   // lead count; firstAcceptedAt anchors time-to-first-lead (= this minus createdAt).
   acceptedCount: number;
   firstAcceptedAt: string | null;
+  // The team that minted the webhook — leads it accepts are filed into this workspace.
+  workspaceId: string;
 };
 
 type ChannelWebhookRow = {
@@ -45,6 +48,7 @@ type ChannelWebhookRow = {
   first_received_at: string | null;
   accepted_count: number;
   first_accepted_at: string | null;
+  workspace_id: string;
 };
 
 function rowToWebhook(r: ChannelWebhookRow): ChannelWebhookRecord {
@@ -60,35 +64,40 @@ function rowToWebhook(r: ChannelWebhookRow): ChannelWebhookRecord {
     firstReceivedAt: r.first_received_at,
     acceptedCount: r.accepted_count ?? 0,
     firstAcceptedAt: r.first_accepted_at,
+    workspaceId: r.workspace_id,
   };
 }
 
 const WEBHOOK_SELECT = `
   SELECT w.token, w.channel, w.job_id, j.title AS job_title, w.lang,
          w.created_at, w.received_count, w.last_received_at, w.first_received_at,
-         w.accepted_count, w.first_accepted_at
+         w.accepted_count, w.first_accepted_at, w.workspace_id
   FROM channel_webhooks w LEFT JOIN jobs j ON j.id = w.job_id`;
 
 /** Mint a webhook binding. The token is the ONLY gate on this public,
  *  side-effecting endpoint, so it comes from randomToken (CSPRNG), never randomId. */
-export function createChannelWebhook(input: { channel: WebhookChannelId; jobId: string; lang?: string | null }): ChannelWebhookRecord {
+export function createChannelWebhook(
+  input: { channel: WebhookChannelId; jobId: string; lang?: string | null },
+  workspaceId: string = DEFAULT_WORKSPACE_ID
+): ChannelWebhookRecord {
   const db = ensureDb();
   const token = randomToken("hook");
   const now = new Date().toISOString();
   db.prepare(
-    `INSERT INTO channel_webhooks (token, channel, job_id, lang, created_at) VALUES (?, ?, ?, ?, ?)`
-  ).run(token, input.channel, input.jobId, input.lang ?? null, now);
+    `INSERT INTO channel_webhooks (token, channel, job_id, lang, created_at, workspace_id) VALUES (?, ?, ?, ?, ?, ?)`
+  ).run(token, input.channel, input.jobId, input.lang ?? null, now, workspaceId);
+  // Re-read by the freshly-minted token (globally unique) — no workspace filter needed.
   const row = db.prepare(`${WEBHOOK_SELECT} WHERE w.token = ?`).get(token) as ChannelWebhookRow;
   return rowToWebhook(row);
 }
 
 /** Active (non-revoked) webhooks, newest first — the Channels tab's list AND
  *  what flips a stub channel's badge to "Listening". */
-export function listChannelWebhooks(): ChannelWebhookRecord[] {
+export function listChannelWebhooks(workspaceId: string = DEFAULT_WORKSPACE_ID): ChannelWebhookRecord[] {
   const db = ensureDb();
   const rows = db
-    .prepare(`${WEBHOOK_SELECT} WHERE w.revoked_at IS NULL ORDER BY w.created_at DESC`)
-    .all() as ChannelWebhookRow[];
+    .prepare(`${WEBHOOK_SELECT} WHERE w.revoked_at IS NULL AND w.workspace_id = ? ORDER BY w.created_at DESC`)
+    .all(workspaceId) as ChannelWebhookRow[];
   return rows.map(rowToWebhook);
 }
 
@@ -104,11 +113,13 @@ export function getActiveChannelWebhook(token: string): ChannelWebhookRecord | n
 }
 
 /** Revoke (idempotent). The row is kept — its receipt history stays auditable. */
-export function revokeChannelWebhook(token: string): boolean {
+export function revokeChannelWebhook(token: string, workspaceId: string = DEFAULT_WORKSPACE_ID): boolean {
   const db = ensureDb();
+  // Recruiter management action (not the public receiver): scope to the owning team so a
+  // session can't revoke another team's webhook even if it learned the token.
   const res = db
-    .prepare(`UPDATE channel_webhooks SET revoked_at = ? WHERE token = ? AND revoked_at IS NULL`)
-    .run(new Date().toISOString(), token);
+    .prepare(`UPDATE channel_webhooks SET revoked_at = ? WHERE token = ? AND revoked_at IS NULL AND workspace_id = ?`)
+    .run(new Date().toISOString(), token, workspaceId);
   return res.changes > 0;
 }
 
@@ -145,21 +156,21 @@ export function recordChannelWebhookAccepted(token: string): void {
 
 /** Recruiter-entered spend per source channel (CZK) — the denominator for
  *  cost-per-applicant / cost-per-hire. amountCzk null/≤0 clears the figure. */
-export function setChannelSpend(channel: string, amountCzk: number | null): void {
+export function setChannelSpend(channel: string, amountCzk: number | null, workspaceId: string = DEFAULT_WORKSPACE_ID): void {
   const db = ensureDb();
   if (amountCzk == null || !(amountCzk > 0)) {
-    db.prepare(`DELETE FROM channel_spend WHERE channel = ?`).run(channel);
+    db.prepare(`DELETE FROM channel_spend WHERE channel = ? AND workspace_id = ?`).run(channel, workspaceId);
     return;
   }
   db.prepare(
-    `INSERT INTO channel_spend (channel, amount_czk, updated_at) VALUES (?, ?, ?)
-     ON CONFLICT(channel) DO UPDATE SET amount_czk = excluded.amount_czk, updated_at = excluded.updated_at`
-  ).run(channel, amountCzk, new Date().toISOString());
+    `INSERT INTO channel_spend (channel, amount_czk, updated_at, workspace_id) VALUES (?, ?, ?, ?)
+     ON CONFLICT(channel, workspace_id) DO UPDATE SET amount_czk = excluded.amount_czk, updated_at = excluded.updated_at`
+  ).run(channel, amountCzk, new Date().toISOString(), workspaceId);
 }
 
-export function listChannelSpend(): Map<string, number> {
+export function listChannelSpend(workspaceId: string = DEFAULT_WORKSPACE_ID): Map<string, number> {
   const db = ensureDb();
-  const rows = db.prepare(`SELECT channel, amount_czk FROM channel_spend`).all() as {
+  const rows = db.prepare(`SELECT channel, amount_czk FROM channel_spend WHERE workspace_id = ?`).all(workspaceId) as {
     channel: string;
     amount_czk: number;
   }[];
