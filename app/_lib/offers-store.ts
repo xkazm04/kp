@@ -40,10 +40,17 @@ function db(): Database.Database {
       -- Deadline after which an un-answered offer lapses to status 'expired'
       -- (idea-29361408). NULL on legacy rows minted before this column → those
       -- never expire (fail-open, see offer-policy.isOfferExpired).
-      expires_at TEXT
+      expires_at TEXT,
+      workspace_id TEXT NOT NULL DEFAULT 'workspace'
     );
     CREATE INDEX IF NOT EXISTS idx_offers_entry ON offers (entry_id);
   `);
+  // Tenancy scoping (E0 Phase 1): workspace_id on a pre-existing table (isolated store).
+  try {
+    d.exec(`ALTER TABLE offers ADD COLUMN workspace_id TEXT NOT NULL DEFAULT 'workspace'`);
+  } catch {
+    /* column already exists — idempotent */
+  }
   // Migration for stores created before the expiry column existed.
   try {
     d.exec(`ALTER TABLE offers ADD COLUMN expires_at TEXT`);
@@ -136,12 +143,24 @@ export function createOffer(input: {
   const expiresAt = new Date(offerExpiresAtMs(nowMs, input.ttlDays)).toISOString();
   const id = randomId("off");
   const token = randomToken("tk");
+  // Tenant (P1): an offer inherits its pipeline entry's workspace (by-id read; guarded
+  // so an isolated store without pipeline_entries falls back to default). Every other
+  // offers op is keyed by the unguessable token or the globally-unique entry_id, and the
+  // lapse/reminder sweeps are global heartbeat jobs — so the stamp here is what a future
+  // recruiter enumeration would filter on.
+  let workspaceId = DEFAULT_WORKSPACE_ID;
+  try {
+    const ws = d.prepare(`SELECT workspace_id FROM pipeline_entries WHERE id = ?`).get(input.entryId) as { workspace_id?: string } | undefined;
+    workspaceId = ws?.workspace_id ?? DEFAULT_WORKSPACE_ID;
+  } catch {
+    /* pipeline_entries absent on this connection — keep the default workspace */
+  }
   // RETURNING * hands the freshly-inserted row back in the same statement, so we
   // don't issue a second SELECT to read what we just wrote.
   const row = d
     .prepare(
-      `INSERT INTO offers (id, token, entry_id, candidate_label, job_id, job_title, currency, salary, payload_json, status, created_at, expires_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'extended', ?, ?) RETURNING *`
+      `INSERT INTO offers (id, token, entry_id, candidate_label, job_id, job_title, currency, salary, payload_json, status, created_at, expires_at, workspace_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'extended', ?, ?, ?) RETURNING *`
     )
     .get(
       id,
@@ -154,7 +173,8 @@ export function createOffer(input: {
       input.salary,
       JSON.stringify(input.payload ?? null),
       now,
-      expiresAt
+      expiresAt,
+      workspaceId
     ) as Record<string, unknown>;
   return rowToOffer(row);
 }

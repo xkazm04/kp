@@ -1,5 +1,6 @@
 import Database from "better-sqlite3";
 import { openStore } from "./db-path";
+import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 import { randomToken } from "./random-id";
 
 // Candidate application-status links (idea-e76a6fb2). Isolated-connection store
@@ -23,9 +24,16 @@ function db(): Database.Database {
       -- UNIQUE so a re-apply (which reuses the ORIGINAL entry, never a new row)
       -- returns the SAME status link instead of accreting a second one.
       entry_id TEXT UNIQUE,
-      created_at TEXT NOT NULL
+      created_at TEXT NOT NULL,
+      workspace_id TEXT NOT NULL DEFAULT 'workspace'
     );
   `);
+  // Tenancy scoping (E0 Phase 1): workspace_id on a pre-existing table (isolated store).
+  try {
+    d.exec(`ALTER TABLE application_status_links ADD COLUMN workspace_id TEXT NOT NULL DEFAULT 'workspace'`);
+  } catch {
+    /* column already exists — idempotent */
+  }
   _db = d;
   return d;
 }
@@ -41,10 +49,21 @@ export function getOrCreateStatusLink(entryId: string): string {
       | undefined;
     if (existing) return existing.token;
     const token = randomToken("as");
-    d.prepare(`INSERT INTO application_status_links (token, entry_id, created_at) VALUES (?, ?, ?)`).run(
+    // Tenant (P1): the link inherits its entry's workspace (by-id read; guarded so an
+    // isolated store without pipeline_entries falls back to default). Both reads are by
+    // the unguessable token / globally-unique entry_id, so the stamp is future-proofing.
+    let workspaceId = DEFAULT_WORKSPACE_ID;
+    try {
+      const ws = d.prepare(`SELECT workspace_id FROM pipeline_entries WHERE id = ?`).get(entryId) as { workspace_id?: string } | undefined;
+      workspaceId = ws?.workspace_id ?? DEFAULT_WORKSPACE_ID;
+    } catch {
+      /* pipeline_entries absent on this connection — keep the default workspace */
+    }
+    d.prepare(`INSERT INTO application_status_links (token, entry_id, created_at, workspace_id) VALUES (?, ?, ?, ?)`).run(
       token,
       entryId,
-      new Date().toISOString()
+      new Date().toISOString(),
+      workspaceId
     );
     return token;
   });

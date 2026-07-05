@@ -892,6 +892,9 @@ export function ensureDb(): Database.Database {
     "ALTER TABLE dev_submissions ADD COLUMN workspace_id TEXT NOT NULL DEFAULT 'workspace'",
     "ALTER TABLE dev_sessions ADD COLUMN workspace_id TEXT NOT NULL DEFAULT 'workspace'",
     "ALTER TABLE dev_session_events ADD COLUMN workspace_id TEXT NOT NULL DEFAULT 'workspace'",
+    // Durable skill profiles (E0 Phase 1): stamped from the submission's workspace on
+    // issue; public token / by-submission_id reads are exempt (skill-profiles-tenancy.test.ts).
+    "ALTER TABLE skill_profiles ADD COLUMN workspace_id TEXT NOT NULL DEFAULT 'workspace'",
   ]) {
     // Use the same loud-fail migrator as the loop above: a bare `catch {}` here
     // swallowed real failures (corruption, I/O, lock contention) and booted a

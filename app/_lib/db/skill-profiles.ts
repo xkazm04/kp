@@ -1,5 +1,6 @@
 import { ensureDb } from "./core";
 import { randomId } from "../random-id";
+import { DEFAULT_WORKSPACE_ID } from "./workspaces";
 import { getPosting, getSubmission } from "./devcase";
 import {
   buildDurableSkillProfile,
@@ -98,10 +99,21 @@ export function issueSkillProfile(submissionId: string): IssueResult {
   if (!isSubstantiveSkillProfile(profile)) return { ok: false, reason: "not_evaluated" };
   const signature = signProfile(profile);
   const token = randomId("dsp");
+  // Tenant (P1): a durable skill profile inherits its submission's workspace (by-id
+  // read of dev_submissions; guarded). The public lookups are by the unguessable token
+  // (a candidate presents their credential to anyone) and the mint's idempotent read is
+  // by the globally-unique submission_id — both exempt — so the stamp is future-proofing.
+  let workspaceId = DEFAULT_WORKSPACE_ID;
+  try {
+    const ws = db.prepare(`SELECT workspace_id FROM dev_submissions WHERE id = ?`).get(submissionId) as { workspace_id?: string } | undefined;
+    workspaceId = ws?.workspace_id ?? DEFAULT_WORKSPACE_ID;
+  } catch {
+    /* dev_submissions absent on this connection — keep the default workspace */
+  }
   db.prepare(
-    `INSERT INTO skill_profiles (token, submission_id, candidate_ref, case_id, profile_json, signature, version, issued_at, revoked_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL)`
-  ).run(token, submissionId, profile.candidateRef, profile.caseId, JSON.stringify(profile), signature, DSP_VERSION, issuedAt);
+    `INSERT INTO skill_profiles (token, submission_id, candidate_ref, case_id, profile_json, signature, version, issued_at, revoked_at, workspace_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, ?)`
+  ).run(token, submissionId, profile.candidateRef, profile.caseId, JSON.stringify(profile), signature, DSP_VERSION, issuedAt, workspaceId);
   return { ok: true, token, profile, created: true };
 }
 

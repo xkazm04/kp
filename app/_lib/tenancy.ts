@@ -101,6 +101,13 @@ export const TENANCY_SCOPED_TABLES: ReadonlySet<string> = new Set([
   // globally-unique entry_id (can't cross tenants); the write stamps workspace_id
   // derived from the entry (interview-prep-tenancy.test.ts).
   "interview_preps",
+  // Phase 1 — the candidate-facing by-token/by-key tables. Each is safe by construction
+  // (every access is by an unguessable token or a globally-unique entry/submission id,
+  // plus offers' global lapse/reminder heartbeat sweeps); the write stamps workspace_id
+  // derived from the linked entity so a future recruiter enumeration is scopable.
+  "offers", // offer letters (offers-tenancy.test.ts)
+  "application_status_links", // public status link (application-status-tenancy.test.ts)
+  "skill_profiles", // durable skill credentials (skill-profiles-tenancy.test.ts)
 ]);
 
 /** Tables that legitimately hold NO per-tenant data: the tenant registry itself,
