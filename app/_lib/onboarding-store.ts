@@ -224,8 +224,15 @@ export function startRun(input: {
   const id = randomId("obr");
   // Tenant (P1): a run inherits its Hired candidate's pipeline-entry workspace (by-id
   // read of pipeline_entries on the shared file — same derivation as schedule-store).
-  const wsRow = d.prepare(`SELECT workspace_id FROM pipeline_entries WHERE id = ?`).get(input.entryId) as { workspace_id?: string } | undefined;
-  const workspaceId = wsRow?.workspace_id ?? DEFAULT_WORKSPACE_ID;
+  // Guarded: an unknown entry, or an isolated store whose connection hasn't created
+  // pipeline_entries yet, falls back to the default workspace rather than throwing.
+  let workspaceId = DEFAULT_WORKSPACE_ID;
+  try {
+    const wsRow = d.prepare(`SELECT workspace_id FROM pipeline_entries WHERE id = ?`).get(input.entryId) as { workspace_id?: string } | undefined;
+    workspaceId = wsRow?.workspace_id ?? DEFAULT_WORKSPACE_ID;
+  } catch {
+    /* pipeline_entries absent on this connection — keep the default workspace */
+  }
   const templateId = input.templateId || ensureDefaultTemplate(workspaceId);
   d.prepare(
     `INSERT INTO onboarding_runs (id, entry_id, template_id, candidate_label, job_title, status, started_at, workspace_id)
