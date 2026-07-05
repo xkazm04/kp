@@ -139,6 +139,15 @@ export const TENANCY_EXEMPT_TABLES: ReadonlySet<string> = new Set([
   "billing_credits",
   "billing_usage",
   "billing_alerts",
+  // Org/deployment-level CONFIG + METERING — set once per org/deployment and shared
+  // across the org's teams, so isolated by org (like billing), NOT per-team-workspace.
+  // None holds per-team-private candidate data. Per-team overrides (if ever wanted) are
+  // a KP_MULTI_ORG / multi-tenant enhancement, not a KP_MULTI_WORKSPACE prerequisite.
+  "brand_settings", // the org's candidate-facing brand (name/accent/logo)
+  "ats_config", // the org's outbound ATS webhook integration (one endpoint)
+  "analytics_targets", // the org's hiring targets — "the org's recruiter hourly rate", time-to-hire goal
+  "decision_config", // the org's hiring policy: screening rules + compliance jurisdiction
+  "llm_usage", // deployment-level LLM metering ledger (sibling of billing_usage; written off-request from Python)
   "scheduler", // global background-job scheduler state
   "scheduler_runs",
   "schema_migrations",
