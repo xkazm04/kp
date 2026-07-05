@@ -84,6 +84,16 @@ export const TENANCY_SCOPED_TABLES: ReadonlySet<string> = new Set([
   "dev_submissions",
   "dev_sessions",
   "dev_session_events",
+  // Phase 1 — the onboarding hand-off (onboarding-store.ts): listTemplates/listRuns +
+  // the intake-submitted set + every INSERT filter/stamp workspace_id. Templates are
+  // per-team; a run derives its tenant from the Hired candidate's entry; child rows
+  // (task states / intake / signatures) from their run. by-id/run_id ops and the
+  // pre-boarding reminder sweep are exempt (onboarding-tenancy.test.ts).
+  "onboarding_templates",
+  "onboarding_runs",
+  "onboarding_task_states",
+  "onboarding_intake",
+  "onboarding_signatures",
 ]);
 
 /** Tables that legitimately hold NO per-tenant data: the tenant registry itself,
