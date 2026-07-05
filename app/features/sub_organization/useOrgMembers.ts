@@ -25,27 +25,33 @@ export function useOrgMembers() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const reload = useCallback(async () => {
-    try {
-      const r = await fetch("/api/org/members");
-      if (!r.ok) throw new Error("Failed to load members");
-      const data = (await r.json()) as MembersResponse;
-      setMembers(data.members);
-      setCanManage(data.canManage);
-      setCallerCaps(data.callerCapabilities);
-      // Pending invites are members:manage-gated; only fetch them when we may see them.
-      if (data.canManage) {
-        const ri = await fetch("/api/org/invites");
-        setInvites(ri.ok ? ((await ri.json()) as { invites: InviteDto[] }).invites : []);
-      } else {
-        setInvites([]);
-      }
-      setError(null);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load");
-    } finally {
-      setLoading(false);
-    }
+  // Non-async .then-chain (not an `async` body) so the mount effect below doesn't
+  // trip react-hooks/set-state-in-effect — the setState calls live in promise
+  // callbacks, deferred off the effect's synchronous pass. Still returns the
+  // promise so action handlers can `await reload()` after a mutation.
+  const reload = useCallback(() => {
+    return fetch("/api/org/members")
+      .then(async (r): Promise<void> => {
+        if (!r.ok) throw new Error("Failed to load members");
+        const data = (await r.json()) as MembersResponse;
+        setMembers(data.members);
+        setCanManage(data.canManage);
+        setCallerCaps(data.callerCapabilities);
+        // Pending invites are members:manage-gated; only fetch them when we may see them.
+        if (data.canManage) {
+          const ri = await fetch("/api/org/invites");
+          setInvites(ri.ok ? ((await ri.json()) as { invites: InviteDto[] }).invites : []);
+        } else {
+          setInvites([]);
+        }
+        setError(null);
+      })
+      .catch((e) => {
+        setError(e instanceof Error ? e.message : "Failed to load");
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   }, []);
 
   useEffect(() => {
