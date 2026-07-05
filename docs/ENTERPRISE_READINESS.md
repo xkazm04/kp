@@ -23,21 +23,37 @@ of the model + data layer, GDPR/DPA compliance.**_
 The single fact that shapes this entire backlog (from
 `docs/ORGANIZATION_MULTIUSER_PLAN.md`, scanned 2026-07-05):
 
-- **There is no user identity.** Auth is one shared `KP_OPERATOR_PASSWORD`; the
-  session is `{ workspace, iat, exp, epoch }` with no `userId`/email/role
-  (`app/_lib/auth/session.ts`). The five UI roles (Owner/Admin/Recruiter/Hiring
-  manager/Viewer) have **no server-side meaning**.
-- **The tenancy boundary is ~10 % wired.** `workspace_id` is the tenant key and a
-  boot guard (`assertTenancyReady`) exists, but **only 2 of ~40 tables are
-  verified scoped** (`analyses`, `profiles`); `jobs` — which everything pivots on
-  — has no `workspace_id` at all.
+> **UPDATE 2026-07-05 — E0 is now substantially DONE.** Both halves below have
+> landed on `main`; the strike-through text is the original (pre-E0) diagnosis kept
+> for the record.
 
-**Consequence:** SSO provisions *users into roles* (no users yet). Audit records
-*who did what* (no "who" yet). Brand customization and data residency are
-*per-tenant* (tenancy inert). A per-customer self-host still needs the tenancy
-model to be coherent. **So Phase E0 below is non-negotiable and mostly sequential
-— it is the org/multi-user plan's Phases 0–1, and it is the long pole.** The good
-news (§10): the seams are already cut for it.
+- ~~**There is no user identity.**~~ **DONE.** The identity model shipped
+  (`organizations`, `users`, `user_credentials`, `memberships`, `invites`), per-user
+  **login/logout/switch-workspace**, sessions that carry `sub`/`org`/`role`, and a real
+  **RBAC** layer (5 roles + capabilities + per-user overrides) with `requireCapability()`
+  resolved live from DB membership. Open-mode + operator-password sessions fold to owner,
+  so local dev is unchanged.
+- ~~**The tenancy boundary is ~10 % wired** (only 2 of ~40 tables scoped).~~
+  **DONE — `tenancyGaps()` is now ZERO and `assertTenancyReady(multiWorkspace=true)`
+  passes.** Every per-team table's read+write paths are workspace-scoped, proven by
+  **20+ colocated `*-tenancy.test.ts` source guards**: the pipeline (highest-PII), jobs
+  corpus (shared-tier), channels, schedule (per-team calendar), dev-case + onboarding
+  flows, offers/status-links/skill-profiles (by-token, safe-by-key), interviews, the
+  background-task queue (UI scoped / runner global), and `decision_records` — the
+  tamper-evident hash chain, **re-architected to per-tenant chains** (§3's hard item).
+  Org/deployment CONFIG + METERING (`billing_*`, `provider_keys`, `brand_settings`,
+  `ats_config`, `analytics_targets`, `decision_config`, `jd_templates`, `llm_usage`) is
+  classified **exempt** (org-level, not per-team).
+
+**Remaining before the actual `KP_MULTI_WORKSPACE` flip** (the last mile, all noted in
+`app/_lib/tenancy.ts`): give the pipeline entry-id scheme a workspace component, widen
+the `tasks` dedup index to `(workspace_id, dedupe_key)`, thread the real session
+workspace through the inbound lead-intake chain and the mutating routes (today they use
+the default workspace). The **data layer** — the hard, exhaustive part — is complete.
+
+**Consequence — the E0-gated pillars are now UNBLOCKED:** SSO can provision *users into
+roles* (they exist), audit can stamp the real `userId`, and the decision chain is already
+per-tenant. **E1 (SSO) is the highest-value next step.**
 
 ---
 
