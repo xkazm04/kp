@@ -1,5 +1,6 @@
 import Database from "better-sqlite3";
 import { openStore } from "./db-path";
+import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 import { randomId } from "./random-id";
 
 // Standing silver-medalist alerts (idea-fdb45cd0). Isolated-connection store
@@ -33,11 +34,19 @@ function db(): Database.Database {
       prior_kind TEXT NOT NULL,
       prior_label TEXT NOT NULL,
       created_at TEXT NOT NULL,
-      dismissed_at TEXT
+      dismissed_at TEXT,
+      workspace_id TEXT NOT NULL DEFAULT 'workspace'
     );
     CREATE UNIQUE INDEX IF NOT EXISTS ux_rediscovery_alert
       ON rediscovery_alerts(job_id, candidate_id);
   `);
+  // Tenancy scoping (E0 Phase 1): workspace_id on a pre-existing table (isolated store
+  // → migrate here, tolerating the already-present column).
+  try {
+    d.exec(`ALTER TABLE rediscovery_alerts ADD COLUMN workspace_id TEXT NOT NULL DEFAULT 'workspace'`);
+  } catch {
+    /* column already exists — idempotent */
+  }
   _db = d;
   return d;
 }
@@ -70,15 +79,16 @@ export type RediscoveryAlert = {
 export function recordRediscoveryAlerts(
   jobId: string,
   jobTitle: string,
-  rows: RediscoveryAlertInput[]
+  rows: RediscoveryAlertInput[],
+  workspaceId: string = DEFAULT_WORKSPACE_ID
 ): number {
   if (rows.length === 0) return 0;
   const d = db();
   const now = new Date().toISOString();
   const insert = d.prepare(`
     INSERT OR IGNORE INTO rediscovery_alerts
-      (id, job_id, job_title, candidate_id, candidate_label, archetype, score, prior_kind, prior_label, created_at)
-    VALUES (@id, @jobId, @jobTitle, @candidateId, @label, @archetype, @score, @priorKind, @priorLabel, @createdAt)
+      (id, job_id, job_title, candidate_id, candidate_label, archetype, score, prior_kind, prior_label, created_at, workspace_id)
+    VALUES (@id, @jobId, @jobTitle, @candidateId, @label, @archetype, @score, @priorKind, @priorLabel, @createdAt, @workspaceId)
   `);
   const tx = d.transaction((items: RediscoveryAlertInput[]): number => {
     let added = 0;
@@ -94,6 +104,7 @@ export function recordRediscoveryAlerts(
         priorKind: r.prior.kind,
         priorLabel: r.prior.label,
         createdAt: now,
+        workspaceId,
       });
       if (res.changes > 0) added += 1;
     }
@@ -106,15 +117,15 @@ export function recordRediscoveryAlerts(
  *  first. Relevance (job still published, candidate not since pipelined) is
  *  filtered by the caller against live pipeline/job state — see
  *  filterRelevantAlerts. */
-export function listRediscoveryAlerts(): RediscoveryAlert[] {
+export function listRediscoveryAlerts(workspaceId: string = DEFAULT_WORKSPACE_ID): RediscoveryAlert[] {
   const rows = db()
     .prepare(
       `SELECT id, job_id, job_title, candidate_id, candidate_label, archetype, score, prior_kind, prior_label, created_at
        FROM rediscovery_alerts
-       WHERE dismissed_at IS NULL
+       WHERE dismissed_at IS NULL AND workspace_id = ?
        ORDER BY created_at DESC, score DESC`
     )
-    .all() as Record<string, unknown>[];
+    .all(workspaceId) as Record<string, unknown>[];
   return rows.map((r) => ({
     id: r.id as string,
     jobId: r.job_id as string,

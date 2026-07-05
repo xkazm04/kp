@@ -94,6 +94,13 @@ export const TENANCY_SCOPED_TABLES: ReadonlySet<string> = new Set([
   "onboarding_task_states",
   "onboarding_intake",
   "onboarding_signatures",
+  // Phase 1 — rediscovery_alerts (standing silver-medalist feed): record stamps +
+  // list filters workspace_id; dismiss is by-id (rediscovery-tenancy.test.ts).
+  "rediscovery_alerts",
+  // Phase 1 — interview_preps: one plan per pipeline entry, all ops keyed by the
+  // globally-unique entry_id (can't cross tenants); the write stamps workspace_id
+  // derived from the entry (interview-prep-tenancy.test.ts).
+  "interview_preps",
 ]);
 
 /** Tables that legitimately hold NO per-tenant data: the tenant registry itself,

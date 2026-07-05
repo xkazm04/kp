@@ -1,5 +1,6 @@
 import Database from "better-sqlite3";
 import { openStore } from "./db-path";
+import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 import { chunk, SQL_IN_CHUNK } from "./entries-param";
 import type { Scorecard } from "./interview-scorecard";
 
@@ -22,9 +23,16 @@ function db(): Database.Database {
       candidate_label TEXT,
       job_title TEXT,
       payload_json TEXT NOT NULL,
-      created_at TEXT NOT NULL
+      created_at TEXT NOT NULL,
+      workspace_id TEXT NOT NULL DEFAULT 'workspace'
     );
   `);
+  // Tenancy scoping (E0 Phase 1): workspace_id on a pre-existing table (isolated store).
+  try {
+    d.exec(`ALTER TABLE interview_preps ADD COLUMN workspace_id TEXT NOT NULL DEFAULT 'workspace'`);
+  } catch {
+    /* column already exists — idempotent */
+  }
   _db = d;
   return d;
 }
@@ -38,10 +46,21 @@ export type InterviewPrep = {
 };
 
 export function saveInterviewPrep(entryId: string, candidateLabel: string | null, jobTitle: string | null, payload: Record<string, unknown>): void {
+  // Tenant (P1): a prep inherits its pipeline entry's workspace (by-id read; guarded so
+  // an isolated store whose connection lacks pipeline_entries falls back to the default).
+  // Every OTHER interview_preps op is keyed by the globally-unique entry_id, so a by-id
+  // flip can't cross tenants — the stamp here is what makes a future enumeration scopable.
+  let workspaceId = DEFAULT_WORKSPACE_ID;
+  try {
+    const ws = db().prepare(`SELECT workspace_id FROM pipeline_entries WHERE id = ?`).get(entryId) as { workspace_id?: string } | undefined;
+    workspaceId = ws?.workspace_id ?? DEFAULT_WORKSPACE_ID;
+  } catch {
+    /* pipeline_entries absent on this connection — keep the default workspace */
+  }
   db()
     .prepare(
-      `INSERT INTO interview_preps (entry_id, candidate_label, job_title, payload_json, created_at)
-       VALUES (@entry_id, @candidate_label, @job_title, @payload_json, @created_at)
+      `INSERT INTO interview_preps (entry_id, candidate_label, job_title, payload_json, created_at, workspace_id)
+       VALUES (@entry_id, @candidate_label, @job_title, @payload_json, @created_at, @workspace_id)
        ON CONFLICT(entry_id) DO UPDATE SET
          candidate_label = excluded.candidate_label,
          job_title = excluded.job_title,
@@ -54,6 +73,7 @@ export function saveInterviewPrep(entryId: string, candidateLabel: string | null
       job_title: jobTitle,
       payload_json: JSON.stringify(payload),
       created_at: new Date().toISOString(),
+      workspace_id: workspaceId,
     });
 }
 
