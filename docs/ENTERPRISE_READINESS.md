@@ -183,7 +183,12 @@ packaged/air-gapped deploy; egress isn't provably off; self-hosted model
   inventory, air-gap notes, production checklist). **Image slimmed 2026-07-05** via
   Next `output:"standalone"` (traced server + minimal node_modules): **1.78 GB → 465
   MB (−74%)**, verified running (boots, DB on volume, python pipeline + native
-  better-sqlite3 work, auth fail-closed). Remaining: Helm chart + license-key gating.
+  better-sqlite3 work, auth fail-closed). **Helm chart landed 2026-07-05**
+  (`deploy/helm/kp`): single-replica + Recreate + RWO volume (enforcing the
+  SQLite-single-writer constraint), fail-closed required secrets, existingSecret
+  support, ingress, non-root securityContext; validated with `helm lint` + `helm
+  template` + `kubeconform` (6/6 valid). Remaining: license-key gating (gated on the
+  E-SH-1 license decision).
 - **E-SH-3** **Postgres** backend (for multi-replica HA; SQLite+WAL already handles
   KP's 1–2-user-per-team concurrency) behind the existing DB seam. — **L** — 🟡
   **SCOPED + seam landed (2026-07-05):** full design/decision doc

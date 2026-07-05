@@ -205,6 +205,32 @@ candidates:
 > docs/ORGANIZATION_MULTIUSER_PLAN.md) — host-based tenant resolution + wildcard TLS.
 > The single-deployment custom domain above needs neither.
 
+## 8c. Kubernetes (Helm)
+
+A Helm chart lives at **`deploy/helm/kp`**. Push the image (§9) to your registry, then:
+
+```bash
+helm install kp deploy/helm/kp \
+  --namespace kp --create-namespace \
+  --set image.repository=registry.example.com/kp --set image.tag=0.1.0 \
+  --set auth.operatorPassword='change-me' --set auth.secret='a-long-random-string' \
+  --set persistence.size=10Gi \
+  --set ingress.enabled=true --set ingress.hosts[0].host=hiring.yourcompany.com
+```
+
+For production, keep secrets out of Helm values — pre-create a Secret with
+`KP_OPERATOR_PASSWORD` / `KP_SECRET` (+ any provider keys) and pass
+`--set existingSecret=my-kp-secret`. Provider keys and non-secret config
+(`NEXT_PUBLIC_APP_BASE_URL`, `KP_OFFLINE`, `OPENAI_BASE_URL`, …) are `providerKeys` /
+`env` values; see `deploy/helm/kp/values.yaml`.
+
+**Single replica by design.** State is one SQLite file on a ReadWriteOnce volume, so
+the chart pins `replicas: 1` with the `Recreate` strategy (a rolling update would
+briefly run two pods contending for the DB). The `install` **fails** if the operator
+password/secret are unset — no accidental open deployment. Multi-replica HA needs the
+Postgres backend (docs/POSTGRES_BACKEND.md). Validate a values set before applying
+with `helm lint` / `helm template`.
+
 ## 9. Build & run without Compose
 
 ```bash

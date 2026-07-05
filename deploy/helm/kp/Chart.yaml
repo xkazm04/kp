@@ -1,0 +1,21 @@
+apiVersion: v2
+name: kp
+description: >-
+  KP — AI hiring workspace (self-host). Deploys the single-container image (app +
+  Python pipeline, docs/SELF_HOSTING.md). NOTE: state is a single SQLite file, so KP
+  runs as ONE replica on a ReadWriteOnce volume (multi-replica needs Postgres /
+  distributed-SQLite — docs/POSTGRES_BACKEND.md). The chart enforces this.
+type: application
+# Chart version — bump on chart changes.
+version: 0.1.0
+# App version — the KP image tag this chart defaults to.
+appVersion: "0.1.0"
+home: https://github.com/xkazm04/kp
+sources:
+  - https://github.com/xkazm04/kp
+keywords:
+  - hiring
+  - recruiting
+  - self-host
+maintainers:
+  - name: KP
