@@ -177,6 +177,30 @@ same-network gateway.
 - [ ] Health check green (`docker compose ps`).
 - [ ] Backups scheduled; upgrade path rehearsed (§10).
 
+## 8b. Custom domain & white-label branding (E-BRD-3/4)
+
+KP is white-label. Two layers make it *your* product to your recruiters and their
+candidates:
+
+1. **Brand identity (in-app).** Settings → **Branding** sets the display name, a
+   primary accent color, and a logo. The accent re-skins the whole workspace **and
+   the candidate-facing offer/apply/scheduling pages** (they share the app layout);
+   the name + logo replace the KandiDate mark in the sidebars. Stored server-side
+   (`brand_settings`), no rebuild needed.
+2. **Custom domain.** Point your domain at the reverse proxy in front of KP
+   (§8: Caddy / nginx / Traefik terminates TLS and proxies to `:3000`):
+   - DNS: a `CNAME` (or `A`/`AAAA`) for `hiring.yourcompany.com` → your proxy host.
+   - TLS: let the proxy issue a certificate (Caddy/Traefik do this automatically via
+     ACME; with nginx use certbot).
+   - Set **`NEXT_PUBLIC_APP_BASE_URL`** and **`NEXT_PUBLIC_SITE_URL`** to
+     `https://hiring.yourcompany.com` so candidate links (offer / apply / schedule)
+     and OG metadata resolve to your domain, not localhost.
+
+> Per-tenant subdomains (`acme.kp.example.com` resolving to a specific team's brand)
+> are a **multi-tenant** feature that depends on the tenancy foundation (E0,
+> docs/ORGANIZATION_MULTIUSER_PLAN.md) — host-based tenant resolution + wildcard TLS.
+> The single-deployment custom domain above needs neither.
+
 ## 9. Build & run without Compose
 
 ```bash

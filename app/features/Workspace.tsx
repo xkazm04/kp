@@ -10,7 +10,7 @@ import { ErrorBoundary } from "@/app/_components/ErrorBoundary";
 import { LanguageSwitcher } from "@/app/_components/LanguageSwitcher";
 import { ThemeToggle } from "@/app/_components/ThemeToggle";
 import { SignOutButton } from "@/app/_components/auth/SignOutButton";
-import KandidateMark from "@/app/landing/_components/KandidateMark";
+import { BrandHeader } from "@/app/_components/BrandHeader";
 import { CommandPalette } from "./CommandPalette";
 import { KeyboardShortcuts } from "./KeyboardShortcuts";
 import { RecentsNav } from "./RecentsNav";
@@ -135,8 +135,7 @@ export function Workspace() {
       {/* Mobile top bar (brand + hamburger) — hidden at md+ where the rail is permanent. */}
       <div className="flex items-center justify-between border-b border-stone-300 bg-paper px-4 py-3 md:hidden">
         <div className="flex items-center gap-2">
-          <KandidateMark className="h-7 w-7 shrink-0 text-ink [--k-accent:var(--color-coral)] [--k-fg:var(--color-paper)]" />
-          <p className="font-serif text-h3 text-ink">{t("brandName")}</p>
+          <BrandHeader markClass="h-7 w-7" showTagline={false} />
         </div>
         <button
           type="button"
@@ -167,11 +166,7 @@ export function Workspace() {
       >
         <div className="px-4 py-5">
           <div className="flex items-center gap-2.5">
-            <KandidateMark className="h-9 w-9 shrink-0 text-ink [--k-accent:var(--color-coral)] [--k-fg:var(--color-paper)] dark:-rotate-3" />
-            <div className="leading-tight">
-              <p className="font-serif text-h3 text-ink">{t("brandName")}</p>
-              <p className="text-sm uppercase tracking-[0.12em] text-steel">{t("tagline")}</p>
-            </div>
+            <BrandHeader markClass="h-9 w-9 dark:-rotate-3" />
           </div>
         </div>
 

@@ -3,7 +3,7 @@ import { getTranslations } from "next-intl/server";
 import { attentionCounts, type AttentionCounts } from "@/app/_lib/attention";
 import { ThemeToggle } from "@/app/_components/ThemeToggle";
 import { SignOutButton } from "@/app/_components/auth/SignOutButton";
-import KandidateMark from "@/app/landing/_components/KandidateMark";
+import { BrandHeader } from "@/app/_components/BrandHeader";
 import { RecentsNav } from "./RecentsNav";
 import { buildUrl, clearedTabScopedParams, navItemClass, navLabel, NAV_GROUPS, tabHref, type WorkspaceTabId } from "./tabs";
 
@@ -30,11 +30,8 @@ export async function WorkspaceNav({ active }: { active: WorkspaceTabId }) {
     <aside className="flex flex-col border-b border-stone-300 bg-paper md:sticky md:top-0 md:h-screen md:w-64 md:shrink-0 md:overflow-y-auto md:border-b-0 md:border-r">
       <Link href="/" className="focus-ring px-4 py-5">
         <div className="flex items-center gap-2.5">
-          <KandidateMark className="h-9 w-9 shrink-0 text-ink [--k-accent:var(--color-coral)] [--k-fg:var(--color-paper)] dark:-rotate-3" />
-          <div className="leading-tight">
-            <p className="font-serif text-h3 text-ink">{t("brandName")}</p>
-            <p className="text-sm uppercase tracking-[0.12em] text-steel">{t("tagline")}</p>
-          </div>
+          {/* Client island — reads the server-seeded brand context (BrandProvider). */}
+          <BrandHeader markClass="h-9 w-9 dark:-rotate-3" />
         </div>
       </Link>
 

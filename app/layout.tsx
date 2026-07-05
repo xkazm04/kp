@@ -5,6 +5,9 @@ import { getLocale, getMessages, getTranslations } from "next-intl/server";
 import { DevInspector } from "./_dev-inspector/DevInspector";
 import { Toaster } from "./_components/Toast";
 import { BrandStyle } from "./_components/BrandStyle";
+import { BrandProvider } from "./_components/BrandProvider";
+import { getBrand } from "./_lib/brand-store";
+import { DEFAULT_BRAND } from "./_lib/brand-config";
 import "./globals.css";
 
 // SHELL5 — `latin-ext` carries the Czech diacritics (ě š č ř ž ů, all over
@@ -134,6 +137,16 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   // catalog to every client component's useTranslations().
   const locale = await getLocale();
   const messages = await getMessages();
+  // White-label brand (E3/E-BRD-3), read ONCE here: the accent goes to BrandStyle
+  // (CSS-var override) and the whole config seeds BrandProvider so client components
+  // (both sidebars, candidate headers) render the name/logo with no fetch/flash. A
+  // brand-read fault must never break the shell.
+  let brand = DEFAULT_BRAND;
+  try {
+    brand = getBrand();
+  } catch (error) {
+    console.error("[layout] brand read failed", error);
+  }
   // suppressHydrationWarning: the theme script mutates <html data-theme> before
   // React hydrates, so the server/client attribute mismatch is expected.
   return (
@@ -141,13 +154,15 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
       <body className="font-sans">
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT }} />
         {/* White-label accent override (E3) — after globals.css so it wins by source order. */}
-        <BrandStyle />
+        <BrandStyle accent={brand.accentColor} />
         <NextIntlClientProvider locale={locale} messages={messages}>
-          {children}
-          {/* Feedback layer — one portal stack for the whole app (workspace AND
-              the public token pages), inside the intl provider so the dismiss
-              label localizes. See app/_components/Toast.tsx. */}
-          <Toaster />
+          <BrandProvider brand={brand}>
+            {children}
+            {/* Feedback layer — one portal stack for the whole app (workspace AND
+                the public token pages), inside the intl provider so the dismiss
+                label localizes. See app/_components/Toast.tsx. */}
+            <Toaster />
+          </BrandProvider>
         </NextIntlClientProvider>
         {process.env.NODE_ENV === "development" && <DevInspector />}
       </body>

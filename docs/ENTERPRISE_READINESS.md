@@ -135,10 +135,16 @@ surfaces carry KP branding; no custom domain / sender.
   (no CSS injection).
 - **E-BRD-3** White-label the **candidate-facing** surfaces (offer / apply /
   schedule / voice) + branded email/letter templates + custom sender/reply-to. — **M**
-  — accent re-skin already covers the candidate *pages* (via the shared layout);
-  remaining: the brand name/logo in the nav + candidate headers, and branded
-  email/letter copy + sender.
-- **E-BRD-4** Custom domain / subdomain (CNAME + managed TLS). — **M**
+  — 🟡 **mostly DONE (2026-07-05):** the accent re-skins the candidate *pages* (shared
+  layout), and the brand **name + logo** now replace the KandiDate mark in both
+  sidebars via a server-seeded `BrandProvider` + shared `BrandHeader` (client island;
+  works in the server `WorkspaceNav` too). Remaining: candidate-page *headers* in
+  apply/schedule (the ship-loop is actively editing those files — deferred to avoid
+  the collision), and branded **email/letter copy + sender/reply-to**.
+- **E-BRD-4** Custom domain / subdomain (CNAME + managed TLS). — **M** — ✅ **DONE
+  for single-deployment (2026-07-05):** documented in SELF_HOSTING.md §8b (DNS CNAME
+  → reverse proxy TLS + `NEXT_PUBLIC_APP_BASE_URL`/`SITE_URL`). Per-tenant subdomains
+  (host-based tenant resolution + wildcard TLS) gate on E0.
 - **Depends on:** E0 (per-tenant store). **Low technical risk** — the theme seam
   already exists.
 
