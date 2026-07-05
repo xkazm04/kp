@@ -10,6 +10,8 @@ import {
   listMembershipsForWorkspace,
   removeMembership,
   roleForUserInWorkspace,
+  setMembershipOverrides,
+  capabilitiesForUserInWorkspace,
 } from "./memberships.ts";
 
 after(() => cleanupUnitDb());
@@ -33,6 +35,39 @@ test("a user can belong to several teams of the same org", () => {
     .map((m) => m.workspaceId)
     .sort();
   assert.deepEqual(teams, ["team-a", "team-b"]);
+});
+
+test("per-user capability overrides persist, resolve live, and survive a role change", () => {
+  const u = createUser({ orgId: DEFAULT_ORG_ID, email: "override@csas.cz" });
+  upsertMembership(u.id, "workspace", "recruiter");
+  // Recruiter default: pipeline:write + read, but NOT members:manage.
+  assert.equal(capabilitiesForUserInWorkspace(u.id, "workspace").has("members:manage"), false);
+
+  // Grant members:manage → a "Writer" who can invite.
+  assert.equal(setMembershipOverrides(u.id, "workspace", { grant: ["members:manage"], revoke: [] }), true);
+  let caps = capabilitiesForUserInWorkspace(u.id, "workspace");
+  assert.equal(caps.has("members:manage"), true);
+  assert.equal(caps.has("pipeline:write"), true);
+  assert.deepEqual(getMembership(u.id, "workspace")!.overrides, { grant: ["members:manage"], revoke: [] });
+
+  // A role change preserves the override (upsert only touches role).
+  upsertMembership(u.id, "workspace", "viewer");
+  caps = capabilitiesForUserInWorkspace(u.id, "workspace");
+  assert.equal(caps.has("members:manage"), true, "override survived the role change");
+  assert.equal(caps.has("read"), true);
+
+  // Clearing the override drops back to pure role defaults.
+  assert.equal(setMembershipOverrides(u.id, "workspace", null), true);
+  assert.equal(capabilitiesForUserInWorkspace(u.id, "workspace").has("members:manage"), false);
+});
+
+test("org:manage cannot be granted to a non-owner via an override", () => {
+  const u = createUser({ orgId: DEFAULT_ORG_ID, email: "escalate@csas.cz" });
+  upsertMembership(u.id, "workspace", "admin");
+  setMembershipOverrides(u.id, "workspace", { grant: ["org:manage"], revoke: [] });
+  assert.equal(capabilitiesForUserInWorkspace(u.id, "workspace").has("org:manage"), false);
+  // The org:manage-only grant sanitizes to null, so no override row survives.
+  assert.equal(getMembership(u.id, "workspace")!.overrides, null);
 });
 
 test("list a team's members, then remove one", () => {

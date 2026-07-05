@@ -14,8 +14,8 @@ const ONE_YEAR_SECONDS = 60 * 60 * 24 * 365;
 // but FAIL CLOSED in production — a prod deploy that forgot the password must not
 // serve the whole recruiter surface to the public; set KP_ALLOW_OPEN=1 to opt back
 // into open prod deliberately.
-const PUBLIC_PAGES = ["/login", "/about", "/landing", "/apply/", "/offer/", "/schedule/", "/interview/", "/status/", "/skill/", "/devcase/apply/"];
-const PUBLIC_API_PREFIXES = ["/api/auth/", "/api/apply/", "/api/offer/", "/api/status/", "/api/skill-profile/", "/api/devcase/session", "/api/channels/"];
+const PUBLIC_PAGES = ["/login", "/about", "/landing", "/apply/", "/offer/", "/schedule/", "/interview/", "/status/", "/skill/", "/devcase/apply/", "/invite/"];
+const PUBLIC_API_PREFIXES = ["/api/auth/", "/api/apply/", "/api/offer/", "/api/status/", "/api/skill-profile/", "/api/devcase/session", "/api/channels/", "/api/invite/"];
 const PUBLIC_API_EXACT = new Set([
   "/api/health",
   "/api/demo", // public entry: mints an isolated "demo"-workspace session for the guided sim

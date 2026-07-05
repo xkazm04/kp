@@ -1,26 +1,32 @@
-import { ensureDb } from "./core";
+import { ensureDb, safeRowParse } from "./core";
 import { randomId } from "../random-id";
-import type { MemberRole } from "../auth/roles";
+import { resolveCapabilities, sanitizeOverride, type Capability, type CapabilityOverride, type MemberRole } from "../auth/roles";
 
-// Memberships (P0) — a user's link to ONE team (workspace) with a role. Many-to-
-// many by design (a recruiter can span several teams of the same org); the
-// UNIQUE(user_id, workspace_id) index makes upsert one-role-per-user-per-team.
-// The server gate resolves roleForUserInWorkspace() then asks roleCan(role, cap).
+// Memberships (P0) — a user's link to ONE team (workspace) with a role + optional
+// per-user permission overrides. Many-to-many by design (a recruiter can span
+// several teams of the same org); the UNIQUE(user_id, workspace_id) index makes
+// upsert one-role-per-user-per-team. The server gate resolves
+// capabilitiesForUserInWorkspace() live — so a permission change lands next request.
 
 export type Membership = {
   id: string;
   userId: string;
   workspaceId: string;
   role: MemberRole;
+  overrides: CapabilityOverride | null;
   createdAt: string;
 };
 
 function rowToMembership(r: Record<string, unknown>): Membership {
+  const parsed = safeRowParse<CapabilityOverride>((r.capability_overrides as string) ?? null, "membership.overrides", r.id as string);
   return {
     id: r.id as string,
     userId: r.user_id as string,
     workspaceId: r.workspace_id as string,
     role: r.role as MemberRole,
+    // Re-sanitize on read so a hand-edited/legacy row can never surface an
+    // org:manage grant or a malformed shape.
+    overrides: parsed ? sanitizeOverride(parsed) : null,
     createdAt: r.created_at as string,
   };
 }
@@ -67,8 +73,26 @@ export function removeMembership(userId: string, workspaceId: string): boolean {
   return Number(info.changes) > 0;
 }
 
-/** The user's role on a specific team (or null if not a member). The single call
- *  the server-side capability gate resolves before asking roleCan(role, cap). */
+/** The user's role on a specific team (or null if not a member). */
 export function roleForUserInWorkspace(userId: string, workspaceId: string): MemberRole | null {
   return getMembership(userId, workspaceId)?.role ?? null;
+}
+
+/** Set/replace a member's per-user permission overrides (null clears them, back to
+ *  pure role defaults). Sanitized before write. Returns false when no membership
+ *  matched. This is the "adjust permission on the user level" write path. */
+export function setMembershipOverrides(userId: string, workspaceId: string, overrides: CapabilityOverride | null): boolean {
+  const db = ensureDb();
+  const clean = overrides ? sanitizeOverride(overrides) : null;
+  const json = clean ? JSON.stringify(clean) : null;
+  const info = db.prepare(`UPDATE memberships SET capability_overrides = ? WHERE user_id = ? AND workspace_id = ?`).run(json, userId, workspaceId);
+  return Number(info.changes) > 0;
+}
+
+/** The member's EFFECTIVE capabilities on a team (role defaults + overrides), or an
+ *  empty set when they aren't a member. The live authority the request gate reads —
+ *  a permission change takes effect on the next request, no re-login. */
+export function capabilitiesForUserInWorkspace(userId: string, workspaceId: string): ReadonlySet<Capability> {
+  const m = getMembership(userId, workspaceId);
+  return m ? resolveCapabilities(m.role, m.overrides) : new Set<Capability>();
 }

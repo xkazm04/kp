@@ -165,6 +165,11 @@ export function ensureDb(): Database.Database {
       user_id TEXT NOT NULL,
       workspace_id TEXT NOT NULL,
       role TEXT NOT NULL,
+      -- Per-user permission overrides layered on the role defaults (P0): JSON
+      -- { grant: Capability[], revoke: Capability[] }. NULL = pure role defaults.
+      -- org:manage is never grantable via an override (owner-role only) so an
+      -- admin can't escalate anyone to owner-level control.
+      capability_overrides TEXT,
       created_at TEXT NOT NULL
     );
     CREATE UNIQUE INDEX IF NOT EXISTS uq_memberships_user_ws ON memberships (user_id, workspace_id);
@@ -755,6 +760,8 @@ export function ensureDb(): Database.Database {
     // backfilled to the default org in the seed block below.
     "ALTER TABLE workspaces ADD COLUMN org_id TEXT",
     "ALTER TABLE workspaces ADD COLUMN type TEXT",
+    // Per-user permission overrides on a membership (P0) — see the memberships CREATE.
+    "ALTER TABLE memberships ADD COLUMN capability_overrides TEXT",
     "ALTER TABLE channel_webhooks ADD COLUMN first_received_at TEXT",
     // E5 metric honesty: `received_count`/`first_received_at` stamp EVERY POST (probes,
     // health-checks, malformed integrations), so they overstate real leads. Track
@@ -905,6 +912,7 @@ export function ensureDb(): Database.Database {
     /* index already exists */
   }
   seedExampleJd(db);
+  seedOrgMembers(db);
   seedJobs(db);
   seedCandidates(db);
   seedAnalyses(db);
@@ -1009,6 +1017,32 @@ function seedExampleJd(db: Database.Database): void {
     SEED_JD_BODY,
     new Date().toISOString()
   );
+}
+
+// Identity foundation (P0): seed the default org's team with the six Česká
+// spořitelna members (was the mocked org-page roster). Raw SQL — the db.ts store
+// helpers can't run here (they re-enter ensureDb mid-init). Empty-org guard so a
+// later boot never re-creates a member an admin removed. No passwords: seeded
+// users are identity+role only until an invite sets a credential (open dev already
+// grants owner access, so no seeded login is needed).
+function seedOrgMembers(db: Database.Database): void {
+  const { n } = db.prepare(`SELECT COUNT(*) AS n FROM users WHERE org_id = 'org-default'`).get() as { n: number };
+  if (n > 0) return;
+  const members: { id: string; name: string; email: string; role: string; status: string }[] = [
+    { id: "usr-seed-petra", name: "Petra Nováková", email: "petra.novakova@csas.cz", role: "owner", status: "active" },
+    { id: "usr-seed-jan", name: "Jan Dvořák", email: "jan.dvorak@csas.cz", role: "admin", status: "active" },
+    { id: "usr-seed-marketa", name: "Markéta Svobodová", email: "marketa.svobodova@csas.cz", role: "recruiter", status: "active" },
+    { id: "usr-seed-tomas", name: "Tomáš Horák", email: "tomas.horak@csas.cz", role: "hiring_manager", status: "active" },
+    { id: "usr-seed-lucie", name: "Lucie Marková", email: "lucie.markova@csas.cz", role: "recruiter", status: "invited" },
+    { id: "usr-seed-david", name: "David Beneš", email: "david.benes@csas.cz", role: "viewer", status: "disabled" },
+  ];
+  const now = new Date().toISOString();
+  const insUser = db.prepare(`INSERT OR IGNORE INTO users (id, org_id, email, name, status, created_at) VALUES (?, 'org-default', ?, ?, ?, ?)`);
+  const insMem = db.prepare(`INSERT OR IGNORE INTO memberships (id, user_id, workspace_id, role, created_at) VALUES (?, ?, 'workspace', ?, ?)`);
+  for (const m of members) {
+    insUser.run(m.id, m.email, m.name, m.status, now);
+    insMem.run(`mem-seed-${m.id}`, m.id, m.role, now);
+  }
 }
 
 const ALPHABET = "abcdefghijkmnpqrstuvwxyz23456789";

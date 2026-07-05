@@ -1,0 +1,57 @@
+import { NextResponse, type NextRequest } from "next/server";
+import { SESSION_COOKIE, SESSION_TTL_MS, signSession } from "@/app/_lib/auth/session";
+import { DEFAULT_WORKSPACE_ID } from "@/app/_lib/db/workspaces";
+import { getRedeemableInvite } from "@/app/_lib/db/invites";
+import { getOrganization } from "@/app/_lib/db/organizations";
+import { getUserByEmail } from "@/app/_lib/db/users";
+import { listMembershipsForUser } from "@/app/_lib/db/memberships";
+import { acceptInvite, MIN_PASSWORD_LENGTH } from "@/app/_lib/org-service";
+
+// PUBLIC (proxy allow-listed): the invited-member accept flow. GET previews a
+// redeemable invite; POST redeems it (sets the password, adds the membership) and
+// signs the new user straight in on their team.
+
+export async function GET(_request: NextRequest, context: { params: Promise<{ token: string }> }) {
+  const { token } = await context.params;
+  const invite = getRedeemableInvite(token);
+  if (!invite) return NextResponse.json({ valid: false }, { status: 404 });
+  const org = getOrganization(invite.orgId);
+  const existing = getUserByEmail(invite.email);
+  return NextResponse.json({
+    valid: true,
+    email: invite.email,
+    role: invite.role,
+    orgName: org?.name ?? "your organization",
+    needsName: !existing?.name, // a brand-new invitee supplies their name; a re-invite keeps it
+    minPasswordLength: MIN_PASSWORD_LENGTH,
+  });
+}
+
+export async function POST(request: NextRequest, context: { params: Promise<{ token: string }> }) {
+  const { token } = await context.params;
+  const body = (await request.json().catch(() => ({}))) as { name?: unknown; password?: unknown };
+  const password = typeof body.password === "string" ? body.password : "";
+  const name = typeof body.name === "string" ? body.name : null;
+
+  const result = acceptInvite({ token, name, password });
+  if (!result.ok) {
+    const status = result.reason === "weak_password" ? 400 : result.reason === "email_taken" ? 409 : 410;
+    return NextResponse.json({ error: result.reason }, { status });
+  }
+  // Sign the new member in on their team (the membership acceptInvite just created).
+  const primary = listMembershipsForUser(result.user.id)[0];
+  const session = signSession(primary?.workspaceId ?? DEFAULT_WORKSPACE_ID, Date.now(), {
+    sub: result.user.id,
+    org: result.user.orgId,
+    role: primary?.role,
+  });
+  const res = NextResponse.json({ ok: true });
+  res.cookies.set(SESSION_COOKIE, session, {
+    httpOnly: true,
+    secure: true,
+    sameSite: "lax",
+    path: "/",
+    maxAge: Math.floor(SESSION_TTL_MS / 1000),
+  });
+  return res;
+}
