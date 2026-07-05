@@ -74,6 +74,7 @@ const BillingTab = dynamic(() => import("./sub_billing/BillingTab").then((m) => 
 const ModelsTab = dynamic(() => import("./sub_models/ModelsTab").then((m) => ({ default: m.ModelsTab })), { loading });
 const WorkspaceTab = dynamic(() => import("./sub_workspace/WorkspaceTab").then((m) => ({ default: m.WorkspaceTab })), { loading });
 const OrganizationTab = dynamic(() => import("./sub_organization/OrganizationTab").then((m) => ({ default: m.OrganizationTab })), { loading });
+const BrandingTab = dynamic(() => import("./sub_branding/BrandingTab").then((m) => ({ default: m.BrandingTab })), { loading });
 
 export function Workspace() {
   const router = useRouter();
@@ -290,6 +291,7 @@ export function Workspace() {
               {navActive === "models" ? <ModelsTab /> : null}
               {navActive === "workspace" ? <WorkspaceTab /> : null}
               {navActive === "organization" ? <OrganizationTab /> : null}
+              {navActive === "branding" ? <BrandingTab /> : null}
             </div>
           </ErrorBoundary>
         </div>

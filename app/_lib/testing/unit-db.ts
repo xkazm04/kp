@@ -42,6 +42,12 @@ for (const key of [
   "KP_MULTI_WORKSPACE",
   "APP_BASE_URL",
   "NEXT_PUBLIC_APP_BASE_URL",
+  // A stray postgres DATABASE_URL / KP_DB_BACKEND in a dev shell would make
+  // openStore's resolveDbBackend() throw (E-SH-3); KP_OFFLINE would flip egress
+  // gating. Clear them so store tests are deterministic regardless of shell env.
+  "DATABASE_URL",
+  "KP_DB_BACKEND",
+  "KP_OFFLINE",
 ]) {
   delete process.env[key];
 }

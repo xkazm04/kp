@@ -3404,6 +3404,31 @@
       "buy": "Koupit balíček"
     }
   },
+  "branding": {
+    "eyebrow": "White-label",
+    "title": "Branding",
+    "intro": "Umístěte název, barvu a logo své organizace do celého pracovního prostoru — i na stránky nabídky, přihlášky a plánování, které vidí kandidáti.",
+    "nameLabel": "Zobrazovaný název",
+    "namePlaceholder": "Název vaší firmy nebo produktu",
+    "nameHelp": "Zobrazuje se v postranním panelu a na kartě prohlížeče.",
+    "accentLabel": "Hlavní akcentní barva",
+    "accentHelp": "Přebarví tlačítka, odkazy, aktivní položky a fokusové rámečky v obou motivech. Ponechte prázdné pro výchozí.",
+    "accentClear": "Vymazat",
+    "logoLabel": "URL loga",
+    "logoHelp": "Odkaz https:// na vaše logo (PNG/SVG). Pro self-hosted instalace jej hostujte na vlastní doméně.",
+    "save": "Uložit branding",
+    "saving": "Ukládání…",
+    "saved": "Branding uložen",
+    "reset": "Resetovat",
+    "saveFailed": "Branding se nepodařilo uložit.",
+    "loadFailed": "Branding se nepodařilo načíst — zkontrolujte připojení a zkuste to znovu.",
+    "appliesNote": "Změny se okamžitě projeví v celém pracovním prostoru i na všech stránkách pro kandidáty.",
+    "previewTitle": "Náhled",
+    "previewName": "Vaše značka",
+    "previewButton": "Hlavní akce",
+    "previewBadge": "Odznak",
+    "previewLink": "<a>Zvýrazněný odkaz</a> ve vaší akcentní barvě."
+  },
   "models": {
     "eyebrow": "Modely",
     "title": "Směrování modelů a klíče",

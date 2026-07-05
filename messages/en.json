@@ -3404,6 +3404,31 @@
       "buy": "Buy pack"
     }
   },
+  "branding": {
+    "eyebrow": "White-label",
+    "title": "Branding",
+    "intro": "Put your organization's name, color and logo on the whole workspace — and on the offer, apply and scheduling pages your candidates see.",
+    "nameLabel": "Display name",
+    "namePlaceholder": "Your company or product name",
+    "nameHelp": "Shown in the sidebar and the browser tab.",
+    "accentLabel": "Primary accent color",
+    "accentHelp": "Re-skins buttons, links, active items and focus rings across both themes. Leave empty for the default.",
+    "accentClear": "Clear",
+    "logoLabel": "Logo URL",
+    "logoHelp": "An https:// link to your logo (PNG/SVG). Host it on your own domain for self-hosted installs.",
+    "save": "Save branding",
+    "saving": "Saving…",
+    "saved": "Branding saved",
+    "reset": "Reset",
+    "saveFailed": "Couldn't save branding.",
+    "loadFailed": "Couldn't load branding — check the connection and try again.",
+    "appliesNote": "Changes apply across the workspace and every candidate-facing page immediately.",
+    "previewTitle": "Preview",
+    "previewName": "Your brand",
+    "previewButton": "Primary action",
+    "previewBadge": "Badge",
+    "previewLink": "A <a>highlighted link</a> in your accent."
+  },
   "models": {
     "eyebrow": "Models",
     "title": "Model routing & keys",

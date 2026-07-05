@@ -122,13 +122,22 @@ not persisted).
 surfaces carry KP branding; no custom domain / sender.
 
 **Work items.**
-- **E-BRD-1** Per-org brand settings store (logo, primary/accent color, display
-  name) + admin editor (wire the Organization page's mocked branding to real
-  persistence). — **M**
-- **E-BRD-2** Inject brand tokens per tenant at render (reuse the CSS-variable
-  theme layer — this is the cheap-layer win the design system was built for). — **M**
+- **E-BRD-1** Per-org brand settings store (accent color, display name, logo) +
+  admin editor. — **M** — ✅ **DONE (2026-07-05):** `brand_settings` store
+  (`brand-store.ts`, single-workspace like billing_state), `GET/PUT /api/brand`
+  (operator-gated, strict validation in `brand-config.ts`), and a **Branding tab**
+  with a live-preview editor. Logo is https-URL for now (upload = follow-up).
+- **E-BRD-2** Inject brand tokens per tenant at render (reuse the CSS-variable theme
+  layer — the cheap-layer win). — **M** — ✅ **DONE:** `BrandStyle` (server, in the
+  root layout) overrides the `--color-coral` accent token in BOTH themes, re-skinning
+  the whole app — **and the candidate-facing offer/apply/schedule pages** (they share
+  the layout), so this already reaches into E-BRD-3. Accent is strictly hex-validated
+  (no CSS injection).
 - **E-BRD-3** White-label the **candidate-facing** surfaces (offer / apply /
   schedule / voice) + branded email/letter templates + custom sender/reply-to. — **M**
+  — accent re-skin already covers the candidate *pages* (via the shared layout);
+  remaining: the brand name/logo in the nav + candidate headers, and branded
+  email/letter copy + sender.
 - **E-BRD-4** Custom domain / subdomain (CNAME + managed TLS). — **M**
 - **Depends on:** E0 (per-tenant store). **Low technical risk** — the theme seam
   already exists.

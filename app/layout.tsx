@@ -4,6 +4,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages, getTranslations } from "next-intl/server";
 import { DevInspector } from "./_dev-inspector/DevInspector";
 import { Toaster } from "./_components/Toast";
+import { BrandStyle } from "./_components/BrandStyle";
 import "./globals.css";
 
 // SHELL5 — `latin-ext` carries the Czech diacritics (ě š č ř ž ů, all over
@@ -139,6 +140,8 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
     <html lang={locale} className={`${inter.variable} ${fraunces.variable} ${bricolage.variable}`} suppressHydrationWarning>
       <body className="font-sans">
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT }} />
+        {/* White-label accent override (E3) — after globals.css so it wins by source order. */}
+        <BrandStyle />
         <NextIntlClientProvider locale={locale} messages={messages}>
           {children}
           {/* Feedback layer — one portal stack for the whole app (workspace AND
