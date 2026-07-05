@@ -118,6 +118,12 @@ export const TENANCY_SCOPED_TABLES: ReadonlySet<string> = new Set([
   // NOTE: the uq_tasks_active_dedupe index must widen to (workspace_id, dedupe_key) before
   // KP_MULTI_WORKSPACE so two teams' identical keys can't collide.
   "tasks",
+  // Phase 1 — decision_records: the tamper-evident decision hash chain, re-architected to
+  // PER-TENANT chains (org plan §6, the hard structural item). A seal links off its own
+  // workspace's head hash; verify walks a single workspace's records; list filters it — so
+  // one team's sealed rows never enter another's proof. Every DML query is scoped (no by-id
+  // exemptions — an unscoped read would splice chains). decision-records-tenancy.test.ts.
+  "decision_records",
 ]);
 
 /** Tables that legitimately hold NO per-tenant data: the tenant registry itself,

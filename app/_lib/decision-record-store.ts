@@ -1,5 +1,6 @@
 import Database from "better-sqlite3";
 import { openStore } from "./db-path";
+import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 import { decisionContentHash } from "./decision-hash";
 
 // Decision System of Record (moonshot D) — a tamper-evident hash chain of
@@ -8,6 +9,13 @@ import { decisionContentHash } from "./decision-hash";
 // (decision-config-store / scheduler-store pattern) so it never touches the
 // fork-active db.ts. Each row links to the previous via content_hash;
 // verifyDecisionChain() recomputes the chain to detect any after-the-fact edit.
+//
+// Tenancy (E0 Phase 1): the chain is PER-TENANT (org plan §6, the hard structural
+// item). A seal links off the LATEST hash IN ITS OWN WORKSPACE, so each team has an
+// independent chain and one team's sealed rows never enter another's proof; verify walks
+// a single workspace's records in seq order. The global seq stays a plain row id — the
+// chain identity is (workspace_id, prev_hash). Existing rows backfill to the default
+// workspace, so the pre-tenancy chain verifies unchanged as that workspace's chain.
 
 export type DecisionRecordInput = {
   kind: string; // e.g. "auto_rejected"
@@ -65,10 +73,21 @@ function db(): Database.Database {
       rationale TEXT NOT NULL,
       reason_code TEXT NOT NULL,
       payload_json TEXT NOT NULL,
-      created_at TEXT NOT NULL
+      created_at TEXT NOT NULL,
+      workspace_id TEXT NOT NULL DEFAULT 'workspace'
     );
     CREATE INDEX IF NOT EXISTS idx_decision_records_candidate ON decision_records(candidate_ref);
   `);
+  // Tenancy scoping (E0 Phase 1): workspace_id on a pre-existing table (isolated store).
+  // Existing rows backfill to the default workspace, so their (globally-built) chain
+  // becomes that workspace's chain and still verifies. An index on the per-tenant chain
+  // head read (workspace_id, seq) keeps the seal's head lookup fast.
+  try {
+    d.exec(`ALTER TABLE decision_records ADD COLUMN workspace_id TEXT NOT NULL DEFAULT 'workspace'`);
+  } catch {
+    /* column already exists — idempotent */
+  }
+  d.exec(`CREATE INDEX IF NOT EXISTS idx_decision_records_ws_seq ON decision_records(workspace_id, seq)`);
   _db = d;
   return d;
 }
@@ -114,18 +133,30 @@ export function sealDecisionRecord(input: DecisionRecordInput): DecisionRecord {
   const payload = recordPayload(input, createdAt);
   const payloadJson = JSON.stringify(payload);
   const tx = d.transaction((): DecisionRecord => {
+    // Tenant (P1): the record joins its subject entry's workspace chain (candidateRef is
+    // the pipeline entry id). Guarded: a system decision with no matching entry, or an
+    // isolated store without pipeline_entries, seals onto the default workspace's chain.
+    let workspaceId = DEFAULT_WORKSPACE_ID;
+    try {
+      const ws = d.prepare(`SELECT workspace_id FROM pipeline_entries WHERE id = ?`).get(input.candidateRef) as { workspace_id?: string } | undefined;
+      workspaceId = ws?.workspace_id ?? DEFAULT_WORKSPACE_ID;
+    } catch {
+      /* pipeline_entries absent on this connection — seal onto the default chain */
+    }
+    // Link off the latest hash IN THIS WORKSPACE — a per-tenant chain, so one team's
+    // seals never enter another's proof (org plan §6).
     const last = d
-      .prepare(`SELECT content_hash FROM decision_records ORDER BY seq DESC LIMIT 1`)
-      .get() as { content_hash: string } | undefined;
+      .prepare(`SELECT content_hash FROM decision_records WHERE workspace_id = ? ORDER BY seq DESC LIMIT 1`)
+      .get(workspaceId) as { content_hash: string } | undefined;
     const prevHash = last?.content_hash ?? "";
     const contentHash = decisionContentHash(prevHash, payload);
     const info = d
       .prepare(
         `INSERT INTO decision_records
-          (prev_hash, content_hash, kind, actor, policy_version, candidate_ref, rationale, reason_code, payload_json, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          (prev_hash, content_hash, kind, actor, policy_version, candidate_ref, rationale, reason_code, payload_json, created_at, workspace_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
-      .run(prevHash, contentHash, input.kind, input.actor, input.policyVersion, input.candidateRef, input.rationale, input.reasonCode, payloadJson, createdAt);
+      .run(prevHash, contentHash, input.kind, input.actor, input.policyVersion, input.candidateRef, input.rationale, input.reasonCode, payloadJson, createdAt, workspaceId);
     return {
       seq: Number(info.lastInsertRowid),
       prevHash,
@@ -156,13 +187,16 @@ export function sealDecisionSafe(input: DecisionRecordInput): DecisionRecord | n
   }
 }
 
-export function listDecisionRecords(opts?: { candidateRef?: string; limit?: number }): DecisionRecord[] {
+export function listDecisionRecords(opts?: { candidateRef?: string; limit?: number; workspaceId?: string }): DecisionRecord[] {
   const d = db();
   const limit = Math.min(Math.max(Math.trunc(opts?.limit ?? 200), 1), 1000);
+  const workspaceId = opts?.workspaceId ?? DEFAULT_WORKSPACE_ID;
   const rows = (
     opts?.candidateRef
-      ? d.prepare(`SELECT * FROM decision_records WHERE candidate_ref = ? ORDER BY seq DESC LIMIT ?`).all(opts.candidateRef, limit)
-      : d.prepare(`SELECT * FROM decision_records ORDER BY seq DESC LIMIT ?`).all(limit)
+      ? d
+          .prepare(`SELECT * FROM decision_records WHERE candidate_ref = ? AND workspace_id = ? ORDER BY seq DESC LIMIT ?`)
+          .all(opts.candidateRef, workspaceId, limit)
+      : d.prepare(`SELECT * FROM decision_records WHERE workspace_id = ? ORDER BY seq DESC LIMIT ?`).all(workspaceId, limit)
   ) as DecisionRow[];
   return rows.map(rowToRecord);
 }
@@ -170,9 +204,11 @@ export function listDecisionRecords(opts?: { candidateRef?: string; limit?: numb
 /** Recompute the entire chain in seq order and confirm each link's prev_hash and
  *  content_hash still match a fresh hash of its stored payload. A single edited /
  *  deleted / reordered row trips `ok:false` at the first divergent seq. */
-export function verifyDecisionChain(): ChainVerdict {
+export function verifyDecisionChain(workspaceId: string = DEFAULT_WORKSPACE_ID): ChainVerdict {
   const d = db();
-  const rows = d.prepare(`SELECT * FROM decision_records ORDER BY seq ASC`).all() as DecisionRow[];
+  // Per-tenant verify: walk ONLY this workspace's records in seq order — its chain is
+  // independent, so another team's rows are neither read nor needed for this proof.
+  const rows = d.prepare(`SELECT * FROM decision_records WHERE workspace_id = ? ORDER BY seq ASC`).all(workspaceId) as DecisionRow[];
   let prevHash = "";
   for (const r of rows) {
     let payload: unknown;
