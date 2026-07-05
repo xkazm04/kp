@@ -34,6 +34,43 @@ function warnIfDefaultDbPath(): void {
   );
 }
 
+export type DbBackend = "sqlite";
+
+/**
+ * The configured database backend (E-SH-3). Only `sqlite` is implemented today —
+ * and every connection in the app opens through `openStore()` below, which is the
+ * single seam a future Postgres adapter slots into. A Postgres backend (needed for
+ * multi-replica HA, not for KP's 1–2-users-per-team concurrency, which SQLite+WAL
+ * already handles) is DESIGNED but unbuilt: the blocker is that better-sqlite3 is
+ * synchronous while Node's Postgres drivers are async, so the ~500 sync query sites
+ * can't just swap drivers. The full plan + options live in docs/POSTGRES_BACKEND.md.
+ *
+ * We still parse `KP_DB_BACKEND` / a `postgres://` `DATABASE_URL` and FAIL FAST with
+ * a pointer, rather than silently ignoring them — so an operator who configures
+ * Postgres learns immediately it isn't wired yet, instead of the app quietly running
+ * on a local SQLite file they didn't intend to use in production.
+ */
+export function resolveDbBackend(env: NodeJS.ProcessEnv = process.env): DbBackend {
+  const explicit = env.KP_DB_BACKEND?.trim().toLowerCase() || "";
+  const url = env.DATABASE_URL?.trim() || "";
+  const wantsPostgres = explicit === "postgres" || explicit === "postgresql" || /^postgres(ql)?:\/\//i.test(url);
+  if (wantsPostgres) {
+    throw new Error(
+      "Postgres backend is configured (KP_DB_BACKEND / DATABASE_URL) but is NOT yet " +
+        "implemented — KP runs on SQLite today. The Postgres migration is designed in " +
+        "docs/POSTGRES_BACKEND.md (blocked on the sync→async DB refactor). Unset those " +
+        "variables or set KP_DB_BACKEND=sqlite to proceed."
+    );
+  }
+  if (explicit && explicit !== "sqlite") {
+    throw new Error(
+      `Unknown KP_DB_BACKEND '${explicit}' — the only supported backend is 'sqlite' ` +
+        "(see docs/POSTGRES_BACKEND.md for the Postgres roadmap)."
+    );
+  }
+  return "sqlite";
+}
+
 /** Ensure the directory holding the SQLite file exists before a connection opens
  *  it (the stores call this in their lazy initializer, mirroring db.ts). */
 export function ensureDbDir(): void {
@@ -62,6 +99,10 @@ export function ensureDbDir(): void {
  *  stores; resolve it once here, beside DB_PATH/ensureDbDir. Callers keep their own
  *  memoization and run their own CREATE/migration DDL on the returned handle. */
 export function openStore(): Database.Database {
+  // Single backend chokepoint: every connection (ensureDb + all ~18 stores) opens
+  // here, so a postgres/unknown backend fails fast with a pointer at the roadmap
+  // rather than silently opening SQLite.
+  resolveDbBackend();
   ensureDbDir();
   const d = new Database(DB_PATH);
   d.pragma("journal_mode = WAL");

@@ -22,7 +22,8 @@
     "i18n:check": "node scripts/i18n-check.mjs",
     "pipeline:sample": "python -m pipeline.jobfit.cli samples/sample-cv.txt",
     "db:dump": "node scripts/db-dump.mjs",
-    "db:load": "node scripts/db-load.mjs"
+    "db:load": "node scripts/db-load.mjs",
+    "db:pg-audit": "node --import ./scripts/test-alias-loader.mjs --experimental-transform-types --disable-warning=ExperimentalWarning scripts/pg-portability-audit.mjs"
   },
   "dependencies": {
     "@elevenlabs/react": "^1.6.4",

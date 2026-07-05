@@ -167,8 +167,15 @@ packaged/air-gapped deploy; egress isn't provably off; self-hosted model
   `.env.example` deploy block, and **docs/SELF_HOSTING.md** (quick-start, egress
   inventory, air-gap notes, production checklist). Remaining: Helm chart +
   license-key gating.
-- **E-SH-3** **Postgres** backend (SQLite is single-writer; a real org needs
-  concurrent multi-user) behind the existing DB seam. — **L**
+- **E-SH-3** **Postgres** backend (for multi-replica HA; SQLite+WAL already handles
+  KP's 1–2-user-per-team concurrency) behind the existing DB seam. — **L** — 🟡
+  **SCOPED + seam landed (2026-07-05):** full design/decision doc
+  (docs/POSTGRES_BACKEND.md) — the real blocker is the sync→async DB API (512 sync
+  query sites / 48 files), not the SQL; recommends evaluating **distributed-SQLite**
+  (LiteFS / libSQL / Turso) for multi-replica *before* a Postgres port. Shipped: the
+  `resolveDbBackend()` config seam in db-path.ts (fails fast for postgres) + a living
+  `pg-portability` audit (`npm run db:pg-audit` + test). The migration itself is a
+  dedicated multi-week project, deliberately not started here.
 - **E-SH-4** **Air-gap / no-egress mode**: a switch that hard-disables every
   external call except the customer's own model endpoints. — **M** — ✅ **DONE
   (2026-07-05):** `KP_OFFLINE=1` installs a startup `fetch` egress guard (Node) that
