@@ -112,6 +112,12 @@ export const TENANCY_SCOPED_TABLES: ReadonlySet<string> = new Set([
   // (interviewedForJob) filters workspace_id + create stamps it (derived from the entry);
   // by-id/token/entry_id ops are exempt (interviews-tenancy.test.ts).
   "interview_sessions",
+  // Phase 1 — tasks (background-task queue): the recruiter poll/history reads + dedup +
+  // create filter/stamp workspace_id; the by-id runner ops and the `-- tenancy:global`
+  // boot-recovery / readiness probes stay cross-tenant by design (tasks-tenancy.test.ts).
+  // NOTE: the uq_tasks_active_dedupe index must widen to (workspace_id, dedupe_key) before
+  // KP_MULTI_WORKSPACE so two teams' identical keys can't collide.
+  "tasks",
 ]);
 
 /** Tables that legitimately hold NO per-tenant data: the tenant registry itself,
@@ -151,6 +157,7 @@ export const TENANCY_EXEMPT_TABLES: ReadonlySet<string> = new Set([
   "ats_config", // the org's outbound ATS webhook integration (one endpoint)
   "analytics_targets", // the org's hiring targets — "the org's recruiter hourly rate", time-to-hire goal
   "decision_config", // the org's hiring policy: screening rules + compliance jurisdiction
+  "jd_templates", // the org's reusable "Company JD templates" library (boilerplate, no candidate data)
   "llm_usage", // deployment-level LLM metering ledger (sibling of billing_usage; written off-request from Python)
   "scheduler", // global background-job scheduler state
   "scheduler_runs",

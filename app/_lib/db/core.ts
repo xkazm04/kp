@@ -899,6 +899,10 @@ export function ensureDb(): Database.Database {
     // enumeration (interviewedForJob) filters workspace_id; by-id/token/entry_id ops are
     // exempt (interviews-tenancy.test.ts).
     "ALTER TABLE interview_sessions ADD COLUMN workspace_id TEXT NOT NULL DEFAULT 'workspace'",
+    // tasks (E0 Phase 1): the UI poll/history reads + dedup + create filter/stamp
+    // workspace_id; the by-id runner ops and the global boot-recovery / readiness probes
+    // stay global (tasks-tenancy.test.ts).
+    "ALTER TABLE tasks ADD COLUMN workspace_id TEXT NOT NULL DEFAULT 'workspace'",
   ]) {
     // Use the same loud-fail migrator as the loop above: a bare `catch {}` here
     // swallowed real failures (corruption, I/O, lock contention) and booted a
