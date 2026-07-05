@@ -895,6 +895,10 @@ export function ensureDb(): Database.Database {
     // Durable skill profiles (E0 Phase 1): stamped from the submission's workspace on
     // issue; public token / by-submission_id reads are exempt (skill-profiles-tenancy.test.ts).
     "ALTER TABLE skill_profiles ADD COLUMN workspace_id TEXT NOT NULL DEFAULT 'workspace'",
+    // interview_sessions (E0 Phase 1): stamped from the entry on create; the by-job
+    // enumeration (interviewedForJob) filters workspace_id; by-id/token/entry_id ops are
+    // exempt (interviews-tenancy.test.ts).
+    "ALTER TABLE interview_sessions ADD COLUMN workspace_id TEXT NOT NULL DEFAULT 'workspace'",
   ]) {
     // Use the same loud-fail migrator as the loop above: a bare `catch {}` here
     // swallowed real failures (corruption, I/O, lock contention) and booted a

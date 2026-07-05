@@ -108,6 +108,10 @@ export const TENANCY_SCOPED_TABLES: ReadonlySet<string> = new Set([
   "offers", // offer letters (offers-tenancy.test.ts)
   "application_status_links", // public status link (application-status-tenancy.test.ts)
   "skill_profiles", // durable skill credentials (skill-profiles-tenancy.test.ts)
+  // Phase 1 — interview_sessions (voice AI interviews): the by-job enumeration
+  // (interviewedForJob) filters workspace_id + create stamps it (derived from the entry);
+  // by-id/token/entry_id ops are exempt (interviews-tenancy.test.ts).
+  "interview_sessions",
 ]);
 
 /** Tables that legitimately hold NO per-tenant data: the tenant registry itself,

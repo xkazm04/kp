@@ -4,6 +4,7 @@ import { coerceProviderId, type VoiceProviderId, type VoiceTurn } from "../voice
 import { randomId, randomToken } from "../random-id";
 import { chunk, SQL_IN_CHUNK } from "../entries-param";
 import { ensureDb, safeRowParse } from "./core";
+import { DEFAULT_WORKSPACE_ID } from "./workspaces";
 
 // Interviewed candidates for a job, with their fixed-rubric scorecard — the
 // input for side-by-side interview comparison. The per-competency evidence
@@ -30,17 +31,17 @@ export type InterviewedCandidate = {
   observedSkills: string[];
 };
 
-export function interviewedForJob(jobId: string): InterviewedCandidate[] {
+export function interviewedForJob(jobId: string, workspaceId: string = DEFAULT_WORKSPACE_ID): InterviewedCandidate[] {
   const rows = ensureDb()
     .prepare(
       // Include completed interviews even when the scorecard is missing (empty
       // transcript or a synthesis failure) — they render with blank ratings so a
       // finished interview is visible for manual review rather than silently gone.
       `SELECT entry_id, candidate_label, scorecard_json, ended_at FROM interview_sessions
-       WHERE job_id = ? AND status = 'completed'
+       WHERE job_id = ? AND status = 'completed' AND workspace_id = ?
        ORDER BY ended_at DESC`
     )
-    .all(jobId) as {
+    .all(jobId, workspaceId) as {
     entry_id: string | null;
     candidate_label: string | null;
     scorecard_json: string | null;
@@ -172,10 +173,22 @@ export function createInterviewSession(input: {
   const now = new Date().toISOString();
   const id = randomId("iv");
   const token = randomToken("tk");
+  // Tenant (P1): a session inherits its pipeline entry's workspace (by-id read, guarded).
+  // A test-mode session with no entry falls back to the default workspace. Every other
+  // op is by the globally-unique id/token/entry_id; the by-job enumeration filters this.
+  let workspaceId = DEFAULT_WORKSPACE_ID;
+  if (input.entryId) {
+    try {
+      const ws = db.prepare(`SELECT workspace_id FROM pipeline_entries WHERE id = ?`).get(input.entryId) as { workspace_id?: string } | undefined;
+      workspaceId = ws?.workspace_id ?? DEFAULT_WORKSPACE_ID;
+    } catch {
+      /* pipeline_entries absent on this connection — keep the default workspace */
+    }
+  }
   db.prepare(
     `INSERT INTO interview_sessions
-       (id, token, entry_id, candidate_label, job_id, job_title, provider, language, mode, status, instructions, run_of_show_json, duration_min, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'created', ?, ?, ?, ?)`
+       (id, token, entry_id, candidate_label, job_id, job_title, provider, language, mode, status, instructions, run_of_show_json, duration_min, created_at, workspace_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'created', ?, ?, ?, ?, ?)`
   ).run(
     id,
     token,
@@ -189,7 +202,8 @@ export function createInterviewSession(input: {
     input.instructions ?? null,
     input.runOfShow && input.runOfShow.length ? JSON.stringify(input.runOfShow) : null,
     input.durationMin ?? null,
-    now
+    now,
+    workspaceId
   );
   return getInterviewSessionById(id)!;
 }
