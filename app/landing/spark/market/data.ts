@@ -32,6 +32,7 @@ export type OrgKey = "private" | "public" | "agency";
 export interface RefSalary {
   family: FamilyKey;
   label: string;
+  p10: number | null;
   junior: number | null;
   medior: number | null;
   senior: number | null;

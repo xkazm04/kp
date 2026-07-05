@@ -1,6 +1,6 @@
 {
   "meta": {
-    "generated_at": "2026-07-05T12:55:14.294Z",
+    "generated_at": "2026-07-05T14:31:03.797Z",
     "currency": "CZK",
     "salary_basis": "monthly gross",
     "total_vacancies": 38553,
@@ -23,6 +23,7 @@
     {
       "family": "software_engineering",
       "label": "Software Engineering",
+      "p10": 45300,
       "junior": 60000,
       "medior": 81800,
       "senior": 111600,
@@ -34,6 +35,7 @@
     {
       "family": "data_ai",
       "label": "Data & AI",
+      "p10": 46800,
       "junior": 59600,
       "medior": 78800,
       "senior": 105300,
@@ -45,6 +47,7 @@
     {
       "family": "healthcare_clinical",
       "label": "Healthcare & Clinical",
+      "p10": 37700,
       "junior": 45100,
       "medior": 55900,
       "senior": 68600,
@@ -56,6 +59,7 @@
     {
       "family": "life_sciences_research",
       "label": "Life Sciences & Research",
+      "p10": 39300,
       "junior": 48200,
       "medior": 60100,
       "senior": 79600,
@@ -67,6 +71,7 @@
     {
       "family": "skilled_trades",
       "label": "Skilled Trades",
+      "p10": 27900,
       "junior": 33800,
       "medior": 41700,
       "senior": 51100,
@@ -78,6 +83,7 @@
     {
       "family": "operations_logistics",
       "label": "Operations & Logistics",
+      "p10": 28800,
       "junior": 34800,
       "medior": 43100,
       "senior": 53800,
@@ -89,6 +95,7 @@
     {
       "family": "frontline_service",
       "label": "Frontline Service",
+      "p10": 25100,
       "junior": 28200,
       "medior": 33100,
       "senior": 40400,
@@ -100,6 +107,7 @@
     {
       "family": "sales_marketing",
       "label": "Sales & Marketing",
+      "p10": 34100,
       "junior": 44500,
       "medior": 59800,
       "senior": 81700,
@@ -111,6 +119,7 @@
     {
       "family": "finance_accounting",
       "label": "Finance & Accounting",
+      "p10": 36500,
       "junior": 45200,
       "medior": 58000,
       "senior": 75800,
@@ -122,6 +131,7 @@
     {
       "family": "legal_compliance",
       "label": "Legal & Compliance",
+      "p10": 36300,
       "junior": 43400,
       "medior": 52700,
       "senior": 62900,
@@ -133,6 +143,7 @@
     {
       "family": "hr_people",
       "label": "HR & People",
+      "p10": 46700,
       "junior": 56200,
       "medior": 69600,
       "senior": 92400,
@@ -144,6 +155,7 @@
     {
       "family": "education_academic",
       "label": "Education & Academia",
+      "p10": 40500,
       "junior": 44600,
       "medior": 50100,
       "senior": 57200,
@@ -155,6 +167,7 @@
     {
       "family": "creative_design",
       "label": "Creative & Design",
+      "p10": 29000,
       "junior": 35900,
       "medior": 45100,
       "senior": 56400,
@@ -166,6 +179,7 @@
     {
       "family": "customer_support",
       "label": "Customer Support",
+      "p10": 26500,
       "junior": 32000,
       "medior": 38000,
       "senior": 46500,
@@ -177,6 +191,7 @@
     {
       "family": "general_professional",
       "label": "General Professional",
+      "p10": 34700,
       "junior": 42400,
       "medior": 52600,
       "senior": 66500,

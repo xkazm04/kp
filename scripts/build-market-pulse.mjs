@@ -126,10 +126,12 @@ async function main() {
     const med = num(w.medianMzda);
     if (med == null) continue;
     const wt = num(w.pocetZamestnancuMzda) || 0.01; // thousands of employees
+    const d1 = num(w.diferenciaceD1M) ?? med * 0.62;
     const q1 = num(w.diferenciaceQ1M) ?? med * 0.78;
     const q3 = num(w.diferenciaceQ3M) ?? med * 1.3;
     const d9 = num(w.diferenciaceD9M) ?? med * 1.75;
-    const b = (bands[fam] ||= { j: 0, m: 0, s: 0, l: 0, med: 0, w: 0, occ: new Set() });
+    const b = (bands[fam] ||= { p10: 0, j: 0, m: 0, s: 0, l: 0, med: 0, w: 0, occ: new Set() });
+    b.p10 += d1 * wt;
     b.j += q1 * wt;
     b.m += med * wt;
     b.s += q3 * wt;
@@ -143,6 +145,9 @@ async function main() {
     return {
       family: f,
       label: FAMILY_LABEL_EN[f],
+      // decile ladder (employment-weighted, D1→D9) — junior..lead are the tier
+      // anchors; p10 is the bottom-decile floor used to build the junior band.
+      p10: r100(b.p10 / b.w),
       junior: r100(b.j / b.w),
       medior: r100(b.m / b.w),
       senior: r100(b.s / b.w),

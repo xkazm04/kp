@@ -61,5 +61,26 @@
       "hr_people": 27,
       "life_sciences_research": 20
     }
+  },
+  {
+    "generated_at": "2026-07-05T14:31:03.797Z",
+    "total": 38553,
+    "families": {
+      "operations_logistics": 11571,
+      "frontline_service": 10044,
+      "skilled_trades": 7258,
+      "general_professional": 2664,
+      "education_academic": 1782,
+      "healthcare_clinical": 1403,
+      "finance_accounting": 747,
+      "sales_marketing": 702,
+      "software_engineering": 677,
+      "customer_support": 436,
+      "creative_design": 164,
+      "data_ai": 160,
+      "legal_compliance": 155,
+      "hr_people": 27,
+      "life_sciences_research": 20
+    }
   }
 ]
