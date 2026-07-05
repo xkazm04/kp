@@ -882,6 +882,16 @@ export function ensureDb(): Database.Database {
     // reads/writes that pass the default stay correct while the column enables real
     // per-team isolation once callers thread the session workspace. See app/_lib/tenancy.ts.
     "ALTER TABLE campaign_packs ADD COLUMN workspace_id TEXT NOT NULL DEFAULT 'workspace'",
+    // Dev-case surface (E0 Phase 1): recruiter enumeration reads (list cases/lifecycles/
+    // postings/submissions) filter workspace_id; child rows (postings→submissions→
+    // sessions→events) derive their tenant from the parent; by-id/token ops are exempt
+    // (devcase-tenancy.test.ts).
+    "ALTER TABLE dev_cases ADD COLUMN workspace_id TEXT NOT NULL DEFAULT 'workspace'",
+    "ALTER TABLE dev_lifecycle ADD COLUMN workspace_id TEXT NOT NULL DEFAULT 'workspace'",
+    "ALTER TABLE dev_postings ADD COLUMN workspace_id TEXT NOT NULL DEFAULT 'workspace'",
+    "ALTER TABLE dev_submissions ADD COLUMN workspace_id TEXT NOT NULL DEFAULT 'workspace'",
+    "ALTER TABLE dev_sessions ADD COLUMN workspace_id TEXT NOT NULL DEFAULT 'workspace'",
+    "ALTER TABLE dev_session_events ADD COLUMN workspace_id TEXT NOT NULL DEFAULT 'workspace'",
   ]) {
     // Use the same loud-fail migrator as the loop above: a bare `catch {}` here
     // swallowed real failures (corruption, I/O, lock contention) and booted a

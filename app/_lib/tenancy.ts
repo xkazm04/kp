@@ -73,6 +73,17 @@ export const TENANCY_SCOPED_TABLES: ReadonlySet<string> = new Set([
   // lazy-store table (own connection in schedule-store.ts) — its migration lives there,
   // not core.ts, so the boot-guard's live-table list must include it before flag enable.
   "schedule_invites",
+  // Phase 1 — the Dev-case surface (devcase.ts): the recruiter enumeration reads
+  // (listDevCases/listLifecycles/listPostings/listSubmissions) + every INSERT carry
+  // workspace_id; child rows (postings→submissions→sessions→events) DERIVE their tenant
+  // from the parent (subquery), and by-id/token point ops are exempt
+  // (devcase-tenancy.test.ts).
+  "dev_cases",
+  "dev_lifecycle",
+  "dev_postings",
+  "dev_submissions",
+  "dev_sessions",
+  "dev_session_events",
 ]);
 
 /** Tables that legitimately hold NO per-tenant data: the tenant registry itself,

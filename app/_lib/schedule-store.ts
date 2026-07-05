@@ -104,12 +104,13 @@ function db(): Database.Database {
       /* column already exists */
     }
   }
-  // Tenant backfill (P1): tag existing invites from their linked pipeline entry (an
-  // orphan invite with no matching entry falls back to the default workspace).
-  // Idempotent (only touches NULL rows), so it's a no-op once every row is stamped.
-  d.exec(
-    `UPDATE schedule_invites SET workspace_id = COALESCE((SELECT p.workspace_id FROM pipeline_entries p WHERE p.id = schedule_invites.entry_id), 'workspace') WHERE workspace_id IS NULL`
-  );
+  // Tenant backfill (P1): existing invites → the default workspace. A subquery join to
+  // pipeline_entries would be more "correct" in spirit, but this store owns its OWN
+  // connection (the pipeline_entries table may not exist on it — e.g. an isolated test
+  // store, or a boot before ensureDb ran), and SQLite validates a referenced table at
+  // PREPARE time even for zero matched rows. In single-tenant every entry IS 'workspace',
+  // so this is identical; new invites derive their real team in createScheduleInvite.
+  d.exec(`UPDATE schedule_invites SET workspace_id = 'workspace' WHERE workspace_id IS NULL`);
   d.exec(`CREATE INDEX IF NOT EXISTS idx_sched_workspace ON schedule_invites (workspace_id)`);
   // Partial index matching the heartbeat's due-reminder query exactly, so the
   // every-60s sweep is an index range over only un-reminded confirmed invites
