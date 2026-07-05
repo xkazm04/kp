@@ -48,3 +48,19 @@
 
 ## CP6 push (2026-07-03) — USER decision
 - "Push the commits and wrap there for now" → pushed 11aa76e/b5aa2ad/9fbd384/3f03857 to origin/main; CI run 28645194227 triggered. Loop paused; NO new milestones started. Push held-at-CP5 now resolved.
+
+## CP7 (2026-07-05) — RESUME, USER PRESENT, real answers
+- Reconciliation-first: the loop had been paused since CP6, but PARALLEL CLI sessions shipped 13 enterprise commits (E0 P1 / E3 / E4 / Postgres audit) WITHOUT the loop's gate → CI red all day. First milestone on resume forced to be M7 = "reconcile & re-green main", not a new feature.
+- Session scope (user): "Re-green, finish WIP, push, then checkpoint" — restore green main + CI, then re-checkpoint before starting any new milestone.
+- Salary WIP (user): "Adopt + update the 4 tests" — accepted the market-pulse ISPV salary recalibration; the parallel session ended up committing it itself (6e6a534).
+- Concurrent writer (user): "Proceed anyway" despite a live parallel session editing the same files. Adopted a DIVISION OF LABOR — I take the orthogonal re-green fixes (lint set-state-in-effect, /invite prerender, npm-ci ERESOLVE); the parallel session keeps the feature WIP (tenancy Phase 2). Left its tenancy WIP uncommitted.
+- Committed to main directly (not a side branch): the fixes must land on main to re-green CI, consistent with the loop's established main-commit workflow and the parallel session's cadence. Two focused commits (6e3ac90, 7873b39).
+- STILL OPEN (re-ask next checkpoint): tenancy P2 commit is the parallel session's to land; item 6 rotate .env.local keys (still open since CP1); E-track go-forward (finish E0 → E1 SSO, vs return to product pillars comms-delivery/landing).
+- CP7 direction (post M7-green, user present): "Return to a product pillar" → then "Landing launch (item 3)". M8 = LANDING LAUNCH. Chosen over comms delivery + over continuing enterprise (E0 tenancy P2 is the parallel session's active WIP = high collision). Landing touches app/page.tsx + app/landing/ + PricingSection (non-tenancy files). Caveat surfaced to user: public keyless demo 302s home because it's gated on tenancy (parallel session's WIP), so a FULL public launch may partly depend on that landing.
+- CP7 mid-M8: user chose "Proceed with the gate now" (over pausing for a focused push) — full auth+theme gate implemented + live-verified in one pass.
+
+## CP8 (2026-07-05) — LOOP PAUSED, USER PRESENT
+- Session delivered M7 (reconcile & re-green — CI restored from all-day red; root cause = npm ci ERESOLVE on the pinned next canary) + M8 (landing launch — server-gate + open-mode entry + CTA rewiring + SEO + theme decouple), both green on CI. main==origin==222bedf.
+- Direction: user → "Pause here". Loop stops; state fully recorded; re-invoke to resume.
+- Discipline carried forward: parallel CLI sessions share this working tree — on resume, re-read git state, commit only own files by explicit path (never -A), verify the COMMITTED state (not just the local tree-with-WIP), and watch CI (local-green ≠ CI-green).
+- OPEN (next session): tenancy P2 WIP (parallel session's to land); item 6 rotate .env.local keys (USER); public-demo CTA tenancy unblock (KP_DEMO_ENABLED); comms delivery (1); E1 SSO.
