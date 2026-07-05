@@ -862,6 +862,11 @@ export function ensureDb(): Database.Database {
     // (brief/tasks, seed README+DECISIONS, interview narration), captured at
     // need intake. NULL ⇒ "en" when threaded to the dev-case CLIs.
     "ALTER TABLE dev_lifecycle ADD COLUMN lang TEXT",
+    // Tenancy scoping (E0 Phase 1) — workspace_id on the per-tenant tables. NOT NULL
+    // DEFAULT 'workspace' backfills existing rows to the single default workspace, so
+    // reads/writes that pass the default stay correct while the column enables real
+    // per-team isolation once callers thread the session workspace. See app/_lib/tenancy.ts.
+    "ALTER TABLE campaign_packs ADD COLUMN workspace_id TEXT NOT NULL DEFAULT 'workspace'",
   ]) {
     // Use the same loud-fail migrator as the loop above: a bare `catch {}` here
     // swallowed real failures (corruption, I/O, lock contention) and booted a

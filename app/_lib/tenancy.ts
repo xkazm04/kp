@@ -29,6 +29,8 @@ export const TENANCY_SCOPED_TABLES: ReadonlySet<string> = new Set([
   // (a JD slug is a globally-unique PK, so a by-slug flip can't cross tenants).
   "jds",
   "jd_revisions",
+  // Phase 1 — a team's generated campaign packs (job-posting copy), keyed by their job.
+  "campaign_packs",
 ]);
 
 /** Tables that legitimately hold NO per-tenant data: the tenant registry itself,
