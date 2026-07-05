@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createHash, timingSafeEqual } from "node:crypto";
-import { SESSION_COOKIE, SESSION_TTL_MS, signSession } from "@/app/_lib/auth/session";
+import { ENTERED_COOKIE, SESSION_COOKIE, SESSION_TTL_MS, signSession } from "@/app/_lib/auth/session";
 import { verifyCredentials } from "@/app/_lib/db/users";
 import { listMembershipsForUser } from "@/app/_lib/db/memberships";
 import { DEFAULT_WORKSPACE_ID } from "@/app/_lib/db/workspaces";
@@ -13,6 +13,16 @@ function constantTimeEqual(a: string, b: string): boolean {
   return timingSafeEqual(ha, hb);
 }
 
+const COOKIE_MAX_AGE = Math.floor(SESSION_TTL_MS / 1000);
+
+// The readable "entered the workspace" marker (see session.ts) — set on every
+// successful sign-in so the '/' gate + theme script can distinguish an entered
+// operator from an anonymous landing visitor. Not a credential; the session is.
+function setEntered(res: NextResponse): NextResponse {
+  res.cookies.set(ENTERED_COOKIE, "1", { httpOnly: false, secure: true, sameSite: "lax", path: "/", maxAge: COOKIE_MAX_AGE });
+  return res;
+}
+
 function withSessionCookie(res: NextResponse, token: string): NextResponse {
   // __Host- requires Secure + Path=/ + no Domain. Secure is accepted on
   // http://localhost (a trustworthy origin), so this works in dev too.
@@ -21,9 +31,9 @@ function withSessionCookie(res: NextResponse, token: string): NextResponse {
     secure: true,
     sameSite: "lax",
     path: "/",
-    maxAge: Math.floor(SESSION_TTL_MS / 1000),
+    maxAge: COOKIE_MAX_AGE,
   });
-  return res;
+  return setEntered(res);
 }
 
 // Auth foundation. Two login paths on one endpoint:
@@ -56,7 +66,18 @@ export async function POST(request: Request) {
 
   const expected = process.env.KP_OPERATOR_PASSWORD;
   if (!expected) {
-    return NextResponse.json({ error: "Operator auth is not configured." }, { status: 503 });
+    // Open mode: the app runs open by design (proxy.ts allows every route). There
+    // is no password to check, so "signing in" is just entering the workspace —
+    // it flips the '/' landing→dashboard gate, not a security boundary. Set the
+    // entry marker; also mint a real session when KP_SECRET is configured (keeps
+    // identity-scoped features working), but bare dev without KP_SECRET (signSession
+    // throws) still enters on the marker alone.
+    const res = NextResponse.json({ ok: true, open: true });
+    try {
+      return withSessionCookie(res, signSession());
+    } catch {
+      return setEntered(res);
+    }
   }
   if (!password || !constantTimeEqual(password, expected)) {
     return NextResponse.json({ error: "Incorrect password." }, { status: 401 });

@@ -118,17 +118,14 @@ export async function generateMetadata(): Promise<Metadata> {
 // string evaluated synchronously; a React effect would run after paint.
 // The marketing surfaces are hard-exempt (docs/DESIGN.md): a fixed Spark art
 // direction in literal hexes that must always render in the light register, so
-// the dark attribute is never set there regardless of the visitor's stored
-// choice or OS preference. Those surfaces are the public /about page (always)
-// and the home landing at '/', which in development is served to signed-out
-// visitors via the localStorage dev gate (app/_lib/auth/devAuth.ts) — so '/' is
-// treated as landing until the kp_dev_authed flag is set. (/landing now just
-// redirects to '/', so it no longer renders and needs no exemption.) Keep the
-// kp_dev_authed key in lockstep with devAuth.ts.
-const THEME_SKIP_DARK =
-  process.env.NODE_ENV !== "production"
-    ? `var p=location.pathname;if(p.indexOf("/about")===0||(p==="/"&&localStorage.getItem("kp_dev_authed")!=="1"))return;`
-    : `if(location.pathname.indexOf("/about")===0)return;`;
+// the dark attribute is never set there regardless of the visitor's stored choice
+// or OS preference. Those surfaces are the public /about page (always) and the
+// home landing at '/' whenever the visitor hasn't entered the workspace. "Entered"
+// is the readable kp_entered cookie (app/_lib/auth/session.ts) — set on sign-in,
+// cleared on sign-out — the SAME signal the '/' server gate uses (in open mode),
+// so this pre-paint choice can't disagree with what the server actually renders.
+// Env-agnostic now that '/' serves the landing in both dev and prod.
+const THEME_SKIP_DARK = `var p=location.pathname;if(p.indexOf("/about")===0||(p==="/"&&!/(?:^|; )kp_entered=1/.test(document.cookie)))return;`;
 const THEME_INIT = `(function(){try{${THEME_SKIP_DARK}var t=localStorage.getItem("kp-theme");if(t!=="dark"&&t!=="light")t=window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";if(t==="dark")document.documentElement.dataset.theme="dark"}catch(e){}})()`;
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

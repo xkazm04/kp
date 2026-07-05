@@ -18,6 +18,13 @@ export const DEFAULT_WORKSPACE = "workspace";
 export const DEMO_WORKSPACE = "demo";
 export const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 7; // 7 days
 
+// Non-httpOnly companion marker set alongside the session on sign-in ("entered
+// the workspace"). Read by the pre-paint theme script (app/layout.tsx, which can't
+// see the httpOnly session cookie) and by the '/' gate in OPEN mode, where no
+// signed session may exist (KP_SECRET can be unset) so this plain flag drives the
+// landing↔dashboard toggle. It is NOT a security token — the signed session is.
+export const ENTERED_COOKIE = "kp_entered";
+
 export type SessionPayload = {
   workspace: string;
   iat: number;

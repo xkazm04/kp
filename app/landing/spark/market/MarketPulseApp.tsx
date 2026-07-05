@@ -13,13 +13,13 @@ import { useTranslations } from "next-intl";
 import KandidateMark from "../../_components/KandidateMark";
 import { LandingLangSwitch } from "../LandingLangSwitch";
 import { DISPLAY, HAND } from "../tokens";
-import { DEV_GATE, signInDev } from "@/app/_lib/auth/devAuth";
+import { enterWorkspace } from "@/app/_lib/auth/session-nav";
 import { snapshot, fmtInt, fmtDate } from "./data";
 import MarketPulseAtlas from "./MarketPulseAtlas";
 
 export default function MarketPulseApp() {
   const t = useTranslations("jobMarket");
-  const onSignIn = () => (DEV_GATE ? signInDev() : window.location.assign("/login"));
+  const onSignIn = () => void enterWorkspace();
   const coralEmph = (chunks: React.ReactNode) => <span className="text-[#d65a4a]">{chunks}</span>;
   const asOf = snapshot.meta.vacancies_date ?? snapshot.meta.generated_at.slice(0, 10);
 

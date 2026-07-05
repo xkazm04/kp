@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { useTranslations } from "next-intl";
 import { ArrowRight, Check, Gift, KeyRound, Rocket, Stamp, TrendingUp } from "lucide-react";
 import { salesContactHref } from "@/app/_lib/sales-contact";
+import { enterWorkspace } from "@/app/_lib/auth/session-nav";
 import { BTN, DISPLAY, HAND, STICKER } from "./tokens";
 
 /*
@@ -91,10 +92,16 @@ export default function PricingSection() {
                   ))}
                 </ul>
 
-                <a href="/login" className={`${BTN} mt-6 w-full justify-center ${tier.btnClass}`}>
+                {/* Self-serve tiers enter the product (open mode → dashboard;
+                    password mode → the /login form). Enterprise is a sales mailto. */}
+                <button
+                  type="button"
+                  onClick={() => void enterWorkspace()}
+                  className={`${BTN} mt-6 w-full justify-center ${tier.btnClass}`}
+                >
                   {t(`pricing.tiers.${tier.id}.cta`)}
                   <ArrowRight className="h-5 w-5" />
-                </a>
+                </button>
               </motion.article>
             );
           })}
