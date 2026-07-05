@@ -1,5 +1,6 @@
 import Database from "better-sqlite3";
 import { openStore } from "./db-path";
+import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 import { randomId, randomToken } from "./random-id";
 import { isReminderDue, reminderRetryDelayMs, REMINDER_LEAD_MS, REMINDER_MAX_ATTEMPTS } from "./interview-reminder-policy";
 import { isEntryReminderEligible } from "./pipeline-status";
@@ -198,11 +199,17 @@ export function createScheduleInvite(input: {
   const id = randomId("sch");
   const token = randomToken("st");
   // Tenant (P1): derive the owning team from the linked entry (a by-id lookup on the
-  // shared file) so callers don't thread it; an orphan entry falls back to the default.
-  const wsRow = d.prepare(`SELECT workspace_id FROM pipeline_entries WHERE id = ?`).get(input.entryId) as
-    | { workspace_id?: string }
-    | undefined;
-  const workspaceId = wsRow?.workspace_id ?? "workspace";
+  // shared file) so callers don't thread it. Degrades to the default workspace for an
+  // orphan entry OR an isolated connection with no pipeline_entries table (test harness).
+  let workspaceId = "workspace";
+  try {
+    const wsRow = d.prepare(`SELECT workspace_id FROM pipeline_entries WHERE id = ?`).get(input.entryId) as
+      | { workspace_id?: string }
+      | undefined;
+    if (wsRow?.workspace_id) workspaceId = wsRow.workspace_id;
+  } catch {
+    /* no pipeline_entries on this connection — default workspace */
+  }
   // RETURNING * hands the freshly-inserted row back in the same statement, so we
   // don't issue a second SELECT to read what we just wrote.
   const row = d
@@ -228,7 +235,7 @@ export function getScheduleInviteByToken(token: string): ScheduleInvite | null {
  *  invites, and the two operator flags written for exactly this surface
  *  (needs_more_slots, needs_reconcile) had zero readers. Confirmed bookings
  *  first by slot time, then pending newest-first. */
-export function listScheduleInvites(limit = 200, workspaceId: string = "workspace"): ScheduleInvite[] {
+export function listScheduleInvites(limit = 200, workspaceId: string = DEFAULT_WORKSPACE_ID): ScheduleInvite[] {
   const rows = db()
     .prepare(
       `SELECT * FROM schedule_invites
@@ -256,9 +263,11 @@ export function confirmScheduleInvite(token: string, slot: string, slotAt?: stri
     if (!current) return { ok: false, reason: "not_found", invite: null };
     const inv = rowTo(current);
     if (inv.status === "confirmed") return { ok: true, invite: inv }; // idempotent re-confirm of the same invite
+    // Collision domain is per-team (a team's booking can't clash with another team's
+    // calendar): scope the check to this invite's workspace.
     const clash = slotAt
-      ? d.prepare(`SELECT 1 FROM schedule_invites WHERE status = 'confirmed' AND slot_at = ? AND token != ? LIMIT 1`).get(slotAt, token)
-      : d.prepare(`SELECT 1 FROM schedule_invites WHERE status = 'confirmed' AND slot = ? AND token != ? LIMIT 1`).get(slot, token);
+      ? d.prepare(`SELECT 1 FROM schedule_invites WHERE status = 'confirmed' AND slot_at = ? AND token != ? AND workspace_id = ? LIMIT 1`).get(slotAt, token, inv.workspaceId)
+      : d.prepare(`SELECT 1 FROM schedule_invites WHERE status = 'confirmed' AND slot = ? AND token != ? AND workspace_id = ? LIMIT 1`).get(slot, token, inv.workspaceId);
     if (clash) return { ok: false, reason: "taken", invite: inv };
     // RETURNING * gives the just-updated row back in the same statement (inside the
     // transaction), replacing the previous UPDATE-then-re-SELECT pair.
@@ -324,8 +333,8 @@ export function rescheduleScheduleInvite(token: string, slot: string, slotAt: st
     // Collision identity is slot_at; exclude this invite's own row so freeing the
     // old slot here can't be seen as a clash against itself.
     const clash = d
-      .prepare(`SELECT 1 FROM schedule_invites WHERE status = 'confirmed' AND slot_at = ? AND token != ? LIMIT 1`)
-      .get(slotAt, token);
+      .prepare(`SELECT 1 FROM schedule_invites WHERE status = 'confirmed' AND slot_at = ? AND token != ? AND workspace_id = ? LIMIT 1`)
+      .get(slotAt, token, inv.workspaceId);
     if (clash) return { ok: false, reason: "taken", invite: inv };
     const updated = d
       .prepare(
@@ -402,8 +411,10 @@ export function flagScheduleInviteNeedsMoreSlots(token: string): boolean {
 
 /** ISO datetimes already taken by confirmed invites — so two candidates don't
  *  double-book. Returns slot_at (the real identity), not the display label. */
-export function bookedSlots(): string[] {
-  const rows = db().prepare(`SELECT slot_at FROM schedule_invites WHERE status = 'confirmed' AND slot_at IS NOT NULL`).all() as {
+export function bookedSlots(workspaceId: string = DEFAULT_WORKSPACE_ID): string[] {
+  const rows = db()
+    .prepare(`SELECT slot_at FROM schedule_invites WHERE status = 'confirmed' AND slot_at IS NOT NULL AND workspace_id = ?`)
+    .all(workspaceId) as {
     slot_at: string;
   }[];
   return rows.map((r) => r.slot_at);
@@ -510,4 +521,5 @@ export function markReminderSent(id: string): void {
 
 // Slot proposal + structural validation live in schedule-slots.ts (pure, no
 // DB, unit-testable) so the confirm-side validation (idea-e05aedfb) and the
-// proposal can never drift apart. This store keeps only the persiste
+// proposal can never drift apart. This store keeps only the persistence side
+// (bookedSlots/confirmScheduleInvite are the collision authority).

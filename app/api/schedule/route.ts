@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { listScheduleInvites, setScheduleInviteMeetingUrl } from "@/app/_lib/schedule-store";
+import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
 
@@ -11,7 +12,7 @@ import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-lim
 // along with the booked agenda and un-booked invites.
 export async function GET() {
   try {
-    return NextResponse.json({ invites: listScheduleInvites() });
+    return NextResponse.json({ invites: listScheduleInvites(200, await currentWorkspace()) });
   } catch (error) {
     return safeJsonError(error, "api:schedule", "SCHEDULE_LOOKUP_FAILED");
   }

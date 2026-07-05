@@ -62,7 +62,8 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ to
   // already-booked times, including this candidate's current one (they're moving
   // away from it). The cap stops the "change time" affordance from churning.
   const canReschedule = invite.status === "confirmed" && invite.rescheduleCount < MAX_RESCHEDULES;
-  const slots = invite.status !== "confirmed" || canReschedule ? proposeSlots(bookedSlots()) : [];
+  // Per-team calendar: only this invite's own team's confirmed slots block a time.
+  const slots = invite.status !== "confirmed" || canReschedule ? proposeSlots(bookedSlots(invite.workspaceId)) : [];
   // The busiest-calendar edge (idea-5df8e10f): a pending invite whose entire
   // proposal horizon is already booked yields zero slots. Rather than handing
   // the candidate a silent dead-end, flag the invite so the recruiter can open

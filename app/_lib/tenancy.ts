@@ -66,6 +66,13 @@ export const TENANCY_SCOPED_TABLES: ReadonlySet<string> = new Set([
   "channel_webhooks",
   "channel_spend",
   "dev_outbox",
+  // Phase 1 — the Schedule surface (self-scheduling invites). The recruiter agenda +
+  // invite creation + per-team slot-collision checks filter workspace_id (derived from
+  // the linked entry). The candidate token flow, the reminder heartbeat's by-id ops,
+  // and the global dueReminders sweep are exempt (schedule-tenancy.test.ts). NOTE: a
+  // lazy-store table (own connection in schedule-store.ts) — its migration lives there,
+  // not core.ts, so the boot-guard's live-table list must include it before flag enable.
+  "schedule_invites",
 ]);
 
 /** Tables that legitimately hold NO per-tenant data: the tenant registry itself,
@@ -85,6 +92,18 @@ export const TENANCY_EXEMPT_TABLES: ReadonlySet<string> = new Set([
   "invites",
   "gemini_cache", // content-hash-keyed LLM response cache (shared, not per-tenant)
   "llm_config", // deployment-level model/provider config
+  "provider_keys", // deployment-level LLM provider keys, keyed by (provider, scope) —
+  // the sibling of llm_config; per-org BYOM keys are a KP_MULTI_ORG concern (not per-team).
+  // Billing is per-DEPLOYMENT/org, NOT per-team-workspace: one subscription + ledger for
+  // the whole account (billing.ts: a single billing_state row id='workspace'), correctly
+  // SHARED across an org's teams. Isolated by org (like memberships), so exempt from the
+  // per-team workspace_id invariant. Multi-ORG-on-one-deployment isolation (org_id
+  // filtering in these stores) is a KP_MULTI_ORG concern beyond KP_MULTI_WORKSPACE.
+  "billing_state",
+  "billing_events",
+  "billing_credits",
+  "billing_usage",
+  "billing_alerts",
   "scheduler", // global background-job scheduler state
   "scheduler_runs",
   "schema_migrations",
