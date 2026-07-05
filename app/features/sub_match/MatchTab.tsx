@@ -7,6 +7,7 @@ import type { AnalysisRow, MatchRef, MatchResponse, ProfileRow, WeightVector } f
 import { Results } from "./Results";
 import { ChainEmptyState } from "@/app/_components/ChainEmptyState";
 import { SegmentedControl } from "@/app/_components/SegmentedControl";
+import { Select } from "@/app/_components/Select";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 
 export function MatchTab() {
@@ -132,49 +133,45 @@ export function MatchTab() {
         <label className="flex flex-col gap-1">
           <span className="text-sm font-semibold uppercase tracking-wide text-steel">{t("candidate")}</span>
           {source === "profile" ? (
-            <select
+            <Select
+              ariaLabel={t("candidate")}
               value={selProfile}
-              onChange={(e) => setSelProfile(e.target.value)}
+              onChange={setSelProfile}
               disabled={!optionsLoaded}
-              aria-busy={!optionsLoaded}
-              className="focus-ring h-10 min-w-[280px] rounded-md border border-stone-200 bg-white px-2 text-base text-ink disabled:opacity-60"
-            >
-              {!optionsLoaded ? (
-                <option value="">{t("loadingOptions")}</option>
-              ) : profiles.length === 0 ? (
-                <option value="">{t("noProfiles")}</option>
-              ) : (
-                profiles.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {t("profileOption", {
-                      label: p.label,
-                      archetype: enumLabel("archetype", p.archetype ?? ""),
-                      completeness: Math.round((p.completeness ?? 0) * 100),
-                    })}
-                  </option>
-                ))
-              )}
-            </select>
+              className="min-w-[280px]"
+              options={
+                !optionsLoaded
+                  ? [{ value: "", label: t("loadingOptions") }]
+                  : profiles.length === 0
+                    ? [{ value: "", label: t("noProfiles") }]
+                    : profiles.map((p) => ({
+                        value: p.id,
+                        label: t("profileOption", {
+                          label: p.label,
+                          archetype: enumLabel("archetype", p.archetype ?? ""),
+                          completeness: Math.round((p.completeness ?? 0) * 100),
+                        }),
+                      }))
+              }
+            />
           ) : (
-            <select
+            <Select
+              ariaLabel={t("candidate")}
               value={selAnalysis}
-              onChange={(e) => setSelAnalysis(e.target.value)}
+              onChange={setSelAnalysis}
               disabled={!optionsLoaded}
-              aria-busy={!optionsLoaded}
-              className="focus-ring h-10 min-w-[280px] rounded-md border border-stone-200 bg-white px-2 text-base text-ink disabled:opacity-60"
-            >
-              {!optionsLoaded ? (
-                <option value="">{t("loadingOptions")}</option>
-              ) : analyses.length === 0 ? (
-                <option value="">{t("noAnalyses")}</option>
-              ) : (
-                analyses.map((a) => (
-                  <option key={a.slug} value={a.slug}>
-                    {t("analysisOption", { label: a.candidate_label, family: a.role_family ?? "—", seniority: a.seniority ?? "—" })}
-                  </option>
-                ))
-              )}
-            </select>
+              className="min-w-[280px]"
+              options={
+                !optionsLoaded
+                  ? [{ value: "", label: t("loadingOptions") }]
+                  : analyses.length === 0
+                    ? [{ value: "", label: t("noAnalyses") }]
+                    : analyses.map((a) => ({
+                        value: a.slug,
+                        label: t("analysisOption", { label: a.candidate_label, family: a.role_family ?? "—", seniority: a.seniority ?? "—" }),
+                      }))
+              }
+            />
           )}
         </label>
 

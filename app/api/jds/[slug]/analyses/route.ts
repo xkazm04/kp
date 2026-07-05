@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { listAnalysesByJd, loadJd } from "@/app/_lib/db";
 import { safeJsonError } from "@/app/_lib/api-response";
+import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 
 
 // Recruiter-side read behind the Library tab's expandable "Candidates (N)" row
@@ -11,11 +12,12 @@ import { safeJsonError } from "@/app/_lib/api-response";
 // here, only when a recruiter expands the row in the workspace.
 export async function GET(_request: Request, context: { params: Promise<{ slug: string }> }) {
   const { slug } = await context.params;
+  const ws = await currentWorkspace();
   try {
-    if (!loadJd(slug)) {
+    if (!loadJd(slug, ws)) {
       return NextResponse.json({ error: "JD not found." }, { status: 404 });
     }
-    return NextResponse.json({ analyses: listAnalysesByJd(slug) });
+    return NextResponse.json({ analyses: listAnalysesByJd(slug, ws) });
   } catch (error) {
     return safeJsonError(error, "api:jds/[slug]/analyses", "JD_ANALYSES_FAILED");
   }

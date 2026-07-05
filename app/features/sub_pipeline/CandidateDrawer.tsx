@@ -12,6 +12,8 @@ import { buildUrl } from "@/app/features/tabs";
 import { useTasks, useTaskResult } from "@/app/features/tasks/TasksProvider";
 import { useDeliveryCapability } from "@/app/features/useDeliveryCapability";
 import { toast } from "@/app/_components/toast-store";
+import { Select } from "@/app/_components/Select";
+import { TextArea } from "@/app/_components/TextArea";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { ResultView } from "./CandidateResultView";
 import { ConsentPanel } from "./ConsentPanel";
@@ -744,20 +746,19 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
                 <ArrowLeftRight size={13} /> {t("moveStage")}
               </label>
               <p className="mt-1 text-sm text-steel">{t("moveStageHelp")}</p>
-              <select
+              <Select
                 id="move-stage"
+                ariaLabel={t("moveStage")}
                 value={entry.stage}
                 disabled={movingStage}
-                onChange={(e) => moveStage(e.target.value)}
-                className="focus-ring mt-2 w-full rounded-md border border-stone-200 bg-white p-2 text-sm font-semibold text-ink disabled:opacity-50"
-              >
-                {PIPELINE_STAGES.map((s) => (
-                  <option key={s} value={s}>
-                    {enumLabel("stage", s)}
-                    {s === entry.stage ? t("current") : ""}
-                  </option>
-                ))}
-              </select>
+                onChange={(v) => moveStage(v)}
+                size="sm"
+                className="mt-2 w-full"
+                options={PIPELINE_STAGES.map((s) => ({
+                  value: s,
+                  label: `${enumLabel("stage", s)}${s === entry.stage ? t("current") : ""}`,
+                }))}
+              />
               {moveErr ? <p role="alert" className="mt-1.5 text-sm text-red-700">{moveErr}</p> : null}
             </div>
           ) : null}
@@ -777,7 +778,7 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
                 {noteStatus === "error" ? t("candidateNotesSaveFailed") : null}
               </span>
             </label>
-            <textarea
+            <TextArea
               id="candidate-note"
               value={candNote}
               onChange={(e) => {
@@ -788,7 +789,8 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
               rows={3}
               maxLength={NOTE_MAX}
               placeholder={t("candidateNotesPlaceholder")}
-              className="focus-ring mt-1 w-full rounded-md border border-stone-200 bg-white p-2 text-sm text-ink"
+              sizeVariant="sm"
+              className="mt-1"
             />
           </div>
 
@@ -820,12 +822,13 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
           {actions.some((act) => act.id === "scorecard") ? (
             <div>
               <label className="text-sm font-semibold uppercase tracking-wide text-steel">{t("notesLabel")}</label>
-              <textarea
+              <TextArea
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 rows={3}
                 placeholder={t("notesPlaceholder")}
-                className="focus-ring mt-1 w-full rounded-md border border-stone-200 bg-white p-2 text-sm text-ink"
+                sizeVariant="sm"
+                className="mt-1"
               />
             </div>
           ) : null}

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { toast } from "@/app/_components/toast-store";
+import { TextInput } from "@/app/_components/TextInput";
 
 // Auth foundation (P2) — the operator sign-in. Posts the password to
 // /api/auth/login; on success the signed cookie is set and we return to `next`
@@ -17,16 +18,19 @@ function safeNext(): string {
 export function LoginClient() {
   const t = useTranslations("login");
   const router = useRouter();
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [status, setStatus] = useState<"idle" | "submitting" | "error">("idle");
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setStatus("submitting");
+    // An email routes to per-user login; blank falls back to the operator password.
+    const trimmedEmail = email.trim();
     const r = await fetch("/api/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ password }),
+      body: JSON.stringify(trimmedEmail ? { email: trimmedEmail, password } : { password }),
     }).catch(() => null);
     if (r && r.ok) {
       // Client-side navigation keeps the toast alive across the redirect (the
@@ -51,18 +55,34 @@ export function LoginClient() {
       <p className="mt-2 text-body text-steel">{t("subtitle")}</p>
       <form onSubmit={submit} className="mt-6 space-y-3">
         <label className="block text-sm text-ink">
-          {t("passwordLabel")}
-          <input
-            type="password"
+          {t("emailLabel")}
+          <TextInput
+            type="email"
             autoFocus
+            autoComplete="username"
+            value={email}
+            onChange={(e) => {
+              setEmail(e.target.value);
+              if (status === "error") setStatus("idle");
+            }}
+            placeholder={t("emailPlaceholder")}
+            className="mt-1"
+          />
+        </label>
+        <p className="text-xs text-steel">{t("emailHint")}</p>
+        <label className="block text-sm text-ink">
+          {t("passwordLabel")}
+          <TextInput
+            type="password"
+            autoComplete="current-password"
             value={password}
             onChange={(e) => {
               setPassword(e.target.value);
               if (status === "error") setStatus("idle");
             }}
-            aria-invalid={status === "error"}
+            invalid={status === "error"}
             aria-describedby={status === "error" ? "login-error" : undefined}
-            className="mt-1 w-full rounded-md border border-stone-300 px-3 py-2 text-ink focus:outline-none focus:ring-2 focus:ring-stone-400"
+            className="mt-1"
           />
         </label>
         {status === "error" ? (

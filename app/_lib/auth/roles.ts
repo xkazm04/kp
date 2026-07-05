@@ -103,3 +103,20 @@ export function sanitizeOverride(input: { grant?: unknown; revoke?: unknown } | 
   if (grant.length === 0 && revoke.length === 0) return null;
   return { grant, revoke };
 }
+
+/** Compute the override a DESIRED effective capability set implies against a role
+ *  — the delta the permission editor sends ("these overridable caps should be on").
+ *  Only OVERRIDABLE_CAPABILITIES are considered (org:manage is left to the role). */
+export function overrideFromDesired(role: MemberRole, desired: Iterable<Capability>): CapabilityOverride | null {
+  const want = new Set<Capability>([...desired].filter(isCapability));
+  const base = CAPS[role];
+  const grant: Capability[] = [];
+  const revoke: Capability[] = [];
+  for (const c of OVERRIDABLE_CAPABILITIES) {
+    const inBase = base.has(c);
+    const inWant = want.has(c);
+    if (inWant && !inBase) grant.push(c);
+    else if (!inWant && inBase) revoke.push(c);
+  }
+  return grant.length === 0 && revoke.length === 0 ? null : { grant, revoke };
+}

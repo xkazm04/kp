@@ -13,11 +13,12 @@ import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { ROLE_FAMILY_SLUGS } from "@/app/_lib/role-families";
 import { readClientOrgName } from "@/app/_lib/org-settings";
 import { RichTextEditor } from "@/app/_components/RichTextEditor";
+import { Select } from "@/app/_components/Select";
+import { TextInput } from "@/app/_components/TextInput";
 
 const SENIORITIES = ["junior", "medior", "senior", "lead"];
 // Role-family slugs (canonical; the display label comes from the enums catalog).
 const FAMILIES = ROLE_FAMILY_SLUGS;
-const INP = "focus-ring w-full rounded-md border border-stone-200 px-2.5 py-1.5 text-sm";
 
 // AI job-description builder. "Generate" opens a checklist (description / market
 // research / interview case) and hands the work to the detached jd_build task via
@@ -185,15 +186,17 @@ export function JdBuilder({ onSaved, prefill }: { onSaved: () => void; prefill?:
           template server-side; an empty selection uses the AI's default layout. */}
       <div className="mt-3 flex items-end gap-2">
         <Field label={t("templateLabel")} className="flex-1">
-          <select value={templateId} onChange={(e) => setTemplateId(e.target.value)} className={INP}>
-            <option value="">{t("aiDefaultFormat")}</option>
-            {templates.map((tpl) => (
-              <option key={tpl.id} value={tpl.id}>
-                {tpl.name}
-                {tpl.isDefault ? t("defaultSuffix") : ""}
-              </option>
-            ))}
-          </select>
+          <Select
+            ariaLabel={t("templateLabel")}
+            value={templateId}
+            onChange={setTemplateId}
+            size="sm"
+            className="w-full"
+            options={[
+              { value: "", label: t("aiDefaultFormat") },
+              ...templates.map((tpl) => ({ value: tpl.id, label: `${tpl.name}${tpl.isDefault ? t("defaultSuffix") : ""}` })),
+            ]}
+          />
         </Field>
         <button
           type="button"
@@ -207,36 +210,42 @@ export function JdBuilder({ onSaved, prefill }: { onSaved: () => void; prefill?:
 
       <div className="mt-3 grid gap-2 sm:grid-cols-2">
         <Field label={t("roleTitle")}>
-          <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("roleTitlePlaceholder")} className={INP} />
+          <TextInput value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("roleTitlePlaceholder")} sizeVariant="sm" />
         </Field>
         <Field label={t("company")}>
-          <input value={company} onChange={(e) => setCompany(e.target.value)} placeholder={t("companyPlaceholder")} className={INP} />
+          <TextInput value={company} onChange={(e) => setCompany(e.target.value)} placeholder={t("companyPlaceholder")} sizeVariant="sm" />
         </Field>
         <Field label={t("seniority")}>
-          <select value={seniority} onChange={(e) => setSeniority(e.target.value)} className={`${INP} capitalize`}>
-            {SENIORITIES.map((s) => (
-              <option key={s} value={s}>{enumLabel("seniority", s)}</option>
-            ))}
-          </select>
+          <Select
+            ariaLabel={t("seniority")}
+            value={seniority}
+            onChange={setSeniority}
+            size="sm"
+            className="w-full"
+            options={SENIORITIES.map((s) => ({ value: s, label: enumLabel("seniority", s) }))}
+          />
         </Field>
         <Field label={t("field")}>
-          <select value={roleFamily} onChange={(e) => setRoleFamily(e.target.value)} className={INP}>
-            {familyOptions.map(({ value, label }) => (
-              <option key={value} value={value}>{label}</option>
-            ))}
-          </select>
+          <Select
+            ariaLabel={t("field")}
+            value={roleFamily}
+            onChange={setRoleFamily}
+            size="sm"
+            className="w-full"
+            searchable
+            options={familyOptions}
+          />
         </Field>
         {/* JDL5 — generate the JD in this language (defaults to the app locale). */}
         <Field label={t("outputLanguage")}>
-          <select
+          <Select
+            ariaLabel={t("outputLanguage")}
             value={outputLang}
-            onChange={(e) => setOutputLang(isLocale(e.target.value) ? e.target.value : "en")}
-            className={`${INP} uppercase`}
-          >
-            {LOCALES.map((l) => (
-              <option key={l} value={l}>{l}</option>
-            ))}
-          </select>
+            onChange={(v) => setOutputLang(isLocale(v) ? v : "en")}
+            size="sm"
+            className="w-full"
+            options={LOCALES.map((l) => ({ value: l, label: l.toUpperCase() }))}
+          />
         </Field>
       </div>
 
@@ -252,7 +261,7 @@ export function JdBuilder({ onSaved, prefill }: { onSaved: () => void; prefill?:
       {/* Codebase enrichment is a dev-role feature — shown only when Field = Software. */}
       {isSoftware ? (
         <Field label={t("codebaseLabel")} className="mt-2">
-          <input value={repoUrl} onChange={(e) => setRepoUrl(e.target.value)} placeholder={t("codebasePlaceholder")} className={INP} />
+          <TextInput value={repoUrl} onChange={(e) => setRepoUrl(e.target.value)} placeholder={t("codebasePlaceholder")} sizeVariant="sm" />
         </Field>
       ) : null}
 

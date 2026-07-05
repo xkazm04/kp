@@ -115,8 +115,12 @@ export const BTN_PRIMARY =
 export const BTN_SECONDARY =
   "focus-ring inline-flex items-center gap-1 rounded-md border border-stone-200 font-medium text-ink transition-all hover:border-coral/40 disabled:opacity-50 dark:rounded-lg dark:border-stone-300 dark:shadow-sticker-sm dark:hover:translate-x-[1px] dark:hover:translate-y-[1px] dark:hover:shadow-sticker-xs";
 
-/** Text input / textarea / select base. */
-export const FIELD = "rounded-md border border-stone-200 bg-white px-3 py-1.5 text-base text-ink";
+/** Text input / textarea / select base. Carries the dual-theme fill/text plus a
+ *  steel placeholder and coral caret so a raw field reads correctly in Spark Dark
+ *  even before it's migrated to the TextInput/TextArea/Select primitives. New
+ *  fields should prefer those components over this string. */
+export const FIELD =
+  "rounded-md border border-stone-200 bg-white px-3 py-1.5 text-base text-ink placeholder:text-steel caret-coral";
 
 /** Segmented aria-pressed toggle group wrapper (ThemeToggle / LanguageSwitcher
  *  sidebar footer toggles). The bordered pill rail; pair with role="group". Note

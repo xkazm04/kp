@@ -137,7 +137,7 @@ export function OnboardingWizard({ ctrl }: { ctrl: OnboardingCtrl }) {
                 </button>
               ) : null}
               {step.id === "done" ? (
-                <button type="button" onClick={ctrl.onClose} className={`${BTN_PRIMARY} h-10 px-5`}>
+                <button type="button" onClick={ctrl.finish} className={`${BTN_PRIMARY} h-10 px-5`}>
                   <Rocket size={16} aria-hidden /> Enter KP
                 </button>
               ) : (

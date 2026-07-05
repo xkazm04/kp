@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { Briefcase, FlaskConical, GraduationCap, Link2, Loader2, Play, RotateCcw } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { AiDisclosure } from "@/app/_components/AiDisclosure";
+import { Select } from "@/app/_components/Select";
 import { BTN_PRIMARY, BTN_SECONDARY, EYEBROW, INTRO, PANEL, PANEL_SUNKEN } from "@/app/_components/ui/recipes";
 import { SectionTitle } from "@/app/_components/ui/SectionTitle";
 import { InterviewSidebar } from "@/app/_components/voice/InterviewSidebar";
@@ -117,19 +118,15 @@ function AttachToCandidate({ token }: { token: string }) {
                   <label className="sr-only" htmlFor="sim-attach-entry">
                     {t("selectAria")}
                   </label>
-                  <select
+                  <Select
                     id="sim-attach-entry"
+                    ariaLabel={t("selectAria")}
                     value={sel}
-                    onChange={(e) => setSel(e.target.value)}
-                    className="focus-ring h-8 rounded-md border border-stone-200 bg-white px-2 text-sm text-ink"
-                  >
-                    {entries.map((e) => (
-                      <option key={e.id} value={e.id}>
-                        {e.candidateLabel}
-                        {e.jobTitle ? ` — ${e.jobTitle}` : ""}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={setSel}
+                    size="sm"
+                    className="h-8"
+                    options={entries.map((e) => ({ value: e.id, label: `${e.candidateLabel}${e.jobTitle ? ` — ${e.jobTitle}` : ""}` }))}
+                  />
                   <button type="button" onClick={attach} disabled={state === "busy"} className={`${BTN_SECONDARY} h-8 px-2.5 text-sm`}>
                     {state === "busy" ? t("attaching") : t("attach")}
                   </button>

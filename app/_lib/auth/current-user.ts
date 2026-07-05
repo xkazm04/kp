@@ -64,6 +64,14 @@ export async function can(cap: Capability): Promise<boolean> {
   return (await resolveCaller()).caps.has(cap);
 }
 
+/** The caller's EFFECTIVE capability set (owner-full in open/operator mode) — what
+ *  the UI reads to decide which controls to show and which permissions the actor
+ *  may delegate. Distinct from currentUser().capabilities, which is session-
+ *  identity-only (empty for an operator-password/open-mode caller). */
+export async function callerCapabilities(): Promise<Capability[]> {
+  return [...(await resolveCaller()).caps];
+}
+
 /** Route gate — usage:
  *    const denied = await requireCapability("members:manage"); if (denied) return denied;
  *  403 when authenticated but under-privileged, 401 when not authenticated. */

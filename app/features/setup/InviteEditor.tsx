@@ -3,7 +3,9 @@
 import { useState } from "react";
 import { Plus, X } from "lucide-react";
 import { initials } from "@/app/_lib/initials";
-import { BTN_SECONDARY, FIELD } from "@/app/_components/ui/recipes";
+import { BTN_SECONDARY } from "@/app/_components/ui/recipes";
+import { TextInput } from "@/app/_components/TextInput";
+import { Select } from "@/app/_components/Select";
 import { MEMBER_ROLES, roleTone, type MemberRole } from "@/app/features/sub_organization/mock";
 import type { OnboardingCtrl } from "./steps";
 
@@ -25,21 +27,22 @@ export function InviteEditor({ ctrl, dense = false }: { ctrl: OnboardingCtrl; de
   return (
     <div className={dense ? "flex flex-col gap-2" : "space-y-3"}>
       <div className="flex flex-wrap items-center gap-2">
-        <input
+        <TextInput
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && add()}
           placeholder="name@company.com"
-          className={`${FIELD} min-w-0 flex-1`}
+          sizeVariant="sm"
+          className="min-w-0 flex-1"
         />
-        <select value={role} onChange={(e) => setRole(e.target.value as MemberRole)} className={FIELD} aria-label="Role for the invite">
-          {MEMBER_ROLES.filter((r) => r !== "Owner").map((r) => (
-            <option key={r} value={r}>
-              {r}
-            </option>
-          ))}
-        </select>
+        <Select
+          value={role}
+          onChange={(v) => setRole(v as MemberRole)}
+          size="sm"
+          ariaLabel="Role for the invite"
+          options={MEMBER_ROLES.filter((r) => r !== "Owner").map((r) => ({ value: r, label: r }))}
+        />
         <button type="button" onClick={add} disabled={!email.trim()} className={`${BTN_SECONDARY} h-9 px-3`}>
           <Plus size={15} aria-hidden /> Add
         </button>

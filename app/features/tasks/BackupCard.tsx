@@ -167,7 +167,7 @@ export function BackupCard() {
                   onChange={(e) => setConfirmText(e.target.value)}
                   disabled={busy}
                   aria-label={`Type ${CONFIRM_WORD} to confirm the destructive restore`}
-                  className="focus-ring mt-1 block w-40 rounded-md border border-stone-300 bg-white px-2 py-1 font-mono text-sm text-ink disabled:opacity-60"
+                  className="focus-ring mt-1 block w-40 rounded-md border border-stone-300 bg-white px-2 py-1 font-mono text-sm text-ink caret-coral placeholder:text-steel disabled:opacity-60"
                   placeholder={CONFIRM_WORD}
                 />
               </label>

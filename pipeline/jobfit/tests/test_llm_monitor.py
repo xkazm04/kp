@@ -20,6 +20,10 @@ from pipeline.jobfit.claude_cli import ClaudeCliProvider, ClaudeResult
 from pipeline.jobfit.llm import LLMError, LLMResult, TextProvider
 from pipeline.jobfit.llm import monitor
 
+# Hermeticity note: activation from the developer's .env.local is neutralized
+# suite-wide in tests/__init__.py, so these tests are offline unless they set
+# LIGHTTRACK_URL in os.environ explicitly (the enabled cases below do).
+
 
 class FakeLightTrack:
     instances: list["FakeLightTrack"] = []

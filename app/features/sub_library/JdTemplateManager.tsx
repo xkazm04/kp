@@ -5,6 +5,7 @@ import { Loader2, Pencil, Plus, Star, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Modal } from "@/app/_components/Modal";
 import { RichTextEditor } from "@/app/_components/RichTextEditor";
+import { TextInput } from "@/app/_components/TextInput";
 import { DEFAULT_TEMPLATE_BODY, fetchTemplates, findUnknownPlaceholders, TEMPLATE_BODY_MAX_LENGTH, TEMPLATE_NAME_MAX_LENGTH, TEMPLATE_PLACEHOLDERS, unknownPlaceholderMessage, validateTemplateFields, type Template, type TemplateData } from "./render-template";
 
 type Editing = { id?: string; name: string; body: string };
@@ -103,13 +104,14 @@ export function JdTemplateManager({ onClose, onChanged }: { onClose: () => void;
       {error ? <p className="mb-3 rounded-md bg-red-50 p-2.5 text-sm text-red-700">{error}</p> : null}
       {editing ? (
         <div className="space-y-3">
-          <input
+          <TextInput
             value={editing.name}
             onChange={(e) => setEditing({ ...editing, name: e.target.value })}
             maxLength={TEMPLATE_NAME_MAX_LENGTH}
             placeholder={t("namePlaceholder")}
             aria-label={t("namePlaceholder")}
-            className="focus-ring w-full rounded-md border border-stone-200 px-2.5 py-1.5 text-sm font-semibold"
+            sizeVariant="sm"
+            className="font-semibold"
           />
           <RichTextEditor
             value={editing.body}

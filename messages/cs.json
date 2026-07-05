@@ -261,12 +261,105 @@
     "en": "English",
     "cs": "Čeština"
   },
+  "jobMarket": {
+    "nav": { "home": "Domů", "about": "O aplikaci", "signIn": "Přihlásit se" },
+    "hero": {
+      "eyebrow": "Otevřená data, přehledně",
+      "title": "Český trh práce, <emph>bez příkras</emph>.",
+      "subtitle": "Referenční mzdy, poptávka po náboru ve všech 14 krajích a role, které rostou i slábnou — celé postavené na veřejných datech trhu práce.",
+      "updated": "{n} volných míst k {date} · {pct} % zveřejněno za posledních 90 dní"
+    },
+    "variants": {
+      "atlas": "Atlas",
+      "atlasDesc": "Vedeno mapou, jako příběh",
+      "board": "Přehled",
+      "boardDesc": "Vše na jednom místě"
+    },
+    "stats": {
+      "vacancies": "Volná místa",
+      "median": "Medián v ČR",
+      "regions": "Kraje",
+      "occupations": "Sledovaných profesí"
+    },
+    "map": {
+      "title": "Kde jsou práce",
+      "metricVolume": "Volná místa",
+      "metricSalary": "Mzda",
+      "legendVolume": "dle počtu míst",
+      "legendSalary": "dle mediánu mzdy",
+      "topRegions": "Nejvíce míst",
+      "hintTitle": "Najeďte na kraj",
+      "hintBody": "Zobrazí volná místa a medián mzdy.",
+      "vacancies": "Volná místa",
+      "median": "Medián mzdy",
+      "range": "Prostředních 50 % bere {lo}–{hi}"
+    },
+    "salary": {
+      "eyebrow": "Přehled",
+      "title": "Referenční mzdy dle role",
+      "subtitle": "Celoekonomické měsíční výdělky z oficiálního šetření ISPV — od juniora po lead, podle rodiny rolí.",
+      "median": "medián {v}",
+      "junior": "Junior",
+      "medior": "Medior",
+      "senior": "Senior",
+      "lead": "Lead"
+    },
+    "demand": {
+      "eyebrow": "Co se nabírá",
+      "title": "Nejžádanější právě teď",
+      "subtitle": "Živá volná místa podle rodiny rolí a profese v celé zemi.",
+      "byFamily": "Podle rodiny rolí",
+      "byRole": "Top profese",
+      "openings": "{n} míst",
+      "momentumNew": "výchozí"
+    },
+    "orgTypes": {
+      "eyebrow": "Kdo nabírá",
+      "title": "Mzdy podle typu zaměstnavatele",
+      "subtitle": "Medián měsíční mzdy u soukromých zaměstnavatelů, ve veřejném sektoru a u agentur.",
+      "private": "Soukromý sektor",
+      "public": "Veřejný sektor",
+      "agency": "Pracovní agentura"
+    },
+    "jd": {
+      "eyebrow": "Reálné inzeráty",
+      "title": "Ukázky popisů pozic",
+      "subtitle": "Reprezentativní živé inzeráty podle rodiny rolí — názvy, mzda a požadované dovednosti.",
+      "salaryHidden": "Mzda neuvedena",
+      "posted": "Zveřejněno {date}",
+      "skills": "Dovednosti"
+    },
+    "footer": {
+      "eyebrow": "O těchto datech",
+      "coverage": "Postaveno na živých volných místech evidovaných Úřadem práce ČR a na oficiálním mzdovém šetření ISPV. Nabídka volných míst se přiklání ke službám, řemeslům a provozním rolím — pozice s vyšší kvalifikací a seniorní firemní role se inzerují na komerčních portálech, takže jejich počty vypadají nízké a medián mzdy v Praze skromně. Mzdová pásma vycházejí z celoekonomických výdělků ISPV, která tímto zkreslením netrpí.",
+      "sourceLink": "Otevřená data MPSV"
+    },
+    "families": {
+      "software_engineering": "Softwarové inženýrství",
+      "data_ai": "Data a AI",
+      "product_project": "Produkt a projekt",
+      "healthcare_clinical": "Zdravotnictví",
+      "life_sciences_research": "Vědy o živé přírodě a výzkum",
+      "skilled_trades": "Řemesla",
+      "operations_logistics": "Provoz a logistika",
+      "frontline_service": "Služby a obsluha",
+      "sales_marketing": "Obchod a marketing",
+      "finance_accounting": "Finance a účetnictví",
+      "legal_compliance": "Právo a compliance",
+      "hr_people": "HR a lidé",
+      "education_academic": "Vzdělávání a akademie",
+      "creative_design": "Kreativa a design",
+      "customer_support": "Zákaznická podpora",
+      "general_professional": "Odborné profese"
+    }
+  },
   "landing": {
     "nav": {
       "how": "Jak to funguje",
       "features": "Funkce",
       "pricing": "Ceník",
       "about": "O nás",
+      "market": "Pulz trhu",
       "signIn": "Přihlásit se"
     },
     "hero": {
@@ -2699,14 +2792,17 @@
   },
   "login": {
     "eyebrow": "kp",
-    "title": "Přihlášení operátora",
-    "subtitle": "Tento pracovní prostor je chráněný. Pokračujte zadáním hesla operátora.",
+    "title": "Přihlášení",
+    "subtitle": "Přihlaste se e-mailem a heslem, nebo heslem operátora.",
+    "emailLabel": "E-mail",
+    "emailPlaceholder": "vy@firma.cz",
+    "emailHint": "Nechte prázdné pro heslo operátora.",
     "passwordLabel": "Heslo",
     "submit": "Přihlásit se",
     "submitting": "Přihlašování…",
     "networkError": "Nepodařilo se spojit se serverem — zkontrolujte připojení a zkuste to znovu.",
     "success": "Přihlášení proběhlo úspěšně.",
-    "error": "Nesprávné heslo — zkuste to znovu."
+    "error": "Nesprávné přihlašovací údaje — zkuste to znovu."
   },
   "skillProfile": {
     "eyebrow": "Ověřený doklad",

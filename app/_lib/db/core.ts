@@ -837,6 +837,10 @@ export function ensureDb(): Database.Database {
     "ALTER TABLE analyses ADD COLUMN workspace_id TEXT",
     // Tenant scope (P2): the profiles domain (2nd scoped table). Same backfill below.
     "ALTER TABLE profiles ADD COLUMN workspace_id TEXT",
+    // Tenant scope (P1): the Library JD tables — a team's private drafts/openings +
+    // their edit history. Backfilled to the default workspace below.
+    "ALTER TABLE jds ADD COLUMN workspace_id TEXT",
+    "ALTER TABLE jd_revisions ADD COLUMN workspace_id TEXT",
     // JD archive (W8-4/JDL1): archived JDs drop out of listJds and the pickers,
     // but loadJd keeps serving them so existing analysis links never 404.
     "ALTER TABLE jds ADD COLUMN archived_at TEXT",
@@ -908,6 +912,8 @@ export function ensureDb(): Database.Database {
   try {
     db.exec(`CREATE INDEX IF NOT EXISTS idx_analyses_workspace ON analyses (workspace_id)`);
     db.exec(`CREATE INDEX IF NOT EXISTS idx_profiles_workspace ON profiles (workspace_id)`);
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_jds_workspace ON jds (workspace_id)`);
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_jd_revisions_workspace ON jd_revisions (workspace_id)`);
   } catch {
     /* index already exists */
   }
@@ -924,6 +930,8 @@ export function ensureDb(): Database.Database {
   // it's order-independent — a seeded row that didn't stamp the column is caught.
   db.prepare(`UPDATE analyses SET workspace_id = ? WHERE workspace_id IS NULL`).run("workspace");
   db.prepare(`UPDATE profiles SET workspace_id = ? WHERE workspace_id IS NULL`).run("workspace");
+  db.prepare(`UPDATE jds SET workspace_id = ? WHERE workspace_id IS NULL`).run("workspace");
+  db.prepare(`UPDATE jd_revisions SET workspace_id = ? WHERE workspace_id IS NULL`).run("workspace");
   // Null-contract heal: `approval_detail` is nullable and "no detail" is NULL (its
   // sibling approval_kind clears to NULL), but earlier clear/insert paths wrote '',
   // so a "cleared" detail read back as "" on some rows and NULL on others. Now that

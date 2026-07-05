@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { insertAnalyzingJd, setJdAnalysisTask } from "@/app/_lib/db";
+import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { startTask } from "@/app/_lib/tasks";
 import { getTemplate } from "@/app/_lib/templates-store";
 import { validateJdBuildInput } from "@/app/_lib/jd-limits";
@@ -61,7 +62,7 @@ export async function POST(request: Request) {
 
   try {
     // 1. Placeholder JD (appears in the Ledger as "Analyzing" right away).
-    const { slug } = insertAnalyzingJd({ title: cleanTitle, options });
+    const { slug } = insertAnalyzingJd({ title: cleanTitle, options }, await currentWorkspace());
     // 2. Detached build that fills it in (survives navigation). jdSlug makes the
     //    task's dedupe identity the JD itself, so each Generate is its own run.
     const task = startTask("jd_build", {

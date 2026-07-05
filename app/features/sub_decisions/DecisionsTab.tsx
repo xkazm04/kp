@@ -7,6 +7,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { buildTabSwitchUrl } from "@/app/features/tabs";
 import { ChainEmptyState } from "@/app/_components/ChainEmptyState";
 import { CompletionCta } from "@/app/_components/CompletionCta";
+import { Select } from "@/app/_components/Select";
 import { Skeleton } from "@/app/_components/Skeleton";
 import { toast } from "@/app/_components/toast-store";
 import { useTasks, useTaskResult } from "@/app/features/tasks/TasksProvider";
@@ -308,32 +309,28 @@ export function DecisionsTab() {
         </div>
         <div className="flex items-center gap-2">
           {jobOptions.length > 1 ? (
-            <select
+            <Select
+              ariaLabel={t("filterTitle")}
               value={activeFilter ?? ""}
-              onChange={(e) => setJobFilter(e.target.value || null)}
-              className="focus-ring rounded-md border border-stone-200 bg-white px-2.5 py-1 text-sm text-ink"
-              title={t("filterTitle")}
-              aria-label={t("filterTitle")}
-            >
-              <option value="">{t("allRoles", { count: pending.length })}</option>
-              {jobOptions.map((o) => (
-                <option key={o.key} value={o.key}>
-                  {o.label} ({pending.filter((e) => roleKeyOf(e) === o.key).length})
-                </option>
-              ))}
-            </select>
+              onChange={(v) => setJobFilter(v || null)}
+              size="sm"
+              options={[
+                { value: "", label: t("allRoles", { count: pending.length }) },
+                ...jobOptions.map((o) => ({ value: o.key, label: `${o.label} (${pending.filter((e) => roleKeyOf(e) === o.key).length})` })),
+              ]}
+            />
           ) : null}
-          <select
+          <Select
+            ariaLabel={t("govModeTitle")}
             value={evalMode}
-            onChange={(e) => setEvalMode(e.target.value as typeof evalMode)}
-            className="focus-ring rounded-md border border-stone-200 bg-white px-2.5 py-1 text-sm text-ink"
-            title={t("govModeTitle")}
-            aria-label={t("govModeTitle")}
-          >
-            <option value="recommendation">{t("govRecommendation")}</option>
-            <option value="committee">{t("govCommittee")}</option>
-            <option value="eligibility_list">{t("govEligibility")}</option>
-          </select>
+            onChange={(v) => setEvalMode(v as typeof evalMode)}
+            size="sm"
+            options={[
+              { value: "recommendation", label: t("govRecommendation") },
+              { value: "committee", label: t("govCommittee") },
+              { value: "eligibility_list", label: t("govEligibility") },
+            ]}
+          />
           <span className="rounded-md border border-stone-200 bg-paper px-2.5 py-1 text-sm text-steel">
             {t("pending", {
               count: activeFilter

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { TextInput } from "@/app/_components/TextInput";
 
 type OnboardingView = {
   role: string | null;
@@ -166,12 +167,12 @@ export function OnboardingClient() {
                     {view.fields.map((field) => (
                       <label key={field.key} className="block text-sm font-semibold text-steel">
                         {fieldLabel(field)}
-                        <input
+                        <TextInput
                           type={field.key === "startDateConfirm" ? "date" : "text"}
                           value={answers[field.key] ?? ""}
                           onChange={(e) => setAnswers((a) => ({ ...a, [field.key]: e.target.value }))}
                           maxLength={500}
-                          className="focus-ring mt-1 h-10 w-full rounded-md border border-stone-300 bg-white px-3 text-base text-ink"
+                          className="mt-1"
                         />
                       </label>
                     ))}

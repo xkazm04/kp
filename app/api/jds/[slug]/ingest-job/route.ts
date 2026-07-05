@@ -3,6 +3,7 @@ import { getJob, loadJd } from "@/app/_lib/db";
 import { ingestJobAd } from "@/app/_lib/job-ingest";
 import { jdJobId } from "@/app/_lib/jd-limits";
 import { safeJsonError } from "@/app/_lib/api-response";
+import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 
 // One LLM parse of the JD body — same budget class as the jobs-tab ingest.
 export const maxDuration = 60;
@@ -17,7 +18,7 @@ export const maxDuration = 60;
 export async function POST(_request: Request, context: { params: Promise<{ slug: string }> }) {
   const { slug } = await context.params;
   try {
-    const jd = loadJd(slug);
+    const jd = loadJd(slug, await currentWorkspace());
     if (!jd) return NextResponse.json({ error: "JD not found." }, { status: 404 });
 
     const jobId = jdJobId(slug);

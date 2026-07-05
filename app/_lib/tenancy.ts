@@ -22,6 +22,13 @@
 export const TENANCY_SCOPED_TABLES: ReadonlySet<string> = new Set([
   "analyses",
   "profiles",
+  // Phase 1 — Library: a team's private JD drafts/openings + their edit history.
+  // The recruiter LIST/edit/revert/archive paths filter by workspace_id; the
+  // candidate-facing public JD page reads by slug (loadJd) as shareable content.
+  // The by-slug analysis-status task writers are exempted in jds-tenancy.test.ts
+  // (a JD slug is a globally-unique PK, so a by-slug flip can't cross tenants).
+  "jds",
+  "jd_revisions",
 ]);
 
 /** Tables that legitimately hold NO per-tenant data: the tenant registry itself,

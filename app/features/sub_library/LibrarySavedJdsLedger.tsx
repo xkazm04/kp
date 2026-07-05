@@ -231,7 +231,7 @@ export function LibrarySavedJdsLedger() {
                               }}
                               placeholder="Search roles"
                               aria-label={t("searchAria")}
-                              className="focus-ring h-7 w-44 rounded border border-stone-300 bg-white pl-7 pr-6 text-sm font-normal normal-case tracking-normal text-ink"
+                              className="focus-ring h-7 w-44 rounded border border-stone-300 bg-white pl-7 pr-6 text-sm font-normal normal-case tracking-normal text-ink caret-coral placeholder:text-steel"
                             />
                             <button
                               type="button"

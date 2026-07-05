@@ -3,19 +3,24 @@ import { countAnalysesByJd, listJds, saveJd } from "@/app/_lib/db";
 import { listJobRoleMeta, listJobStatuses } from "@/app/_lib/job-ingest";
 import { jdJobId, validateJdFields } from "@/app/_lib/jd-limits";
 import { safeJsonError } from "@/app/_lib/api-response";
+import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 
 
 export async function GET() {
   try {
-    const rows = listJds(200);
+    const ws = await currentWorkspace();
+    const rows = listJds(200, ws);
     // W8-3 (JDL3) — each row's linked-job status (one query for all rows): the
     // library can show which JDs are matchable and offer "Ingest as job" on the
     // rest. null = no jd-<slug> job exists yet (analysis-only JD).
     const statuses = listJobStatuses();
     // Privacy relocation (biz-ui scan 2026-06-12 #1) — each row's analyzed-
     // candidate count (one GROUP BY for all rows) feeds the Library tab's
-    // "Candidates (N)" toggle, which replaced the public JD page's aside.
-    const counts = countAnalysesByJd();
+    // "Candidates (N)" toggle. Scoped to the caller's workspace like listJds above:
+    // a bare countAnalysesByJd() defaulted to the DEFAULT workspace, so every team
+    // would have seen the default tenant's candidate counts (the latent bug the scan
+    // flagged) once multi-workspace is enabled.
+    const counts = countAnalysesByJd(ws);
     // The linked jd-<slug> job's role family + seniority (one query for all rows)
     // feed the library's Field and Seniority columns; an analysis-only JD with no
     // job behind it has neither and renders "—".
@@ -54,7 +59,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: fields.error }, { status: 400 });
   }
   try {
-    const saved = saveJd({ title: fields.title, body: fields.body });
+    const saved = saveJd({ title: fields.title, body: fields.body }, await currentWorkspace());
     return NextResponse.json({ ...saved, title: fields.title, body: fields.body });
   } catch (error) {
     // Never forward raw SQLite text (e.g. "UNIQUE constraint failed: jds.slug")

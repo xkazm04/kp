@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { AlertTriangle, KeyRound, Plug, Send } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { toast } from "@/app/_components/toast-store";
+import { TextInput } from "@/app/_components/TextInput";
+import { Checkbox } from "@/app/_components/Checkbox";
 
 // P1-5 — the ATS/HRIS write-back panel. The only egress used to be a whole-DB JSON
 // dump ("not an integration, that's a backup" — Marcus #12). This configures a
@@ -115,12 +117,13 @@ export function IntegrationsCard() {
       <div className="mt-4 space-y-3">
         <label className="block">
           <span className="mb-1 block text-sm font-semibold text-ink">Webhook URL</span>
-          <input
+          <TextInput
             type="url"
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             placeholder="https://your-ats.example.com/hooks/kp"
-            className="focus-ring w-full rounded-md border border-stone-300 px-2.5 py-1.5 font-mono text-sm"
+            sizeVariant="sm"
+            className="font-mono"
           />
           <span className="mt-1 block text-meta text-steel">Leave empty to disable delivery.</span>
         </label>
@@ -130,13 +133,14 @@ export function IntegrationsCard() {
             <KeyRound size={13} className="text-steel" /> Signing secret
             <span className="font-normal text-meta text-steel">{hasSecret ? "· set (leave blank to keep)" : "· not set"}</span>
           </span>
-          <input
+          <TextInput
             type="password"
             value={secret}
             onChange={(e) => setSecret(e.target.value)}
             placeholder={hasSecret ? "••••••••  (unchanged)" : "Optional — recommended"}
             autoComplete="new-password"
-            className="focus-ring w-full rounded-md border border-stone-300 px-2.5 py-1.5 font-mono text-sm"
+            sizeVariant="sm"
+            className="font-mono"
           />
         </label>
 
@@ -145,7 +149,7 @@ export function IntegrationsCard() {
           <div className="grid grid-cols-2 gap-1.5">
             {SUBSCRIBABLE.map((e) => (
               <label key={e.id} className="flex items-center gap-2 text-sm text-steel">
-                <input type="checkbox" checked={events.includes(e.id)} onChange={() => toggle(e.id)} className="h-4 w-4 accent-coral" />
+                <Checkbox checked={events.includes(e.id)} onChange={() => toggle(e.id)} />
                 {e.label}
               </label>
             ))}

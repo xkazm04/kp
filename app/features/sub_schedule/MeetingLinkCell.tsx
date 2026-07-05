@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Link2, Pencil, Video } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { FIELD } from "@/app/_components/ui/recipes";
+import { TextInput } from "@/app/_components/TextInput";
 
 // The recruiter's per-interview meeting-link control on the agenda row: a "Join"
 // link when set, plus an add/edit popover that PATCHes /api/schedule. On save it
@@ -70,7 +70,7 @@ export function MeetingLinkCell({ token, url, onSaved }: { token: string; url: s
         <>
           <button type="button" aria-hidden tabIndex={-1} onClick={() => setEditing(false)} className="fixed inset-0 z-40 cursor-default" />
           <div className="absolute right-0 top-full z-50 mt-1 w-64 rounded-lg border border-stone-200 bg-white p-2 shadow-pop">
-            <input
+            <TextInput
               autoFocus
               value={value}
               onChange={(e) => setValue(e.target.value)}
@@ -80,7 +80,8 @@ export function MeetingLinkCell({ token, url, onSaved }: { token: string; url: s
               }}
               placeholder={t("linkPlaceholder")}
               aria-label={t("linkPlaceholder")}
-              className={`${FIELD} w-full py-1 text-sm`}
+              sizeVariant="sm"
+              className="py-1"
             />
             {error ? <p className="mt-1 text-xs text-coral">{error}</p> : null}
             <div className="mt-2 flex items-center justify-end gap-1.5">

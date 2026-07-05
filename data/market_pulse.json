@@ -1,0 +1,1690 @@
+{
+  "meta": {
+    "generated_at": "2026-07-05T12:55:14.294Z",
+    "currency": "CZK",
+    "salary_basis": "monthly gross",
+    "total_vacancies": 38553,
+    "occupations_tracked": 956,
+    "regions": 14,
+    "national_median": 29000,
+    "ispv_period": "rok 2025",
+    "vacancies_date": "2026-07-03",
+    "median_posting_age_days": 80,
+    "posted_within_90d_pct": 54,
+    "posted_within_180d_pct": 90,
+    "relics_filtered": 817,
+    "source": "MPSV / Úřad práce ČR — Volná místa + ISPV",
+    "license": "CC BY 4.0",
+    "attribution": "Data © MPSV ČR (Úřad práce ČR, ISPV), CC BY 4.0",
+    "attribution_url": "https://data.mpsv.cz/web/data/volna-mista-za-celou-cr",
+    "coverage_note": "Live open vacancies registered at the Czech Labour Office. Higher-skill/IT and senior corporate roles are under-represented (posted on commercial boards), so those counts read low and Prague's vacancy-median skews toward service roles. Reference-salary bands use ISPV economy-wide earnings, which are not subject to that bias."
+  },
+  "reference_salaries": [
+    {
+      "family": "software_engineering",
+      "label": "Software Engineering",
+      "junior": 60000,
+      "medior": 81800,
+      "senior": 111600,
+      "lead": 149900,
+      "median": 81800,
+      "employees_k": 117,
+      "occupations": 12
+    },
+    {
+      "family": "data_ai",
+      "label": "Data & AI",
+      "junior": 59600,
+      "medior": 78800,
+      "senior": 105300,
+      "lead": 135100,
+      "median": 78800,
+      "employees_k": 25,
+      "occupations": 5
+    },
+    {
+      "family": "healthcare_clinical",
+      "label": "Healthcare & Clinical",
+      "junior": 45100,
+      "medior": 55900,
+      "senior": 68600,
+      "lead": 82400,
+      "median": 55900,
+      "employees_k": 234,
+      "occupations": 24
+    },
+    {
+      "family": "life_sciences_research",
+      "label": "Life Sciences & Research",
+      "junior": 48200,
+      "medior": 60100,
+      "senior": 79600,
+      "lead": 102400,
+      "median": 60100,
+      "employees_k": 19,
+      "occupations": 6
+    },
+    {
+      "family": "skilled_trades",
+      "label": "Skilled Trades",
+      "junior": 33800,
+      "medior": 41700,
+      "senior": 51100,
+      "lead": 61800,
+      "median": 41700,
+      "employees_k": 424,
+      "occupations": 50
+    },
+    {
+      "family": "operations_logistics",
+      "label": "Operations & Logistics",
+      "junior": 34800,
+      "medior": 43100,
+      "senior": 53800,
+      "lead": 65900,
+      "median": 43100,
+      "employees_k": 838,
+      "occupations": 61
+    },
+    {
+      "family": "frontline_service",
+      "label": "Frontline Service",
+      "junior": 28200,
+      "medior": 33100,
+      "senior": 40400,
+      "lead": 48700,
+      "median": 33100,
+      "employees_k": 466,
+      "occupations": 29
+    },
+    {
+      "family": "sales_marketing",
+      "label": "Sales & Marketing",
+      "junior": 44500,
+      "medior": 59800,
+      "senior": 81700,
+      "lead": 111300,
+      "median": 59800,
+      "employees_k": 213,
+      "occupations": 14
+    },
+    {
+      "family": "finance_accounting",
+      "label": "Finance & Accounting",
+      "junior": 45200,
+      "medior": 58000,
+      "senior": 75800,
+      "lead": 99900,
+      "median": 58000,
+      "employees_k": 205,
+      "occupations": 14
+    },
+    {
+      "family": "legal_compliance",
+      "label": "Legal & Compliance",
+      "junior": 43400,
+      "medior": 52700,
+      "senior": 62900,
+      "lead": 76400,
+      "median": 52700,
+      "employees_k": 27,
+      "occupations": 6
+    },
+    {
+      "family": "hr_people",
+      "label": "HR & People",
+      "junior": 56200,
+      "medior": 69600,
+      "senior": 92400,
+      "lead": 123700,
+      "median": 69600,
+      "employees_k": 6,
+      "occupations": 1
+    },
+    {
+      "family": "education_academic",
+      "label": "Education & Academia",
+      "junior": 44600,
+      "medior": 50100,
+      "senior": 57200,
+      "lead": 66600,
+      "median": 50100,
+      "employees_k": 213,
+      "occupations": 19
+    },
+    {
+      "family": "creative_design",
+      "label": "Creative & Design",
+      "junior": 35900,
+      "medior": 45100,
+      "senior": 56400,
+      "lead": 72700,
+      "median": 45100,
+      "employees_k": 19,
+      "occupations": 12
+    },
+    {
+      "family": "customer_support",
+      "label": "Customer Support",
+      "junior": 32000,
+      "medior": 38000,
+      "senior": 46500,
+      "lead": 56300,
+      "median": 38000,
+      "employees_k": 51,
+      "occupations": 10
+    },
+    {
+      "family": "general_professional",
+      "label": "General Professional",
+      "junior": 42400,
+      "medior": 52600,
+      "senior": 66500,
+      "lead": 84200,
+      "median": 52600,
+      "employees_k": 705,
+      "occupations": 60
+    }
+  ],
+  "regions": [
+    {
+      "krajId": "Kraj/19",
+      "code": "CZ010",
+      "name": "Hlavní město Praha",
+      "vacancies": 7163,
+      "medianSalary": 24100,
+      "p25": 22400,
+      "p75": 32055
+    },
+    {
+      "krajId": "Kraj/27",
+      "code": "CZ020",
+      "name": "Středočeský kraj",
+      "vacancies": 4106,
+      "medianSalary": 29000,
+      "p25": 23600,
+      "p75": 37500
+    },
+    {
+      "krajId": "Kraj/116",
+      "code": "CZ064",
+      "name": "Jihomoravský kraj",
+      "vacancies": 3223,
+      "medianSalary": 30000,
+      "p25": 24000,
+      "p75": 38500
+    },
+    {
+      "krajId": "Kraj/132",
+      "code": "CZ080",
+      "name": "Moravskoslezský kraj",
+      "vacancies": 2817,
+      "medianSalary": 31000,
+      "p25": 25000,
+      "p75": 40000
+    },
+    {
+      "krajId": "Kraj/35",
+      "code": "CZ031",
+      "name": "Jihočeský kraj",
+      "vacancies": 2507,
+      "medianSalary": 31000,
+      "p25": 25000,
+      "p75": 38605
+    },
+    {
+      "krajId": "Kraj/94",
+      "code": "CZ053",
+      "name": "Pardubický kraj",
+      "vacancies": 2111,
+      "medianSalary": 31000,
+      "p25": 25200,
+      "p75": 37500
+    },
+    {
+      "krajId": "Kraj/60",
+      "code": "CZ042",
+      "name": "Ústecký kraj",
+      "vacancies": 1987,
+      "medianSalary": 30000,
+      "p25": 24000,
+      "p75": 38000
+    },
+    {
+      "krajId": "Kraj/124",
+      "code": "CZ071",
+      "name": "Olomoucký kraj",
+      "vacancies": 1928,
+      "medianSalary": 31000,
+      "p25": 24750,
+      "p75": 38945
+    },
+    {
+      "krajId": "Kraj/86",
+      "code": "CZ052",
+      "name": "Královéhradecký kraj",
+      "vacancies": 1912,
+      "medianSalary": 32625,
+      "p25": 26500,
+      "p75": 40000
+    },
+    {
+      "krajId": "Kraj/141",
+      "code": "CZ072",
+      "name": "Zlínský kraj",
+      "vacancies": 1884,
+      "medianSalary": 30270,
+      "p25": 25000,
+      "p75": 37500
+    },
+    {
+      "krajId": "Kraj/43",
+      "code": "CZ032",
+      "name": "Plzeňský kraj",
+      "vacancies": 1746,
+      "medianSalary": 31500,
+      "p25": 25190,
+      "p75": 40000
+    },
+    {
+      "krajId": "Kraj/108",
+      "code": "CZ063",
+      "name": "Kraj Vysočina",
+      "vacancies": 1561,
+      "medianSalary": 32000,
+      "p25": 27000,
+      "p75": 39410
+    },
+    {
+      "krajId": "Kraj/78",
+      "code": "CZ051",
+      "name": "Liberecký kraj",
+      "vacancies": 1258,
+      "medianSalary": 30000,
+      "p25": 25250,
+      "p75": 37914
+    },
+    {
+      "krajId": "Kraj/51",
+      "code": "CZ041",
+      "name": "Karlovarský kraj",
+      "vacancies": 976,
+      "medianSalary": 30000,
+      "p25": 25000,
+      "p75": 37000
+    }
+  ],
+  "org_types": [
+    {
+      "orgType": "private",
+      "label": "Private sector",
+      "vacancies": 37589,
+      "medianSalary": 29000,
+      "p25": 23000,
+      "p75": 37500
+    },
+    {
+      "orgType": "agency",
+      "label": "Staffing agency",
+      "vacancies": 827,
+      "medianSalary": 25500,
+      "p25": 22400,
+      "p75": 30000
+    },
+    {
+      "orgType": "public",
+      "label": "Public sector",
+      "vacancies": 137,
+      "medianSalary": 37415,
+      "p25": 33785,
+      "p75": 40370
+    }
+  ],
+  "demand": {
+    "national_total": 38553,
+    "top_families": [
+      {
+        "family": "operations_logistics",
+        "label": "Operations & Logistics",
+        "vacancies": 11571,
+        "share": 0.3001,
+        "momentum": 0
+      },
+      {
+        "family": "frontline_service",
+        "label": "Frontline Service",
+        "vacancies": 10044,
+        "share": 0.2605,
+        "momentum": 0
+      },
+      {
+        "family": "skilled_trades",
+        "label": "Skilled Trades",
+        "vacancies": 7258,
+        "share": 0.1883,
+        "momentum": 0
+      },
+      {
+        "family": "general_professional",
+        "label": "General Professional",
+        "vacancies": 2664,
+        "share": 0.0691,
+        "momentum": 0
+      },
+      {
+        "family": "education_academic",
+        "label": "Education & Academia",
+        "vacancies": 1782,
+        "share": 0.0462,
+        "momentum": 0
+      },
+      {
+        "family": "healthcare_clinical",
+        "label": "Healthcare & Clinical",
+        "vacancies": 1403,
+        "share": 0.0364,
+        "momentum": 0
+      },
+      {
+        "family": "finance_accounting",
+        "label": "Finance & Accounting",
+        "vacancies": 747,
+        "share": 0.0194,
+        "momentum": 0
+      },
+      {
+        "family": "sales_marketing",
+        "label": "Sales & Marketing",
+        "vacancies": 702,
+        "share": 0.0182,
+        "momentum": 0
+      },
+      {
+        "family": "software_engineering",
+        "label": "Software Engineering",
+        "vacancies": 677,
+        "share": 0.0176,
+        "momentum": 0
+      },
+      {
+        "family": "customer_support",
+        "label": "Customer Support",
+        "vacancies": 436,
+        "share": 0.0113,
+        "momentum": 0
+      },
+      {
+        "family": "creative_design",
+        "label": "Creative & Design",
+        "vacancies": 164,
+        "share": 0.0043,
+        "momentum": 0
+      },
+      {
+        "family": "data_ai",
+        "label": "Data & AI",
+        "vacancies": 160,
+        "share": 0.0042,
+        "momentum": 0
+      },
+      {
+        "family": "legal_compliance",
+        "label": "Legal & Compliance",
+        "vacancies": 155,
+        "share": 0.004,
+        "momentum": 0
+      },
+      {
+        "family": "hr_people",
+        "label": "HR & People",
+        "vacancies": 27,
+        "share": 0.0007,
+        "momentum": 0
+      },
+      {
+        "family": "life_sciences_research",
+        "label": "Life Sciences & Research",
+        "vacancies": 20,
+        "share": 0.0005,
+        "momentum": 0
+      }
+    ],
+    "top_occupations": [
+      {
+        "czIsco": "CzIsco/93130",
+        "name": "Dělníci v oblasti výstavby a údržby budov",
+        "family": "operations_logistics",
+        "vacancies": 1684,
+        "medianSalary": 22400
+      },
+      {
+        "czIsco": "CzIsco/51203",
+        "name": "Pomocní kuchaři",
+        "family": "frontline_service",
+        "vacancies": 1165,
+        "medianSalary": 22400
+      },
+      {
+        "czIsco": "CzIsco/51201",
+        "name": "Kuchaři (kromě šéfkuchařů)",
+        "family": "frontline_service",
+        "vacancies": 1072,
+        "medianSalary": 29100
+      },
+      {
+        "czIsco": "CzIsco/83443",
+        "name": "Skladníci, obsluha manipulačních vozíků",
+        "family": "operations_logistics",
+        "vacancies": 999,
+        "medianSalary": 28400
+      },
+      {
+        "czIsco": "CzIsco/51310",
+        "name": "Číšníci a servírky",
+        "family": "frontline_service",
+        "vacancies": 731,
+        "medianSalary": 26300
+      },
+      {
+        "czIsco": "CzIsco/91129",
+        "name": "Ostatní uklízeči a pomocníci",
+        "family": "frontline_service",
+        "vacancies": 629,
+        "medianSalary": 22400
+      },
+      {
+        "czIsco": "CzIsco/8332",
+        "name": "Řidiči nákladních automobilů, tahačů a speciálních vozidel",
+        "family": "operations_logistics",
+        "vacancies": 576,
+        "medianSalary": 45600
+      },
+      {
+        "czIsco": "CzIsco/72121",
+        "name": "Svářeči",
+        "family": "skilled_trades",
+        "vacancies": 542,
+        "medianSalary": 34900
+      },
+      {
+        "czIsco": "CzIsco/94120",
+        "name": "Pomocníci v kuchyni",
+        "family": "frontline_service",
+        "vacancies": 537,
+        "medianSalary": 22400
+      },
+      {
+        "czIsco": "CzIsco/83221",
+        "name": "Řidiči osobních a malých dodávkových automobilů (kromě taxikářů a řidičů zdravotnické dopravní služby)",
+        "family": "operations_logistics",
+        "vacancies": 449,
+        "medianSalary": 27300
+      },
+      {
+        "czIsco": "CzIsco/83321",
+        "name": "Řidiči nákladních automobilů (kromě tahačů)",
+        "family": "operations_logistics",
+        "vacancies": 434,
+        "medianSalary": 39400
+      },
+      {
+        "czIsco": "CzIsco/41100",
+        "name": "Všeobecní administrativní pracovníci",
+        "family": "general_professional",
+        "vacancies": 412,
+        "medianSalary": 25100
+      },
+      {
+        "czIsco": "CzIsco/51423",
+        "name": "Maséři (kromě odborných masérů ve zdravotnictví)",
+        "family": "frontline_service",
+        "vacancies": 388,
+        "medianSalary": 23700
+      },
+      {
+        "czIsco": "CzIsco/54142",
+        "name": "Pracovníci ostrahy, strážní",
+        "family": "frontline_service",
+        "vacancies": 383,
+        "medianSalary": 23600
+      },
+      {
+        "czIsco": "CzIsco/83322",
+        "name": "Řidiči tahačů",
+        "family": "operations_logistics",
+        "vacancies": 379,
+        "medianSalary": 33700
+      },
+      {
+        "czIsco": "CzIsco/71121",
+        "name": "Zedníci (kromě zedníků ohnivzdorného zdiva)",
+        "family": "skilled_trades",
+        "vacancies": 357,
+        "medianSalary": 27400
+      },
+      {
+        "czIsco": "CzIsco/9112",
+        "name": "Uklízeči a pomocníci v hotelích, administrativních, průmyslových a jiných objektech",
+        "family": "frontline_service",
+        "vacancies": 347,
+        "medianSalary": 26900
+      },
+      {
+        "czIsco": "CzIsco/93292",
+        "name": "Pomocní dělníci ve výrobě",
+        "family": "operations_logistics",
+        "vacancies": 320,
+        "medianSalary": 24000
+      },
+      {
+        "czIsco": "CzIsco/72223",
+        "name": "Provozní zámečníci, údržbáři",
+        "family": "skilled_trades",
+        "vacancies": 298,
+        "medianSalary": 33500
+      },
+      {
+        "czIsco": "CzIsco/93331",
+        "name": "Pomocní skladníci",
+        "family": "operations_logistics",
+        "vacancies": 295,
+        "medianSalary": 22400
+      },
+      {
+        "czIsco": "CzIsco/9313",
+        "name": "Dělníci v oblasti výstavby budov",
+        "family": "operations_logistics",
+        "vacancies": 287,
+        "medianSalary": 22900
+      },
+      {
+        "czIsco": "CzIsco/72237",
+        "name": "Seřizovači a obsluha číslicově řízených strojů",
+        "family": "skilled_trades",
+        "vacancies": 287,
+        "medianSalary": 35000
+      },
+      {
+        "czIsco": "CzIsco/93291",
+        "name": "Manipulační dělníci ve výrobě",
+        "family": "operations_logistics",
+        "vacancies": 285,
+        "medianSalary": 27700
+      },
+      {
+        "czIsco": "CzIsco/52231",
+        "name": "Prodavači smíšeného zboží",
+        "family": "frontline_service",
+        "vacancies": 272,
+        "medianSalary": 22400
+      },
+      {
+        "czIsco": "CzIsco/52232",
+        "name": "Prodavači potravinářského zboží",
+        "family": "frontline_service",
+        "vacancies": 271,
+        "medianSalary": 25000
+      }
+    ]
+  },
+  "jd_references": [
+    {
+      "family": "software_engineering",
+      "label": "Software Engineering",
+      "items": [
+        {
+          "title": "Specialisté v oblasti testování softwaru a příbuzní pracovníci",
+          "occupation": "Specialisté v oblasti testování softwaru a příbuzní pracovníci",
+          "employer": "VALEO AUTOKLIMATIZACE k.s.",
+          "orgType": "private",
+          "region": "Hlavní město Praha",
+          "salaryMin": 95000,
+          "salaryMax": null,
+          "posted": "2026-05-26",
+          "skills": []
+        },
+        {
+          "title": "Specialisté v testování softwaru a příbuzní pracovníci (M/Ž)",
+          "occupation": "Specialisté v oblasti testování softwaru a příbuzní pracovníci",
+          "employer": "SAP Services s.r.o.",
+          "orgType": "private",
+          "region": "Hlavní město Praha",
+          "salaryMin": 65000,
+          "salaryMax": null,
+          "posted": "2026-06-18",
+          "skills": []
+        },
+        {
+          "title": "Specialisté v oblasti testování softwaru a příbuzní pracovníci",
+          "occupation": "Specialisté v oblasti testování softwaru a příbuzní pracovníci",
+          "employer": "Rockwell Automation s.r.o.",
+          "orgType": "private",
+          "region": "Hlavní město Praha",
+          "salaryMin": 115000,
+          "salaryMax": null,
+          "posted": "2026-06-26",
+          "skills": []
+        },
+        {
+          "title": "Specialisté v oblasti testování softwaru a příbuzní pracovníci",
+          "occupation": "Specialisté v oblasti testování softwaru a příbuzní pracovníci",
+          "employer": "MSD Czech Republic s.r.o.",
+          "orgType": "private",
+          "region": "Hlavní město Praha",
+          "salaryMin": 105000,
+          "salaryMax": null,
+          "posted": "2026-06-29",
+          "skills": []
+        },
+        {
+          "title": "Technici provozu informačních a komunikačních technologií, technici programátoři  (M/Ž)",
+          "occupation": "Technici provozu informačních a komunikačních technologií, technici programátoři",
+          "employer": "DHL Information Services (Europe) s.r.o.",
+          "orgType": "private",
+          "region": "Hlavní město Praha",
+          "salaryMin": 89800,
+          "salaryMax": null,
+          "posted": "2026-05-14",
+          "skills": []
+        },
+        {
+          "title": "Technici provozu informačních a komunikačních technologií, technici programátoři",
+          "occupation": "Technici provozu informačních a komunikačních technologií, technici programátoři",
+          "employer": "Twisto payments a.s.",
+          "orgType": "private",
+          "region": "Hlavní město Praha",
+          "salaryMin": 90000,
+          "salaryMax": null,
+          "posted": "2026-06-10",
+          "skills": []
+        }
+      ]
+    },
+    {
+      "family": "data_ai",
+      "label": "Data & AI",
+      "items": [
+        {
+          "title": "Advanced Cybersecurity Operations Engineer",
+          "occupation": "Specialisté v oblasti bezpečnosti dat a příbuzní pracovníci",
+          "employer": "Aeven Czech Republic s.r.o.",
+          "orgType": "private",
+          "region": "Jihomoravský kraj",
+          "salaryMin": 80000,
+          "salaryMax": 100000,
+          "posted": "2025-12-05",
+          "skills": []
+        },
+        {
+          "title": "Training and Awareness Specialist (M/Ž)",
+          "occupation": "Specialisté v oblasti bezpečnosti dat a příbuzní pracovníci",
+          "employer": "Mercedes-Benz Česká republika s.r.o.",
+          "orgType": "private",
+          "region": "Hlavní město Praha",
+          "salaryMin": 73823,
+          "salaryMax": null,
+          "posted": "2026-04-15",
+          "skills": []
+        },
+        {
+          "title": "Specialisté v oblasti bezpečnosti dat a příbuzní pracovníci",
+          "occupation": "Specialisté v oblasti bezpečnosti dat a příbuzní pracovníci",
+          "employer": "Ernst & Young, s.r.o.",
+          "orgType": "private",
+          "region": "Hlavní město Praha",
+          "salaryMin": 45000,
+          "salaryMax": null,
+          "posted": "2026-03-18",
+          "skills": []
+        },
+        {
+          "title": "Specialisté v oblasti bezpečnosti dat a příbuzní pracovníci",
+          "occupation": "Specialisté v oblasti bezpečnosti dat a příbuzní pracovníci",
+          "employer": "Asahi CE & Europe Services s.r.o.",
+          "orgType": "private",
+          "region": "Hlavní město Praha",
+          "salaryMin": 85000,
+          "salaryMax": null,
+          "posted": "2026-04-14",
+          "skills": []
+        },
+        {
+          "title": "Informatik / IT specialista ( m/ž )",
+          "occupation": "Specialisté v oblasti databází a počítačových sítí",
+          "employer": "Střední průmyslová škola Jihlava",
+          "orgType": "private",
+          "region": "Kraj Vysočina",
+          "salaryMin": 35840,
+          "salaryMax": 42050,
+          "posted": "2026-03-17",
+          "skills": []
+        },
+        {
+          "title": "data engineer ETRM-senior",
+          "occupation": "Specialisté v oblasti databází a počítačových sítí",
+          "employer": "ČEZ, a. s.",
+          "orgType": "private",
+          "region": "Hlavní město Praha",
+          "salaryMin": 90000,
+          "salaryMax": 130000,
+          "posted": "2026-06-02",
+          "skills": []
+        }
+      ]
+    },
+    {
+      "family": "healthcare_clinical",
+      "label": "Healthcare & Clinical",
+      "items": [
+        {
+          "title": "Farmaceutický asistent",
+          "occupation": "Farmaceuti bez specializace",
+          "employer": "ČESKÁ LÉKÁRNA HOLDING, a.s.",
+          "orgType": "private",
+          "region": null,
+          "salaryMin": 38000,
+          "salaryMax": null,
+          "posted": "2025-05-28",
+          "skills": []
+        },
+        {
+          "title": "Farmaceutický asistent (m+ž)",
+          "occupation": "Farmaceuti se specializací pro veřejné lékárenství",
+          "employer": "BENU Česká republika s.r.o.",
+          "orgType": "private",
+          "region": "Středočeský kraj",
+          "salaryMin": 41000,
+          "salaryMax": null,
+          "posted": "2026-02-20",
+          "skills": []
+        },
+        {
+          "title": "lékárník / farmaceut",
+          "occupation": "Farmaceuti se specializací pro nemocniční lékárenství",
+          "employer": "Nemocnice Prachatice, a.s.",
+          "orgType": "private",
+          "region": "Jihočeský kraj",
+          "salaryMin": 52000,
+          "salaryMax": 82400,
+          "posted": "2026-03-09",
+          "skills": []
+        },
+        {
+          "title": "Farmaceut/lékárník (m/ž)",
+          "occupation": "Farmaceuti bez specializace",
+          "employer": "Lékárna Zelená hvězda s.r.o.",
+          "orgType": "private",
+          "region": "Karlovarský kraj",
+          "salaryMin": 60000,
+          "salaryMax": null,
+          "posted": "2026-06-08",
+          "skills": []
+        },
+        {
+          "title": "Nutriční terapeut/terapeutka",
+          "occupation": "Specialisté v oblasti dietetiky a výživy",
+          "employer": "Psychiatrická léčebna Šternberk",
+          "orgType": "private",
+          "region": "Olomoucký kraj",
+          "salaryMin": 35840,
+          "salaryMax": null,
+          "posted": "2026-06-05",
+          "skills": []
+        },
+        {
+          "title": "Výživový specialista /ka",
+          "occupation": "Specialisté v oblasti dietetiky a výživy",
+          "employer": "Cesta zdraví JM s.r.o.",
+          "orgType": "private",
+          "region": "Ústecký kraj",
+          "salaryMin": 25000,
+          "salaryMax": 40000,
+          "posted": "2026-06-11",
+          "skills": []
+        }
+      ]
+    },
+    {
+      "family": "life_sciences_research",
+      "label": "Life Sciences & Research",
+      "items": [
+        {
+          "title": "bezpilotní systémy, GIS, PR, NATURA 2000 (m/ž)",
+          "occupation": "Specialisté v oblasti ochrany životního prostředí (kromě průmyslové ekologie)",
+          "employer": "Jihočeský kraj",
+          "orgType": "private",
+          "region": "Jihočeský kraj",
+          "salaryMin": 35840,
+          "salaryMax": 42050,
+          "posted": "2026-07-02",
+          "skills": []
+        },
+        {
+          "title": "Geofyzici (M/Ž)",
+          "occupation": "Geofyzici",
+          "employer": "Seismik s.r.o.",
+          "orgType": "private",
+          "region": "Hlavní město Praha",
+          "salaryMin": 60000,
+          "salaryMax": 62000,
+          "posted": "2026-05-25",
+          "skills": []
+        },
+        {
+          "title": "Geolog/geoložka",
+          "occupation": "Geologové",
+          "employer": "Statutární město Děčín",
+          "orgType": "private",
+          "region": "Ústecký kraj",
+          "salaryMin": 35800,
+          "salaryMax": null,
+          "posted": "2026-06-26",
+          "skills": []
+        },
+        {
+          "title": "Laborant/ka do laboratoře trichinel",
+          "occupation": "Specialisté v laboratorních metodách",
+          "employer": "Státní veterinární ústav Praha",
+          "orgType": "private",
+          "region": "Středočeský kraj",
+          "salaryMin": 28000,
+          "salaryMax": 32000,
+          "posted": "2026-03-02",
+          "skills": []
+        },
+        {
+          "title": "Specialisté v laboratorních metodách (M/Ž)",
+          "occupation": "Specialisté v laboratorních metodách",
+          "employer": "BioDevice Systems s.r.o.",
+          "orgType": "private",
+          "region": "Hlavní město Praha",
+          "salaryMin": 29400,
+          "salaryMax": null,
+          "posted": "2026-03-04",
+          "skills": []
+        },
+        {
+          "title": "Vysoce kvalifikovaný vědecký výzkumný pracovník v oblasti Biologie",
+          "occupation": "Biologové",
+          "employer": "Masarykova univerzita",
+          "orgType": "private",
+          "region": "Jihomoravský kraj",
+          "salaryMin": 118000,
+          "salaryMax": null,
+          "posted": "2026-06-24",
+          "skills": []
+        }
+      ]
+    },
+    {
+      "family": "skilled_trades",
+      "label": "Skilled Trades",
+      "items": [
+        {
+          "title": "Ostatní pracovníci povrchového čištění budov",
+          "occupation": "Ostatní pracovníci povrchového čištění budov",
+          "employer": "ZENOVA Facility s.r.o.",
+          "orgType": "private",
+          "region": null,
+          "salaryMin": 27330,
+          "salaryMax": null,
+          "posted": "2026-03-30",
+          "skills": []
+        },
+        {
+          "title": "Ostatní pracovníci povrchového čištění budov",
+          "occupation": "Ostatní pracovníci povrchového čištění budov",
+          "employer": "STAVINVEST GLOBAL s.r.o.",
+          "orgType": "private",
+          "region": null,
+          "salaryMin": 27500,
+          "salaryMax": null,
+          "posted": "2026-04-13",
+          "skills": []
+        },
+        {
+          "title": "Ostatní pracovníci povrchového čištění budov",
+          "occupation": "Ostatní pracovníci povrchového čištění budov",
+          "employer": "BOBONYČ s.r.o.",
+          "orgType": "private",
+          "region": "Hlavní město Praha",
+          "salaryMin": 27400,
+          "salaryMax": null,
+          "posted": "2026-05-20",
+          "skills": []
+        },
+        {
+          "title": "Ostatní pracovníci povrchového čištění budov",
+          "occupation": "Ostatní pracovníci povrchového čištění budov",
+          "employer": "BOBONYČ s.r.o.",
+          "orgType": "private",
+          "region": null,
+          "salaryMin": 27500,
+          "salaryMax": null,
+          "posted": "2026-06-22",
+          "skills": []
+        },
+        {
+          "title": "Malíři interiérů",
+          "occupation": "Malíři interiérů",
+          "employer": "STR Design Company s.r.o.",
+          "orgType": "private",
+          "region": "Hlavní město Praha",
+          "salaryMin": 27400,
+          "salaryMax": null,
+          "posted": "2026-06-02",
+          "skills": []
+        },
+        {
+          "title": "Montážník - malíř, tapetář",
+          "occupation": "Malíři interiérů",
+          "employer": "RD Rýmařov s. r. o.",
+          "orgType": "private",
+          "region": "Moravskoslezský kraj",
+          "salaryMin": 35000,
+          "salaryMax": 50000,
+          "posted": "2026-06-17",
+          "skills": []
+        }
+      ]
+    },
+    {
+      "family": "operations_logistics",
+      "label": "Operations & Logistics",
+      "items": [
+        {
+          "title": "Montážní dělníci výrobků a zařízení (M/Ž)",
+          "occupation": "Montážní dělníci výrobků a zařízení",
+          "employer": "PIKATRON CZ s.r.o.",
+          "orgType": "private",
+          "region": "Jihočeský kraj",
+          "salaryMin": 26000,
+          "salaryMax": null,
+          "posted": "2026-04-07",
+          "skills": []
+        },
+        {
+          "title": "Montážní dělníci výrobků a zařízení",
+          "occupation": "Montážní dělníci výrobků a zařízení",
+          "employer": "Dominik Svak",
+          "orgType": "private",
+          "region": "Moravskoslezský kraj",
+          "salaryMin": 32000,
+          "salaryMax": 40000,
+          "posted": "2026-05-21",
+          "skills": []
+        },
+        {
+          "title": "dělník/dělnice na spodkové dílně",
+          "occupation": "Obsluha strojů na výrobu obuvi",
+          "employer": "KOVYST, spol. s r.o.",
+          "orgType": "private",
+          "region": "Zlínský kraj",
+          "salaryMin": 25000,
+          "salaryMax": 32000,
+          "posted": "2026-03-03",
+          "skills": []
+        },
+        {
+          "title": "Dělník ve výrobě obuvi",
+          "occupation": "Obsluha strojů na výrobu obuvi",
+          "employer": "ARIENCO s.r.o.",
+          "orgType": "private",
+          "region": "Ústecký kraj",
+          "salaryMin": 22400,
+          "salaryMax": null,
+          "posted": "2026-04-23",
+          "skills": []
+        },
+        {
+          "title": "Pracovník/nice ve výrobě obuvi - šička",
+          "occupation": "Obsluha strojů na výrobu obuvi",
+          "employer": "FARE, spol. s r.o.",
+          "orgType": "private",
+          "region": "Zlínský kraj",
+          "salaryMin": 23000,
+          "salaryMax": 28000,
+          "posted": "2026-05-13",
+          "skills": []
+        },
+        {
+          "title": "Obsluha/operátor svařovacího robota (m/ž)",
+          "occupation": "Ostatní obsluha stacionárních strojů a zařízení",
+          "employer": "Proventia Czech s.r.o.",
+          "orgType": "private",
+          "region": "Jihomoravský kraj",
+          "salaryMin": 35000,
+          "salaryMax": null,
+          "posted": "2026-05-27",
+          "skills": []
+        }
+      ]
+    },
+    {
+      "family": "frontline_service",
+      "label": "Frontline Service",
+      "items": [
+        {
+          "title": "Ranní kuchař/ka pro studenou kuchyni",
+          "occupation": "Kuchaři (kromě šéfkuchařů)",
+          "employer": "THERMAL-F, a.s.",
+          "orgType": "private",
+          "region": "Karlovarský kraj",
+          "salaryMin": 29400,
+          "salaryMax": 33100,
+          "posted": "2026-04-14",
+          "skills": []
+        },
+        {
+          "title": "POMOCNÝ KUCHAŘ (M/Ž)",
+          "occupation": "Pomocní kuchaři",
+          "employer": "Huang rui s.r.o.",
+          "orgType": "private",
+          "region": "Kraj Vysočina",
+          "salaryMin": 22400,
+          "salaryMax": null,
+          "posted": "2026-06-11",
+          "skills": []
+        },
+        {
+          "title": "Pomocný/á kuchař/ ka studená kuchyně; teplá kuchyně",
+          "occupation": "Pomocní kuchaři",
+          "employer": "Bohemia - lázně a. s.",
+          "orgType": "private",
+          "region": "Karlovarský kraj",
+          "salaryMin": 23500,
+          "salaryMax": null,
+          "posted": "2026-05-06",
+          "skills": []
+        },
+        {
+          "title": "Pomocní kuchaři, mytí nádobí, úklid",
+          "occupation": "Pomocní kuchaři",
+          "employer": "Olympia Delikatesy s.r.o.",
+          "orgType": "private",
+          "region": "Hlavní město Praha",
+          "salaryMin": 25000,
+          "salaryMax": 33000,
+          "posted": "2026-06-25",
+          "skills": []
+        },
+        {
+          "title": "Ostatní uklízeči a pomocníci",
+          "occupation": "Ostatní uklízeči a pomocníci",
+          "employer": "ANDTRADSE spol. s r.o.",
+          "orgType": "private",
+          "region": null,
+          "salaryMin": 22400,
+          "salaryMax": null,
+          "posted": "2026-07-03",
+          "skills": []
+        },
+        {
+          "title": "Úklid (muži, ženy, vyhrazeno pro OZP)",
+          "occupation": "Ostatní uklízeči a pomocníci",
+          "employer": "SAVETI Facility Management s.r.o.",
+          "orgType": "private",
+          "region": "Moravskoslezský kraj",
+          "salaryMin": 8400,
+          "salaryMax": null,
+          "posted": "2026-03-06",
+          "skills": []
+        }
+      ]
+    },
+    {
+      "family": "sales_marketing",
+      "label": "Sales & Marketing",
+      "items": [
+        {
+          "title": "Obchodní reprezentant/ka - člověk, kterého baví OBCHOD a inspiruje STROJÍRENSTVÍ",
+          "occupation": "Specialisté v oblasti prodeje a nákupu strojů, přístrojů a zařízení (kromě informačních a komunikačních technologií)",
+          "employer": "TGS nástroje-stroje-technologické služby spol. s r.o.",
+          "orgType": "private",
+          "region": null,
+          "salaryMin": 40000,
+          "salaryMax": 80000,
+          "posted": "2026-05-29",
+          "skills": []
+        },
+        {
+          "title": "Specialisté v oblasti prodeje a nákupu ostatních produktů (kromě informačních a komunikačních technologií)",
+          "occupation": "Specialisté v oblasti prodeje a nákupu ostatních produktů (kromě informačních a komunikačních technologií)",
+          "employer": "Akzo Nobel Coatings CZ, a.s.",
+          "orgType": "private",
+          "region": "Hlavní město Praha",
+          "salaryMin": 75000,
+          "salaryMax": null,
+          "posted": "2026-06-03",
+          "skills": []
+        },
+        {
+          "title": "Projektový koordinátor / Projektová koordinátorka - Retail Private Label",
+          "occupation": "Specialisté v oblasti prodeje a nákupu potravinářských a chemických produktů",
+          "employer": "Hügli Food s.r.o.",
+          "orgType": "private",
+          "region": "Středočeský kraj",
+          "salaryMin": 40000,
+          "salaryMax": null,
+          "posted": "2026-06-19",
+          "skills": []
+        },
+        {
+          "title": "Referent/ka nákupu a zákaznického prodeje - OOPP a železářský sortiment",
+          "occupation": "Specialisté v oblasti prodeje a nákupu ostatních produktů (kromě informačních a komunikačních technologií)",
+          "employer": "ZJP, s.r.o.",
+          "orgType": "private",
+          "region": "Olomoucký kraj",
+          "salaryMin": 33000,
+          "salaryMax": 38000,
+          "posted": "2026-07-02",
+          "skills": []
+        },
+        {
+          "title": "Ostatní řídící pracovníci v oblasti výzkumu a vývoje",
+          "occupation": "Ostatní řídící pracovníci v oblasti výzkumu a vývoje",
+          "employer": "VALEO AUTOKLIMATIZACE k.s.",
+          "orgType": "private",
+          "region": "Hlavní město Praha",
+          "salaryMin": 90000,
+          "salaryMax": null,
+          "posted": "2026-03-20",
+          "skills": []
+        },
+        {
+          "title": "2.04.05 - kurátor sbírkových a mobiliárních fondů / VEDOUCÍ restaurátorských dílen a centrálního depozitáře",
+          "occupation": "Ostatní řídící pracovníci v oblasti výzkumu a vývoje",
+          "employer": "Národní památkový ústav",
+          "orgType": "private",
+          "region": "Středočeský kraj",
+          "salaryMin": 29090,
+          "salaryMax": 46000,
+          "posted": "2026-04-22",
+          "skills": []
+        }
+      ]
+    },
+    {
+      "family": "finance_accounting",
+      "label": "Finance & Accounting",
+      "items": [
+        {
+          "title": "Odborní pracovník v oblasti financí",
+          "occupation": "Odborní pracovníci v oblasti peněžnictví",
+          "employer": "Mancala Gaming s.r.o.",
+          "orgType": "private",
+          "region": "Hlavní město Praha",
+          "salaryMin": 45000,
+          "salaryMax": null,
+          "posted": "2026-04-30",
+          "skills": []
+        },
+        {
+          "title": "Bankovní poradce/kyně",
+          "occupation": "Přepážkoví konzultanti v peněžnictví",
+          "employer": "MONETA Money Bank, a.s.",
+          "orgType": "private",
+          "region": "Olomoucký kraj",
+          "salaryMin": 33000,
+          "salaryMax": 50000,
+          "posted": "2026-06-03",
+          "skills": []
+        },
+        {
+          "title": "BANKOVNÍ PORADCE A POJŠŤOVACÍ EXPERT PRODUKTŮ ČSOB",
+          "occupation": "Odborní pracovníci v oblasti peněžnictví",
+          "employer": "Česká pošta, s.p.",
+          "orgType": "private",
+          "region": "Plzeňský kraj",
+          "salaryMin": 30000,
+          "salaryMax": 50000,
+          "posted": "2026-02-04",
+          "skills": []
+        },
+        {
+          "title": "Bankéř/ka pobočky Partners Banky Kladno centrum",
+          "occupation": "Odborní poradci v peněžnictví",
+          "employer": "PM Kladno Ketnerová s.r.o.",
+          "orgType": "private",
+          "region": "Středočeský kraj",
+          "salaryMin": 35000,
+          "salaryMax": 70000,
+          "posted": "2026-04-09",
+          "skills": []
+        },
+        {
+          "title": "Ostatní řídící pracovníci v oblasti lidských zdrojů",
+          "occupation": "Ostatní řídící pracovníci v oblasti lidských zdrojů",
+          "employer": "Novartis s.r.o.",
+          "orgType": "private",
+          "region": "Hlavní město Praha",
+          "salaryMin": 75000,
+          "salaryMax": null,
+          "posted": "2026-02-25",
+          "skills": []
+        },
+        {
+          "title": "Ostatní řídící pracovníci v oblasti lidských zdrojů",
+          "occupation": "Ostatní řídící pracovníci v oblasti lidských zdrojů",
+          "employer": "Sandoz s.r.o.",
+          "orgType": "private",
+          "region": "Hlavní město Praha",
+          "salaryMin": 35000,
+          "salaryMax": null,
+          "posted": "2026-03-03",
+          "skills": []
+        }
+      ]
+    },
+    {
+      "family": "legal_compliance",
+      "label": "Legal & Compliance",
+      "items": [
+        {
+          "title": "Zapisovatel/ka",
+          "occupation": "Ostatní pracovníci příbuzní soudcům",
+          "employer": "Okresní soud v Benešově",
+          "orgType": "private",
+          "region": "Středočeský kraj",
+          "salaryMin": 31360,
+          "salaryMax": null,
+          "posted": "2026-06-30",
+          "skills": []
+        },
+        {
+          "title": "Vyšší soudní úředník (M/Ž)",
+          "occupation": "Vyšší soudní úředníci",
+          "employer": "Okresní soud v Pelhřimově",
+          "orgType": "public",
+          "region": "Kraj Vysočina",
+          "salaryMin": 35840,
+          "salaryMax": 45260,
+          "posted": "2026-05-04",
+          "skills": []
+        },
+        {
+          "title": "Asistent/asistentka soudce",
+          "occupation": "Asistenti soudců",
+          "employer": "Okresní soud v Rokycanech",
+          "orgType": "private",
+          "region": "Plzeňský kraj",
+          "salaryMin": 33590,
+          "salaryMax": 48800,
+          "posted": "2026-05-12",
+          "skills": []
+        },
+        {
+          "title": "Asistent soudce/asistentka soudce",
+          "occupation": "Asistenti soudců",
+          "employer": "OBVODNÍ SOUD PRO PRAHU 3",
+          "orgType": "private",
+          "region": "Hlavní město Praha",
+          "salaryMin": 33590,
+          "salaryMax": 48800,
+          "posted": "2026-07-01",
+          "skills": []
+        },
+        {
+          "title": "Technik/čka bezpečnostních systémů - řidič/ka",
+          "occupation": "Odborní bezpečnostní pracovníci bezpečnostních a detektivních agentur",
+          "employer": "Iron Shield s. r. o.",
+          "orgType": "private",
+          "region": "Karlovarský kraj",
+          "salaryMin": 37000,
+          "salaryMax": null,
+          "posted": "2026-05-21",
+          "skills": []
+        },
+        {
+          "title": "Vykonavatel soudního exekutora pro oblast středních, západních a jižních Čech",
+          "occupation": "Soudní vykonavatelé",
+          "employer": "JUDr. Ondřej Mareš",
+          "orgType": "private",
+          "region": null,
+          "salaryMin": 35000,
+          "salaryMax": 65000,
+          "posted": "2026-06-23",
+          "skills": []
+        }
+      ]
+    },
+    {
+      "family": "hr_people",
+      "label": "HR & People",
+      "items": [
+        {
+          "title": "Specialisté v oblasti personálního řízení",
+          "occupation": "Specialisté v oblasti personálního řízení",
+          "employer": "MICRONIX,spol. s r.o.",
+          "orgType": "private",
+          "region": "Hlavní město Praha",
+          "salaryMin": 74000,
+          "salaryMax": null,
+          "posted": "2026-06-05",
+          "skills": []
+        },
+        {
+          "title": "Specialisté v oblasti personálního řízení",
+          "occupation": "Specialisté v oblasti personálního řízení",
+          "employer": "MICRONIX,spol. s r.o.",
+          "orgType": "private",
+          "region": "Hlavní město Praha",
+          "salaryMin": 74000,
+          "salaryMax": null,
+          "posted": "2026-06-12",
+          "skills": []
+        },
+        {
+          "title": "Specialisté v oblasti personálního řízení (M/Ž)",
+          "occupation": "Specialisté v oblasti personálního řízení",
+          "employer": "Amazon Czech Republic Services s.r.o.",
+          "orgType": "private",
+          "region": "Hlavní město Praha",
+          "salaryMin": 65000,
+          "salaryMax": null,
+          "posted": "2026-07-01",
+          "skills": []
+        },
+        {
+          "title": "Vedoucí mzdový - mzdová účetní, Personalista - personalistka",
+          "occupation": "Specialisté v oblasti personálního řízení",
+          "employer": "Sdružení ozdravoven a léčeben okresu Trutnov",
+          "orgType": "private",
+          "region": "Královéhradecký kraj",
+          "salaryMin": 50000,
+          "salaryMax": 60000,
+          "posted": "2026-03-16",
+          "skills": []
+        }
+      ]
+    },
+    {
+      "family": "education_academic",
+      "label": "Education & Academia",
+      "items": [
+        {
+          "title": "výzkumný pracovník",
+          "occupation": "Výzkumní a vývojoví pracovníci v oboru sociologie, antropologie a v příbuzných oborech",
+          "employer": "Open-IT cz, s.r.o.",
+          "orgType": "private",
+          "region": "Pardubický kraj",
+          "salaryMin": 24900,
+          "salaryMax": null,
+          "posted": "2026-05-27",
+          "skills": []
+        },
+        {
+          "title": "Výzkumný a vývojový pracovník / výzkumná a vývojová pracovnice",
+          "occupation": "Geografové",
+          "employer": "Ministerstvo obrany",
+          "orgType": "private",
+          "region": "Královéhradecký kraj",
+          "salaryMin": 36000,
+          "salaryMax": 52000,
+          "posted": "2026-06-04",
+          "skills": []
+        },
+        {
+          "title": "Učitel/ka všeobecně vzdělávacích předmětů - obor matematika",
+          "occupation": "Učitelé na středních školách (kromě odborných předmětů), konzervatořích a na 2. stupni základních škol",
+          "employer": "Obchodní akademie, Střední pedagogická škola a Jazyková škola s právem státní jazykové zkoušky, Beroun, U Stadionu 486",
+          "orgType": "private",
+          "region": "Středočeský kraj",
+          "salaryMin": 39000,
+          "salaryMax": 50000,
+          "posted": "2026-03-04",
+          "skills": []
+        },
+        {
+          "title": "Středoškolský profesor anglického jazyka - rodilý mluvčí",
+          "occupation": "Učitelé na středních školách (kromě odborných předmětů), konzervatořích a na 2. stupni základních škol",
+          "employer": "Klasické gymnázium Modřany a základní škola, s.r.o.",
+          "orgType": "private",
+          "region": "Hlavní město Praha",
+          "salaryMin": 30000,
+          "salaryMax": null,
+          "posted": "2026-05-13",
+          "skills": []
+        },
+        {
+          "title": "Učitelé na středních školách (kromě odborných předmětů), konzervatořích a na 2. stupni základních škol (m/ž)",
+          "occupation": "Učitelé na středních školách (kromě odborných předmětů), konzervatořích a na 2. stupni základních škol",
+          "employer": "Gymnázium, Jihlava, Jana Masaryka 1",
+          "orgType": "private",
+          "region": "Kraj Vysočina",
+          "salaryMin": 37580,
+          "salaryMax": 48990,
+          "posted": "2026-05-19",
+          "skills": []
+        },
+        {
+          "title": "Odborní asistenti na vysokých školách",
+          "occupation": "Odborní asistenti na vysokých školách",
+          "employer": "Moravská vysoká škola Olomouc, o.p.s.",
+          "orgType": "private",
+          "region": "Olomoucký kraj",
+          "salaryMin": 45000,
+          "salaryMax": null,
+          "posted": "2026-06-09",
+          "skills": []
+        }
+      ]
+    },
+    {
+      "family": "creative_design",
+      "label": "Creative & Design",
+      "items": [
+        {
+          "title": "Geodet/ka",
+          "occupation": "Kartografové a zeměměřiči",
+          "employer": "GeoSM s.r.o.",
+          "orgType": "private",
+          "region": "Středočeský kraj",
+          "salaryMin": 40000,
+          "salaryMax": 60000,
+          "posted": "2026-06-26",
+          "skills": []
+        },
+        {
+          "title": "Geodet",
+          "occupation": "Kartografové a zeměměřiči",
+          "employer": "Katastrální úřad pro Liberecký kraj",
+          "orgType": "private",
+          "region": "Liberecký kraj",
+          "salaryMin": 31360,
+          "salaryMax": 36210,
+          "posted": "2026-06-29",
+          "skills": []
+        },
+        {
+          "title": "geodet, zeměměřič",
+          "occupation": "Kartografové a zeměměřiči",
+          "employer": "Angermeier Engineers, s.r.o.",
+          "orgType": "private",
+          "region": "Hlavní město Praha",
+          "salaryMin": 40000,
+          "salaryMax": 90000,
+          "posted": "2026-05-14",
+          "skills": []
+        },
+        {
+          "title": "Geodet/zeměměřič - m/ž",
+          "occupation": "Kartografové a zeměměřiči",
+          "employer": "KVADRANT, spol. s r.o.",
+          "orgType": "private",
+          "region": "Jihomoravský kraj",
+          "salaryMin": 35000,
+          "salaryMax": null,
+          "posted": "2026-05-25",
+          "skills": []
+        },
+        {
+          "title": "Artista (m/ž)",
+          "occupation": "Výkonní umělci a příbuzní specialisté jinde neuvedení",
+          "employer": "Bylandia s.r.o.",
+          "orgType": "private",
+          "region": "Středočeský kraj",
+          "salaryMin": 43000,
+          "salaryMax": null,
+          "posted": "2026-04-08",
+          "skills": []
+        },
+        {
+          "title": "Projektant/architekt",
+          "occupation": "Stavební architekti",
+          "employer": "BLOCKhome-CZ s.r.o.",
+          "orgType": "private",
+          "region": "Ústecký kraj",
+          "salaryMin": 25000,
+          "salaryMax": 60000,
+          "posted": "2026-03-06",
+          "skills": []
+        }
+      ]
+    },
+    {
+      "family": "customer_support",
+      "label": "Customer Support",
+      "items": [
+        {
+          "title": "O2C Credit Collections Specialist",
+          "occupation": "Inkasisté pohledávek a příbuzní pracovníci",
+          "employer": "EH Business Services s.r.o.",
+          "orgType": "private",
+          "region": "Hlavní město Praha",
+          "salaryMin": 50000,
+          "salaryMax": null,
+          "posted": "2026-06-22",
+          "skills": []
+        },
+        {
+          "title": "Inkasisté pohledávek a příbuzní pracovníci",
+          "occupation": "Inkasisté pohledávek a příbuzní pracovníci",
+          "employer": "M.B.A. Finance s.r.o.",
+          "orgType": "private",
+          "region": "Olomoucký kraj",
+          "salaryMin": 24000,
+          "salaryMax": 30000,
+          "posted": "2026-04-13",
+          "skills": []
+        },
+        {
+          "title": "REFERENT/KA ODDĚLENÍ CESTOVNÍHO RUCHU",
+          "occupation": "Pracovníci informačních služeb jinde neuvedení",
+          "employer": "STATUTÁRNÍ MĚSTO LIBEREC",
+          "orgType": "public",
+          "region": "Liberecký kraj",
+          "salaryMin": 31360,
+          "salaryMax": 36210,
+          "posted": "2026-06-18",
+          "skills": []
+        },
+        {
+          "title": "Pracovníci informačních služeb jinde neuvedení",
+          "occupation": "Pracovníci informačních služeb jinde neuvedení",
+          "employer": "Authentica, s.r.o.",
+          "orgType": "private",
+          "region": "Jihomoravský kraj",
+          "salaryMin": 22400,
+          "salaryMax": null,
+          "posted": "2026-07-03",
+          "skills": []
+        },
+        {
+          "title": "Dispečink-incomingová cestovní kancelář",
+          "occupation": "Pracovníci cestovního ruchu (kromě průvodců)",
+          "employer": "GRAY L. CZECH REPUBLIC s.r.o.",
+          "orgType": "private",
+          "region": "Hlavní město Praha",
+          "salaryMin": 32000,
+          "salaryMax": null,
+          "posted": "2026-04-15",
+          "skills": []
+        },
+        {
+          "title": "dispečink-incomingová cestovní kancelář",
+          "occupation": "Úředníci cestovních kanceláří a agentur",
+          "employer": "GRAY L. CZECH REPUBLIC s.r.o.",
+          "orgType": "private",
+          "region": "Hlavní město Praha",
+          "salaryMin": 32000,
+          "salaryMax": null,
+          "posted": "2026-06-01",
+          "skills": []
+        }
+      ]
+    },
+    {
+      "family": "general_professional",
+      "label": "General Professional",
+      "items": [
+        {
+          "title": "Referent/ka správy majetku",
+          "occupation": "Pracovníci veřejné správy vydávající různá povolení",
+          "employer": "Město Klecany",
+          "orgType": "private",
+          "region": "Středočeský kraj",
+          "salaryMin": 40000,
+          "salaryMax": 50000,
+          "posted": "2026-04-27",
+          "skills": []
+        },
+        {
+          "title": "Úředník ve věcech stavebního řádu m/ž",
+          "occupation": "Pracovníci veřejné správy vydávající různá povolení",
+          "employer": "Město Nový Bor",
+          "orgType": "private",
+          "region": "Liberecký kraj",
+          "salaryMin": 35840,
+          "salaryMax": 42050,
+          "posted": "2026-06-18",
+          "skills": []
+        },
+        {
+          "title": "Samostatný referent/ka Městského úřadu Hostomice, stav. úřad",
+          "occupation": "Pracovníci veřejné správy vydávající různá povolení",
+          "employer": "Město Hostomice",
+          "orgType": "private",
+          "region": "Středočeský kraj",
+          "salaryMin": 25190,
+          "salaryMax": 38990,
+          "posted": "2026-06-02",
+          "skills": []
+        },
+        {
+          "title": "Zootechnik / Zootechnička",
+          "occupation": "Zootechnici",
+          "employer": "Zemědělské družstvo Sněžné",
+          "orgType": "private",
+          "region": "Kraj Vysočina",
+          "salaryMin": 37000,
+          "salaryMax": null,
+          "posted": "2026-06-29",
+          "skills": []
+        },
+        {
+          "title": "Zootechnik / zootechnička v zemědělské výrobě",
+          "occupation": "Zootechnici",
+          "employer": "ZEMĚDĚLSKÉ DRUŽSTVO ŠTĚDRÝ POTOK",
+          "orgType": "private",
+          "region": "Královéhradecký kraj",
+          "salaryMin": 42000,
+          "salaryMax": null,
+          "posted": "2026-06-04",
+          "skills": []
+        },
+        {
+          "title": "Zástupce/zástupkyně manažera výrobní technologie",
+          "occupation": "Zootechnici",
+          "employer": "MACH DRŮBEŽ a.s.",
+          "orgType": "private",
+          "region": "Pardubický kraj",
+          "salaryMin": 50000,
+          "salaryMax": null,
+          "posted": "2026-06-10",
+          "skills": []
+        }
+      ]
+    }
+  ]
+}

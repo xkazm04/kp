@@ -181,6 +181,9 @@ export default function SparkLanding() {
           <a href="/about" className="hover:text-[#d65a4a]">
             {t("nav.about")}
           </a>
+          <a href="/market" className="hover:text-[#d65a4a]">
+            {t("nav.market")}
+          </a>
           {/* Sign in — the app ships open to all, so this is the single entry
               point. In development it flips the localStorage gate and drops you
               straight into the dashboard; in production it hands off to the real

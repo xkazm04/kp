@@ -1,0 +1,94 @@
+"use client";
+
+/*
+ * Market Pulse host — shared Spark chrome (header, hero, CC BY attribution
+ * footer) around the page body. Fixed Spark art direction (literal hexes, the
+ * docs/DESIGN.md exemption); all copy resolves through the `jobMarket` i18n
+ * namespace. The "Atlas" direction won the prototype round, so the body is the
+ * map-led editorial scroll; the earlier variant switcher has been consolidated
+ * away.
+ */
+import Link from "next/link";
+import { useTranslations } from "next-intl";
+import KandidateMark from "../../_components/KandidateMark";
+import { LandingLangSwitch } from "../LandingLangSwitch";
+import { DISPLAY, HAND } from "../tokens";
+import { DEV_GATE, signInDev } from "@/app/_lib/auth/devAuth";
+import { snapshot, fmtInt, fmtDate } from "./data";
+import MarketPulseAtlas from "./MarketPulseAtlas";
+
+export default function MarketPulseApp() {
+  const t = useTranslations("jobMarket");
+  const onSignIn = () => (DEV_GATE ? signInDev() : window.location.assign("/login"));
+  const coralEmph = (chunks: React.ReactNode) => <span className="text-[#d65a4a]">{chunks}</span>;
+  const asOf = snapshot.meta.vacancies_date ?? snapshot.meta.generated_at.slice(0, 10);
+
+  return (
+    <main className="overflow-x-clip bg-[#fdf8ee] pb-28 text-[#17202a] font-[family-name:var(--font-spark-body)]">
+      {/* ── Topbar ─────────────────────────────────────────────── */}
+      <header className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 pt-6">
+        <Link href="/" className="flex items-center gap-3">
+          <KandidateMark className="h-10 w-10 text-[#d65a4a] [--k-fg:#fdf8ee] [--k-accent:#17202a]" />
+          <span className={`${DISPLAY} text-2xl font-bold`}>
+            Kandi<span className="text-[#d65a4a]">D</span>ate
+          </span>
+        </Link>
+        <nav className="hidden items-center gap-6 text-[15px] font-bold sm:flex">
+          <Link href="/" className="hover:text-[#d65a4a]">
+            {t("nav.home")}
+          </Link>
+          <Link href="/about" className="hover:text-[#d65a4a]">
+            {t("nav.about")}
+          </Link>
+          <LandingLangSwitch />
+          <button
+            type="button"
+            onClick={onSignIn}
+            className="rounded-lg border-[3px] border-[#17202a] bg-[#caa54c] px-4 py-2 shadow-[3px_3px_0_#17202a] transition-all hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0_#17202a]"
+          >
+            {t("nav.signIn")}
+          </button>
+        </nav>
+      </header>
+
+      {/* ── Hero ───────────────────────────────────────────────── */}
+      <section className="mx-auto max-w-3xl px-6 pb-14 pt-20 text-center">
+        <p className={`${HAND} text-xl text-[#526b4f]`}>{t("hero.eyebrow")}</p>
+        <h1 className={`${DISPLAY} mt-2 text-5xl font-extrabold leading-[1.04] sm:text-6xl`}>
+          {t.rich("hero.title", { emph: coralEmph })}
+        </h1>
+        <p className="mx-auto mt-5 max-w-xl text-lg text-[#42606f]">{t("hero.subtitle")}</p>
+        <p className={`${HAND} mt-4 text-sm text-[#526b4f]`}>
+          {t("hero.updated", {
+            date: fmtDate(asOf),
+            n: fmtInt(snapshot.meta.total_vacancies),
+            pct: snapshot.meta.posted_within_90d_pct ?? 0
+          })}
+        </p>
+      </section>
+
+      {/* ── Body (Atlas) ───────────────────────────────────────── */}
+      <MarketPulseAtlas />
+
+      {/* ── Attribution footer ─────────────────────────────────── */}
+      <footer className="mx-auto mt-24 max-w-4xl px-6">
+        <div className="rounded-2xl border-[3px] border-[#17202a] bg-[#dce7d0] px-6 py-6 shadow-[6px_6px_0_#17202a]">
+          <p className={`${HAND} text-lg text-[#526b4f]`}>{t("footer.eyebrow")}</p>
+          <p className="mt-2 text-[15px] leading-relaxed text-[#17202a]">{t("footer.coverage")}</p>
+          <p className="mt-4 text-[13px] font-bold text-[#42606f]">
+            {snapshot.meta.attribution} ·{" "}
+            <a href={snapshot.meta.attribution_url} target="_blank" rel="noreferrer" className="underline hover:text-[#d65a4a]">
+              {t("footer.sourceLink")}
+            </a>
+          </p>
+        </div>
+        <div className="mt-6 flex items-center justify-between">
+          <Link href="/" className="text-[15px] font-bold hover:text-[#d65a4a]">
+            ← {t("nav.home")}
+          </Link>
+          <LandingLangSwitch />
+        </div>
+      </footer>
+    </main>
+  );
+}

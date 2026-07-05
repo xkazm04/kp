@@ -9,6 +9,9 @@ import {
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { ScanAnimationCompact } from "@/app/_components/ScanAnimation";
+import { Select } from "@/app/_components/Select";
+import { TextInput } from "@/app/_components/TextInput";
+import { Checkbox } from "@/app/_components/Checkbox";
 import { useEngineAvailability } from "@/app/features/useEngineAvailability";
 import { LOCALES } from "@/i18n/locales";
 import { AnalyzeColumn } from "./AnalyzeColumn";
@@ -155,11 +158,11 @@ export function AnalyzeForm({ state }: { state: AnalyzeFormState }) {
                   className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-steel"
                   aria-hidden
                 />
-                <input
+                <TextInput
                   aria-label={t("githubAria")}
                   value={inputs.githubProfile}
                   onChange={(event) => setGithubProfile(event.target.value)}
-                  className="focus-ring h-10 w-full rounded-md border border-stone-300 bg-white pl-9 pr-3 text-base text-ink"
+                  className="pl-9 pr-3"
                   placeholder={t("githubPlaceholder")}
                 />
               </div>
@@ -211,26 +214,19 @@ export function AnalyzeForm({ state }: { state: AnalyzeFormState }) {
             international panel without flipping the whole app. */}
         <label className="flex shrink-0 items-center gap-1.5 text-sm font-medium text-steel">
           {t("reportLanguage")}
-          <select
+          <Select
+            ariaLabel={t("reportLanguage")}
             value={inputs.reportLang}
-            onChange={(e) => setReportLang(e.target.value)}
-            className="focus-ring h-9 rounded-md border border-stone-300 bg-white px-2 text-sm uppercase text-ink"
-          >
-            {REPORT_LANGS.map((l) => (
-              <option key={l} value={l}>{l}</option>
-            ))}
-          </select>
+            onChange={setReportLang}
+            size="sm"
+            options={REPORT_LANGS.map((l) => ({ value: l, label: l.toUpperCase() }))}
+          />
         </label>
         {/* b8d711c4 — blind screening: redact identity (name/contact/photo/gendered
             terms/age) from the CV before scoring; the name is re-attached only in
             the result, and the trust ledger notes what was redacted. */}
         <label className="flex shrink-0 items-center gap-1.5 text-sm font-medium text-steel" title={t("blindTitle")}>
-          <input
-            type="checkbox"
-            checked={inputs.blind ?? false}
-            onChange={(e) => setBlind(e.target.checked)}
-            className="focus-ring h-4 w-4 rounded border-stone-300 text-coral"
-          />
+          <Checkbox checked={inputs.blind ?? false} onChange={(e) => setBlind(e.target.checked)} />
           {t("blind")}
         </label>
       </div>

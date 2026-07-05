@@ -3,6 +3,8 @@
 import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Archive, ArchiveRestore, Check, History, Pencil, RotateCcw, X } from "lucide-react";
+import { TextInput } from "@/app/_components/TextInput";
+import { TextArea } from "@/app/_components/TextArea";
 
 type JdRevision = { id: number; title: string; body: string; created_at: string };
 
@@ -171,19 +173,16 @@ export function JdActions({ slug, title, body, archived }: { slug: string; title
         <div className="mt-3 space-y-2 rounded-lg border border-stone-200 bg-paper/40 p-4">
           <label className="block text-sm font-semibold text-steel">
             Title
-            <input
-              value={draftTitle}
-              onChange={(e) => setDraftTitle(e.target.value)}
-              className="focus-ring mt-1 h-10 w-full rounded-md border border-stone-300 bg-white px-3 text-base text-ink"
-            />
+            <TextInput value={draftTitle} onChange={(e) => setDraftTitle(e.target.value)} className="mt-1" />
           </label>
           <label className="block text-sm font-semibold text-steel">
             Body (Markdown)
-            <textarea
+            <TextArea
               value={draftBody}
               onChange={(e) => setDraftBody(e.target.value)}
               rows={14}
-              className="focus-ring mt-1 w-full rounded-md border border-stone-300 bg-white px-3 py-2 font-mono text-sm text-ink"
+              sizeVariant="sm"
+              className="mt-1 font-mono"
             />
           </label>
           <div className="flex items-center gap-2">

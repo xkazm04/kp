@@ -16,6 +16,7 @@ import {
 import { withGeminiRetry } from "@/app/_lib/gemini-retry";
 import { resolveProviderKey } from "@/app/_lib/llm-config";
 import { insertLlmUsage } from "@/app/_lib/db/llm";
+import { trackLlmToLightTrack } from "@/app/_lib/llm-lighttrack";
 
 export const maxDuration = 60;
 
@@ -669,6 +670,7 @@ async function runCodeReview(
     // hard-failed the whole review. Policy mirrors the Python side (llm/base.py):
     // 3 attempts, jittered exponential backoff; permanent errors (auth, 400)
     // still fail fast into the catch below.
+    const geminiStartedAt = Date.now();
     const response = await withGeminiRetry(() =>
       ai.models.generateContent({
         model: GEMINI_MODEL,
@@ -680,7 +682,7 @@ async function runCodeReview(
         },
       })
     );
-    recordGeminiUsage(requestId, response.usageMetadata);
+    recordGeminiUsage(requestId, response.usageMetadata, Date.now() - geminiStartedAt);
     const text = response.text ?? "";
     const review = geminiReviewSchema.safeParse(parseGeminiJson(text));
     if (!review.success) {
@@ -719,20 +721,30 @@ async function runCodeReview(
   }
 }
 
-// Stamp the deep-review Gemini call into the llm_usage ledger — the LLM-cost
-// audit flagged this site as the app's only unmetered Gemini traffic (every
-// Python call meters via monitor.emit_result; this is the one TS-direct call).
-// Written only when the response actually carries usage metadata, and wrapped
-// so ledger I/O can never break the analysis: metering is telemetry, off the
+// Stamp the deep-review Gemini call into BOTH telemetry sinks — the durable
+// llm_usage ledger and LightTrack. The LLM-cost audit flagged this site as the
+// app's only TS-direct Gemini traffic (every Python call meters via
+// monitor.emit_result; this is the one call that never reaches Python), so it is
+// the one place the TS runtime has to mirror what the Python monitor does. Both
+// writes happen only when the response carries usage metadata, and both are
+// wrapped so telemetry I/O can never break the analysis: metering is off the
 // critical path (same contract as ingestLlmUsageLog / gemini.py _meter_success).
 function recordGeminiUsage(
   requestId: string | undefined,
-  usage: { promptTokenCount?: number; candidatesTokenCount?: number; cachedContentTokenCount?: number } | undefined
+  usage: { promptTokenCount?: number; candidatesTokenCount?: number; cachedContentTokenCount?: number } | undefined,
+  latencyMs?: number
 ): void {
   if (!usage) return;
   const inputTokens = typeof usage.promptTokenCount === "number" ? usage.promptTokenCount : null;
   const outputTokens = typeof usage.candidatesTokenCount === "number" ? usage.candidatesTokenCount : null;
   if (inputTokens === null && outputTokens === null) return;
+  const cachedTokens = typeof usage.cachedContentTokenCount === "number" ? usage.cachedContentTokenCount : null;
+  const costUsd = round6(
+    ((inputTokens ?? 0) * GEMINI_MTOK_PRICE_IN_USD + (outputTokens ?? 0) * GEMINI_MTOK_PRICE_OUT_USD) / 1_000_000
+  );
+  // Durable spend ledger — written first, independent of LightTrack below (same
+  // ordering as gemini.py _meter_success: the ledger must persist even when
+  // observability is off, the default deployment).
   try {
     insertLlmUsage({
       useCase: "github_analysis",
@@ -740,16 +752,27 @@ function recordGeminiUsage(
       model: GEMINI_MODEL,
       inputTokens,
       outputTokens,
-      cachedTokens: typeof usage.cachedContentTokenCount === "number" ? usage.cachedContentTokenCount : null,
-      costUsd: round6(
-        ((inputTokens ?? 0) * GEMINI_MTOK_PRICE_IN_USD + (outputTokens ?? 0) * GEMINI_MTOK_PRICE_OUT_USD) / 1_000_000
-      ),
+      cachedTokens,
+      costUsd,
       source: "llm",
       requestId: requestId ?? null,
     });
   } catch {
     // metering must never break the host call
   }
+  // Observability mirror: surface this TS-direct call in LightTrack alongside
+  // every Python-metered call, so the one pane of glass isn't missing it. No-op
+  // unless LIGHTTRACK_URL is set; best-effort and exception-swallowed.
+  trackLlmToLightTrack({
+    provider: "gemini",
+    model: GEMINI_MODEL,
+    useCase: "github_analysis",
+    inputTokens,
+    outputTokens,
+    cachedTokens,
+    costUsd,
+    latencyMs,
+  });
 }
 
 // Six-decimal rounding for cost_usd, matching Python's price_usd (llm/base.py).

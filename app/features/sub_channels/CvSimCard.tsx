@@ -8,7 +8,8 @@ import { AnimatePresence, motion } from "framer-motion";
 import { AlertCircle, ArrowRight, Check, FileText, FlaskConical, Loader2, Upload, X } from "lucide-react";
 import { buildUrl } from "@/app/features/tabs";
 import { useReducedMotion } from "@/app/_lib/useReducedMotion";
-import { BTN_PRIMARY, FIELD } from "@/app/_components/ui/recipes";
+import { BTN_PRIMARY } from "@/app/_components/ui/recipes";
+import { TextInput } from "@/app/_components/TextInput";
 
 // Simulate a real application ARRIVING WITH A CV on this channel — the loop the plain
 // "receive a test application" button can't show. Upload a PDF/DOCX/TXT/MD; the server
@@ -119,8 +120,8 @@ export function CvSimCard({
       </button>
 
       <div className="flex flex-wrap gap-2">
-        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name (optional)" className={`${FIELD} h-9 min-w-0 flex-1`} />
-        <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email (optional)" className={`${FIELD} h-9 min-w-0 flex-1`} />
+        <TextInput value={name} onChange={(e) => setName(e.target.value)} placeholder="Name (optional)" sizeVariant="sm" className="min-w-0 flex-1" />
+        <TextInput value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email (optional)" sizeVariant="sm" className="min-w-0 flex-1" />
       </div>
 
       <div className="flex flex-wrap items-center gap-3">

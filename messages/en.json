@@ -261,12 +261,105 @@
     "en": "English",
     "cs": "Čeština"
   },
+  "jobMarket": {
+    "nav": { "home": "Home", "about": "About", "signIn": "Sign in" },
+    "hero": {
+      "eyebrow": "Open data, read out loud",
+      "title": "The Czech job market, <emph>in the open</emph>.",
+      "subtitle": "Reference salaries, hiring demand across all 14 regions, and the roles rising and fading — built entirely on public labour-market data.",
+      "updated": "{n} live vacancies as of {date} · {pct}% posted in the last 90 days"
+    },
+    "variants": {
+      "atlas": "Atlas",
+      "atlasDesc": "Map-led, read as a story",
+      "board": "Dashboard",
+      "boardDesc": "Everything at a glance"
+    },
+    "stats": {
+      "vacancies": "Open vacancies",
+      "median": "National median",
+      "regions": "Regions",
+      "occupations": "Occupations tracked"
+    },
+    "map": {
+      "title": "Where the jobs are",
+      "metricVolume": "Vacancies",
+      "metricSalary": "Salary",
+      "legendVolume": "by open vacancies",
+      "legendSalary": "by median salary",
+      "topRegions": "Most vacancies",
+      "hintTitle": "Hover a region",
+      "hintBody": "See its open vacancies and median pay.",
+      "vacancies": "Open vacancies",
+      "median": "Median salary",
+      "range": "Middle 50% earn {lo}–{hi}"
+    },
+    "salary": {
+      "eyebrow": "The field guide",
+      "title": "Reference salaries by role",
+      "subtitle": "Economy-wide monthly earnings from the official ISPV wage survey — junior to lead, per role family.",
+      "median": "median {v}",
+      "junior": "Junior",
+      "medior": "Medior",
+      "senior": "Senior",
+      "lead": "Lead"
+    },
+    "demand": {
+      "eyebrow": "What's hiring",
+      "title": "In-demand right now",
+      "subtitle": "Live open vacancies by role family and occupation across the whole country.",
+      "byFamily": "By role family",
+      "byRole": "Top occupations",
+      "openings": "{n} openings",
+      "momentumNew": "baseline"
+    },
+    "orgTypes": {
+      "eyebrow": "Who's hiring",
+      "title": "Pay by employer type",
+      "subtitle": "Median monthly salary across private employers, the public sector and staffing agencies.",
+      "private": "Private sector",
+      "public": "Public sector",
+      "agency": "Staffing agency"
+    },
+    "jd": {
+      "eyebrow": "Real postings",
+      "title": "Job-description references",
+      "subtitle": "Representative live postings per role family — titles, pay and required skills.",
+      "salaryHidden": "Salary undisclosed",
+      "posted": "Posted {date}",
+      "skills": "Skills"
+    },
+    "footer": {
+      "eyebrow": "About this data",
+      "coverage": "Built from live vacancies registered at the Czech Labour Office (Úřad práce ČR) plus the official ISPV wage survey. The vacancy feed skews toward service, trades and operational roles — higher-skill and senior corporate jobs are posted on commercial boards, so their counts read low and Prague's vacancy-median looks modest. Salary bands use economy-wide ISPV earnings, which aren't subject to that bias.",
+      "sourceLink": "MPSV open data"
+    },
+    "families": {
+      "software_engineering": "Software Engineering",
+      "data_ai": "Data & AI",
+      "product_project": "Product & Project",
+      "healthcare_clinical": "Healthcare & Clinical",
+      "life_sciences_research": "Life Sciences & Research",
+      "skilled_trades": "Skilled Trades",
+      "operations_logistics": "Operations & Logistics",
+      "frontline_service": "Frontline Service",
+      "sales_marketing": "Sales & Marketing",
+      "finance_accounting": "Finance & Accounting",
+      "legal_compliance": "Legal & Compliance",
+      "hr_people": "HR & People",
+      "education_academic": "Education & Academia",
+      "creative_design": "Creative & Design",
+      "customer_support": "Customer Support",
+      "general_professional": "General Professional"
+    }
+  },
   "landing": {
     "nav": {
       "how": "How it works",
       "features": "Features",
       "pricing": "Pricing",
       "about": "About",
+      "market": "Market Pulse",
       "signIn": "Sign in"
     },
     "hero": {
@@ -2699,14 +2792,17 @@
   },
   "login": {
     "eyebrow": "kp",
-    "title": "Operator sign-in",
-    "subtitle": "This workspace is protected. Enter the operator password to continue.",
+    "title": "Sign in",
+    "subtitle": "Sign in with your email and password, or the operator password.",
+    "emailLabel": "Email",
+    "emailPlaceholder": "you@company.com",
+    "emailHint": "Leave blank to use the operator password.",
     "passwordLabel": "Password",
     "submit": "Sign in",
     "submitting": "Signing in…",
     "networkError": "Couldn't reach the server — check your connection and try again.",
     "success": "Signed in.",
-    "error": "Incorrect password — try again."
+    "error": "Incorrect credentials — try again."
   },
   "skillProfile": {
     "eyebrow": "Verified credential",

@@ -5,7 +5,9 @@ import { KeyRound, Trash2 } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { Badge } from "@/app/_components/Badge";
 import { Skeleton } from "@/app/_components/Skeleton";
-import { BTN_PRIMARY, BTN_SECONDARY, FIELD, META_LABEL, PANEL, PANEL_SUNKEN } from "@/app/_components/ui/recipes";
+import { BTN_PRIMARY, BTN_SECONDARY, META_LABEL, PANEL, PANEL_SUNKEN } from "@/app/_components/ui/recipes";
+import { Select } from "@/app/_components/Select";
+import { TextInput } from "@/app/_components/TextInput";
 import { labelize } from "@/app/_lib/format";
 import type { ProviderKeyMeta } from "@/app/_lib/llm-config";
 import { useProviderName } from "./provider-names";
@@ -196,45 +198,44 @@ export function KeysPanel() {
                 <label className={`${META_LABEL} block`} htmlFor="key-provider">
                   {t("provider")}
                 </label>
-                <select
+                <Select
                   id="key-provider"
                   value={provider}
-                  onChange={(e) => setProvider(e.target.value)}
-                  className={`${FIELD} focus-ring mt-1 h-9 w-full text-sm`}
-                >
-                  {formProviders.map((p) => (
-                    <option key={p} value={p}>
-                      {providerName(p)}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setProvider}
+                  size="sm"
+                  className="mt-1 w-full"
+                  options={formProviders.map((p) => ({ value: p, label: providerName(p) }))}
+                />
               </div>
               <div>
                 <label className={`${META_LABEL} block`} htmlFor="key-scope">
                   {t("scope")}
                 </label>
-                <select
+                <Select
                   id="key-scope"
                   value={scope}
-                  onChange={(e) => setScope(e.target.value === "platform" ? "platform" : "byom")}
-                  className={`${FIELD} focus-ring mt-1 h-9 w-full text-sm`}
-                >
-                  <option value="byom">{t("scopeByom")}</option>
-                  <option value="platform">{t("scopePlatform")}</option>
-                </select>
+                  onChange={(v) => setScope(v === "platform" ? "platform" : "byom")}
+                  size="sm"
+                  className="mt-1 w-full"
+                  options={[
+                    { value: "byom", label: t("scopeByom") },
+                    { value: "platform", label: t("scopePlatform") },
+                  ]}
+                />
               </div>
               <div className="sm:col-span-2">
                 <label className={`${META_LABEL} block`} htmlFor="key-secret">
                   {t("apiKey")}
                 </label>
-                <input
+                <TextInput
                   id="key-secret"
                   type="password"
                   value={apiKey}
                   onChange={(e) => setApiKey(e.target.value)}
                   placeholder={t("apiKeyPlaceholder")}
                   autoComplete="new-password"
-                  className={`${FIELD} focus-ring mt-1 h-9 w-full text-sm`}
+                  sizeVariant="sm"
+                  className="mt-1"
                 />
               </div>
               {isAzure ? (
@@ -243,26 +244,28 @@ export function KeysPanel() {
                     <label className={`${META_LABEL} block`} htmlFor="key-endpoint">
                       {t("endpoint")}
                     </label>
-                    <input
+                    <TextInput
                       id="key-endpoint"
                       type="url"
                       value={endpoint}
                       onChange={(e) => setEndpoint(e.target.value)}
                       placeholder={t("endpointPlaceholder")}
-                      className={`${FIELD} focus-ring mt-1 h-9 w-full text-sm`}
+                      sizeVariant="sm"
+                      className="mt-1"
                     />
                   </div>
                   <div className="sm:col-span-2">
                     <label className={`${META_LABEL} block`} htmlFor="key-apiversion">
                       {t("apiVersion")}
                     </label>
-                    <input
+                    <TextInput
                       id="key-apiversion"
                       type="text"
                       value={apiVersion}
                       onChange={(e) => setApiVersion(e.target.value)}
                       placeholder={t("apiVersionPlaceholder")}
-                      className={`${FIELD} focus-ring mt-1 h-9 w-full text-sm`}
+                      sizeVariant="sm"
+                      className="mt-1"
                     />
                   </div>
                 </>

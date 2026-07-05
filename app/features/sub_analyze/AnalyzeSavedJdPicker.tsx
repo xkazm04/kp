@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { Select } from "@/app/_components/Select";
 import type { JdSummary } from "./AnalyzeTypes";
 
 export function AnalyzeSavedJdPicker({
@@ -58,12 +59,14 @@ export function AnalyzeSavedJdPicker({
           <span role="alert" className="text-right text-sm font-medium text-coral">{t("jdLoadFailed")}</span>
         ) : null}
       </div>
-      <select
+      <Select
         id="saved-jd-picker"
+        ariaLabel={t("fromLibrary")}
         value={selectedSlug ?? ""}
         disabled={loading}
-        onChange={(event) => {
-          const slug = event.target.value;
+        size="sm"
+        className="mt-1 w-full"
+        onChange={(slug) => {
           if (!slug) {
             onClear();
             return;
@@ -71,15 +74,14 @@ export function AnalyzeSavedJdPicker({
           const jd = jds.find((entry) => entry.slug === slug);
           if (jd) onPick(jd);
         }}
-        className="focus-ring mt-1 h-9 w-full rounded-md border border-stone-300 bg-white px-2 text-sm text-ink"
-      >
-        <option value="">{t("pickJd")}</option>
-        {jds.map((jd) => (
-          <option key={jd.slug} value={jd.slug}>
-            {t("jdOption", { title: jd.title.length > 40 ? `${jd.title.slice(0, 38)}…` : jd.title, slug: jd.slug })}
-          </option>
-        ))}
-      </select>
+        options={[
+          { value: "", label: t("pickJd") },
+          ...jds.map((jd) => ({
+            value: jd.slug,
+            label: t("jdOption", { title: jd.title.length > 40 ? `${jd.title.slice(0, 38)}…` : jd.title, slug: jd.slug }),
+          })),
+        ]}
+      />
     </div>
   );
 }

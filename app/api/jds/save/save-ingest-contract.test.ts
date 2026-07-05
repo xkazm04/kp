@@ -34,7 +34,7 @@ test("save route supports a retry that re-ingests under an existing slug", () =>
   // A retry passes the existing slug so we re-ingest in place instead of forking a
   // duplicate draft — the JD row must NOT be re-created when a slug is supplied.
   assert.match(src, /body\.slug/, "retry must re-use the client-supplied slug");
-  assert.match(src, /loadJd\(body\.slug\)/, "an unknown retry slug must be rejected, not minted");
+  assert.match(src, /loadJd\(body\.slug\b/, "an unknown retry slug must be rejected, not minted");
   assert.match(src, /status:\s*404/, "an unknown retry slug must 404");
 });
 

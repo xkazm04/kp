@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Check, Plus, AlertTriangle } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { toast } from "@/app/_components/toast-store";
+import { TextInput } from "@/app/_components/TextInput";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
 import type { Workspace } from "@/app/_lib/db";
 
@@ -111,11 +112,12 @@ export function WorkspaceTab() {
 
       {locked ? null : (
         <form onSubmit={create} className="mt-4 flex items-center gap-2">
-          <input
+          <TextInput
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder={t("createPlaceholder")}
-            className="flex-1 rounded-md border border-stone-300 px-3 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-stone-400"
+            sizeVariant="sm"
+            className="flex-1"
           />
           <button
             type="submit"

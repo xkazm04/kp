@@ -1,5 +1,6 @@
 import { chunk, SQL_IN_CHUNK } from "../entries-param";
 import { ensureDb, insertWithUniqueSlug, safeRowParse, type JobRecord } from "./core";
+import { DEFAULT_WORKSPACE_ID } from "./workspaces";
 
 // Backgrounded AI generation state on a JD (see the core.ts migration). NULL/absent
 // analysis_status = a legacy or manually-saved draft, treated as ready.
@@ -41,11 +42,16 @@ export type SaveJdInput = {
   body: string;
 };
 
-export function saveJd(input: SaveJdInput): { slug: string; createdAt: string } {
+// Tenant scope (P1): `workspaceId` defaults to the single workspace so existing
+// callers stay correct; recruiter request paths pass the real session workspace.
+// A JD is a team's private draft/opening — INSERT stamps it, the LIST + edit paths
+// filter by it. The candidate-facing public JD page reads by slug (loadJd) in the
+// default workspace, treating a published JD as shareable content.
+export function saveJd(input: SaveJdInput, workspaceId: string = DEFAULT_WORKSPACE_ID): { slug: string; createdAt: string } {
   const db = ensureDb();
   const createdAt = new Date().toISOString();
-  const stmt = db.prepare(`INSERT INTO jds (slug, title, body, created_at) VALUES (?, ?, ?, ?)`);
-  const slug = insertWithUniqueSlug((s) => stmt.run(s, input.title, input.body, createdAt));
+  const stmt = db.prepare(`INSERT INTO jds (slug, title, body, created_at, workspace_id) VALUES (?, ?, ?, ?, ?)`);
+  const slug = insertWithUniqueSlug((s) => stmt.run(s, input.title, input.body, createdAt, workspaceId));
   return { slug, createdAt };
 }
 
@@ -57,18 +63,26 @@ export function saveJd(input: SaveJdInput): { slug: string; createdAt: string } 
 /** Create the up-front placeholder for a backgrounded build. `options` (the ticked
  *  checklist) is stashed in analysis_json so the row knows what was requested even
  *  before the build finishes. Returns the minted slug. */
-export function insertAnalyzingJd(input: { title: string; options: unknown }): { slug: string; createdAt: string } {
+export function insertAnalyzingJd(
+  input: { title: string; options: unknown },
+  workspaceId: string = DEFAULT_WORKSPACE_ID
+): { slug: string; createdAt: string } {
   const db = ensureDb();
   const createdAt = new Date().toISOString();
   const stmt = db.prepare(
-    `INSERT INTO jds (slug, title, body, created_at, analysis_status, analysis_json)
-     VALUES (?, ?, '', ?, 'analyzing', ?)`
+    `INSERT INTO jds (slug, title, body, created_at, analysis_status, analysis_json, workspace_id)
+     VALUES (?, ?, '', ?, 'analyzing', ?, ?)`
   );
   const analysisJson = JSON.stringify({ options: input.options });
-  const slug = insertWithUniqueSlug((s) => stmt.run(s, input.title, createdAt, analysisJson));
+  const slug = insertWithUniqueSlug((s) => stmt.run(s, input.title, createdAt, analysisJson, workspaceId));
   return { slug, createdAt };
 }
 
+// Tenant scope (P1): the four analysis-status writers below are DELIBERATELY keyed
+// by slug alone (no workspace_id). They run from the detached jd_build task, which
+// owns exactly one globally-unique slug (a JD's PK) — a by-slug flip can only touch
+// that JD's single row and cannot cross tenants. jds-tenancy.test.ts exempts them;
+// every OTHER jds query is workspace-scoped.
 /** Link the placeholder to the task now running its build (progress / retry). */
 export function setJdAnalysisTask(slug: string, taskId: string): void {
   ensureDb().prepare(`UPDATE jds SET analysis_task_id = ? WHERE slug = ?`).run(taskId, slug);
@@ -95,7 +109,7 @@ export function markJdAnalyzing(slug: string): void {
   ensureDb().prepare(`UPDATE jds SET analysis_status = 'analyzing', analysis_error = NULL WHERE slug = ?`).run(slug);
 }
 
-export function listJds(limit = 100): JdListItem[] {
+export function listJds(limit = 100, workspaceId: string = DEFAULT_WORKSPACE_ID): JdListItem[] {
   const db = ensureDb();
   // Pull only one char past the preview window to detect truncation, so the
   // full body is never read into memory for the list view.
@@ -104,9 +118,9 @@ export function listJds(limit = 100): JdListItem[] {
       `SELECT slug, title, created_at, analysis_status, analysis_task_id,
               substr(body, 1, ${JD_PREVIEW_CHARS + 1}) AS body_head,
               length(body) AS body_len
-       FROM jds WHERE archived_at IS NULL ORDER BY created_at DESC LIMIT ?`
+       FROM jds WHERE archived_at IS NULL AND workspace_id = ? ORDER BY created_at DESC LIMIT ?`
     )
-    .all(limit) as Array<{
+    .all(workspaceId, limit) as Array<{
     slug: string;
     title: string;
     created_at: string;
@@ -125,7 +139,7 @@ export function listJds(limit = 100): JdListItem[] {
   }));
 }
 
-export function loadJd(slug: string): JdRow | null {
+export function loadJd(slug: string, workspaceId: string = DEFAULT_WORKSPACE_ID): JdRow | null {
   const db = ensureDb();
   // Archived rows still load (W8-4): the public page renders them with a
   // banner so existing analysis/report links never 404.
@@ -133,9 +147,9 @@ export function loadJd(slug: string): JdRow | null {
     .prepare(
       `SELECT slug, title, body, created_at, archived_at,
               analysis_status, analysis_task_id, analysis_error, analysis_json
-       FROM jds WHERE slug = ?`
+       FROM jds WHERE slug = ? AND workspace_id = ?`
     )
-    .get(slug) as JdRow | undefined;
+    .get(slug, workspaceId) as JdRow | undefined;
   return row ?? null;
 }
 
@@ -154,23 +168,29 @@ export type JdWriteResult = { ok: true } | { ok: false; reason: "not_found" | "c
  *  state, so the lost edit wasn't even reconstructable. Now the read+compare+write run
  *  in ONE synchronous transaction, so a stale base is detected (conflict) and the
  *  caller can prompt "this JD changed — reload". Omit baseBody to force the write. */
-export function updateJd(slug: string, input: { title: string; body: string }, baseBody?: string): JdWriteResult {
+export function updateJd(
+  slug: string,
+  input: { title: string; body: string },
+  baseBody?: string,
+  workspaceId: string = DEFAULT_WORKSPACE_ID
+): JdWriteResult {
   const db = ensureDb();
   // Snapshot the PRE-edit version into jd_revisions first (idea-6a18e0fc), in one
   // transaction with the overwrite, so an edit is always recoverable.
   const tx = db.transaction((): JdWriteResult => {
-    const current = db.prepare(`SELECT title, body FROM jds WHERE slug = ?`).get(slug) as
+    const current = db.prepare(`SELECT title, body FROM jds WHERE slug = ? AND workspace_id = ?`).get(slug, workspaceId) as
       | { title: string; body: string }
       | undefined;
     if (!current) return { ok: false, reason: "not_found" };
     if (baseBody !== undefined && current.body !== baseBody) return { ok: false, reason: "conflict" };
-    db.prepare(`INSERT INTO jd_revisions (slug, title, body, created_at) VALUES (?, ?, ?, ?)`).run(
+    db.prepare(`INSERT INTO jd_revisions (slug, title, body, created_at, workspace_id) VALUES (?, ?, ?, ?, ?)`).run(
       slug,
       current.title,
       current.body,
-      new Date().toISOString()
+      new Date().toISOString(),
+      workspaceId
     );
-    db.prepare(`UPDATE jds SET title = ?, body = ? WHERE slug = ?`).run(input.title, input.body, slug);
+    db.prepare(`UPDATE jds SET title = ?, body = ? WHERE slug = ? AND workspace_id = ?`).run(input.title, input.body, slug, workspaceId);
     return { ok: true };
   });
   return tx();
@@ -180,10 +200,10 @@ export type JdRevision = { id: number; slug: string; title: string; body: string
 
 /** Edit history for a JD, newest first (idea-6a18e0fc). Each row is a PRE-edit
  *  snapshot taken when updateJd/revertJd overwrote the live JD. */
-export function listJdRevisions(slug: string, limit = 30): JdRevision[] {
+export function listJdRevisions(slug: string, limit = 30, workspaceId: string = DEFAULT_WORKSPACE_ID): JdRevision[] {
   return ensureDb()
-    .prepare(`SELECT id, slug, title, body, created_at FROM jd_revisions WHERE slug = ? ORDER BY id DESC LIMIT ?`)
-    .all(slug, Math.min(Math.max(limit, 1), 100)) as JdRevision[];
+    .prepare(`SELECT id, slug, title, body, created_at FROM jd_revisions WHERE slug = ? AND workspace_id = ? ORDER BY id DESC LIMIT ?`)
+    .all(slug, workspaceId, Math.min(Math.max(limit, 1), 100)) as JdRevision[];
 }
 
 export type JdRevertResult =
@@ -195,24 +215,30 @@ export type JdRevertResult =
  *  content-CAS as updateJd: `baseBody` is what the page showed when "Revert" was
  *  clicked — if the live body changed since, the revert is refused (conflict) so it
  *  can't silently bury an edit made in the gap. Returns the restored {title, body}. */
-export function revertJd(slug: string, revisionId: number, baseBody?: string): JdRevertResult {
+export function revertJd(
+  slug: string,
+  revisionId: number,
+  baseBody?: string,
+  workspaceId: string = DEFAULT_WORKSPACE_ID
+): JdRevertResult {
   const db = ensureDb();
   const tx = db.transaction((): JdRevertResult => {
-    const rev = db.prepare(`SELECT title, body FROM jd_revisions WHERE id = ? AND slug = ?`).get(revisionId, slug) as
+    const rev = db.prepare(`SELECT title, body FROM jd_revisions WHERE id = ? AND slug = ? AND workspace_id = ?`).get(revisionId, slug, workspaceId) as
       | { title: string; body: string }
       | undefined;
-    const current = db.prepare(`SELECT title, body FROM jds WHERE slug = ?`).get(slug) as
+    const current = db.prepare(`SELECT title, body FROM jds WHERE slug = ? AND workspace_id = ?`).get(slug, workspaceId) as
       | { title: string; body: string }
       | undefined;
     if (!rev || !current) return { ok: false, reason: "not_found" };
     if (baseBody !== undefined && current.body !== baseBody) return { ok: false, reason: "conflict" };
-    db.prepare(`INSERT INTO jd_revisions (slug, title, body, created_at) VALUES (?, ?, ?, ?)`).run(
+    db.prepare(`INSERT INTO jd_revisions (slug, title, body, created_at, workspace_id) VALUES (?, ?, ?, ?, ?)`).run(
       slug,
       current.title,
       current.body,
-      new Date().toISOString()
+      new Date().toISOString(),
+      workspaceId
     );
-    db.prepare(`UPDATE jds SET title = ?, body = ? WHERE slug = ?`).run(rev.title, rev.body, slug);
+    db.prepare(`UPDATE jds SET title = ?, body = ? WHERE slug = ? AND workspace_id = ?`).run(rev.title, rev.body, slug, workspaceId);
     return { ok: true, title: rev.title, body: rev.body };
   });
   return tx();
@@ -220,12 +246,12 @@ export function revertJd(slug: string, revisionId: number, baseBody?: string): J
 
 /** Archive / unarchive a JD (W8-4). Archived JDs leave listJds and the
  *  pickers; their public page stays up with a banner. */
-export function setJdArchived(slug: string, archived: boolean): boolean {
+export function setJdArchived(slug: string, archived: boolean, workspaceId: string = DEFAULT_WORKSPACE_ID): boolean {
   const db = ensureDb();
   return (
     db
-      .prepare(`UPDATE jds SET archived_at = ? WHERE slug = ?`)
-      .run(archived ? new Date().toISOString() : null, slug).changes > 0
+      .prepare(`UPDATE jds SET archived_at = ? WHERE slug = ? AND workspace_id = ?`)
+      .run(archived ? new Date().toISOString() : null, slug, workspaceId).changes > 0
   );
 }
 

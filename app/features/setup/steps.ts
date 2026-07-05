@@ -79,7 +79,11 @@ export type OnboardingCtrl = {
   update: (patch: Partial<SetupState>) => void;
   addInvite: (invite: SetupInvite) => void;
   removeInvite: (index: number) => void;
+  /** Cancel/skip — discards the setup and closes. */
   onClose: () => void;
+  /** Complete — PERSISTS the setup (org name, language, invites, first role) then
+   *  closes. Distinct from onClose, which throws the draft away. */
+  finish: () => void;
   /** True when the active step's required input is satisfied (gates Next). */
   canAdvance: boolean;
   isLast: boolean;

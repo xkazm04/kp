@@ -1,0 +1,65 @@
+[
+  {
+    "generated_at": "2026-07-05T11:45:20.772Z",
+    "total": 39370,
+    "families": {
+      "operations_logistics": 11915,
+      "frontline_service": 10269,
+      "skilled_trades": 7424,
+      "general_professional": 2683,
+      "education_academic": 1786,
+      "healthcare_clinical": 1420,
+      "finance_accounting": 751,
+      "sales_marketing": 710,
+      "software_engineering": 686,
+      "customer_support": 446,
+      "creative_design": 168,
+      "data_ai": 161,
+      "legal_compliance": 156,
+      "hr_people": 27,
+      "life_sciences_research": 20
+    }
+  },
+  {
+    "generated_at": "2026-07-05T12:53:23.953Z",
+    "total": 38553,
+    "families": {
+      "operations_logistics": 11571,
+      "frontline_service": 10047,
+      "skilled_trades": 7258,
+      "general_professional": 2664,
+      "education_academic": 1782,
+      "healthcare_clinical": 1403,
+      "finance_accounting": 747,
+      "sales_marketing": 702,
+      "software_engineering": 677,
+      "customer_support": 436,
+      "creative_design": 164,
+      "data_ai": 160,
+      "legal_compliance": 155,
+      "hr_people": 27,
+      "life_sciences_research": 20
+    }
+  },
+  {
+    "generated_at": "2026-07-05T12:55:14.294Z",
+    "total": 38553,
+    "families": {
+      "operations_logistics": 11571,
+      "frontline_service": 10044,
+      "skilled_trades": 7258,
+      "general_professional": 2664,
+      "education_academic": 1782,
+      "healthcare_clinical": 1403,
+      "finance_accounting": 747,
+      "sales_marketing": 702,
+      "software_engineering": 677,
+      "customer_support": 436,
+      "creative_design": 164,
+      "data_ai": 160,
+      "legal_compliance": 155,
+      "hr_people": 27,
+      "life_sciences_research": 20
+    }
+  }
+]

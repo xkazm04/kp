@@ -20,6 +20,7 @@
     "test:eval:strict": "python -m pipeline.jobfit.eval --strict",
     "test:eval:match": "python -m pipeline.jobfit.eval.matching_eval --strict",
     "i18n:check": "node scripts/i18n-check.mjs",
+    "market:build": "node scripts/build-market-pulse.mjs",
     "pipeline:sample": "python -m pipeline.jobfit.cli samples/sample-cv.txt",
     "db:dump": "node scripts/db-dump.mjs",
     "db:load": "node scripts/db-load.mjs",

@@ -1,10 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { requireCapability, currentUser } from "@/app/_lib/auth/current-user";
+import { requireCapability, currentUser, callerCapabilities } from "@/app/_lib/auth/current-user";
 import { DEFAULT_ORG_ID } from "@/app/_lib/db/organizations";
 import { getUserById } from "@/app/_lib/db/users";
+import { getMembership } from "@/app/_lib/db/memberships";
 import { DEFAULT_WORKSPACE_ID } from "@/app/_lib/db/workspaces";
 import { changeMemberRole, setMemberPermissions, setMemberStatus, removeMember, type MemberOpResult } from "@/app/_lib/org-service";
-import { isMemberRole, sanitizeOverride, type Capability } from "@/app/_lib/auth/roles";
+import { isMemberRole, isCapability, overrideFromDesired, type Capability } from "@/app/_lib/auth/roles";
 
 // HTTP status for a service guard outcome: 409 for the last-owner backstop, 404
 // for a missing user/membership, 400 otherwise.
@@ -14,14 +15,14 @@ function opStatus(reason?: MemberOpResult["reason"]): number {
   return 400;
 }
 
-// Update a member (P0): role, status, and/or per-user permission overrides on a
-// team. members:manage-gated; the service enforces last-owner protection.
+// Update a member (P0): role, status, and/or the desired capability set on a team.
+// members:manage-gated; the service enforces last-owner protection, and permission
+// grants are capped to what the acting user can delegate.
 export async function PATCH(request: NextRequest, context: { params: Promise<{ userId: string }> }) {
   const denied = await requireCapability("members:manage");
   if (denied) return denied;
   const { userId } = await context.params;
-  const actor = await currentUser();
-  const orgId = actor.orgId ?? DEFAULT_ORG_ID;
+  const orgId = (await currentUser()).orgId ?? DEFAULT_ORG_ID;
   const target = getUserById(userId);
   if (!target || target.orgId !== orgId) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
@@ -29,7 +30,7 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ u
     workspaceId?: unknown;
     role?: unknown;
     status?: unknown;
-    overrides?: { grant?: unknown; revoke?: unknown } | null;
+    capabilities?: unknown;
   };
   const workspaceId = typeof body.workspaceId === "string" && body.workspaceId ? body.workspaceId : DEFAULT_WORKSPACE_ID;
 
@@ -43,12 +44,17 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ u
     const r = setMemberStatus(userId, body.status);
     if (!r.ok) return NextResponse.json({ error: r.reason }, { status: opStatus(r.reason) });
   }
-  if (body.overrides !== undefined) {
-    // Delegation guard: an actor can only GRANT capabilities they hold themselves
-    // (org:manage is already non-grantable via sanitizeOverride). Revokes are free.
-    const sanitized = body.overrides === null ? null : sanitizeOverride(body.overrides);
-    const actorCaps = new Set<Capability>(actor.capabilities);
-    const filtered = sanitized ? { grant: sanitized.grant.filter((c) => actorCaps.has(c)), revoke: sanitized.revoke } : null;
+  if (body.capabilities !== undefined) {
+    if (!Array.isArray(body.capabilities)) return NextResponse.json({ error: "Invalid capabilities" }, { status: 400 });
+    const membership = getMembership(userId, workspaceId);
+    if (!membership) return NextResponse.json({ error: "not_member" }, { status: 404 });
+    const desired: Capability[] = (body.capabilities as unknown[]).filter(isCapability);
+    // The override the desired set implies vs the member's (possibly just-changed) role.
+    const override = overrideFromDesired(membership.role, desired);
+    // Delegation: the actor may only GRANT capabilities they hold themselves
+    // (org:manage is already non-grantable). Revokes are unrestricted.
+    const actorCaps = new Set<Capability>(await callerCapabilities());
+    const filtered = override ? { grant: override.grant.filter((c) => actorCaps.has(c)), revoke: override.revoke } : null;
     const effective = filtered && (filtered.grant.length || filtered.revoke.length) ? filtered : null;
     const r = setMemberPermissions(userId, workspaceId, effective);
     if (!r.ok) return NextResponse.json({ error: r.reason }, { status: opStatus(r.reason) });

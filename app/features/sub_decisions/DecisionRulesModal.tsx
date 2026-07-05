@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Modal } from "@/app/_components/Modal";
+import { Checkbox } from "@/app/_components/Checkbox";
+import { TextInput } from "@/app/_components/TextInput";
 import { SCREENING_DEFAULT as FALLBACK, type ScreeningRule } from "@/app/_lib/decision-config-schema";
 import { ComplianceSection } from "./ComplianceSection";
 
@@ -79,11 +81,9 @@ export function DecisionRulesModal({ onClose }: { onClose: () => void }) {
       ) : (
         <div className="space-y-4">
           <label className="flex items-center gap-3">
-            <input
-              type="checkbox"
+            <Checkbox
               checked={rule.autoRejectEnabled}
               onChange={(e) => setRule({ ...rule, autoRejectEnabled: e.target.checked })}
-              className="h-4 w-4 accent-coral"
             />
             <span className="text-sm font-semibold text-ink">{t("autoReject")}</span>
           </label>
@@ -91,7 +91,7 @@ export function DecisionRulesModal({ onClose }: { onClose: () => void }) {
           <div className={`grid grid-cols-2 gap-3 ${rule.autoRejectEnabled ? "" : "opacity-50"}`}>
             <label className="block">
               <span className="mb-1 block text-sm text-steel">{t("rejectBottomPct")}</span>
-              <input
+              <TextInput
                 type="number"
                 min={0}
                 max={100}
@@ -99,12 +99,12 @@ export function DecisionRulesModal({ onClose }: { onClose: () => void }) {
                 disabled={!rule.autoRejectEnabled}
                 aria-describedby="screening-rule-sentence"
                 onChange={(e) => setRule({ ...rule, rejectBottomPercent: Math.max(0, Math.min(100, Number(e.target.value) || 0)) })}
-                className="focus-ring w-full rounded-md border border-stone-200 px-2.5 py-1.5 text-sm"
+                sizeVariant="sm"
               />
             </label>
             <label className="block">
               <span className="mb-1 block text-sm text-steel">{t("onlyIfBelow")}</span>
-              <input
+              <TextInput
                 type="number"
                 min={0}
                 max={100}
@@ -112,7 +112,7 @@ export function DecisionRulesModal({ onClose }: { onClose: () => void }) {
                 disabled={!rule.autoRejectEnabled}
                 aria-describedby="screening-rule-sentence"
                 onChange={(e) => setRule({ ...rule, maxMatchToReject: Math.max(0, Math.min(100, Number(e.target.value) || 0)) })}
-                className="focus-ring w-full rounded-md border border-stone-200 px-2.5 py-1.5 text-sm"
+                sizeVariant="sm"
               />
             </label>
           </div>

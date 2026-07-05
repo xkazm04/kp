@@ -2,7 +2,9 @@
 
 import { FileUp, Link2, PenLine, ClipboardPaste } from "lucide-react";
 import { SegmentedControl } from "@/app/_components/SegmentedControl";
-import { FIELD, META_LABEL } from "@/app/_components/ui/recipes";
+import { META_LABEL } from "@/app/_components/ui/recipes";
+import { TextInput } from "@/app/_components/TextInput";
+import { TextArea } from "@/app/_components/TextArea";
 import { SENIORITY_OPTIONS, type JobDraft, type JobDraftMode, type OnboardingCtrl } from "./steps";
 
 // Onboarding step: capture the first job description — the activation moment.
@@ -30,13 +32,13 @@ export function JobDescriptionStep({ ctrl }: { ctrl: OnboardingCtrl }) {
             <label htmlFor="setup-job-title" className={`${META_LABEL} block`}>
               Job title
             </label>
-            <input
+            <TextInput
               id="setup-job-title"
               autoFocus
               value={job.title}
               onChange={(e) => setJob({ title: e.target.value })}
               placeholder="e.g. Senior Java Backend Engineer"
-              className={`${FIELD} mt-1 w-full`}
+              className="mt-1"
             />
           </div>
 
@@ -56,13 +58,13 @@ export function JobDescriptionStep({ ctrl }: { ctrl: OnboardingCtrl }) {
             <label htmlFor="setup-job-body" className={`${META_LABEL} block`}>
               Responsibilities &amp; must-haves
             </label>
-            <textarea
+            <TextArea
               id="setup-job-body"
               value={job.body}
               onChange={(e) => setJob({ body: e.target.value })}
               rows={4}
               placeholder="Own core backend services · Java, Spring, SQL · mentor the team…"
-              className={`${FIELD} mt-1 w-full resize-y`}
+              className="mt-1"
             />
             <p className="mt-1 text-sm text-steel">KP expands this into a full, branded job description you can edit.</p>
           </div>
@@ -73,14 +75,14 @@ export function JobDescriptionStep({ ctrl }: { ctrl: OnboardingCtrl }) {
             <label htmlFor="setup-job-paste" className={`${META_LABEL} block`}>
               Paste an existing job description
             </label>
-            <textarea
+            <TextArea
               id="setup-job-paste"
               autoFocus
               value={job.body}
               onChange={(e) => setJob({ body: e.target.value })}
               rows={6}
               placeholder="Paste the full posting here — KP parses the title, seniority, and requirements."
-              className={`${FIELD} mt-1 w-full resize-y`}
+              className="mt-1"
             />
           </div>
           <div className="flex flex-wrap items-center gap-2">

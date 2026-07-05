@@ -10,6 +10,7 @@ import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { toCsv, downloadFile } from "@/app/_lib/export-utils";
 import { DECISION_META, kindLabel } from "@/app/_lib/decision-attribution";
 import { useDeliveryCapability } from "@/app/features/useDeliveryCapability";
+import { Select } from "@/app/_components/Select";
 
 type Decision = {
   id: number;
@@ -169,19 +170,17 @@ function DecisionLogList({
             {t(`attribution.${a}`)}
           </button>
         ))}
-        <select
+        <Select
           value={kind}
-          onChange={(e) => setKind(e.target.value)}
-          aria-label={t("filterKindAria")}
-          className="focus-ring h-8 rounded-md border border-stone-200 bg-white px-2 text-sm text-ink"
-        >
-          <option value="">{t("allKinds")}</option>
-          {Object.keys(DECISION_META).map((k) => (
-            <option key={k} value={k}>
-              {kindLabel(t, k, { relayConfigured })}
-            </option>
-          ))}
-        </select>
+          onChange={setKind}
+          ariaLabel={t("filterKindAria")}
+          size="sm"
+          className="h-8"
+          options={[
+            { value: "", label: t("allKinds") },
+            ...Object.keys(DECISION_META).map((k) => ({ value: k, label: kindLabel(t, k, { relayConfigured }) })),
+          ]}
+        />
         <button
           type="button"
           onClick={exportCsv}

@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { useTranslations } from "next-intl";
 import { AiDisclosure } from "@/app/_components/AiDisclosure";
+import { TextInput } from "@/app/_components/TextInput";
 // Registry-free intake module (not the apply.ts barrel), keeping the candidate
 // bundle lean — same import discipline as ConversationalApply.
 import { APPLY_EMAIL_RE, isRetryableApplyStatus } from "@/app/_lib/apply-intake";
@@ -169,21 +170,21 @@ export function QuickApplyForm({
           <label htmlFor="qa-name" className="text-sm font-semibold text-ink">
             {t("quick.nameLabel")}
           </label>
-          <input
+          <TextInput
             id="qa-name"
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder={t("script.namePlaceholder")}
             autoComplete="name"
             disabled={submitting}
-            className="focus-ring mt-1 h-12 w-full rounded-md border border-stone-200 px-3 text-base disabled:opacity-50"
+            className="mt-1 h-12"
           />
         </div>
         <div>
           <label htmlFor="qa-email" className="text-sm font-semibold text-ink">
             {t("quick.emailLabel")}
           </label>
-          <input
+          <TextInput
             id="qa-email"
             type="email"
             inputMode="email"
@@ -195,8 +196,8 @@ export function QuickApplyForm({
             placeholder={t("script.emailPlaceholder")}
             autoComplete="email"
             disabled={submitting}
-            aria-invalid={emailError ? true : undefined}
-            className="focus-ring mt-1 h-12 w-full rounded-md border border-stone-200 px-3 text-base disabled:opacity-50"
+            invalid={Boolean(emailError)}
+            className="mt-1 h-12"
           />
           {emailError ? (
             <p role="alert" className="mt-1 text-sm text-coral">

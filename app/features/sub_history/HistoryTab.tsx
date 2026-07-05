@@ -5,6 +5,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { formatRelativeTime } from "@/app/_lib/format";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
+import { TextInput } from "@/app/_components/TextInput";
+import { Select } from "@/app/_components/Select";
 
 type AnalysisRow = {
   slug: string;
@@ -144,48 +146,40 @@ export function HistoryTab() {
           <>
             <div className="flex flex-wrap items-center gap-2">
               <label htmlFor="history-search" className="sr-only">{t("searchLabel")}</label>
-              <input
+              <TextInput
                 id="history-search"
                 type="search"
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
                 placeholder={t("searchPlaceholder")}
-                className="focus-ring h-9 min-w-[200px] flex-1 rounded-md border border-stone-200 px-3 text-base"
+                sizeVariant="sm"
+                className="min-w-[200px] flex-1"
               />
-              <select
+              <Select
+                ariaLabel={t("filterFamily")}
                 value={roleFamily}
-                onChange={(e) => setRoleFamily(e.target.value)}
-                aria-label={t("filterFamily")}
-                className="focus-ring h-9 rounded-md border border-stone-200 px-2 text-base capitalize"
-              >
-                <option value="">{t("allFamilies")}</option>
-                {families.map((f) => (
-                  <option key={f} value={f}>{enumLabel("family", f)}</option>
-                ))}
-              </select>
-              <select
+                onChange={setRoleFamily}
+                size="sm"
+                options={[{ value: "", label: t("allFamilies") }, ...families.map((f) => ({ value: f, label: enumLabel("family", f) }))]}
+              />
+              <Select
+                ariaLabel={t("filterSeniority")}
                 value={seniority}
-                onChange={(e) => setSeniority(e.target.value)}
-                aria-label={t("filterSeniority")}
-                className="focus-ring h-9 rounded-md border border-stone-200 px-2 text-base capitalize"
-              >
-                <option value="">{t("allSeniority")}</option>
-                {seniorities.map((s) => (
-                  <option key={s} value={s}>{enumLabel("seniority", s)}</option>
-                ))}
-              </select>
-              <select
+                onChange={setSeniority}
+                size="sm"
+                options={[{ value: "", label: t("allSeniority") }, ...seniorities.map((s) => ({ value: s, label: enumLabel("seniority", s) }))]}
+              />
+              <Select
+                ariaLabel={t("filterDisposition")}
                 value={disposition}
-                onChange={(e) => setDisposition(e.target.value)}
-                aria-label={t("filterDisposition")}
-                className="focus-ring h-9 rounded-md border border-stone-200 px-2 text-base"
-              >
-                <option value="">{t("allDispositions")}</option>
-                {Object.keys(DISPOSITION_STYLE).map((d) => (
-                  <option key={d} value={d}>{dispLabel(d)}</option>
-                ))}
-                <option value="undecided">{t("dispositionUndecided")}</option>
-              </select>
+                onChange={setDisposition}
+                size="sm"
+                options={[
+                  { value: "", label: t("allDispositions") },
+                  ...Object.keys(DISPOSITION_STYLE).map((d) => ({ value: d, label: dispLabel(d) })),
+                  { value: "undecided", label: t("dispositionUndecided") },
+                ]}
+              />
               {filtering ? (
                 <span className="text-sm text-steel" aria-live="polite">{t("showing", { shown: filtered.length, total: rows.length })}</span>
               ) : null}

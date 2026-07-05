@@ -312,7 +312,7 @@ export function SchedulerControl({
           onKeyDown={(e) => {
             if (e.key === "Enter") e.currentTarget.blur();
           }}
-          className="focus-ring w-14 rounded border border-stone-200 px-1 py-0.5 text-center nums"
+          className="focus-ring w-14 rounded border border-stone-200 bg-white px-1 py-0.5 text-center text-ink caret-coral nums"
         />
         {t("min")}
       </label>

@@ -32,6 +32,11 @@ import pipeline.jobfit.gemini as G
 from pipeline.jobfit.llm import monitor
 from pipeline.jobfit.llm.base import price_usd
 
+# Hermeticity note: these tests clear LIGHTTRACK_URL to run "LightTrack off", and
+# tests/__init__.py neutralizes load_local_env() suite-wide so the developer's
+# activated .env.local can't silently re-enable the SDK and POST to a live server
+# — the metering assertions below are about the NDJSON ledger, not LightTrack.
+
 
 class _FakeUsage:
     prompt_token_count = 1000

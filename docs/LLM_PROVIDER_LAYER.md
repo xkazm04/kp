@@ -20,7 +20,7 @@
 
 ## Observability — LightTrack (`pipeline/jobfit/llm/monitor.py`)
 
-LLM telemetry goes to **LightTrack** (sibling repo `../LightTrack` — the
+LLM telemetry goes to **LightTrack** (sibling repo `../tracklight` — the
 self-hosted LLM observability + scoring service; kp and LightTrack are
 developed together toward prod). The seam:
 
@@ -29,8 +29,17 @@ developed together toward prod). The seam:
   tokens (incl. cached), latency, the **use case as `operation`**, errors, and
   our computed `cost_usd` as metadata (LightTrack prices server-side from its
   own price book — the two should agree).
-- **Local dev setup, once:** `pip install ../LightTrack/clients/python`, run
-  the LightTrack container/binary, set `LIGHTTRACK_URL` (+`LIGHTTRACK_KEY` /
+- The direct Gemini paths (`gemini.py` grounded/CV analysis and the opt-in
+  `embedding_bridge.py` embeddings) meter through the same
+  `monitor.emit_result` seam, so no Python provider call escapes it.
+- The one provider call that originates in **TypeScript**, not Python — the
+  github-analysis deep review (`app/api/github-analysis/route.ts`) — mirrors
+  the seam via `app/_lib/llm-lighttrack.ts`, the TS counterpart to `monitor.py`.
+  (The voice adapters mint credentials only; the model runs browser-side and is
+  metered by minutes, not tokens — it stays in the app's own cost ledger.)
+- **Local dev setup, once:** `pip install -e ../tracklight/clients/python`, run
+  the LightTrack container/binary (`cd ../tracklight && cargo build --release`
+  → `target/release/lighttrack-api`), set `LIGHTTRACK_URL` (+`LIGHTTRACK_KEY` /
   `LIGHTTRACK_PROJECT` when auth is enforced) in `.env.local`.
 - Activation is double-gated (SDK importable AND `LIGHTTRACK_URL` set);
   emission is fire-and-forget on a daemon thread and exception-swallowed — an

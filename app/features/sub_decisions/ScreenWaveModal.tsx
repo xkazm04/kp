@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { AlertTriangle, Ban, Check, Loader2, ShieldCheck } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Modal } from "@/app/_components/Modal";
+import { Checkbox } from "@/app/_components/Checkbox";
 import { SCREENING_DEFAULT } from "@/app/_lib/decision-config-schema";
 
 // One decision in the wave (mirrors ScreenDecision in screen-wave.ts). DEC4 —
@@ -243,7 +244,7 @@ export function ScreenWaveModal({
           {/* Override controls — drive the live preview. */}
           <div className="rounded-md border border-stone-200 bg-paper p-3">
             <label className="flex items-center gap-2 text-sm font-semibold text-ink">
-              <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} className="h-4 w-4 accent-coral" />
+              <Checkbox checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
               {t("autoRejectWeakest")}
             </label>
             <div className={`mt-3 space-y-3 ${enabled ? "" : "pointer-events-none opacity-40"}`}>

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { LoadStatus } from "@/app/_components/LoadStatus";
+import { Select } from "@/app/_components/Select";
 import { useLoader } from "@/app/_lib/useLoader";
 import { aggregateLoadState } from "@/app/_lib/load-state";
 import { formatRelativeTime } from "@/app/_lib/format";
@@ -270,19 +271,25 @@ export function ControlRoom() {
           </p>
 
           <div className="mt-2 flex flex-wrap items-center gap-1.5 rounded-lg border border-stone-200 bg-white p-2.5 shadow-panel">
-            <input value={form.candidate} onChange={(e) => setForm({ ...form, candidate: e.target.value })} placeholder="candidate" className="focus-ring h-8 w-28 rounded border border-stone-200 px-2 text-xs" />
-            <input value={form.score} onChange={(e) => setForm({ ...form, score: e.target.value })} placeholder="score" className="focus-ring h-8 w-16 rounded border border-stone-200 px-2 text-xs" />
-            <select value={form.outcome} onChange={(e) => setForm({ ...form, outcome: e.target.value })} className="focus-ring h-8 rounded border border-stone-200 px-1.5 text-xs">
-              {["hired", "rejected", "withdrawn"].map((x) => (
-                <option key={x} value={x}>{x}</option>
-              ))}
-            </select>
+            <input value={form.candidate} onChange={(e) => setForm({ ...form, candidate: e.target.value })} placeholder="candidate" className="focus-ring h-8 w-28 rounded border border-stone-200 bg-white px-2 text-xs text-ink caret-coral placeholder:text-steel" />
+            <input value={form.score} onChange={(e) => setForm({ ...form, score: e.target.value })} placeholder="score" className="focus-ring h-8 w-16 rounded border border-stone-200 bg-white px-2 text-xs text-ink caret-coral placeholder:text-steel" />
+            <Select
+              value={form.outcome}
+              onChange={(v) => setForm({ ...form, outcome: v })}
+              ariaLabel="Outcome"
+              size="sm"
+              className="h-8"
+              options={["hired", "rejected", "withdrawn"].map((x) => ({ value: x, label: x }))}
+            />
             {form.outcome === "hired" ? (
-              <select value={form.perf} onChange={(e) => setForm({ ...form, perf: e.target.value })} className="focus-ring h-8 rounded border border-stone-200 px-1.5 text-xs">
-                {[1, 2, 3, 4, 5].map((x) => (
-                  <option key={x} value={x}>perf {x}</option>
-                ))}
-              </select>
+              <Select
+                value={form.perf}
+                onChange={(v) => setForm({ ...form, perf: v })}
+                ariaLabel="Performance rating"
+                size="sm"
+                className="h-8"
+                options={[1, 2, 3, 4, 5].map((x) => ({ value: String(x), label: `perf ${x}` }))}
+              />
             ) : null}
             <button type="button" onClick={recordOutcome} disabled={busy} className="focus-ring h-8 rounded-md bg-ink px-3 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-50">
               Record

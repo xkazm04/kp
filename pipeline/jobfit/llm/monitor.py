@@ -1,11 +1,11 @@
 """LightTrack telemetry for the LLM provider layer (fire-and-forget).
 
-LightTrack (sibling repo ``../LightTrack``) is the self-hosted LLM
+LightTrack (sibling repo ``../tracklight``) is the self-hosted LLM
 observability service this project standardizes on; kp and LightTrack are
 developed together toward the prod environment, and this module is the
 integration seam. Local development setup, once::
 
-    pip install ../LightTrack/clients/python
+    pip install ../tracklight/clients/python
 
 then set ``LIGHTTRACK_URL`` (plus ``LIGHTTRACK_KEY`` / ``LIGHTTRACK_PROJECT``
 as the deployment needs) in ``.env.local``. Telemetry activates only when BOTH
@@ -63,10 +63,16 @@ def _client() -> Any:
     return client
 
 
-def _tags(provider: str) -> list[str]:
+def _tags(provider: str, use_case: str | None = None) -> list[str]:
     tags = ["llm-layer"]
     if provider == "claude_cli":
         tags.append("engine:claude_cli")
+    # Per-tool attribution: the server stores `operation` as a small enum, so a
+    # free-form use_case collapses to "other" there. A `tool:<use_case>` tag is
+    # how LightTrack groups spend per tool (matches the convention the events UI
+    # reads), so the "what does each tool cost" question stays answerable.
+    if use_case:
+        tags.append(f"tool:{use_case}")
     return tags
 
 
@@ -176,7 +182,7 @@ def emit_result(
             cached_input=cached_tokens,
             operation=use_case,
             latency_ms=duration_ms,
-            tags=_tags(provider),
+            tags=_tags(provider, use_case),
             metadata={"cost_usd": cost_usd} if cost_usd is not None else None,
         )
     except Exception:
@@ -201,7 +207,7 @@ def emit_error(
             operation=use_case,
             latency_ms=duration_ms,
             error=str(error)[:500],
-            tags=_tags(provider),
+            tags=_tags(provider, use_case),
         )
     except Exception:
         pass

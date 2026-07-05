@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { Check, ClipboardPaste, Plus, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { MIN_AD_CHARS, splitJobAds } from "@/app/_lib/split-ads";
+import { Checkbox } from "@/app/_components/Checkbox";
+import { TextArea } from "@/app/_components/TextArea";
 
 type RowStatus = "added" | "exists" | "failed";
 const firstLine = (ad: string) => (ad.split(/\r?\n/)[0] ?? "").slice(0, 60).trim() || "—";
@@ -171,18 +173,19 @@ export function IngestAdPanel({
       </label>
       <p className="mt-1 text-sm text-steel">{t("pasteIntro")}</p>
       <label className="mt-2 flex items-center gap-1.5 text-sm font-medium text-steel">
-        <input type="checkbox" checked={bulk} disabled={busy} onChange={(e) => setBulk(e.target.checked)} className="focus-ring h-4 w-4 rounded border-stone-300 text-coral" />
+        <Checkbox checked={bulk} disabled={busy} onChange={(e) => setBulk(e.target.checked)} />
         {t("bulkToggle")}
         {bulk ? <span className="text-meta text-stone-400">· {t("bulkHint")}</span> : null}
       </label>
-      <textarea
+      <TextArea
         id="ingest-ad"
         value={adText}
         onChange={(e) => setAdText(e.target.value)}
         rows={bulk ? 10 : 6}
         disabled={busy}
         placeholder={bulk ? t("bulkPlaceholder") : t("pastePlaceholder")}
-        className="focus-ring mt-2 w-full rounded-md border border-stone-200 bg-white p-2 text-sm text-ink disabled:opacity-60"
+        sizeVariant="sm"
+        className="mt-2 disabled:opacity-60"
       />
       <div className="mt-2 flex flex-wrap items-center gap-2">
         {bulk ? (

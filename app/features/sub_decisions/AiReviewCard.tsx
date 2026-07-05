@@ -133,7 +133,7 @@ export function AiReviewCard({ entry, onAccept, onReject }: { entry: Entry; onAc
                     if (Number.isFinite(n)) setTtlDays(Math.min(OFFER_TTL_DAYS_MAX, Math.max(OFFER_TTL_DAYS_MIN, n)));
                   }}
                   aria-label={t("deadlineLabel")}
-                  className="focus-ring w-16 rounded-md border border-stone-200 px-2 py-1 text-sm text-ink"
+                  className="focus-ring w-16 rounded-md border border-stone-200 bg-white px-2 py-1 text-sm text-ink caret-coral"
                 />
                 <span>{t("deadlineDays")}</span>
               </label>

@@ -12,6 +12,8 @@ import { useLiveRefresh } from "@/app/features/live-refresh";
 import { needsHumanDecision } from "@/app/_lib/approval-kinds";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { ChainEmptyState } from "@/app/_components/ChainEmptyState";
+import { Select } from "@/app/_components/Select";
+import { TextInput } from "@/app/_components/TextInput";
 import { CHIP_TOGGLE, EYEBROW, INTRO, PAGE_HEADER, SECTION, STAT, STAT_LABEL, STAT_VALUE, TITLE_DISPLAY } from "@/app/_components/ui/recipes";
 import { CandidateDrawer } from "./CandidateDrawer";
 import { PassPreviewModal } from "./PassPreviewModal";
@@ -824,13 +826,14 @@ export function PipelineTab() {
 
           <div className="flex flex-wrap items-center gap-2">
             <label htmlFor="pipeline-search" className="sr-only">{t("searchLabel")}</label>
-            <input
+            <TextInput
               id="pipeline-search"
               type="search"
               value={query}
               onChange={(e) => setQueryAndSync(e.target.value)}
               placeholder={t("searchPlaceholder")}
-              className="focus-ring h-9 min-w-[200px] flex-1 rounded-md border border-stone-200 px-3 text-base"
+              sizeVariant="sm"
+              className="min-w-[200px] flex-1"
             />
             {(
               [
@@ -941,18 +944,14 @@ export function PipelineTab() {
               ) : null}
               <label className="ml-auto flex items-center gap-1.5 text-sm font-medium text-steel">
                 {t("bulkMoveLabel")}
-                <select
+                <Select
+                  ariaLabel={t("bulkMoveLabel")}
                   value={bulkStage}
-                  onChange={(ev) => setBulkStage(ev.target.value)}
-                  className="focus-ring h-8 rounded-md border border-stone-200 bg-white px-2 text-sm text-ink"
-                >
-                  <option value="">—</option>
-                  {STAGES.map((s) => (
-                    <option key={s} value={s}>
-                      {enumLabel("stage", s)}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setBulkStage}
+                  size="sm"
+                  className="h-8"
+                  options={[{ value: "", label: "—" }, ...STAGES.map((s) => ({ value: s, label: enumLabel("stage", s) }))]}
+                />
               </label>
               <button
                 type="button"
@@ -1069,7 +1068,7 @@ export function PipelineTab() {
                       const n = parseInt(ev.target.value, 10);
                       setStageSla(stage, Number.isFinite(n) ? n : null);
                     }}
-                    className="focus-ring mt-0.5 h-8 w-16 rounded-md border border-stone-200 px-2 text-sm nums text-ink"
+                    className="focus-ring mt-0.5 h-8 w-16 rounded-md border border-stone-200 bg-white px-2 text-sm nums text-ink caret-coral"
                   />
                 </label>
               ))}

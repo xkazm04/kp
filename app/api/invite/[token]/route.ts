@@ -38,20 +38,27 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
     const status = result.reason === "weak_password" ? 400 : result.reason === "email_taken" ? 409 : 410;
     return NextResponse.json({ error: result.reason }, { status });
   }
-  // Sign the new member in on their team (the membership acceptInvite just created).
-  const primary = listMembershipsForUser(result.user.id)[0];
-  const session = signSession(primary?.workspaceId ?? DEFAULT_WORKSPACE_ID, Date.now(), {
-    sub: result.user.id,
-    org: result.user.orgId,
-    role: primary?.role,
-  });
   const res = NextResponse.json({ ok: true });
-  res.cookies.set(SESSION_COOKIE, session, {
-    httpOnly: true,
-    secure: true,
-    sameSite: "lax",
-    path: "/",
-    maxAge: Math.floor(SESSION_TTL_MS / 1000),
-  });
+  // Best-effort auto-login: sign the new member in on their team. If session
+  // signing is unavailable (KP_SECRET unset — open dev), the account is STILL
+  // created; the client just lands on / (or /login) to sign in manually. Never let
+  // a signing failure 500 after the invite is already consumed.
+  try {
+    const primary = listMembershipsForUser(result.user.id)[0];
+    const session = signSession(primary?.workspaceId ?? DEFAULT_WORKSPACE_ID, Date.now(), {
+      sub: result.user.id,
+      org: result.user.orgId,
+      role: primary?.role,
+    });
+    res.cookies.set(SESSION_COOKIE, session, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "lax",
+      path: "/",
+      maxAge: Math.floor(SESSION_TTL_MS / 1000),
+    });
+  } catch {
+    /* KP_SECRET unavailable — skip auto-login; the account is created either way */
+  }
   return res;
 }

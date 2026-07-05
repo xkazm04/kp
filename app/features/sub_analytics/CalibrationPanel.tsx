@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
 import { labelize } from "@/app/_lib/format";
+import { Select } from "@/app/_components/Select";
 // `import type` only — calibration.ts is pure (no server imports), erased at compile.
 import type { CalibrationResult } from "@/app/_lib/calibration";
 
@@ -116,32 +117,29 @@ export function CalibrationPanel() {
           </p>
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-2">
-          <select
+          <Select
             value={source}
-            onChange={(e) => {
-              setSource(e.target.value === "analysis" ? "analysis" : "pipeline");
+            onChange={(v) => {
+              setSource(v === "analysis" ? "analysis" : "pipeline");
               setFamily(""); // families differ per source — a stale filter would silently empty the curve
             }}
-            aria-label={t("sourceLabel")}
-            className="focus-ring shrink-0 rounded-md border border-stone-300 bg-white px-2 py-1 text-sm text-ink"
-          >
-            <option value="pipeline">{t("sourcePipeline")}</option>
-            <option value="analysis">{t("sourceAnalysis")}</option>
-          </select>
+            ariaLabel={t("sourceLabel")}
+            size="sm"
+            className="shrink-0"
+            options={[
+              { value: "pipeline", label: t("sourcePipeline") },
+              { value: "analysis", label: t("sourceAnalysis") },
+            ]}
+          />
           {families.length > 1 ? (
-            <select
+            <Select
               value={family}
-              onChange={(e) => setFamily(e.target.value)}
-              aria-label={t("familyLabel")}
-              className="focus-ring shrink-0 rounded-md border border-stone-300 bg-white px-2 py-1 text-sm text-ink"
-            >
-              <option value="">{t("familyAll")}</option>
-              {families.map((f) => (
-                <option key={f} value={f}>
-                  {labelize(f)}
-                </option>
-              ))}
-            </select>
+              onChange={setFamily}
+              ariaLabel={t("familyLabel")}
+              size="sm"
+              className="shrink-0"
+              options={[{ value: "", label: t("familyAll") }, ...families.map((f) => ({ value: f, label: labelize(f) }))]}
+            />
           ) : null}
         </div>
       </div>

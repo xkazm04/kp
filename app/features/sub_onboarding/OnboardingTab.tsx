@@ -4,6 +4,9 @@ import { useCallback, useEffect, useState } from "react";
 import { Check, ChevronRight, FileSignature, ListChecks, Plus, Trash2, UserPlus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { ONBOARDING_PRESETS, type OnboardingTask, type OnboardingTaskState, type QuestionnaireField } from "@/app/_lib/onboarding";
+import { Select } from "@/app/_components/Select";
+import { TextInput } from "@/app/_components/TextInput";
+import { Checkbox } from "@/app/_components/Checkbox";
 
 type HiredCandidate = { entryId: string; candidateLabel: string | null; jobTitle: string | null; runId: string | null };
 type RunSummary = {
@@ -97,17 +100,13 @@ export function OnboardingTab() {
             {toOnboard.length > 0 && templates.length > 0 ? (
               <label className="mt-2 flex flex-wrap items-center gap-2 text-sm text-steel">
                 {t("withTemplate")}
-                <select
+                <Select
+                  ariaLabel={t("withTemplate")}
                   value={templateId}
-                  onChange={(e) => setTemplateId(e.target.value)}
-                  className="focus-ring rounded-md border border-stone-200 bg-white px-2 py-1 text-sm text-ink"
-                >
-                  {templates.map((tpl) => (
-                    <option key={tpl.id} value={tpl.id}>
-                      {tpl.name}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setTemplateId}
+                  size="sm"
+                  options={templates.map((tpl) => ({ value: tpl.id, label: tpl.name }))}
+                />
               </label>
             ) : null}
             {toOnboard.length === 0 ? (
@@ -235,12 +234,13 @@ function EditableRows({
     <div className="mt-1.5 space-y-1.5">
       {items.map((val, i) => (
         <div key={i} className="flex items-center gap-1.5">
-          <input
+          <TextInput
             type="text"
             value={val}
             placeholder={placeholder}
             onChange={(e) => onChange(items.map((v, j) => (j === i ? e.target.value : v)))}
-            className="focus-ring h-8 flex-1 rounded-md border border-stone-200 bg-white px-2 text-sm text-ink"
+            sizeVariant="sm"
+            className="flex-1"
           />
           <button
             type="button"
@@ -309,28 +309,26 @@ function TemplateManager({ onCancel, onSaved }: { onCancel: () => void; onSaved:
     <div className="mt-3 rounded-md border border-coral/30 bg-coral/5 p-3">
       <label className="block text-sm font-semibold text-steel">
         {t("fromPreset")}
-        <select
-          defaultValue=""
-          onChange={(e) => applyPreset(e.target.value)}
-          className="focus-ring ml-2 rounded-md border border-stone-200 bg-white px-2 py-1 text-sm font-normal text-ink"
-        >
-          <option value="" disabled>
-            {t("choosePreset")}
-          </option>
-          {ONBOARDING_PRESETS.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name} — {p.industry}
-            </option>
-          ))}
-        </select>
+        <Select
+          ariaLabel={t("fromPreset")}
+          value=""
+          onChange={applyPreset}
+          size="sm"
+          className="ml-2 font-normal"
+          options={[
+            { value: "", label: t("choosePreset"), disabled: true },
+            ...ONBOARDING_PRESETS.map((p) => ({ value: p.id, label: `${p.name} — ${p.industry}` })),
+          ]}
+        />
       </label>
 
-      <input
+      <TextInput
         type="text"
         value={name}
         onChange={(e) => setName(e.target.value)}
         placeholder={t("templateNamePlaceholder")}
-        className="focus-ring mt-3 h-9 w-full rounded-md border border-stone-200 bg-white px-2.5 text-sm font-semibold text-ink"
+        sizeVariant="sm"
+        className="mt-3 font-semibold"
       />
 
       <p className="mt-3 text-meta uppercase tracking-wide text-steel">{t("tasksLabel")}</p>
@@ -450,11 +448,9 @@ function RunDetailView({ runId, onBack }: { runId: string; onBack: () => void })
             return (
               <li key={task.id}>
                 <label className="flex cursor-pointer items-center gap-2.5 text-base text-ink">
-                  <input
-                    type="checkbox"
+                  <Checkbox
                     checked={done}
                     onChange={(e) => void patch({ action: "task", taskId: task.id, done: e.target.checked })}
-                    className="h-4 w-4 accent-coral"
                   />
                   <span className={done ? "text-steel line-through" : ""}>{task.label}</span>
                 </label>
@@ -472,12 +468,13 @@ function RunDetailView({ runId, onBack }: { runId: string; onBack: () => void })
           {detail.questionnaire.map((field) => (
             <label key={field.key} className="block">
               <span className="text-meta text-steel">{fieldLabels[field.key] ?? field.label}</span>
-              <input
+              <TextInput
                 type="text"
                 value={answers[field.key] ?? ""}
                 onChange={(e) => setAnswers((a) => ({ ...a, [field.key]: e.target.value }))}
                 onBlur={() => void patch({ action: "intake", answers })}
-                className="focus-ring mt-1 w-full rounded-md border border-stone-200 bg-white p-2 text-sm text-ink"
+                sizeVariant="sm"
+                className="mt-1"
               />
             </label>
           ))}
@@ -513,12 +510,13 @@ function RunDetailView({ runId, onBack }: { runId: string; onBack: () => void })
           </ul>
         ) : null}
         <div className="mt-3 flex flex-wrap items-center gap-2">
-          <input
+          <TextInput
             type="text"
             value={doc}
             onChange={(e) => setDoc(e.target.value)}
             placeholder={t("docPlaceholder")}
-            className="focus-ring h-9 min-w-0 flex-1 rounded-md border border-stone-200 bg-white px-2 text-sm text-ink"
+            sizeVariant="sm"
+            className="min-w-0 flex-1"
           />
           <button
             type="button"

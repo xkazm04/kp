@@ -847,7 +847,7 @@ function InlineNumberSave({
       title={failed ? failedTitle : undefined}
       aria-invalid={failed ? true : undefined}
       placeholder="—"
-      className={`focus-ring h-8 ${width} rounded-md border px-2 text-right disabled:opacity-50 ${inputClassName ?? ""} ${
+      className={`focus-ring h-8 bg-white caret-coral placeholder:text-steel ${width} rounded-md border px-2 text-right disabled:opacity-50 ${inputClassName ?? ""} ${
         failed ? "border-coral text-coral" : "border-stone-200 text-ink"
       }`}
     />

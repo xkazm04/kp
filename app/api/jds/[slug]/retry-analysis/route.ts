@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getTask, loadJd, markJdAnalyzing, setJdAnalysisTask } from "@/app/_lib/db";
 import { startTask } from "@/app/_lib/tasks";
 import { safeJsonError } from "@/app/_lib/api-response";
+import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 
 // POST /api/jds/[slug]/retry-analysis — re-run a failed backgrounded build. The
 // original inputs (title/need/company/options/jdSlug…) live on the failed task's
@@ -11,7 +12,7 @@ import { safeJsonError } from "@/app/_lib/api-response";
 export async function POST(_request: Request, context: { params: Promise<{ slug: string }> }) {
   const { slug } = await context.params;
   try {
-    const jd = loadJd(slug);
+    const jd = loadJd(slug, await currentWorkspace());
     if (!jd) return NextResponse.json({ error: "JD not found." }, { status: 404 });
     if (jd.analysis_status !== "failed") {
       return NextResponse.json({ error: "This JD isn't in a failed state." }, { status: 409 });

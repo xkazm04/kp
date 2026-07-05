@@ -14,6 +14,8 @@ import {
 } from "./JobsTypes";
 import type { Job } from "./JobsTypes";
 import { Chip, EmptyState, Select } from "./JobsShared";
+import { Checkbox } from "@/app/_components/Checkbox";
+import { TextInput } from "@/app/_components/TextInput";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { JobsTableFrame, JobsTableSkeleton } from "./JobsTable";
 import { JobRow } from "./JobRow";
@@ -115,44 +117,34 @@ export function JobsTab() {
       />
 
       <div className="mt-4 flex flex-wrap items-center gap-2">
-        <Select value={roleFamily} onChange={setRoleFamily} all={t("allFamilies")} label={t("filterFamily")}>
-          {FAMILIES.map((f) => (
-            <option key={f} value={f}>
-              {enumLabel("family", f)}
-            </option>
-          ))}
-        </Select>
-        <Select value={seniority} onChange={setSeniority} all={t("allSeniority")} label={t("filterSeniority")}>
-          {SENIORITIES.map((s) => (
-            <option key={s} value={s} className="capitalize">
-              {enumLabel("seniority", s)}
-            </option>
-          ))}
-        </Select>
-        <Select value={workMode} onChange={setWorkMode} all={t("allModes")} label={t("filterWorkMode")}>
-          {MODES.map((m) => (
-            <option key={m} value={m} className="capitalize">
-              {enumLabel("workMode", m)}
-            </option>
-          ))}
-        </Select>
+        <Select
+          value={roleFamily}
+          onChange={setRoleFamily}
+          all={t("allFamilies")}
+          label={t("filterFamily")}
+          options={FAMILIES.map((f) => ({ value: f, label: enumLabel("family", f) }))}
+        />
+        <Select
+          value={seniority}
+          onChange={setSeniority}
+          all={t("allSeniority")}
+          label={t("filterSeniority")}
+          options={SENIORITIES.map((s) => ({ value: s, label: enumLabel("seniority", s) }))}
+        />
+        <Select
+          value={workMode}
+          onChange={setWorkMode}
+          all={t("allModes")}
+          label={t("filterWorkMode")}
+          options={MODES.map((m) => ({ value: m, label: enumLabel("workMode", m) }))}
+        />
         <label className="flex items-center gap-2 rounded-md border border-stone-200 px-3 py-2 text-base text-ink">
-          <input
-            type="checkbox"
-            checked={entryOnly}
-            onChange={(e) => setEntryOnly(e.target.checked)}
-            className="h-4 w-4 accent-coral"
-          />
+          <Checkbox checked={entryOnly} onChange={(e) => setEntryOnly(e.target.checked)} />
           {t("entryOnly")}
         </label>
         {/* Lifecycle filter: hide drafts + closed roles (default off — the full catalog stays the baseline view). */}
         <label className="flex items-center gap-2 rounded-md border border-stone-200 px-3 py-2 text-base text-ink">
-          <input
-            type="checkbox"
-            checked={openOnly}
-            onChange={(e) => setOpenOnly(e.target.checked)}
-            className="h-4 w-4 accent-coral"
-          />
+          <Checkbox checked={openOnly} onChange={(e) => setOpenOnly(e.target.checked)} />
           {t("openOnly")}
         </label>
         <label htmlFor="jobs-search" className="sr-only">

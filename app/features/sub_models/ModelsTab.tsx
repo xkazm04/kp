@@ -4,7 +4,9 @@ import { useCallback, useEffect, useState } from "react";
 import { useFormatter, useTranslations } from "next-intl";
 import { Badge } from "@/app/_components/Badge";
 import { Skeleton } from "@/app/_components/Skeleton";
-import { BTN_SECONDARY, EYEBROW, FIELD, INTRO, PANEL, PANEL_SUNKEN } from "@/app/_components/ui/recipes";
+import { BTN_SECONDARY, EYEBROW, INTRO, PANEL, PANEL_SUNKEN } from "@/app/_components/ui/recipes";
+import { Select } from "@/app/_components/Select";
+import { TextInput } from "@/app/_components/TextInput";
 import { SectionTitle } from "@/app/_components/ui/SectionTitle";
 import { labelize } from "@/app/_lib/format";
 import type { LlmConfigRow } from "@/app/_lib/db";
@@ -140,29 +142,28 @@ function RoutingRow({
           ) : null}
         </td>
         <td className="py-2.5 pr-3">
-          <select
+          <Select
             value={provider}
-            onChange={(e) => setProvider(e.target.value)}
-            aria-label={t("providerAria", { useCase: label })}
-            className={`${FIELD} focus-ring h-9 w-full min-w-36 text-sm`}
-          >
-            <option value="">{t("providerDefault")}</option>
-            {providers.map((p) => (
-              <option key={p} value={p}>
-                {providerName(p)}
-              </option>
-            ))}
-          </select>
+            onChange={setProvider}
+            ariaLabel={t("providerAria", { useCase: label })}
+            size="sm"
+            className="w-full min-w-36"
+            options={[
+              { value: "", label: t("providerDefault") },
+              ...providers.map((p) => ({ value: p, label: providerName(p) })),
+            ]}
+          />
         </td>
         <td className="py-2.5 pr-3">
-          <input
+          <TextInput
             type="text"
             value={model}
             onChange={(e) => setModel(e.target.value)}
             disabled={!provider}
             placeholder={t("modelPlaceholder")}
             aria-label={t("modelAria", { useCase: label })}
-            className={`${FIELD} focus-ring h-9 w-full min-w-40 text-sm disabled:opacity-50`}
+            sizeVariant="sm"
+            className="w-full min-w-40 disabled:opacity-50"
           />
         </td>
         <td className="py-2.5 pr-3">
