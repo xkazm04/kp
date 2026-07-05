@@ -24,6 +24,7 @@ from typing import Any, Sequence
 
 from ..claude_cli import _extract_json
 from . import monitor
+from .offline import is_offline
 
 DEFAULT_TIMEOUT_S = 180
 # The wrapped use cases return deliberately short JSON (sub-KB rationales,
@@ -202,7 +203,17 @@ class TextProvider:
             return False
         return True
 
+    def _allowed_offline(self) -> bool:
+        """Whether this adapter may run under KP_OFFLINE. Cloud adapters return
+        False (→ deterministic fallback); a self-hosted/configured endpoint
+        overrides to True (the OpenAI adapter via its base_url, Azure via its
+        endpoint). See pipeline/jobfit/llm/offline.py."""
+        return False
+
     def available(self) -> bool:
+        # Hard no-egress mode: a cloud engine must not fire even if a key is set.
+        if is_offline() and not self._allowed_offline():
+            return False
         if not self._resolved_key():
             return False
         return self._import_sdk()

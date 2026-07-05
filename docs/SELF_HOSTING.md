@@ -137,8 +137,30 @@ For a disconnected or egress-restricted install:
    then to your own in-network endpoint. Without it, AI-generated text falls back to
    deterministic output.
 
-A hard `KP_OFFLINE` flag that *refuses* any call outside your configured endpoint
-(belt-and-suspenders over "just don't set cloud keys") is tracked as E-SH-4.
+### `KP_OFFLINE` — hard no-egress enforcement
+
+Belt-and-suspenders over "just don't set cloud keys": set **`KP_OFFLINE=1`** and KP
+*refuses* every outbound call except loopback and the private endpoints you
+explicitly configured. Concretely:
+
+- **App (Node):** a `fetch` guard installed at server startup rejects any request
+  whose host isn't allow-listed — so GitHub repo analysis, Polar billing, the JS
+  Gemini/OpenAI SDKs, and voice token exchanges are blocked *before the socket
+  opens*, even if a key is set by mistake.
+- **Pipeline (Python):** cloud LLM engines (Gemini, Anthropic, the Claude CLI, and
+  OpenAI **without** a `base_url`) report unavailable → the call falls back to
+  deterministic output. A self-hosted OpenAI endpoint (`OPENAI_BASE_URL`) and Azure
+  (its configured `endpoint`) keep working.
+- **Billing:** Polar is disabled (billing routes report unconfigured).
+
+The **allowlist** = loopback + the hosts of `OPENAI_BASE_URL`, `AZURE_OPENAI_ENDPOINT`,
+`LIGHTTRACK_URL`, `NEXT_PUBLIC_APP_BASE_URL`/`APP_BASE_URL`, `COMMS_WEBHOOK_URL`,
+plus any extra hosts in **`KP_OFFLINE_ALLOW_HOSTS`** (comma-separated) for a
+same-network gateway.
+
+> This is an **application-level** backstop. For a hard guarantee, still enforce a
+> **network egress policy** at the deployment layer (Kubernetes NetworkPolicy /
+> firewall / no-egress subnet) — `KP_OFFLINE` complements it, it doesn't replace it.
 
 ## 8. Production checklist (closes backlog #27)
 

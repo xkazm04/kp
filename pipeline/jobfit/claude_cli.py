@@ -104,7 +104,15 @@ class ClaudeCliProvider:
     # -- discovery ----------------------------------------------------------
 
     def available(self) -> bool:
-        """True if the CLI is resolvable on PATH (or ``command`` is an abs path)."""
+        """True if the CLI is resolvable on PATH (or ``command`` is an abs path).
+
+        Refuses under KP_OFFLINE: the CLI reaches Anthropic's cloud via a subprocess
+        (not ``fetch``, so the TS egress guard can't see it), so the no-egress flag
+        must block it here → the caller falls back to deterministic (offline.py)."""
+        from .llm.offline import is_offline
+
+        if is_offline():
+            return False
         return shutil.which(self.command) is not None or os.path.isfile(self.command)
 
     def _executable(self) -> str:

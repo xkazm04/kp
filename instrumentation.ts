@@ -15,6 +15,12 @@
 
 export async function register(): Promise<void> {
   if (process.env.NEXT_RUNTIME !== "nodejs") return;
+  // Install the KP_OFFLINE egress guard FIRST, before any code path can fetch, so a
+  // hard no-egress self-host deployment refuses outbound calls from the very start
+  // (E-SH-4). No-op unless KP_OFFLINE is set. `offline` is a pure env/URL module —
+  // no SQLite/native imports — so it's safe to import in this edge-compiled hook.
+  const { installOfflineFetchGuard } = await import("./app/_lib/offline");
+  installOfflineFetchGuard();
   const { startClock } = await import("./instrumentation-node");
   await startClock();
 }

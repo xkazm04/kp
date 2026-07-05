@@ -170,10 +170,14 @@ packaged/air-gapped deploy; egress isn't provably off; self-hosted model
 - **E-SH-3** **Postgres** backend (SQLite is single-writer; a real org needs
   concurrent multi-user) behind the existing DB seam. — **L**
 - **E-SH-4** **Air-gap / no-egress mode**: a switch that hard-disables every
-  external call except the customer's own model endpoints; document the full
-  egress list (Polar, model providers, LightTrack) and make each optional. — **M**
-  — egress list + air-gap-via-config **documented** (SELF_HOSTING.md §6–7); the
-  hard `KP_OFFLINE` enforcement flag is still open.
+  external call except the customer's own model endpoints. — **M** — ✅ **DONE
+  (2026-07-05):** `KP_OFFLINE=1` installs a startup `fetch` egress guard (Node) that
+  refuses any host outside the configured allowlist *before the socket opens*
+  (GitHub/Polar/JS-SDK/voice), gates cloud LLM engines to deterministic on the Python
+  side (`llm/offline.py`; self-hosted OpenAI + Azure stay usable), and disables Polar
+  billing. `KP_OFFLINE_ALLOW_HOSTS` extends the allowlist. Verified: real global-fetch
+  guard blocks a cloud host pre-network; unit + Python suites green. Docs:
+  SELF_HOSTING.md §7. Complements — does not replace — a network-layer egress policy.
 - **E-SH-5** First-class **self-hosted model endpoints** (Azure OpenAI in-tenant,
   vLLM/Ollama base-URL) — extends BYOM to fully private inference. — **M** — ✅ **DONE
   (2026-07-05):** the OpenAI adapter takes a `base_url` (from `KP_LLM_CONFIG`

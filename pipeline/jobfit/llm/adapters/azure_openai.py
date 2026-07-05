@@ -52,6 +52,11 @@ class AzureOpenAIProvider(OpenAIProvider):
             return self.api_version
         return os.getenv("AZURE_OPENAI_API_VERSION") or _DEFAULT_API_VERSION
 
+    def _allowed_offline(self) -> bool:
+        # Azure routes to the operator's own configured resource endpoint, so it
+        # counts as an explicitly-configured private endpoint under KP_OFFLINE.
+        return bool(self._resolved_endpoint())
+
     def available(self) -> bool:
         return bool(self._resolved_endpoint()) and super().available()
 

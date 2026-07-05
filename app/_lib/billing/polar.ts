@@ -15,6 +15,7 @@ import { BillingConfigError } from "./gateway";
 import type { BillingEvent, BillingGateway, Checkout, CheckoutRequest, ProductMap } from "./gateway";
 import { PACKS } from "./plans";
 import { verifyStandardWebhook } from "./webhook-verify";
+import { isOffline } from "../offline";
 
 const SERVERS = {
   production: "https://api.polar.sh",
@@ -168,6 +169,12 @@ export class PolarGateway implements BillingGateway {
 }
 
 export function polarGatewayFromEnv(env: NodeJS.ProcessEnv = process.env): PolarGateway | null {
+  // Hard no-egress mode (E-SH-4): Polar is a cloud Merchant-of-Record, so billing is
+  // disabled under KP_OFFLINE — the routes report unconfigured (503 / "not
+  // configured") instead of erroring against the fetch guard. Defense in depth: the
+  // offline fetch guard would already block api.polar.sh, but returning null here
+  // keeps the Billing UX honest rather than surfacing a blocked-fetch error.
+  if (isOffline(env)) return null;
   const cfg = polarConfigFromEnv(env);
   return cfg ? new PolarGateway(cfg) : null;
 }
