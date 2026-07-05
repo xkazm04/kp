@@ -175,8 +175,13 @@ packaged/air-gapped deploy; egress isn't provably off; self-hosted model
   — egress list + air-gap-via-config **documented** (SELF_HOSTING.md §6–7); the
   hard `KP_OFFLINE` enforcement flag is still open.
 - **E-SH-5** First-class **self-hosted model endpoints** (Azure OpenAI in-tenant,
-  vLLM/Ollama base-URL) — extends BYOM to fully private inference. — **M** ← **next
-  increment on this branch.**
+  vLLM/Ollama base-URL) — extends BYOM to fully private inference. — **M** — ✅ **DONE
+  (2026-07-05):** the OpenAI adapter takes a `base_url` (from `KP_LLM_CONFIG`
+  `keys.openai.baseUrl` or the `OPENAI_BASE_URL` env) and runs **keyless** against
+  vLLM/Ollama/LiteLLM; Azure stays isolated on its own endpoint. Verified with a
+  live end-to-end test (real openai SDK → stub OpenAI-compatible server, keyless).
+  Docs: SELF_HOSTING.md §5. Follow-up: a Models-tab base-URL field (needs the
+  SSRF-guard relaxed for operator-owned self-host, gated off on the SaaS).
 - **E-SH-6** **Data residency**: pin managed hosting to EU regions; document data
   flows. — **S–M** (policy + config)
 - **Depends on:** E0 (coherent tenancy) for a credible multi-user self-host.

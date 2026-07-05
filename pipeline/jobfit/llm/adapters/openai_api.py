@@ -1,12 +1,21 @@
-"""OpenAI Chat Completions adapter (official ``openai`` SDK)."""
+"""OpenAI Chat Completions adapter (official ``openai`` SDK).
+
+Also serves any **OpenAI-compatible** endpoint via ``base_url`` — the enterprise
+self-host path (docs/SELF_HOSTING.md, E-SH-5): point it at Azure OpenAI's
+OpenAI-compatible gateway, vLLM, Ollama (``/v1``), LiteLLM, or an in-VPC proxy so
+inference never leaves the customer's network. The base URL comes from
+``KP_LLM_CONFIG`` (keys.<provider>.baseUrl) or the ``OPENAI_BASE_URL`` env var; such
+endpoints frequently need no API key, so availability rides on the endpoint, not a
+key (a placeholder key is supplied to the SDK, which requires a non-empty value)."""
 
 from __future__ import annotations
 
+import os
 from typing import Any
 
 # load_local_env imported so the base's _load_env dispatch (and the tests that
 # patch it on this module) resolve it here; _resolved_key/available live in base.
-from ..base import LLMResult, TextProvider, load_local_env, price_usd  # noqa: F401
+from ..base import DEFAULT_MAX_TOKENS, DEFAULT_TIMEOUT_S, LLMResult, TextProvider, load_local_env, price_usd  # noqa: F401
 
 
 class OpenAIProvider(TextProvider):
@@ -14,12 +23,47 @@ class OpenAIProvider(TextProvider):
     _env_keys = ("OPENAI_API_KEY",)
     _sdk_module = "openai"
 
+    def __init__(
+        self,
+        *,
+        model: str,
+        api_key: str | None = None,
+        timeout: int = DEFAULT_TIMEOUT_S,
+        max_tokens: int = DEFAULT_MAX_TOKENS,
+        base_url: str | None = None,
+        use_case: str | None = None,
+    ) -> None:
+        super().__init__(model=model, api_key=api_key, timeout=timeout, max_tokens=max_tokens, use_case=use_case)
+        # Optional OpenAI-compatible endpoint (self-hosted / in-VPC inference).
+        self.base_url = base_url
+
+    def _resolved_base_url(self) -> str | None:
+        """Configured base URL → OPENAI_BASE_URL env → None (api.openai.com)."""
+        if self.base_url:
+            return self.base_url
+        self._load_env()
+        return os.getenv("OPENAI_BASE_URL") or None
+
+    def available(self) -> bool:
+        # A self-hosted OpenAI-compatible endpoint may require no key (vLLM/Ollama),
+        # so when one is configured, availability rides on the SDK being importable
+        # rather than a resolved key. The default OpenAI path still requires a key.
+        if self._resolved_base_url():
+            return self._import_sdk()
+        return super().available()
+
     def _make_client(self, timeout: int) -> Any:
         import openai
 
-        # max_retries=0: TextProvider.complete owns the retry policy.
+        base_url = self._resolved_base_url()
+        # max_retries=0: TextProvider.complete owns the retry policy. The SDK rejects
+        # a missing api_key even for keyless local endpoints, so pass a placeholder
+        # when none is configured and a base_url is in play.
         return openai.OpenAI(
-            api_key=self._resolved_key(), timeout=float(timeout), max_retries=0
+            api_key=self._resolved_key() or ("not-needed" if base_url else None),
+            base_url=base_url,
+            timeout=float(timeout),
+            max_retries=0,
         )
 
     def _call(self, prompt: str, *, system: str | None, timeout: int) -> LLMResult:

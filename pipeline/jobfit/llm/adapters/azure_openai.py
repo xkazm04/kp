@@ -35,6 +35,12 @@ class AzureOpenAIProvider(OpenAIProvider):
         self.endpoint = endpoint
         self.api_version = api_version
 
+    def _resolved_base_url(self) -> str | None:
+        # Azure routes through azure_endpoint (below), never the generic OpenAI
+        # base_url. Override to None so it can't pick up OPENAI_BASE_URL from the
+        # env and mis-route Azure traffic to a self-hosted OpenAI endpoint.
+        return None
+
     def _resolved_endpoint(self) -> str | None:
         if self.endpoint:
             return self.endpoint

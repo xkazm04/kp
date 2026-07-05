@@ -74,13 +74,34 @@ KP is **BYOM (bring your own model)**: every AI call routes to *your* keys and
 *your* providers (docs/LLM_PROVIDER_LAYER.md). Nothing is hard-wired to a vendor
 you can't swap, and there is no KP-hosted inference in the path.
 
-- Set only the provider keys you intend to use (§5-table below).
+- Set only the provider keys you intend to use (§6 table below).
 - With **no** provider keys set, AI features **degrade to deterministic fallbacks**
   (the same paths that run when a provider is down) — the app stays fully usable,
   just without model-generated text. This is by design: *degrade, not block*.
-- **Fully private inference** (Azure OpenAI in your own tenant, vLLM, Ollama) as a
-  first-class base-URL setting is the next E4 increment (E-SH-5). Until it lands,
-  air-gapped installs run in deterministic mode for AI.
+
+### Fully private inference (self-hosted endpoints)
+
+You can keep **model-generated** AI while nothing leaves your network by pointing
+the OpenAI adapter at an **OpenAI-compatible endpoint in your own infrastructure** —
+Azure OpenAI in your tenant, **vLLM**, **Ollama**, **LiteLLM**, or an in-VPC proxy:
+
+1. Run your endpoint (e.g. Ollama exposes an OpenAI-compatible API at
+   `http://ollama:11434/v1`; vLLM at `http://vllm:8000/v1`).
+2. Point KP at it with **`OPENAI_BASE_URL`** (and `OPENAI_API_KEY` only if your
+   endpoint requires one — vLLM/Ollama usually don't; KP runs keyless against them):
+
+   ```bash
+   OPENAI_BASE_URL=http://ollama:11434/v1
+   # OPENAI_API_KEY=...   # only if your gateway enforces a key
+   ```
+
+3. Route use cases to the `openai` provider in **Settings → Models** (set a specific
+   use case, or the `*` wildcard to send *everything* to your endpoint), with the
+   model name your endpoint serves (e.g. `llama3.1`, `qwen2.5`).
+
+The base URL can also travel per-provider in `KP_LLM_CONFIG` (`keys.openai.baseUrl`)
+if you configure routing by env instead of the DB. Azure OpenAI keeps its own
+`endpoint`/`api-version` path (unaffected by `OPENAI_BASE_URL`).
 
 ## 6. External egress — the complete inventory (air-gap reference)
 
@@ -91,7 +112,7 @@ off). This is the list to hand your security team.
 | Destination | Host | Enabled by | Default | Purpose / how to disable |
 |---|---|---|---|---|
 | Google Gemini | `generativelanguage.googleapis.com` | `GEMINI_API_KEY` / `GOOGLE_API_KEY` | off | Flagship CV analysis, salary, match reasoning. Unset ⇒ deterministic fallback. |
-| OpenAI | `api.openai.com` | `OPENAI_API_KEY` | off | LLM routing + voice (Realtime). Unset ⇒ off. |
+| OpenAI | `api.openai.com` **or your `OPENAI_BASE_URL`** | `OPENAI_API_KEY` / `OPENAI_BASE_URL` | off | LLM routing + voice. Point `OPENAI_BASE_URL` at a self-hosted OpenAI-compatible endpoint (§5) to keep inference in-network. Unset ⇒ off. |
 | Anthropic | `api.anthropic.com` | BYOM (`KP_LLM_CONFIG`) | off | Optional LLM routing. Unset ⇒ off. |
 | ElevenLabs | `api.elevenlabs.io` | `ELEVENLABS_API_KEY` | off | Voice interviews. Unset ⇒ voice off. |
 | GitHub | `api.github.com` | GitHub repo-analysis feature | anon | Candidate repo signal. `GITHUB_TOKEN` only raises rate limits; skip the feature to avoid entirely. |
@@ -106,16 +127,18 @@ served from the image — so it renders correctly with no internet access.
 
 For a disconnected or egress-restricted install:
 
-1. Set `KP_OPERATOR_PASSWORD` + `KP_SECRET`; leave **all** provider keys and
+1. Set `KP_OPERATOR_PASSWORD` + `KP_SECRET`; leave **all** cloud provider keys and
    `POLAR_ACCESS_TOKEN` / `LIGHTTRACK_URL` unset.
 2. KP runs fully offline: pipeline, matching, scheduling, decisions and the whole
-   workspace work; AI-generated text falls back to deterministic output.
-3. To keep model-generated AI while air-gapped, wait for E-SH-5 (self-hosted
-   endpoints) or route a self-hosted OpenAI-compatible gateway once base-URL config
-   lands.
+   workspace work with no outbound calls.
+3. **Keep model-generated AI in the air gap** by pointing `OPENAI_BASE_URL` at a
+   self-hosted OpenAI-compatible endpoint on your network (vLLM / Ollama / LiteLLM —
+   §5) and routing use cases to `openai` in Settings → Models. The only "egress" is
+   then to your own in-network endpoint. Without it, AI-generated text falls back to
+   deterministic output.
 
-A hard `KP_OFFLINE` flag that *refuses* any external call (belt-and-suspenders over
-"just don't set keys") is tracked as E-SH-4.
+A hard `KP_OFFLINE` flag that *refuses* any call outside your configured endpoint
+(belt-and-suspenders over "just don't set cloud keys") is tracked as E-SH-4.
 
 ## 8. Production checklist (closes backlog #27)
 

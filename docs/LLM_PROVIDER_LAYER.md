@@ -141,7 +141,11 @@ envelopes, retries, and cost extraction):
 
 - `anthropic_api.py` — Anthropic Messages API (haiku-class default for the small reasoning
   calls; structured output via JSON schema).
-- `openai_api.py` — OpenAI chat/responses with JSON schema mode.
+- `openai_api.py` — OpenAI chat/responses with JSON schema mode. Also serves any
+  **OpenAI-compatible** endpoint via an optional `base_url` (vLLM / Ollama / LiteLLM /
+  in-VPC proxy) and runs keyless against them — the enterprise self-host path
+  (E-SH-5; `OPENAI_BASE_URL` env or `KP_LLM_CONFIG` `keys.openai.baseUrl`). See
+  docs/SELF_HOSTING.md §5.
 - `azure_openai.py` — same surface as OpenAI but config carries `endpoint`, `deployment`,
   `api_version` (from `provider_keys.meta_json`).
 - `gemini_api.py` — refactor of `gemini.py`: keep `_generate_with_retry`, `_usage_metadata`,

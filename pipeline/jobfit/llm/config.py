@@ -15,6 +15,7 @@ Shape::
       },
       "keys": {
         "anthropic":    { "apiKey": "sk-…" },
+        "openai":       { "apiKey": "…", "baseUrl": "http://vllm:8000/v1" },  // self-hosted
         "azure_openai": { "apiKey": "…", "endpoint": "https://…", "apiVersion": "…" }
       }
     }
@@ -48,6 +49,9 @@ class ProviderKeys:
     api_key: str | None = None
     endpoint: str | None = None
     api_version: str | None = None
+    # OpenAI-compatible self-hosted endpoint (vLLM/Ollama/LiteLLM/proxy); see the
+    # OpenAI adapter. Distinct from Azure's `endpoint`, which uses a different client.
+    base_url: str | None = None
 
 
 @dataclass(frozen=True)
@@ -108,6 +112,7 @@ def load_config(env: Mapping[str, str] | None = None) -> LLMConfig | None:
             api_key=str(entry["apiKey"]) if entry.get("apiKey") else None,
             endpoint=str(entry["endpoint"]) if entry.get("endpoint") else None,
             api_version=str(entry["apiVersion"]) if entry.get("apiVersion") else None,
+            base_url=str(entry["baseUrl"]) if entry.get("baseUrl") else None,
         )
 
     return LLMConfig(use_cases=use_cases, keys=keys)
