@@ -180,8 +180,10 @@ packaged/air-gapped deploy; egress isn't provably off; self-hosted model
   (first increment, 2026-07-05):** multi-stage `Dockerfile` (Node 24 + Python,
   native better-sqlite3, non-root, tini), `docker-compose.yml`, `.dockerignore`,
   `.env.example` deploy block, and **docs/SELF_HOSTING.md** (quick-start, egress
-  inventory, air-gap notes, production checklist). Remaining: Helm chart +
-  license-key gating.
+  inventory, air-gap notes, production checklist). **Image slimmed 2026-07-05** via
+  Next `output:"standalone"` (traced server + minimal node_modules): **1.78 GB → 465
+  MB (−74%)**, verified running (boots, DB on volume, python pipeline + native
+  better-sqlite3 work, auth fail-closed). Remaining: Helm chart + license-key gating.
 - **E-SH-3** **Postgres** backend (for multi-replica HA; SQLite+WAL already handles
   KP's 1–2-user-per-team concurrency) behind the existing DB seam. — **L** — 🟡
   **SCOPED + seam landed (2026-07-05):** full design/decision doc

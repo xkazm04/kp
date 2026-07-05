@@ -28,6 +28,10 @@ database, cache, or message broker to operate — back up one file and you have
 everything. (For large multi-user installs, a Postgres backend is on the roadmap,
 E-SH-3.)
 
+The image is a **slim standalone build** (~465 MB): Next `output:"standalone"` traces
+only the server files + the minimal `node_modules` it actually needs, rather than
+shipping the whole source tree and full dependency set.
+
 ## 2. Quick start (Docker Compose)
 
 ```bash

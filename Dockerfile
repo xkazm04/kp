@@ -49,27 +49,25 @@ COPY package.json package-lock.json ./
 # `npm prune --omit=dev` below strips them back out for the copy the runner takes.
 RUN npm ci --legacy-peer-deps --include=dev
 
-# Full source + build, then drop dev dependencies from node_modules (better-sqlite3
-# is a prod dep, so it stays and travels to the runner compiled).
+# Full source + build. `next build` with output:"standalone" (next.config.ts) emits
+# .next/standalone — a self-contained server with a MINIMAL, traced node_modules — so
+# the runner never copies the builder's full node_modules or the source tree.
 COPY . .
 # --legacy-peer-deps (used on npm ci above for the canary-next conflict) also SKIPS
 # auto-installing PEER deps. recharts imports its `react-is` peer at build + SSR time,
-# so add just that one explicitly — `--save` so it counts as a dep and survives the
-# prune below (it's a genuine runtime dep of recharts). This edits only the container's
-# manifest copy, never the source package.json/lock. Pinned to the lockfile version.
-# --include=dev on the install too: under NODE_ENV=production a plain `npm install`
-# would re-reify the tree WITHOUT devDependencies, silently pruning the build-time
-# deps (tailwind postcss, etc.) that npm ci just installed. Keep them until after
-# `next build`; the final `npm prune --omit=dev` is what strips them for the runner.
+# so add just that one explicitly (--save so the standalone trace keeps it). This
+# edits only the container's manifest copy, never the source package.json/lock.
+# --include=dev: under NODE_ENV=production a plain `npm install` would re-reify the
+# tree WITHOUT the devDependencies `next build` needs (tailwind postcss, etc.).
 RUN npm install --save --include=dev --legacy-peer-deps react-is@19.2.5 \
- && npm run build \
- && npm prune --omit=dev --legacy-peer-deps
+ && npm run build
 
-# ---------- runner: slim runtime with python for the spawned pipeline ----------
+# ---------- runner: slim standalone runtime with python for the spawned pipeline ----------
 FROM ${NODE_IMAGE} AS runner
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
     PORT=3000 \
+    HOSTNAME=0.0.0.0 \
     KP_DB_PATH=/data/kp.sqlite \
     PYTHON_CMD=/opt/venv/bin/python \
     PATH=/opt/venv/bin:$PATH
@@ -79,17 +77,22 @@ WORKDIR /app
 # so a container SIGTERM reaps the spawned python children instead of orphaning them.
 RUN apt-get update \
  && apt-get install -y --no-install-recommends python3 tini ca-certificates \
- && rm -rf /var/lib/apt/lists/*
+ && rm -rf /var/lib/apt/lists/* \
+ && useradd --system --uid 10001 --home-dir /app kp \
+ && mkdir -p /data && chown kp:kp /data
 
-# The venv (pipeline's Python deps) and the built app, from the builder. `next start`
-# is non-standalone, so it needs .next + node_modules + source together.
-COPY --from=builder /opt/venv /opt/venv
-COPY --from=builder /app /app
+# Standalone server + its TRACED node_modules (incl. the native better-sqlite3 binding
+# and the bundled message catalogs), then the client assets and public dir Next keeps
+# outside the trace.
+COPY --from=builder --chown=kp:kp /app/.next/standalone ./
+COPY --from=builder --chown=kp:kp /app/.next/static ./.next/static
+COPY --from=builder --chown=kp:kp /app/public ./public
+# The Python pipeline is SPAWNED (`python -m pipeline.jobfit.*`), not imported, so it
+# isn't in the JS trace — copy the package, its runtime data files, and the venv.
+COPY --from=builder --chown=kp:kp /app/pipeline ./pipeline
+COPY --from=builder --chown=kp:kp /app/data ./data
+COPY --from=builder --chown=kp:kp /opt/venv /opt/venv
 
-# Persist the SQLite DB (+ its WAL) on a volume; run unprivileged; own the paths.
-RUN useradd --system --uid 10001 --home-dir /app kp \
- && mkdir -p /data \
- && chown -R kp:kp /data /app
 USER kp
 VOLUME ["/data"]
 EXPOSE 3000
@@ -98,6 +101,6 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=45s --retries=3 \
   CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
-# tini reaps zombies (the pipeline spawns) and forwards signals to `next start`.
+# tini reaps zombies (the pipeline spawns) + forwards signals to the standalone server.
 ENTRYPOINT ["/usr/bin/tini", "--"]
-CMD ["npm", "run", "start"]
+CMD ["node", "server.js"]
