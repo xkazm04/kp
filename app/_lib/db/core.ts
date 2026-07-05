@@ -119,6 +119,76 @@ export function ensureDb(): Database.Database {
       created_at TEXT NOT NULL
     );
 
+    -- ── Identity foundation (P0 — Organization / Teams / Users) ──────────────
+    -- The ORGANIZATION is the top tenant boundary (the customer company). It owns
+    -- the subscription + the cross-team reference pool; every workspace (a TEAM)
+    -- belongs to one org via workspaces.org_id (added by migration below). These
+    -- identity tables are scoped by org_id, NOT by the per-team workspace_id the
+    -- tenancy manifest governs — so they carry no workspace_id and are listed
+    -- EXEMPT there (their cross-org isolation is enforced in their own stores).
+    CREATE TABLE IF NOT EXISTS organizations (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      domain TEXT,
+      default_locale TEXT NOT NULL DEFAULT 'cs',
+      created_at TEXT NOT NULL
+    );
+
+    -- A person in an org. Identity ONLY — the secret lives in user_credentials so
+    -- the model stays auth-mechanism-agnostic (a future SSO/OIDC seam adds its own
+    -- credential table without touching this one). email is globally unique so
+    -- login resolves email → user → org. status ∈ active | invited | disabled.
+    CREATE TABLE IF NOT EXISTS users (
+      id TEXT PRIMARY KEY,
+      org_id TEXT NOT NULL,
+      email TEXT NOT NULL UNIQUE,
+      name TEXT,
+      status TEXT NOT NULL DEFAULT 'active',
+      created_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_users_org ON users (org_id);
+
+    -- Local password credential (scrypt), one row per user, kept OUT of the users
+    -- table. Stored value is saltB64url:hashB64url (see app/_lib/auth/password.ts).
+    CREATE TABLE IF NOT EXISTS user_credentials (
+      user_id TEXT PRIMARY KEY,
+      password_hash TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    -- A user's membership of ONE team (workspace) + their role there. Many-to-many
+    -- (a recruiter can span several teams of the same org); UNIQUE(user_id,
+    -- workspace_id) = one role per user per team. role ∈ owner | admin | recruiter
+    -- | hiring_manager | viewer.
+    CREATE TABLE IF NOT EXISTS memberships (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      workspace_id TEXT NOT NULL,
+      role TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_memberships_user_ws ON memberships (user_id, workspace_id);
+    CREATE INDEX IF NOT EXISTS idx_memberships_ws ON memberships (workspace_id);
+    CREATE INDEX IF NOT EXISTS idx_memberships_user ON memberships (user_id);
+
+    -- Pending invitation to join an org (and optionally a specific team). The
+    -- token is the unguessable accept link (randomToken). status ∈ pending |
+    -- accepted | revoked. Replaces the mocked InviteEditor.
+    CREATE TABLE IF NOT EXISTS invites (
+      token TEXT PRIMARY KEY,
+      org_id TEXT NOT NULL,
+      workspace_id TEXT,
+      email TEXT NOT NULL,
+      role TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending',
+      invited_by TEXT,
+      created_at TEXT NOT NULL,
+      expires_at TEXT,
+      accepted_at TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_invites_org ON invites (org_id);
+    CREATE INDEX IF NOT EXISTS idx_invites_email ON invites (email);
+
     CREATE TABLE IF NOT EXISTS analyses (
       slug TEXT PRIMARY KEY,
       candidate_label TEXT NOT NULL,
@@ -679,6 +749,12 @@ export function ensureDb(): Database.Database {
     // the ČS (Czech bank) seed, so unknown-language candidates get Czech, not the
     // UI's English fallback. Validated at read (getWorkspaceDefaultLocale).
     "ALTER TABLE workspaces ADD COLUMN default_locale TEXT NOT NULL DEFAULT 'cs'",
+    // Identity foundation (P0): a workspace is a TEAM that belongs to an org.
+    // org_id links it to its organization; type distinguishes a 'team' from a
+    // future org-level pseudo-workspace. NULL on the legacy default row ⇒
+    // backfilled to the default org in the seed block below.
+    "ALTER TABLE workspaces ADD COLUMN org_id TEXT",
+    "ALTER TABLE workspaces ADD COLUMN type TEXT",
     "ALTER TABLE channel_webhooks ADD COLUMN first_received_at TEXT",
     // E5 metric honesty: `received_count`/`first_received_at` stamp EVERY POST (probes,
     // health-checks, malformed integrations), so they overstate real leads. Track
@@ -810,6 +886,18 @@ export function ensureDb(): Database.Database {
   // Tenant foundation (P2): ensure the single default workspace row exists ('workspace'
   // matches DEFAULT_WORKSPACE in auth/session.ts and billing's id).
   db.prepare(`INSERT OR IGNORE INTO workspaces (id, name, created_at) VALUES (?, ?, ?)`).run("workspace", "Default workspace", new Date().toISOString());
+  // Identity foundation (P0): the default organization the single workspace (team)
+  // belongs to. The deployed tenant is Česká spořitelna (matches the ČS job/
+  // candidate seed). Backfill the default workspace's org_id + type once
+  // (idempotent — only touches rows the migration left NULL).
+  db.prepare(`INSERT OR IGNORE INTO organizations (id, name, domain, created_at) VALUES (?, ?, ?, ?)`).run(
+    "org-default",
+    "Česká spořitelna",
+    "csas.cz",
+    new Date().toISOString(),
+  );
+  db.prepare(`UPDATE workspaces SET org_id = 'org-default' WHERE org_id IS NULL`).run();
+  db.prepare(`UPDATE workspaces SET type = 'team' WHERE type IS NULL`).run();
   try {
     db.exec(`CREATE INDEX IF NOT EXISTS idx_analyses_workspace ON analyses (workspace_id)`);
     db.exec(`CREATE INDEX IF NOT EXISTS idx_profiles_workspace ON profiles (workspace_id)`);

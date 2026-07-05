@@ -11,7 +11,7 @@
 export const METERS = ["ai_candidates", "case_designs", "interview_minutes"] as const;
 export type Meter = (typeof METERS)[number];
 
-export const PLAN_IDS = ["free", "starter", "growth", "byom"] as const;
+export const PLAN_IDS = ["free", "starter", "growth", "byom", "enterprise"] as const;
 export type PlanId = (typeof PLAN_IDS)[number];
 
 export type PlanDef = {
@@ -23,6 +23,11 @@ export type PlanDef = {
   limits: Record<Meter, number | null>;
   /** Concurrent active jobs; null = unlimited. */
   activeJobs: number | null;
+  /** Contact-sales tier: custom-priced, negotiated per hiring volume — not sold
+   *  through self-serve checkout. The published price is "Custom", entitlement is
+   *  granted per contract, and the UI shows a "Talk to sales" path instead of a
+   *  Buy button. See docs/ENTERPRISE_READINESS.md for the capability roadmap. */
+  contactSales?: boolean;
 };
 
 export const PLANS: Record<PlanId, PlanDef> = {
@@ -37,16 +42,19 @@ export const PLANS: Record<PlanId, PlanDef> = {
   starter: {
     id: "starter",
     name: "Starter",
-    priceCzk: 490,
-    priceUsdApprox: 21,
+    // Tuned to $10/mo (2026-07-05). CZK is the primary display currency; the app's
+    // implied rate is ~24 Kč/$ (BYOM 120 Kč ≈ $5), so $10 → 240 Kč.
+    priceCzk: 240,
+    priceUsdApprox: 10,
     limits: { ai_candidates: 100, case_designs: 5, interview_minutes: 30 },
     activeJobs: null,
   },
   growth: {
     id: "growth",
     name: "Growth",
-    priceCzk: 1190,
-    priceUsdApprox: 50,
+    // Tuned to $20/mo (2026-07-05); $20 → 480 Kč at ~24 Kč/$.
+    priceCzk: 480,
+    priceUsdApprox: 20,
     limits: { ai_candidates: 400, case_designs: 20, interview_minutes: 120 },
     activeJobs: null,
   },
@@ -56,6 +64,21 @@ export const PLANS: Record<PlanId, PlanDef> = {
     priceCzk: 120,
     priceUsdApprox: 5,
     limits: { ai_candidates: null, case_designs: null, interview_minutes: 0 },
+    activeJobs: null,
+  },
+  enterprise: {
+    id: "enterprise",
+    name: "Enterprise",
+    // Custom-priced (contactSales): the 0s are sentinels — the UI never renders a
+    // number for a contact-sales tier, it renders "Custom" + a Talk-to-sales path.
+    // Entitlement is granted per signed contract (a mapped Polar product or a manual
+    // grant), never via self-serve checkout, so this catalog row is display-only
+    // until a deal closes. Limits are unlimited: org-scale contracts aren't metered
+    // like the self-serve tiers.
+    priceCzk: 0,
+    priceUsdApprox: 0,
+    contactSales: true,
+    limits: { ai_candidates: null, case_designs: null, interview_minutes: null },
     activeJobs: null,
   },
 };
@@ -85,6 +108,13 @@ export const PACKS: Record<PackId, PackDef> = {
 
 export function isPlanId(value: unknown): value is PlanId {
   return typeof value === "string" && (PLAN_IDS as readonly string[]).includes(value);
+}
+
+/** A plan a customer can buy through self-serve checkout: a real paid tier that
+ *  is NOT free and NOT a contact-sales (custom-priced) tier. The checkout route
+ *  and the billing UI both gate on this so enterprise can never be self-served. */
+export function isSelfServePlan(id: PlanId): boolean {
+  return id !== "free" && !PLANS[id].contactSales;
 }
 
 export function isPackId(value: unknown): value is PackId {

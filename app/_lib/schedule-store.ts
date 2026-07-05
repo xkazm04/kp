@@ -66,6 +66,10 @@ function db(): Database.Database {
       -- pending so they can re-book). NULL = no RSVP yet. attendance_at stamps when.
       attendance_status TEXT,
       attendance_at TEXT,
+      -- Optional interview join link (Meet/Teams/Zoom…) the recruiter attaches; it
+      -- becomes the calendar event's location + a "Join" link on both the recruiter
+      -- agenda and the candidate's booked card. NULL until set.
+      meeting_url TEXT,
       created_at TEXT NOT NULL,
       confirmed_at TEXT
     );
@@ -86,6 +90,7 @@ function db(): Database.Database {
     "candidate_tz TEXT",
     "attendance_status TEXT",
     "attendance_at TEXT",
+    "meeting_url TEXT",
   ]) {
     try {
       d.exec(`ALTER TABLE schedule_invites ADD COLUMN ${col}`);
@@ -132,6 +137,7 @@ export type ScheduleInvite = {
   candidateTz: string | null; // idea-b51106df — candidate's IANA timezone captured at confirm; null until they book
   attendanceStatus: string | null; // idea-87af39c5 — RSVP on the booking: 'confirmed' | 'cancelled' | null
   attendanceAt: string | null; // ISO time the RSVP was recorded
+  meetingUrl: string | null; // optional interview join link (Meet/Teams/Zoom…); null until the recruiter sets it
   locale: string | null; // SIM3 — the linked entry's applicant locale, when joined (dueReminders); null otherwise
   createdAt: string;
   confirmedAt: string | null;
@@ -159,6 +165,7 @@ function rowTo(r: Record<string, unknown>): ScheduleInvite {
     candidateTz: (r.candidate_tz as string) ?? null,
     attendanceStatus: (r.attendance_status as string) ?? null,
     attendanceAt: (r.attendance_at as string) ?? null,
+    meetingUrl: (r.meeting_url as string) ?? null,
     // Only the dueReminders join selects entry_locale; every other read leaves it null.
     locale: (r.entry_locale as string) ?? null,
     createdAt: r.created_at as string,
@@ -251,6 +258,17 @@ export function confirmScheduleInvite(token: string, slot: string, slotAt?: stri
     return { ok: true, invite: rowTo(updated) };
   });
   return tx();
+}
+
+/** Attach (or clear, with null) the interview join link on an invite. The caller
+ *  validates + normalizes the URL (http/https only); this just persists it. Returns
+ *  the updated row, or null when the token doesn't exist. */
+export function setScheduleInviteMeetingUrl(token: string, url: string | null): ScheduleInvite | null {
+  const clean = url && url.trim() ? url.trim().slice(0, 2048) : null;
+  const updated = db()
+    .prepare(`UPDATE schedule_invites SET meeting_url = ? WHERE token = ? RETURNING *`)
+    .get(clean, token) as Record<string, unknown> | undefined;
+  return updated ? rowTo(updated) : null;
 }
 
 /** Cap on candidate self-reschedules of a confirmed booking. Small on purpose:

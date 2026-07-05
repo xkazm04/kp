@@ -398,9 +398,9 @@
         "starter": {
           "name": "Starter",
           "tagline": "A hiring desk that never sleeps.",
-          "price": "490 Kč",
+          "price": "240 Kč",
           "cadence": "/ month",
-          "usd": "≈ $21 a month",
+          "usd": "≈ $10 a month",
           "cta": "Pick Starter",
           "features": [
             "100 AI candidates a month",
@@ -412,9 +412,9 @@
         "growth": {
           "name": "Growth",
           "tagline": "For pipelines with traffic.",
-          "price": "1 190 Kč",
+          "price": "480 Kč",
           "cadence": "/ month",
-          "usd": "≈ $50 a month",
+          "usd": "≈ $20 a month",
           "cta": "Pick Growth",
           "features": [
             "400 AI candidates a month",
@@ -444,14 +444,23 @@
       "enterprise": {
         "eyebrow": "At org scale",
         "heading": "Hiring across the whole org?",
-        "blurb": "Past the metered plans: SSO, roles & an audit trail, a dedicated environment and onboarding for your TA team — priced to your hiring volume. The ROI compounds with every requisition.",
+        "blurb": "Past the metered plans: enterprise SSO & SCIM, a tenant-scoped audit trail, your brand on every candidate touchpoint, and a self-hostable, source-licensed deployment that keeps your data and model layer fully in your control. Delivered with your security and DPO teams, priced to your hiring volume — the ROI compounds with every requisition.",
         "cta": "Talk to sales",
+        "capabilities": [
+          "Enterprise SSO & SCIM provisioning",
+          "Tenant-scoped, exportable audit trail",
+          "Your brand on every candidate touchpoint",
+          "Self-hosted, source-licensed — your data & models",
+          "GDPR / DPA & EU data residency",
+          "SOC 2 & security-review support"
+        ],
         "stat1Value": "60–70%",
         "stat1Label": "less recruiter time on screening",
         "stat2Value": "~23 h",
         "stat2Label": "manual screening per hire today",
         "stat3Value": "40–51 h",
         "stat3Label": "total recruiter hours per hire, by hand",
+        "roadmapNote": "Compliance and self-hosting are scoped and delivered with your team during onboarding — ask for our current attestation status and deployment options.",
         "source": "Sources: 2025 industry recruiting-time studies (SHRM time-to-fill; recruiter time-per-hire analyses). Your own measured savings show live in Analytics → ROI."
       }
     },
@@ -632,7 +641,8 @@
     "rsvpCancel": "I can't make it",
     "attendanceConfirmed": "Attendance confirmed — thanks!",
     "slotsRefreshFailed": "Couldn't refresh the available times — reload the page to see the latest.",
-    "rsvpCancelledNote": "Your time has been released. Pick a new one below and we'll let the team know."
+    "rsvpCancelledNote": "Your time has been released. Pick a new one below and we'll let the team know.",
+    "joinInterview": "Join interview"
   },
   "data": {
     "eyebrow": "Your data",
@@ -1667,7 +1677,14 @@
       "sentAgo": "sent {time}",
       "queuedAgo": "queued in Outbox {time} (not delivered)",
       "attendanceConfirmed": "attending",
-      "attendanceCancelled": "cancelled"
+      "attendanceCancelled": "cancelled",
+      "addLink": "Add link",
+      "editLink": "Edit meeting link",
+      "join": "Join",
+      "linkPlaceholder": "Paste a meeting link (Meet, Teams, Zoom…)",
+      "save": "Save",
+      "cancel": "Cancel",
+      "linkError": "Enter a valid http(s) link."
     },
     "eyebrow": "Decisions · Schedule",
     "title": "Interview calendar",
@@ -1702,7 +1719,11 @@
       "calendarAria": "Interview week calendar — days across, times down",
       "timeColumn": "Time",
       "chipTitle": "{name} · {archetype}{job}",
-      "chipAria": "{name}, {archetype}{job}"
+      "chipAria": "{name}, {archetype}{job}",
+      "addToCalendar": "Add to calendar",
+      "google": "Google Calendar",
+      "outlook": "Outlook",
+      "downloadIcs": "Download .ics"
     },
     "scorecard": {
       "editScorecard": "Edit your scorecard",
@@ -3371,7 +3392,10 @@
       "cta": "Switch to this plan",
       "manageCta": "Change in portal",
       "redirecting": "Redirecting…",
-      "checkoutFailed": "Couldn't start checkout."
+      "checkoutFailed": "Couldn't start checkout.",
+      "custom": "Custom",
+      "contactNote": "Priced to your hiring volume",
+      "contactCta": "Talk to sales"
     },
     "pack": {
       "title": "Interview minutes top-up",

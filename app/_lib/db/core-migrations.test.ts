@@ -35,6 +35,11 @@ test("a fresh DB is created at KP_DB_PATH with the full schema", () => {
   // billing, LLM layer, consent audit. A missing one means a CREATE was lost.
   for (const required of [
     "workspaces",
+    "organizations",
+    "users",
+    "user_credentials",
+    "memberships",
+    "invites",
     "analyses",
     "jds",
     "jd_revisions",

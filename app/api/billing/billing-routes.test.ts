@@ -132,6 +132,26 @@ test("checkout: 503 when billing is unconfigured, 400 for a body naming neither 
   assert.match((await badBody.json()).error, /plan|pack/);
 });
 
+test("checkout: the Enterprise contact-sales tier is rejected 400 and never hits the provider", async () => {
+  configurePolarEnv();
+  const originalFetch = globalThis.fetch;
+  let providerHit = false;
+  globalThis.fetch = (async () => {
+    providerHit = true;
+    return new Response("{}", { status: 200 });
+  }) as typeof fetch;
+  try {
+    const res = await checkoutPost(
+      new NextRequest("http://localhost/api/billing/checkout", { method: "POST", body: JSON.stringify({ plan: "enterprise" }) })
+    );
+    assert.equal(res.status, 400);
+    assert.match((await res.json()).error, /sales/i, "should point the buyer at sales, not a generic error");
+    assert.equal(providerHit, false, "a contact-sales plan must never reach the payment gateway");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("checkout happy path returns the provider-hosted URL (provider hop stubbed)", async () => {
   configurePolarEnv();
   const originalFetch = globalThis.fetch;

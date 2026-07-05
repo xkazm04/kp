@@ -19,6 +19,7 @@ export {
   currentPeriod,
   isPackId,
   isPlanId,
+  isSelfServePlan,
   METERS,
   PACKS,
   PLAN_IDS,

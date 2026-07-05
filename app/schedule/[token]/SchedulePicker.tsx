@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CalendarClock, CalendarPlus, Check } from "lucide-react";
+import { CalendarClock, Check, Video } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { toast } from "@/app/_components/toast-store";
-import { buildIcs, downloadFile } from "@/app/_lib/export-utils";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { useSlotLabel } from "@/app/_lib/use-slot-label";
 import { resolveTimeZone, timeZoneShortLabel } from "@/app/_lib/timezone";
+import { AddToCalendar } from "@/app/features/sub_schedule/AddToCalendar";
 
 type Invite = {
   candidateLabel?: string | null;
@@ -17,6 +17,7 @@ type Invite = {
   slotAt?: string | null;
   durationMin?: number | null;
   attendanceStatus?: string | null;
+  meetingUrl?: string | null;
 };
 type Slot = { value: string; label: string };
 
@@ -150,20 +151,22 @@ export function SchedulePicker({ token }: { token: string }) {
     }
   };
 
-  // Download the confirmed slot as an .ics the candidate imports into any calendar
-  // (SCH1) — the top no-show cause is a time that never made it onto the calendar.
-  const downloadInvite = () => {
-    if (!invite?.slotAt) return;
-    const ics = buildIcs({
-      uid: `kp-interview-${token}`,
-      start: invite.slotAt,
-      durationMin: invite.durationMin ?? 30,
+  // The confirmed booking as a calendar event (SCH1) — the top no-show cause is a
+  // time that never made it onto the calendar. Localized content; when the recruiter
+  // attached a join link it becomes the location + a "Join" line. Feeds the
+  // Add-to-calendar menu (Google / Outlook / .ics) on the booked card.
+  const calendarEvent = (() => {
+    if (!invite?.slotAt) return null;
+    const durMin = invite.durationMin ?? 30;
+    const meetingUrl = invite.meetingUrl?.trim() || null;
+    return {
       title: invite.jobTitle ? t("icsTitleRole", { role: invite.jobTitle }) : t("icsTitle"),
-      description: t("icsDescription"),
-      stamp: new Date().toISOString(),
-    });
-    downloadFile("interview.ics", ics, "text/calendar");
-  };
+      start: invite.slotAt,
+      end: new Date(new Date(invite.slotAt).getTime() + durMin * 60_000).toISOString(),
+      description: meetingUrl ? `${t("icsDescription")}\n${t("joinInterview")}: ${meetingUrl}` : t("icsDescription"),
+      location: meetingUrl ?? undefined,
+    };
+  })();
 
   // RSVP on the confirmed booking (idea-87af39c5). "I'll be there" stamps an
   // attendance signal the recruiter sees; "I can't make it" frees the slot and
@@ -255,14 +258,22 @@ export function SchedulePicker({ token }: { token: string }) {
           <p className="mt-1 text-meta text-steel">{t("timezoneNote", { zone: tzLabel(invite.slotAt) })}</p>
         ) : null}
         <div className="mt-3 flex flex-wrap gap-2">
-          {invite.slotAt ? (
-            <button
-              type="button"
-              onClick={downloadInvite}
-              className="focus-ring inline-flex items-center gap-1.5 rounded-md border border-stone-300 bg-white px-3 py-1.5 text-base font-semibold text-ink hover:border-coral/50"
+          {invite.meetingUrl ? (
+            <a
+              href={invite.meetingUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="focus-ring inline-flex items-center gap-1.5 rounded-md bg-coral px-3 py-1.5 text-base font-semibold text-white transition-opacity hover:opacity-90"
             >
-              <CalendarPlus size={15} className="text-coral" /> {t("addToCalendar")}
-            </button>
+              <Video size={15} aria-hidden /> {t("joinInterview")}
+            </a>
+          ) : null}
+          {calendarEvent ? (
+            <AddToCalendar
+              event={calendarEvent}
+              uid={`kp-interview-${token}`}
+              triggerClassName="focus-ring inline-flex items-center gap-1.5 rounded-md border border-stone-300 bg-white px-3 py-1.5 text-base font-semibold text-ink hover:border-coral/50"
+            />
           ) : null}
           {canReschedule ? (
             <button

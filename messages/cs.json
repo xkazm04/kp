@@ -398,9 +398,9 @@
         "starter": {
           "name": "Starter",
           "tagline": "Náborový stůl, který nikdy nespí.",
-          "price": "490 Kč",
+          "price": "240 Kč",
           "cadence": "/ měsíc",
-          "usd": "≈ 21 $ měsíčně",
+          "usd": "≈ 10 $ měsíčně",
           "cta": "Vybrat Starter",
           "features": [
             "100 AI kandidátů měsíčně",
@@ -412,9 +412,9 @@
         "growth": {
           "name": "Growth",
           "tagline": "Pro pipeline s provozem.",
-          "price": "1 190 Kč",
+          "price": "480 Kč",
           "cadence": "/ měsíc",
-          "usd": "≈ 50 $ měsíčně",
+          "usd": "≈ 20 $ měsíčně",
           "cta": "Vybrat Growth",
           "features": [
             "400 AI kandidátů měsíčně",
@@ -444,14 +444,23 @@
       "enterprise": {
         "eyebrow": "Pro celou firmu",
         "heading": "Nabíráte napříč celou organizací?",
-        "blurb": "Nad rámec metrovaných plánů: SSO, role a auditní stopa, vyhrazené prostředí a onboarding pro váš náborový tým — cena podle objemu náboru. Návratnost roste s každou pozicí.",
+        "blurb": "Nad rámec metrovaných plánů: podnikové SSO a SCIM, auditní stopa v rámci tenantu, vaše značka na každém kontaktu s kandidátem a self-hosted nasazení s licencovaným zdrojovým kódem, které ponechává vaše data i vrstvu modelů plně pod vaší kontrolou. Dodáváme společně s vaším bezpečnostním týmem a DPO, cena podle objemu náboru — návratnost roste s každou pozicí.",
         "cta": "Spojit se s obchodem",
+        "capabilities": [
+          "Podnikové SSO a SCIM provisioning",
+          "Auditní stopa v rámci tenantu, s exportem",
+          "Vaše značka na každém kontaktu s kandidátem",
+          "Self-hosted, licencovaný zdroj — vaše data i modely",
+          "GDPR / DPA a data residency v EU",
+          "Podpora SOC 2 a bezpečnostního review"
+        ],
         "stat1Value": "60–70 %",
         "stat1Label": "méně času náboráře na screeningu",
         "stat2Value": "~23 h",
         "stat2Label": "ručního screeningu na nábor dnes",
         "stat3Value": "40–51 h",
         "stat3Label": "celkem hodin náboráře na nábor, ručně",
+        "roadmapNote": "Compliance a self-hosting nascopujeme a dodáme společně s vaším týmem během onboardingu — vyžádejte si aktuální stav atestací a možnosti nasazení.",
         "source": "Zdroje: oborové studie času náboru 2025 (SHRM time-to-fill; analýzy času na nábor). Vaše naměřené úspory vidíte živě v Analytika → Návratnost."
       }
     },
@@ -632,7 +641,8 @@
     "rsvpCancel": "Nemohu se zúčastnit",
     "attendanceConfirmed": "Účast potvrzena — děkujeme!",
     "slotsRefreshFailed": "Nepodařilo se obnovit dostupné termíny — načtěte stránku znovu, ať vidíte aktuální nabídku.",
-    "rsvpCancelledNote": "Váš termín byl uvolněn. Vyberte si níže nový a dáme týmu vědět."
+    "rsvpCancelledNote": "Váš termín byl uvolněn. Vyberte si níže nový a dáme týmu vědět.",
+    "joinInterview": "Připojit se k pohovoru"
   },
   "data": {
     "eyebrow": "Vaše údaje",
@@ -1667,7 +1677,14 @@
       "sentAgo": "odesláno {time}",
       "queuedAgo": "v Outboxu {time} (nedoručeno)",
       "attendanceConfirmed": "dorazí",
-      "attendanceCancelled": "zrušeno"
+      "attendanceCancelled": "zrušeno",
+      "addLink": "Přidat odkaz",
+      "editLink": "Upravit odkaz na schůzku",
+      "join": "Připojit",
+      "linkPlaceholder": "Vložte odkaz na schůzku (Meet, Teams, Zoom…)",
+      "save": "Uložit",
+      "cancel": "Zrušit",
+      "linkError": "Zadejte platný http(s) odkaz."
     },
     "eyebrow": "Rozhodnutí · Plánování",
     "title": "Kalendář pohovorů",
@@ -1702,7 +1719,11 @@
       "calendarAria": "Týdenní kalendář pohovorů — dny vodorovně, časy svisle",
       "timeColumn": "Čas",
       "chipTitle": "{name} · {archetype}{job}",
-      "chipAria": "{name}, {archetype}{job}"
+      "chipAria": "{name}, {archetype}{job}",
+      "addToCalendar": "Přidat do kalendáře",
+      "google": "Google Kalendář",
+      "outlook": "Outlook",
+      "downloadIcs": "Stáhnout .ics"
     },
     "scorecard": {
       "editScorecard": "Upravit vaši hodnoticí kartu",
@@ -3371,7 +3392,10 @@
       "cta": "Přejít na tento tarif",
       "manageCta": "Změnit v portálu",
       "redirecting": "Přesměrování…",
-      "checkoutFailed": "Platbu se nepodařilo zahájit."
+      "checkoutFailed": "Platbu se nepodařilo zahájit.",
+      "custom": "Na míru",
+      "contactNote": "Cena podle objemu náboru",
+      "contactCta": "Spojit se s obchodem"
     },
     "pack": {
       "title": "Doplnění minut pohovorů",

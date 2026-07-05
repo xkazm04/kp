@@ -116,7 +116,12 @@ export class PolarGateway implements BillingGateway {
   private productFor(req: CheckoutRequest): string {
     const id =
       req.kind === "plan"
-        ? { starter: this.cfg.products.starter, growth: this.cfg.products.growth, byom: this.cfg.products.byom }[req.plan]
+        ? // `enterprise` is contact-sales and has no self-serve product — the checkout
+          // route rejects it before we get here, so this maps to null (the guard below
+          // then throws the standard "no product configured" error, never hit at runtime).
+          { starter: this.cfg.products.starter, growth: this.cfg.products.growth, byom: this.cfg.products.byom, enterprise: null }[
+            req.plan
+          ]
         : this.cfg.products.minutePack;
     if (!id) {
       const envName = req.kind === "plan" ? `POLAR_PRODUCT_${req.plan.toUpperCase()}` : "POLAR_PRODUCT_MINUTE_PACK";

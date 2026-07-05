@@ -46,6 +46,9 @@ function publicInviteView(invite: ScheduleInvite) {
     // can show "Attendance confirmed" vs the confirm/cancel actions. Not an
     // internal handle — safe on the public wire.
     attendanceStatus: invite.attendanceStatus,
+    // The interview join link, when the recruiter has set one — so the candidate's
+    // booked card can show a "Join" button and bake it into their calendar event.
+    meetingUrl: invite.meetingUrl,
   };
 }
 

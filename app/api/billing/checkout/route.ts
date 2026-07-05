@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { isPackId, isPlanId, polarGatewayFromEnv, type CheckoutRequest } from "@/app/_lib/billing";
+import { isPackId, isPlanId, isSelfServePlan, polarGatewayFromEnv, type CheckoutRequest } from "@/app/_lib/billing";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 
@@ -7,6 +7,8 @@ import { requireOperator } from "@/app/_lib/auth/require-operator";
 // Start a checkout: body { plan: "starter"|"growth"|"byom" } XOR { pack:
 // "minutes_100" }. Returns the provider-hosted checkout URL — the client
 // redirects; entitlement lands later via the webhook (never from the client).
+// The Enterprise tier is contact-sales (custom-priced): it is rejected here so a
+// crafted body can't try to self-serve a plan that has no fixed price/product.
 
 export async function POST(request: NextRequest) {
   // Defense in depth (matches proxy.ts; no-op in open dev mode): only an operator
@@ -22,7 +24,18 @@ export async function POST(request: NextRequest) {
   }
 
   const body = (await request.json().catch(() => null)) as { plan?: unknown; pack?: unknown } | null;
+  // A contact-sales tier (Enterprise) is a valid plan id but is never self-served —
+  // fail it with a clear, distinct message rather than letting it fall through to
+  // the gateway (which would 502 on the missing product) or the generic 400 below.
+  if (body && isPlanId(body.plan) && body.plan !== "free" && !isSelfServePlan(body.plan)) {
+    return NextResponse.json(
+      { error: "Enterprise is a custom, contact-sales plan — talk to our team to get set up." },
+      { status: 400 }
+    );
+  }
   let req: CheckoutRequest;
+  // Any contact-sales tier already returned above, so a non-free plan here is
+  // self-serve. `!== "free"` also narrows the type to Exclude<PlanId, "free">.
   if (body && isPlanId(body.plan) && body.plan !== "free") {
     req = { kind: "plan", plan: body.plan };
   } else if (body && isPackId(body.pack)) {

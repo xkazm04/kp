@@ -10,7 +10,11 @@ import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-lim
 import { readTextWithLimit } from "@/app/_lib/request-body";
 import { claimWebhookIdempotency, releaseWebhookIdempotency, webhookIdempotencyKey } from "@/app/_lib/webhook-idempotency";
 import { DEFAULT_LOCALE, isLocale, type Locale } from "@/i18n/locales";
+import { extractUploadedText, ingestCvApplication } from "@/app/_lib/cv-intake";
 
+// A CV extraction spawns a Python subprocess; give the file branch room inside the
+// platform's function budget (the JSON branch returns well under this).
+export const maxDuration = 60;
 
 // E3 (Erika gap) — the PUBLIC inbound lead receiver: external lead sources (ad
 // platform integrations, job boards, plain HTML forms) POST JSON here and the
@@ -30,6 +34,9 @@ import { DEFAULT_LOCALE, isLocale, type Locale } from "@/i18n/locales";
 // Bigger than the quick form's cap (integrations pad payloads with metadata),
 // still small enough to fail closed on junk before buffering it.
 const MAX_INBOUND_BODY_BYTES = 64 * 1024;
+// A CV attachment is far larger than a JSON lead; the file branch fails closed on
+// content-length above this, and validateUploadServer re-checks the real size.
+const MAX_INBOUND_FILE_BYTES = 12 * 1024 * 1024;
 const MAX_NAME_LENGTH = 200;
 const MAX_EMAIL_LENGTH = 254;
 const MAX_ATTRIBUTION_LENGTH = 120;
@@ -37,6 +44,16 @@ const MAX_ATTRIBUTION_LENGTH = 120;
 // Abuse containment for a public, side-effecting endpoint (each accept can
 // dispatch a candidate email). Per token+IP; ad-burst friendly, flood hostile.
 const RATE_LIMIT = { limit: 60, windowMs: 60_000 };
+
+// First non-empty string among alias keys in a multipart form — the name/email
+// mapping for a file-carrying inbound, mirroring extractLead's field aliasing.
+function firstFormField(form: FormData, keys: string[]): string {
+  for (const key of keys) {
+    const v = form.get(key);
+    if (typeof v === "string" && v.trim()) return v.trim();
+  }
+  return "";
+}
 
 export async function POST(request: NextRequest, context: { params: Promise<{ token: string }> }) {
   // Released in the catch if processing fails, so a genuine retry can re-run.
@@ -55,6 +72,83 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
     if (!job) return NextResponse.json({ error: "The webhook's role no longer exists." }, { status: 404 });
     if (!isJobOpenForApplications(getJobStatus(job.id))) {
       return NextResponse.json({ error: "This role is closed to applications.", code: "role_closed" }, { status: 410 });
+    }
+
+    // File-carrying inbound (a forwarded email or an ad-form delivering a CV
+    // attachment): multipart/form-data instead of JSON. The file is parsed by the
+    // SAME extractor + profile normalizer the conversational apply uses, so it lands
+    // a MATCHABLE candidate at Accepted — not the scalar, analysis-less lead stub the
+    // JSON path files. Placed before the JSON body cap (a CV dwarfs the 64 KB limit).
+    const contentType = request.headers.get("content-type") ?? "";
+    if (contentType.includes("multipart/form-data")) {
+      const storedLang = webhook.lang ?? "";
+      const fileLocale: Locale = isLocale(storedLang) ? storedLang : DEFAULT_LOCALE;
+
+      // Fail closed early on an oversized body (validateUploadServer re-checks the
+      // real file size after parse).
+      const declaredLength = Number(request.headers.get("content-length") ?? 0);
+      if (declaredLength > MAX_INBOUND_FILE_BYTES) {
+        return NextResponse.json({ error: "Payload too large." }, { status: 413 });
+      }
+
+      const form = await request.formData().catch(() => null);
+      if (!form) return NextResponse.json({ error: "Malformed multipart body." }, { status: 400 });
+      const file = form.get("file") ?? form.get("cv") ?? form.get("resume") ?? form.get("attachment");
+      if (!(file instanceof File) || file.size === 0) {
+        return NextResponse.json({ error: "Attach a CV file under the field name 'file'." }, { status: 400 });
+      }
+      const email = firstFormField(form, ["email", "from", "sender", "reply-to", "reply_to"]).slice(0, MAX_EMAIL_LENGTH);
+      if (!email) {
+        // Same contract as the JSON path — an unreachable lead defeats the channel.
+        // Deterministic 422 BEFORE the idempotency claim so a retry re-validates.
+        return NextResponse.json(
+          { error: "No email field could be mapped from the form.", code: "missing_email" },
+          { status: 422 }
+        );
+      }
+      const name = firstFormField(form, ["name", "full_name", "fullname", "candidate", "applicant"]).slice(0, MAX_NAME_LENGTH);
+
+      // Request-level idempotency keyed on the Idempotency-Key header, else a
+      // synthetic content key (file name/size + email) — a provider retry of the
+      // same upload must not double-file the candidate or double-count the receipt.
+      const idemBasis = `${file.name}:${file.size}:${email}`;
+      const idemKey = `inbound:${token}:${webhookIdempotencyKey(
+        idemBasis,
+        request.headers.get("idempotency-key") ?? request.headers.get("x-idempotency-key"),
+      )}`;
+      if (!claimWebhookIdempotency(idemKey)) {
+        return NextResponse.json({ result: "duplicate_ignored", duplicate: true }, { status: 200 });
+      }
+      claimedIdemKey = idemKey;
+
+      // Extract server-side. A failure is NOT a duplicate — release the claim so a
+      // genuine retry (or a re-send of a fixed file) re-runs.
+      const extracted = await extractUploadedText(file, request.signal);
+      if (!extracted.ok) {
+        releaseWebhookIdempotency(claimedIdemKey);
+        claimedIdemKey = null;
+        return NextResponse.json({ error: extracted.error }, { status: extracted.status });
+      }
+
+      const outcome = await ingestCvApplication({
+        job,
+        name,
+        email,
+        cvText: extracted.text,
+        sourceChannel: webhook.channel,
+        locale: fileLocale,
+        sendAck: true,
+      });
+      recordChannelWebhookReceipt(token);
+      // Stamp an ACCEPTED lead only for a genuinely new candidate (created), never a
+      // duplicate re-send — so the Channels "leads" metric counts real candidates.
+      if (outcome.created) recordChannelWebhookAccepted(token);
+      return NextResponse.json({
+        result: "accepted",
+        duplicate: !outcome.created,
+        entryId: outcome.entryId,
+        candidateId: outcome.candidateId,
+      });
     }
 
     // content-length is ADVISORY (a caller can omit it via chunked transfer or lie),

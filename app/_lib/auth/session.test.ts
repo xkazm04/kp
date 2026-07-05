@@ -14,6 +14,20 @@ test("sign then verify round-trips with the default workspace", () => {
   assert.equal(p!.exp, now + SESSION_TTL_MS);
 });
 
+test("identity claims (sub/org/role) round-trip and are omitted when absent", () => {
+  const now = 2_000_000;
+  const p = verifySession(signSession("ws-team-a", now, { sub: "usr-1", org: "org-1", role: "recruiter" }), now);
+  assert.equal(p!.workspace, "ws-team-a");
+  assert.equal(p!.sub, "usr-1");
+  assert.equal(p!.org, "org-1");
+  assert.equal(p!.role, "recruiter");
+  // A plain (operator/demo) token carries no identity claims.
+  const plain = verifySession(signSession(undefined, now), now);
+  assert.equal(plain!.sub, undefined);
+  assert.equal(plain!.org, undefined);
+  assert.equal(plain!.role, undefined);
+});
+
 test("a tampered payload fails verification", () => {
   const tok = signSession();
   const [, sig] = tok.split(".");

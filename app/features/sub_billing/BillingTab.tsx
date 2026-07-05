@@ -9,6 +9,7 @@ import { Skeleton } from "@/app/_components/Skeleton";
 import { BTN_SECONDARY, EYEBROW, INTRO, META_LABEL, PANEL, PANEL_SUNKEN } from "@/app/_components/ui/recipes";
 import { SectionTitle } from "@/app/_components/ui/SectionTitle";
 import { labelize } from "@/app/_lib/format";
+import { salesContactHref } from "@/app/_lib/sales-contact";
 import type { BillingOverview, MeterOverview, PlanDef } from "@/app/_lib/billing";
 
 // Billing tab — the GET /api/billing overview rendered for a recruiter: the
@@ -123,19 +124,30 @@ function PlanCard({
         <p className="font-serif text-h3 text-ink">{plan.name}</p>
         {current ? <Badge tone="positive" label={t("current")} className="shrink-0" /> : null}
       </div>
-      <p className="mt-1 text-h2 font-semibold text-ink nums">
-        {plan.priceCzk === 0
-          ? t("priceFree")
-          : format.number(plan.priceCzk, { style: "currency", currency: "CZK", maximumFractionDigits: 0 })}
-      </p>
-      {plan.priceCzk > 0 ? (
-        <p className="text-sm text-steel">
-          {t("approxUsd", {
-            price: format.number(plan.priceUsdApprox, { style: "currency", currency: "USD", maximumFractionDigits: 0 }),
-          })}{" "}
-          · {t("perMonth")}
-        </p>
-      ) : null}
+      {plan.contactSales ? (
+        // Contact-sales (Enterprise): custom-priced, so we render "Custom" instead of a
+        // number and a note on how it's priced — never a CZK/USD figure.
+        <>
+          <p className="mt-1 text-h2 font-semibold text-ink">{t("custom")}</p>
+          <p className="text-sm text-steel">{t("contactNote")}</p>
+        </>
+      ) : (
+        <>
+          <p className="mt-1 text-h2 font-semibold text-ink nums">
+            {plan.priceCzk === 0
+              ? t("priceFree")
+              : format.number(plan.priceCzk, { style: "currency", currency: "CZK", maximumFractionDigits: 0 })}
+          </p>
+          {plan.priceCzk > 0 ? (
+            <p className="text-sm text-steel">
+              {t("approxUsd", {
+                price: format.number(plan.priceUsdApprox, { style: "currency", currency: "USD", maximumFractionDigits: 0 }),
+              })}{" "}
+              · {t("perMonth")}
+            </p>
+          ) : null}
+        </>
+      )}
       <ul className="mt-3 space-y-1 border-t border-stone-200 pt-3 text-sm">
         {Object.entries(plan.limits).map(([meter, limit]) => (
           <li key={meter} className="flex items-baseline justify-between gap-2">
@@ -148,7 +160,16 @@ function PlanCard({
           <span className="font-medium text-ink nums">{plan.activeJobs === null ? t("unlimited") : plan.activeJobs}</span>
         </li>
       </ul>
-      {current || plan.id === "free" ? null : changeVia === "portal" ? (
+      {plan.contactSales ? (
+        // Enterprise is never bought here — route to a real sales contact instead of
+        // a Buy button. If they're somehow already entitled (a signed contract), the
+        // "current" badge above is enough; no action needed.
+        current ? null : (
+          <a href={salesContactHref()} className={`${BTN_SECONDARY} mt-3 h-9 w-full justify-center px-3 text-sm`}>
+            {t("contactCta")}
+          </a>
+        )
+      ) : current || plan.id === "free" ? null : changeVia === "portal" ? (
         // Already subscribed: route the change through the provider portal so it's an
         // in-place swap, not a parallel subscription.
         <button

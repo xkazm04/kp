@@ -28,7 +28,17 @@ export const TENANCY_SCOPED_TABLES: ReadonlySet<string> = new Set([
  *  content-addressed caches, deployment-level config, and global system/scheduler
  *  state. Kept deliberately SHORT — when in doubt a table is REQUIRED, not exempt. */
 export const TENANCY_EXEMPT_TABLES: ReadonlySet<string> = new Set([
-  "workspaces", // the tenant registry itself
+  "workspaces", // the tenant registry itself (a workspace = a team)
+  // Identity foundation (P0): the ORG is the parent tenant of the workspace, so
+  // these are isolated by org_id, NOT by the per-team workspace_id this manifest
+  // governs — they legitimately carry no workspace_id. Their cross-org isolation
+  // is enforced in their own stores (memberships/invites reads filter by
+  // org_id/user_id, which is deliberately cross-workspace: a user spans teams).
+  "organizations", // the org registry (parent of workspaces)
+  "users",
+  "user_credentials",
+  "memberships",
+  "invites",
   "gemini_cache", // content-hash-keyed LLM response cache (shared, not per-tenant)
   "llm_config", // deployment-level model/provider config
   "scheduler", // global background-job scheduler state
