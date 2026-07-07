@@ -21,6 +21,7 @@ import { useDeliveryCapability } from "@/app/features/useDeliveryCapability";
 import { DecisionLog } from "./DecisionLog";
 import { CalibrationPanel } from "./CalibrationPanel";
 import { DecisionRecordsPanel } from "./DecisionRecordsPanel";
+import { OrgBenchmarkPanel } from "./OrgBenchmarkPanel";
 
 type Funnel = { stage: string; reached: number; current: number; conversionPct: number | null };
 type Analytics = {
@@ -322,6 +323,8 @@ export function AnalyticsTab() {
       </div>
 
       <MomentumPanel weeks={data.momentum} />
+
+      <OrgBenchmarkPanel />
 
       <CalibrationPanel />
 

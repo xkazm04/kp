@@ -1,4 +1,5 @@
 import { getPipelineEntry, latestInterviewByEntry, listAnalyses, listOutboxFiltered } from "./db";
+import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 import { listScheduleInvites } from "./schedule-store";
 import { listOffersForEntry } from "./offers-store";
 
@@ -35,14 +36,17 @@ const ANALYSES_SCAN_LIMIT = 300;
 const COMMS_LIMIT = 100;
 const INVITES_SCAN_LIMIT = 500;
 
-export function candidateTimeline(entryId: string): CandidateTimelineItem[] | null {
-  const entry = getPipelineEntry(entryId);
+export function candidateTimeline(entryId: string, workspaceId: string = DEFAULT_WORKSPACE_ID): CandidateTimelineItem[] | null {
+  // Entry-keyed recruiter read: the by-id entry lookup + the enumeration scans (analyses,
+  // invites, comms) scope to the caller's team. The interview + offer reads are by the
+  // globally-unique entry_id (can't cross tenants), so they need no workspace filter.
+  const entry = getPipelineEntry(entryId, workspaceId);
   if (!entry) return null;
   const items: CandidateTimelineItem[] = [];
 
   const label = entry.candidateLabel?.trim().toLowerCase();
   if (label) {
-    for (const a of listAnalyses(ANALYSES_SCAN_LIMIT)) {
+    for (const a of listAnalyses(ANALYSES_SCAN_LIMIT, workspaceId)) {
       if (a.candidate_label?.trim().toLowerCase() !== label) continue;
       items.push({
         at: a.created_at,
@@ -60,7 +64,7 @@ export function candidateTimeline(entryId: string): CandidateTimelineItem[] | nu
     if (interview.endedAt) items.push({ at: interview.endedAt, kind: "interview", status: "completed" });
   }
 
-  for (const invite of listScheduleInvites(INVITES_SCAN_LIMIT)) {
+  for (const invite of listScheduleInvites(INVITES_SCAN_LIMIT, workspaceId)) {
     if (invite.entryId !== entryId) continue;
     items.push({ at: invite.createdAt, kind: "invite", status: "sent" });
     if (invite.confirmedAt) items.push({ at: invite.confirmedAt, kind: "invite", status: "confirmed", slot: invite.slot });
@@ -76,7 +80,7 @@ export function candidateTimeline(entryId: string): CandidateTimelineItem[] | nu
     }
   }
 
-  for (const comm of listOutboxFiltered({ ref: entryId, limit: COMMS_LIMIT })) {
+  for (const comm of listOutboxFiltered({ ref: entryId, limit: COMMS_LIMIT }, workspaceId)) {
     items.push({ at: comm.createdAt, kind: "comm", status: comm.status, subject: comm.subject, commKind: comm.kind });
   }
 

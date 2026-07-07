@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { pipelineAnalytics } from "@/app/_lib/db";
+import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { periodDeltas } from "@/app/_lib/analytics-deltas";
 
 
@@ -27,11 +28,12 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const windowDays = parseWindowDays(searchParams.get("days"));
-    const current = pipelineAnalytics(windowDays);
+    const ws = await currentWorkspace();
+    const current = pipelineAnalytics(windowDays, undefined, ws);
     // ce8e3c9e — only a windowed view has a well-defined "previous period". For
     // all-time (no window) there's nothing to compare against, so deltas are null.
     const deltas = windowDays
-      ? periodDeltas(current, pipelineAnalytics(windowDays, { endMs: Date.now() - windowDays * 86_400_000 }))
+      ? periodDeltas(current, pipelineAnalytics(windowDays, { endMs: Date.now() - windowDays * 86_400_000 }, ws))
       : null;
     return NextResponse.json({ ...current, deltas });
   } catch (error) {

@@ -17,7 +17,7 @@ import { assertPublicHttpsEndpoint } from "./safe-url";
 // Keep in sync with PROVIDER_CAPABILITIES / USE_CASE_REQUIREMENTS in
 // pipeline/jobfit/llm/capabilities.py — Python is authoritative; these lists
 // only gate what the admin API will accept.
-export const LLM_PROVIDERS = ["anthropic", "openai", "azure_openai", "gemini", "claude_cli"] as const;
+export const LLM_PROVIDERS = ["anthropic", "openai", "azure_openai", "gemini", "openrouter", "claude_cli"] as const;
 export type LlmProvider = (typeof LLM_PROVIDERS)[number];
 
 export const LLM_USE_CASES = [

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createPipelineEntry, getJob } from "@/app/_lib/db";
+import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { AutomationError, runAutomationTask } from "@/app/_lib/automation-run";
 import { inferProfileLocale } from "@/app/_lib/comms-locale";
 import { safeJsonError } from "@/app/_lib/api-response";
@@ -25,6 +26,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     const { id } = await context.params;
     const job = getJob(id);
     if (!job) return NextResponse.json({ error: "Role not found." }, { status: 404 });
+    const ws = await currentWorkspace();
 
     const body = (await request.json().catch(() => ({}))) as {
       candidateId?: string;
@@ -53,9 +55,10 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       // languages on their saved profile so the outreach below (and every later
       // comm) speaks their language; NULL falls to the workspace default.
       locale: inferProfileLocale(body.candidateId),
+      workspaceId: ws,
     });
 
-    const result = await runAutomationTask(entry.id, "outreach");
+    const result = await runAutomationTask(entry.id, "outreach", "", undefined, undefined, ws);
     return NextResponse.json({ entryId: entry.id, created, applied: result.applied });
   } catch (error) {
     // AutomationError carries a client-safe business message + status (e.g. the

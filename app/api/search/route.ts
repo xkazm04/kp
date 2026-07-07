@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { searchEntities } from "@/app/_lib/db";
+import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { safeJsonError } from "@/app/_lib/api-response";
 
 
@@ -19,7 +20,7 @@ export async function GET(request: Request) {
     if (q.length < MIN_QUERY_LENGTH) {
       return NextResponse.json({ results: [] });
     }
-    return NextResponse.json({ results: searchEntities(q) });
+    return NextResponse.json({ results: searchEntities(q, 5, await currentWorkspace()) });
   } catch (error) {
     return safeJsonError(error, "api:search", "SEARCH_FAILED");
   }

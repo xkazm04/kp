@@ -3,6 +3,7 @@ import { recordMeterUsage } from "@/app/_lib/billing";
 import {
   attachInterviewScorecard,
   completeInterviewSession,
+  getEntryWorkspace,
   getInterviewSessionByToken,
   insertLlmUsage,
   type VoiceTurn,
@@ -171,8 +172,11 @@ export async function POST(request: NextRequest) {
     let scorecard: Record<string, unknown> | null = null;
     let updated = persisted;
     if (session.entryId && status === "completed" && transcript.length > 0) {
+      // Token-driven flow (no session workspace): derive the entry's team so the scorecard
+      // + its Interview→Offer approval scope to the right tenant.
+      const ws = getEntryWorkspace(session.entryId);
       try {
-        scorecard = await runInterviewScorecard(session.entryId, transcript);
+        scorecard = await runInterviewScorecard(session.entryId, transcript, ws);
       } catch {
         /* transcript is already persisted — scoring is best-effort */
       }

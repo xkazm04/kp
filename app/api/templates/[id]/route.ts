@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { deleteTemplate, getTemplate, setDefaultTemplate, updateTemplate } from "@/app/_lib/templates-store";
+import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { safeJsonError } from "@/app/_lib/api-response";
 import { findUnknownPlaceholders, unknownPlaceholderMessage, validateTemplateUpdate } from "@/app/features/sub_library/render-template";
 
@@ -7,7 +8,7 @@ import { findUnknownPlaceholders, unknownPlaceholderMessage, validateTemplateUpd
 export async function GET(_request: NextRequest, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
   try {
-    const template = getTemplate(id);
+    const template = getTemplate(id, await currentWorkspace());
     if (!template) return NextResponse.json({ error: "Template not found." }, { status: 404 });
     return NextResponse.json({ template });
   } catch (error) {
@@ -18,13 +19,14 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ id
 export async function PUT(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
   try {
+    const ws = await currentWorkspace();
     const body = (await request.json()) as { name?: string; body?: string; isDefault?: boolean };
     // Promote-to-default is a distinct, single-row state change (clears the flag
     // on every other template), kept separate from a name/body edit — it carries
-    // no name/body to trim, cap, or lint.
+    // no name/body to trim, cap, or lint. Only an ORG template can be the default.
     if (body.isDefault === true) {
-      const template = setDefaultTemplate(id);
-      if (!template) return NextResponse.json({ error: "Template not found." }, { status: 404 });
+      const template = setDefaultTemplate(id, ws);
+      if (!template) return NextResponse.json({ error: "Only a shared (org) template can be set as the default." }, { status: 404 });
       return NextResponse.json({ template });
     }
     // Trim + cap whichever of name/body this edit carries (same caps/wording as
@@ -39,7 +41,7 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
       const unknown = findUnknownPlaceholders(fields.body);
       if (unknown.length) return NextResponse.json({ error: unknownPlaceholderMessage(unknown) }, { status: 400 });
     }
-    const template = updateTemplate(id, fields);
+    const template = updateTemplate(id, fields, ws);
     if (!template) return NextResponse.json({ error: "Template not found." }, { status: 404 });
     return NextResponse.json({ template });
   } catch (error) {
@@ -50,7 +52,7 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
 export async function DELETE(_request: NextRequest, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
   try {
-    const result = deleteTemplate(id);
+    const result = deleteTemplate(id, await currentWorkspace());
     if (!result.ok) return NextResponse.json({ error: result.reason }, { status: 400 });
     return NextResponse.json({ ok: true });
   } catch (error) {

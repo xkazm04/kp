@@ -13,6 +13,7 @@ import {
   setApproval,
   storePromptCache,
 } from "./db";
+import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "./python-runner";
 import { meterAllows } from "./billing";
 import { buildLlmConfigEnv } from "./llm-config";
@@ -105,12 +106,23 @@ function readRecommendation(result: Record<string, unknown>, task: string): stri
   return coerceInterviewRecommendation(raw);
 }
 
-export async function runAutomationTask(entryId: string, task: string, notes = "", signal?: AbortSignal, lang?: string): Promise<AutomationResult> {
+export async function runAutomationTask(
+  entryId: string,
+  task: string,
+  notes = "",
+  signal?: AbortSignal,
+  lang?: string,
+  workspaceId: string = DEFAULT_WORKSPACE_ID,
+): Promise<AutomationResult> {
   if (!(task in AUTOMATION_VERSION)) throw new AutomationError(`unknown task: ${task}`, 404);
-  const entry = getPipelineEntry(entryId);
+  // Tenant (P1): the entry read + every downstream mutation scope to the entry's own team
+  // (passed by the batch sweep as entry.workspaceId, or by the route as currentWorkspace()).
+  // The recordAutomationEvent calls' EVENTS auto-derive their tenant from the entry, so they
+  // stay correct regardless; threading workspaceId keeps their label/title enrichment right.
+  const entry = getPipelineEntry(entryId, workspaceId);
   if (!entry) throw new AutomationError("entry not found", 404);
   if (!entry.candidateId) throw new AutomationError("entry has no candidate profile", 400);
-  const rec = getProfileRecord(entry.candidateId);
+  const rec = getProfileRecord(entry.candidateId, workspaceId);
   if (!rec) throw new AutomationError("candidate profile not found", 400);
 
   // Rematch REDIRECTS a candidate to a better-fit role and closes out their current
@@ -254,7 +266,7 @@ export async function runAutomationTask(entryId: string, task: string, notes = "
     // it meanwhile. A stale screen verdict must no-op instead of moving whatever stage
     // the entry is in NOW — mirrors the policy-pass hardening (automation-pass.ts).
     if (advance) {
-      const moved = actOnPipelineEntry(entry.id, "accept", undefined, { expectedStage: entry.stage, actor: "system" });
+      const moved = actOnPipelineEntry(entry.id, "accept", undefined, { expectedStage: entry.stage, actor: "system" }, workspaceId);
       if (!moved) {
         // Stage changed mid-hop — skip the move AND the dependent approval/event so
         // the screening_review can't land on a now-unexpected (or terminal) stage.
@@ -262,17 +274,17 @@ export async function runAutomationTask(entryId: string, task: string, notes = "
       }
     }
     if (holdForReview) {
-      setApproval(entry.id, "screening_review", JSON.stringify(result));
-      recordAutomationEvent(entry.id, "screening_hold", readRecommendation(result, task));
+      setApproval(entry.id, "screening_review", JSON.stringify(result), workspaceId);
+      recordAutomationEvent(entry.id, "screening_hold", readRecommendation(result, task), workspaceId);
     }
     applied = screenApplied;
   } else if (task === "scorecard") {
-    setApproval(entry.id, "scorecard_review", JSON.stringify(result));
-    recordAutomationEvent(entry.id, "interview_scorecard", readRecommendation(result, task));
+    setApproval(entry.id, "scorecard_review", JSON.stringify(result), workspaceId);
+    recordAutomationEvent(entry.id, "interview_scorecard", readRecommendation(result, task), workspaceId);
     applied = "scorecard_ready";
   } else if (task === "offer") {
-    setApproval(entry.id, "offer_review", JSON.stringify(result));
-    recordAutomationEvent(entry.id, "offer_drafted", String(result.recommended ?? ""));
+    setApproval(entry.id, "offer_review", JSON.stringify(result), workspaceId);
+    recordAutomationEvent(entry.id, "offer_drafted", String(result.recommended ?? ""), workspaceId);
     applied = "offer_ready";
   } else if (task === "rematch") {
     if (result.found && result.jobId) {
@@ -294,6 +306,8 @@ export async function runAutomationTask(entryId: string, task: string, notes = "
         // (captured at apply) must follow them onto the target entry, or the
         // rematch would silently flip their comms back to the workspace default.
         locale: entry.locale,
+        // …and the target lands in the SAME team as the source (one candidate, one team).
+        workspaceId,
       });
       if (created) {
         // Define what rematch does to the SOURCE entry (idea-9ad8a777): close it so
@@ -303,8 +317,8 @@ export async function runAutomationTask(entryId: string, task: string, notes = "
         // moved or closed it during the LLM hop, that branch is handled atomically
         // (already-terminal links only; Hired is left untouched). The source-side
         // `rematched` event is recorded inside rematchSourceEntry.
-        rematchSourceEntry(entry.id, target.id, result.jobId as string);
-        recordAutomationEvent(target.id, "rematched_from", `${entry.id} (${entry.jobId ?? "?"})`);
+        rematchSourceEntry(entry.id, target.id, result.jobId as string, workspaceId);
+        recordAutomationEvent(target.id, "rematched_from", `${entry.id} (${entry.jobId ?? "?"})`, workspaceId);
         applied = "rematched";
       } else {
         applied = "already_rematched";
@@ -323,7 +337,7 @@ export async function runAutomationTask(entryId: string, task: string, notes = "
     // otherwise re-fire the send every time. Gate the dispatch on the durable
     // per-entry "outreach_sent" marker that dispatchOutreach itself records, so an
     // outreach is delivered at most once per entry — first-contact, not a resend.
-    if (hasEvent(entry.id, "outreach_sent") || outreachInFlight.has(entry.id)) {
+    if (hasEvent(entry.id, "outreach_sent", workspaceId) || outreachInFlight.has(entry.id)) {
       applied = "already_sent";
     } else {
       outreachInFlight.add(entry.id);
@@ -344,7 +358,7 @@ export async function runAutomationTask(entryId: string, task: string, notes = "
       }
     }
   } else {
-    recordAutomationEvent(entry.id, DRAFT_EVENT[task] ?? task, "");
+    recordAutomationEvent(entry.id, DRAFT_EVENT[task] ?? task, "", workspaceId);
     applied = "drafted";
   }
 

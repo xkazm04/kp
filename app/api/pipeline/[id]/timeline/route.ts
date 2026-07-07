@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { candidateTimeline } from "@/app/_lib/candidate-timeline";
+import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { safeJsonError } from "@/app/_lib/api-response";
 
 
@@ -11,7 +12,7 @@ import { safeJsonError } from "@/app/_lib/api-response";
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const items = candidateTimeline(id);
+    const items = candidateTimeline(id, await currentWorkspace());
     if (items === null) return NextResponse.json({ error: "entry not found" }, { status: 404 });
     return NextResponse.json({ items });
   } catch (error) {

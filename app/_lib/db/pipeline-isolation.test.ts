@@ -40,3 +40,17 @@ test("the audit trail is tenant-isolated (recordEvent auto-derives the entry's w
   assert.ok(listPipelineEventsForEntry(a.entry.id, 50, "ws-a").length >= 1, "ws-a sees its entry's audit trail");
   assert.equal(listPipelineEventsForEntry(a.entry.id, 50, "ws-b").length, 0, "ws-b cannot read ws-a's audit trail");
 });
+
+test("the same candidate→job in two teams yields DISTINCT entries (no global entry-id PK collision) — P1-b", () => {
+  const a = createPipelineEntry({ candidateId: "shared-cand", candidateLabel: "Sam", jobId: "shared-job", jobTitle: "Role", workspaceId: "ws-a" });
+  const b = createPipelineEntry({ candidateId: "shared-cand", candidateLabel: "Sam", jobId: "shared-job", jobTitle: "Role", workspaceId: "ws-b" });
+  assert.ok(a.created && b.created, "both teams create their OWN entry — no PK collision on the shared candidate→job");
+  assert.notEqual(a.entry.id, b.entry.id, "a non-default team's id is workspace-prefixed, so the ids differ");
+  assert.ok(getPipelineEntry(a.entry.id, "ws-a") && !getPipelineEntry(a.entry.id, "ws-b"), "ws-a's entry is ws-a-only");
+  assert.ok(getPipelineEntry(b.entry.id, "ws-b") && !getPipelineEntry(b.entry.id, "ws-a"), "ws-b's entry is ws-b-only");
+
+  // The DEFAULT workspace keeps the historical un-prefixed id, so existing rows stay
+  // idempotent (a re-apply regenerates the same id and merges rather than duplicating).
+  const d = createPipelineEntry({ candidateId: "c1", candidateLabel: "D", jobId: "j1", jobTitle: "R", workspaceId: "workspace" });
+  assert.equal(d.entry.id, "m-c1-j1", "the default workspace keeps the historical m-<key>-<job> scheme");
+});

@@ -7,6 +7,7 @@ import type { GithubEvidenceSummary } from "../github-summary";
 import type { PipelineStage } from "../pipeline-stages";
 import { assertTenancyReady } from "../tenancy";
 import { multiWorkspaceEnabled } from "../workspace-lock";
+import { seedBenchmarkTeam } from "./seed-benchmark-team";
 
 // Memoized on globalThis (not just module scope): Next dev HMR re-evaluates this
 // module with a fresh module-local binding, which would re-run the ENTIRE
@@ -928,9 +929,16 @@ export function ensureDb(): Database.Database {
   // into a hard guarantee. Guarded like the submissions index — a legacy DB with
   // active duplicates keeps the app-level coalescing instead.
   try {
+    // Tenant (P1): the dedup uniqueness is PER-TEAM — two teams may legitimately have an
+    // active task with the same dedupe_key (e.g. "screen entry X"). Widen the DB guarantee
+    // to (workspace_id, dedupe_key) to match getActiveTaskByDedupe's app-level scope; the
+    // NEW name keeps this idempotent across boots (drop the legacy dedupe_key-only index).
+    // Single-tenant-identical: workspace_id is the constant 'workspace', so uniqueness
+    // still reduces to dedupe_key within the one team.
+    db.exec(`DROP INDEX IF EXISTS uq_tasks_active_dedupe`);
     db.exec(
-      `CREATE UNIQUE INDEX IF NOT EXISTS uq_tasks_active_dedupe
-         ON tasks (dedupe_key) WHERE status IN ('queued','running')`
+      `CREATE UNIQUE INDEX IF NOT EXISTS uq_tasks_active_dedupe_ws
+         ON tasks (workspace_id, dedupe_key) WHERE status IN ('queued','running')`
     );
   } catch {
     /* pre-existing active duplicates prevent the unique index; skip */
@@ -971,6 +979,8 @@ export function ensureDb(): Database.Database {
   seedPipeline(db);
   migratePipelineStages(db); // remap any legacy 7-stage rows to the 5-stage model
   backfillDeclinedStatus(db); // split candidate declines out of overloaded `rejected`
+  seedBenchmarkTeam(db); // a 2nd org team so the Phase-2 org benchmark (org_id-join) has cross-team data
+
   // Tenant scope (P2): backfill ANY analyses row missing a workspace_id (legacy
   // rows AND freshly-seeded ones) to the default workspace. After all seeders so
   // it's order-independent — a seeded row that didn't stamp the column is caught.

@@ -1,0 +1,106 @@
+import { ensureDb } from "./core";
+import { PIPELINE_STAGES } from "../pipeline-stages";
+import { DEFAULT_WORKSPACE_ID } from "./workspaces";
+
+// Cross-company reference tier (E0 Phase 2, tier-2) — org-wide AGGREGATE benchmarks a
+// team compares itself against, computed by an org_id-JOIN across sibling teams. This is
+// the ONE module that reads pipeline_entries ACROSS the workspace boundary on purpose:
+// it returns ONLY aggregates (rates, a median, counts) — never a raw row, a candidate, or
+// a team name — so no team can read or de-anonymize another's data. It is deliberately
+// EXCLUDED from pipeline-tenancy.test.ts (which forbids unscoped pipeline_entries reads);
+// its own guard is the k-ANONYMITY FLOOR below: a benchmark is withheld until enough
+// teams AND entries contribute that no single team's figures are inferable from it.
+
+export const BENCHMARK_MIN_ENTRIES = 20; // too small a sample is noise, not a benchmark
+export const BENCHMARK_MIN_TEAMS = 2; // k-anonymity: an org benchmark is never a window onto ONE other team
+
+const INTERVIEW_IDX = PIPELINE_STAGES.indexOf("Interview");
+
+export type HiringStats = {
+  totalEntries: number;
+  interviewRatePct: number; // reached Interview+ / total
+  hireRatePct: number; // reached Hired / total
+  medianTimeToHireDays: number | null; // median created→Hired days, over hired entries (null if none)
+};
+
+export type OrgHiringBenchmark = HiringStats & {
+  available: boolean; // false ⇒ withheld: below the k-anonymity floor
+  contributingTeams: number;
+};
+
+type StatRow = { stage: string; created_at: string | null; stage_changed_at: string | null; workspace_id: string };
+
+function statsFrom(rows: StatRow[]): HiringStats {
+  const total = rows.length;
+  if (total === 0) return { totalEntries: 0, interviewRatePct: 0, hireRatePct: 0, medianTimeToHireDays: null };
+  let reachedInterview = 0;
+  let hired = 0;
+  const tthDays: number[] = [];
+  for (const r of rows) {
+    if (PIPELINE_STAGES.indexOf(r.stage as (typeof PIPELINE_STAGES)[number]) >= INTERVIEW_IDX) reachedInterview += 1;
+    if (r.stage === "Hired") {
+      hired += 1;
+      if (r.created_at && r.stage_changed_at) {
+        const days = (Date.parse(r.stage_changed_at) - Date.parse(r.created_at)) / 86_400_000;
+        if (Number.isFinite(days) && days >= 0) tthDays.push(days);
+      }
+    }
+  }
+  tthDays.sort((a, b) => a - b);
+  let median: number | null = null;
+  if (tthDays.length) {
+    const mid = Math.floor(tthDays.length / 2);
+    median = tthDays.length % 2 ? tthDays[mid] : (tthDays[mid - 1] + tthDays[mid]) / 2;
+  }
+  return {
+    totalEntries: total,
+    interviewRatePct: Math.round((reachedInterview / total) * 100),
+    hireRatePct: Math.round((hired / total) * 100),
+    medianTimeToHireDays: median == null ? null : Math.round(median),
+  };
+}
+
+/** The org a team belongs to (null if the team row is missing an org). */
+export function orgIdForWorkspace(workspaceId: string = DEFAULT_WORKSPACE_ID): string | null {
+  const r = ensureDb().prepare(`SELECT org_id FROM workspaces WHERE id = ?`).get(workspaceId) as { org_id?: string | null } | undefined;
+  return r?.org_id ?? null;
+}
+
+/** One team's OWN hiring stats — its pipeline only (workspace-scoped). */
+export function teamHiringStats(workspaceId: string = DEFAULT_WORKSPACE_ID): HiringStats {
+  const rows = ensureDb()
+    .prepare(`SELECT stage, created_at, stage_changed_at, workspace_id FROM pipeline_entries WHERE workspace_id = ?`)
+    .all(workspaceId) as StatRow[];
+  return statsFrom(rows);
+}
+
+/** The org-wide AGGREGATE across the org's sibling teams (org_id-join), WITHHELD below
+ *  the k-anonymity floor. Aggregate-only — the returned object never carries a row or a
+ *  team identity. `excludeWorkspaceId` yields a "vs peers" benchmark (the org minus the
+ *  caller's own team) when the org has enough OTHER teams to stay anonymous. */
+export function orgHiringBenchmark(orgId: string, opts?: { excludeWorkspaceId?: string }): OrgHiringBenchmark {
+  const db = ensureDb();
+  const params: unknown[] = [orgId];
+  let extra = "";
+  if (opts?.excludeWorkspaceId) {
+    extra = " AND pe.workspace_id != ?";
+    params.push(opts.excludeWorkspaceId);
+  }
+  const rows = db
+    .prepare(
+      `SELECT pe.stage, pe.created_at, pe.stage_changed_at, pe.workspace_id
+         FROM pipeline_entries pe JOIN workspaces w ON w.id = pe.workspace_id
+        WHERE w.org_id = ?${extra}`
+    )
+    .all(...params) as StatRow[];
+  const contributingTeams = new Set(rows.map((r) => r.workspace_id)).size;
+  const stats = statsFrom(rows);
+  const available = stats.totalEntries >= BENCHMARK_MIN_ENTRIES && contributingTeams >= BENCHMARK_MIN_TEAMS;
+  // Below the floor we still report HOW MANY teams contributed (a count is not
+  // de-anonymizing), but withhold the rates/median so a 1-team org can't read the
+  // other team's figures off its own "org" benchmark.
+  if (!available) {
+    return { available: false, contributingTeams, totalEntries: stats.totalEntries, interviewRatePct: 0, hireRatePct: 0, medianTimeToHireDays: null };
+  }
+  return { ...stats, available: true, contributingTeams };
+}

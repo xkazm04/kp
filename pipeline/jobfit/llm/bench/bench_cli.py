@@ -16,6 +16,7 @@ LightTrack's judge/benchmark engine can score the traffic server-side;
 from __future__ import annotations
 
 import argparse
+import sys
 from datetime import datetime
 from pathlib import Path
 
@@ -43,6 +44,17 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Store full payloads in records.jsonl (for LLM-as-judge / manual review).",
     )
+    parser.add_argument(
+        "--judge",
+        action="store_true",
+        help="Score each served output with a local LLM judge (Claude CLI) and add a 'judge' "
+        "column to the scorecard. Implies --include-payloads (the judge needs the output).",
+    )
+    parser.add_argument(
+        "--judge-model",
+        default=None,
+        help="Model alias for the judge CLI (default: the CLI's configured model).",
+    )
     args = parser.parse_args(argv)
 
     use_cases = [u.strip() for u in args.use_cases.split(",") if u.strip()]
@@ -51,9 +63,27 @@ def main(argv: list[str] | None = None) -> int:
         parser.error(f"unknown use case(s) {unknown}; known: {sorted(SCENARIO_BUILDERS)}")
     targets = [BenchTarget.parse(t) for t in args.targets.split(",") if t.strip()]
 
+    # The judge scores the served payload, so it must be kept.
+    include_payloads = args.include_payloads or args.judge
     records = run_matrix(
-        use_cases, targets, limit=args.limit, lang=args.lang, include_payload=args.include_payloads
+        use_cases, targets, limit=args.limit, lang=args.lang, include_payload=include_payloads
     )
+    if args.judge:
+        from .judge import default_judge_provider, judge_records
+
+        judgeable = sum(1 for r in records if r.error is None and r.payload is not None)
+        scored = judge_records(records, default_judge_provider(args.judge_model))
+        print(f"judged {scored}/{judgeable} served output(s) with the Claude CLI\n")
+        # A judge pass that scores nothing (or almost nothing) means the Claude CLI is
+        # unauthenticated or usage-capped — the scorecard would ship with an empty judge
+        # column that reads as "not requested". Fail loudly instead of silently.
+        if judgeable and scored == 0:
+            print(
+                "WARNING: --judge scored 0 outputs — the Claude CLI judge produced no parseable "
+                "scores (unauthenticated or usage-limited?). The judge column will be empty; "
+                "re-run the judge once the CLI is healthy.",
+                file=sys.stderr,
+            )
     out_dir = args.out or Path("tmp") / "bench" / datetime.now().strftime("%Y%m%d-%H%M%S")
     paths = write_outputs(records, out_dir)
 

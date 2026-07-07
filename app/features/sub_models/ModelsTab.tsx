@@ -10,9 +10,15 @@ import { TextInput } from "@/app/_components/TextInput";
 import { SectionTitle } from "@/app/_components/ui/SectionTitle";
 import { labelize } from "@/app/_lib/format";
 import type { LlmConfigRow } from "@/app/_lib/db";
+import { bestModelForUseCase } from "@/app/_lib/llm-quality";
+import { QUALITY_SCORES, hasQualityScores } from "@/app/_lib/llm-quality-scores";
 import { KeysPanel } from "./KeysPanel";
+import { QualityOverview } from "./QualityOverview";
 import { UsagePanel } from "./UsagePanel";
 import { useProviderName } from "./provider-names";
+
+const shortModel = (slug: string) => slug.split("/").pop() ?? slug;
+const STAR = "★"; // decorative marker for the measured-best-model hint (not translatable copy)
 
 // Models tab — the LLM provider layer's admin surface (docs/LLM_PROVIDER_LAYER.md):
 // pin a provider/model per use case (rows in GET /api/llm/config are EXPLICIT
@@ -49,6 +55,9 @@ function RoutingRow({
   const [note, setNote] = useState<{ text: string; ok: boolean } | null>(null);
 
   const dirty = provider !== (row?.provider ?? "") || model.trim() !== (row?.model ?? "");
+  // Best measured model for this use case (across its bench ops) — an evidence
+  // hint the operator can pin. Null for the "*" catch-all and unmeasured cases.
+  const rec = hasQualityScores() ? bestModelForUseCase(QUALITY_SCORES, useCase) : null;
 
   const save = async () => {
     if (!provider || busy) return;
@@ -134,6 +143,14 @@ function RoutingRow({
       <tr className="border-b border-stone-100 align-top">
         <td className="py-2.5 pr-3">
           <p className="text-base font-medium text-ink">{label}</p>
+          {rec ? (
+            <p
+              className="mt-0.5 text-sm font-medium text-moss"
+              title={t("recTitle", { model: rec.model, score: rec.composite.toFixed(1) })}
+            >
+              {STAR} {shortModel(rec.model)} {rec.composite.toFixed(1)}
+            </p>
+          ) : null}
           {hint ? <p className="mt-0.5 text-sm text-steel">{hint}</p> : null}
           {row ? (
             <p className="mt-0.5 text-sm text-steel">
@@ -325,6 +342,8 @@ export function ModelsTab() {
           </div>
         </div>
       ) : null}
+
+      {config ? <QualityOverview /> : null}
 
       {config ? <KeysPanel /> : null}
 

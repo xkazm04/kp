@@ -56,6 +56,13 @@ class _Ctx:
         test.addCleanup(monitor.reset)
         monitor.reset()
         test.enterContext(mock.patch.dict(sys.modules, {"lighttrack": _stub_module(cls)}))
+        # Neutralize the .env.local reload FOR THIS TEST's scope. The suite-wide
+        # dotenv patch (tests/__init__.py) is a managed mock another test can restore
+        # to the real loader mid-run; monitor._client() would then reload .env.local
+        # (LIGHTTRACK_URL set in local dev) and flip telemetry back on, breaking the
+        # "disabled" gating asserts order-dependently. Patching the concrete loader in
+        # the fixture makes each monitor test hermetic regardless of global state.
+        test.enterContext(mock.patch("pipeline.jobfit.llm.base.load_local_env", lambda *a, **k: None))
         test.enterContext(mock.patch.dict(os.environ, {}, clear=False))
         os.environ.pop("LIGHTTRACK_URL", None)
         if url:

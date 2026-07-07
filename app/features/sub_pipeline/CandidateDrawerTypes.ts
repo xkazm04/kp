@@ -9,6 +9,7 @@ export type Entry = Pick<
   | "candidateId"
   | "candidateLabel"
   | "archetype"
+  | "roleFamily"
   | "jobId"
   | "jobTitle"
   | "stage"

@@ -175,11 +175,11 @@ async function scoreUnscoredEntries(entries: AutomationEntry[], dryRun: boolean)
           // post-scoring verdict, but persist nothing — the committed run
           // recomputes the same deterministic score and writes it then.
           e.matchScore = score;
-        } else if (setEntryMatchScore(e.id, score)) {
+        } else if (setEntryMatchScore(e.id, score, e.workspaceId)) {
           // Patch the in-memory snapshot so THIS pass's policy step (and the
           // fairness backstop reading the same snapshot) sees the fresh score.
           e.matchScore = score;
-          recordAutomationEvent(e.id, "scored", `${score} vs ${e.jobTitle ?? jobId}`);
+          recordAutomationEvent(e.id, "scored", `${score} vs ${e.jobTitle ?? jobId}`, e.workspaceId);
         }
       }
     } catch (error) {
@@ -259,9 +259,12 @@ async function executeAutomationPass(dryRun: boolean): Promise<AutomationPassRes
       // pass) may have moved the entry meanwhile. Passing expectedStage makes a
       // stale verdict a logged no-op instead of an action applied to whatever
       // stage the entry happens to be in NOW.
-      const snapshotStage = byId.get(d.entryId)?.stage;
+      // Global sweep spans teams, so each write scopes to THIS entry's own workspace.
+      const entrySnap = byId.get(d.entryId);
+      const snapshotStage = entrySnap?.stage;
+      const entryWs = entrySnap?.workspaceId;
       if (d.action === "advance") {
-        const applied = actOnPipelineEntry(d.entryId, "accept", d.reason, { expectedStage: snapshotStage, actor: "system" }); // logs `auto_advanced` + stamps stage_changed_at
+        const applied = actOnPipelineEntry(d.entryId, "accept", d.reason, { expectedStage: snapshotStage, actor: "system" }, entryWs); // logs `auto_advanced` + stamps stage_changed_at
         if (applied) {
           summary.advanced += 1;
           d.outcome = "applied";
@@ -295,9 +298,10 @@ async function executeAutomationPass(dryRun: boolean): Promise<AutomationPassRes
             "rejection_review",
             JSON.stringify({
               recommendation: "reject",
-              confidence: byId.get(d.entryId)?.matchScore ?? null,
+              confidence: entrySnap?.matchScore ?? null,
               rationale: d.reason,
-            })
+            }),
+            entryWs
           );
           d.outcome = "queued";
           d.reason = `Queued for approval: ${d.reason}`;
@@ -308,8 +312,8 @@ async function executeAutomationPass(dryRun: boolean): Promise<AutomationPassRes
         d.outcome = "applied";
       }
       for (const alert of d.alerts ?? []) {
-        if (!hasEventToday(d.entryId, alert)) {
-          recordAutomationEvent(d.entryId, alert, d.reason);
+        if (!hasEventToday(d.entryId, alert, entryWs)) {
+          recordAutomationEvent(d.entryId, alert, d.reason, entryWs);
           summary.alerts += 1;
         }
       }

@@ -77,6 +77,8 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
             jobTitle: job.title,
             matchScore: m.score,
             stage: "Accepted",
+            // The publishing recruiter's team owns the sourced candidates.
+            workspaceId: ws,
           });
           sourced += 1;
         }

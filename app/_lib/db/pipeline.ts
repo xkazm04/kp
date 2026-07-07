@@ -557,13 +557,16 @@ export type CreatePipelineInput = {
 // entry already existed, letting the caller surface the repeat.
 export function createPipelineEntry(input: CreatePipelineInput): { entry: PipelineEntry; created: boolean } {
   const db = ensureDb();
-  // Tenant scope (P1): stamp + scope every by-id lookup to the owning team. NOTE:
-  // the entry id (`m-<candidate>-<job>`) is a GLOBAL PK; a workspace component in
-  // the id is a multi-tenant-enable prerequisite (two teams sourcing the same
-  // candidate→job would collide) — tracked, not needed under the single-tenant lock.
+  // Tenant scope (P1): stamp + scope every by-id lookup to the owning team.
   const workspaceId = input.workspaceId ?? DEFAULT_WORKSPACE_ID;
   const keySource = input.dedupeKey || input.candidateId;
-  const id = `m-${keySource}-${input.jobId}`.replace(/[^A-Za-z0-9_-]/g, "").slice(0, 90);
+  // The entry id is a GLOBAL PK. The DEFAULT workspace keeps the historical `m-<key>-<job>`
+  // scheme so existing entries stay idempotent (a re-apply regenerates the SAME id and
+  // merges); a non-default team prefixes its workspace so two teams sourcing the same
+  // candidate→job can't collide on the shared PK once KP_MULTI_WORKSPACE is on. Fully
+  // behavior-identical under the single-tenant lock — every id uses the default scheme.
+  const idPrefix = workspaceId === DEFAULT_WORKSPACE_ID ? "" : `${workspaceId}-`;
+  const id = `m-${idPrefix}${keySource}-${input.jobId}`.replace(/[^A-Za-z0-9_-]/g, "").slice(0, 90);
   const existing = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ? AND workspace_id = ?`).get(id, workspaceId) as PipelineRow | undefined;
   if (existing) {
     // A re-add carrying GitHub evidence backfills an entry that has none —
@@ -1155,7 +1158,7 @@ export function anonymizeExpiredConsents(nowIso: string = new Date().toISOString
 // it cannot see the number — so this constant is the one place the window is defined.
 export const SCREENING_OVERRIDE_GUARD_HOURS = 24;
 
-export type AutomationEntry = PipelineEntry & { daysInStage: number; recentScreening: boolean };
+export type AutomationEntry = PipelineEntry & { daysInStage: number; recentScreening: boolean; workspaceId: string };
 
 export function getPipelineEntry(id: string, workspaceId: string = DEFAULT_WORKSPACE_ID): PipelineEntry | null {
   const db = ensureDb();
@@ -1163,29 +1166,42 @@ export function getPipelineEntry(id: string, workspaceId: string = DEFAULT_WORKS
   return row ? rowToEntry(row) : null;
 }
 
+/** The owning team of an entry — a by-id point read on a globally-unique PK. Lets a
+ *  token-driven flow with no session workspace (the interview-complete scorecard, resolved
+ *  by the session's CSPRNG token) derive the entry's tenant to scope its own writes. */
+export function getEntryWorkspace(id: string): string {
+  const row = ensureDb().prepare(`SELECT workspace_id FROM pipeline_entries WHERE id = ?`).get(id) as { workspace_id?: string } | undefined;
+  return row?.workspace_id ?? DEFAULT_WORKSPACE_ID;
+}
+
 /** Active entries enriched with daysInStage + whether a screening decision is newer than
  *  SCREENING_OVERRIDE_GUARD_HOURS (the recentScreening guard, Task 7 input). */
-export function listActiveEntriesForAutomation(workspaceId: string = DEFAULT_WORKSPACE_ID): AutomationEntry[] {
+// GLOBAL sweep: the ONE automation engine processes EVERY team's active entries in a
+// single pass (like the tasks runner + reminder/GDPR sweeps). Each entry carries its
+// workspace_id so the caller's per-entry writes (actOnPipelineEntry/setApproval/… taking
+// entry.workspaceId) stay tenant-scoped; the enumeration itself must span teams, so both
+// reads are tagged `-- tenancy:global` (exempted in pipeline-{tenancy,events-tenancy}.test).
+export function listActiveEntriesForAutomation(): AutomationEntry[] {
   const db = ensureDb();
   const rows = db
     .prepare(
       `SELECT id, candidate_id, candidate_label, archetype, role_family, job_id, job_title,
               stage, match_score, status, approval_kind, approval_detail, created_at, stage_changed_at,
-              intake_degraded, intake_degraded_reason
-       FROM pipeline_entries WHERE status = 'active' AND workspace_id = ?`
+              intake_degraded, intake_degraded_reason, workspace_id
+       FROM pipeline_entries WHERE status = 'active' -- tenancy:global`
     )
-    .all(workspaceId) as PipelineRow[];
+    .all() as (PipelineRow & { workspace_id: string })[];
   const cutoff = new Date(Date.now() - SCREENING_OVERRIDE_GUARD_HOURS * 3600 * 1000).toISOString();
   const recent = new Set(
     (
       db
-        .prepare(`SELECT DISTINCT entry_id FROM pipeline_events WHERE kind LIKE 'screening%' AND created_at > ? AND workspace_id = ?`)
-        .all(cutoff, workspaceId) as { entry_id: string }[]
+        .prepare(`SELECT DISTINCT entry_id FROM pipeline_events WHERE kind LIKE 'screening%' AND created_at > ? -- tenancy:global`)
+        .all(cutoff) as { entry_id: string }[]
     ).map((r) => r.entry_id)
   );
   return rows.map((r) => {
     const days = r.stage_changed_at ? Math.floor((Date.now() - Date.parse(r.stage_changed_at)) / 86_400_000) : 0;
-    return { ...rowToEntry(r), daysInStage: days, recentScreening: recent.has(r.id) };
+    return { ...rowToEntry(r), daysInStage: days, recentScreening: recent.has(r.id), workspaceId: r.workspace_id };
   });
 }
 

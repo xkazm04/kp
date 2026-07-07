@@ -57,6 +57,9 @@ class BenchRecord:
     output_tokens: int = 0
     cost_usd: float | None = None
     error: str | None = None
+    # LLM-as-judge score (1-10) + per-dimension detail; None until a judge pass runs.
+    judge_score: float | None = None
+    judge_detail: dict[str, Any] = field(default_factory=dict)
     meta: dict[str, Any] = field(default_factory=dict)
     payload: Any = None
 
@@ -175,6 +178,7 @@ def summarize(records: Sequence[BenchRecord]) -> list[dict[str, Any]]:
         ok = [r for r in group if r.error is None]
         latencies = [r.wall_ms for r in ok]
         costs = [r.cost_usd for r in ok if r.cost_usd is not None]
+        judged = [r.judge_score for r in ok if r.judge_score is not None]
         rows.append(
             {
                 "useCase": use_case,
@@ -184,6 +188,8 @@ def summarize(records: Sequence[BenchRecord]) -> list[dict[str, Any]]:
                 "errors": len(group) - len(ok),
                 "validRate": round(sum(1 for r in ok if r.valid) / len(ok), 3) if ok else 0.0,
                 "llmRate": round(sum(1 for r in ok if r.source == "llm") / len(ok), 3) if ok else 0.0,
+                "judged": len(judged),
+                "meanJudge": round(sum(judged) / len(judged), 2) if judged else None,
                 "p50Ms": _percentile(latencies, 50),
                 "p95Ms": _percentile(latencies, 95),
                 "meanInputTokens": round(sum(r.input_tokens for r in ok) / len(ok)) if ok else 0,
@@ -196,14 +202,15 @@ def summarize(records: Sequence[BenchRecord]) -> list[dict[str, Any]]:
 
 def to_markdown(summary_rows: Sequence[dict[str, Any]]) -> str:
     header = (
-        "| use case | target | n | err | valid | llm | p50 ms | p95 ms | in tok | out tok | cost $ |\n"
-        "|---|---|--:|--:|--:|--:|--:|--:|--:|--:|--:|"
+        "| use case | target | n | err | valid | judge | llm | p50 ms | p95 ms | in tok | out tok | cost $ |\n"
+        "|---|---|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|"
     )
     lines = [header]
     for row in summary_rows:
+        judge = f"{row['meanJudge']:.1f}" if row.get("meanJudge") is not None else "—"
         lines.append(
             f"| {row['useCase']} | {row['provider']}:{row['model']} | {row['n']} | {row['errors']} "
-            f"| {row['validRate']:.0%} | {row['llmRate']:.0%} | {row['p50Ms']} | {row['p95Ms']} "
+            f"| {row['validRate']:.0%} | {judge} | {row['llmRate']:.0%} | {row['p50Ms']} | {row['p95Ms']} "
             f"| {row['meanInputTokens']} | {row['meanOutputTokens']} "
             f"| {row['totalCostUsd'] if row['totalCostUsd'] is not None else '—'} |"
         )

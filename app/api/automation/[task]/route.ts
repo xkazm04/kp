@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { AutomationError, runAutomationTask } from "@/app/_lib/automation-run";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
+import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { getServerLocale } from "@/i18n/server";
 
 
@@ -20,7 +21,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ ta
     // Background/task-runner paths pass none → runAutomationTask falls back to the
     // workspace default.
     const lang = await getServerLocale();
-    const out = await runAutomationTask(body.entryId, task, typeof body.notes === "string" ? body.notes : "", undefined, lang);
+    const out = await runAutomationTask(body.entryId, task, typeof body.notes === "string" ? body.notes : "", undefined, lang, await currentWorkspace());
     return NextResponse.json(out);
   } catch (error) {
     if (error instanceof AutomationError) return NextResponse.json({ error: error.message }, { status: error.status });

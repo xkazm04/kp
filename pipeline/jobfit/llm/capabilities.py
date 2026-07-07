@@ -19,6 +19,9 @@ PROVIDER_CAPABILITIES: dict[str, frozenset[str]] = {
     "azure_openai": frozenset({CAP_JSON, CAP_FILE_INPUT}),
     "gemini": frozenset({CAP_JSON, CAP_FILE_INPUT, CAP_GROUNDING}),
     "claude_cli": frozenset({CAP_JSON}),
+    # OpenRouter serves the JSON/text use cases via prompt-embedded JSON; file input
+    # varies per proxied model, so it is not advertised here.
+    "openrouter": frozenset({CAP_JSON}),
 }
 
 # The use-case catalog (docs/LLM_PROVIDER_LAYER.md). Unknown use cases default
@@ -56,6 +59,8 @@ DEFAULT_MODELS: dict[str, str | None] = {
     "gemini": "gemini-3-flash-preview",
     "azure_openai": None,
     "claude_cli": None,  # the CLI's configured default
+    # OpenRouter models are addressed by slug — always explicit, like Azure deployments.
+    "openrouter": None,
 }
 
 # Quality-sensitive use cases step up a model class when no model is pinned.

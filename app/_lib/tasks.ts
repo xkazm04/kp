@@ -43,6 +43,9 @@ export function recentTaskCutoffIso(): string {
 
 export type TaskCtx = {
   taskId: string;
+  /** The team that enqueued the task (P1) — handlers thread it into their entry-keyed
+   *  store calls so a tracked background job scopes to the same tenant as its recruiter. */
+  workspaceId: string;
   params: Record<string, unknown>;
   progress: (done: number, total: number, msg?: string) => void;
   signal: AbortSignal;
@@ -65,7 +68,7 @@ async function batchScreen(ctx: TaskCtx): Promise<unknown> {
   for (const e of entries) {
     if (ctx.signal.aborted) break;
     try {
-      const out = await runAutomationTask(e.id, "screen", "", ctx.signal);
+      const out = await runAutomationTask(e.id, "screen", "", ctx.signal, undefined, e.workspaceId);
       if (out.applied === "advanced") summary.advanced += 1;
       else if (out.applied === "held_for_review") summary.held += 1;
       else summary.advisory += 1;
@@ -79,7 +82,7 @@ async function batchScreen(ctx: TaskCtx): Promise<unknown> {
 
 const HANDLERS: Record<string, Spec> = {
   automation: {
-    run: (ctx) => runAutomationTask(String(ctx.params.entryId), String(ctx.params.task), String(ctx.params.notes ?? ""), ctx.signal),
+    run: (ctx) => runAutomationTask(String(ctx.params.entryId), String(ctx.params.task), String(ctx.params.notes ?? ""), ctx.signal, undefined, ctx.workspaceId),
     label: (p) => `${p.task} · ${p.entryLabel ?? p.entryId}`,
   },
   reasoning: {
@@ -125,7 +128,7 @@ const HANDLERS: Record<string, Spec> = {
     label: (p) => `Build JD · ${p.title ?? "role"}`,
   },
   interview_prep: {
-    run: (ctx) => runInterviewPrep(ctx.params, ctx.signal),
+    run: (ctx) => runInterviewPrep(ctx.params, ctx.signal, ctx.workspaceId),
     label: (p) => `Interview prep · ${p.candidateLabel ?? p.entryId ?? ""}`,
   },
 };
@@ -248,6 +251,7 @@ async function runOne(id: string): Promise<void> {
     markTaskRunning(id);
     const result = await spec.run({
       taskId: id,
+      workspaceId: task.workspaceId,
       params: (task.params as Record<string, unknown>) ?? {},
       progress: (d, t, m) => setTaskProgress(id, d, t, m),
       signal: controller.signal,

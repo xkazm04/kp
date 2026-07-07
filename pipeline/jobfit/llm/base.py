@@ -316,11 +316,25 @@ class TextProvider:
         try:
             return _extract_json(repaired.text, expected_keys=expected_keys)
         except ValueError as exc:
-            raise LLMError(
+            err = LLMError(
                 f"{self.name} did not return parseable JSON after a repair "
                 f"re-prompt: {repaired.text[:300]!r}",
                 provider=self.name,
-            ) from exc
+                subtype="unparseable_json",
+            )
+            # complete() already logged the underlying call(s) as SUCCESS — text WAS
+            # returned — but the output is unusable JSON, so also surface an ERROR to
+            # LightTrack. Otherwise a corrupted/truncated response reads as a healthy
+            # success and the monitoring can't see the call site drop to its
+            # deterministic fallback (the provider "responded", just not usably).
+            monitor.emit_error(
+                provider=self.name,
+                model=self.model,
+                use_case=self.use_case,
+                error=err,
+                duration_ms=0,
+            )
+            raise err from exc
 
     def map(
         self,

@@ -1,4 +1,5 @@
 import { getDevCase, getJob, getPipelineEntry, getSubmission, type PipelineEntry, type VoiceTurn } from "./db";
+import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 import { runAutomationTask } from "./automation-run";
 import { defaultInterviewerInstructions } from "./voice";
 import { getInterviewPrep } from "./interview-prep";
@@ -6,11 +7,13 @@ import { runInterviewPrep, type ChronologyBlock } from "./interview-prep-run";
 import { buildScorecardNotes, transcriptToNotes } from "./interview-transcript";
 import { GROUNDED_DEFAULT_MIN, QUICK_SCREEN_MIN } from "./interview-duration.mjs";
 import { isEarlyCareer } from "./archetypes";
+import { isLocale, type Locale } from "@/i18n/locales";
 import {
   caseGroundedInterviewerInstructions,
   devCaseIdFromJobId,
   PERSONA_GENDER_GRAMMAR,
   PERSONA_LANGUAGE_DETECT,
+  PERSONA_ONE_QUESTION,
   scenarioRunOfShow,
   STUDENT_SCRIPT,
   STUDENT_SCRIPT_MIN,
@@ -39,6 +42,16 @@ type PrepPayload = {
   chronology?: ChronologyBlock[];
 };
 
+// App §2 / P1 root cause: when the candidate EXPLICITLY chose a language at apply (entry.locale is
+// a real locale, not the workspace-default guess), tell the agent to OPEN in it instead of the
+// bilingual greet-then-detect. The follow/lock rules (PERSONA_LANGUAGE_DETECT) still apply, so a
+// candidate who switches is still followed. A null preferred language leaves the bilingual opener.
+function withOpeningLanguage(instructions: string, preferred: Locale | null): string {
+  if (!preferred) return instructions;
+  const name = preferred === "cs" ? "Czech" : "English";
+  return `${instructions} The candidate chose to apply in ${name}, so open the interview in ${name} (you may still follow them if they switch language later).`;
+}
+
 function composeBrief(
   company: string,
   title: string,
@@ -59,10 +72,11 @@ function composeBrief(
     `You are a warm, professional first-round screening interviewer at ${company} for the ${roleLine} role.`,
     PERSONA_GENDER_GRAMMAR,
     PERSONA_LANGUAGE_DETECT,
+    PERSONA_ONE_QUESTION,
     `Begin by briefly introducing yourself as an AI assistant, ${company}, and the ${title} position in two or three sentences, and mention that the call is transcribed for a human recruiter.`,
     `Then lead the conversation through this run of show (about ${durationMin} minutes total), keeping each topic roughly time-boxed. Ask the listed questions naturally, one at a time, with short follow-ups, and adapt to the candidate's answers:`,
     runOfShow,
-    "Do not give feedback, scores, or any hiring decision. When the agenda is covered, invite the candidate's questions, thank them, and say a human recruiter will review the conversation.",
+    "Do not give feedback, scores, or any hiring decision, and never praise or judge the quality of an answer or tell the candidate their thinking, instinct, or approach is right (avoid “great”, “impressive”, “exactly right”, “the right instinct”, “on the right track”) — stay warm by showing interest and inviting them to continue (“thank you”, “understood”, “tell me more”), not by approving. When the agenda is covered, invite the candidate's questions, thank them, and say a human recruiter will review the conversation.",
   ].join(" ");
 }
 
@@ -113,12 +127,13 @@ function composeDebriefBrief(
     `You are a warm, professional interviewer at ${company} for the ${roleLine} role.${name}`,
     PERSONA_GENDER_GRAMMAR,
     PERSONA_LANGUAGE_DETECT,
+    PERSONA_ONE_QUESTION,
     "Begin by briefly introducing yourself as an AI assistant in two sentences, mention the call is transcribed for a human recruiter, and say this conversation is about the take-home assignment they submitted — you'd like to understand how they approached it.",
     "Using AI tools to build the submission is expected and NEVER penalised — what matters is whether they own the decisions in it. Never imply suspicion or that authorship is being verified; every question is genuine curiosity about their reasoning.",
     `Open by letting them walk you through their approach in their own words for a couple of minutes, then work through these questions (about ${durationMin} minutes total), one at a time, adapting natural follow-ups to their answers — push gently for the WHY, the alternative they rejected, and what would make them decide differently:`,
     questions,
     "If an answer stays generic, ask for the specific moment in THEIR submission where they made that call. An honest “I don't know” or “the tool suggested it and I kept it” is useful signal — acknowledge it neutrally and move on.",
-    "Do not give feedback, scores, or any hiring decision. When the questions are covered, invite the candidate's questions, thank them, and say a human recruiter will review the conversation.",
+    "Do not give feedback, scores, or any hiring decision, and never praise or judge the quality of an answer or tell the candidate their thinking, instinct, or approach is right (avoid “great”, “impressive”, “exactly right”, “the right instinct”, “on the right track”) — stay warm by showing interest and inviting them to continue (“thank you”, “understood”, “tell me more”), not by approving. When the questions are covered, invite the candidate's questions, thank them, and say a human recruiter will review the conversation.",
   ].join(" ");
 }
 
@@ -140,6 +155,9 @@ export async function buildGroundedInterview(entryId: string): Promise<{
   const title = entry.jobTitle || job?.title || "the role";
   const ctx = [job?.seniority, job?.location, job?.workMode].filter(Boolean).join(" · ");
   const roleLine = ctx ? `${title} (${ctx})` : title;
+  // Only an EXPLICIT candidate locale (not the workspace-default guess) is confident enough to
+  // fix the opening language; anything unknown keeps the bilingual greet-then-detect opener.
+  const preferredLang: Locale | null = isLocale(entry.locale) ? entry.locale : null;
 
   // Entries promoted from an evaluated dev-case submission get the SUBMISSION
   // DEBRIEF: the take-home's evaluation minted authorship questions from their
@@ -150,7 +168,10 @@ export async function buildGroundedInterview(entryId: string): Promise<{
   if (followups.length > 0) {
     const durationMin = debriefDurationMin(followups.length);
     return {
-      instructions: composeDebriefBrief(company, roleLine, entry.candidateLabel ?? null, followups, durationMin),
+      instructions: withOpeningLanguage(
+        composeDebriefBrief(company, roleLine, entry.candidateLabel ?? null, followups, durationMin),
+        preferredLang
+      ),
       runOfShow: DEBRIEF_RUN_OF_SHOW,
       durationMin,
       candidateLabel: entry.candidateLabel ?? null,
@@ -174,18 +195,24 @@ export async function buildGroundedInterview(entryId: string): Promise<{
     const scenario = caseId ? ((getDevCase(caseId)?.scenario as CaseInterviewScenario | null) ?? null) : null;
     if (scenario && Array.isArray(scenario.phases) && scenario.phases.length > 0) {
       return {
-        instructions: caseGroundedInterviewerInstructions(scenario, {
-          candidateLabel: entry.candidateLabel,
-          roleLine,
-          company,
-        }),
+        instructions: withOpeningLanguage(
+          caseGroundedInterviewerInstructions(scenario, {
+            candidateLabel: entry.candidateLabel,
+            roleLine,
+            company,
+          }),
+          preferredLang
+        ),
         runOfShow: scenarioRunOfShow(scenario),
         durationMin: scenario.durationMin || STUDENT_SCRIPT_MIN,
         ...base,
       };
     }
     return {
-      instructions: studentInterviewerInstructions({ candidateLabel: entry.candidateLabel, roleLine, company }),
+      instructions: withOpeningLanguage(
+        studentInterviewerInstructions({ candidateLabel: entry.candidateLabel, roleLine, company }),
+        preferredLang
+      ),
       runOfShow: studentRunOfShow(),
       durationMin: STUDENT_SCRIPT_MIN,
       ...base,
@@ -212,7 +239,7 @@ export async function buildGroundedInterview(entryId: string): Promise<{
   const grounded = (prep?.chronology?.length ?? 0) > 0;
   const durationMin = grounded ? prep?.durationMin ?? GROUNDED_DEFAULT_MIN : QUICK_SCREEN_MIN;
   const runOfShow = (prep?.chronology ?? []).map((b) => b.topic).filter(Boolean);
-  const instructions = composeBrief(company, title, roleLine, prep, durationMin);
+  const instructions = withOpeningLanguage(composeBrief(company, title, roleLine, prep, durationMin), preferredLang);
   return {
     instructions,
     runOfShow,
@@ -249,7 +276,8 @@ export function plannedInterviewMinutes(entry: PipelineEntry): number {
  *  scorecard_review approval on the entry, so it lands in the Decisions queue. */
 export async function runInterviewScorecard(
   entryId: string,
-  transcript: VoiceTurn[]
+  transcript: VoiceTurn[],
+  workspaceId: string = DEFAULT_WORKSPACE_ID
 ): Promise<Record<string, unknown> | null> {
   const { notes, truncated, droppedTurns, droppedChars, keptTurns, totalTurns } =
     buildScorecardNotes(transcript);
@@ -263,7 +291,7 @@ export async function runInterviewScorecard(
         `Scorecard scored a sampled transcript — opening and closing preserved, middle marked in-band.`
     );
   }
-  const { result } = await runAutomationTask(entryId, "scorecard", notes);
+  const { result } = await runAutomationTask(entryId, "scorecard", notes, undefined, undefined, workspaceId);
   // Deterministic call telemetry (hint-uptake, talk ratio, recovery-time proxies)
   // rides the scorecard, so validating potential_score's weights later has DATA
   // per interview instead of anecdotes. The hint to track is the scripted
@@ -271,7 +299,7 @@ export async function runInterviewScorecard(
   // a designed case, the generic script's otherwise. Proxies, not measurements
   // (extractTelemetry documents each one); best-effort, never a gate.
   try {
-    const entry = getPipelineEntry(entryId);
+    const entry = getPipelineEntry(entryId, workspaceId);
     let hintText: string | null = null;
     if (entry && isEarlyCareer(entry.archetype)) {
       const caseId = devCaseIdFromJobId(entry.jobId);
@@ -290,7 +318,7 @@ export async function runInterviewScorecard(
   // Best-effort enrichment, never a gate on the scorecard itself.
   try {
     const { mintObservedFromCaseInterview } = await import("./devcase-run");
-    const { credited } = await mintObservedFromCaseInterview(entryId, result);
+    const { credited } = await mintObservedFromCaseInterview(entryId, result, workspaceId);
     if (credited.length > 0) {
       (result as Record<string, unknown>).observedSkills = credited;
     }

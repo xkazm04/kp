@@ -24,17 +24,19 @@ const files = [
 const src = files.map((f) => readFileSync(f, "utf8")).join("\n");
 const sqlBlocks = [...src.matchAll(/`([^`]*)`/g)].map((m) => m[1]);
 
-// A read keyed on a candidate capability token (WHERE lead_token/erasure_token = ?).
-function isTokenRead(sql: string): boolean {
-  return /where\s+(lead_token|erasure_token)\s*=/i.test(sql);
+// Exempt: a candidate capability-token read (WHERE lead_token/erasure_token = ?), OR a
+// query tagged `-- tenancy:global` — the ONE automation engine's global sweep, which must
+// span teams and scopes each per-entry WRITE by that entry's own workspace_id instead.
+function isExempt(sql: string): boolean {
+  return /where\s+(lead_token|erasure_token)\s*=/i.test(sql) || /tenancy:global/i.test(sql);
 }
 
-test("every pipeline_entries query across all stores is workspace-scoped (token reads exempt)", () => {
+test("every pipeline_entries query across all stores is workspace-scoped (token reads + global sweep exempt)", () => {
   const touching = sqlBlocks.filter((s) => /\b(from|into|update|delete\s+from)\s+pipeline_entries\b/i.test(s));
   assert.ok(touching.length >= 30, `expected >=30 pipeline_entries queries, found ${touching.length}`);
-  assert.ok(touching.some(isTokenRead), "expected the token-read exemptions to match something");
+  assert.ok(touching.some(isExempt), "expected the token-read / global-sweep exemptions to match something");
 
-  for (const sql of touching.filter((s) => !isTokenRead(s))) {
+  for (const sql of touching.filter((s) => !isExempt(s))) {
     assert.ok(/workspace_id/.test(sql), `a pipeline_entries query is NOT workspace-scoped:\n${sql.trim().slice(0, 220)}`);
   }
 });

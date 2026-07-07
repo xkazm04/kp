@@ -47,8 +47,9 @@ export const TENANCY_SCOPED_TABLES: ReadonlySet<string> = new Set([
   // query it (pipeline.ts, analytics.ts, profiles.ts, sim-store.ts, offers-store.ts);
   // recruiter by-id reads/writes filter workspace_id so a session can't read or mutate
   // another team's entry (the IDOR the scan flagged). The two candidate-facing token
-  // reads (lead_token/erasure_token) are exempted in pipeline-tenancy.test.ts. NOTE:
-  // the entry-id scheme needs a workspace component before KP_MULTI_WORKSPACE is enabled.
+  // reads (lead_token/erasure_token) are exempted in pipeline-tenancy.test.ts. The global
+  // entry-id PK is collision-safe cross-team: the DEFAULT workspace keeps `m-<key>-<job>`
+  // (idempotent for existing rows) and a non-default team prefixes its workspace (P1-b).
   "pipeline_entries",
   // Phase 1 — the pipeline audit trails. Every read filters workspace_id (across
   // core.ts recordEvent, pipeline.ts, analytics.ts, sim-store.ts); recordEvent +
@@ -115,8 +116,8 @@ export const TENANCY_SCOPED_TABLES: ReadonlySet<string> = new Set([
   // Phase 1 — tasks (background-task queue): the recruiter poll/history reads + dedup +
   // create filter/stamp workspace_id; the by-id runner ops and the `-- tenancy:global`
   // boot-recovery / readiness probes stay cross-tenant by design (tasks-tenancy.test.ts).
-  // NOTE: the uq_tasks_active_dedupe index must widen to (workspace_id, dedupe_key) before
-  // KP_MULTI_WORKSPACE so two teams' identical keys can't collide.
+  // The active-dedup unique index is now (workspace_id, dedupe_key) — uq_tasks_active_dedupe_ws
+  // (P1-b) — so two teams' identical dedupe_keys no longer collide at the DB level.
   "tasks",
   // Phase 1 — decision_records: the tamper-evident decision hash chain, re-architected to
   // PER-TENANT chains (org plan §6, the hard structural item). A seal links off its own
@@ -124,6 +125,19 @@ export const TENANCY_SCOPED_TABLES: ReadonlySet<string> = new Set([
   // one team's sealed rows never enter another's proof. Every DML query is scoped (no by-id
   // exemptions — an unscoped read would splice chains). decision-records-tenancy.test.ts.
   "decision_records",
+  // Phase 2 — the curated shared JD-template library (templates-store.ts). DUAL-TIER like
+  // the jobs corpus: org-shared rows (workspace_id NULL — the company library every team
+  // reads) + team-private drafts (workspace_id = team). Every read/write filters on
+  // (workspace_id IS NULL OR workspace_id = ?) or an explicit workspace_id, so a team
+  // never sees or edits another team's private template; the org-wide default lives only
+  // on org rows. No by-id exemptions (templates-tenancy.test.ts).
+  "jd_templates",
+  // Phase 2 — the dual-tier hiring policy (decision-config-store.ts, a lazy store). ORG-DEFAULT
+  // rows (workspace_id NULL — the company baseline every team inherits: screening rules +
+  // compliance jurisdiction) + TEAM OVERRIDE rows (workspace_id = team). Reads CASCADE (the
+  // team's override wins, else the org default, else the code default); a write targets exactly
+  // one tier. Every query filters workspace_id — no by-id exemptions (decision-config-tenancy.test.ts).
+  "decision_config",
 ]);
 
 /** Tables that legitimately hold NO per-tenant data: the tenant registry itself,
@@ -162,14 +176,54 @@ export const TENANCY_EXEMPT_TABLES: ReadonlySet<string> = new Set([
   "brand_settings", // the org's candidate-facing brand (name/accent/logo)
   "ats_config", // the org's outbound ATS webhook integration (one endpoint)
   "analytics_targets", // the org's hiring targets — "the org's recruiter hourly rate", time-to-hire goal
-  "decision_config", // the org's hiring policy: screening rules + compliance jurisdiction
-  "jd_templates", // the org's reusable "Company JD templates" library (boilerplate, no candidate data)
   "llm_usage", // deployment-level LLM metering ledger (sibling of billing_usage; written off-request from Python)
   "scheduler", // global background-job scheduler state
   "scheduler_runs",
+  // The autonomous dev-case pipeline's CONTROL PLANE + CALIBRATION (Directions D/E,
+  // dev-control.ts / dev-outcomes.ts) — deliberately "independent of the main schema".
+  // The dev-case CANDIDATE data (dev_cases/lifecycle/postings/submissions/sessions/
+  // session_events) is per-team and scoped above; these three are global orchestrator
+  // state: ONE kill-switch + promote-floor, ONE decision log, ONE outcome-calibration
+  // corpus — the sibling of `scheduler`, not per-tenant customer data.
+  "dev_control", // autonomy kill-switch + promote-floor (key/value, deployment control)
+  "dev_audit", // the orchestrator's immutable auto/human decision log
+  "dev_outcomes", // predicted-vs-actual outcomes that calibrate the global promote-floor
   "schema_migrations",
   "_migrations",
   "sqlite_sequence", // sqlite internal
+]);
+
+/** Tables created LAZILY on a store's OWN better-sqlite3 connection (openStore), not by
+ *  db/core.ts's ensureDb init — so they may be ABSENT from the live sqlite_master list at
+ *  boot, when the guard runs, until their store is first touched. assertTenancyReady unions
+ *  these in so it evaluates the COMPLETE declared schema regardless of which stores have run
+ *  (the boot-guard "lazy-store-table hole"). Kept in lockstep with the source by
+ *  tenancy-coverage.test.ts (which derives the real lazy set and asserts equality), so this
+ *  can't silently drift. Membership here is about WHERE a table is created, not its tenancy
+ *  class — each still appears in exactly one of SCOPED / EXEMPT above. */
+export const TENANCY_LAZY_TABLES: ReadonlySet<string> = new Set([
+  "application_status_links",
+  "ats_config",
+  "brand_settings",
+  "decision_config",
+  "decision_records",
+  "dev_audit",
+  "dev_control",
+  "dev_outcomes",
+  "group_evals",
+  "interview_preps",
+  "jd_templates",
+  "job_ingests",
+  "offers",
+  "onboarding_intake",
+  "onboarding_runs",
+  "onboarding_signatures",
+  "onboarding_task_states",
+  "onboarding_templates",
+  "rediscovery_alerts",
+  "schedule_invites",
+  "scheduler",
+  "scheduler_runs",
 ]);
 
 /** The per-tenant tables that still lack verified workspace scoping, given the full
@@ -194,9 +248,17 @@ export function tenancyGaps(
  *  operator who flips KP_MULTI_WORKSPACE (as the docs invite) into an incompletely
  *  scoped DB gets a loud, actionable error instead of a silent PII breach. A no-op
  *  when multi-workspace is off (the default single-tenant lock is already safe). */
-export function assertTenancyReady(allTables: Iterable<string>, multiWorkspace: boolean): void {
+export function assertTenancyReady(
+  allTables: Iterable<string>,
+  multiWorkspace: boolean,
+  lazy: ReadonlySet<string> = TENANCY_LAZY_TABLES,
+): void {
   if (!multiWorkspace) return;
-  const gaps = tenancyGaps(allTables);
+  // Union the lazy-store tables in: they may not exist in `allTables` (the live
+  // sqlite_master list) yet at boot, so without this an unscoped lazy table would slip
+  // past the guard until its store first ran — the boot-guard lazy-table hole. Now the
+  // guard evaluates the complete declared schema and fails closed regardless of timing.
+  const gaps = tenancyGaps(new Set([...allTables, ...lazy]));
   if (gaps.length > 0) {
     throw new Error(
       `KP_MULTI_WORKSPACE is enabled but ${gaps.length} table(s) are not workspace-scoped: ` +

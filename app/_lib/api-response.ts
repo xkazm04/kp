@@ -91,6 +91,8 @@ export const STORE_ERRORS = {
   ONBOARDING_FAILED: "Could not complete the onboarding action. Please try again.",
   // NL pipeline command bar (#7) — parse + preview/execute.
   COMMAND_FAILED: "Could not run that command. Please try again.",
+  // Cross-company reference tier (Phase 2) — the org-wide hiring benchmark (org_id-join).
+  BENCHMARK_FAILED: "Could not load the org benchmark. Please try again.",
 } as const;
 
 export type StoreErrorCode = keyof typeof STORE_ERRORS;

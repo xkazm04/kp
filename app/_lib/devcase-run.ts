@@ -17,6 +17,7 @@ import {
   updateProfile,
   type DevSubmission,
 } from "./db";
+import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 import { inferProfileLocale } from "./comms-locale";
 import { MAX_CODEBASES } from "./devcase-constraints";
 import { scoreAuthenticity, PASTE_BULK_CHARS, type Authenticity } from "./devcase-authenticity";
@@ -253,14 +254,15 @@ export type ObservedMintResult = { credited: string[]; applied: boolean };
  *  rest of the scoring contract. */
 export async function mintObservedFromCaseInterview(
   entryId: string,
-  scorecard: Record<string, unknown>
+  scorecard: Record<string, unknown>,
+  workspaceId: string = DEFAULT_WORKSPACE_ID
 ): Promise<ObservedMintResult> {
-  const entry = getPipelineEntry(entryId);
+  const entry = getPipelineEntry(entryId, workspaceId);
   if (!entry || !entry.candidateId || !isEarlyCareer(entry.archetype)) return { credited: [], applied: false };
   const caseId = devCaseIdFromJobId(entry.jobId);
   const devCase = caseId ? getDevCase(caseId) : null;
   if (!devCase?.scenario || !devCase.case || !devCase.role) return { credited: [], applied: false };
-  const rec = getProfileRecord(entry.candidateId);
+  const rec = getProfileRecord(entry.candidateId, workspaceId);
   if (!rec) return { credited: [], applied: false };
 
   const payload = await runDevcaseCli<{ result: { creditedSkills?: string[]; profile?: Record<string, unknown> } }>(
@@ -295,8 +297,8 @@ export async function mintObservedFromCaseInterview(
     roleFamily: (profile.roleFamily as string) ?? rec.row.role_family,
     completeness: typeof profile.completeness === "number" ? profile.completeness : rec.row.completeness,
     payload: profile,
-  });
-  recordAutomationEvent(entryId, "observed_minted", credited.join(", "));
+  }, workspaceId);
+  recordAutomationEvent(entryId, "observed_minted", credited.join(", "), workspaceId);
   return { credited, applied: true };
 }
 

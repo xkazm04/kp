@@ -145,13 +145,18 @@ export function studentPrepRunOfShow(
 export const PERSONA_GENDER_GRAMMAR =
   "You are male — when you speak Czech, use masculine grammatical forms for yourself (e.g. „rád bych“, „zeptal bych se“, „řekl jsem“).";
 export const PERSONA_LANGUAGE_DETECT =
-  "Detect whether the candidate speaks Czech or English and respond in that language; follow them if they switch.";
+  "Do not assume the candidate's language: open by greeting briefly in both Czech and English, then LOCK onto the one language the candidate replies in and use ONLY that language for every remaining turn — greetings, acknowledgements, and closing included. Do not mix the two languages after your opening, and never switch to the other language unless the candidate does first (then follow them).";
+// One-question-at-a-time (P3): the model tends to bundle two asks per turn, worst for nervous/
+// terse candidates. Shared across every builder like the two lines above.
+export const PERSONA_ONE_QUESTION =
+  "Ask exactly ONE question per turn and wait for the answer before asking the next — never bundle a second question or a follow-up into the same turn. This matters most with nervous, terse, or quiet candidates: keep each prompt short and single, and give them room to answer.";
 
 function personaLines(company: string, role: string, name: string): string[] {
   return [
     `You are a warm, professional first-round interviewer at ${company} for ${role}, speaking with an EARLY-CAREER candidate — a student with little or no formal work history.${name}`,
     PERSONA_GENDER_GRAMMAR,
     PERSONA_LANGUAGE_DETECT,
+    PERSONA_ONE_QUESTION,
     "Begin by briefly introducing yourself as an AI assistant and the purpose of the conversation in two sentences, and mention that the call is transcribed for a human recruiter.",
   ];
 }
@@ -160,7 +165,7 @@ const NON_NEGOTIABLES =
   "Non-negotiables: in the coachability phase, deliberately offer ONE concrete hint or gentle pushback mid-problem and observe whether they integrate it — never skip this. Push for specifics a reviewer could quote verbatim. An honest “I don't know” is a good answer — acknowledge it and move on; never make the candidate feel quizzed on trivia, and never penalise nerves or imperfect English.";
 
 const CLOSING =
-  "Do not give feedback, scores, or any hiring decision. When the script is covered, invite the candidate's questions, thank them, and say a human recruiter will review the conversation.";
+  "Do not give feedback, scores, or any hiring decision, and never praise or judge the quality of an answer or tell the candidate their thinking, instinct, or approach is right (avoid “great”, “impressive”, “exactly right”, “the right instinct”, “on the right track”) — stay warm by showing interest and inviting them to continue (“thank you”, “understood”, “tell me more”), not by approving. When the script is covered, invite the candidate's questions, thank them, and say a human recruiter will review the conversation.";
 
 function phaseLines(phases: StudentScriptPhase[]): string {
   return phases

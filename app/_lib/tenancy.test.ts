@@ -50,3 +50,12 @@ test("assertTenancyReady permits multi-workspace when nothing is a gap", () => {
   const tables = [...TENANCY_SCOPED_TABLES, ...TENANCY_EXEMPT_TABLES];
   assert.doesNotThrow(() => assertTenancyReady(tables, true));
 });
+
+test("assertTenancyReady unions lazy-store tables so an unscoped lazy table is caught even absent from the live list", () => {
+  // First-boot scenario: the live table list is EMPTY (no lazy store has run yet), yet a
+  // lazy table is unscoped. Before the union fix, the guard saw an empty list and passed —
+  // the boot-guard lazy-table hole. With the union it evaluates the lazy set and fails closed.
+  assert.throws(() => assertTenancyReady([], true, new Set(["a_lazy_gap"])), /a_lazy_gap/);
+  // A CLASSIFIED lazy table absent from the live list must NOT trip the guard (no false-refuse).
+  assert.doesNotThrow(() => assertTenancyReady([], true, new Set(["analyses"])));
+});

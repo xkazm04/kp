@@ -6,6 +6,7 @@ import {
   findApplicationByApplicant,
   findEntryByLeadToken,
   getJob,
+  getJobWorkspace,
   mergeReapplication,
   recordAutomationEvent,
   recordEntryConsent,
@@ -69,11 +70,11 @@ const APPLY_RATE_LIMIT = { limit: 20, windowMs: 60_000 };
 // lead following its enrichment link, or any degraded stub recovered). The
 // client celebrates it as a completed profile rather than shrugging "already
 // applied" at a candidate who just did exactly what we asked them to.
-function acknowledgeReapply(entryId: string, message: string, changes: string[] = [], enriched = false): NextResponse {
+function acknowledgeReapply(entryId: string, message: string, changes: string[] = [], enriched = false, workspaceId?: string): NextResponse {
   const detail = changes.length
     ? `repeat application via conversational apply — ${changes.join("; ")}`
     : "repeat application via conversational apply";
-  recordAutomationEvent(entryId, "re_applied", detail);
+  recordAutomationEvent(entryId, "re_applied", detail, workspaceId);
   // The repeat reuses the ORIGINAL entry, so it returns the SAME status link
   // (getOrCreateStatusLink is keyed on entry_id) — a returning candidate can track.
   return NextResponse.json({ result: "accepted", duplicate: true, enriched, message, statusToken: safeStatusLink(entryId) });
@@ -98,6 +99,9 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     }
     const job = getJob(id);
     if (!job) return NextResponse.json({ error: "Role not found." }, { status: 404 });
+    // Tenant (P1): a public applicant has no session — file them into the OPENING's team
+    // (a corpus job with no owner falls back to the default workspace).
+    const workspaceId = getJobWorkspace(id);
 
     // Candidate-facing outcome messages (returned in the JSON and shown verbatim
     // in the chat) are localized from the request's "apply" catalog.
@@ -248,7 +252,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     //     the stub. A FAILED rebuild touches nothing: a junk repeat can never
     //     degrade a healthy entry, and a stub just stays a stub.
     if (leadEntry || providedName || email) {
-      const existing = leadEntry ?? findApplicationByApplicant(job.id, providedName, email);
+      const existing = leadEntry ?? findApplicationByApplicant(job.id, providedName, email, workspaceId);
       if (existing) {
         const changes: string[] = [];
         const updates: { contact?: string; candidateId?: string; archetype?: string | null; githubHandle?: string } = {};
@@ -276,7 +280,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
           }
         }
         if (changes.length > 0) {
-          const merged = mergeReapplication(existing.id, updates);
+          const merged = mergeReapplication(existing.id, updates, workspaceId);
           // Newly reachable: the original acknowledgment dead-lettered (no
           // recipient existed), so send it to the address just captured.
           // Best-effort, same contract as the first-apply ack below.
@@ -294,7 +298,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
         // Re-applying re-consents: refresh the data-processing consent + expiry
         // (best-effort — a consent-record failure must never block the apply ack).
         try {
-          recordEntryConsent(existing.id, "apply");
+          recordEntryConsent(existing.id, "apply", undefined, workspaceId);
         } catch (consentErr) {
           console.error(`[apply] consent refresh failed for entry ${existing.id}:`, consentErr);
         }
@@ -302,7 +306,8 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
           existing.id,
           profileRebuilt ? t("enrichedMessage") : t("alreadyMessage"),
           changes,
-          profileRebuilt
+          profileRebuilt,
+          workspaceId
         );
       }
     }
@@ -339,6 +344,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       locale: applicantLocale,
       // E3 — inbound source attribution (the conversational careers-page flow).
       sourceChannel: "apply",
+      workspaceId,
     });
 
     // GDPR: stamp data-processing consent + a 12-month expiry on the inbound entry
@@ -346,7 +352,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // AiDisclosure). The expiry drives the anonymization sweep. Best-effort — never
     // block a successful application on the consent bookkeeping.
     try {
-      recordEntryConsent(entry.id, "apply");
+      recordEntryConsent(entry.id, "apply", undefined, workspaceId);
     } catch (consentErr) {
       console.error(`[apply] consent record failed for entry ${entry.id}:`, consentErr);
     }
@@ -355,7 +361,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // submission — surface it as a re-apply rather than logging a second
     // "applied" against the same entry.
     if (!created) {
-      return acknowledgeReapply(entry.id, t("alreadyMessage"));
+      return acknowledgeReapply(entry.id, t("alreadyMessage"), [], false, workspaceId);
     }
 
     // createPipelineEntry already logs an `intake_degraded` event for the stub; for
@@ -363,7 +369,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // whichever lane's story the applicant told.
     if (built.ok) {
       const story = experience || studentProject || switchPrior;
-      recordAutomationEvent(entry.id, "applied", story ? story.slice(0, 160) : "via conversational apply");
+      recordAutomationEvent(entry.id, "applied", story ? story.slice(0, 160) : "via conversational apply", workspaceId);
     }
 
     // Acknowledge the application (APP3) — a durable "we received it" instead of

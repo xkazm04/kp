@@ -1,7 +1,7 @@
 import { buildApplicantProfile } from "@/app/_lib/applicant-profile";
 import { applyDedupeKey, FALLBACK_ARCHETYPE } from "@/app/_lib/apply";
 import type { ApplyAnswers } from "@/app/_lib/apply-intake";
-import { createPipelineEntry, getJob, recordEntryConsent } from "@/app/_lib/db";
+import { createPipelineEntry, getJob, getJobWorkspace, recordEntryConsent } from "@/app/_lib/db";
 import { dispatchApplicationReceived } from "@/app/_lib/comms-dispatch";
 import { randomId } from "@/app/_lib/random-id";
 import {
@@ -95,8 +95,13 @@ export async function ingestCvApplication(input: {
   /** Send the candidate the "application received" ack. Default true (the real
    *  inbound behavior); the simulation passes false so repeat runs stay clean. */
   sendAck?: boolean;
+  /** The team the applicant is filed into — defaults to the job's owning team (a public
+   *  applicant has no session); the webhook receiver overrides with its own workspace. */
+  workspaceId?: string;
 }): Promise<CvIntakeResult> {
   const name = input.name.trim() || "Applicant";
+  // Tenant (P1): file into the opening's owning team (public applicant, no session).
+  const workspaceId = input.workspaceId ?? getJobWorkspace(input.job.id);
   // A CV-only application: the extracted text is the high-weight `kind: "cv"`
   // evidence buildIntakeProfile folds in; skills stay empty (the résumé carries them).
   const answers: ApplyAnswers = { name, skills: "", cvText: input.cvText };
@@ -121,12 +126,13 @@ export async function ingestCvApplication(input: {
     contact: input.email || null,
     locale: input.locale,
     sourceChannel: input.sourceChannel,
+    workspaceId,
   });
 
   // GDPR: stamp data-processing consent + retention on the inbound entry (best-effort
   // — a consent-record failure must never block a successful intake).
   try {
-    recordEntryConsent(entry.id, input.sourceChannel);
+    recordEntryConsent(entry.id, input.sourceChannel, undefined, workspaceId);
   } catch (err) {
     console.error(`[cv-intake] consent record failed for entry ${entry.id}:`, err instanceof Error ? err.message : err);
   }

@@ -334,6 +334,17 @@ export function getJob(id: string): JobRecord | null {
   return parsed ? { ...parsed, status: row.status ?? null } : null;
 }
 
+/** The owning team of a job — a by-id point read (exempt: a job id is a globally-unique
+ *  PK, jobs-tenancy.test.ts). Used by the PUBLIC intake to file an applicant into the
+ *  OPENING's team's pipeline (a public applicant has no session workspace). A seeded
+ *  corpus job (workspace_id NULL) has no single owner, so its applicants fall back to
+ *  the default workspace. */
+export function getJobWorkspace(id: string): string {
+  const db = ensureDb();
+  const row = db.prepare(`SELECT workspace_id FROM jobs WHERE id = ?`).get(id) as { workspace_id: string | null } | undefined;
+  return row?.workspace_id ?? DEFAULT_WORKSPACE_ID;
+}
+
 /** Batch getJob (idea-f946db9d): one IN-query — chunked under the SQLite
  *  variable limit, same pattern as interviewStatusByEntries — instead of one
  *  point SELECT per id. Returns records in the REQUESTED order; unknown ids and

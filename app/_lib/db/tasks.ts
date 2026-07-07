@@ -33,6 +33,9 @@ export type TaskStatus = "queued" | "running" | "succeeded" | "failed" | "cancel
 export type TaskRecord = {
   id: string;
   kind: string;
+  /** The team that enqueued the task (P1) — the runner threads it to the handler so a
+   *  background job scopes to the same tenant as the recruiter who started it. */
+  workspaceId: string;
   dedupeKey: string | null;
   label: string | null;
   status: TaskStatus;
@@ -50,6 +53,7 @@ export type TaskRecord = {
 type TaskRow = {
   id: string;
   kind: string;
+  workspace_id: string;
   dedupe_key: string | null;
   label: string | null;
   status: string;
@@ -68,6 +72,7 @@ function rowToTask(r: TaskRow): TaskRecord {
   return {
     id: r.id,
     kind: r.kind,
+    workspaceId: r.workspace_id ?? "workspace",
     dedupeKey: r.dedupe_key,
     label: r.label,
     status: r.status as TaskStatus,
@@ -92,7 +97,7 @@ function rowToTask(r: TaskRow): TaskRecord {
 // therefore project ONLY these light columns and leave result/params null; the
 // full blob is fetched on demand for ONE row via getTask (GET /api/tasks/[id]).
 const TASK_LITE_COLUMNS =
-  "id, kind, dedupe_key, label, status, error, progress_done, progress_total, progress_msg, created_at, started_at, finished_at";
+  "id, kind, workspace_id, dedupe_key, label, status, error, progress_done, progress_total, progress_msg, created_at, started_at, finished_at";
 
 type TaskLiteRow = Omit<TaskRow, "params_json" | "result_json">;
 
@@ -100,6 +105,7 @@ function rowToTaskLite(r: TaskLiteRow): TaskRecord {
   return {
     id: r.id,
     kind: r.kind,
+    workspaceId: r.workspace_id ?? "workspace",
     dedupeKey: r.dedupe_key,
     label: r.label,
     status: r.status as TaskStatus,

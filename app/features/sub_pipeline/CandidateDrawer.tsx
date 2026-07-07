@@ -956,7 +956,7 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
 
           {error ? <p role="alert" className="rounded-md bg-red-50 p-2.5 text-sm text-red-700">{error}</p> : null}
 
-          {result ? <ResultView result={result} /> : null}
+          {result ? <ResultView result={result} roleFamily={entry.roleFamily} /> : null}
 
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
             <button

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ConversationProvider, useConversation } from "@elevenlabs/react";
 import { useLocale, useTranslations } from "next-intl";
-import { CheckCircle2, Mic, PhoneOff, Sparkles, User } from "lucide-react";
+import { CheckCircle2, Clock, Mic, MicOff, PhoneOff, Sparkles, User } from "lucide-react";
 import { parseOaiTranscriptEvent } from "@/app/_lib/voice/openai";
 // Provider id, transcript turn, and availability map are single-sourced in the
 // voice adapter layer. Import from voice/types (not the package index, which
@@ -107,6 +107,22 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
   // never-live connect) keeps the retry button — the link is still usable.
   const [endedAs, setEndedAs] = useState<"completed" | "failed" | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Two-click confirm before the (irreversible, terminal) End: a mis-click on the coral
+  // End button previously ended the interview for good and locked the candidate out.
+  const [confirmingEnd, setConfirmingEnd] = useState(false);
+  // H3: whether the assistant audio is currently active (OpenAI path — see the AnalyserNode).
+  const [oaiSpeaking, setOaiSpeaking] = useState(false);
+  // M6: the transcript POST failed after retries — surface a manual Retry (the body is stashed in
+  // sessionStorage) instead of asking the candidate to babysit a tab with no action to take.
+  const [saveFailed, setSaveFailed] = useState(false);
+  // M3: seconds elapsed while live (orientation for a nervous candidate). M4: mic mute state.
+  const [elapsed, setElapsed] = useState(0);
+  const [muted, setMuted] = useState(false);
+  // H5 follow-up: a pre-call mic test — confirm "we can hear you" before dialing, so a muted/dead
+  // mic is caught early (and a nervous candidate is reassured) rather than surfacing as a silent
+  // dead-end mid-call.
+  const [micTest, setMicTest] = useState<"idle" | "testing" | "heard" | "silent" | "denied">("idle");
+  const [micLevel, setMicLevel] = useState(0);
   const [turns, setTurns] = useState<VoiceTurn[]>([]);
 
   // Refs avoid stale closures inside provider callbacks / teardown.
@@ -128,6 +144,13 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
   const micRef = useRef<MediaStream | null>(null);
   const dcRef = useRef<RTCDataChannel | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  // H3: an AnalyserNode on the OpenAI remote (assistant) audio drives the speaking indicator —
+  // the ElevenLabs SDK exposes isSpeaking but the raw-WebRTC OpenAI path has no equivalent, so
+  // the pill was stuck on "Listening" for every OpenAI session. H4: a grace timer debounces a
+  // transient ICE "disconnected" before we treat a mid-call network drop as terminal.
+  const oaiAudioCtxRef = useRef<AudioContext | null>(null);
+  const oaiRafRef = useRef<number | null>(null);
+  const dropTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const asstBuf = useRef("");
   // The candidate side is asymmetric (idea-b70b8bd7): an utterance only becomes
   // a turn when its async transcription .completed event lands. candBuf collects
@@ -138,6 +161,13 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
   const pendingCandidateRef = useRef(false);
   const connectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const logRef = useRef<HTMLDivElement | null>(null);
+  // M7: focus targets so keyboard/SR users aren't stranded when controls are swapped on a phase change.
+  const endBtnRef = useRef<HTMLButtonElement | null>(null);
+  const endedCardRef = useRef<HTMLDivElement | null>(null);
+  // H5 follow-up: the pre-call mic-test stream / analyser, torn down when the test finishes.
+  const micTestStreamRef = useRef<MediaStream | null>(null);
+  const micTestCtxRef = useRef<AudioContext | null>(null);
+  const micTestRafRef = useRef<number | null>(null);
 
   // Keep a ref of the active provider for use inside SDK callbacks/teardown.
   useEffect(() => {
@@ -179,6 +209,18 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
       /* noop */
     }
     micRef.current?.getTracks().forEach((tr) => tr.stop());
+    // Tear down the H3 speaking-meter analyser and the H4 drop timer.
+    if (oaiRafRef.current != null) cancelAnimationFrame(oaiRafRef.current);
+    oaiRafRef.current = null;
+    try {
+      void oaiAudioCtxRef.current?.close();
+    } catch {
+      /* noop */
+    }
+    oaiAudioCtxRef.current = null;
+    if (dropTimerRef.current) clearTimeout(dropTimerRef.current);
+    dropTimerRef.current = null;
+    setOaiSpeaking(false);
     pcRef.current = null;
     dcRef.current = null;
     micRef.current = null;
@@ -276,13 +318,135 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
       const tok = sessionTokenRef.current ?? token ?? null;
       if (sid && tok) {
         const saved = await persistTranscript(tok, sid, turnsRef.current, status);
-        if (!saved) {
-          setError(t("saveFailed"));
-        }
+        if (!saved) setSaveFailed(true);
       }
     },
-    [teardownOpenAi, clearConnectTimer, pushTurn, persistTranscript, token, t]
+    [teardownOpenAi, clearConnectTimer, pushTurn, persistTranscript, token]
   );
+
+  // M6: re-POST the (still in-memory + sessionStorage-stashed) transcript on demand or when the
+  // tab regains connectivity/visibility, so a transient network failure doesn't lose the record.
+  const retrySave = useCallback(async () => {
+    const sid = sessionIdRef.current;
+    const tok = sessionTokenRef.current ?? token ?? null;
+    if (!sid || !tok) return;
+    const saved = await persistTranscript(tok, sid, turnsRef.current, endedAs ?? "failed");
+    if (saved) setSaveFailed(false);
+  }, [persistTranscript, token, endedAs]);
+
+  useEffect(() => {
+    if (!saveFailed) return;
+    const onRetry = () => {
+      if (navigator.onLine) void retrySave();
+    };
+    window.addEventListener("online", onRetry);
+    document.addEventListener("visibilitychange", onRetry);
+    return () => {
+      window.removeEventListener("online", onRetry);
+      document.removeEventListener("visibilitychange", onRetry);
+    };
+  }, [saveFailed, retrySave]);
+
+  // M3: tick the elapsed timer while live so a nervous candidate can orient (am I 3 or 18 min in?).
+  useEffect(() => {
+    if (phase !== "live") return;
+    const started = Date.now();
+    setElapsed(0);
+    const id = window.setInterval(() => setElapsed(Math.floor((Date.now() - started) / 1000)), 1000);
+    return () => window.clearInterval(id);
+  }, [phase]);
+
+  // M7: move focus to the now-relevant control when the controls are swapped on a phase change,
+  // so keyboard/SR users aren't left on a button that no longer exists.
+  useEffect(() => {
+    if (phase === "live") endBtnRef.current?.focus();
+    else if (phase === "ended") endedCardRef.current?.focus();
+  }, [phase]);
+
+  // M4: mute/unmute the candidate's microphone for a "give me a moment" without ending the call.
+  function toggleMute() {
+    const next = !muted;
+    setMuted(next);
+    if (providerRef.current === "elevenlabs") {
+      try {
+        conversation.setMuted(next);
+      } catch {
+        /* SDK not ready — state still reflects intent */
+      }
+    } else {
+      micRef.current?.getAudioTracks().forEach((tr) => (tr.enabled = !next));
+    }
+  }
+
+  // H5 follow-up: release the pre-call mic-test stream + analyser (called when the test ends, on a
+  // real call start, and on unmount).
+  function stopMicTest() {
+    if (micTestRafRef.current != null) cancelAnimationFrame(micTestRafRef.current);
+    micTestRafRef.current = null;
+    micTestStreamRef.current?.getTracks().forEach((tr) => tr.stop());
+    micTestStreamRef.current = null;
+    try {
+      void micTestCtxRef.current?.close();
+    } catch {
+      /* noop */
+    }
+    micTestCtxRef.current = null;
+  }
+
+  // H5 follow-up: sample the mic for ~4s and report whether we heard anything, with a live level bar.
+  async function testMic() {
+    stopMicTest();
+    setMicTest("testing");
+    setMicLevel(0);
+    let stream: MediaStream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch {
+      setMicTest("denied");
+      return;
+    }
+    micTestStreamRef.current = stream;
+    try {
+      const Ctx =
+        window.AudioContext ??
+        (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!Ctx) {
+        setMicTest("heard"); // can't measure — assume ok rather than block the candidate
+        stopMicTest();
+        return;
+      }
+      const ctx = new Ctx();
+      micTestCtxRef.current = ctx;
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 512;
+      ctx.createMediaStreamSource(stream).connect(analyser);
+      const data = new Uint8Array(analyser.frequencyBinCount);
+      const started = Date.now();
+      let peak = 0;
+      const tick = () => {
+        analyser.getByteTimeDomainData(data);
+        let sum = 0;
+        for (let i = 0; i < data.length; i++) {
+          const v = (data[i] - 128) / 128;
+          sum += v * v;
+        }
+        const rms = Math.sqrt(sum / data.length);
+        peak = Math.max(peak, rms);
+        setMicLevel(Math.min(1, rms * 4));
+        if (Date.now() - started < 4000) {
+          micTestRafRef.current = requestAnimationFrame(tick);
+        } else {
+          setMicTest(peak > 0.03 ? "heard" : "silent");
+          setMicLevel(0);
+          stopMicTest();
+        }
+      };
+      micTestRafRef.current = requestAnimationFrame(tick);
+    } catch {
+      setMicTest("heard");
+      stopMicTest();
+    }
+  }
 
   // The completed-vs-failed verdict, read from the live refs at call time. Every
   // end path (EL onDisconnect, the EL fallback timer, the OpenAI inline branch)
@@ -386,6 +550,7 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
         }
       }
       teardownOpenAi();
+      stopMicTest();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -411,11 +576,76 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
     }
   }
 
+  // H3: drive the "AI speaking" indicator from the OpenAI remote audio level (the raw-WebRTC path
+  // has no isSpeaking like the ElevenLabs SDK). Best-effort — any failure just leaves the pill on
+  // its default, and the CSS animation is already reduced-motion gated.
+  function startOaiSpeakingMeter(stream: MediaStream) {
+    try {
+      const Ctx =
+        window.AudioContext ??
+        (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!Ctx) return;
+      const ctx = new Ctx();
+      oaiAudioCtxRef.current = ctx;
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 512;
+      ctx.createMediaStreamSource(stream).connect(analyser);
+      const data = new Uint8Array(analyser.frequencyBinCount);
+      const tick = () => {
+        analyser.getByteTimeDomainData(data);
+        let sum = 0;
+        for (let i = 0; i < data.length; i++) {
+          const v = (data[i] - 128) / 128;
+          sum += v * v;
+        }
+        setOaiSpeaking(Math.sqrt(sum / data.length) > 0.02);
+        oaiRafRef.current = requestAnimationFrame(tick);
+      };
+      oaiRafRef.current = requestAnimationFrame(tick);
+    } catch {
+      /* analyser is enhancement only */
+    }
+  }
+
+  // H4: a mid-call network drop on the raw-WebRTC OpenAI path (no onDisconnect like ElevenLabs)
+  // otherwise froze the call "live" forever with a hot mic. Save what we have and surface a
+  // reconnectable error instead of hanging.
+  function handleOaiDrop() {
+    if (finalizedRef.current || !reachedLiveRef.current) return;
+    erroredRef.current = true;
+    setError(t("errConnectionLost"));
+    void finalize(currentFinalStatus());
+  }
+
   async function startOpenAi(c: { model: string; clientSecret: string; callsUrl: string }) {
     const pc = new RTCPeerConnection();
     pcRef.current = pc;
     pc.ontrack = (e) => {
       if (audioRef.current) audioRef.current.srcObject = e.streams[0];
+      startOaiSpeakingMeter(e.streams[0]);
+    };
+    // H4: react to a mid-call connection drop. "disconnected" can be a transient blip, so debounce
+    // it; "failed" is terminal. A stale connection (torn down / replaced) is ignored.
+    pc.onconnectionstatechange = () => {
+      if (pcRef.current !== pc) return;
+      const st = pc.connectionState;
+      if (st === "failed") {
+        handleOaiDrop();
+      } else if (st === "disconnected") {
+        if (!dropTimerRef.current) {
+          dropTimerRef.current = setTimeout(() => {
+            dropTimerRef.current = null;
+            if (pcRef.current === pc && (pc.connectionState === "disconnected" || pc.connectionState === "failed")) {
+              handleOaiDrop();
+            }
+          }, 8000);
+        }
+      } else if (st === "connected") {
+        if (dropTimerRef.current) {
+          clearTimeout(dropTimerRef.current);
+          dropTimerRef.current = null;
+        }
+      }
     };
     setAwaitingMic(true);
     let mic: MediaStream;
@@ -480,7 +710,31 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
     setPhase("live");
   }
 
+  // Map a getUserMedia / connection failure to specific, actionable recovery copy — mic denial
+  // is the most common real failure of a voice screen, and the raw DOMException message ("Permission
+  // denied") tells the candidate nothing about how to recover.
+  function micErrorText(e: unknown): string | null {
+    const name = e instanceof DOMException ? e.name : "";
+    const msg = e instanceof Error ? e.message : String(e ?? "");
+    if (name === "NotAllowedError" || name === "SecurityError" || /permission|denied|dismiss/i.test(msg)) {
+      return t("errMicDenied");
+    }
+    if (name === "NotFoundError" || name === "OverconstrainedError" || /no .*(microphone|audio)|device not found/i.test(msg)) {
+      return t("errMicNotFound");
+    }
+    if (name === "NotReadableError" || name === "AbortError" || /in use|already in use|busy/i.test(msg)) {
+      return t("errMicBusy");
+    }
+    return null;
+  }
+
   async function start() {
+    setConfirmingEnd(false);
+    setSaveFailed(false);
+    setMuted(false);
+    setElapsed(0);
+    stopMicTest(); // release the test mic before the real call claims the device
+    setMicTest("idle");
     // Pre-flight BEFORE dialing (idea-b0fc8018): an in-app webview, a plain-HTTP
     // link, or a WebRTC-less browser is the most common real-world failure of a
     // first-round screen — name the root cause and the fix, and never burn a
@@ -556,14 +810,14 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
         if (maybe && typeof (maybe as { then?: unknown }).then === "function") {
           (maybe as Promise<unknown>).catch((err) => {
             clearConnectTimer();
-            setError(err instanceof Error ? err.message : t("errElevenConnect"));
+            setError(micErrorText(err) ?? (err instanceof Error ? err.message : t("errElevenConnect")));
             setPhase("error");
           });
         }
       }
     } catch (e) {
       clearConnectTimer();
-      setError(e instanceof Error ? e.message : t("errStartCall"));
+      setError(micErrorText(e) ?? (e instanceof Error ? e.message : t("errStartCall")));
       setPhase("error");
       teardownOpenAi();
     }
@@ -676,15 +930,72 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
           null) — keep the retry controls so the still-live link stays usable.
           The transcript stays mounted below as the candidate's record. */}
       {phase === "ended" && endedAs === "completed" ? (
-        <div role="status" className="rounded-lg border border-moss/40 bg-moss/5 px-5 py-8 text-center">
+        // M7: focusable (tabIndex -1) so focus lands here when the call ends. M8: a concrete
+        // next-steps line so the ending doesn't feel like a void.
+        <div
+          ref={endedCardRef}
+          role="status"
+          tabIndex={-1}
+          className="focus-ring rounded-lg border border-moss/40 bg-moss/5 px-5 py-8 text-center"
+        >
           <span className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-moss/15 text-moss">
             <CheckCircle2 size={24} aria-hidden />
           </span>
           <h2 className="mt-3 font-serif text-h2 text-ink">{tPortal("completedTitle")}</h2>
           <p className="mx-auto mt-1.5 max-w-md text-base leading-6 text-steel">{tPortal("completedBody")}</p>
+          <p className="mx-auto mt-2 max-w-md text-sm text-steel">{t("completedNext")}</p>
         </div>
       ) : (
         <>
+          {/* H5: a live call that ended with zero captured turns almost always means the mic was
+              muted or produced no audio — explain the silent dead-end instead of just re-showing
+              the Start controls with an empty transcript. Skipped when another error (e.g. a
+              dropped connection) already explains the failure. */}
+          {phase === "ended" && endedAs === "failed" && turns.length === 0 && !error ? (
+            <div role="status" className="rounded-lg border border-coral/30 bg-coral/5 px-5 py-6 text-center">
+              <span className="mx-auto grid h-11 w-11 place-items-center rounded-full bg-coral/10 text-coral">
+                <MicOff size={20} aria-hidden />
+              </span>
+              <h2 className="mt-3 font-serif text-h2 text-ink">{t("noAudioTitle")}</h2>
+              <p className="mx-auto mt-1.5 max-w-md text-base leading-6 text-steel">{t("noAudioBody")}</p>
+            </div>
+          ) : null}
+
+          {/* H5 follow-up: pre-call mic test — reassurance + early catch of a muted/dead mic. */}
+          {!isBusy ? (
+            <div className="flex flex-wrap items-center gap-3 rounded-lg border border-stone-200 bg-paper/50 px-4 py-3">
+              <button
+                type="button"
+                onClick={testMic}
+                disabled={micTest === "testing"}
+                className="focus-ring inline-flex h-10 items-center justify-center gap-2 rounded-md border border-stone-300 bg-white px-4 text-base font-medium text-ink transition-colors hover:bg-paper disabled:opacity-50"
+              >
+                <Mic size={16} />
+                {micTest === "testing" ? t("micTestListening") : t("micTestBtn")}
+              </button>
+              {micTest === "testing" ? (
+                <div
+                  className="h-2 w-32 overflow-hidden rounded-full bg-stone-200"
+                  role="progressbar"
+                  aria-label={t("micTestListening")}
+                  aria-valuenow={Math.round(micLevel * 100)}
+                >
+                  <div
+                    className="h-full rounded-full bg-moss transition-[width] duration-100"
+                    style={{ width: `${Math.round(micLevel * 100)}%` }}
+                  />
+                </div>
+              ) : null}
+              {micTest === "heard" ? (
+                <span className="inline-flex items-center gap-1.5 text-base text-moss">
+                  <CheckCircle2 size={16} aria-hidden /> {t("micTestHeard")}
+                </span>
+              ) : null}
+              {micTest === "silent" ? <span className="text-base text-coral">{t("micTestSilent")}</span> : null}
+              {micTest === "denied" ? <span className="text-base text-coral">{t("errMicDenied")}</span> : null}
+            </div>
+          ) : null}
+
           {/* Consent */}
           <label
             className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3.5 text-base text-ink transition-colors ${
@@ -720,21 +1031,78 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
                 <Mic size={18} />
                 {phase === "connecting" ? t("connecting") : phase === "ended" ? t("startAgain") : t("startCall")}
               </button>
-            ) : (
+            ) : phase === "ending" ? (
               <button
                 type="button"
-                onClick={end}
-                disabled={phase === "ending"}
-                className="focus-ring inline-flex h-11 items-center justify-center gap-2 rounded-md bg-coral px-5 text-base font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+                disabled
+                className="focus-ring inline-flex h-11 items-center justify-center gap-2 rounded-md bg-coral px-5 text-base font-semibold text-white opacity-50"
               >
                 <PhoneOff size={18} />
-                {phase === "ending" ? t("ending") : t("endCall")}
+                {t("ending")}
+              </button>
+            ) : confirmingEnd ? (
+              <div className="flex flex-wrap items-center gap-2" role="group" aria-label={t("endConfirm")}>
+                <span className="text-base text-ink">{t("endConfirm")}</span>
+                <button
+                  type="button"
+                  onClick={end}
+                  className="focus-ring inline-flex h-11 items-center justify-center gap-2 rounded-md bg-coral px-5 text-base font-semibold text-white transition-opacity hover:opacity-90"
+                >
+                  <PhoneOff size={18} />
+                  {t("endConfirmYes")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmingEnd(false)}
+                  className="focus-ring inline-flex h-11 items-center justify-center rounded-md border border-stone-300 bg-white px-5 text-base font-semibold text-ink transition-colors hover:bg-paper"
+                >
+                  {t("endConfirmNo")}
+                </button>
+              </div>
+            ) : (
+              <button
+                ref={endBtnRef}
+                type="button"
+                onClick={() => setConfirmingEnd(true)}
+                className="focus-ring inline-flex h-11 items-center justify-center gap-2 rounded-md bg-coral px-5 text-base font-semibold text-white transition-opacity hover:opacity-90"
+              >
+                <PhoneOff size={18} />
+                {t("endCall")}
               </button>
             )}
-            <StatusPill phase={phase} speaking={conversation.isSpeaking} />
+            <StatusPill
+              phase={phase}
+              speaking={liveProvider === "elevenlabs" ? conversation.isSpeaking : oaiSpeaking}
+            />
+            {/* M4: mute for a "give me a moment"; M3: elapsed timer for orientation — both live-only. */}
+            {phase === "live" ? (
+              <>
+                <button
+                  type="button"
+                  onClick={toggleMute}
+                  aria-pressed={muted}
+                  aria-label={muted ? t("unmuteMic") : t("muteMic")}
+                  className="focus-ring inline-flex h-11 items-center justify-center gap-2 rounded-md border border-stone-300 bg-white px-4 text-base font-medium text-ink transition-colors hover:bg-paper"
+                >
+                  {muted ? <MicOff size={18} /> : <Mic size={18} />}
+                  {muted ? t("muted") : t("muteMic")}
+                </button>
+                <span
+                  className="inline-flex items-center gap-1.5 text-meta tabular-nums text-steel"
+                  aria-label={t("elapsedLabel")}
+                >
+                  <Clock size={14} aria-hidden />
+                  {`${Math.floor(elapsed / 60)}:${String(elapsed % 60).padStart(2, "0")}`}
+                </span>
+              </>
+            ) : null}
             {!providerAvailable ? (
+              // M5: candidates can't fix "keys not configured" (an ops issue) and shouldn't see the
+              // internal phrasing — give them an actionable next step. The lab keeps the technical copy.
               <span className="text-meta text-coral">
-                {t("keysNotConfigured", { provider: PROVIDER_LABEL[liveProvider] })}
+                {lockSettings
+                  ? t("unavailableCandidate")
+                  : t("keysNotConfigured", { provider: PROVIDER_LABEL[liveProvider] })}
               </span>
             ) : null}
           </div>
@@ -745,6 +1113,23 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
         <p role="alert" className="rounded-md border border-coral/30 bg-coral/5 px-3 py-2 text-base text-coral">
           {error}
         </p>
+      ) : null}
+
+      {/* M6: save-failure recovery — a real action (Retry saving), not just "keep this tab open". */}
+      {saveFailed ? (
+        <div
+          role="alert"
+          className="flex flex-wrap items-center gap-3 rounded-md border border-coral/30 bg-coral/5 px-3 py-2.5 text-base text-coral"
+        >
+          <span>{t("saveFailed")}</span>
+          <button
+            type="button"
+            onClick={() => void retrySave()}
+            className="focus-ring rounded-md border border-coral/40 bg-white px-3 py-1 text-meta font-semibold text-coral transition-colors hover:bg-coral/10"
+          >
+            {t("retrySave")}
+          </button>
+        </div>
       ) : null}
 
       {/* Transcript */}

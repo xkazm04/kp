@@ -138,6 +138,9 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
         sourceChannel: webhook.channel,
         locale: fileLocale,
         sendAck: true,
+        // The lead is filed into the TEAM that minted this webhook (not the job's owner,
+        // which is usually the same but authoritative here for a corpus-bound hook).
+        workspaceId: webhook.workspaceId,
       });
       recordChannelWebhookReceipt(token);
       // Stamp an ACCEPTED lead only for a genuinely new candidate (created), never a
@@ -214,6 +217,8 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
 
     const outcome = await intakeLead({
       job,
+      // Filed into the webhook-owning team (see the CV branch above).
+      workspaceId: webhook.workspaceId,
       name: lead.name.slice(0, MAX_NAME_LENGTH),
       email: lead.email,
       locale,

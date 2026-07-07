@@ -69,9 +69,18 @@ export default async function InterviewPortalPage({ params }: { params: Promise<
         </div>
       </header>
 
+      {/* M1: on mobile the call card comes FIRST (order-1) so the candidate reaches Start without
+          scrolling past the whole agenda; the agenda drops below (order-2). Desktop keeps the
+          agenda on the left. M2: the AI/human-review disclosure sits ABOVE the call card so the
+          reassurance is visible before the Start decision. */}
       <div className="mt-8 grid items-start gap-8 lg:grid-cols-[360px_minmax(0,1fr)]">
-        <InterviewSidebar items={session.runOfShow ?? []} durationMin={durationMin} className="lg:sticky lg:top-10" />
-        <div>
+        <InterviewSidebar
+          items={session.runOfShow ?? []}
+          durationMin={durationMin}
+          className="order-2 lg:order-1 lg:sticky lg:top-10"
+        />
+        <div className="order-1 lg:order-2">
+          <AiDisclosure className="mb-6" />
           <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel sm:p-6">
             <VoiceInterviewClient
               token={session.token}
@@ -81,7 +90,6 @@ export default async function InterviewPortalPage({ params }: { params: Promise<
               lockSettings
             />
           </div>
-          <AiDisclosure className="mt-6" />
         </div>
       </div>
     </main>
