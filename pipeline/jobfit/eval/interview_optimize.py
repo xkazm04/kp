@@ -6,14 +6,19 @@ only those that raise the suite's pass-rate with ZERO new reliability regression
 the Claude CLI (subscription-billed → cheap); the scorer is interview_eval's own reliability
 validators (deterministic → noise-free accept decisions) plus the optional LLM judge.
 
+The scenarios are split into disjoint TRAIN and VALIDATION folds first (deterministic, no RNG —
+see ``split_scenarios``) so rules are never fit and scored on the same cases.
+
 Loop per round:
-  1. evaluate the current brief (base + accepted rules) over the working scenario set;
-  2. gather the failing cases (reliability issues + low judge scores) with their transcripts;
+  1. evaluate the current brief (base + accepted rules) over the TRAIN fold;
+  2. gather the train-fold failing cases (reliability issues + low judge scores) with transcripts;
   3. ask an optimizer LLM for <=3 new minimal rules that would fix them;
-  4. re-evaluate with the candidate rules; ACCEPT iff the score strictly improves AND no scenario
-     that was reliable is now failing; else drop them.
+  4. re-evaluate the candidate rules on the held-out VALIDATION fold; ACCEPT iff validation
+     RELIABILITY strictly improves AND no previously-reliable validation scenario now fails; else
+     drop them. (The judge quality-sum is advisory only — it's non-deterministic, so it never
+     drives acceptance; reliability, the deterministic signal, does.)
 The output is the set of accepted rules — a concrete, diffable patch a human folds into the real
-brief — plus the before/after pass-rates and a per-round accept/reject log.
+brief — plus the before/after VALIDATION pass-rates and a per-round accept/reject log.
 
     python -m pipeline.jobfit.eval.interview_optimize --rounds 3 --bank core --judge
     python -m pipeline.jobfit.eval.interview_optimize --scenario adversarial_asks_score --ablate no_decision
@@ -83,8 +88,31 @@ def _reliable_fail_set(rows: list[ie.Row]) -> set[str]:
 
 
 def _accept(cand_score: tuple[int, int], best: tuple[int, int], new_fail: set[str]) -> bool:
-    """Hill-climb accept rule: strictly better AND no previously-reliable scenario now failing."""
-    return cand_score > best and not new_fail
+    """Hill-climb accept rule: the RELIABILITY component (``score[0]``) must strictly improve,
+    with no previously-reliable scenario now failing.
+
+    Reliability is deterministic; the judge quality-sum (``score[1]``) is a sum of
+    non-deterministic, unpaired LLM scores, so accepting on a quality delta at EQUAL reliability
+    would be accepting sampling noise (finding #2). The quality-sum is therefore advisory only —
+    it never drives an acceptance on its own."""
+    if new_fail:
+        return False
+    return cand_score[0] > best[0]
+
+
+def split_scenarios(scenarios: list[ie.Scenario]) -> tuple[list[ie.Scenario], list[ie.Scenario]]:
+    """Deterministic train/validation split — no RNG (finding #2).
+
+    Rules are FIT on the train fold (only its failures are fed to ``propose_patches``) and a
+    candidate is ACCEPTED only if it improves the held-out validation fold — so an in-sample gain
+    (or judge noise) can't launder an overfit rule into the real brief.
+
+    Split: sort scenarios by name, then interleave — even indices → train, odd indices →
+    validation. Interleaving (rather than a first-half/second-half cut) keeps both folds
+    behaviour-balanced regardless of how the bank is ordered, and sorting makes it stable across
+    input orderings and runs."""
+    ordered = sorted(scenarios, key=lambda s: s.name)
+    return ordered[0::2], ordered[1::2]
 
 
 def propose_patches(
@@ -126,45 +154,90 @@ def optimize(
     scenarios: list[ie.Scenario], provider: ClaudeCliProvider, *, rounds: int = 3,
     judge: bool = False, brief_mode: str = "port", ablate: str | None = None,
 ) -> dict[str, Any]:
-    def _eval(patches: list[str]) -> list[ie.Row]:
-        rows = ie.run_scenarios(scenarios, provider, brief_mode=brief_mode, brief_transform=make_transform(patches, ablate))
+    """Eval-gated hill-climb with a held-out validation fold (finding #2).
+
+    Rules are proposed from the TRAIN fold's failures and accepted only when they improve the
+    disjoint VALIDATION fold — never on an in-sample (train-only) gain, and never on judge noise
+    (``_accept`` requires the deterministic reliability component to strictly improve). Scores in
+    the result are reported over the validation fold: the honest, out-of-sample number."""
+    train, val = split_scenarios(scenarios)
+
+    def _eval(scen: list[ie.Scenario], patches: list[str]) -> list[ie.Row]:
+        rows = ie.run_scenarios(scen, provider, brief_mode=brief_mode, brief_transform=make_transform(patches, ablate))
         if judge:
             ie.judge_rows(rows, provider)
         return rows
 
     base_brief = make_transform([], ablate)(ie.render_brief(scenarios[0], brief_mode))
     patches: list[str] = []
-    current = _eval(patches)
-    base_rows = current
-    best = _score(current)
-    history = [{"round": 0, "proposed": [], "accepted": True, "score": list(best), "reason": "baseline"}]
+
+    # Can't hold out a validation fold (need both folds non-empty) → refuse to accept anything.
+    # An "improvement" measured only in-sample is exactly the overfit this guards against.
+    if not train or not val:
+        base_rows = _eval(scenarios, patches)
+        base_score = _score(base_rows)
+        return {
+            "patches": [],
+            "base_score": list(base_score),
+            "final_score": list(base_score),
+            "total": len(scenarios),
+            "train": [s.name for s in train],
+            "validation": [s.name for s in val],
+            "history": [{"round": 0, "proposed": [], "accepted": False, "score": list(base_score),
+                         "reason": "insufficient scenarios to hold out a validation fold — no rule accepted"}],
+            "base_rows": base_rows,
+            "final_rows": base_rows,
+        }
+
+    train_current = _eval(train, patches)
+    val_current = _eval(val, patches)
+    base_val_rows = val_current
+    best_val = _score(val_current)
+    history = [{"round": 0, "proposed": [], "accepted": True, "score": list(best_val),
+                "train_score": list(_score(train_current)), "reason": "baseline"}]
 
     for rnd in range(1, rounds + 1):
-        failing = _failing(current)
+        failing = _failing(train_current)  # propose ONLY from train-fold failures
         if not failing:
-            history.append({"round": rnd, "proposed": [], "accepted": False, "score": list(best), "reason": "no failures — converged"})
+            history.append({"round": rnd, "proposed": [], "accepted": False, "score": list(best_val),
+                            "reason": "no training failures — converged"})
             break
         proposed = propose_patches(base_brief, patches, failing, provider)
         if not proposed:
-            history.append({"round": rnd, "proposed": [], "accepted": False, "score": list(best), "reason": "optimizer proposed nothing"})
+            history.append({"round": rnd, "proposed": [], "accepted": False, "score": list(best_val),
+                            "reason": "optimizer proposed nothing"})
             break
-        cand_rows = _eval(patches + proposed)
-        cand_score = _score(cand_rows)
-        new_fail = _reliable_fail_set(cand_rows) - _reliable_fail_set(current)
-        accepted = _accept(cand_score, best, new_fail)
-        reason = "improved" if accepted else (f"regressed: {', '.join(new_fail)}" if new_fail else "no improvement")
+        cand_train = _eval(train, patches + proposed)
+        cand_val = _eval(val, patches + proposed)
+        cand_val_score = _score(cand_val)
+        # Accept ONLY on a held-out (validation) reliability improvement with no new val regression.
+        new_val_fail = _reliable_fail_set(cand_val) - _reliable_fail_set(val_current)
+        accepted = _accept(cand_val_score, best_val, new_val_fail)
         if accepted:
-            patches, best, current = patches + proposed, cand_score, cand_rows
-        history.append({"round": rnd, "proposed": proposed, "accepted": accepted, "score": list(cand_score), "reason": reason})
+            reason = "improved on validation"
+        elif new_val_fail:
+            reason = f"validation regressed: {', '.join(sorted(new_val_fail))}"
+        elif _score(cand_train)[0] > _score(train_current)[0]:
+            reason = "train-only gain — not accepted (no validation improvement)"
+        else:
+            reason = "no validation improvement"
+        if accepted:
+            patches, best_val, train_current, val_current = (
+                patches + proposed, cand_val_score, cand_train, cand_val
+            )
+        history.append({"round": rnd, "proposed": proposed, "accepted": accepted,
+                        "score": list(cand_val_score), "reason": reason})
 
     return {
         "patches": patches,
-        "base_score": list(_score(base_rows)),
-        "final_score": list(best),
+        "base_score": list(_score(base_val_rows)),
+        "final_score": list(best_val),
         "total": len(scenarios),
+        "train": [s.name for s in train],
+        "validation": [s.name for s in val],
         "history": history,
-        "base_rows": base_rows,
-        "final_rows": current,
+        "base_rows": base_val_rows,
+        "final_rows": val_current,
     }
 
 
@@ -175,18 +248,22 @@ def _reliability(rows: list[ie.Row]) -> str:
 def _format_report(result: dict[str, Any], *, color: bool = False) -> str:
     st = _make_styler(color)
     base_r, final_r = result["base_rows"], result["final_rows"]
-    improved = result["final_score"] > result["base_score"]
+    improved = result["final_score"][0] > result["base_score"][0]
     lines = [
         st("# Interviewer prompt optimization (hill-climb)", "bold") + "\n",
         verdict_banner(
             [
-                f"reliability {_reliability(base_r)} → {_reliability(final_r)}",
+                f"validation reliability {_reliability(base_r)} → {_reliability(final_r)}",
                 f"{len(result['patches'])} rule(s) accepted",
             ],
             passed=improved or not result["patches"],
             s=st,
         )
         + "\n",
+        # Document the split so a reader knows accepted rules were judged out-of-sample.
+        f"_Deterministic split (by sorted name): train {result.get('train', [])} · "
+        f"validation {result.get('validation', [])}. Rules are fit on train and accepted only on "
+        f"held-out validation reliability improvement._\n",
     ]
     if result["patches"]:
         lines.append("## Accepted rules (fold these into the brief)\n")

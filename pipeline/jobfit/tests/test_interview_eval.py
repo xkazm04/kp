@@ -55,8 +55,28 @@ class TestGoldenOfflinePath(unittest.TestCase):
         failures = [(r.scenario, r.issues) for r in rows if not r.reliable]
         self.assertEqual(_aggregate(rows)["reliability"], 1.0, failures)
 
-    def test_no_llm_strict_gate_exits_zero(self):
-        self.assertEqual(ie.main(["--no-llm", "--strict"]), 0)
+    def test_no_llm_strict_gate_passes_only_when_selection_is_fully_covered(self):
+        # A single scenario that HAS a golden is fully covered → the offline strict gate certifies.
+        self.assertEqual(ie.main(["--no-llm", "--strict", "--scenario", "swe_senior_strong"]), 0)
+
+    def test_uncovered_scenarios_fail_the_strict_offline_gate(self):
+        # Finding #1: the curated bank has 13 scenarios but only 2 goldens. --strict must
+        # REFUSE to certify (fail-closed) rather than silently pass on the 2-scenario subset.
+        self.assertNotEqual(
+            ie.main(["--no-llm", "--strict"]), 0,
+            "uncovered scenarios must fail the offline strict gate, not be silently dropped",
+        )
+
+    def test_aggregate_reports_uncovered_count_and_gate_refuses(self):
+        scenarios = load_scenarios()
+        rows = run_golden(scenarios)
+        uncovered = ie.golden_uncovered(scenarios)
+        # Every selected scenario without a golden is REPORTED, not dropped from the denominator.
+        self.assertEqual(len(uncovered), len(scenarios) - len(rows))
+        self.assertGreater(len(uncovered), 0)
+        agg = _aggregate(rows, uncovered=uncovered)
+        self.assertEqual(agg["uncovered_scenarios"], uncovered)
+        self.assertFalse(ie._passes(agg), "a run with uncovered scenarios cannot certify")
 
 
 class TestReliabilityValidators(unittest.TestCase):
@@ -294,7 +314,10 @@ class TestScorecardDownstreamSanity(unittest.TestCase):
                 self.assertTrue(r.scorecard.get("ratings"))
 
     def test_no_llm_scorecard_gate_exits_zero(self):
-        self.assertEqual(ie.main(["--no-llm", "--scorecard", "--strict"]), 0)
+        # Fully-covered selection → the offline scorecard gate still certifies.
+        self.assertEqual(
+            ie.main(["--no-llm", "--scorecard", "--strict", "--scenario", "swe_senior_strong"]), 0
+        )
 
     def test_bad_scorecard_folds_into_reliability(self):
         self.assertTrue(ie._check_scorecard({"recommendation": "nope", "ratings": []}))
@@ -449,13 +472,66 @@ class TestOptimizer(unittest.TestCase):
         failing = {r.scenario for r in opt._failing(rows)}
         self.assertEqual(failing, {"b", "c"})  # b unreliable, c low quality
 
-    def test_accept_rule(self):
+    def test_accept_requires_reliability_improvement_not_judge_noise(self):
         from pipeline.jobfit.eval import interview_optimize as opt
 
-        self.assertTrue(opt._accept((3, 10), (2, 10), set()))      # more reliable → accept
-        self.assertTrue(opt._accept((2, 12), (2, 10), set()))      # same reliable, better quality → accept
+        self.assertTrue(opt._accept((3, 10), (2, 10), set()))      # reliability up → accept
+        # Finding #2: equal reliability + a higher judge SUM is noise (non-deterministic,
+        # unpaired LLM scores) — it must NOT drive acceptance.
+        self.assertFalse(opt._accept((2, 12), (2, 10), set()))
         self.assertFalse(opt._accept((2, 10), (2, 10), set()))     # no improvement → reject
         self.assertFalse(opt._accept((3, 20), (2, 10), {"x"}))     # improved but a regression → reject
+
+    def test_split_scenarios_is_deterministic_disjoint_and_covers_all(self):
+        from pipeline.jobfit.eval import interview_optimize as opt
+
+        scen = load_scenarios()
+        train, val = opt.split_scenarios(scen)
+        # deterministic (no RNG): input order does not change the split
+        t2, v2 = opt.split_scenarios(list(reversed(scen)))
+        self.assertEqual([s.name for s in train], [s.name for s in t2])
+        self.assertEqual([s.name for s in val], [s.name for s in v2])
+        # disjoint + total coverage, both folds non-empty
+        tn, vn = {s.name for s in train}, {s.name for s in val}
+        self.assertEqual(tn & vn, set())
+        self.assertEqual(tn | vn, {s.name for s in scen})
+        self.assertTrue(train and val)
+
+    def test_optimizer_rejects_a_train_only_improvement(self):
+        # Finding #2: a rule that fixes a TRAINING failure but does nothing on the held-out
+        # validation fold must NOT be accepted (in-sample gains are not generalization).
+        from pipeline.jobfit.eval import interview_optimize as opt
+
+        # Four scenarios; sorted names a,b,c,d → even/odd split → train {a,c}, val {b,d}.
+        scen = [_scn(name=n) for n in ("a", "b", "c", "d")]
+        train, val = opt.split_scenarios(scen)
+        self.assertEqual({s.name for s in train}, {"a", "c"})
+        self.assertEqual({s.name for s in val}, {"b", "d"})
+
+        def fake_run_scenarios(scenarios, provider, brief_mode="port", brief_transform=None):
+            patched = brief_transform is not None and opt._PATCH_HEADER in brief_transform("")
+            rows = []
+            for s in scenarios:
+                # 'a' (train) is the only failure and only the patch fixes it; the held-out
+                # validation scenarios are unaffected by the patch (no val improvement).
+                reliable = not (s.name == "a" and not patched)
+                rows.append(Row(scenario=s.name, brief=s.brief, behavior=s.behavior,
+                                seniority=s.seniority, turns=[], ended=True, errored=False,
+                                source="llm", issues=[] if reliable else ["boom"]))
+            return rows
+
+        orig_run, orig_propose = opt.ie.run_scenarios, opt.propose_patches
+        opt.ie.run_scenarios = fake_run_scenarios
+        opt.propose_patches = lambda *a, **k: ["a candidate rule"]
+        try:
+            result = opt.optimize(scen, object(), rounds=1)
+        finally:
+            opt.ie.run_scenarios = orig_run
+            opt.propose_patches = orig_propose
+
+        self.assertEqual(result["patches"], [], "a train-only gain must not be accepted")
+        self.assertEqual(sorted(result["train"]), ["a", "c"])
+        self.assertEqual(sorted(result["validation"]), ["b", "d"])
 
     def test_propose_patches_parses_and_caps(self):
         from pipeline.jobfit.eval import interview_optimize as opt

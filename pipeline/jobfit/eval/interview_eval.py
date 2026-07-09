@@ -722,15 +722,33 @@ def run_scenarios_elevenlabs(scenarios: list[Scenario], max_workers: int = 6) ->
         return list(pool.map(_one, scenarios))
 
 
-def run_golden(scenarios: list[Scenario]) -> list[Row]:
-    """Offline path: validate the bundled golden transcripts (no CLI, no network)."""
+def load_golden() -> dict[str, Any]:
+    """The bundled golden transcripts, keyed by scenario name."""
     path = Path(__file__).with_name("interview_golden.json")
-    golden = json.loads(path.read_text(encoding="utf-8")).get("transcripts", {})
+    return json.loads(path.read_text(encoding="utf-8")).get("transcripts", {})
+
+
+def golden_uncovered(scenarios: list[Scenario]) -> list[str]:
+    """Selected scenarios that have NO bundled golden transcript. Offline (``run_golden``)
+    these produce no Row, so they'd silently vanish from the reliability denominator — the
+    coverage-collapse bug (finding #1). The offline ``--strict`` gate uses this to fail closed
+    rather than certify on the covered subset. Returns names in selection order."""
+    golden = load_golden()
+    return [s.name for s in scenarios if s.name not in golden]
+
+
+def run_golden(scenarios: list[Scenario]) -> list[Row]:
+    """Offline path: validate the bundled golden transcripts (no CLI, no network).
+
+    NOTE: scenarios without a golden are NOT rows here; the caller MUST also consult
+    ``golden_uncovered`` and treat any uncovered scenario as a coverage failure — a missing
+    fixture must never shrink the denominator into a false 100%."""
+    golden = load_golden()
     rows: list[Row] = []
     for s in scenarios:
         g = golden.get(s.name)
         if not g:
-            continue  # only scenarios with a golden run offline
+            continue  # only scenarios with a golden run offline; the rest are reported uncovered
         turns = g["turns"]
         ended = bool(g.get("ended"))
         issues = check_transcript(turns, s, ended, errored=False)
@@ -858,21 +876,28 @@ def score_rows(rows: list[Row], scen_by_name: dict[str, Scenario], provider: Any
         list(pool.map(_one, rows))
 
 
-def _aggregate(rows: list[Row]) -> dict[str, Any]:
+def _aggregate(rows: list[Row], uncovered: list[str] | None = None) -> dict[str, Any]:
     total = len(rows)
     reliable = sum(1 for r in rows if r.reliable)
     quals = [r.quality for r in rows if r.quality is not None]
+    uncovered = list(uncovered or [])
     style = {m: 0 for m in METRIC_NAMES}
     for r in rows:
         mf = metric_flags(r.turns)
         for m in METRIC_NAMES:
             style[m] += len(mf[m])
+    selected = total + len(uncovered)
     return {
+        # reliability is honestly reported over the COVERED rows only …
         "reliability": round(reliable / total, 3) if total else 0.0,
         "quality_mean": round(sum(quals) / len(quals), 2) if quals else None,
         "total": total,
         "reliable": reliable,
         "unscored": sum(1 for r in rows if r.quality is None),
+        # … while coverage is tracked separately so a missing fixture can't masquerade as a pass.
+        "selected": selected,
+        "coverage": round(total / selected, 3) if selected else 0.0,
+        "uncovered_scenarios": uncovered,
         "style": style,
         "closed": sum(1 for r in rows if r.ended),
     }
@@ -932,6 +957,11 @@ def diff_baseline(rows: list[Row], baseline: dict[str, Any]) -> dict[str, Any]:
 def _passes(agg: dict[str, Any]) -> bool:
     if agg["total"] == 0:
         return False
+    # Fail closed on coverage collapse: any selected scenario without a golden means the gate
+    # cannot certify — it must not pass on the covered subset (finding #1). This only ever
+    # fires on the offline golden path; the live sim produces a row for every scenario.
+    if agg.get("uncovered_scenarios"):
+        return False
     if agg["reliability"] < RELIABILITY_THRESHOLD:
         return False
     if agg["quality_mean"] is not None and agg["quality_mean"] < QUALITY_THRESHOLD:
@@ -953,6 +983,9 @@ def _banner(agg: dict[str, Any], st) -> str:
         f"reliability {agg.get('reliability', 0.0):.0%}",
         quality_chip,
     ]
+    uncovered = agg.get("uncovered_scenarios") or []
+    if uncovered:
+        parts.append(f"{len(uncovered)} uncovered")
     if n_fail:
         parts.append(f"{n_fail} FAIL")
     return verdict_banner(parts, passed=passed, s=st)
@@ -969,6 +1002,8 @@ def _format_md(
     rows: list[Row], agg: dict[str, Any], *, color: bool = False, diff: dict[str, Any] | None = None
 ) -> str:
     st = _make_styler(color)
+    uncovered = agg.get("uncovered_scenarios") or []
+    selected = agg.get("selected", agg["total"])
     lines = [
         st("# Voice-interviewer eval", "bold") + "\n",
         _banner(agg, st) + "\n",
@@ -979,6 +1014,18 @@ def _format_md(
         + (f" · ⚠ {agg['unscored']} un-scored" if agg.get("quality_mean") is not None and agg.get("unscored") else "")
         + "\n",
     ]
+    if uncovered:
+        # Report coverage honestly (finding #1): reliability is over the covered subset; the
+        # uncovered scenarios are named, and --strict refuses to certify while any remain.
+        lines.append(
+            st(
+                f"**Coverage: {agg['total']}/{selected} selected scenarios have a golden — "
+                f"{len(uncovered)} uncovered ({', '.join(uncovered)}).** `--strict` refuses to "
+                f"certify until every selected scenario has a golden transcript.",
+                "bold",
+            )
+            + "\n"
+        )
     if diff and (diff["regressions"] or diff["fixes"] or diff["quality_drops"]):
         lines.append("## Regression vs baseline\n")
         if diff["regressions"]:
@@ -1119,8 +1166,10 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     provider: ClaudeCliProvider | None = None
+    uncovered: list[str] = []
     if args.no_llm:
         rows = run_golden(scenarios)
+        uncovered = golden_uncovered(scenarios)
         if not rows:
             sys.stderr.write("interview_eval: --no-llm found no golden transcripts for the selected scenarios\n")
             return 2
@@ -1138,8 +1187,18 @@ def main(argv: list[str] | None = None) -> int:
             sys.stderr.write("interview_eval: Claude CLI unavailable → falling back to golden transcripts\n")
             provider = None
             rows = run_golden(scenarios)
+            uncovered = golden_uncovered(scenarios)
         else:
             rows = run_scenarios(scenarios, provider, brief_mode=args.briefs)
+
+    # Loudly report coverage collapse on the offline path — a missing golden must never be a
+    # silent drop from the denominator (finding #1). --strict then refuses to certify (below).
+    if uncovered:
+        sys.stderr.write(
+            f"interview_eval: {len(uncovered)} of {len(scenarios)} selected scenarios have NO "
+            f"golden transcript and were NOT validated offline: {', '.join(uncovered)}. "
+            "--strict refuses to certify on the covered subset.\n"
+        )
 
     # LLM-judge quality runs on the Claude CLI regardless of the sim backend.
     if args.judge and not args.no_llm:
@@ -1153,7 +1212,7 @@ def main(argv: list[str] | None = None) -> int:
         # provider=None (offline/CLI-missing) → the scorer's deterministic fallback runs.
         score_rows(rows, {s.name: s for s in scenarios}, provider)
 
-    agg = _aggregate(rows)
+    agg = _aggregate(rows, uncovered=uncovered)
     diff = diff_baseline(rows, load_baseline(args.baseline)) if args.baseline else None
     if args.update_baseline:
         if not args.baseline:
