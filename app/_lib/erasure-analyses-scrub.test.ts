@@ -41,18 +41,21 @@ registerHooks({
   },
 });
 
-const TMP = path.join(os.tmpdir(), `kp-erasure-scrub-test-${process.pid}.sqlite`);
+// A UNIQUE directory per run, not a `${process.pid}` filename. PIDs are reused, and a
+// locked SQLite file survives the `after()` sweep (tmpdir accumulated 176 of these), so a
+// pid-derived path could open a stale, already-populated database and fail this test for
+// reasons that have nothing to do with erasure. Observed ~1 run in 8.
+const TMP_DIR = fs.mkdtempSync(path.join(os.tmpdir(), "kp-erasure-scrub-"));
+const TMP = path.join(TMP_DIR, "kp.sqlite");
 process.env.KP_DB_PATH = TMP;
 
 const { createPipelineEntry, anonymizeEntry, saveAnalysis, loadAnalysis } = await import("./db.ts");
 
 after(() => {
-  for (const f of [TMP, `${TMP}-wal`, `${TMP}-shm`]) {
-    try {
-      fs.rmSync(f, { force: true });
-    } catch {
-      /* file locked / absent — fine */
-    }
+  try {
+    fs.rmSync(TMP_DIR, { recursive: true, force: true });
+  } catch {
+    /* file locked — the unique dir means a leftover can never poison a later run */
   }
 });
 
