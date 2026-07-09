@@ -1962,10 +1962,10 @@
       "title": "Interview-Transkript · {name}",
       "loading": "Wird geladen…",
       "retry": "Erneut versuchen",
-      "noVoiceShowScorecard": "Kein Sprach-Interview-Transkript für diese Person — die Scorecard des Recruiters wird angezeigt.",
+      "noVoiceShowScorecard": "Kein Voice-Interview-Transkript für diese Person — die Scorecard des Recruiters wird angezeigt.",
       "noInterview": "Für diese Person wurde noch kein Interview aufgezeichnet.",
       "aiScorecard": "AI-Scorecard",
-      "humanScorecard": "Manuelle Scorecard",
+      "humanScorecard": "Menschliche Scorecard",
       "humanScorecardNote": "Von einem Recruiter anhand des Bewertungsrasters der Interview-Vorbereitung erfasst.",
       "notAssessed": "Nicht bewertet",
       "ratingAria": "{competency}: Bewertung {rating} von {max}",
@@ -1986,7 +1986,7 @@
     "tab": {
       "eyebrow": "Arbeitsbereich",
       "title": "Bibliothek der Stellenbeschreibungen",
-      "intro": "Beschreiben Sie einen Personalbedarf und lassen Sie die AI eine Stellenbeschreibung entwerfen — sie klärt den Bedarf, gestaltet die Position und recherchiert das Marktgehalt im Web. Speichern Sie sie als Entwurf und <strong>sourcen Sie sie in Ihre Pipeline</strong>, um passende Kandidaten zu gewinnen.",
+      "intro": "Beschreiben Sie einen Personalbedarf und lassen Sie die AI eine Stellenbeschreibung entwerfen — sie klärt den Bedarf, gestaltet die Position und recherchiert das Marktgehalt im Web. Speichern Sie sie als Entwurf und <strong>sourcen Sie sie in Ihre Pipeline</strong>, um passende Kandidat/innen zu gewinnen.",
       "savedJds": "Gespeicherte Stellenbeschreibungen",
       "entryCount": "{count, plural, one {# Eintrag} other {# Einträge}}",
       "loadFailed": "Laden fehlgeschlagen.",
@@ -2013,10 +2013,10 @@
       "duplicateTitle": "Eine Kopie dieser Stellenbeschreibung als neuen Entwurf speichern, um sie abzuwandeln und anzupassen",
       "copyTitle": "{title} (Kopie)",
       "jobStatusChip": "Position: {status}",
-      "candidatesToggle": "Kandidaten ({count})",
-      "candidatesLoading": "Kandidaten werden geladen…",
-      "candidatesLoadFailed": "Kandidaten konnten gerade nicht geladen werden.",
-      "candidatesEmpty": "Noch keine Kandidaten gegen diese Stellenbeschreibung analysiert. Generierte Positionen sourcen ebenfalls Kandidaten in die Pipeline."
+      "candidatesToggle": "Kandidat/innen ({count})",
+      "candidatesLoading": "Kandidat/innen werden geladen…",
+      "candidatesLoadFailed": "Kandidat/innen konnten gerade nicht geladen werden.",
+      "candidatesEmpty": "Noch keine Kandidat/innen gegen diese Stellenbeschreibung analysiert. Generierte Positionen sourcen ebenfalls Kandidat/innen in die Pipeline."
     },
     "form": {
       "saveAjd": "Stellenbeschreibung speichern",
@@ -2071,7 +2071,7 @@
       "optMarket": "Marktrecherche",
       "optMarketHint": "Ein web-gestütztes Gehaltsband mit belegten Quellen",
       "optCase": "Interview-Case",
-      "optCaseHint": "Eine Arbeitsprobe, um Kandidaten der Shortlist zu prüfen",
+      "optCaseHint": "Eine Arbeitsprobe, um Kandidat/innen der Shortlist zu prüfen",
       "checklistHint": "Läuft im Hintergrund — die Stellenbeschreibung erscheint in Ihrer Bibliothek und füllt sich, während sie analysiert wird.",
       "startAnalysis": "Starten",
       "queued": "In Warteschlange — wird in Ihrer Bibliothek erstellt",
@@ -2091,7 +2091,7 @@
       "lintMissingSalary": "Keine Gehaltsangabe im Text — Ausschreibungen, die mit dem Gehalt beginnen, konvertieren deutlich besser.",
       "lintMissingPlace": "Kein Arbeitsort im Text — nennen Sie die Stadt oder geben Sie remote/hybrid/vor Ort an.",
       "lintExclusionary": "Nicht-inklusive Formulierung: „{phrase}“ — erwägen Sie eine neutrale Alternative, um den Bewerberkreis zu erweitern.",
-      "lintManyMustHaves": "{count} „Must-have“-Anforderungen — eine lange Liste schreckt unterrepräsentierte Bewerber ab; markieren Sie einige als „nice-to-have“.",
+      "lintManyMustHaves": "{count} „Must-have“-Anforderungen — eine lange Liste schreckt unterrepräsentierte Bewerber/innen ab; markieren Sie einige als „nice-to-have“.",
       "fixedTitle": "Von der Analyse festgelegt — die Pipeline gleicht gegen dieses Band ab",
       "salaryUnavailable": "Gehalt nicht verfügbar",
       "noBandTitle": "Für diese Position wurde kein belegtes Gehaltsband zurückgegeben",
@@ -2109,14 +2109,14 @@
       "ingestFailedAgain": "Das Hinzufügen dieser Stellenbeschreibung zum Arbeitsbereich ist erneut fehlgeschlagen. Versuchen Sie es noch einmal oder erstellen Sie die Stellenbeschreibung neu, falls es weiterhin fehlschlägt.",
       "sourcingFailed": "Sourcing fehlgeschlagen.",
       "liveButSourcingFailed": "<mono>{slug}</mono> ist live, aber das Sourcing ist fehlgeschlagen: {warning}",
-      "liveSourced": "{count, plural, =0 {<mono>{slug}</mono> ist live · keine Kandidaten in die Pipeline gesourct.} one {<mono>{slug}</mono> ist live · # Kandidat in die Pipeline gesourct.} other {<mono>{slug}</mono> ist live · # Kandidaten in die Pipeline gesourct.}}",
+      "liveSourced": "{count, plural, =0 {<mono>{slug}</mono> ist live · keine Kandidat/innen in die Pipeline gesourct.} one {<mono>{slug}</mono> ist live · # Kandidat/in in die Pipeline gesourct.} other {<mono>{slug}</mono> ist live · # Kandidat/innen in die Pipeline gesourct.}}",
       "openPipeline": "Pipeline öffnen",
       "savedDraftIngestFailed": "<mono>{slug}</mono> wurde als Entwurf gespeichert, aber das Hinzufügen zum Arbeitsbereich ist fehlgeschlagen — daher kann es noch nicht in die Pipeline gesourct werden. Der Entwurf ist weiterhin gespeichert und für Analysen wiederverwendbar.",
       "retrying": "Wird erneut versucht…",
       "retry": "Erneut versuchen",
       "draftBadge": "Entwurf",
       "savedAs": "Gespeichert als <mono>{slug}</mono>",
-      "sourceTitleLive": "Diese Stellenbeschreibung live schalten und passende Kandidaten in die Pipeline sourcen",
+      "sourceTitleLive": "Diese Stellenbeschreibung live schalten und passende Kandidat/innen in die Pipeline sourcen",
       "sourceTitleBlocked": "Diese Stellenbeschreibung ist noch nicht im Arbeitsbereich — fügen Sie sie erneut hinzu, bevor Sie sourcen.",
       "sourcingIntoPipeline": "Sourcing in die Pipeline…",
       "sourceIntoPipeline": "In die Pipeline sourcen",
@@ -2875,7 +2875,7 @@
     "disposition": {
       "advance": "weiterleiten",
       "hold": "zurückhalten",
-      "pass": "absagen"
+      "pass": "ablehnen"
     },
     "reviewFlags": "{count, plural, one {# Qualitätsprüfung zur Überprüfung markiert} other {# Qualitätsprüfungen zur Überprüfung markiert}}"
   },
@@ -3284,9 +3284,9 @@
       "split": "{auto} Aktionen durch Automatisierung · {human} durch Menschen",
       "autoAdvanced": "Auto-Weiterleitungen",
       "autoRejected": "Auto-Ablehnungen",
-      "holds": "Zurückstellungen erstellt → gelöst",
+      "holds": "Zurückhaltungen erstellt → gelöst",
       "holdsValue": "{raised} → {resolved}",
-      "reviewHolds": "Offene Zurückstellungen unter Entscheidungen prüfen",
+      "reviewHolds": "Offene Zurückhaltungen unter Entscheidungen prüfen",
       "comms": "Nachrichten zugestellt",
       "commsQueued": "Nachrichten im Postausgang erfasst (nicht zugestellt)"
     }
@@ -3433,7 +3433,7 @@
     "addToPipeline": "Zur Pipeline hinzufügen",
     "clear": "Leeren",
     "exit": "Beenden",
-    "selectHint": "Jedes Häkchen ordnet diesen Kandidaten in die Pipeline der Position ein (Screening). Blockierte / bereits in der Pipeline befindliche Zellen können nicht ausgewählt werden.",
+    "selectHint": "Jedes Häkchen ordnet diesen Kandidaten in die Pipeline der Position ein (Geprüft). Blockierte / bereits in der Pipeline befindliche Zellen können nicht ausgewählt werden.",
     "addedAnnounce": "{count, plural, one {# Kandidat zur Pipeline hinzugefügt.} other {# Kandidaten zur Pipeline hinzugefügt.}}",
     "addedBannerCta": "Auf dem Board ansehen",
     "addedDismiss": "Schließen",
@@ -3785,7 +3785,7 @@
       "cv_analysis": "CV-Analyse",
       "profile_extract": "Profil-Extraktion",
       "grounded_salary": "Fundiertes Gehalt",
-      "interview_realtime": "Sprach-Interview"
+      "interview_realtime": "Voice-Interview"
     },
     "providers": {
       "anthropic": "Anthropic",

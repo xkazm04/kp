@@ -466,7 +466,7 @@
     },
     "trust": {
       "heading": "Une AI puissante.<br></br><emph>Un humain signe chaque décision.</emph>",
-      "subtitle": "Conçu pour le recrutement réglementé par le règlement européen sur l'IA (EU AI Act) et le RGPD : la machine lit, mais une personne qualifiée prend chaque décision qui concerne un candidat.",
+      "subtitle": "Conçu pour le recrutement réglementé par le règlement européen sur l'AI (EU AI Act) et le RGPD : la machine lit, mais une personne qualifiée prend chaque décision qui concerne un candidat.",
       "human": {
         "title": "L'humain dans la boucle",
         "body": "Aucun candidat n'est fait avancer, ne reçoit d'offre ni n'est rejeté par la machine seule. Chaque décision défavorable est examinée et prise par une personne — par conception, pas par un réglage."
@@ -1886,7 +1886,7 @@
     "opening": "Ouverture…",
     "interviewLive": "En direct — entretien en cours",
     "interviewLiveRefused": "Un entretien est en cours pour ce candidat — attendez la fin de l'appel avant de générer un nouveau lien.",
-    "startInterview": "Démarrer l'entretien IA",
+    "startInterview": "Démarrer l'entretien AI",
     "confirm": "Confirmer",
     "declineConfirm": "Refuser {name} ? Il s'agit d'un rejet définitif et irréversible.",
     "declineAria": "Refuser {name}",
@@ -1939,9 +1939,9 @@
       "noPrep": "Aucune préparation d'entretien générée pour ce candidat pour l'instant.",
       "generatePrep": "Générer la préparation d'entretien",
       "doneCount": "{done}/{total} terminés",
-      "fallbackNote": "Construit à partir d'un gabarit générique car le modèle d'IA était indisponible — ces questions ne sont pas adaptées à ce candidat.",
+      "fallbackNote": "Construit à partir d'un gabarit générique car le modèle d'AI était indisponible — ces questions ne sont pas adaptées à ce candidat.",
       "regenerating": "Régénération…",
-      "regenerateWithAi": "Régénérer avec l'IA",
+      "regenerateWithAi": "Régénérer avec l'AI",
       "runOfShow": "Déroulé · {min} min",
       "minRange": "{from}–{to} min",
       "followUp": "↳ Relance : {text}",
@@ -1964,7 +1964,7 @@
       "retry": "Réessayer",
       "noVoiceShowScorecard": "Aucune transcription d'entretien vocal pour ce candidat — affichage de la scorecard du recruteur.",
       "noInterview": "Aucun entretien n'a encore été enregistré pour ce candidat.",
-      "aiScorecard": "Scorecard IA",
+      "aiScorecard": "Scorecard AI",
       "humanScorecard": "Scorecard humaine",
       "humanScorecardNote": "Enregistrée par un recruteur à partir de la grille de préparation d'entretien.",
       "notAssessed": "Non évalué",
@@ -1974,7 +1974,7 @@
       "transcriptHeading": "Transcription",
       "noTranscript": "Aucune transcription enregistrée.",
       "roleCandidate": "Candidat",
-      "roleInterviewer": "Intervieweur (IA)",
+      "roleInterviewer": "Intervieweur (AI)",
       "roleSystem": "Système",
       "citedTitle": "Cité par la scorecard",
       "cited": "· cité",
@@ -2159,7 +2159,7 @@
     "tab": {
       "eyebrow": "Espace de travail",
       "title": "Corpus de postes",
-      "intro": "La base de données structurée de postes sur laquelle s'appuie le moteur de matching. Chaque annonce est analysée en exigences indispensables / souhaitables (chacune marquée prérequis ou à acquérir) et porte une <strong>prisme jeune diplômé</strong> précalculé — l'indicateur d'éligibilité débutant et les exigences réinterprétées qui permettent de comparer des profils étudiants à des annonces orientées expérience.",
+      "intro": "La base de données structurée de postes sur laquelle s'appuie le moteur de matching. Chaque annonce est analysée en exigences indispensables / souhaitables (chacune marquée prérequis ou à acquérir) et porte un <strong>prisme jeune diplômé</strong> précalculé — l'indicateur d'éligibilité débutant et les exigences réinterprétées qui permettent de comparer des profils étudiants à des annonces orientées expérience.",
       "statTotal": "Total",
       "statEntryEligible": "Éligible débutant",
       "allFamilies": "Toutes les familles",
@@ -3225,7 +3225,7 @@
       "kinds": {
         "advanced": "Avancé automatiquement",
         "screening_hold": "Mis en attente pour revue humaine",
-        "interview_scorecard": "Scorecard synthétisée",
+        "interview_scorecard": "Scorecard synthétisé",
         "interview_prep_generated": "Préparation d'entretien générée",
         "offer_drafted": "Offre rédigée",
         "rematched": "Rematché vers un autre poste",
@@ -3239,7 +3239,7 @@
         "interview_scheduled": "Entretien confirmé",
         "offer_sent": "Offre envoyée",
         "offer_accepted": "Offre acceptée",
-        "offer_declined": "Offre déclinée",
+        "offer_declined": "Offre refusée",
         "offer_expired": "Offre expirée",
         "onboarding_started": "Onboarding démarré",
         "auto_rejected": "Rejeté automatiquement (politique)",
@@ -3642,7 +3642,7 @@
       "checkoutFailed": "Impossible de démarrer le paiement.",
       "custom": "Sur mesure",
       "contactNote": "Tarifé selon votre volume de recrutement",
-      "contactCta": "Contacter les ventes"
+      "contactCta": "Contacter le service commercial"
     },
     "pack": {
       "title": "Recharge de minutes d'entretien",
@@ -3679,7 +3679,7 @@
   "models": {
     "quality": {
       "title": "Qualité mesurée des modèles",
-      "intro": "Quels modèles se sont révélés utiles pour quels cas — mesuré sur chaque opération d'IA. Servez-vous-en pour composer un pack BYOM : épinglez le modèle le plus performant par cas d'usage, ou le plus rapide qui atteint votre seuil de qualité.",
+      "intro": "Quels modèles se sont révélés utiles pour quels cas — mesuré sur chaque opération d'AI. Servez-vous-en pour composer un pack BYOM : épinglez le modèle le plus performant par cas d'usage, ou le plus rapide qui atteint votre seuil de qualité.",
       "colModel": "Modèle",
       "colScore": "Score",
       "colWins": "Meilleur pour",
@@ -3713,7 +3713,7 @@
     },
     "eyebrow": "Modèles",
     "title": "Routage des modèles et clés",
-    "intro": "Choisissez le fournisseur et le modèle qui servent chaque cas d'usage d'IA, et gérez les clés API associées.",
+    "intro": "Choisissez le fournisseur et le modèle qui servent chaque cas d'usage d'AI, et gérez les clés API associées.",
     "loading": "Chargement des paramètres des modèles…",
     "loadFailed": "Impossible de charger les paramètres des modèles — vérifiez la connexion et réessayez.",
     "retry": "Réessayer",
@@ -3751,11 +3751,11 @@
     },
     "usage": {
       "title": "Utilisation et coût",
-      "intro": "Appels d'IA mesurés depuis le registre d'utilisation, regroupés par cas d'usage sur les {days} derniers jours.",
+      "intro": "Appels d'AI mesurés depuis le registre d'utilisation, regroupés par cas d'usage sur les {days} derniers jours.",
       "loading": "Chargement de l'utilisation…",
       "loadFailed": "Impossible de charger l'utilisation — vérifiez la connexion et réessayez.",
       "retry": "Réessayer",
-      "empty": "Aucune utilisation enregistrée pour l'instant — les appels d'IA mesurés apparaîtront ici après la première exécution.",
+      "empty": "Aucune utilisation enregistrée pour l'instant — les appels d'AI mesurés apparaîtront ici après la première exécution.",
       "colUseCase": "Cas d'usage",
       "colCalls": "Appels",
       "colTokensIn": "Tokens en entrée",
