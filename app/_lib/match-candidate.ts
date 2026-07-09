@@ -1,4 +1,5 @@
 import { loadAnalysis } from "@/app/_lib/db";
+import { DEFAULT_ROLE_FAMILY } from "./role-families.ts";
 
 // Shape passed to the Python matcher (camelCase; MatchCandidate accepts aliases).
 export type CandidateInput = {
@@ -41,8 +42,16 @@ export function resolveCandidate(body: {
     return {
       candidate: {
         skills: (c.skills as string[]) ?? [],
-        seniority: (c.currentSeniority as string) ?? "medior",
-        roleFamily: (c.roleFamily as string) ?? "software_engineering",
+        // Fail-open, don't assume: an analysis with no captured seniority/family
+        // passes explicit "unknown"/DEFAULT_ROLE_FAMILY sentinels, NOT a fabricated
+        // "medior"/"software_engineering". role-families.ts::DEFAULT_ROLE_FAMILY
+        // ("general_professional", "Never assume software") is the single source of
+        // the neutral family so a nurse/electrician isn't matched as a mid-level SWE.
+        // Python's _SENIORITY_RANK.get(..., 2) treats "unknown" as neutral for
+        // scoring, and ko_filter fails closed on the "unknown" archetype below — so
+        // neither sentinel triggers a hard gate on a family we couldn't detect.
+        seniority: (c.currentSeniority as string) ?? "unknown",
+        roleFamily: (c.roleFamily as string) ?? DEFAULT_ROLE_FAMILY,
         educationLevel: (c.educationLevel as string) ?? "unknown",
         languages: (c.languages as string[]) ?? [],
         yearsExperience: (c.yearsExperience as number) ?? 0,
