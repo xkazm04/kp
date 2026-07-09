@@ -1694,6 +1694,7 @@
       "statusOk": "ok",
       "statusNa": "k. A.",
       "anyAdverse": "Mögliche Benachteiligung — mindestens eine Gruppe liegt unter der 80-%-Schwelle.",
+      "insufficientSample": "Unzureichende Stichprobe — keine Gruppe erreicht {min} Bewerbende, daher ist das Vier-Fünftel-Verhältnis nicht aussagekräftig. Das ist kein Nachweis, dass keine Benachteiligung vorliegt.",
       "noAdverse": "Keine Gruppe liegt unter der 80-%-Vier-Fünftel-Schwelle."
     },
     "wave": {

@@ -1666,6 +1666,7 @@
       "statusOk": "ok",
       "statusNa": "n/a",
       "anyAdverse": "Potential adverse impact — at least one group is below the 80% threshold.",
+      "insufficientSample": "Insufficient sample — no group reaches {min} applicants, so the four-fifths ratio is not meaningful. This is not a finding of no adverse impact.",
       "noAdverse": "No group falls below the 80% four-fifths threshold."
     },
     "wave": {

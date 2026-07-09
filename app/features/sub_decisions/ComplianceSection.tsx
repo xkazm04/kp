@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, Check, Loader2, Scale, X } from "lucide-react";
+import { AlertTriangle, Check, HelpCircle, Loader2, Scale, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import {
   COMPLIANCE_REGIMES,
@@ -10,7 +10,7 @@ import {
   REGIME_IDS,
   type RegimeId,
 } from "@/app/_lib/compliance-regimes";
-import { computeAdverseImpact, type GroupCount } from "@/app/_lib/adverse-impact";
+import { computeAdverseImpact, ADVERSE_IMPACT_MIN_COHORT, type GroupCount } from "@/app/_lib/adverse-impact";
 import { Select } from "@/app/_components/Select";
 import { TextArea } from "@/app/_components/TextArea";
 
@@ -205,13 +205,26 @@ export function ComplianceSection() {
                 ))}
               </tbody>
             </table>
+            {/* Three states, not two. "Insufficient sample" is NOT "no adverse impact":
+                below ADVERSE_IMPACT_MIN_COHORT the compute forces anyAdverseImpact=false,
+                so a binary green/red readout would render a legally-loaded false clean. */}
             <p
               className={`mt-2 flex items-center gap-1.5 text-sm font-medium ${
-                impact.anyAdverseImpact ? "text-coral" : "text-moss"
+                !impact.reliable ? "text-steel" : impact.anyAdverseImpact ? "text-coral" : "text-moss"
               }`}
             >
-              {impact.anyAdverseImpact ? <AlertTriangle size={14} /> : <Check size={14} />}
-              {impact.anyAdverseImpact ? t("anyAdverse") : t("noAdverse")}
+              {!impact.reliable ? (
+                <HelpCircle size={14} />
+              ) : impact.anyAdverseImpact ? (
+                <AlertTriangle size={14} />
+              ) : (
+                <Check size={14} />
+              )}
+              {!impact.reliable
+                ? t("insufficientSample", { min: ADVERSE_IMPACT_MIN_COHORT })
+                : impact.anyAdverseImpact
+                  ? t("anyAdverse")
+                  : t("noAdverse")}
             </p>
           </div>
         ) : (

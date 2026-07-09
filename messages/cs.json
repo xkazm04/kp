@@ -1666,6 +1666,7 @@
       "statusOk": "ok",
       "statusNa": "n/a",
       "anyAdverse": "Možný nepříznivý dopad — alespoň jedna skupina je pod prahem 80 %.",
+      "insufficientSample": "Nedostatečný vzorek — žádná skupina nedosahuje {min} uchazečů, takže poměr čtyř pětin nemá vypovídací hodnotu. Neznamená to, že nebyl zjištěn nepříznivý dopad.",
       "noAdverse": "Žádná skupina není pod prahem čtyř pětin (80 %)."
     },
     "wave": {

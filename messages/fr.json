@@ -1694,6 +1694,7 @@
       "statusOk": "ok",
       "statusNa": "s.o.",
       "anyAdverse": "Impact défavorable potentiel — au moins un groupe est sous le seuil de 80%.",
+      "insufficientSample": "Échantillon insuffisant — aucun groupe n’atteint {min} candidats, le ratio des quatre cinquièmes n’a donc pas de valeur probante. Cela ne signifie pas qu’aucun impact défavorable n’a été constaté.",
       "noAdverse": "Aucun groupe ne tombe sous le seuil des quatre cinquièmes de 80%."
     },
     "wave": {
