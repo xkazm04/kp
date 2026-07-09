@@ -1827,7 +1827,7 @@
       "rejectedAria": "abgelehnt",
       "fairnessCheck": "Robustheit der Gewichtung",
       "fairnessScopeNote": "Prüft die Stabilität der Rangfolge unter verschiedenen Bewertungsschwerpunkten — es bewertet keine demografische Verzerrung oder Verzerrung nach geschützten Gruppen (die App speichert keine solchen Daten).",
-      "fairnessUniform": "Die Gewichtung ist robust — bewertet man jeden Kandidaten unter der Archetyp-Gewichtung aller anderen neu, bleibt die Reihenfolge gleich; die Rangfolge ist also robust und nicht gewichtungsabhängig.",
+      "fairnessUniform": "Nicht getestet — jeder Kandidat verwendet dieselbe Standardgewichtung, es gibt also keine evidenzbasierte Gewichtung, die variiert werden könnte. Bei einheitlichen Gewichten ist die schemaübergreifende Neubewertung ein No-Op (die Reihenfolge kann sich nicht ändern); dieser Durchlauf belegt daher nicht, dass die Rangfolge gewichtungsunabhängig ist, sondern nur, dass es keinen Gewichtungsunterschied zu testen gibt.",
       "aiTunedWeights": "AI-abgestimmte Gewichte",
       "ruleBasedWeights": "Regelbasierte Gewichte",
       "fairnessExplain": "Einige Kandidaten tragen eine begrenzte, evidenzbasierte Gewichtung — nachgewiesene Fähigkeiten werden höher gewichtet, wenn sie durch vertrauenswürdige Belege gestützt sind. Jeder Kandidat wird unter der Gewichtung <em>jedes</em> Kandidaten neu bewertet; die robuste Reihenfolge ist der Durchschnitt über alle Schemata — ein Kandidat, der unter allen Gewichtungen stark ist, ist robust stark.",

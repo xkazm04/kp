@@ -3,7 +3,7 @@ import { approveLifecycleCase, getLifecycle } from "@/app/_lib/db";
 import { isAtReviewGate } from "@/app/_lib/devcase-orchestrator";
 import { recordAudit } from "@/app/_lib/dev-control";
 import { startTask } from "@/app/_lib/tasks";
-import { auditProbeStrength } from "@/app/_lib/devcase-probe-audit";
+import { enforceProbeGate } from "@/app/_lib/devcase-probe-audit";
 
 
 // W5-4 — the editable subset of the designed case a reviewer may correct at
@@ -50,22 +50,14 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       // Quality GATE (idea-bb4f5494): a case whose probes can't tell a strong
       // submission from a naive one yields a transfer score that is noise — candidates
       // promoted off it are chosen at random. The probe-strength audit was advisory (a
-      // banner) only; ENFORCE it here. A "none" verdict (no load-bearing probes) blocks
-      // approval unless the reviewer explicitly overrides, which is recorded in the
-      // audit trail so the decision to ship a non-discriminating case is on the record.
+      // banner) only; ENFORCE it here via the SHARED guard the manual approve path also
+      // calls (bug-ui-scan-2026-07-09), so the "none verdict blocks approval unless the
+      // reviewer explicitly overrides, and the override is audited" doctrine lives in one
+      // place. A "none" verdict returns a 422; the override note goes into the audit trail.
       const probes = (approvedCase as { coverProbes?: unknown[] } | null)?.coverProbes ?? [];
-      const probeAudit = auditProbeStrength(probes as Parameters<typeof auditProbeStrength>[0]);
-      const overridden = body.overrideProbeAudit === true;
-      if (probeAudit.verdict === "none" && !overridden) {
-        return NextResponse.json(
-          {
-            error:
-              "This case has no load-bearing probes — it can't tell a strong submission from a naive one. Regenerate the probes (Regenerate with note), or re-submit with overrideProbeAudit:true to ship it anyway.",
-            code: "probe_audit_failed",
-            verdict: probeAudit.verdict,
-          },
-          { status: 422 }
-        );
+      const gate = enforceProbeGate(probes as Parameters<typeof enforceProbeGate>[0], body.overrideProbeAudit === true);
+      if (!gate.ok) {
+        return NextResponse.json({ error: gate.error, code: gate.code, verdict: gate.verdict }, { status: gate.status });
       }
       const { caseId } = approveLifecycleCase(
         id,
@@ -73,12 +65,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
         edits ? "approved by a human (with reviewer edits)" : "approved by a human"
       );
       const reason =
-        [
-          edits ? `with edits: ${Object.keys(edits).join(", ")}` : null,
-          probeAudit.verdict === "none" ? "probe-audit OVERRIDDEN (no load-bearing probes)" : null,
-        ]
-          .filter(Boolean)
-          .join("; ") || undefined;
+        [edits ? `with edits: ${Object.keys(edits).join(", ")}` : null, gate.auditReason].filter(Boolean).join("; ") || undefined;
       recordAudit({ lifecycleId: id, actor: "human", action: "approved", ref: caseId, reason });
     }
     const task = startTask("lifecycle", { lifecycleId: id, title: lc.title });

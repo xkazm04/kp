@@ -16,6 +16,7 @@ import { sealDecisionSafe } from "./decision-record-store";
 import { buildEligibilityList, governanceNote, normalizeGovernanceMode, sealsLead } from "./group-eval-governance";
 import type { MatchResultView, ScoreDimension, Confidence, Reasoning as CanonicalReasoning } from "@/app/features/sub_match/MatchTypes";
 import type { Comparison, Fairness, FairnessScheme } from "@/app/features/sub_decisions/group-eval/types";
+import { assessRobustness } from "@/app/features/sub_decisions/group-eval/types";
 
 // Cap on how many candidates one comparative evaluation covers. The strongest
 // are selected by fit BEFORE the cap (see below), and the modal surfaces
@@ -307,6 +308,13 @@ export async function runGroupEval(params: Record<string, unknown>, signal?: Abo
     }
   }
 
+  // Robustness truth (bug-ui-scan-2026-07-09 A): the cross-scheme weighting check only
+  // proves something when the ranker ran AND the weights actually vary. Resolve the honest
+  // status ONCE from the same facts — a job (so a ranker ran) + whether it produced a
+  // varying fairness matrix — so the panel and the sealed record can never imply a check
+  // that did not run (a no-op, a ranker failure, or a job-less role).
+  const robustness = assessRobustness(!!job, fairness);
+
   // Per-candidate AI reasoning, CONCURRENTLY (idea-bce9547b): this used to be a
   // sequential `await runReasoning(...)` per candidate — on cache misses, up to
   // GROUP_EVAL_CAP=6 cold Python spawns run strictly serially behind the modal
@@ -447,8 +455,10 @@ export async function runGroupEval(params: Record<string, unknown>, signal?: Abo
       rationale: deterministicSummary,
       reasonCode: "lead",
       // score: null when the lead was never measured — the sealed record states
-      // the absence rather than fabricating a 0 (REC-03).
-      inputs: { score: lead.score, candidates: candidates.length, roleTitle },
+      // the absence rather than fabricating a 0 (REC-03). robustness states whether the
+      // weighting-robustness check was actually assessed, so the sealed lead never reads
+      // as robustness-verified when it wasn't (bug-ui-scan-2026-07-09 A).
+      inputs: { score: lead.score, candidates: candidates.length, roleTitle, robustness },
     });
   } else if (lead) {
     // Governance mode (P1-3): the AI is advisory and must NOT seal a winner. Record
@@ -461,7 +471,7 @@ export async function runGroupEval(params: Record<string, unknown>, signal?: Abo
       candidateRef: lead.entryId,
       rationale: deterministicSummary,
       reasonCode: "advisory",
-      inputs: { score: lead.score, candidates: candidates.length, roleTitle, governanceMode },
+      inputs: { score: lead.score, candidates: candidates.length, roleTitle, governanceMode, robustness },
     });
   }
 
@@ -512,6 +522,10 @@ export async function runGroupEval(params: Record<string, unknown>, signal?: Abo
     // candidate's bounded dynamic weighting, so a pool weighted differently per
     // candidate ranks honestly. Null for a job-less role or if the ranker failed.
     fairness,
+    // Whether that robustness check was actually assessed (see RobustnessStatus) — the
+    // panel renders this state and the sealed lead records it, so neither can imply a
+    // check that did not run.
+    robustness,
     summary: deterministicSummary,
     // Structured, bold-formatted AI comparison (the modal prefers it).
     comparison: compare?.comparison ?? null,

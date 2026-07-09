@@ -23,6 +23,31 @@ export type Fairness = {
   weightSource?: string;
 };
 
+// Robustness-assessment status of the weighting-robustness ("fairness") check,
+// computed server-side (group-eval-run) and carried on the payload so the panel
+// renders the TRUTH and the sealed decision record states it (bug-ui-scan-2026-07-09):
+//   assessed       — the ranker ran AND weights actually VARY across candidates, so the
+//                    cross-scheme re-scoring genuinely tested the order.
+//   not_varied     — the ranker ran but every candidate carries the same (uniform)
+//                    weighting, so the cross-scheme test is a NO-OP: "order unchanged"
+//                    is guaranteed a priori and proves nothing. NOT "robust".
+//   unavailable    — the role has a job (a matrix was expected) but the ranker produced
+//                    no fairness data (it failed / did not run): "could not assess".
+//   not_applicable — a job-less role: there is no ranker, so robustness legitimately does
+//                    not apply (the panel stays hidden — no false claim).
+export type RobustnessStatus = "assessed" | "not_varied" | "unavailable" | "not_applicable";
+
+/** The honest robustness status of a group eval, derived from whether the role had a
+ *  job (so a ranker ran) and whether that ranker produced a fairness matrix whose
+ *  weights actually vary. Single-sourced so the panel copy AND the sealed decision
+ *  record agree, and so a no-op / a missing check can never read as a PASS. */
+export function assessRobustness(hasJob: boolean, fairness: Fairness | null): RobustnessStatus {
+  if (!hasJob) return "not_applicable";
+  if (!fairness || !fairness.labels?.length || !fairness.matrix?.length) return "unavailable";
+  const varied = fairness.candidateIds.some((id) => (fairness.weightNotes?.[id]?.length ?? 0) > 0);
+  return varied ? "assessed" : "not_varied";
+}
+
 // One candidate as carried by a group evaluation. The base fields (score,
 // verdict, strengths, gaps) are always present; the recruiter breakdown fields
 // are the shared MatchResultView (single-sourced from MatchTypes), all optional
@@ -92,6 +117,12 @@ export type GroupEvalPayload = {
   roleSalaryBand?: number[];
   // Cross-scheme fairness matrix. Null for a job-less role or if the ranker failed.
   fairness?: Fairness | null;
+  // Robustness-assessment status of the fairness check (bug-ui-scan-2026-07-09): lets
+  // the panel render "not tested" / "could not assess" honestly instead of a silently
+  // absent panel or a false "robust", and mirrors what the sealed decision record now
+  // states. Absent on evals saved before this field existed (→ the panel falls back to
+  // the pre-existing hide-when-no-fairness behaviour).
+  robustness?: RobustnessStatus;
   // Coverage bookkeeping (group-eval-run): the top `cap` of `totalCandidates`
   // were compared, sorted by fit. `evaluatedLabels` is the pre-cap pool used to
   // detect drift against the role's current pending entries.

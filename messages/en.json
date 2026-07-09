@@ -1799,7 +1799,7 @@
       "rejectedAria": "rejected",
       "fairnessCheck": "Weighting robustness",
       "fairnessScopeNote": "Checks ranking stability under different scoring emphases — it does not assess demographic or protected-class bias (the app holds no such data).",
-      "fairnessUniform": "Weighting is robust — re-scoring every candidate under each other's archetype weighting leaves the order unchanged, so the ranking is robust, not weighting-dependent.",
+      "fairnessUniform": "Not tested — every candidate uses the same standard weighting, so there is no evidence-driven weighting to vary. With uniform weights the cross-scheme re-scoring is a no-op (the order cannot change), so this run does not establish the ranking is weighting-independent, only that no weighting difference exists to test.",
       "aiTunedWeights": "AI-tuned weights",
       "ruleBasedWeights": "Rule-based weights",
       "fairnessExplain": "Some candidates carry a bounded, evidence-driven weighting — demonstrated skill is weighted higher when backed by high-trust evidence. Each candidate is re-scored under <em>every</em> candidate's weighting; the robust order is the average across all schemes, so a candidate strong under everyone's weights is robustly strong.",

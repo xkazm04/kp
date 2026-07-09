@@ -1827,7 +1827,7 @@
       "rejectedAria": "rejetés",
       "fairnessCheck": "Robustesse de la pondération",
       "fairnessScopeNote": "Vérifie la stabilité du classement sous différentes pondérations de notation — n'évalue pas les biais démographiques ou de groupe protégé (l'application ne détient pas de telles données).",
-      "fairnessUniform": "La pondération est robuste — recalculer le score de chaque candidat selon la pondération d'archétype de chacun des autres laisse l'ordre inchangé ; le classement est donc robuste, pas dépendant de la pondération.",
+      "fairnessUniform": "Non testé — chaque candidat utilise la même pondération standard, il n’existe donc aucune pondération fondée sur les preuves à faire varier. Avec des pondérations uniformes, le recalcul inter-schémas est sans effet (l’ordre ne peut pas changer) : cette exécution n’établit donc pas que le classement est indépendant de la pondération, seulement qu’il n’existe aucune différence de pondération à tester.",
       "aiTunedWeights": "Poids ajustés par AI",
       "ruleBasedWeights": "Poids basés sur des règles",
       "fairnessExplain": "Certains candidats portent une pondération bornée, guidée par les preuves — une compétence démontrée est pondérée plus haut lorsqu'elle est étayée par des preuves de haute confiance. Chaque candidat est recalculé selon la pondération de <em>chaque</em> candidat ; l'ordre robuste est la moyenne sur tous les schémas, ainsi un candidat solide selon les poids de tous est robustement solide.",

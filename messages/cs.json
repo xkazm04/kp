@@ -1799,7 +1799,7 @@
       "rejectedAria": "zamítnut/a",
       "fairnessCheck": "Robustnost vážení",
       "fairnessScopeNote": "Ověřuje stabilitu pořadí při různém důrazu na skóre — neposuzuje demografickou předpojatost ani příslušnost k chráněné skupině (aplikace taková data nemá).",
-      "fairnessUniform": "Vážení je robustní — přepočet každého kandidáta podle vah ostatních archetypů pořadí nemění, takže ranking je robustní a nezávislý na zvolených vahách.",
+      "fairnessUniform": "Netestováno — všichni kandidáti používají stejné standardní vážení, takže neexistuje žádné vážení odvozené z důkazů, které by šlo měnit. Při jednotných vahách je přepočet napříč schématy prázdnou operací (pořadí se nemůže změnit), takže tento běh nedokládá, že je ranking nezávislý na vahách — pouze to, že neexistuje rozdíl ve vážení, který by šlo otestovat.",
       "aiTunedWeights": "Váhy laděné AI",
       "ruleBasedWeights": "Váhy podle pravidel",
       "fairnessExplain": "Někteří kandidáti nesou omezené váhy řízené důkazy — prokázaná dovednost má vyšší váhu, je-li podložena vysoce důvěryhodným důkazem. Každý kandidát je přepočítán pod vahami <em>každého</em> kandidáta; robustní pořadí je průměr přes všechna schémata, takže kandidát silný pod vahami všech je robustně silný.",
