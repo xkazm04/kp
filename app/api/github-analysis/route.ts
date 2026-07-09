@@ -11,6 +11,7 @@ import {
   COMMITS_PER_REPO,
   FILES_PER_REPO,
   README_TRUNCATE,
+  EVIDENCE_INCOMPLETE_NOTE,
   describeEvidenceBasis,
 } from "@/app/_lib/github-evidence";
 import { withGeminiRetry } from "@/app/_lib/gemini-retry";
@@ -93,6 +94,13 @@ type GithubUser = {
   html_url: string;
   public_repos: number;
   followers: number;
+  // GitHub's /users/{login} resolves ORGANIZATIONS too (they share the exact
+  // 1–39 char handle grammar) and returns them with public_repos/followers. `type`
+  // ("User" | "Organization" | "Bot") is the ONLY field that says whose account
+  // this is — the identity check finding #1 turns from an assumption into a
+  // precondition. Without it, an org handle attributes the org's whole portfolio
+  // to one candidate.
+  type: string;
 };
 
 type GithubRepo = {
@@ -183,6 +191,16 @@ export async function POST(request: Request) {
 
   try {
     const user = await githubFetch<GithubUser>(`https://api.github.com/users/${encodeURIComponent(username)}`);
+    // FINDING #1 (fairness): /users/{login} also resolves organizations, which share
+    // the exact handle grammar and return a 200. Attributing an ORG's entire repo
+    // portfolio — stars, complexity signals, job-fit — to one applicant is a silent
+    // wrong-account failure. Verify "this account is a person" the moment the account
+    // is first seen, BEFORE any repo is fetched or analyzed.
+    if (user.type !== "User") {
+      throw new Error(
+        "That handle is a GitHub organization, not a personal account. Enter an individual developer's username."
+      );
+    }
     const repos = await githubFetch<GithubRepo[]>(
       `https://api.github.com/users/${encodeURIComponent(username)}/repos?per_page=100&sort=updated&type=owner`
     );
@@ -194,11 +212,25 @@ export async function POST(request: Request) {
     }
     const ownedRepos = repos.filter((repo) => !repo.fork);
     const reposForLanguages = ownedRepos.slice(0, 20);
+    // FINDING #2 (silent-failure): each /languages sub-fetch swallows its error to
+    // {}. GitHub's secondary limiter 403s bursts, so a partial throttle silently
+    // drops a repo's secondary languages — which can then surface a skill the
+    // candidate HAS as a Potential Gap. Record whether any sub-fetch was a coverage
+    // loss (a throttle / 5xx / network error, NOT a genuine 404) so downstream can
+    // treat this run as "could not determine" instead of "no evidence". A merely
+    // empty language map ({}) that came back 200 is real absence, not a loss.
+    let languageCoverageLost = false;
     const languageMaps = await Promise.all(
       reposForLanguages.map((repo) =>
-        githubFetch<Record<string, number>>(`https://api.github.com/repos/${repo.full_name}/languages`).catch(() => ({}))
+        githubFetch<Record<string, number>>(`https://api.github.com/repos/${repo.full_name}/languages`).catch(
+          (error: unknown) => {
+            if (isCoverageLossError(error)) languageCoverageLost = true;
+            return {} as Record<string, number>;
+          }
+        )
       )
     );
+    const languageCoverageComplete = !languageCoverageLost;
 
     const languageTotals = mergeLanguageMaps(languageMaps);
     const languageSummary = summarizeLanguages(languageTotals);
@@ -237,9 +269,20 @@ export async function POST(request: Request) {
       recentlyUpdatedRepos,
       languages: languageSummary
     });
-    const jobFitSignals = buildJobFitSignals(jobDescription, ownedRepos, languageSummary);
+    const jobFitSignals = buildJobFitSignals(jobDescription, ownedRepos, languageSummary, languageCoverageComplete);
     const reviewableRepos = rankedRepos.slice(0, DEEP_REVIEW_REPO_LIMIT);
     const codeReview = await runCodeReview(reviewableRepos, jobDescription, requestId);
+
+    const limitations = [
+      "Only public GitHub data is visible unless a token with broader access is configured.",
+      "GitHub REST does not expose full contribution graphs without GraphQL authentication.",
+      "Repository metadata can overstate or understate real production contribution quality.",
+    ];
+    // FINDING #2: when language coverage was lost to throttling, say so as a
+    // first-class limitation. This is the run-level "could not determine" signal the
+    // panel keys its Potential-Gaps caveat off (limitations.includes(this)), so a
+    // partially-blind run is never presented as a complete one.
+    if (!languageCoverageComplete) limitations.push(EVIDENCE_INCOMPLETE_NOTE);
 
     const payload = {
       username: user.login,
@@ -259,11 +302,7 @@ export async function POST(request: Request) {
       topRepositories,
       contributionSignals,
       jobFitSignals,
-      limitations: [
-        "Only public GitHub data is visible unless a token with broader access is configured.",
-        "GitHub REST does not expose full contribution graphs without GraphQL authentication.",
-        "Repository metadata can overstate or understate real production contribution quality."
-      ],
+      limitations,
       codeReview
     };
 
@@ -301,6 +340,28 @@ export async function POST(request: Request) {
   }
 }
 
+// A GitHub fetch failure that carries the HTTP status, so a caller can tell a
+// genuine 404 (the resource is absent — e.g. a repo with no README → real "no
+// evidence") apart from a 403/429/5xx throttle (we couldn't read it → "could not
+// determine"). FINDING #2 depends on this distinction so normal absences aren't
+// mistaken for incomplete coverage, and throttles aren't mistaken for absence.
+class GithubHttpError extends Error {
+  readonly status: number;
+  constructor(status: number, message: string) {
+    super(message);
+    this.name = "GithubHttpError";
+    this.status = status;
+  }
+}
+
+// True when an error means "we couldn't read this", not "it isn't there". A 404 is
+// a definitive absence; everything else — a 403/429 secondary-rate-limit, a 5xx, or
+// a network throw with no status — is a coverage loss the caller must treat as
+// "could not determine" rather than as empty evidence.
+function isCoverageLossError(error: unknown): boolean {
+  return !(error instanceof GithubHttpError && error.status === 404);
+}
+
 async function githubFetch<T>(url: string): Promise<T> {
   const headers: HeadersInit = {
     Accept: "application/vnd.github+json",
@@ -313,12 +374,15 @@ async function githubFetch<T>(url: string): Promise<T> {
   const response = await fetch(url, { headers, next: { revalidate: 0 } });
   if (!response.ok) {
     if (response.status === 404) {
-      throw new Error("GitHub profile was not found.");
+      throw new GithubHttpError(404, "GitHub profile was not found.");
     }
     if (response.status === 403) {
-      throw new Error("GitHub rate limit or access policy blocked the request. Configure GITHUB_TOKEN for higher limits.");
+      throw new GithubHttpError(
+        403,
+        "GitHub rate limit or access policy blocked the request. Configure GITHUB_TOKEN for higher limits."
+      );
     }
-    throw new Error(`GitHub API returned ${response.status}.`);
+    throw new GithubHttpError(response.status, `GitHub API returned ${response.status}.`);
   }
   return response.json() as Promise<T>;
 }
@@ -414,7 +478,11 @@ function aliasMatches(alias: string, tokens: Set<string>): boolean {
 function buildJobFitSignals(
   jobDescription: string,
   repos: GithubRepo[],
-  languages: Array<{ name: string; percent: number }>
+  languages: Array<{ name: string; percent: number }>,
+  // FINDING #2: false when some /languages sub-fetches were throttled/errored this
+  // run, so the language evidence is a partial read. A gap ("JD names it AND the
+  // evidence doesn't show it") is only trustworthy when this is true.
+  languageCoverageComplete: boolean
 ) {
   // Did we actually have a JD to compare against? Empty matchingSkills means something
   // completely different depending on this: with no JD we never ran a comparison, while
@@ -453,10 +521,18 @@ function buildJobFitSignals(
         ? "Public repositories show some complexity signals, but the LLM should inspect repo substance before treating them as production-grade evidence."
         : "Public metadata is thin; treat GitHub as weak supplemental evidence unless deeper repo review is performed.";
 
+  // FINDING #2: a gap means "the JD names this AND the public evidence doesn't show
+  // it". When some language evidence was throttled away, "doesn't show it" is
+  // unreliable — the skill may live in a language map we couldn't fetch — so a gap
+  // must NOT be asserted from missing data. Drop gaps entirely for a partial run and
+  // let the panel + limitations surface "could not determine". Matches stay:
+  // throttling can only REMOVE evidence, so a match that was found is genuinely found.
+  const reliableGaps = languageCoverageComplete ? potentialGaps : [];
+
   return {
     jobDescriptionProvided,
     matchingSkills,
-    potentialGaps,
+    potentialGaps: reliableGaps,
     // Honest coverage: the comparison is over a fixed taxonomy, so "no gaps" means
     // "no gaps among the tracked skills", not "no gaps". The UI can say so.
     trackedSkillCount: Object.keys(SKILL_ALIASES).length,
@@ -484,30 +560,44 @@ type RepoBundle = {
   files: string[];
 };
 
-async function fetchRepoBundle(repo: GithubRepo): Promise<RepoBundle> {
+async function fetchRepoBundle(repo: GithubRepo): Promise<{ bundle: RepoBundle; incomplete: boolean }> {
+  // FINDING #2: each sub-fetch swallows its failure to a benign default, so a
+  // throttled bundle is indistinguishable from a genuinely empty one. Record a
+  // coverage loss (throttle / 5xx / network — NOT a genuine 404 like "no README")
+  // so runCodeReview can tell a partial read from a truly empty repo.
+  let incomplete = false;
+  const onLoss =
+    <T,>(fallback: T) =>
+    (error: unknown): T => {
+      if (isCoverageLossError(error)) incomplete = true;
+      return fallback;
+    };
   const [readmeText, commits, contents] = await Promise.all([
-    fetchReadme(repo.full_name).catch(() => ""),
+    fetchReadme(repo.full_name).catch(onLoss("")),
     githubFetch<Array<{ commit?: { message?: string } }>>(
       `https://api.github.com/repos/${repo.full_name}/commits?per_page=${COMMITS_PER_REPO}`
-    ).catch(() => []),
+    ).catch(onLoss([] as Array<{ commit?: { message?: string } }>)),
     githubFetch<Array<{ name: string; type: string }>>(
       `https://api.github.com/repos/${repo.full_name}/contents`
-    ).catch(() => []),
+    ).catch(onLoss([] as Array<{ name: string; type: string }>)),
   ]);
 
   return {
-    name: repo.name,
-    language: repo.language,
-    topics: repo.topics ?? [],
-    description: repo.description,
-    readme: readmeText.slice(0, README_TRUNCATE),
-    recentCommits: commits
-      .map((c) => c.commit?.message?.split("\n")[0] ?? "")
-      .filter(Boolean)
-      .slice(0, COMMITS_PER_REPO),
-    files: contents
-      .map((entry) => `${entry.type === "dir" ? "[d] " : ""}${entry.name}`)
-      .slice(0, FILES_PER_REPO),
+    bundle: {
+      name: repo.name,
+      language: repo.language,
+      topics: repo.topics ?? [],
+      description: repo.description,
+      readme: readmeText.slice(0, README_TRUNCATE),
+      recentCommits: commits
+        .map((c) => c.commit?.message?.split("\n")[0] ?? "")
+        .filter(Boolean)
+        .slice(0, COMMITS_PER_REPO),
+      files: contents
+        .map((entry) => `${entry.type === "dir" ? "[d] " : ""}${entry.name}`)
+        .slice(0, FILES_PER_REPO),
+    },
+    incomplete,
   };
 }
 
@@ -597,9 +687,9 @@ async function runCodeReview(
     };
   }
 
-  let bundles: RepoBundle[];
+  let results: Array<{ bundle: RepoBundle; incomplete: boolean }>;
   try {
-    bundles = await Promise.all(repos.map(fetchRepoBundle));
+    results = await Promise.all(repos.map(fetchRepoBundle));
   } catch (error) {
     return {
       status: "error",
@@ -612,25 +702,46 @@ async function runCodeReview(
       error: error instanceof Error ? error.message : String(error),
     };
   }
+  const bundles = results.map((r) => r.bundle);
+  // FINDING #2: was any sub-fetch a coverage loss (throttle/5xx/network, not a
+  // genuine 404)? If so this is a PARTIAL read, not a complete one.
+  const coverageIncomplete = results.some((r) => r.incomplete);
 
   // fetchRepoBundle swallows each sub-fetch to a benign default ("" / []), so a
   // rate-limited or 5xx run yields bundles with no readme, commits, or files yet
-  // Promise.all still "succeeds". If EVERY bundle is empty there is no signal to review —
-  // sending it to Gemini would fabricate a confident, authoritative-looking assessment from
-  // nothing. Fail loudly instead (almost always a transient rate limit, not empty repos).
+  // Promise.all still "succeeds". Distinguish three states instead of the old binary
+  // any-signal-vs-none, so "partially blind" is never mistaken for "complete".
   const hasAnySignal = bundles.some(
     (b) => b.readme.trim() || b.recentCommits.length > 0 || b.files.length > 0
   );
   if (!hasAnySignal) {
+    // COULD NOT DETERMINE: no signal AND a sub-fetch was throttled/errored — almost
+    // always a transient rate limit, not empty repos. Sending it to Gemini would
+    // fabricate a confident assessment from nothing, so fail loudly.
+    if (coverageIncomplete) {
+      return {
+        status: "error",
+        summary: "Couldn't gather public repo signals — GitHub may be rate-limiting (could not determine). Try again shortly.",
+        confirmedSkills: [],
+        unverifiedClaims: [],
+        hiddenStrengths: [],
+        reposReviewed,
+        evidenceBasis,
+        error: "could_not_determine: repo signal fetch throttled/errored across all repos",
+      };
+    }
+    // NO EVIDENCE: every sub-fetch succeeded and still returned nothing — the repos
+    // genuinely expose no README/commit/file signals. A real, successful "empty"
+    // (distinct from could-not-determine), so consumers don't read it as data.
     return {
-      status: "error",
-      summary: "Couldn't gather any public repo signals (GitHub may be rate-limiting). Try again shortly.",
+      status: "empty",
+      summary: "Reviewed repositories expose no public README, commit, or file signals to assess.",
       confirmedSkills: [],
       unverifiedClaims: [],
       hiddenStrengths: [],
       reposReviewed,
       evidenceBasis,
-      error: "insufficient_evidence: no readme/commits/files fetched across all repos",
+      error: null,
     };
   }
 
@@ -699,7 +810,13 @@ async function runCodeReview(
     }
     return {
       status: "ok",
-      summary: review.data.summary,
+      // FINDING #2: EVIDENCE FOUND but partial — some repo data couldn't be fetched
+      // this run. The review is real, but stamping the caveat onto the summary (which
+      // the panel renders and the board evidence summary carries) removes the false
+      // confidence of an authoritative read built on a fraction of the evidence.
+      summary: coverageIncomplete
+        ? `${review.data.summary} (Partial evidence: some repository data couldn't be fetched this run — likely rate limiting — so treat this as an incomplete read.)`
+        : review.data.summary,
       confirmedSkills: review.data.confirmed_skills,
       unverifiedClaims: review.data.unverified_claims,
       hiddenStrengths: review.data.hidden_strengths,

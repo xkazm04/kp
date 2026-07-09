@@ -16,6 +16,16 @@ export const COMMITS_PER_REPO = 10;
 // Root-level file/directory NAMES kept per repo — names only, never file contents.
 export const FILES_PER_REPO = 30;
 
+// FINDING #2 (bug-ui-scan-2026-07-09): the exact, shared "could not determine"
+// limitation string the /api/github-analysis route appends when some public GitHub
+// data was throttled away this run. Exported so the route (producer) and
+// GithubAnalysisPanel (consumer — it keys its Potential-Gaps "could not determine"
+// caveat off limitations.includes(this)) reference ONE constant and can never drift.
+// Lives here because this module is already the dependency-free evidence-vocabulary
+// source shared by both the server route and client components.
+export const EVIDENCE_INCOMPLETE_NOTE =
+  "Some public GitHub data couldn't be fetched this run (likely rate limiting), so language coverage and skill-gap detection are incomplete — retry shortly for a complete read.";
+
 // The exact, deterministic evidence the deep review is built from. Derived from
 // the constants above so the documented scope can NOT drift from what is actually
 // sent to the model. Text-and-metadata only: no file *bodies* and no recursive
