@@ -3,6 +3,7 @@ import { listDecisionRecords } from "./decision-record-store";
 import { getOpenOfferForEntry, listOffersForEntry } from "./offers-store";
 import { buildAtsRecord, type AtsCandidateRecord } from "./ats-record.ts";
 import { getAtsConfig, getAtsSecret } from "./ats-config-store.ts";
+import { assertDeliverableWebhookUrl } from "./ats-egress-guard.ts";
 import {
   type AtsEventType,
   buildEnvelope,
@@ -52,12 +53,23 @@ export type DeliveryResult =
 export async function deliver(event: AtsEventType, data: AtsCandidateRecord | { ping: true }): Promise<DeliveryResult> {
   const cfg = getAtsConfig();
   if (!cfg.webhookUrl) return { delivered: false, reason: "No webhook URL configured." };
+  // Re-vet AND resolve the host immediately before the fetch (not just at write
+  // time): https-only, no IP literals / internal names, and reject if the host
+  // resolves to a loopback/link-local/RFC-1918/metadata address (DNS-rebind guard).
+  // A rejection returns a validation reason — the target is never contacted, so no
+  // status/body of an internal probe can leak back through the test route.
+  let target: string;
+  try {
+    target = await assertDeliverableWebhookUrl(cfg.webhookUrl);
+  } catch (e) {
+    return { delivered: false, reason: e instanceof Error ? e.message : "webhook URL rejected." };
+  }
   const body = JSON.stringify(buildEnvelope(event, data, new Date().toISOString()));
   const headers: Record<string, string> = { "Content-Type": "application/json", [EVENT_HEADER]: event };
   const secret = getAtsSecret();
   if (secret) headers[SIGNATURE_HEADER] = signWebhookBody(secret, body);
   try {
-    const r = await fetch(cfg.webhookUrl, { method: "POST", headers, body, signal: AbortSignal.timeout(5000) });
+    const r = await fetch(target, { method: "POST", headers, body, signal: AbortSignal.timeout(5000) });
     return { delivered: true, status: r.status };
   } catch (e) {
     return { delivered: false, reason: e instanceof Error ? e.message : "delivery failed" };

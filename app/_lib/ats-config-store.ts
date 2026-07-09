@@ -1,6 +1,7 @@
 import Database from "better-sqlite3";
 import { openStore } from "./db-path";
 import { isAtsEvent, type AtsEventType, SUBSCRIBABLE_EVENTS } from "./ats-webhook.ts";
+import { assertPublicHttpsEndpoint } from "./safe-url.ts";
 
 // P1-5 — persistence for the outbound-webhook integration. Its OWN isolated
 // connection on the shared kp.sqlite (decision-config-store / offers-store
@@ -76,16 +77,18 @@ export function getAtsSecret(): string | null {
 function validateUrl(raw: unknown): string | null {
   if (raw === null || raw === undefined || raw === "") return null; // disable
   if (typeof raw !== "string") throw new AtsConfigError("webhookUrl must be a string or empty.");
-  let u: URL;
+  // SSRF guard — the server later POSTs candidate PII (and a signed body) to this
+  // URL, so it is the same trust boundary as a provider endpoint. Route it through
+  // the shared `assertPublicHttpsEndpoint`: https-only, and reject bare IP literals
+  // (169.254.169.254 metadata, 127.x loopback, RFC-1918 LAN) and internal/`.local`/
+  // `.internal` hostnames. This closes the config-WRITE boundary; deliver() re-vets
+  // (and resolves) the host at fetch time, since a URL can be stored before a rule
+  // tightens and DNS can change under a stored name.
   try {
-    u = new URL(raw);
-  } catch {
-    throw new AtsConfigError("webhookUrl must be a valid URL.");
+    return assertPublicHttpsEndpoint(raw, "webhookUrl");
+  } catch (e) {
+    throw new AtsConfigError(e instanceof Error ? e.message : "webhookUrl is not an allowed URL.");
   }
-  if (u.protocol !== "https:" && u.protocol !== "http:") {
-    throw new AtsConfigError("webhookUrl must be an http(s) URL.");
-  }
-  return u.toString();
 }
 
 function validateEvents(raw: unknown): AtsEventType[] {
