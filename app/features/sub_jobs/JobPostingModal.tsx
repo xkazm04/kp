@@ -114,7 +114,11 @@ export function JobPostingModal({ job, onClose }: { job: Job; onClose: () => voi
   // (recruiter runs the studio in EN, posts to a Czech board). Default to the
   // active locale; the toggle swaps the strings table for the render + copy.
   const appLocale = useLocale();
-  const [postingLang, setPostingLang] = useState<PostingLocale>(isLocale(appLocale) ? appLocale : "en");
+  // Postings support only the POSTING_LOCALES subset (en/cs); a wider UI locale
+  // (de/fr) falls back to en for the copy-to-board strings.
+  const [postingLang, setPostingLang] = useState<PostingLocale>(
+    isLocale(appLocale) && (POSTING_LOCALES as readonly string[]).includes(appLocale) ? (appLocale as PostingLocale) : "en"
+  );
   const markdown = useMemo(() => jobToMarkdown(job, JOB_MARKDOWN_STRINGS[postingLang]), [job, postingLang]);
 
   const copyApplyLink = async () => {

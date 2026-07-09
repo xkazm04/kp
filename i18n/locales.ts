@@ -3,7 +3,7 @@
 // switcher, server action) are all derived from this one literal array — mirrors
 // the WORKSPACE_TAB_IDS pattern in app/features/tabs.ts so the type and the guard
 // can never drift. Adding a locale is a one-line edit here plus a messages/<x>.json.
-export const LOCALES = ["en", "cs"] as const;
+export const LOCALES = ["en", "cs", "de", "fr"] as const;
 
 export type Locale = (typeof LOCALES)[number];
 
