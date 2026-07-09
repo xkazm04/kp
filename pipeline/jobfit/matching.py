@@ -280,8 +280,18 @@ def ko_filter(candidate: MatchCandidate, job: Job) -> tuple[bool, list[KoReason]
             if not _has_language(candidate.languages, lang):
                 reasons.append(KoReason(key="language", detail=f"missing required language ({lang})"))
 
-    # Work-mode preference, only when the candidate expressed one.
-    if candidate.preferred_work_modes and job.work_mode:
+    # Work-mode preference — only when the candidate expressed one AND the ad
+    # actually STATED a work mode. A work_mode normalize_job stamped from
+    # DEFAULT_POLICY (recorded in ``job.defaulted_fields``) is a PHANTOM the ad
+    # never asserted; like campaign.py's ``_job_facts`` and the salary coach it is
+    # treated as absent and must NEVER act as a hard gate. Otherwise a blind ad
+    # that stated no mode silently KO's every remote-only candidate on an assumed
+    # "onsite", removing them from the survivor pool before they are ever scored.
+    if (
+        candidate.preferred_work_modes
+        and job.work_mode
+        and "work_mode" not in job.defaulted_fields
+    ):
         if job.work_mode not in candidate.preferred_work_modes:
             reasons.append(KoReason(key="work_mode", detail=f"work mode {job.work_mode} not preferred"))
 
@@ -309,7 +319,18 @@ def score_skills(candidate: MatchCandidate, job: Job) -> tuple[float, list[str],
         if best >= _MATCH_THRESHOLD:
             matched.append(req.skill)
             strength[req.skill] = round(best, 2)
-        elif req.kind == "must_have":
+        elif req.kind == "must_have" and best <= 0.0:
+            # ``missing`` means the candidate makes NO claim to this skill at all
+            # (best == 0.0). A must-have the candidate DID name but which only
+            # scored BELOW the partial-match threshold — e.g. a self-declared EXACT
+            # match discounted to 0.4 (1.0 * 0.4 provenance), or a low-provenance
+            # taxonomy/sibling hit — is "claimed but unproven", not absent. Filing
+            # such a skill as missing conflates two different states and overstates
+            # absence: it wrongly emits "missing must-have: Python" for a student
+            # who listed Python, and (via _confidence's "Misses N must-haves")
+            # widens the score band for the fairness-protected early-career cohort.
+            # The provenance discount already lowers the skills sub-score fairly;
+            # only a true zero — no claim whatsoever — belongs in ``missing``.
             missing.append(req.skill)
     score = (acc / total_w) if total_w else 0.0
     return round(score, 4), matched, missing, strength
@@ -348,6 +369,14 @@ def _description_words(description: str) -> frozenset[str]:
     return frozenset(_WORD_RE.findall(description.casefold()))
 
 
+# Overlap-term calibration for :func:`score_personal`. ``_OVERLAP_DENOM_FLOOR`` is
+# the floor of the saturation denominator (the ad's must-have count scales it up);
+# ``_NEUTRAL_LANGUAGE_COVERAGE`` is the coverage imputed when an ad states no
+# language requirement, so an absent language signal neither gifts nor penalizes.
+_OVERLAP_DENOM_FLOOR = 5
+_NEUTRAL_LANGUAGE_COVERAGE = 0.5
+
+
 def score_personal(candidate: MatchCandidate, job: Job, *, embedder: Any | None = None) -> float:
     """Keyword heuristic by default; the embedding bridge when opted in.
 
@@ -366,7 +395,6 @@ def score_personal(candidate: MatchCandidate, job: Job, *, embedder: Any | None 
       the ad, so paraphrases finally meet without sharing a token. Fail-open:
       any bridge failure falls back to the keyword term.
     """
-    lang_cov = _language_coverage(candidate, job)
     overlap: float | None = None
     if embedder is not None:
         from .embedding_bridge import semantic_overlap
@@ -380,11 +408,23 @@ def score_personal(candidate: MatchCandidate, job: Job, *, embedder: Any | None 
         # skill families with short canonical names.
         tokens = [t for t in (candidate.traits + candidate.skills) if t]
         hits = sum(1 for t in tokens if _term_in_words(t, desc_words))
-        # NOTE: the /5.0 saturation constant (5+ overlapping skills => full credit)
-        # is a known coarse heuristic flagged alongside this fix; it is left as-is
-        # here to avoid broadly shifting scores the sanity suite pins, and tracked
-        # as a separate tuning item (denominator tied to the ad's keyword surface).
-        overlap = min(1.0, hits / 5.0)
+        # Saturation denominator, formerly a bare ``/5.0``: a fixed constant tied to
+        # NEITHER the ad's demand nor its keyword surface, so a focused ad and a
+        # keyword-dense one both maxed out at 5 hits and an 8-token overlap could
+        # never out-score a 5-token one (a 5-keyword CV tied a 50-keyword one).
+        # Scale it with the ad's must-have count, floored at _OVERLAP_DENOM_FLOOR to
+        # preserve the prior calibration for a typical ad, so a keyword-rich role
+        # genuinely separates a broad candidate from a narrow one.
+        n_must_have = sum(1 for r in job.requirements if r.kind == "must_have")
+        overlap = min(1.0, hits / max(_OVERLAP_DENOM_FLOOR, n_must_have))
+    # Language coverage joins the blend only when the ad STATES a language
+    # requirement. An ad naming none carries no language signal, so rather than the
+    # old free full-credit 1.0 — a fixed 0.5 gift to `personal` on every
+    # language-less role — the dimension is imputed NEUTRAL (0.5): it neither
+    # rewards nor penalizes, and the overlap term drives all candidate SEPARATION
+    # on such a role (the language term is then a constant across candidates).
+    # (_language_coverage still returns 1.0 for score_motivation, unchanged.)
+    lang_cov = _language_coverage(candidate, job) if job.languages else _NEUTRAL_LANGUAGE_COVERAGE
     return round(0.5 * lang_cov + 0.5 * overlap, 4)
 
 
