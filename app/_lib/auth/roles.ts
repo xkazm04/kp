@@ -104,6 +104,23 @@ export function sanitizeOverride(input: { grant?: unknown; revoke?: unknown } | 
   return { grant, revoke };
 }
 
+/** May an actor holding `actorCaps` assign `role` to a member (or invite at that role)?
+ *
+ *  Assigning a role IS a capability grant — it confers `roleCapabilities(role)` — so the
+ *  same delegation rule the override path uses must apply: an actor may never hand out
+ *  privilege they do not themselves hold. In particular `owner` carries `org:manage`, so
+ *  only a caller who holds `org:manage` may create one.
+ *
+ *  Without this, `members:manage` alone (held by `admin`) was enough to PATCH one's own
+ *  membership to `{role: "owner"}` and take over billing and org deletion — the override
+ *  path was delegation-capped and the role path was not. */
+export function canAssignRole(actorCaps: Iterable<Capability>, role: MemberRole): boolean {
+  if (!isMemberRole(role)) return false;
+  const held = new Set<Capability>(actorCaps);
+  for (const c of CAPS[role]) if (!held.has(c)) return false;
+  return true;
+}
+
 /** Compute the override a DESIRED effective capability set implies against a role
  *  — the delta the permission editor sends ("these overridable caps should be on").
  *  Only OVERRIDABLE_CAPABILITIES are considered (org:manage is left to the role). */

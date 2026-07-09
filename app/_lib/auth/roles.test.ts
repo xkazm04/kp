@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { roleCan, roleAtLeast, isMemberRole, MEMBER_ROLES, resolveCapabilities, sanitizeOverride, capable } from "./roles.ts";
+import { roleCan, roleAtLeast, isMemberRole, MEMBER_ROLES, resolveCapabilities, sanitizeOverride, capable, roleCapabilities, canAssignRole } from "./roles.ts";
 
 test("owner has every capability; viewer only reads", () => {
   for (const cap of ["org:manage", "members:manage", "team:manage", "pipeline:write", "read"] as const) {
@@ -65,4 +65,31 @@ test("sanitizeOverride drops unknowns, de-dupes, lets revoke win, and strips org
     revoke: ["pipeline:write"],
   });
   assert.equal(sanitizeOverride({ grant: ["org:manage"], revoke: [] }), null, "an org:manage-only grant sanitizes to null");
+});
+
+// CRITICAL (2026-07-09 scan, organizations-members-invites #1): the capability-override
+// path was delegation-capped ("no members:manage holder can escalate anyone, incl.
+// themselves, to owner control") but the ROLE path was not, so an admin could PATCH its
+// own membership to `{role: "owner"}` and seize billing + org deletion.
+test("canAssignRole: an actor cannot grant privilege they do not hold", () => {
+  const ownerCaps = [...roleCapabilities("owner")];
+  const adminCaps = [...roleCapabilities("admin")];
+
+  // An owner (holds org:manage) may mint another owner.
+  assert.equal(canAssignRole(ownerCaps, "owner"), true);
+
+  // An admin holds members:manage but NOT org:manage — the exact escalation.
+  assert.equal(canAssignRole(adminCaps, "owner"), false);
+
+  // ...but an admin may still assign every role at or below its own privilege.
+  for (const r of ["admin", "recruiter", "hiring_manager", "viewer"] as const) {
+    assert.equal(canAssignRole(adminCaps, r), true, `admin should be able to assign ${r}`);
+  }
+
+  // A recruiter (no members:manage) cannot mint an admin. It never reaches the route,
+  // but the rule must hold on its own.
+  assert.equal(canAssignRole([...roleCapabilities("recruiter")], "admin"), false);
+
+  // Garbage in, fail closed.
+  assert.equal(canAssignRole(ownerCaps, "nonsense" as never), false);
 });

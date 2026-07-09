@@ -5,7 +5,7 @@ import { getUserById } from "@/app/_lib/db/users";
 import { getMembership } from "@/app/_lib/db/memberships";
 import { DEFAULT_WORKSPACE_ID } from "@/app/_lib/db/workspaces";
 import { changeMemberRole, setMemberPermissions, setMemberStatus, removeMember, type MemberOpResult } from "@/app/_lib/org-service";
-import { isMemberRole, isCapability, overrideFromDesired, type Capability } from "@/app/_lib/auth/roles";
+import { isMemberRole, isCapability, overrideFromDesired, canAssignRole, type Capability } from "@/app/_lib/auth/roles";
 
 // HTTP status for a service guard outcome: 409 for the last-owner backstop, 404
 // for a missing user/membership, 400 otherwise.
@@ -36,6 +36,12 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ u
 
   if (body.role !== undefined) {
     if (!isMemberRole(body.role)) return NextResponse.json({ error: "Invalid role" }, { status: 400 });
+    // Delegation, same rule as the capability path below: a role assignment grants that
+    // role's capabilities, and the actor may not grant privilege they lack. `members:manage`
+    // alone (an admin) could otherwise PATCH itself to `owner` and seize org:manage.
+    if (!canAssignRole(await callerCapabilities(), body.role)) {
+      return NextResponse.json({ error: "Cannot assign a role above your own privileges" }, { status: 403 });
+    }
     const r = changeMemberRole(userId, workspaceId, body.role);
     if (!r.ok) return NextResponse.json({ error: r.reason }, { status: opStatus(r.reason) });
   }

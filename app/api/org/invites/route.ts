@@ -1,10 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { requireCapability, currentUser } from "@/app/_lib/auth/current-user";
+import { requireCapability, currentUser, callerCapabilities } from "@/app/_lib/auth/current-user";
 import { DEFAULT_ORG_ID } from "@/app/_lib/db/organizations";
 import { getUserByEmail } from "@/app/_lib/db/users";
 import { listInvitesForOrg } from "@/app/_lib/db/invites";
 import { inviteMember } from "@/app/_lib/org-service";
-import { isMemberRole } from "@/app/_lib/auth/roles";
+import { isMemberRole, canAssignRole } from "@/app/_lib/auth/roles";
 
 // Pending invites for the org. members:manage-gated (viewing invites is part of
 // managing members).
@@ -26,6 +26,11 @@ export async function POST(request: NextRequest) {
   const email = typeof body.email === "string" ? body.email.trim() : "";
   if (!email || !email.includes("@")) return NextResponse.json({ error: "A valid email is required." }, { status: 400 });
   const role = isMemberRole(body.role) ? body.role : "recruiter";
+  // Same delegation rule as changing a member's role: inviting someone AT a role grants
+  // that role's capabilities, so an admin cannot mint an `owner` invite and accept it.
+  if (!canAssignRole(await callerCapabilities(), role)) {
+    return NextResponse.json({ error: "Cannot invite at a role above your own privileges" }, { status: 403 });
+  }
   const workspaceId = typeof body.workspaceId === "string" && body.workspaceId ? body.workspaceId : undefined;
 
   // Guard against re-inviting an already-active member of this org.
