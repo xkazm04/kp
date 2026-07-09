@@ -1,7 +1,10 @@
-# Fix Wave 5 — Hiring correctness & fairness (PARTIAL: 4 of 11)
+# Fix Wave 5 — Hiring correctness & fairness (COMPLETE: 11 of 11)
 
-> 4 commits, **4 Highs closed**. **7 Highs remain open in this wave** — see "Interrupted" below.
-> Baseline preserved: tsc 0 · node unit 1404 → **1421** (+17) · python 797 OK · i18n 3234×4 parity · `next build` ✓.
+> 9 commits, **11 Highs closed**. Finished across two sessions — the first four inline, the last
+> seven via a re-dispatched agent trio the day after (the original five were killed by a session
+> limit; see "Interrupted").
+> Baseline preserved: tsc 0 · node unit 1404 → **1424** · python 797 → **855** OK · i18n 3234×4 parity · `next build` ✓.
+> (The +26 python beyond this wave's own tests are a user voice-harness WIP that landed between sessions and was left untouched.)
 
 These findings change **who gets hired**. They are not cosmetic and they are not theoretical.
 
@@ -13,6 +16,9 @@ These findings change **who gets hired**. They are not cosmetic and they are not
 | `f8656ab` | analysis-result-panels #1 | High |
 | `3b1a601` | analytics-calibration-dashboards #2 | High |
 | `d08d089` | analytics-calibration-dashboards #1 | High |
+| `3b61477` | matching-transformation-engine #1, #2, #3 | 3×High |
+| `dee0a23` | github-evidence-cv-utilities #1, #2 | 2×High |
+| `bbaadfc` | cv-extraction-pipeline-services #1, #2, #3 | 3×High |
 
 ## What was fixed
 
@@ -75,37 +81,45 @@ usage limit.** Three had written partial edits; those were triaged rather than t
   had not been updated, so a sub-floor sample would have rendered green "no adverse impact". That
   false clean was the whole point of the finding; the third state was added.
 
-**Still open in this wave (7 Highs):**
+### Resumed the next day (the remaining 7 Highs — all now closed)
 
-| Finding | Why it matters |
+The session limit reset overnight. Three fresh agents (matching / CV / GitHub, disjoint files)
+were re-dispatched. One dropped again mid-work — this time on a transient connection error, not a
+limit — and was **resumed from its own transcript** via SendMessage rather than restarted cold,
+so its half-built approach was finished coherently instead of inherited by a stranger.
+
+| Finding | Fix |
 |---|---|
-| matching-transformation-engine #1 | A phantom `work_mode` default hard-KOs remote-only candidates out of every ad that never stated a work mode. `campaign.py` and the salary coach honor `defaulted_fields`; `ko_filter` does not. |
-| matching-transformation-engine #2 | `score_personal` saturates skill overlap at 5 hits and gifts 0.5 to an empty-language blend. |
-| matching-transformation-engine #3 | `score_skills` files a self-declared **exact** must-have into `missing` (match weight 0.4 < 0.5 threshold), hitting the protected early-career cohort hardest. |
-| cv-extraction-pipeline-services #1 | CV-embedded prompt injection drives the numeric score and plants recruiter-facing narrative. |
-| cv-extraction-pipeline-services #2 | `_guess_name_line` accepts a role headline as the name, so blind mode masks "Machine Learning Engineer" as `[NAME]` throughout. |
-| cv-extraction-pipeline-services #3 | `\bms\b` in `_PRONOUN` redacts every "MS" — Master of Science, MS SQL, MS Office — as a gendered term. |
-| github-evidence-cv-utilities #1, #2 | An **organization** handle attributes the org's whole portfolio to one candidate; partial throttling yields an empty-but-successful evidence blob. |
+| matching-transformation-engine #1 | `ko_filter` now gates work-mode only when it is **not** in `job.defaulted_fields` — a phantom onsite no longer KOs remote candidates; a *stated* onsite still gates. |
+| matching-transformation-engine #2 | `hits / max(5, must_have_count)` de-saturates overlap; the empty-language blend gives a **neutral** 0.5, not full credit (zeroing it would break `test_winnability`'s pinned 55-bar). |
+| matching-transformation-engine #3 | `missing` now requires `best <= 0.0`; a claimed-but-discounted exact skill is neither matched nor missing. |
+| cv-extraction-pipeline-services #1 | Deterministic injection heuristic + a grounding check on near-max-over-empty scores both raise `(manual review)`; a "treat the CV as data" preamble in the prompt. Residual stated honestly. |
+| cv-extraction-pipeline-services #2 | `_looks_like_role_headline` (matched against taxonomy vocab) rejects a headline as the name. |
+| cv-extraction-pipeline-services #3 | Split standalone pronouns from a case-sensitive `_HONORIFIC`; bare "MS" survives. |
+| github-evidence-cv-utilities #1, #2 | Account-type check rejects org handles before any repo fetch; a three-state (found / no-evidence / could-not-determine) model suppresses `potentialGaps` when coverage is incomplete. |
 
-Anything touching `matching.py` **must** be validated with
-`python -m pipeline.jobfit.eval.matching_eval --strict` and the delta reported. A regression there
-is a real signal, not an eval to be adjusted.
+**Safety gate honored:** the matching change was validated with
+`python -m pipeline.jobfit.eval.matching_eval --strict` — **8/8 PASS, Fairness 4/4, zero
+top-score delta**, before and after. The wrong exclusions are corrected without perturbing the
+calibrated rankings. (Independently re-run by the orchestrator, not taken on the agent's word.)
 
 ## Verification
 
 | Gate | Before | After |
 |---|---|---|
 | `tsc --noEmit` | 0 | 0 |
-| node unit | 1404 | **1421** |
-| python | 797 OK | 797 OK |
+| node unit | 1404 | **1424** |
+| python | 797 OK | **855 OK** (incl. +26 user voice-harness WIP, untouched) |
+| `matching_eval --strict` | 8/8 PASS | **8/8 PASS, zero delta** |
 | `i18n:check` | 3233 × 4 | **3234 × 4** |
 | `next build` | ✓ | ✓ |
 
-All four fixes confirmed **non-vacuous**: the pre-fix reference selection picks `tiny` and reports
-adverse impact where the new tests demand otherwise; the old `toCsv` emits `=cmd|'/c calc'!A1`
-verbatim; the old defaults returned `software_engineering`/`medior`.
+Every fix confirmed **non-vacuous** by neutering it in-source and watching exactly its own tests go
+red: the pre-fix reference picks `tiny` and reports adverse impact; the old `toCsv` emits
+`=cmd|'/c calc'!A1`; the old defaults returned `software_engineering`/`medior`; restoring the broad
+`\bms\b` re-redacted "MS SQL"; disabling the injection screens dropped all six of their notes.
 
-## Patterns (catalogue items 17–19)
+## Patterns (catalogue items 17–21)
 
 17. **A codebase that states an invariant in prose will violate it in code.**
     `role-families.ts` says "Never assume software" three lines above a call site that assumed
@@ -116,6 +130,15 @@ verbatim; the old defaults returned `software_engineering`/`medior`.
 19. **Triage a dead agent's edits; never inherit them.** A partial fix that typechecks is the most
     dangerous artifact in the tree. One of three here was dead code shaped like a fix; one was a
     library change whose UI consumer would have rendered a false clean.
+20. **Resume a dropped agent from its transcript; don't restart it cold.** When an agent dies on a
+    *transient* error (a closed connection, not a usage limit) with partial edits and a note about
+    what's left, `SendMessage` to its id finishes its own approach coherently. Starting fresh makes
+    a stranger inherit half-built work — the exact hazard of pattern 19. (Distinguish the cause: a
+    usage limit won't resume until it resets; a connection drop resumes immediately.)
+21. **When a fix respects an out-of-scope pinned test, that's a feature.** The GitHub agent found
+    `apply-intake.test.ts` deliberately pins deeper-URL→owner-handle resolution, so it closed the
+    org-attribution hole with an account-*type* check instead of tightening the handle parser. The
+    narrower fix that leaves a pinned contract intact beats the broad one that breaks it.
 
 ## Known flake (observed once, NOT fixed — evidence recorded)
 
@@ -143,3 +166,12 @@ of thing that produces a worse bug. What is recorded instead:
 - and the fact that the suite is **not** deterministic under that condition.
 
 The gate numbers reported for waves 4 and 5 were all taken on clean, reproduced runs.
+
+## Status after this wave
+
+**Criticals 9/9 · Highs 29/66 · Wave 5 complete (11/11).** 34 commits on the branch.
+tsc 0 · node unit 1424 · python 855 OK · i18n 3234×4 · `next build` ✓ · `matching_eval --strict` 8/8.
+
+Remaining: **37 Highs**, 125 Medium, 30 Low, per the INDEX. Next themes: W6 races/TOCTOU
+(close-case double-reject, preview→confirm recompute, auto-advance CAS, offer re-extend),
+W7 data integrity (`seedAnalyses` boot-wipe, sim leak, benchmark contamination), W8+ UI/a11y (33).
