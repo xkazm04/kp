@@ -52,10 +52,12 @@ class AzureOpenAIProvider(OpenAIProvider):
             return self.api_version
         return os.getenv("AZURE_OPENAI_API_VERSION") or _DEFAULT_API_VERSION
 
-    def _allowed_offline(self) -> bool:
-        # Azure routes to the operator's own configured resource endpoint, so it
-        # counts as an explicitly-configured private endpoint under KP_OFFLINE.
-        return bool(self._resolved_endpoint())
+    def _offline_egress_url(self) -> str | None:
+        # Azure egresses to its resource endpoint (never the OpenAI base_url), so
+        # the KP_OFFLINE on-box check (base._allowed_offline → is_local_url) runs
+        # against THAT. A public *.openai.azure.com endpoint is a cloud host →
+        # sealed off; only a loopback/on-box endpoint stays usable under offline.
+        return self._resolved_endpoint()
 
     def available(self) -> bool:
         return bool(self._resolved_endpoint()) and super().available()

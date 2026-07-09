@@ -46,6 +46,12 @@ CRITERIA_PROMPTS: dict[str, str] = {
 
 def available() -> tuple[bool, str]:
     """(ok, reason) — whether the EL backend can run in this environment."""
+    from ..llm.offline import is_offline
+
+    # api.elevenlabs.io is a cloud host with no on-box alternative, so the E-SH-4
+    # no-egress seal blocks it outright (→ the eval falls back to the text backend).
+    if is_offline():
+        return False, "KP_OFFLINE is set (no-egress mode); ElevenLabs is a cloud service"
     if not os.environ.get("ELEVENLABS_API_KEY"):
         return False, "ELEVENLABS_API_KEY not set"
     if not os.environ.get("ELEVENLABS_AGENT_ID"):
@@ -83,6 +89,15 @@ def scenario_to_request(scenario: Any, *, new_turns_limit: int = 30) -> dict:
 
 def post_simulation(agent_id: str, api_key: str, request: dict, *, timeout: int = 180) -> dict:
     """POST the simulate-conversation request and return the parsed JSON response."""
+    from ..llm.offline import is_offline
+
+    # Belt-and-suspenders behind available(): never egress to the cloud host under
+    # the KP_OFFLINE no-egress seal, even if this is called directly.
+    if is_offline():
+        raise RuntimeError(
+            "KP_OFFLINE is set (air-gapped no-egress mode): refusing to POST to "
+            "api.elevenlabs.io. Unset KP_OFFLINE to use the ElevenLabs voice backend."
+        )
     url = SIMULATE_URL.format(agent_id=agent_id)
     data = json.dumps(request).encode("utf-8")
     req = urllib.request.Request(

@@ -356,6 +356,27 @@ class TestElevenLabsBackend(unittest.TestCase):
                 if v is not None:
                     os.environ[k] = v
 
+    def test_offline_seals_off_elevenlabs_cloud_backend(self):
+        # E-SH-4: api.elevenlabs.io is a cloud host, so KP_OFFLINE must refuse it
+        # even with valid keys — available() is False and post_simulation raises.
+        import os
+        from unittest import mock
+
+        from pipeline.jobfit.eval import elevenlabs_backend as el
+
+        with mock.patch.dict(os.environ, {"ELEVENLABS_API_KEY": "k", "ELEVENLABS_AGENT_ID": "a", "KP_OFFLINE": "1"}):
+            ok, reason = el.available()
+            self.assertFalse(ok)
+            self.assertIn("KP_OFFLINE", reason)
+            with self.assertRaises(RuntimeError) as ctx:
+                el.post_simulation("a", "k", {})
+            self.assertIn("KP_OFFLINE", str(ctx.exception))
+        # Sanity: with the flag off, keys present → available (no network call).
+        with mock.patch.dict(os.environ, {"ELEVENLABS_API_KEY": "k", "ELEVENLABS_AGENT_ID": "a"}):
+            os.environ.pop("KP_OFFLINE", None)
+            ok, _ = el.available()
+            self.assertTrue(ok)
+
 
 class TestBriefBridge(unittest.TestCase):
     """The TS brief-bridge must emit the SAME brief as the Python port for default/student

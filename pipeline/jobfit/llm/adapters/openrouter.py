@@ -17,7 +17,6 @@ from typing import Any
 # Re-exported so the base's ``_load_env`` dispatch (and tests that patch it on this
 # module) resolve it here — same reason openai_api re-exports it.
 from ..base import load_local_env  # noqa: F401
-from ..offline import is_offline
 from .openai_api import OpenAIProvider
 
 _DEFAULT_BASE_URL = "https://openrouter.ai/api/v1"
@@ -38,7 +37,9 @@ class OpenRouterProvider(OpenAIProvider):
     def available(self) -> bool:
         # Unlike a keyless self-hosted OpenAI-compatible endpoint, OpenRouter ALWAYS
         # needs a key — so availability rides on the key, not just the SDK import.
-        if is_offline() and not self._allowed_offline():
+        # _offline_blocked() (base) seals off the default openrouter.ai cloud host
+        # under KP_OFFLINE; only an on-box OPENROUTER_BASE_URL would stay usable.
+        if self._offline_blocked():
             return False
         return bool(self._resolved_key()) and self._import_sdk()
 

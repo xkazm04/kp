@@ -24,7 +24,7 @@ from typing import Any, Sequence
 
 from ..claude_cli import _extract_json
 from . import monitor
-from .offline import is_offline
+from .offline import is_local_url, is_offline
 
 DEFAULT_TIMEOUT_S = 180
 # The wrapped use cases return deliberately short JSON (sub-KB rationales,
@@ -203,16 +203,52 @@ class TextProvider:
             return False
         return True
 
+    def _offline_egress_url(self) -> str | None:
+        """The endpoint this adapter would send prompts to, for the KP_OFFLINE
+        on-box check. ``None`` = a fixed cloud host with no configurable on-box
+        override (Anthropic, Gemini, api.openai.com) — never local, so never
+        allowed offline. OpenAI-compatible adapters override with their resolved
+        ``base_url``; Azure with its resource endpoint."""
+        return None
+
     def _allowed_offline(self) -> bool:
-        """Whether this adapter may run under KP_OFFLINE. Cloud adapters return
-        False (→ deterministic fallback); a self-hosted/configured endpoint
-        overrides to True (the OpenAI adapter via its base_url, Azure via its
-        endpoint). See pipeline/jobfit/llm/offline.py."""
-        return False
+        """Whether this adapter may run under KP_OFFLINE. True ONLY when its egress
+        endpoint is a genuinely on-box / private host (``offline.is_local_url``): a
+        loopback / unix-socket / private-network model server (Ollama, vLLM) stays
+        usable; a cloud host — or no configured local endpoint — is sealed off and
+        drops to the deterministic fallback. See pipeline/jobfit/llm/offline.py.
+
+        The single seam every egressing adapter inherits: a future adapter that does
+        not override ``_offline_egress_url`` is cloud-only and blocked offline by
+        default, so the no-egress guarantee cannot be lost by omission."""
+        return is_local_url(self._offline_egress_url())
+
+    def _offline_blocked(self) -> bool:
+        """The one KP_OFFLINE decision, shared by every adapter's ``available()``
+        and by the ``complete()`` egress guard: sealed iff offline is on AND this
+        adapter's endpoint would leave the box."""
+        return is_offline() and not self._allowed_offline()
+
+    def _assert_offline_egress_allowed(self) -> None:
+        """Fail closed with a clear, actionable error (never a silent no-op) when a
+        call would egress off-box under KP_OFFLINE — belt-and-suspenders behind
+        ``available()`` so even a direct ``complete()`` can never breach the seal."""
+        if not self._offline_blocked():
+            return
+        target = self._offline_egress_url() or f"{self.name}'s default cloud endpoint"
+        raise LLMError(
+            f"KP_OFFLINE is set (air-gapped no-egress mode), but provider "
+            f"{self.name!r} would send prompts to {target!r}, which is not an "
+            f"on-box endpoint — refusing to egress candidate data. Point the "
+            f"provider at a loopback/on-box model server (e.g. "
+            f"http://localhost:11434/v1) or unset KP_OFFLINE.",
+            provider=self.name,
+            subtype="offline_egress_blocked",
+        )
 
     def available(self) -> bool:
         # Hard no-egress mode: a cloud engine must not fire even if a key is set.
-        if is_offline() and not self._allowed_offline():
+        if self._offline_blocked():
             return False
         if not self._resolved_key():
             return False
@@ -229,6 +265,9 @@ class TextProvider:
     ) -> LLMResult:
         if not prompt or not prompt.strip():
             raise ValueError("prompt must be non-empty")
+        # Fail closed before any network client is built: a call that would leave
+        # the box under KP_OFFLINE raises here rather than egressing candidate data.
+        self._assert_offline_egress_allowed()
         budget = timeout or self.timeout
         first_started = time.monotonic()
 

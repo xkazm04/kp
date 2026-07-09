@@ -44,7 +44,19 @@ class OpenAIProvider(TextProvider):
         self._load_env()
         return os.getenv("OPENAI_BASE_URL") or None
 
+    def _offline_egress_url(self) -> str | None:
+        # Under KP_OFFLINE the on-box check runs against THIS host: a loopback /
+        # on-box base_url is allowed, a cloud one (or none → api.openai.com) is
+        # sealed off. Closes the gap where a stray cloud OPENAI_BASE_URL used to
+        # be trusted merely because it resolved.
+        return self._resolved_base_url()
+
     def available(self) -> bool:
+        # Hard no-egress mode FIRST: a base_url that points off-box must not fire
+        # even keyless — that is the whole point of KP_OFFLINE. _allowed_offline()
+        # (base) green-lights only a genuinely on-box base_url.
+        if self._offline_blocked():
+            return False
         # A self-hosted OpenAI-compatible endpoint may require no key (vLLM/Ollama),
         # so when one is configured, availability rides on the SDK being importable
         # rather than a resolved key. The default OpenAI path still requires a key.
