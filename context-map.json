@@ -3,6 +3,10 @@
   "projectId": "a3f8c2d1-7b4e-4f9a-9c6d-2e8b5a1f0d47",
   "projectName": "kp",
   "projectPath": "C:/Users/kazda/kiro/kp",
+  "provenance": {
+    "gitCommit": "cc7c2263e706ea3486c8b0e382c66e84ec66a37e",
+    "gitCommitCount": 999
+  },
   "version": "2.0.0",
   "groups": [
     {
@@ -28,12 +32,15 @@
             "app/_lib/cv-variant.ts",
             "app/_lib/cv-variant.test.ts",
             "app/_lib/apply-profile-result.ts",
-            "app/_lib/apply-profile-result.test.ts"
+            "app/_lib/apply-profile-result.test.ts",
+            "app/_lib/github-handle.ts"
           ],
           "target": null,
           "apiRoutes": [
             "/api/github-analysis"
-          ]
+          ],
+          "pinned": false,
+          "lastWrittenAt": "2026-07-09T14:00:12.685Z"
         },
         {
           "name": "Candidate Profile & Job Matching",
@@ -76,7 +83,11 @@
             "app/_lib/db/profiles.ts",
             "app/_lib/db/profiles-tenancy.test.ts",
             "app/_lib/reasoning-cache-key.test.ts",
-            "app/_lib/reasoning-cache-policy.test.ts"
+            "app/_lib/reasoning-cache-policy.test.ts",
+            "app/_lib/match-score.ts",
+            "app/_lib/match-score-resolve.ts",
+            "app/_lib/applicant-profile.ts",
+            "app/_lib/role-families.ts"
           ],
           "target": null,
           "apiRoutes": [
@@ -84,7 +95,9 @@
             "/api/match",
             "/api/match/reasoning",
             "/api/archetypes"
-          ]
+          ],
+          "pinned": false,
+          "lastWrittenAt": "2026-07-09T14:00:12.730Z"
         },
         {
           "name": "Analysis Result Panels",
@@ -119,7 +132,9 @@
             "app/_lib/useAddToPipeline.test.ts"
           ],
           "target": null,
-          "apiRoutes": []
+          "apiRoutes": [],
+          "pinned": false,
+          "lastWrittenAt": "2026-06-17T06:33:08.172Z"
         },
         {
           "name": "CV Analysis Workspace",
@@ -165,7 +180,9 @@
             "/api/analyze",
             "/api/extract-text",
             "/api/analyses"
-          ]
+          ],
+          "pinned": false,
+          "lastWrittenAt": "2026-06-17T06:35:54.421Z"
         }
       ]
     },
@@ -210,7 +227,9 @@
             "/api/jobs/[id]/rediscover",
             "/api/jobs/[id]/campaign",
             "/api/rediscovery/alerts"
-          ]
+          ],
+          "pinned": false,
+          "lastWrittenAt": "2026-06-20T08:13:56.497Z"
         },
         {
           "name": "Job Postings & Lifecycle",
@@ -243,7 +262,9 @@
           "target": null,
           "apiRoutes": [
             "/api/jobs"
-          ]
+          ],
+          "pinned": false,
+          "lastWrittenAt": "2026-06-17T06:33:08.203Z"
         },
         {
           "name": "JD Authoring Library & Templates",
@@ -253,7 +274,6 @@
           "filePaths": [
             "app/features/sub_library/LibraryTab.tsx",
             "app/features/sub_library/JdBuilder.tsx",
-            "app/features/sub_library/JdBuilderResult.tsx",
             "app/features/sub_library/JdTemplateManager.tsx",
             "app/features/sub_library/render-template.ts",
             "app/features/sub_library/render-template.test.ts",
@@ -276,13 +296,23 @@
             "app/jds/[slug]/JdActions.tsx",
             "app/api/jds/save/ingest-job.ts",
             "app/api/jds/save/save-ingest-contract.test.ts",
-            "app/api/jds/error-message-hygiene.test.ts"
+            "app/api/jds/error-message-hygiene.test.ts",
+            "app/features/sub_library/JdCandidateList.tsx",
+            "app/features/sub_library/JdLintPanel.tsx",
+            "app/features/sub_library/LibraryGeneratePanel.tsx",
+            "app/features/sub_library/LibrarySavedJdsLedger.tsx",
+            "app/features/sub_library/jd-hooks.ts",
+            "app/features/sub_library/jd-library.ts",
+            "app/api/jds/generate/route.ts",
+            "app/api/jds/[slug]/retry-analysis/route.ts"
           ],
           "target": null,
           "apiRoutes": [
             "/api/jds",
             "/api/templates"
-          ]
+          ],
+          "pinned": false,
+          "lastWrittenAt": "2026-07-09T14:00:12.762Z"
         }
       ]
     },
@@ -294,13 +324,36 @@
       "icon": null,
       "contexts": [
         {
+          "name": "ATS Integration & Egress",
+          "description": "A vendor-neutral outbound integration that replaces a whole-DB dump: ats-record.ts purely maps a pipeline entry + job + latest sealed decision + offer into a stable versioned kp.ats.v1 record, and ats-egress.ts fetches those rows and POSTs signed lifecycle webhooks. Config (webhook URL, subscribed events, write-only signing secret) lives in the lazily-created ats_config table via ats-config-store.ts under a strict secret doctrine (getAtsConfig returns only hasSecret), and ats-webhook.ts defines the event types plus the HMAC-SHA256 'sha256=<hex>' signature. Delivery is best-effort with a 5s timeout; candidate.hired fires live from offer-finalize.ts on offer-accept, and IntegrationsCard configures it plus a test ping.",
+          "businessFeature": null,
+          "category": "feature",
+          "filePaths": [
+            "app/_lib/ats-config-store.ts",
+            "app/_lib/ats-egress.ts",
+            "app/_lib/ats-record.ts",
+            "app/_lib/ats-webhook.ts",
+            "app/api/ats/candidate/[id]/route.ts",
+            "app/api/ats/config/route.ts",
+            "app/api/ats/test/route.ts",
+            "app/features/tasks/IntegrationsCard.tsx"
+          ],
+          "target": null,
+          "apiRoutes": [
+            "GET /api/ats/candidate/[id]",
+            "GET,POST /api/ats/config",
+            "POST /api/ats/test"
+          ],
+          "pinned": false,
+          "lastWrittenAt": "2026-07-09T14:00:13.204Z"
+        },
+        {
           "name": "Communications & Inbound Channels",
           "description": "Outbound candidate communications (envelopes, dispatch, delivery status, resend) and inbound channel webhooks/tokens that feed applications into the pipeline.",
           "businessFeature": "Communications & Inbound Channels",
           "category": "lib",
           "filePaths": [
             "app/features/sub_channels/ChannelsTab.tsx",
-            "app/features/sub_channels/CommsCenter.tsx",
             "app/api/channels/inbound/[token]/route.ts",
             "app/api/channels/webhooks/route.ts",
             "app/api/channels/webhooks/[token]/route.ts",
@@ -309,22 +362,38 @@
             "app/_lib/comms.ts",
             "app/_lib/comms-dispatch.ts",
             "app/_lib/comms-dispatch.test.ts",
-            "app/_lib/comms-dispatch-locale.test.ts",
-            "app/_lib/comms-locale.ts",
-            "app/_lib/comms-locale.test.ts",
             "app/_lib/comms-envelope.ts",
             "app/_lib/comms-envelope.test.ts",
             "app/_lib/comms-status.ts",
             "app/_lib/comms-status.test.ts",
             "app/_lib/db/channels.ts",
             "app/_lib/webhook-idempotency.ts",
-            "app/_lib/webhook-idempotency.test.ts"
+            "app/_lib/webhook-idempotency.test.ts",
+            "app/features/sub_channels/AdFormsPane.tsx",
+            "app/features/sub_channels/CommsTable.tsx",
+            "app/features/sub_channels/CvSimCard.tsx",
+            "app/features/sub_channels/EmailIntakeWizard.tsx",
+            "app/features/sub_channels/SetupGuide.tsx",
+            "app/features/sub_channels/channel-receivers.tsx",
+            "app/features/sub_channels/filters.tsx",
+            "app/features/sub_channels/sections.ts",
+            "app/features/sub_channels/use-channel-data.ts",
+            "app/features/sub_channels/use-receivers.ts",
+            "app/_lib/comms-locale.ts",
+            "app/_lib/comms-recipient.ts",
+            "app/_lib/comms-truth.ts",
+            "app/_lib/comms-view.ts",
+            "app/api/comms/callback/route.ts",
+            "app/api/comms/capability/route.ts",
+            "app/features/useDeliveryCapability.ts"
           ],
           "target": null,
           "apiRoutes": [
             "/api/channels",
             "/api/comms"
-          ]
+          ],
+          "pinned": false,
+          "lastWrittenAt": "2026-07-09T14:00:12.775Z"
         },
         {
           "name": "Group Evaluation & Fairness",
@@ -351,12 +420,15 @@
             "app/_lib/group-eval-differentiators.ts",
             "app/_lib/group-eval-differentiators.test.ts",
             "app/_lib/sanity-checks.ts",
-            "app/_lib/sanity-checks.test.ts"
+            "app/_lib/sanity-checks.test.ts",
+            "app/_lib/group-eval-governance.ts"
           ],
           "target": null,
           "apiRoutes": [
             "/api/decisions/group-eval"
-          ]
+          ],
+          "pinned": false,
+          "lastWrittenAt": "2026-07-09T14:00:12.807Z"
         },
         {
           "name": "Screening Decisions & Records",
@@ -384,14 +456,20 @@
             "app/_lib/decision-hash.test.ts",
             "app/_lib/decision-attribution.ts",
             "app/_lib/decision-attribution.test.ts",
-            "app/_lib/screen-wave.ts"
+            "app/_lib/screen-wave.ts",
+            "app/features/sub_decisions/ComplianceSection.tsx",
+            "app/_lib/compliance-regimes.ts",
+            "app/api/compliance/route.ts",
+            "app/_lib/screen-wave-approval.ts"
           ],
           "target": null,
           "apiRoutes": [
             "/api/decisions/config",
             "/api/decisions/screen-wave",
             "/api/decisions/records"
-          ]
+          ],
+          "pinned": false,
+          "lastWrittenAt": "2026-07-09T14:00:12.820Z"
         },
         {
           "name": "Application Intake & Apply Flows",
@@ -414,17 +492,19 @@
             "app/_lib/application-status.test.ts",
             "app/_lib/application-status-store.ts",
             "app/_lib/lead-intake.ts",
-            "app/_lib/lead-intake-locale.test.ts",
             "app/_lib/lead-payload.ts",
             "app/_lib/lead-payload.test.ts",
             "app/_lib/completeness-followup.ts",
-            "app/_lib/completeness-followup.test.ts"
+            "app/_lib/completeness-followup.test.ts",
+            "app/_lib/cv-intake.ts"
           ],
           "target": null,
           "apiRoutes": [
             "/api/apply/[id]",
             "/api/status/[token]"
-          ]
+          ],
+          "pinned": false,
+          "lastWrittenAt": "2026-07-09T14:00:12.853Z"
         },
         {
           "name": "Pipeline Board & Candidate Drawer",
@@ -461,13 +541,15 @@
             "app/_lib/pipeline-command.ts",
             "app/_lib/pipeline-command.test.ts",
             "app/api/pipeline/command/route.ts",
-            "app/api/pipeline/command/route.test.ts",
-            "app/features/sub_pipeline/CommandBar.tsx"
+            "app/features/sub_pipeline/CommandBar.tsx",
+            "app/features/sub_pipeline/SalaryBenchmarkHint.tsx"
           ],
           "target": null,
           "apiRoutes": [
             "/api/pipeline"
-          ]
+          ],
+          "pinned": false,
+          "lastWrittenAt": "2026-07-09T14:00:12.867Z"
         }
       ]
     },
@@ -498,7 +580,9 @@
           "apiRoutes": [
             "/api/interview/simulate",
             "/api/interview/compare"
-          ]
+          ],
+          "pinned": false,
+          "lastWrittenAt": "2026-06-17T06:33:08.263Z"
         },
         {
           "name": "Voice Interview",
@@ -535,14 +619,17 @@
             "app/interview/[token]/page.tsx",
             "app/interview-lab/page.tsx",
             "scripts/setup-eleven-agent.mjs",
-            "app/api/interview/error-message-hygiene.test.ts"
+            "app/api/interview/error-message-hygiene.test.ts",
+            "app/_lib/voice/minute-prices.ts"
           ],
           "target": null,
           "apiRoutes": [
             "/api/interview/create",
             "/api/interview/connect",
             "/api/interview/complete"
-          ]
+          ],
+          "pinned": false,
+          "lastWrittenAt": "2026-07-09T14:00:12.901Z"
         },
         {
           "name": "Interview Scheduling, Prep & Rubric",
@@ -581,13 +668,21 @@
             "app/_lib/timezone.test.ts",
             "app/_lib/use-slot-label.ts",
             "app/_lib/db/interviews.ts",
-            "app/_lib/schedule-store.test.ts"
+            "app/_lib/schedule-store.test.ts",
+            "app/features/sub_schedule/AddToCalendar.tsx",
+            "app/features/sub_schedule/MeetingLinkCell.tsx",
+            "app/_lib/calendar-links.ts",
+            "app/api/schedule/invite/bulk/route.ts",
+            "scripts/interview-brief.ts",
+            "scripts/interview-brief-grounded.ts"
           ],
           "target": null,
           "apiRoutes": [
             "/api/schedule",
             "/api/interview-prep"
-          ]
+          ],
+          "pinned": false,
+          "lastWrittenAt": "2026-07-09T14:00:12.930Z"
         }
       ]
     },
@@ -617,7 +712,9 @@
           "target": null,
           "apiRoutes": [
             "/api/onboarding"
-          ]
+          ],
+          "pinned": false,
+          "lastWrittenAt": "2026-06-20T08:14:43.621Z"
         },
         {
           "name": "Hiring Automation & Scheduler",
@@ -647,7 +744,9 @@
           "target": null,
           "apiRoutes": [
             "/api/automation"
-          ]
+          ],
+          "pinned": false,
+          "lastWrittenAt": "2026-06-17T06:33:08.278Z"
         },
         {
           "name": "Offers & Onboarding",
@@ -662,12 +761,18 @@
             "app/_lib/offer-finalize.ts",
             "app/_lib/offer-policy.ts",
             "app/_lib/offer-policy.test.ts",
-            "app/_lib/offer-reminders.ts"
+            "app/_lib/offer-reminders.ts",
+            "app/offer/[token]/OfferClient.tsx",
+            "app/onboarding/[token]/OnboardingClient.tsx",
+            "app/_lib/preboarding-reminder-policy.ts",
+            "app/_lib/preboarding-reminders.ts"
           ],
           "target": null,
           "apiRoutes": [
             "/api/offer/[token]"
-          ]
+          ],
+          "pinned": false,
+          "lastWrittenAt": "2026-07-09T14:00:12.956Z"
         }
       ]
     },
@@ -703,10 +808,14 @@
             "pipeline/jobfit/devcase/provenance.py",
             "pipeline/jobfit/devcase/seed_materializer.py",
             "pipeline/jobfit/devcase/_synth.py",
-            "pipeline/jobfit/claude_cli.py"
+            "pipeline/jobfit/claude_cli.py",
+            "pipeline/jobfit/devcase/calibrate.py",
+            "pipeline/jobfit/devcase/real_corpus.py"
           ],
           "target": null,
-          "apiRoutes": []
+          "apiRoutes": [],
+          "pinned": false,
+          "lastWrittenAt": "2026-07-09T14:00:12.976Z"
         },
         {
           "name": "Dev Lifecycle, Cohort & Outcomes",
@@ -755,7 +864,9 @@
             "/api/devcase/lifecycle",
             "/api/devcase/outcomes",
             "/api/skill-profile/[token]/verify"
-          ]
+          ],
+          "pinned": false,
+          "lastWrittenAt": "2026-06-17T06:33:08.304Z"
         },
         {
           "name": "Dev Submissions & Live Work Surface",
@@ -773,13 +884,11 @@
             "app/devcase/apply/[token]/page.tsx",
             "app/devcase/apply/[token]/DevApplyForm.tsx",
             "app/devcase/apply/[token]/LiveWorkSurface.tsx",
-            "app/devcase/apply/[token]/SeedFiles.tsx",
             "app/api/devcase/submit/route.ts",
             "app/api/devcase/inbound/route.ts",
             "app/api/devcase/session/route.ts",
             "app/api/devcase/session/[id]/route.ts",
             "app/api/devcase/session/[id]/submit/route.ts",
-            "app/api/devcase/seed/[id]/route.ts",
             "app/_lib/repo-snapshot.ts",
             "app/_lib/repo-snapshot.test.ts",
             "app/_lib/repo-activity.ts",
@@ -795,7 +904,9 @@
           "apiRoutes": [
             "/api/devcase/submit",
             "/api/devcase/session"
-          ]
+          ],
+          "pinned": false,
+          "lastWrittenAt": "2026-07-09T14:00:12.985Z"
         },
         {
           "name": "Dev Case Authoring & Publishing",
@@ -826,7 +937,9 @@
           "apiRoutes": [
             "/api/devcase",
             "/api/devcase/publish"
-          ]
+          ],
+          "pinned": false,
+          "lastWrittenAt": "2026-06-17T06:33:08.284Z"
         }
       ]
     },
@@ -910,7 +1023,9 @@
             "pipeline/jobfit/tests/test_claude_cli.py"
           ],
           "target": null,
-          "apiRoutes": []
+          "apiRoutes": [],
+          "pinned": false,
+          "lastWrittenAt": "2026-06-17T06:33:08.338Z"
         },
         {
           "name": "Evaluation, Fairness & Seed Data",
@@ -936,10 +1051,16 @@
             "data/seed_jobs/jobs.normalized.json",
             "data/seed_candidates/candidates.json",
             "data/seed_pipeline/pipeline.json",
-            "data/salary_benchmarks.json"
+            "data/salary_benchmarks.json",
+            "pipeline/jobfit/eval/elevenlabs_backend.py",
+            "pipeline/jobfit/eval/interview_eval.py",
+            "pipeline/jobfit/eval/interview_optimize.py",
+            "pipeline/jobfit/eval/interview_scenarios_gen.py"
           ],
           "target": null,
-          "apiRoutes": []
+          "apiRoutes": [],
+          "pinned": false,
+          "lastWrittenAt": "2026-07-09T14:00:12.996Z"
         },
         {
           "name": "Pipeline CLIs & Script Bridges",
@@ -970,7 +1091,9 @@
             "scripts/salary.py"
           ],
           "target": null,
-          "apiRoutes": []
+          "apiRoutes": [],
+          "pinned": false,
+          "lastWrittenAt": "2026-06-17T06:33:08.325Z"
         },
         {
           "name": "CV Extraction & Pipeline Services",
@@ -995,7 +1118,9 @@
             "pipeline/jobfit/_cli.py"
           ],
           "target": null,
-          "apiRoutes": []
+          "apiRoutes": [],
+          "pinned": false,
+          "lastWrittenAt": "2026-06-17T06:33:08.319Z"
         },
         {
           "name": "Matching & Transformation Engine",
@@ -1025,7 +1150,9 @@
             "data/taxonomy.json"
           ],
           "target": null,
-          "apiRoutes": []
+          "apiRoutes": [],
+          "pinned": false,
+          "lastWrittenAt": "2026-06-17T06:33:08.315Z"
         }
       ]
     },
@@ -1055,14 +1182,25 @@
             "app/features/useEngineAvailability.ts",
             "app/_lib/db/llm.ts",
             "app/_lib/redact-secrets.ts",
-            "app/_lib/redact-secrets.test.ts"
+            "app/_lib/redact-secrets.test.ts",
+            "app/features/sub_models/QualityOverview.tsx",
+            "app/features/sub_models/UsagePanel.tsx",
+            "app/_lib/llm-lighttrack.ts",
+            "app/_lib/llm-quality.ts",
+            "app/_lib/llm-quality-scores.ts",
+            "app/_lib/llm-usage-ledger.ts",
+            "app/_lib/provider-key-precedence.ts",
+            "app/_lib/gemini-retry.ts",
+            "app/api/llm/usage/route.ts"
           ],
           "target": null,
           "apiRoutes": [
             "/api/llm/config",
             "/api/llm/keys",
             "/api/llm/test"
-          ]
+          ],
+          "pinned": false,
+          "lastWrittenAt": "2026-07-09T14:00:13.008Z"
         },
         {
           "name": "LLM Provider Layer (Python)",
@@ -1090,10 +1228,17 @@
             "pipeline/jobfit/tests/test_llm_base.py",
             "pipeline/jobfit/tests/test_llm_registry.py",
             "pipeline/jobfit/tests/test_llm_monitor.py",
-            "pipeline/jobfit/tests/test_llm_bench.py"
+            "pipeline/jobfit/tests/test_llm_bench.py",
+            "pipeline/jobfit/credentials.py",
+            "pipeline/jobfit/llm/adapters/openrouter.py",
+            "pipeline/jobfit/llm/offline.py",
+            "pipeline/jobfit/llm/bench/bake_quality.py",
+            "pipeline/jobfit/llm/bench/judge.py"
           ],
           "target": null,
-          "apiRoutes": []
+          "apiRoutes": [],
+          "pinned": false,
+          "lastWrittenAt": "2026-07-09T14:00:13.020Z"
         }
       ]
     },
@@ -1128,13 +1273,19 @@
             "app/api/sim/screen-draft/route.ts",
             "app/api/sim/inbound/route.ts",
             "app/_lib/sim-store.ts",
-            "app/api/demo/route.ts"
+            "app/api/demo/route.ts",
+            "app/features/simulation/ControlDock.tsx",
+            "app/features/simulation/controlCenterKit.ts",
+            "app/control/ControlRoom.tsx",
+            "app/api/sim/apply-cv/route.ts"
           ],
           "target": null,
           "apiRoutes": [
             "/api/sim",
             "/api/demo"
-          ]
+          ],
+          "pinned": false,
+          "lastWrittenAt": "2026-07-09T14:00:13.031Z"
         },
         {
           "name": "Architecture Diagrams",
@@ -1154,7 +1305,9 @@
             "app/_components/puml/parse.test.ts"
           ],
           "target": null,
-          "apiRoutes": []
+          "apiRoutes": [],
+          "pinned": false,
+          "lastWrittenAt": "2026-06-17T06:33:08.365Z"
         },
         {
           "name": "Skill Matrix & Coverage",
@@ -1174,7 +1327,9 @@
           "target": null,
           "apiRoutes": [
             "/api/matrix"
-          ]
+          ],
+          "pinned": false,
+          "lastWrittenAt": "2026-06-17T06:33:08.360Z"
         },
         {
           "name": "Analytics & Calibration Dashboards",
@@ -1203,12 +1358,18 @@
             "app/_lib/calibration.test.ts",
             "app/_lib/source-analytics.ts",
             "app/_lib/source-analytics.test.ts",
-            "app/_lib/db/analytics.ts"
+            "app/_lib/db/analytics.ts",
+            "app/features/sub_analytics/OrgBenchmarkPanel.tsx",
+            "app/api/benchmarks/route.ts",
+            "app/api/benchmarks/salary/route.ts",
+            "app/_lib/adverse-impact.ts"
           ],
           "target": null,
           "apiRoutes": [
             "/api/analytics"
-          ]
+          ],
+          "pinned": false,
+          "lastWrittenAt": "2026-07-09T14:00:13.042Z"
         }
       ]
     },
@@ -1237,7 +1398,9 @@
             "/api/billing",
             "/api/billing/checkout",
             "/api/billing/portal"
-          ]
+          ],
+          "pinned": false,
+          "lastWrittenAt": "2026-06-17T06:33:08.383Z"
         },
         {
           "name": "Billing Engine & Webhooks",
@@ -1262,7 +1425,9 @@
           "target": null,
           "apiRoutes": [
             "/api/billing/webhook"
-          ]
+          ],
+          "pinned": false,
+          "lastWrittenAt": "2026-06-17T06:33:08.377Z"
         }
       ]
     },
@@ -1273,6 +1438,28 @@
       "color": "#64748b",
       "icon": null,
       "contexts": [
+        {
+          "name": "Branding & White-label",
+          "description": "A white-label layer storing one org-level brand record (display name, hex accent color, https logo URL) in a lazily-created brand_settings table via the isolated-connection brand-store.ts, with validation centralized in the pure brand-config.ts (strict hex/URL sanitizers that make the injected accent CSS-injection-safe). The root layout reads getBrand() once and seeds BrandProvider (fetch-free context for BrandHeader) and BrandStyle (a server-rendered <style> overriding the --color-coral design token app-wide, including candidate-facing pages). BrandingTab reads/writes /api/brand and applies the accent live on save.",
+          "businessFeature": null,
+          "category": "feature",
+          "filePaths": [
+            "app/_components/BrandHeader.tsx",
+            "app/_components/BrandProvider.tsx",
+            "app/_components/BrandStyle.tsx",
+            "app/_lib/brand-config.ts",
+            "app/_lib/brand-store.ts",
+            "app/features/sub_branding/BrandingTab.tsx",
+            "app/api/brand/route.ts"
+          ],
+          "target": null,
+          "apiRoutes": [
+            "GET /api/brand",
+            "PUT /api/brand"
+          ],
+          "pinned": false,
+          "lastWrittenAt": "2026-07-09T14:00:13.196Z"
+        },
         {
           "name": "Landing & Marketing",
           "description": "The public marketing landing pages (Studio + Spark art directions) and the login entry page.",
@@ -1292,10 +1479,19 @@
             "app/landing/spark/AboutHome.tsx",
             "app/landing/spark/LandingLangSwitch.tsx",
             "app/landing/spark/SparkHome.tsx",
-            "app/landing/spark/aboutIllustrations.tsx"
+            "app/landing/spark/aboutIllustrations.tsx",
+            "app/landing/spark/MarketPulse.tsx",
+            "app/landing/spark/market/CzMap.tsx",
+            "app/landing/spark/market/MarketPulseApp.tsx",
+            "app/landing/spark/market/MarketPulseAtlas.tsx",
+            "app/landing/spark/market/data.ts",
+            "app/landing/spark/market/parts.tsx",
+            "app/market/page.tsx"
           ],
           "target": null,
-          "apiRoutes": []
+          "apiRoutes": [],
+          "pinned": false,
+          "lastWrittenAt": "2026-07-09T14:00:13.054Z"
         },
         {
           "name": "Shared Utility Libraries",
@@ -1326,7 +1522,9 @@
             "app/_lib/request-body.ts"
           ],
           "target": null,
-          "apiRoutes": []
+          "apiRoutes": [],
+          "pinned": false,
+          "lastWrittenAt": "2026-06-20T08:13:56.482Z"
         },
         {
           "name": "Shared UI & Design System",
@@ -1337,13 +1535,9 @@
             "app/_components/Badge.tsx",
             "app/_components/Modal.tsx",
             "app/_components/Markdown.tsx",
-            "app/_components/DisclosureRow.tsx",
             "app/_components/SegmentedControl.tsx",
             "app/_components/segmented-control-selection.ts",
             "app/_components/segmented-control-selection.test.ts",
-            "app/_components/Toast.tsx",
-            "app/_components/toast-store.ts",
-            "app/_components/toast-store.test.ts",
             "app/_components/Skeleton.tsx",
             "app/_components/ThemeToggle.tsx",
             "app/_components/ChainEmptyState.tsx",
@@ -1361,7 +1555,6 @@
             "app/_components/icons/JobFitIcon.tsx",
             "app/_components/icons/SalaryIcon.tsx",
             "app/_components/ui/SectionTitle.tsx",
-            "app/_components/ui/ThemeSplit.tsx",
             "app/_components/ui/recipes.ts",
             "app/_components/ui/useTheme.ts",
             "app/globals.css",
@@ -1380,10 +1573,26 @@
             "app/apple-icon.tsx",
             "app/opengraph-image.tsx",
             "app/_lib/og-fonts.ts",
-            "app/_lib/og-fonts.test.ts"
+            "app/_lib/og-fonts.test.ts",
+            "app/_components/Checkbox.tsx",
+            "app/_components/FileInput.tsx",
+            "app/_components/Radio.tsx",
+            "app/_components/RichTextEditor.tsx",
+            "app/_components/Select.tsx",
+            "app/_components/TextArea.tsx",
+            "app/_components/TextInput.tsx",
+            "app/_components/Toast.tsx",
+            "app/_components/toast-store.ts",
+            "app/_components/markdown-html.ts",
+            "app/_components/useDialogA11y.ts",
+            "app/_components/RouteError.tsx",
+            "app/_components/RouteLoading.tsx",
+            "app/_components/ScoreProvenanceLabel.tsx"
           ],
           "target": null,
-          "apiRoutes": []
+          "apiRoutes": [],
+          "pinned": false,
+          "lastWrittenAt": "2026-07-09T14:00:13.074Z"
         },
         {
           "name": "Tasks & System Operations",
@@ -1412,14 +1621,21 @@
             "app/_dev-inspector/devLocate.ts",
             "scripts/dev-inspector/inject-source-loc.cjs",
             "scripts/dev-inspector/source-loc-loader.cjs",
-            "scripts/dev-guard.mjs"
+            "scripts/dev-guard.mjs",
+            "app/_lib/scheduler-health.ts",
+            "app/_lib/sales-contact.ts",
+            "app/_lib/site-url.ts",
+            "instrumentation-node.ts",
+            "playwright.config.ts"
           ],
           "target": null,
           "apiRoutes": [
             "/api/tasks",
             "/api/health",
             "/api/ops"
-          ]
+          ],
+          "pinned": false,
+          "lastWrittenAt": "2026-07-09T14:00:13.093Z"
         },
         {
           "name": "App Shell & Navigation",
@@ -1455,13 +1671,43 @@
             "e2e/analyze-smoke.spec.ts",
             "e2e/modal-escape.spec.ts",
             "e2e/profile-builder.spec.ts",
-            "e2e/fixtures/github-analysis.ts"
+            "e2e/fixtures/github-analysis.ts",
+            "app/error.tsx",
+            "app/global-error.tsx",
+            "app/not-found.tsx",
+            "app/robots.ts",
+            "app/sitemap.ts",
+            "app/features/nav/nav-meta.ts",
+            "app/apply/[id]/error.tsx",
+            "app/apply/[id]/loading.tsx",
+            "app/devcase/apply/[token]/error.tsx",
+            "app/devcase/apply/[token]/loading.tsx",
+            "app/history/[slug]/error.tsx",
+            "app/history/[slug]/loading.tsx",
+            "app/interview/[token]/error.tsx",
+            "app/interview/[token]/loading.tsx",
+            "app/jds/[slug]/error.tsx",
+            "app/jds/[slug]/loading.tsx",
+            "app/offer/[token]/error.tsx",
+            "app/offer/[token]/loading.tsx",
+            "app/onboarding/[token]/error.tsx",
+            "app/onboarding/[token]/loading.tsx",
+            "app/schedule/[token]/error.tsx",
+            "app/schedule/[token]/loading.tsx",
+            "app/skill/[token]/error.tsx",
+            "app/skill/[token]/loading.tsx",
+            "app/data/[token]/loading.tsx",
+            "app/status/[token]/loading.tsx",
+            "app/login/loading.tsx",
+            "app/features/nav/SectionRailNav.tsx"
           ],
           "target": null,
           "apiRoutes": [
             "/api/search",
             "/api/attention"
-          ]
+          ],
+          "pinned": false,
+          "lastWrittenAt": "2026-07-09T14:00:57.149Z"
         }
       ]
     },
@@ -1472,6 +1718,54 @@
       "color": "#475569",
       "icon": null,
       "contexts": [
+        {
+          "name": "Organizations, Members & Invites",
+          "description": "The identity/tenancy layer: an organization (top tenant, parent of team workspaces) owns users, their per-team memberships (role + JSON capability overrides), and tokenized invites. Small DB stores (db/{organizations,users,memberships,invites}.ts) compose into org-service.ts, which enforces business guardrails (last-owner protection; the invite->accept lifecycle that mints a user + membership and auto-signs them in) and a capability model (auth/roles.ts maps five roles to capabilities, resolved live per request). OrganizationConsole drives roster/invite/permission management via /api/org/*, while a first-run OnboardingWizard collects org name, language, invites, and a first job draft.",
+          "businessFeature": null,
+          "category": "feature",
+          "filePaths": [
+            "app/features/sub_organization/OrganizationConsole.tsx",
+            "app/features/sub_organization/OrganizationTab.tsx",
+            "app/features/sub_organization/MemberPermissionsModal.tsx",
+            "app/features/sub_organization/useOrgMembers.ts",
+            "app/features/sub_organization/member-ui.ts",
+            "app/features/sub_organization/mock.ts",
+            "app/api/org/invites/route.ts",
+            "app/api/org/invites/[token]/route.ts",
+            "app/api/org/members/route.ts",
+            "app/api/org/members/[userId]/route.ts",
+            "app/api/invite/[token]/route.ts",
+            "app/invite/[token]/page.tsx",
+            "app/invite/[token]/AcceptForm.tsx",
+            "app/_lib/db/organizations.ts",
+            "app/_lib/db/memberships.ts",
+            "app/_lib/db/invites.ts",
+            "app/_lib/db/users.ts",
+            "app/_lib/org-actions.ts",
+            "app/_lib/org-service.ts",
+            "app/_lib/org-settings.ts",
+            "app/_lib/org-settings-server.ts",
+            "app/_lib/tenancy.ts",
+            "app/_lib/bulk-invite.ts",
+            "app/_lib/auth/roles.ts",
+            "app/_lib/auth/operator-approver.ts",
+            "app/features/setup/OnboardingWizard.tsx",
+            "app/features/setup/InviteEditor.tsx",
+            "app/features/setup/JobDescriptionStep.tsx",
+            "app/features/setup/OnboardingExperience.tsx",
+            "app/features/setup/steps.ts"
+          ],
+          "target": null,
+          "apiRoutes": [
+            "GET,POST /api/org/invites",
+            "DELETE /api/org/invites/[token]",
+            "GET /api/org/members",
+            "PATCH,DELETE /api/org/members/[userId]",
+            "GET,POST /api/invite/[token]"
+          ],
+          "pinned": false,
+          "lastWrittenAt": "2026-07-09T14:00:13.178Z"
+        },
         {
           "name": "Privacy, Consent & Provenance",
           "description": "GDPR-oriented consent capture and gating, AI-usage disclosure to candidates, and the provenance dossier that records how each data point was derived.",
@@ -1489,12 +1783,16 @@
             "app/api/pipeline/[id]/consent/route.ts",
             "app/features/sub_pipeline/ConsentPanel.tsx",
             "app/api/data/[token]/route.ts",
-            "app/data/[token]/page.tsx"
+            "app/data/[token]/page.tsx",
+            "app/data/[token]/DataClient.tsx",
+            "app/status/[token]/StatusClient.tsx"
           ],
           "target": null,
           "apiRoutes": [
             "/api/data/[token]"
-          ]
+          ],
+          "pinned": false,
+          "lastWrittenAt": "2026-07-09T14:00:13.146Z"
         },
         {
           "name": "Data Store & Persistence",
@@ -1511,10 +1809,18 @@
             "app/_lib/taxonomy.generated.ts",
             "next.config.ts",
             "requirements.txt",
-            "global.d.ts"
+            "global.d.ts",
+            "app/_lib/db/pg-portability.ts",
+            "app/_lib/db/salary-benchmark.ts",
+            "app/_lib/db/seed-benchmark-team.ts",
+            "app/_lib/db/org-benchmarks.ts",
+            "app/_lib/testing/unit-db.ts",
+            "app/_lib/offline.ts"
           ],
           "target": null,
-          "apiRoutes": []
+          "apiRoutes": [],
+          "pinned": false,
+          "lastWrittenAt": "2026-07-09T14:00:13.154Z"
         },
         {
           "name": "Auth, Sessions & Workspace Tenancy",
@@ -1544,12 +1850,16 @@
             "proxy.ts",
             "scripts/db-dump.mjs",
             "scripts/db-load.mjs",
-            "app/_components/auth/HomeGate.tsx",
             "app/_components/auth/SignOutButton.tsx",
-            "app/_lib/auth/devAuth.ts",
             "app/_lib/auth/require-operator.ts",
             "app/_lib/workspace-lock.ts",
-            "app/_lib/workspace-lock.test.ts"
+            "app/_lib/workspace-lock.test.ts",
+            "app/_lib/auth/current-user.ts",
+            "app/_lib/auth/home-gate-server.ts",
+            "app/_lib/auth/password.ts",
+            "app/_lib/auth/session-nav.ts",
+            "app/login/LoginClient.tsx",
+            "e2e/dev-auth.ts"
           ],
           "target": null,
           "apiRoutes": [
@@ -1557,7 +1867,9 @@
             "/api/workspaces",
             "/api/workspace/export",
             "/api/workspace/import"
-          ]
+          ],
+          "pinned": false,
+          "lastWrittenAt": "2026-07-09T14:00:13.165Z"
         }
       ]
     }
@@ -1661,57 +1973,61 @@
     }
   ],
   "index": [
-    "Candidate Analysis › GitHub Evidence & CV Utilities [lib] — 11 files",
-    "Candidate Analysis › Candidate Profile & Job Matching [ui] — 36 files",
+    "Candidate Analysis › GitHub Evidence & CV Utilities [lib] — 12 files",
+    "Candidate Analysis › Candidate Profile & Job Matching [ui] — 40 files",
     "Candidate Analysis › Analysis Result Panels [ui] — 25 files",
     "Candidate Analysis › CV Analysis Workspace [ui] — 32 files",
     "Jobs, JD Library & Sourcing › Sourcing, Campaigns & Rediscovery [ui] — 21 files",
     "Jobs, JD Library & Sourcing › Job Postings & Lifecycle [ui] — 21 files",
-    "Jobs, JD Library & Sourcing › JD Authoring Library & Templates [ui] — 27 files",
-    "Pipeline, Decisions & Channels › Communications & Inbound Channels [lib] — 17 files",
-    "Pipeline, Decisions & Channels › Group Evaluation & Fairness [ui] — 20 files",
-    "Pipeline, Decisions & Channels › Screening Decisions & Records [ui] — 21 files",
-    "Pipeline, Decisions & Channels › Application Intake & Apply Flows [ui] — 19 files",
-    "Pipeline, Decisions & Channels › Pipeline Board & Candidate Drawer [ui] — 30 files",
+    "Jobs, JD Library & Sourcing › JD Authoring Library & Templates [ui] — 33 files",
+    "Pipeline, Decisions & Channels › ATS Integration & Egress [feature] — 8 files",
+    "Pipeline, Decisions & Channels › Communications & Inbound Channels [lib] — 33 files",
+    "Pipeline, Decisions & Channels › Group Evaluation & Fairness [ui] — 21 files",
+    "Pipeline, Decisions & Channels › Screening Decisions & Records [ui] — 25 files",
+    "Pipeline, Decisions & Channels › Application Intake & Apply Flows [ui] — 20 files",
+    "Pipeline, Decisions & Channels › Pipeline Board & Candidate Drawer [ui] — 31 files",
     "Interviews & Scheduling › Interview Simulation & Comparison [ui] — 9 files",
-    "Interviews & Scheduling › Voice Interview [ui] — 30 files",
-    "Interviews & Scheduling › Interview Scheduling, Prep & Rubric [ui] — 32 files",
+    "Interviews & Scheduling › Voice Interview [ui] — 31 files",
+    "Interviews & Scheduling › Interview Scheduling, Prep & Rubric [ui] — 38 files",
     "Offers & Automation › Candidate Onboarding Hand-off [ui] — 9 files",
     "Offers & Automation › Hiring Automation & Scheduler [lib] — 18 files",
-    "Offers & Automation › Offers & Onboarding [ui] — 8 files",
-    "Dev Hiring Extension › Dev Case Pipeline (Python) [lib] — 20 files",
+    "Offers & Automation › Offers & Onboarding [ui] — 12 files",
+    "Dev Hiring Extension › Dev Case Pipeline (Python) [lib] — 22 files",
     "Dev Hiring Extension › Dev Lifecycle, Cohort & Outcomes [ui] — 35 files",
-    "Dev Hiring Extension › Dev Submissions & Live Work Surface [ui] — 27 files",
+    "Dev Hiring Extension › Dev Submissions & Live Work Surface [ui] — 25 files",
     "Dev Hiring Extension › Dev Case Authoring & Publishing [ui] — 18 files",
     "AI Matching & Extraction Engine › Pipeline Test Suite (Python) [test] — 65 files",
-    "AI Matching & Extraction Engine › Evaluation, Fairness & Seed Data [lib] — 19 files",
+    "AI Matching & Extraction Engine › Evaluation, Fairness & Seed Data [lib] — 23 files",
     "AI Matching & Extraction Engine › Pipeline CLIs & Script Bridges [lib] — 21 files",
     "AI Matching & Extraction Engine › CV Extraction & Pipeline Services [lib] — 15 files",
     "AI Matching & Extraction Engine › Matching & Transformation Engine [lib] — 20 files",
-    "LLM Provider Layer & Models › Model & API Key Management [ui] — 14 files",
-    "LLM Provider Layer & Models › LLM Provider Layer (Python) [lib] — 21 files",
-    "Insights, Analytics & Simulation › Guided Pipeline Simulation [ui] — 19 files",
+    "LLM Provider Layer & Models › Model & API Key Management [ui] — 23 files",
+    "LLM Provider Layer & Models › LLM Provider Layer (Python) [lib] — 26 files",
+    "Insights, Analytics & Simulation › Guided Pipeline Simulation [ui] — 23 files",
     "Insights, Analytics & Simulation › Architecture Diagrams [ui] — 10 files",
     "Insights, Analytics & Simulation › Skill Matrix & Coverage [ui] — 8 files",
-    "Insights, Analytics & Simulation › Analytics & Calibration Dashboards [ui] — 22 files",
+    "Insights, Analytics & Simulation › Analytics & Calibration Dashboards [ui] — 26 files",
     "Billing & Monetization › Plans, Checkout & Billing UI [ui] — 6 files",
     "Billing & Monetization › Billing Engine & Webhooks [lib] — 13 files",
-    "Platform, Shell & Shared UI › Landing & Marketing [ui] — 14 files",
+    "Platform, Shell & Shared UI › Branding & White-label [feature] — 7 files",
+    "Platform, Shell & Shared UI › Landing & Marketing [ui] — 21 files",
     "Platform, Shell & Shared UI › Shared Utility Libraries [lib] — 21 files",
-    "Platform, Shell & Shared UI › Shared UI & Design System [ui] — 44 files",
-    "Platform, Shell & Shared UI › Tasks & System Operations [ui] — 22 files",
-    "Platform, Shell & Shared UI › App Shell & Navigation [ui] — 29 files",
-    "Identity, Data & Privacy › Privacy, Consent & Provenance [lib] — 12 files",
-    "Identity, Data & Privacy › Data Store & Persistence [data] — 10 files",
-    "Identity, Data & Privacy › Auth, Sessions & Workspace Tenancy [lib] — 28 files"
+    "Platform, Shell & Shared UI › Shared UI & Design System [ui] — 56 files",
+    "Platform, Shell & Shared UI › Tasks & System Operations [ui] — 27 files",
+    "Platform, Shell & Shared UI › App Shell & Navigation [ui] — 57 files",
+    "Identity, Data & Privacy › Organizations, Members & Invites [feature] — 30 files",
+    "Identity, Data & Privacy › Privacy, Consent & Provenance [lib] — 14 files",
+    "Identity, Data & Privacy › Data Store & Persistence [data] — 16 files",
+    "Identity, Data & Privacy › Auth, Sessions & Workspace Tenancy [lib] — 32 files"
   ],
   "summary": {
     "totalGroups": 12,
-    "totalContexts": 43,
-    "totalFiles": 919,
+    "totalContexts": 46,
+    "totalFiles": 1099,
     "categories": {
       "lib": 13,
       "ui": 28,
+      "feature": 3,
       "test": 1,
       "data": 1
     },
@@ -1725,9 +2041,12 @@
   "audit": {
     "ok": false,
     "tier": "large",
-    "warnings": 21
+    "warnings": 32,
+    "staleContexts": 0,
+    "missingFiles": 0,
+    "unresolvedCrossRefs": 0
   },
   "instructions": "Context map for kp. Each group is a business domain (domain field); each context is a feature with its files (filePaths) + a technical category. Read this to learn which files belong to which feature BEFORE editing. When you change a context's files, update them here (or run Vibeman's refresh) to keep this fresh.",
-  "generatedAt": "2026-06-20T08:14:45.127Z",
-  "revision": "2a170c0f8146"
+  "generatedAt": "2026-07-09T14:00:58.823Z",
+  "revision": "4c564d3b4727"
 }
