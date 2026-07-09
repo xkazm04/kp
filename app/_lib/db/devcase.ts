@@ -520,7 +520,7 @@ export function getSubmission(id: string): DevSubmission | null {
 // ---- Live Work Surface (moonshot E) — in-product work sessions ------------
 // Events are typed locally (not imported from the features layer) so the db
 // stays a leaf; the API route coerces the wire JSON into this shape.
-export type DevSessionEvent = { t: number; kind: string; path?: string | null };
+export type DevSessionEvent = { t: number; kind: string; path?: string | null; size?: number | null };
 export type DevSessionFile = { path: string; contents: string };
 export type DevSession = {
   id: string;
@@ -575,9 +575,11 @@ export function getDevSession(id: string): DevSession | null {
 export function getDevSessionEvents(id: string): DevSessionEvent[] {
   const db = ensureDb();
   const rows = db
-    .prepare(`SELECT t, kind, path FROM dev_session_events WHERE session_id = ? ORDER BY seq ASC`)
+    .prepare(`SELECT t, kind, path, size FROM dev_session_events WHERE session_id = ? ORDER BY seq ASC`)
     .all(id) as Array<Record<string, unknown>>;
-  return rows.map((r) => ({ t: Number(r.t), kind: r.kind as string, path: (r.path as string) ?? null }));
+  // `size` carries the paste magnitude for "paste" events (bulk-paste authenticity
+  // signal); NULL for other kinds and legacy rows → surfaced as null.
+  return rows.map((r) => ({ t: Number(r.t), kind: r.kind as string, path: (r.path as string) ?? null, size: r.size == null ? null : Number(r.size) }));
 }
 
 /** Save the (editable) seed tree. No-op once the session is submitted. */
@@ -607,10 +609,12 @@ export function appendDevSessionEvents(id: string, events: DevSessionEvent[]): n
     const workspaceId = active.workspace_id ?? DEFAULT_WORKSPACE_ID;
     const max = db.prepare(`SELECT COALESCE(MAX(seq), 0) AS m FROM dev_session_events WHERE session_id = ?`).get(id) as { m: number };
     let seq = Number(max.m);
-    const stmt = db.prepare(`INSERT INTO dev_session_events (session_id, seq, t, kind, path, created_at, workspace_id) VALUES (?, ?, ?, ?, ?, ?, ?)`);
+    const stmt = db.prepare(`INSERT INTO dev_session_events (session_id, seq, t, kind, path, size, created_at, workspace_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`);
     for (const e of events) {
       seq += 1;
-      stmt.run(id, seq, Number.isFinite(e.t) ? e.t : null, String(e.kind), e.path ?? null, now, workspaceId);
+      // `size` = paste magnitude (char count) for "paste" events; null otherwise.
+      const size = typeof e.size === "number" && Number.isFinite(e.size) ? e.size : null;
+      stmt.run(id, seq, Number.isFinite(e.t) ? e.t : null, String(e.kind), e.path ?? null, size, now, workspaceId);
     }
     db.prepare(`UPDATE dev_sessions SET updated_at = ? WHERE id = ?`).run(now, id);
     return seq;

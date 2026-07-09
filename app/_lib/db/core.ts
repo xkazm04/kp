@@ -410,6 +410,17 @@ export function ensureDb(): Database.Database {
     CREATE INDEX IF NOT EXISTS idx_tasks_dedupe ON tasks (dedupe_key, status);
     CREATE INDEX IF NOT EXISTS idx_tasks_created ON tasks (created_at DESC);
 
+    -- Scheduler LIVENESS heartbeat (bug-ui-scan-2026-07-09 #1). One row, keyed by
+    -- a fixed id ('clock'), holding the last time the self-rescheduling automation
+    -- tick in instrumentation-node.ts fired. The ops/health surface reads it (an
+    -- O(1) primary-key lookup) and judges its age via scheduler-health.schedulerLiveness,
+    -- so a wedged clock reports UNHEALTHY instead of a green "Healthy" dot. Distinct
+    -- from scheduler_runs (per-JOB run log): this proves the CLOCK itself is alive.
+    CREATE TABLE IF NOT EXISTS scheduler_heartbeat (
+      id TEXT PRIMARY KEY,
+      last_tick_at TEXT NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS dev_cases (
       id TEXT PRIMARY KEY,
       title TEXT,
@@ -471,6 +482,11 @@ export function ensureDb(): Database.Database {
       t INTEGER,
       kind TEXT NOT NULL,
       path TEXT,
+      -- Bug-ui-scan 2026-07-09 #1: paste MAGNITUDE (char count) for a "paste" event —
+      -- the in-product bulk-paste authenticity signal (devcase-authenticity
+      -- PASTE_BULK_CHARS). NULL for non-paste kinds. Legacy DBs get it via the ALTER
+      -- migration below (a DB created before this column existed).
+      size INTEGER,
       created_at TEXT NOT NULL,
       PRIMARY KEY (session_id, seq)
     );
@@ -893,6 +909,13 @@ export function ensureDb(): Database.Database {
     "ALTER TABLE dev_submissions ADD COLUMN workspace_id TEXT NOT NULL DEFAULT 'workspace'",
     "ALTER TABLE dev_sessions ADD COLUMN workspace_id TEXT NOT NULL DEFAULT 'workspace'",
     "ALTER TABLE dev_session_events ADD COLUMN workspace_id TEXT NOT NULL DEFAULT 'workspace'",
+    // Bug-ui-scan 2026-07-09 #1 — paste MAGNITUDE (char count) for a "paste" observed
+    // event: the in-product bulk-paste authenticity tell. Without it the decisive -65
+    // penalty could never fire, so a ghost-written live submission scored "authentic"
+    // and could auto-promote. NULL for non-paste kinds and on legacy rows (which
+    // predate observed paste capture). migrateExec tolerates the re-run on a DB whose
+    // CREATE TABLE above already includes the column.
+    "ALTER TABLE dev_session_events ADD COLUMN size INTEGER",
     // Durable skill profiles (E0 Phase 1): stamped from the submission's workspace on
     // issue; public token / by-submission_id reads are exempt (skill-profiles-tenancy.test.ts).
     "ALTER TABLE skill_profiles ADD COLUMN workspace_id TEXT NOT NULL DEFAULT 'workspace'",
