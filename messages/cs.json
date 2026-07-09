@@ -1005,6 +1005,7 @@
       "models": "Modely"
     },
     "groups": {
+      "hiring": "Nábor",
       "library": "Knihovna",
       "tools": "Nástroje",
       "devExtension": "Rozšíření pro vývoj",

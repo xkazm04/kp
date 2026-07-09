@@ -11,9 +11,12 @@ import { LanguageSwitcher } from "@/app/_components/LanguageSwitcher";
 import { ThemeToggle } from "@/app/_components/ThemeToggle";
 import { SignOutButton } from "@/app/_components/auth/SignOutButton";
 import { BrandHeader } from "@/app/_components/BrandHeader";
+import { useBrand } from "@/app/_components/BrandProvider";
+import KandidateMark from "@/app/landing/_components/KandidateMark";
 import { CommandPalette } from "./CommandPalette";
 import { KeyboardShortcuts } from "./KeyboardShortcuts";
 import { RecentsNav } from "./RecentsNav";
+import { SectionRailNav } from "./nav/SectionRailNav";
 import { useAttention } from "./useAttention";
 import { TasksIndicator } from "./tasks/TasksIndicator";
 import { TasksProvider } from "./tasks/TasksProvider";
@@ -31,7 +34,6 @@ import {
   clearedTabScopedParams,
   DEFAULT_TAB,
   isWorkspaceTabId,
-  navItemClass,
   navLabel,
   NAV_GROUPS,
   type WorkspaceTabId,
@@ -87,6 +89,8 @@ export function Workspace() {
   const tabParam = params.get("tab");
   // SHELL2 — live "what needs my attention" counts behind the nav badges.
   const attention = useAttention();
+  // White-label mark for the rail top (workspace logo, else the KandiDate mark).
+  const { logoUrl } = useBrand();
   // Below `md` the sidebar is an off-canvas drawer (a permanent rail at md+). Without
   // this, the full ~16-item nav stacked above content and pushed every page below the
   // fold on a phone — the studio was close to unusable on a handset.
@@ -160,101 +164,61 @@ export function Workspace() {
 
       <aside
         id="workspace-nav"
-        className={`flex flex-col bg-paper fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] overflow-y-auto border-r border-stone-300 shadow-xl transition-transform duration-200 ${
+        className={`bg-paper fixed inset-y-0 left-0 z-50 flex w-[17rem] max-w-[85vw] overflow-hidden border-r border-stone-300 shadow-xl transition-transform duration-200 ${
           mobileNavOpen ? "translate-x-0" : "-translate-x-full"
-        } md:z-auto md:w-64 md:max-w-none md:shrink-0 md:translate-x-0 md:overflow-y-auto md:border-r md:shadow-none md:transition-none md:sticky md:top-0 md:h-screen`}
+        } md:z-auto md:max-w-none md:shrink-0 md:translate-x-0 md:border-r md:shadow-none md:transition-none md:sticky md:top-0 md:h-screen`}
       >
-        <div className="px-4 py-5">
-          <div className="flex items-center gap-2.5">
-            <BrandHeader markClass="h-9 w-9 dark:-rotate-3" />
-          </div>
-        </div>
-
-        {/* SHELL1: the global search affordance — the palette itself also opens
-            anywhere via Ctrl/Cmd+K. */}
-        <div className="px-3 pb-4">
-          <CommandPalette />
-        </div>
-
-        {/* SHELL3: pick-up-where-I-left-off deep links. */}
-        <RecentsNav />
-
-        {/* SHELL4: g-chord tab navigation + the "?" reference overlay. */}
-        <KeyboardShortcuts onSelectTab={selectTab} />
-
-        <nav aria-label={t("ariaLabel")} className="space-y-5 px-3 pb-6">
-          {NAV_GROUPS.map((group, gi) => (
-            <div key={group.key ?? `g${gi}`}>
-              {group.key ? (
-                <p className="px-2 pb-1 text-sm font-semibold uppercase tracking-[0.12em] text-steel/70">
-                  {navText(`groups.${group.key}`, group.label ?? "")}
-                </p>
-              ) : null}
-              <div className="space-y-0.5">
-                {group.items.map((item) => {
-                  const isActive = item.id === navActive;
-                  // SHELL2: live queue-depth pill for items that declared a
-                  // badgeKey (Decisions / Pipeline / Schedule / Jobs / Channels).
-                  const badge = item.badgeKey && attention ? attention[item.badgeKey] : 0;
-                  // Items with badgeParams get a second click target: the badge
-                  // opens the tab pre-filtered to the counted slice (declared in
-                  // tabs.ts). Rendered as a SIBLING of the row button — a button
-                  // may not nest interactive content — overlaid on the space the
-                  // row reserves via padding.
-                  const badgeSliceHref =
-                    badge > 0 && item.badgeParams
-                      ? buildUrl({ tab: item.id, ...clearedTabScopedParams(), ...item.badgeParams }, search)
-                      : null;
-                  return (
-                    <div key={item.id} className={badgeSliceHref ? "relative" : "contents"}>
-                      <button
-                        type="button"
-                        aria-current={isActive ? "page" : undefined}
-                        onClick={() => selectTab(item.id)}
-                        className={`focus-ring flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-base font-medium transition-colors ${navItemClass(isActive)} ${badgeSliceHref ? "pr-10" : ""}`}
-                      >
-                        <span
-                          className={`h-1.5 w-1.5 rounded-full ${isActive ? "bg-coral" : "bg-stone-300"}`}
-                          aria-hidden
-                        />
-                        <span className="min-w-0 flex-1 truncate text-left">{navText(`tabs.${item.id}`, item.label)}</span>
-                        {badge > 0 && !badgeSliceHref ? (
-                          <span
-                            aria-label={t("attentionBadge", { count: badge })}
-                            className="shrink-0 rounded-full bg-coral/10 px-1.5 py-0.5 text-sm font-semibold leading-none text-coral"
-                          >
-                            {badge}
-                          </span>
-                        ) : null}
-                      </button>
-                      {badgeSliceHref ? (
-                        <button
-                          type="button"
-                          title={t("attentionBadgeGo", { count: badge })}
-                          aria-label={t("attentionBadgeGo", { count: badge })}
-                          onClick={() => router.replace(badgeSliceHref, { scroll: false })}
-                          className="focus-ring absolute right-2.5 top-1/2 -translate-y-1/2 rounded-full bg-coral/10 px-1.5 py-0.5 text-sm font-semibold leading-none text-coral hover:bg-coral/20"
-                        >
-                          {badge}
-                        </button>
-                      ) : null}
-                    </div>
-                  );
-                })}
-              </div>
+        <SectionRailNav
+          groups={NAV_GROUPS}
+          navActive={navActive}
+          onSelect={selectTab}
+          attention={attention}
+          navText={navText}
+          attentionLabel={(count) => t("attentionBadge", { count })}
+          attentionGoLabel={(count) => t("attentionBadgeGo", { count })}
+          sliceHrefFor={(item) =>
+            item.badgeParams ? buildUrl({ tab: item.id, ...clearedTabScopedParams(), ...item.badgeParams }, search) : null
+          }
+          onSliceNav={(href) => router.replace(href, { scroll: false })}
+          railTop={
+            <div className="mb-1 flex justify-center py-1">
+              {logoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element -- external brand logo URL, not a bundled asset
+                <img src={logoUrl} alt="" className="h-8 w-8 rounded-lg object-contain" />
+              ) : (
+                <KandidateMark className="h-8 w-8 text-ink [--k-accent:var(--color-coral)] [--k-fg:var(--color-paper)] dark:-rotate-3" />
+              )}
             </div>
-          ))}
-        </nav>
-        <div className="mt-auto flex items-center justify-between gap-2 px-3 py-3">
-          <LanguageSwitcher />
-          <ThemeToggle />
-        </div>
-        {/* Last item in the menu: drop the dev session and return to the landing. */}
-        <div className="border-t border-stone-200 px-3 py-2">
-          <SignOutButton />
-        </div>
-        <TasksIndicator active={active === "tasks"} onOpen={() => selectTab("tasks")} />
+          }
+          panelHeader={
+            <>
+              {/* SHELL1: global search (also opens anywhere via Ctrl/Cmd+K). */}
+              <div className="px-3 pb-1 pt-3">
+                <CommandPalette />
+              </div>
+              {/* SHELL3: pick-up-where-I-left-off deep links. */}
+              <RecentsNav />
+            </>
+          }
+          panelFooter={
+            <>
+              <div className="space-y-2 border-t border-stone-200 px-3 py-2.5">
+                <LanguageSwitcher />
+                <ThemeToggle />
+              </div>
+              {/* Drop the dev session and return to the landing. */}
+              <div className="border-t border-stone-200 px-3 py-2">
+                <SignOutButton />
+              </div>
+              <TasksIndicator active={active === "tasks"} onOpen={() => selectTab("tasks")} />
+            </>
+          }
+        />
       </aside>
+
+      {/* SHELL4: g-chord tab navigation + the "?" reference overlay (keyboard-only;
+          no visible sidebar chrome). */}
+      <KeyboardShortcuts onSelectTab={selectTab} />
 
       <main id="main" tabIndex={-1} className="min-w-0 flex-1 bg-paper focus:outline-none">
         {/* pb-24 keeps content clear of the fixed simulation bar. The boundary

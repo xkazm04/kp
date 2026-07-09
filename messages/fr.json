@@ -1030,6 +1030,7 @@
       "models": "Modèles"
     },
     "groups": {
+      "hiring": "Recrutement",
       "library": "Bibliothèque",
       "tools": "Outils",
       "devExtension": "Extension dev",

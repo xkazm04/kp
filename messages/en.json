@@ -1005,6 +1005,7 @@
       "models": "Models"
     },
     "groups": {
+      "hiring": "Hiring",
       "library": "Library",
       "tools": "Tools",
       "devExtension": "Dev extension",
