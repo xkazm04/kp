@@ -116,3 +116,30 @@ verbatim; the old defaults returned `software_engineering`/`medior`.
 19. **Triage a dead agent's edits; never inherit them.** A partial fix that typechecks is the most
     dangerous artifact in the tree. One of three here was dead code shaped like a fix; one was a
     library change whose UI consumer would have rendered a false clean.
+
+## Known flake (observed once, NOT fixed — evidence recorded)
+
+During final verification the full unit suite reported **7 failures on one run** with a clean,
+unchanged working tree, then passed **7 consecutive runs** afterwards.
+
+The distinguishing condition: at the time of the failing run, `os.tmpdir()` held **1111 leftover
+`kp-*` entries** — mostly `kp-unit-db/run-*` directories. The suite runs with
+`--test-isolation=process`, so every test file spawns a process, and `unit-db.ts` sweeps that root
+at module load (`readdirSync` + `statSync` + `rmSync` per entry). After deleting the 1111
+leftovers, 7/7 runs were clean.
+
+This is almost certainly `data-store-persistence.md` **finding #4**, which the scan raised
+independently and which remains **OPEN**: *"the unit-db stale-sweep can delete a live
+long-running test's DB dir."* Leftovers accumulate by design — `cleanupUnitDb()` cannot remove a
+directory while an isolated store still holds the SQLite file on Windows, so the sweep is the only
+reclaim path, and it is racing hundreds of sibling processes.
+
+Deliberately **not** patched here: the fix belongs with finding #4, and a speculative change to
+shared test infrastructure — on evidence from a single unreproduced failure — is exactly the kind
+of thing that produces a worse bug. What is recorded instead:
+
+- the trigger (a large backlog of stale `kp-*` dirs in tmpdir),
+- the mitigation until #4 is fixed (`rm -rf $TMPDIR/kp-*` before a full run),
+- and the fact that the suite is **not** deterministic under that condition.
+
+The gate numbers reported for waves 4 and 5 were all taken on clean, reproduced runs.
