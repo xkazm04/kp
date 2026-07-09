@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { isLocale, LOCALE_COOKIE } from "./i18n/locales";
 import { SESSION_COOKIE, verifySessionEdge } from "./app/_lib/auth/edge-verify";
+import { isPublicPath } from "./app/_lib/auth/public-routes";
 
 const ONE_YEAR_SECONDS = 60 * 60 * 24 * 365;
 
@@ -14,26 +15,8 @@ const ONE_YEAR_SECONDS = 60 * 60 * 24 * 365;
 // but FAIL CLOSED in production — a prod deploy that forgot the password must not
 // serve the whole recruiter surface to the public; set KP_ALLOW_OPEN=1 to opt back
 // into open prod deliberately.
-const PUBLIC_PAGES = ["/login", "/about", "/market", "/landing", "/apply/", "/offer/", "/schedule/", "/interview/", "/status/", "/skill/", "/devcase/apply/", "/invite/"];
-const PUBLIC_API_PREFIXES = ["/api/auth/", "/api/apply/", "/api/offer/", "/api/status/", "/api/skill-profile/", "/api/devcase/session", "/api/channels/", "/api/invite/"];
-const PUBLIC_API_EXACT = new Set([
-  "/api/health",
-  "/api/demo", // public entry: mints an isolated "demo"-workspace session for the guided sim
-  "/api/extract-text",
-  "/api/billing/webhook", // Polar posts here; the rest of /api/billing is recruiter
-  "/api/devcase/inbound", // candidate apply webhook; the rest of /api/devcase is recruiter
-  "/api/interview/connect", // candidate voice runtime; create/by-entry/compare/revoke are recruiter
-  "/api/interview/complete",
-]);
-
-function isPublic(p: string): boolean {
-  if (PUBLIC_API_EXACT.has(p)) return true;
-  if (PUBLIC_API_PREFIXES.some((x) => p === x || p.startsWith(x))) return true;
-  // Candidate schedule token routes are public; the recruiter invite endpoint is not.
-  if (p.startsWith("/api/schedule/") && p !== "/api/schedule/invite") return true;
-  if (PUBLIC_PAGES.some((x) => p === x || p.startsWith(x))) return true;
-  return false;
-}
+// The allow-list itself lives in `app/_lib/auth/public-routes.ts` — pure and edge-safe,
+// so it can be unit-tested (this file sits outside the `app/**/*.test.ts` runner glob).
 
 // A global session-kill epoch (KP_SESSION_EPOCH): bumping it invalidates every
 // issued session at once, WITHOUT rotating KP_SECRET (which also encrypts stored
@@ -52,7 +35,7 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
   const failClosed = !hasPassword && process.env.NODE_ENV === "production" && process.env.KP_ALLOW_OPEN !== "1";
   if (hasPassword || failClosed) {
     const { pathname } = req.nextUrl;
-    if (!isPublic(pathname)) {
+    if (!isPublicPath(pathname)) {
       if (failClosed) {
         // Misconfigured production: no operator password. Refuse rather than serve
         // the recruiter surface to the public (set KP_OPERATOR_PASSWORD, or
