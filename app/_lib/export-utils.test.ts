@@ -55,3 +55,33 @@ test("buildIcs omits optional DESCRIPTION/LOCATION when absent and throws on a b
   assert.ok(!ics.includes("LOCATION:"));
   assert.throws(() => buildIcs({ uid: "x", start: "not-a-date", durationMin: 10, title: "X" }));
 });
+
+// bug-ui-scan 2026-07-09 (analytics-calibration-dashboards #1): toCsv escaped RFC-4180
+// delimiters but not spreadsheet FORMULA triggers, so a candidate-controlled name flowing
+// into the decision-log / roles export executed on open. RFC-4180 quoting does not help --
+// the parser strips the quotes before the cell is evaluated.
+test("toCsv neutralizes leading formula triggers in candidate-controlled text", () => {
+  const rows = [["=cmd|'/c calc'!A1"], ["+1+1"], ["-1+1"], ["@SUM(1)"], ["\tSUM(1)"]];
+  const lines = toCsv(rows).split("\r\n");
+  for (const l of lines) {
+    // Each cell must begin with the text marker (possibly inside RFC-4180 quotes), never
+    // with a bare trigger character.
+    const body = l.startsWith('"') ? l.slice(1) : l;
+    assert.equal(body[0], "'", `cell must be neutralized, got: ${l}`);
+  }
+});
+
+test("toCsv leaves ordinary text and numbers untouched", () => {
+  assert.equal(toCsv([["Jane Doe", 42]]), "Jane Doe,42");
+  // A negative number is data, not a formula: it must still import as a number.
+  assert.equal(toCsv([[-1]]), "-1");
+  assert.equal(toCsv([[0]]), "0");
+});
+
+test("toCsv still quotes and round-trips delimiters after neutralizing", () => {
+  // A quote + comma inside a formula-triggering cell: both rules must compose.
+  assert.equal(toCsv([['=a"b,c']]), `"'=a""b,c"`);
+  // And plain RFC-4180 behaviour is unchanged.
+  assert.equal(toCsv([['say "hi", ok']]), `"say ""hi"", ok"`);
+  assert.equal(toCsv([["line\nbreak"]]), `"line\nbreak"`);
+});

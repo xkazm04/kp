@@ -7,9 +7,28 @@
 /** RFC 4180-ish CSV: fields containing a comma, double-quote, or newline are
  *  wrapped in double-quotes with embedded quotes doubled. A trailing CRLF is
  *  omitted; rows are joined with CRLF (the line ending spreadsheet apps expect). */
+// Spreadsheet formula triggers. Excel/Sheets/LibreOffice evaluate a cell that STARTS with
+// one of these, so a candidate-controlled `candidate_label` or `jobTitle` reaching a decision
+// -log or roles export becomes code the recruiter executes by opening the file (DDE, or a
+// =WEBSERVICE()/HYPERLINK() exfiltration of the sheet's contents). RFC-4180 quoting does not
+// prevent this: the quotes are stripped by the parser before evaluation.
+//
+// A leading tab / CR is included because some parsers trim it and then see the trigger.
+const FORMULA_TRIGGER = /^[=+\-@\t\r]/;
+
+/** CSV per RFC-4180, with leading formula triggers neutralized (OWASP CSV injection).
+ *
+ *  Neutralized ONCE here rather than at each call site: every export -- decision log, roles,
+ *  ROI ledger -- carries candidate-controlled text, and a call-site fix protects only the
+ *  call sites someone remembered. */
 export function toCsv(rows: (string | number | null | undefined)[][]): string {
   const cell = (v: string | number | null | undefined): string => {
-    const s = v == null ? "" : String(v);
+    let s = v == null ? "" : String(v);
+    // Prefix, don't strip: the value must round-trip for a human reading the sheet. A leading
+    // `'` is the conventional "treat as text" marker and is consumed by the spreadsheet.
+    // Numbers are exempt -- `-1` and `+1` are data, and String(number) can never carry a
+    // formula body -- so a negative figure still imports as a number.
+    if (typeof v !== "number" && FORMULA_TRIGGER.test(s)) s = `'${s}`;
     return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
   return rows.map((r) => r.map(cell).join(",")).join("\r\n");
