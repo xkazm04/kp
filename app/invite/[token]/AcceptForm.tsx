@@ -74,7 +74,9 @@ export function AcceptForm({ token }: { token: string }) {
         ? `Choose a password of at least ${minPasswordLength} characters.`
         : err === "email_taken"
           ? "This email already belongs to another organization."
-          : "Couldn't accept the invite — the link may have just expired.",
+          : err === "already_active"
+            ? "This account is already active — sign in instead."
+            : "Couldn't accept the invite — the link may have just expired.",
     );
   }
 

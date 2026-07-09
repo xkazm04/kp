@@ -35,7 +35,8 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
 
   const result = acceptInvite({ token, name, password });
   if (!result.ok) {
-    const status = result.reason === "weak_password" ? 400 : result.reason === "email_taken" ? 409 : 410;
+    const status =
+      result.reason === "weak_password" ? 400 : result.reason === "email_taken" || result.reason === "already_active" ? 409 : 410;
     return NextResponse.json({ error: result.reason }, { status });
   }
   const res = NextResponse.json({ ok: true });

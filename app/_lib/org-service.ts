@@ -60,7 +60,7 @@ export function inviteMember(input: InviteMemberInput): Invite {
 export type AcceptInviteInput = { token: string; name?: string | null; password: string };
 export type AcceptResult =
   | { ok: true; user: User }
-  | { ok: false; reason: "invalid" | "weak_password" | "email_taken" };
+  | { ok: false; reason: "invalid" | "weak_password" | "email_taken" | "already_active" };
 
 /** Redeem a pending invite: activate/create the user, set their password, and add
  *  the team membership. Idempotent-ish — a redeemed invite can't be redeemed again
@@ -75,6 +75,12 @@ export function acceptInvite(input: AcceptInviteInput, now: number = Date.now())
     // An existing account with this email must belong to the SAME org — never let
     // an invite attach another org's user (email is globally unique).
     if (user.orgId !== invite.orgId) return { ok: false, reason: "email_taken" };
+    // An ACTIVE account already has an owner, a password, and a name. Redeeming an invite
+    // must never overwrite them. Inviting an active member is refused at POST /api/org/invites,
+    // but a pending invite issued BEFORE that account became active stays redeemable — and
+    // whoever holds that link could reset the member's password and take the account over.
+    // Redeem is provisioning only; an existing active user signs in instead.
+    if (user.status === "active") return { ok: false, reason: "already_active" };
     setUserStatus(user.id, "active");
     setUserPassword(user.id, input.password);
     if (input.name) updateUserName(user.id, input.name);

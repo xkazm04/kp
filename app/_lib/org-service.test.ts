@@ -60,3 +60,28 @@ test("setMemberPermissions grants a per-user capability (a recruiter becomes a W
   assert.ok(marketa.teams[0].capabilities.includes("members:manage"));
   assert.deepEqual(setMemberPermissions("usr-seed-marketa", "team-nope", { grant: ["read"], revoke: [] }), { ok: false, reason: "not_member" });
 });
+
+// HIGH (2026-07-09 scan, organizations-members-invites #2): acceptInvite unconditionally
+// called setUserPassword on an existing account. Inviting an ACTIVE member is refused at
+// POST /api/org/invites, but an invite minted BEFORE the account went active stays pending
+// and redeemable — so whoever held that link could reset the member's password and take the
+// account over. Redeem is provisioning only.
+test("a stale invite cannot reset an ACTIVE member's password", () => {
+  const first = inviteMember({ email: "stale.target@csas.cz", role: "recruiter" });
+  assert.equal(acceptInvite({ token: first.token, name: "Stale Target", password: "original-pw-123" }).ok, true);
+  assert.ok(verifyCredentials("stale.target@csas.cz", "original-pw-123"));
+
+  // A second, still-pending invite for the same address.
+  const stale = inviteMember({ email: "stale.target@csas.cz", role: "viewer" });
+  assert.deepEqual(acceptInvite({ token: stale.token, name: "Attacker", password: "attacker-pw-999" }), {
+    ok: false,
+    reason: "already_active",
+  });
+
+  // The account is untouched: password, name, and role all survive.
+  assert.ok(verifyCredentials("stale.target@csas.cz", "original-pw-123"), "original password still works");
+  assert.equal(verifyCredentials("stale.target@csas.cz", "attacker-pw-999"), null, "attacker password rejected");
+  const member = listOrgMembers().find((m) => m.user.email === "stale.target@csas.cz")!;
+  assert.equal(member.user.name, "Stale Target");
+  assert.equal(member.teams[0].role, "recruiter", "role not downgraded by the stale invite");
+});
