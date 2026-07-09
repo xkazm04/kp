@@ -74,5 +74,84 @@ class RedactPiiTest(unittest.TestCase):
         self.assertIn("Senior Backend Engineer", r.text)
 
 
+class NameHeadlineRejectionTest(unittest.TestCase):
+    """#2: a role/skill HEADLINE on the first line must NOT be taken as the name.
+
+    Pre-fix, ``_guess_name_line`` accepted the first title-cased 2-4-word line
+    unconditionally, so "Machine Learning Engineer" became the detected name — then
+    ``redact_pii`` masked "Machine"/"Learning"/"Engineer" as ``[NAME]`` throughout the
+    blind-scored text and the headline was re-attached as the candidate's name.
+    Each assertion below FAILS against the pre-fix code (detected_name would equal the
+    headline and the headline words would be masked)."""
+
+    def test_skill_headline_first_line_is_skipped_for_the_real_name(self) -> None:
+        cv = (
+            "Machine Learning Engineer\n"
+            "Alex Carter\n"
+            "alex@example.com\n"
+            "Built recommendation systems; machine learning pipelines in Python.\n"
+        )
+        r = redact_pii(cv)
+        self.assertEqual(r.detected_name, "Alex Carter")  # not the headline
+        # The headline words survive verbatim so the model scores the real content.
+        self.assertIn("Machine Learning Engineer", r.text)
+        self.assertIn("machine learning pipelines", r.text)
+        # The real name IS masked.
+        self.assertIn("[NAME]", r.text)
+        self.assertNotIn("Alex", r.text)
+        self.assertNotIn("Carter", r.text)
+
+    def test_seniority_headline_first_line_is_skipped(self) -> None:
+        cv = "Senior Software Developer\nDana Kim\nLed a team and scaled the platform.\n"
+        r = redact_pii(cv)
+        self.assertEqual(r.detected_name, "Dana Kim")
+        self.assertIn("Senior Software Developer", r.text)
+        self.assertNotIn("Dana", r.text)
+
+    def test_ordinary_two_word_name_is_still_detected(self) -> None:
+        # Guard against over-rejection: a plain personal name must still be caught.
+        r = redact_pii("Jane Doe\nProduct designer.\n")
+        self.assertEqual(r.detected_name, "Jane Doe")
+
+
+class HonorificPrecisionTest(unittest.TestCase):
+    """#3: 'MS' the degree / Microsoft-stack prefix must survive; 'Ms' the title
+    (before a capitalized name) is still redacted."""
+
+    def test_ms_degree_and_microsoft_stack_are_not_redacted(self) -> None:
+        # Pre-fix, \bms\b (IGNORECASE) in the pronoun list masked every "MS", so each
+        # assertIn below FAILS against the old code and "[REDACTED]" appears.
+        cv = (
+            "Skills: MS SQL Server, MS Office, MS Excel, MS Azure, MS 365.\n"
+            "Education: MSc in Statistics; M.S. equivalent; Master of Science (MS).\n"
+        )
+        r = redact_pii(cv)
+        for token in (
+            "MS SQL Server", "MS Office", "MS Excel", "MS Azure",
+            "MSc", "M.S.", "Master of Science",
+        ):
+            self.assertIn(token, r.text)
+        self.assertNotIn("[REDACTED]", r.text)
+        self.assertNotIn("gendered terms", r.categories)
+
+    def test_lowercase_ms_unit_is_not_redacted(self) -> None:
+        # "150 ms latency" — the unit, not a title. Pre-fix \bms\b would mask it.
+        cv = "Cut p99 latency from 150 ms to 40 ms under load.\n"
+        r = redact_pii(cv)
+        self.assertIn("150 ms", r.text)
+        self.assertIn("40 ms", r.text)
+        self.assertNotIn("[REDACTED]", r.text)
+
+    def test_title_before_a_name_is_still_redacted(self) -> None:
+        # The genuine gender-revealing usage — a title before a capitalized name —
+        # must still be masked (regression guard against over-correcting #3).
+        cv = "Reference: Ms. Nováková supervised the project; contact Mr Smith too.\n"
+        r = redact_pii(cv)
+        self.assertIn("gendered terms", r.categories)
+        self.assertNotIn("Ms. Nováková", r.text)
+        self.assertNotIn("Mr Smith", r.text)
+        self.assertIn("supervised the project", r.text)
+
+
 if __name__ == "__main__":
     unittest.main()
