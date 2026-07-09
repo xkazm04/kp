@@ -755,13 +755,13 @@
     },
     "appliedOn": "Přihlásili jste se {date}.",
     "eraseTitle": "Vymazat mé osobní údaje",
-    "eraseExplainer": "Trvale odstraníme vaše jméno, kontaktní údaje, životopis a záznamy z pohovoru. Ponecháme si pouze anonymizovaný záznam o hodnocení (bez osobních údajů), abychom byli féroví a konzistentní — vás už nijak neidentifikuje.",
+    "eraseExplainer": "Trvale odstraníme osobní údaje, které o vás evidujeme — vaše jméno, kontaktní údaje, životopis, odpovědi z případného pohovoru a zprávy, které jsme vám poslali. Ponecháme si pouze anonymizovaný záznam o hodnocení (skóre a fázi, bez osobních údajů), abychom byli féroví a konzistentní, a dále zapečetěný záznam o samotném rozhodnutí, který uchováváme výhradně pro jeho obhajobu v případě právního sporu.",
     "eraseCta": "Vymazat mé údaje",
     "eraseConfirm": "Ano, vymazat",
     "erasing": "Mažu…",
     "cancel": "Zrušit",
     "erasedTitle": "Vaše údaje byly vymazány",
-    "erasedBody": "Vaše osobní údaje jsme odstranili. Děkujeme — nic dalšího nemusíte dělat."
+    "erasedBody": "Osobní údaje, které jsme o vás evidovali, jsme odstranili. Ponecháváme si pouze anonymizovaný záznam o hodnocení a zapečetěný záznam o rozhodnutí — uchovávané výhradně kvůli férovosti a možnosti obhájit výsledek v případě sporu. Nic dalšího nemusíte dělat."
   },
   "status": {
     "eyebrow": "Stav přihlášky",

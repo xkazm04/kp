@@ -755,13 +755,13 @@
     },
     "appliedOn": "You applied on {date}.",
     "eraseTitle": "Erase my personal data",
-    "eraseExplainer": "We'll permanently remove your name, contact details, CV and interview records. We keep a de-identified record of the assessment (no personal data) so we can be fair and consistent — it can no longer identify you.",
+    "eraseExplainer": "We'll permanently remove the personal data we hold about you — your name, contact details, CV, the answers from any interview, and the messages we sent you. We keep only a de-identified record of the assessment (scores and stage, with no personal data) so our hiring stays fair and consistent, plus a sealed record of the decision itself that we retain solely to defend it if it is ever legally challenged.",
     "eraseCta": "Erase my data",
     "eraseConfirm": "Yes, erase it",
     "erasing": "Erasing…",
     "cancel": "Cancel",
     "erasedTitle": "Your data has been erased",
-    "erasedBody": "We've removed your personal data. Thank you — there's nothing more you need to do."
+    "erasedBody": "We've removed the personal data we held about you. We keep only a de-identified assessment record and a sealed log of the decision — retained solely to stay fair and to defend the outcome if it's ever challenged. There's nothing more you need to do."
   },
   "status": {
     "eyebrow": "Application status",

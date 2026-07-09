@@ -1060,10 +1060,77 @@ export function findEntryByErasureToken(token: string): PipelineEntry | null {
   return row ? rowToEntry(row) : null;
 }
 
+/** Erase this candidate's PII from every OTHER table that holds it keyed to the entry
+ *  — the surfaces the entry/profile/analyses scrub in anonymizeEntry does NOT reach:
+ *  the voice-interview transcript + scorecard, the outbound comms outbox, and the
+ *  downstream recruitment artifacts (offer, interview prep, schedule invite, onboarding,
+ *  rediscovery alert). Runs on the SAME `db` connection inside anonymizeEntry's
+ *  transaction (every isolated store opens the same kp.sqlite file — see db-path.ts — so
+ *  a raw UPDATE here reaches its rows and rolls back with the rest on failure) and stays
+ *  SYNCHRONOUS: a stray await would silently break the transaction's atomicity. Tables a
+ *  fresh DB file never materialized are skipped. erasure-full-scrub.test.ts fails if any
+ *  of these survives, so a newly-added PII table can't quietly opt out.
+ *
+ *  DELIBERATELY NOT scrubbed — `decision_records`: a tamper-evident hash chain kept for
+ *  adverse-action defensibility (the GDPR Art.17(3)(b)/(e) legal-claims / compliance
+ *  exemption). Editing a row would BREAK the very chain it exists to prove, so we retain
+ *  it and disclose the retention on /data rather than over-promising its deletion. */
+function scrubEntryLinkedPii(db: Database.Database, entryId: string, candidateId: string | null, masked: string): void {
+  const tables = new Set(
+    (db.prepare(`SELECT name FROM sqlite_master WHERE type = 'table'`).all() as { name: string }[]).map((r) => r.name)
+  );
+  // Voice interview: transcript_json is the candidate's verbatim spoken answers (raw
+  // PII → dropped to []) and scorecard_json is a free-text synthesis quoting them (→
+  // NULL). The assessment DECISION survives on the entry/events, not on this row.
+  if (tables.has("interview_sessions")) {
+    db.prepare(
+      `UPDATE interview_sessions SET candidate_label = ?, transcript_json = '[]', scorecard_json = NULL WHERE entry_id = ?`
+    ).run(masked, entryId);
+  }
+  // Outbound comms outbox (ref = entry id): recipient is the candidate's email when it
+  // was captured; subject/body are personalized (name + details). Blank all three; the
+  // kind/status/created_at columns stay as the "a message was sent" delivery audit.
+  if (tables.has("dev_outbox")) {
+    db.prepare(`UPDATE dev_outbox SET recipient = NULL, subject = NULL, body = NULL WHERE ref = ?`).run(entryId);
+  }
+  // Self-scheduling invite: the label + the timezone captured at confirm.
+  if (tables.has("schedule_invites")) {
+    db.prepare(`UPDATE schedule_invites SET candidate_label = ?, candidate_tz = NULL WHERE entry_id = ?`).run(masked, entryId);
+  }
+  // Offer: the label + the offer-letter payload (may embed name/free-text terms). The
+  // salary/currency columns are non-identifying numbers and stay as the retained record.
+  if (tables.has("offers")) {
+    db.prepare(`UPDATE offers SET candidate_label = ?, payload_json = NULL WHERE entry_id = ?`).run(masked, entryId);
+  }
+  // Interview-prep dossier: the label + the free-text prep payload that quotes the CV.
+  if (tables.has("interview_preps")) {
+    db.prepare(`UPDATE interview_preps SET candidate_label = ?, payload_json = '{}' WHERE entry_id = ?`).run(masked, entryId);
+  }
+  // Onboarding (post-hire): the run label, the pre-boarding questionnaire answers, and
+  // the e-signature signer identity. Child rows key off the run id.
+  if (tables.has("onboarding_runs")) {
+    const runs = db.prepare(`SELECT id FROM onboarding_runs WHERE entry_id = ?`).all(entryId) as { id: string }[];
+    db.prepare(`UPDATE onboarding_runs SET candidate_label = ? WHERE entry_id = ?`).run(masked, entryId);
+    for (const { id: runId } of runs) {
+      if (tables.has("onboarding_intake")) db.prepare(`UPDATE onboarding_intake SET answers_json = '{}' WHERE run_id = ?`).run(runId);
+      if (tables.has("onboarding_signatures")) db.prepare(`UPDATE onboarding_signatures SET signer = NULL WHERE run_id = ?`).run(runId);
+    }
+  }
+  // Rediscovery alerts are keyed by candidate_id (a rejected candidate resurfaced for a
+  // new role), not entry_id — mask BOTH the candidate_label and the prior-decision label
+  // snapshot (prior_label also carries the full name).
+  if (candidateId && tables.has("rediscovery_alerts")) {
+    db.prepare(`UPDATE rediscovery_alerts SET candidate_label = ?, prior_label = ? WHERE candidate_id = ?`).run(masked, masked, candidateId);
+  }
+}
+
 /** Anonymize one entry in place: mask the candidate label to "First L.", null the
- *  directly-identifying columns (contact, github handle/evidence), mask the label
- *  snapshot on every audit event, and deep-scrub the linked profile's CV payload —
- *  while KEEPING match_score, stage, recruiter notes, events and interview record.
+ *  directly-identifying columns (contact, github handle/evidence, recruiter notes),
+ *  mask the label snapshot on every audit event, deep-scrub the linked profile's CV
+ *  payload AND the saved analyses, and — via scrubEntryLinkedPii — erase the interview
+ *  transcript/scorecard, the comms outbox, and the offer/prep/schedule/onboarding/
+ *  rediscovery artifacts, all inside ONE transaction. KEEPS match_score, stage, events
+ *  and the tamper-evident decision_records chain (retained for adverse-action defense).
  *  Stamps anonymized_at and audits it. Idempotent (a second run is a no-op via the
  *  anonymized_at guard). `reason` distinguishes the consent-expiry sweep from a
  *  candidate erasure request in the audit trail. Returns the entry, or null. */
@@ -1078,7 +1145,7 @@ export function anonymizeEntry(entryId: string, reason: "expiry" | "erasure" = "
     db.prepare(
       `UPDATE pipeline_entries
           SET candidate_label = ?, contact = NULL, github_handle = NULL, github_json = NULL,
-              erasure_token = NULL, anonymized_at = ?, updated_at = ?
+              notes = NULL, erasure_token = NULL, anonymized_at = ?, updated_at = ?
         WHERE id = ? AND workspace_id = ?`
     ).run(masked, now, now, entryId, workspaceId);
     // The label is snapshotted onto every audit event — mask those too so the
@@ -1089,16 +1156,23 @@ export function anonymizeEntry(entryId: string, reason: "expiry" | "erasure" = "
     if (row.candidate_id) anonymizeProfile(row.candidate_id);
     // GDPR Art. 17: the saved `analyses` rows hold the FULL CV payload (rawText,
     // name, email, phone, verbatim evidence) + a github_json dossier. They have no
-    // FK back to the entry, so match on the original candidate_label — the same key
-    // the candidate pool/JD pages use to link analyses to a person — and scrub each
-    // payload (PII out, recruitment signal kept) + mask the stored label. Without
-    // this, an erasure left the candidate's whole CV readable in History and via
-    // /api/analyses/[slug]. Runs inside this transaction (same db connection), so a
-    // failure rolls the whole erasure back rather than half-scrubbing. Label-blind
-    // to workspace on purpose: over-scrubbing on erasure is the safe direction.
-    const linkedAnalyses = db
-      .prepare(`SELECT slug, payload_json FROM analyses WHERE candidate_label = ?`)
-      .all(row.candidate_label) as { slug: string; payload_json: string }[];
+    // FK back to the entry, so match on the NORMALIZED candidate_label — LOWER(TRIM(...))
+    // on BOTH sides, mirroring findActiveEntriesByCandidateLabel (the app's canonical
+    // candidate↔entry link), so a padded/differently-cased label saved at another intake
+    // (e.g. "jan novák " vs "Jan Novák") is still caught. The old raw `= candidate_label`
+    // silently MISSED those, leaving the CV readable in History and via /api/analyses/[slug]
+    // (finding #2). SCOPED to the entry's workspace so a same-named candidate in ANOTHER
+    // tenant is never over-scrubbed. analyses carries no entry_id/candidate_id FK, so within
+    // ONE workspace an exact-label namesake still collides — over-scrubbing the SAME tenant's
+    // row is the documented safe direction; a real per-candidate FK is the durable fix.
+    // Runs inside this transaction (same db connection), so a failure rolls the whole
+    // erasure back rather than half-scrubbing.
+    const labelKey = (row.candidate_label ?? "").trim().toLowerCase();
+    const linkedAnalyses = labelKey
+      ? (db
+          .prepare(`SELECT slug, payload_json FROM analyses WHERE LOWER(TRIM(candidate_label)) = ? AND workspace_id = ?`)
+          .all(labelKey, workspaceId) as { slug: string; payload_json: string }[])
+      : [];
     if (linkedAnalyses.length > 0) {
       const scrubAnalysis = db.prepare(
         `UPDATE analyses SET candidate_label = ?, payload_json = ?, github_json = NULL WHERE slug = ?`
@@ -1115,6 +1189,10 @@ export function anonymizeEntry(entryId: string, reason: "expiry" | "erasure" = "
         scrubAnalysis.run(masked, scrubbedPayload, a.slug);
       }
     }
+    // Erase the candidate's PII from every OTHER entry-linked table (interview
+    // transcript/scorecard, comms outbox, offer/prep/schedule/onboarding/rediscovery),
+    // in this same transaction — the class of PII surfaces the block above never reached.
+    scrubEntryLinkedPii(db, entryId, row.candidate_id, masked);
     logConsentEvent(db, entryId, reason === "erasure" ? "erased" : "anonymized", `reason: ${reason}`, workspaceId);
     const updated = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ? AND workspace_id = ?`).get(entryId, workspaceId) as PipelineRow;
     return rowToEntry(updated);

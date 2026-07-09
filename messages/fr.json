@@ -780,13 +780,13 @@
     },
     "appliedOn": "Vous avez postulé le {date}.",
     "eraseTitle": "Effacer mes données personnelles",
-    "eraseExplainer": "Nous supprimerons définitivement votre nom, vos coordonnées, votre CV et vos comptes rendus d'entretien. Nous conservons un enregistrement anonymisé de l'évaluation (sans données personnelles) pour rester justes et cohérents — il ne permet plus de vous identifier.",
+    "eraseExplainer": "Nous supprimerons définitivement les données personnelles que nous détenons à votre sujet — votre nom, vos coordonnées, votre CV, les réponses d'un éventuel entretien et les messages que nous vous avons envoyés. Nous conservons uniquement un enregistrement anonymisé de l'évaluation (score et étape, sans données personnelles) afin de rester justes et cohérents, ainsi qu'un enregistrement scellé de la décision elle-même, que nous conservons uniquement pour la défendre en cas de contestation juridique.",
     "eraseCta": "Effacer mes données",
     "eraseConfirm": "Oui, effacer",
     "erasing": "Effacement…",
     "cancel": "Annuler",
     "erasedTitle": "Vos données ont été effacées",
-    "erasedBody": "Nous avons supprimé vos données personnelles. Merci — vous n'avez plus rien à faire."
+    "erasedBody": "Nous avons supprimé les données personnelles que nous détenions à votre sujet. Nous ne conservons qu'un enregistrement anonymisé de l'évaluation et un journal scellé de la décision — conservés uniquement pour rester justes et défendre le résultat en cas de contestation. Vous n'avez plus rien à faire."
   },
   "status": {
     "eyebrow": "Statut de la candidature",

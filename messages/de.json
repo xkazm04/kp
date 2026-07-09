@@ -780,13 +780,13 @@
     },
     "appliedOn": "Sie haben sich am {date} beworben.",
     "eraseTitle": "Meine personenbezogenen Daten löschen",
-    "eraseExplainer": "Wir entfernen Ihren Namen, Ihre Kontaktdaten, Ihren Lebenslauf und Interviewaufzeichnungen dauerhaft. Zur Fairness und Konsistenz behalten wir einen anonymisierten Datensatz der Bewertung (ohne personenbezogene Daten) — er kann Sie nicht mehr identifizieren.",
+    "eraseExplainer": "Wir entfernen die personenbezogenen Daten, die wir über Sie gespeichert haben, dauerhaft — Ihren Namen, Ihre Kontaktdaten, Ihren Lebenslauf, die Antworten aus einem etwaigen Interview und die Nachrichten, die wir Ihnen gesendet haben. Wir behalten lediglich einen anonymisierten Datensatz der Bewertung (Punktzahl und Phase, ohne personenbezogene Daten), um fair und konsistent zu bleiben, sowie einen versiegelten Datensatz der Entscheidung selbst, den wir ausschließlich aufbewahren, um sie im Falle einer rechtlichen Anfechtung zu verteidigen.",
     "eraseCta": "Meine Daten löschen",
     "eraseConfirm": "Ja, löschen",
     "erasing": "Wird gelöscht…",
     "cancel": "Abbrechen",
     "erasedTitle": "Ihre Daten wurden gelöscht",
-    "erasedBody": "Wir haben Ihre personenbezogenen Daten entfernt. Vielen Dank — Sie müssen nichts weiter tun."
+    "erasedBody": "Wir haben die personenbezogenen Daten, die wir über Sie gespeichert hatten, entfernt. Wir behalten nur einen anonymisierten Bewertungsdatensatz und ein versiegeltes Protokoll der Entscheidung — ausschließlich aufbewahrt, um fair zu bleiben und das Ergebnis im Falle einer Anfechtung zu verteidigen. Sie müssen nichts weiter tun."
   },
   "status": {
     "eyebrow": "Bewerbungsstatus",
