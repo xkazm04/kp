@@ -896,6 +896,14 @@ export function ensureDb(): Database.Database {
     // Durable skill profiles (E0 Phase 1): stamped from the submission's workspace on
     // issue; public token / by-submission_id reads are exempt (skill-profiles-tenancy.test.ts).
     "ALTER TABLE skill_profiles ADD COLUMN workspace_id TEXT NOT NULL DEFAULT 'workspace'",
+    // SECURITY (bug-ui-scan-2026-07-09 #1): the PUBLIC access token — the sole auth on
+    // /skill/[token] + the verify endpoint — must be an UNGUESSABLE CSPRNG value
+    // (randomToken, ~192 bits), NOT the guessable, enumerable, time-ordered randomId the
+    // mint used to reuse as the PK. Added additively: legacy rows keep access_token NULL
+    // and stay reachable by their randomId PK (getSkillProfileByToken falls back to the
+    // PK), so every already-shared credential link keeps verifying. New rows carry a PK
+    // (internal id, randomId) AND a distinct CSPRNG access_token (the public value).
+    "ALTER TABLE skill_profiles ADD COLUMN access_token TEXT",
     // interview_sessions (E0 Phase 1): stamped from the entry on create; the by-job
     // enumeration (interviewedForJob) filters workspace_id; by-id/token/entry_id ops are
     // exempt (interviews-tenancy.test.ts).
@@ -911,6 +919,10 @@ export function ensureDb(): Database.Database {
     // was written to prevent. It tolerates only the benign "already applied" error.
     migrateExec(sql);
   }
+  // The public skill-profile verify/view resolves a presented token by its CSPRNG
+  // access_token (new credentials); index it like the other single-row token lookups.
+  // Created AFTER the ALTER loop above so a legacy DB already holds the column.
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_skill_profiles_access_token ON skill_profiles (access_token)`);
   // Atomic dedup: a (posting, candidate, repo) triple is unique, so two
   // concurrent submits can't both INSERT (double-click / webhook retry storm).
   // Guarded: a legacy DB may already hold duplicate triples that block the

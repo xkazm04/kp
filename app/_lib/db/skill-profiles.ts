@@ -1,5 +1,5 @@
 import { ensureDb } from "./core";
-import { randomId } from "../random-id";
+import { randomId, randomToken } from "../random-id";
 import { DEFAULT_WORKSPACE_ID } from "./workspaces";
 import { getPosting, getSubmission } from "./devcase";
 import {
@@ -37,7 +37,8 @@ export type SkillProfileVerdict = {
 };
 
 type Row = {
-  token: string;
+  token: string; // internal PK (randomId) — never the public secret
+  access_token: string | null; // CSPRNG public token; NULL on legacy rows (they use the PK)
   submission_id: string | null;
   candidate_ref: string | null;
   case_id: string | null;
@@ -51,7 +52,10 @@ type Row = {
 function rowToIssued(r: Row): IssuedSkillProfile | null {
   try {
     return {
-      token: r.token,
+      // The candidate-owned PUBLIC token: the CSPRNG access_token for hardened rows,
+      // falling back to the randomId PK for legacy rows minted before the fix (whose
+      // already-shared /skill/[token] links must keep working).
+      token: r.access_token ?? r.token,
       profile: JSON.parse(r.profile_json) as DurableSkillProfile,
       signature: r.signature,
       issuedAt: r.issued_at,
@@ -98,7 +102,14 @@ export function issueSkillProfile(submissionId: string): IssueResult {
   // nothing — refuse, like a non-evaluated submission.
   if (!isSubstantiveSkillProfile(profile)) return { ok: false, reason: "not_evaluated" };
   const signature = signProfile(profile);
-  const token = randomId("dsp");
+  // The PK `id` is an INTERNAL identifier — a guessable, time-ordered randomId is fine
+  // because it never gates access. The PUBLIC `accessToken` handed out in the shareable
+  // /skill/[token] link is a SEPARATE cryptographically-strong value (randomToken, ~192
+  // bits from a CSPRNG). It is the sole auth on the credential surface, so it MUST be
+  // unguessable/unenumerable — the earlier code minted it with randomId, making the
+  // whole population brute-forceable (bug-ui-scan-2026-07-09 #1).
+  const id = randomId("dsp");
+  const accessToken = randomToken("dsp");
   // Tenant (P1): a durable skill profile inherits its submission's workspace (by-id
   // read of dev_submissions; guarded). The public lookups are by the unguessable token
   // (a candidate presents their credential to anyone) and the mint's idempotent read is
@@ -111,15 +122,19 @@ export function issueSkillProfile(submissionId: string): IssueResult {
     /* dev_submissions absent on this connection — keep the default workspace */
   }
   db.prepare(
-    `INSERT INTO skill_profiles (token, submission_id, candidate_ref, case_id, profile_json, signature, version, issued_at, revoked_at, workspace_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, ?)`
-  ).run(token, submissionId, profile.candidateRef, profile.caseId, JSON.stringify(profile), signature, DSP_VERSION, issuedAt, workspaceId);
-  return { ok: true, token, profile, created: true };
+    `INSERT INTO skill_profiles (token, access_token, submission_id, candidate_ref, case_id, profile_json, signature, version, issued_at, revoked_at, workspace_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?)`
+  ).run(id, accessToken, submissionId, profile.candidateRef, profile.caseId, JSON.stringify(profile), signature, DSP_VERSION, issuedAt, workspaceId);
+  // Hand back the CSPRNG access token — that is the value that goes into the public link.
+  return { ok: true, token: accessToken, profile, created: true };
 }
 
 export function getSkillProfileByToken(token: string): IssuedSkillProfile | null {
   const db = ensureDb();
-  const r = db.prepare(`SELECT * FROM skill_profiles WHERE token = ?`).get(token) as Row | undefined;
+  // Resolve by the CSPRNG access_token (hardened credentials) OR the legacy randomId
+  // PK (already-issued links minted before the token was hardened), so every shared
+  // /skill/[token] link keeps verifying (bug-ui-scan-2026-07-09 #1 backward-compat).
+  const r = db.prepare(`SELECT * FROM skill_profiles WHERE access_token = ? OR token = ?`).get(token, token) as Row | undefined;
   return r ? rowToIssued(r) : null;
 }
 
@@ -139,5 +154,7 @@ export function verifySkillProfileToken(token: string): SkillProfileVerdict {
 
 export function revokeSkillProfile(token: string): boolean {
   const db = ensureDb();
-  return db.prepare(`UPDATE skill_profiles SET revoked_at = ? WHERE token = ? AND revoked_at IS NULL`).run(new Date().toISOString(), token).changes > 0;
+  // Accept either the CSPRNG access_token or the legacy PK (same dual-address contract
+  // as the public lookup) so a credential can be revoked by whatever token is presented.
+  return db.prepare(`UPDATE skill_profiles SET revoked_at = ? WHERE (access_token = ? OR token = ?) AND revoked_at IS NULL`).run(new Date().toISOString(), token, token).changes > 0;
 }

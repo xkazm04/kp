@@ -11,7 +11,12 @@ export async function GET(_request: Request, { params }: { params: Promise<{ tok
   try {
     const { token } = await params;
     const v = verifySkillProfileToken(token);
-    if (!v.found || !v.profile) {
+    // Uniform response for BOTH a miss AND a found-but-invalid (tampered / revoked)
+    // credential: a guessed token that exists-but-fails looks identical to one that
+    // was never issued, so this public endpoint stops being an existence oracle. Only
+    // a genuinely valid credential returns its summary. (This narrows the response
+    // SHAPE; the missing rate-limit is a separate finding, left untouched here.)
+    if (!v.found || !v.profile || !v.valid) {
       return NextResponse.json({ found: false, valid: false }, { status: 404 });
     }
     return NextResponse.json({
