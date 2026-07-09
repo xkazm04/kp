@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-import { getSeedHealth, coreTableCounts, countActiveTasks } from "@/app/_lib/db";
+import { getSeedHealth, coreTableCounts, countActiveTasks, ensureDb } from "@/app/_lib/db";
 import { engineAvailability } from "@/app/_lib/engine-preflight";
+import { schedulerLiveness, schedulerLivenessReason } from "@/app/_lib/scheduler-health";
 
 
 // Readiness probe: confirms the DB opens, seeds loaded cleanly, and reports the
@@ -13,6 +14,7 @@ export async function GET() {
   let seedOk = true;
   let tables: Record<string, number> = {};
   let queue = { running: 0, queued: 0 };
+  let clock: ReturnType<typeof schedulerLiveness> = "stalled";
   try {
     const seed = getSeedHealth();
     seedOk = seed.ok;
@@ -22,6 +24,17 @@ export async function GET() {
     tables = coreTableCounts();
     queue = countActiveTasks();
     if ((tables.jobs ?? 0) === 0) degradedReasons.push("job catalog is empty");
+
+    // Scheduler LIVENESS (bug-ui-scan-2026-07-09 #1): a single indexed read of the
+    // clock heartbeat, judged by age. A wedged automation clock now degrades the
+    // probe (503) instead of hiding behind a green dot — and the reason names it.
+    const beat = ensureDb()
+      .prepare(`SELECT last_tick_at FROM scheduler_heartbeat WHERE id = 'clock'`)
+      .get() as { last_tick_at?: string } | undefined;
+    const lastTickAt = beat?.last_tick_at ?? null;
+    clock = schedulerLiveness(Date.now(), lastTickAt ? Date.parse(lastTickAt) : null, process.uptime() * 1000);
+    const clockReason = schedulerLivenessReason(clock, lastTickAt);
+    if (clockReason) degradedReasons.push(clockReason);
   } catch (error) {
     // DB failed to open/seed — the hardest failure; report it and bail to 503.
     return NextResponse.json(
@@ -36,6 +49,8 @@ export async function GET() {
       ok,
       db: "ok",
       seeds: seedOk ? "ok" : "degraded",
+      // Named sub-check so the response says WHICH thing is broken, not just "unhealthy".
+      clock,
       tables,
       queue,
       degradedReasons,

@@ -179,6 +179,7 @@ export const TENANCY_EXEMPT_TABLES: ReadonlySet<string> = new Set([
   "llm_usage", // deployment-level LLM metering ledger (sibling of billing_usage; written off-request from Python)
   "scheduler", // global background-job scheduler state
   "scheduler_runs",
+  "scheduler_heartbeat", // one row per deployment: the clock's liveness stamp, not tenant data
   // The autonomous dev-case pipeline's CONTROL PLANE + CALIBRATION (Directions D/E,
   // dev-control.ts / dev-outcomes.ts) — deliberately "independent of the main schema".
   // The dev-case CANDIDATE data (dev_cases/lifecycle/postings/submissions/sessions/

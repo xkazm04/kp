@@ -6,6 +6,11 @@
 // tree-shakes this whole import away — which is what stops the bundler from
 // chasing better-sqlite3 → bindings → `fs` (no `fs` off-Node). better-sqlite3 is
 // also pinned in serverExternalPackages (next.config.ts) for the Node bundle.
+//
+// SCHEDULER_TICK_MS is imported statically (scheduler-health.ts is a pure, native-
+// free leaf module — safe for the edge/client tree-shake) so the clock's cadence
+// and the liveness staleness threshold share ONE source and can never drift.
+import { SCHEDULER_TICK_MS } from "./app/_lib/scheduler-health.ts";
 
 export async function startClock(): Promise<void> {
   const g = globalThis as typeof globalThis & { __kpClockStarted?: boolean };
@@ -24,8 +29,25 @@ export async function startClock(): Promise<void> {
     console.error("[clock] task recovery failed:", e);
   }
 
-  const HEARTBEAT_MS = 60_000;
+  const HEARTBEAT_MS = SCHEDULER_TICK_MS;
   const tick = async () => {
+    // Liveness heartbeat FIRST, before any sweep: stamp last_tick_at each tick so
+    // the ops/health surface can tell a LIVE clock from a wedged one
+    // (scheduler-health.schedulerLiveness). Recording it up front means even a tick
+    // whose sweeps throw still proves the self-rescheduling chain is running — a
+    // DEAD chain is exactly what stops updating this row. A single UPSERT on the
+    // one-row scheduler_heartbeat table (created in db/core.ts).
+    try {
+      const { ensureDb } = await import("./app/_lib/db");
+      ensureDb()
+        .prepare(
+          `INSERT INTO scheduler_heartbeat (id, last_tick_at) VALUES ('clock', ?)
+             ON CONFLICT(id) DO UPDATE SET last_tick_at = excluded.last_tick_at`
+        )
+        .run(new Date().toISOString());
+    } catch (e) {
+      console.error("[clock] heartbeat write failed:", e);
+    }
     try {
       const { tickScheduler } = await import("./app/_lib/scheduler");
       const r = await tickScheduler();

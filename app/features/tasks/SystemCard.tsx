@@ -12,6 +12,10 @@ import type { EngineAvailability } from "@/app/_lib/engine-preflight";
 type Ops = {
   ok: boolean;
   seeds: "ok" | "degraded";
+  // Scheduler liveness sub-check (bug-ui-scan-2026-07-09 #1): whether the automation
+  // clock is still ticking. "stalled" = a wedged/dead clock (reminders + GDPR sweep
+  // silently halted); "starting" = fresh boot before the first heartbeat.
+  clock: "healthy" | "starting" | "stalled";
   degradedReasons: string[];
   tables: Record<string, number>;
   queue: { running: number; queued: number };
@@ -68,6 +72,13 @@ export function SystemCard() {
             </span>
             <span className="inline-flex items-center gap-1.5">
               <Dot on={data.seeds === "ok"} /> Seeds
+            </span>
+            <span
+              className="inline-flex items-center gap-1.5"
+              title="Automation clock heartbeat — drives interview reminders, offer-expiry lapses, and the GDPR consent sweep"
+            >
+              <Dot on={data.clock === "healthy"} />{" "}
+              {data.clock === "healthy" ? "Scheduler" : data.clock === "starting" ? "Scheduler starting" : "Scheduler stalled"}
             </span>
             <span className="inline-flex items-center gap-1.5" title="GEMINI_API_KEY / GOOGLE_API_KEY configured">
               <Dot on={data.engines.gemini} /> Gemini
