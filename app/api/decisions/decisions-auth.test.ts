@@ -19,6 +19,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { NextRequest } from "next/server";
 import { cleanupUnitDb } from "../../_lib/testing/unit-db.ts";
+import { isPublicPath } from "../../_lib/auth/public-routes.ts";
 import { GET as recordsGet } from "./records/route.ts";
 import { GET as reconsiderGet } from "./reconsider/route.ts";
 import { GET as configGet, POST as configPost } from "./config/route.ts";
@@ -74,11 +75,27 @@ test("open mode (no operator password): the read routes still serve the local op
 });
 
 test("proxy allow-list: /api/decisions is NOT public; the candidate token surfaces still are", () => {
-  const src = readFileSync(path.join(process.cwd(), "proxy.ts"), "utf8");
-  assert.ok(!src.includes("/api/decisions"), "no /api/decisions path may sit on the public allow-list");
+  // Asserted against the real predicate rather than proxy.ts's source text. Behavior is
+  // the stronger guarantee: a substring check passes even if the entry is unreachable
+  // behind an earlier rule, and it broke when the list moved into public-routes.ts.
+  for (const p of [
+    "/api/decisions",
+    "/api/decisions/records",
+    "/api/decisions/reconsider",
+    "/api/decisions/config",
+    "/api/decisions/group-eval",
+    "/api/decisions/screen-wave",
+  ]) {
+    assert.equal(isPublicPath(p), false, `${p} must never be public`);
+  }
   // The candidate Art.22-adjacent token flows keep their public routes — the
   // decisions gate must never be 'fixed' by stranding these instead.
-  assert.ok(src.includes('"/api/status/"'), "candidate status token API stays public");
-  assert.ok(src.includes('"/api/offer/"'), "candidate offer accept/decline token API stays public");
-  assert.ok(src.includes('"/api/apply/"'), "candidate apply API stays public");
+  assert.equal(isPublicPath("/api/status/tok"), true, "candidate status token API stays public");
+  assert.equal(isPublicPath("/api/offer/tok"), true, "candidate offer accept/decline token API stays public");
+  assert.equal(isPublicPath("/api/apply/job-1"), true, "candidate apply API stays public");
+
+  // ...and proxy.ts must route through that shared predicate, so the allow-list cannot be
+  // bypassed by a second matcher inlined back into the gate.
+  const src = readFileSync(path.join(process.cwd(), "proxy.ts"), "utf8");
+  assert.ok(src.includes("isPublicPath"), "proxy.ts must gate on the shared isPublicPath predicate");
 });
