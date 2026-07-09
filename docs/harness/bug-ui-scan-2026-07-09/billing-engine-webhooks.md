@@ -6,7 +6,8 @@
 
 ## 1. A refunded/disputed minute pack is never clawed back — credits survive the refund
 
-- **Severity**: High
+- **Severity**: Critical
+- **Triage note**: Promoted High -> Critical at triage: direct, repeatable revenue loss with no operator action required (buy pack -> refund -> keep credits).
 - **Lens**: bug-hunter
 - **Category**: state-corruption / money
 - **File**: `app/_lib/billing/reduce.ts:104-123` (the `order` branch), `app/_lib/db/billing.ts:93-108` (`grantBillingCredits`)

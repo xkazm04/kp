@@ -21,8 +21,8 @@
 
 | | Critical | High | Medium | Low | **Total** |
 |---|---:|---:|---:|---:|---:|
-| Across 46 contexts | 6 | 69 | 125 | 30 | **230** |
-| Share | 3% | 30% | 54% | 13% | 100% |
+| Across 46 contexts | 9 | 66 | 125 | 30 | **230** |
+| Share | 4% | 29% | 54% | 13% | 100% |
 
 Lens split: **bug-hunter 161** / **ui-perfectionist 70**.
 
@@ -44,26 +44,26 @@ Lens split: **bug-hunter 161** / **ui-perfectionist 70**.
 |---:|---|---|---:|---:|---:|---:|---|
 | 1 | Auth, Sessions & Workspace Tenancy | Identity, Data & Privacy | 2 | 2 | 1 | 0 | [`auth-sessions-workspace-tenancy.md`](auth-sessions-workspace-tenancy.md) |
 | 2 | ATS Integration & Egress | Pipeline, Decisions & Channels | 1 | 3 | 1 | 0 | [`ats-integration-egress.md`](ats-integration-egress.md) |
-| 3 | Organizations, Members & Invites | Identity, Data & Privacy | 1 | 1 | 2 | 1 | [`organizations-members-invites.md`](organizations-members-invites.md) |
-| 4 | Privacy, Consent & Provenance | Identity, Data & Privacy | 1 | 1 | 2 | 1 | [`privacy-consent-provenance.md`](privacy-consent-provenance.md) |
-| 5 | Interview Scheduling, Prep & Rubric | Interviews & Scheduling | 1 | 0 | 3 | 1 | [`interview-scheduling-prep-rubric.md`](interview-scheduling-prep-rubric.md) |
-| 6 | CV Extraction & Pipeline Services | AI Matching & Extraction Engine | 0 | 4 | 1 | 0 | [`cv-extraction-pipeline-services.md`](cv-extraction-pipeline-services.md) |
-| 7 | Dev Case Pipeline (Python) | Dev Hiring Extension | 0 | 3 | 2 | 0 | [`dev-case-pipeline-python.md`](dev-case-pipeline-python.md) |
-| 8 | Matching & Transformation Engine | AI Matching & Extraction Engine | 0 | 3 | 2 | 0 | [`matching-transformation-engine.md`](matching-transformation-engine.md) |
-| 9 | Billing Engine & Webhooks | Billing & Monetization | 0 | 3 | 1 | 1 | [`billing-engine-webhooks.md`](billing-engine-webhooks.md) |
-| 10 | Candidate Profile & Job Matching | Candidate Analysis | 0 | 2 | 3 | 0 | [`candidate-profile-job-matching.md`](candidate-profile-job-matching.md) |
-| 11 | CV Analysis Workspace | Candidate Analysis | 0 | 2 | 3 | 0 | [`cv-analysis-workspace.md`](cv-analysis-workspace.md) |
-| 12 | Evaluation, Fairness & Seed Data | AI Matching & Extraction Engine | 0 | 2 | 3 | 0 | [`evaluation-fairness-seed-data.md`](evaluation-fairness-seed-data.md) |
-| 13 | Job Postings & Lifecycle | Jobs, JD Library & Sourcing | 0 | 2 | 3 | 0 | [`job-postings-lifecycle.md`](job-postings-lifecycle.md) |
-| 14 | LLM Provider Layer (Python) | LLM Provider Layer & Models | 0 | 2 | 3 | 0 | [`llm-provider-layer-python.md`](llm-provider-layer-python.md) |
-| 15 | Plans, Checkout & Billing UI | Billing & Monetization | 0 | 2 | 3 | 0 | [`plans-checkout-billing-ui.md`](plans-checkout-billing-ui.md) |
-| 16 | Analytics & Calibration Dashboards | Insights, Analytics & Simulation | 0 | 2 | 2 | 1 | [`analytics-calibration-dashboards.md`](analytics-calibration-dashboards.md) |
-| 17 | Candidate Onboarding Hand-off | Offers & Automation | 0 | 2 | 2 | 1 | [`candidate-onboarding-hand-off.md`](candidate-onboarding-hand-off.md) |
-| 18 | Dev Case Authoring & Publishing | Dev Hiring Extension | 0 | 2 | 2 | 1 | [`dev-case-authoring-publishing.md`](dev-case-authoring-publishing.md) |
-| 19 | GitHub Evidence & CV Utilities | Candidate Analysis | 0 | 2 | 2 | 1 | [`github-evidence-cv-utilities.md`](github-evidence-cv-utilities.md) |
-| 20 | Group Evaluation & Fairness | Pipeline, Decisions & Channels | 0 | 2 | 2 | 1 | [`group-evaluation-fairness.md`](group-evaluation-fairness.md) |
-| 21 | Landing & Marketing | Platform, Shell & Shared UI | 0 | 2 | 2 | 1 | [`landing-marketing.md`](landing-marketing.md) |
-| 22 | Shared Utility Libraries | Platform, Shell & Shared UI | 0 | 2 | 2 | 1 | [`shared-utility-libraries.md`](shared-utility-libraries.md) |
+| 3 | Billing Engine & Webhooks | Billing & Monetization | 1 | 2 | 1 | 1 | [`billing-engine-webhooks.md`](billing-engine-webhooks.md) |
+| 4 | LLM Provider Layer (Python) | LLM Provider Layer & Models | 1 | 1 | 3 | 0 | [`llm-provider-layer-python.md`](llm-provider-layer-python.md) |
+| 5 | Organizations, Members & Invites | Identity, Data & Privacy | 1 | 1 | 2 | 1 | [`organizations-members-invites.md`](organizations-members-invites.md) |
+| 6 | Privacy, Consent & Provenance | Identity, Data & Privacy | 1 | 1 | 2 | 1 | [`privacy-consent-provenance.md`](privacy-consent-provenance.md) |
+| 7 | Shared Utility Libraries | Platform, Shell & Shared UI | 1 | 1 | 2 | 1 | [`shared-utility-libraries.md`](shared-utility-libraries.md) |
+| 8 | Interview Scheduling, Prep & Rubric | Interviews & Scheduling | 1 | 0 | 3 | 1 | [`interview-scheduling-prep-rubric.md`](interview-scheduling-prep-rubric.md) |
+| 9 | CV Extraction & Pipeline Services | AI Matching & Extraction Engine | 0 | 4 | 1 | 0 | [`cv-extraction-pipeline-services.md`](cv-extraction-pipeline-services.md) |
+| 10 | Dev Case Pipeline (Python) | Dev Hiring Extension | 0 | 3 | 2 | 0 | [`dev-case-pipeline-python.md`](dev-case-pipeline-python.md) |
+| 11 | Matching & Transformation Engine | AI Matching & Extraction Engine | 0 | 3 | 2 | 0 | [`matching-transformation-engine.md`](matching-transformation-engine.md) |
+| 12 | Candidate Profile & Job Matching | Candidate Analysis | 0 | 2 | 3 | 0 | [`candidate-profile-job-matching.md`](candidate-profile-job-matching.md) |
+| 13 | CV Analysis Workspace | Candidate Analysis | 0 | 2 | 3 | 0 | [`cv-analysis-workspace.md`](cv-analysis-workspace.md) |
+| 14 | Evaluation, Fairness & Seed Data | AI Matching & Extraction Engine | 0 | 2 | 3 | 0 | [`evaluation-fairness-seed-data.md`](evaluation-fairness-seed-data.md) |
+| 15 | Job Postings & Lifecycle | Jobs, JD Library & Sourcing | 0 | 2 | 3 | 0 | [`job-postings-lifecycle.md`](job-postings-lifecycle.md) |
+| 16 | Plans, Checkout & Billing UI | Billing & Monetization | 0 | 2 | 3 | 0 | [`plans-checkout-billing-ui.md`](plans-checkout-billing-ui.md) |
+| 17 | Analytics & Calibration Dashboards | Insights, Analytics & Simulation | 0 | 2 | 2 | 1 | [`analytics-calibration-dashboards.md`](analytics-calibration-dashboards.md) |
+| 18 | Candidate Onboarding Hand-off | Offers & Automation | 0 | 2 | 2 | 1 | [`candidate-onboarding-hand-off.md`](candidate-onboarding-hand-off.md) |
+| 19 | Dev Case Authoring & Publishing | Dev Hiring Extension | 0 | 2 | 2 | 1 | [`dev-case-authoring-publishing.md`](dev-case-authoring-publishing.md) |
+| 20 | GitHub Evidence & CV Utilities | Candidate Analysis | 0 | 2 | 2 | 1 | [`github-evidence-cv-utilities.md`](github-evidence-cv-utilities.md) |
+| 21 | Group Evaluation & Fairness | Pipeline, Decisions & Channels | 0 | 2 | 2 | 1 | [`group-evaluation-fairness.md`](group-evaluation-fairness.md) |
+| 22 | Landing & Marketing | Platform, Shell & Shared UI | 0 | 2 | 2 | 1 | [`landing-marketing.md`](landing-marketing.md) |
 | 23 | Sourcing, Campaigns & Rediscovery | Jobs, JD Library & Sourcing | 0 | 2 | 2 | 1 | [`sourcing-campaigns-rediscovery.md`](sourcing-campaigns-rediscovery.md) |
 | 24 | Analysis Result Panels | Candidate Analysis | 0 | 1 | 4 | 0 | [`analysis-result-panels.md`](analysis-result-panels.md) |
 | 25 | Application Intake & Apply Flows | Pipeline, Decisions & Channels | 0 | 1 | 4 | 0 | [`application-intake-apply-flows.md`](application-intake-apply-flows.md) |
@@ -91,7 +91,7 @@ Lens split: **bug-hunter 161** / **ui-perfectionist 70**.
 
 ---
 
-## All 6 Critical findings
+## All 9 Critical findings
 
 1. **Auth, Sessions & Workspace Tenancy** — `/api/channels/` public prefix exposes the recruiter webhook console to anonymous callers
    `proxy.ts:18`
@@ -102,14 +102,23 @@ Lens split: **bug-hunter 161** / **ui-perfectionist 70**.
 3. **ATS Integration & Egress** — Server-side SSRF: webhook URL has no private-IP/metadata guard, `http:` allowed, and `/api/ats/test` is an authenticated probe
    `app/_lib/ats-config-store.ts:76-89`
 
-4. **Interview Scheduling, Prep & Rubric** — Auth gate serves the bulk-invite route as a public candidate endpoint
+4. **Billing Engine & Webhooks** — A refunded/disputed minute pack is never clawed back — credits survive the refund
+   `app/_lib/billing/reduce.ts:104-123`
+
+5. **Interview Scheduling, Prep & Rubric** — Auth gate serves the bulk-invite route as a public candidate endpoint
    `proxy.ts:33`
 
-5. **Organizations, Members & Invites** — Cap the assignable role to the actor's privilege — an admin can self-promote to owner
+6. **LLM Provider Layer (Python)** — KP_OFFLINE no-egress guarantee is defeated by a cloud `OPENAI_BASE_URL`
+   `pipeline/jobfit/llm/adapters/openai_api.py:47-53`
+
+7. **Organizations, Members & Invites** — Cap the assignable role to the actor's privilege — an admin can self-promote to owner
    `app/api/org/members/[userId]/route.ts:37-41`
 
-6. **Privacy, Consent & Provenance** — Erasure never reaches interview transcripts or comms — the most sensitive PII survives Art. 17
+8. **Privacy, Consent & Provenance** — Erasure never reaches interview transcripts or comms — the most sensitive PII survives Art. 17
    `app/_lib/db/pipeline.ts:1070-1123`
+
+9. **Shared Utility Libraries** — Public skill-profile credential token is minted with the NON-crypto `randomId`
+   `app/_lib/random-id.ts:21`
 
 ---
 

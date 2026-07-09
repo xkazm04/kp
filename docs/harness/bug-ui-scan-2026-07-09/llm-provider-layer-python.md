@@ -6,7 +6,8 @@
 
 ## 1. KP_OFFLINE no-egress guarantee is defeated by a cloud `OPENAI_BASE_URL`
 
-- **Severity**: High
+- **Severity**: Critical
+- **Triage note**: Promoted High -> Critical at triage: silently breaks a documented security guarantee (E-SH-4 no-egress seal) and exfiltrates candidate PII from an air-gapped install.
 - **Lens**: bug-hunter
 - **Category**: trust-boundary / silent-failure
 - **File**: `pipeline/jobfit/llm/adapters/openai_api.py:47-53`, `pipeline/jobfit/llm/offline.py:23-26`, `pipeline/jobfit/llm/base.py:213-219`

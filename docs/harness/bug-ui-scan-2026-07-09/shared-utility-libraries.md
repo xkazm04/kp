@@ -6,7 +6,8 @@
 
 ## 1. Public skill-profile credential token is minted with the NON-crypto `randomId`
 
-- **Severity**: High
+- **Severity**: Critical
+- **Triage note**: Promoted High -> Critical at triage: the token is the sole auth on a public PII endpoint, and `skill-matrix-coverage.md` #2 independently found an unauthenticated existence oracle that makes guessing practical.
 - **Lens**: bug-hunter
 - **Category**: trust-boundary / weak-token
 - **File**: `app/_lib/random-id.ts:21` (`randomId`), misused at `app/_lib/db/skill-profiles.ts:101`
