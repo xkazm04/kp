@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { isPackId, isPlanId, isSelfServePlan, polarGatewayFromEnv, type CheckoutRequest } from "@/app/_lib/billing";
+import { hasActiveSubscription, isPackId, isPlanId, isSelfServePlan, polarGatewayFromEnv, type CheckoutRequest } from "@/app/_lib/billing";
+import { getBillingState } from "@/app/_lib/db";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 
@@ -37,6 +38,17 @@ export async function POST(request: NextRequest) {
   // Any contact-sales tier already returned above, so a non-free plan here is
   // self-serve. `!== "free"` also narrows the type to Exclude<PlanId, "free">.
   if (body && isPlanId(body.plan) && body.plan !== "free") {
+    // Server-side "already subscribed" guard — the trust boundary, not just the
+    // client's `changeVia` hint. An existing subscriber must change plans through the
+    // PORTAL; a stale tab (or a crafted raw POST) that reaches here with a live
+    // subscription would mint a SECOND, parallel Polar subscription and double-charge.
+    // (Pack top-ups are exempt: they're one-time and sold on any tier.)
+    if (hasActiveSubscription(getBillingState())) {
+      return NextResponse.json(
+        { error: "You already have a plan — change it from the customer portal in Billing (Manage subscription), not a new checkout." },
+        { status: 403 }
+      );
+    }
     req = { kind: "plan", plan: body.plan };
   } else if (body && isPackId(body.pack)) {
     req = { kind: "pack", pack: body.pack };

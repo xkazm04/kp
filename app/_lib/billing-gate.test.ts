@@ -49,7 +49,7 @@ const TMP = path.join(os.tmpdir(), `kp-billing-gate-test-${process.pid}.sqlite`)
 process.env.KP_DB_PATH = TMP;
 
 const { getBillingState, upsertBillingState, creditBalance, billingUsageFor, recordBillingAlert, listBillingAlerts } = await import("./db.ts");
-const { billingOverview, entitledPlan, meterAllowance, recordMeterUsage } = await import(
+const { billingOverview, entitledPlan, hasActiveSubscription, meterAllowance, recordMeterUsage } = await import(
   "./billing/entitlements.ts"
 );
 const { activeJobsGate, meterGate } = await import("./billing/enforce.ts");
@@ -103,6 +103,32 @@ function packOrderEvent(id: string, orderId: string): BillingEvent {
     orderId,
     periodStart: null,
     periodEnd: null,
+    raw: {},
+  };
+}
+
+function packRefundEvent(id: string, orderId: string): BillingEvent {
+  return { ...packOrderEvent(id, orderId), type: "order.refunded" };
+}
+
+function subEventFor(
+  id: string,
+  status: string,
+  subscriptionId: string,
+  periodStart: string,
+  periodEnd: string
+): BillingEvent {
+  return {
+    id,
+    type: `subscription.${status === "active" ? "active" : "updated"}`,
+    kind: "subscription",
+    productId: "prod_starter",
+    status,
+    customerId: "cus_1",
+    subscriptionId,
+    orderId: null,
+    periodStart,
+    periodEnd,
     raw: {},
   };
 }
@@ -235,4 +261,88 @@ test("activeJobsGate caps free at 1 published job; paid plans are uncapped", () 
   assert.equal(verdict?.meter, "active_jobs");
   upsertBillingState({ plan: "growth", status: "active", provider: "polar" });
   assert.equal(activeJobsGate(25), null);
+});
+
+// ---- finding #2: failed-payment statuses are bounded, not entitled forever -----
+
+test("past_due keeps the plan through a bounded grace, then falls to free", () => {
+  upsertBillingState({ plan: "growth", status: "past_due", provider: "polar", currentPeriodEnd: "2026-07-01T00:00:00Z" });
+  // within the 7-day grace after period end → still entitled
+  assert.equal(entitledPlan(getBillingState(), new Date("2026-07-05T00:00:00Z")).id, "growth");
+  // beyond the grace → free (was UNBOUNDED before the fix)
+  assert.equal(entitledPlan(getBillingState(), new Date("2026-07-20T00:00:00Z")).id, "free");
+});
+
+test("unpaid is bounded by the same grace and FAILS CLOSED without a period anchor", () => {
+  upsertBillingState({ plan: "growth", status: "unpaid", provider: "polar", currentPeriodEnd: "2026-07-01T00:00:00Z" });
+  // within grace → entitled (was a silent no-op → free before the fix)
+  assert.equal(entitledPlan(getBillingState(), new Date("2026-07-05T00:00:00Z")).id, "growth");
+  assert.equal(entitledPlan(getBillingState(), new Date("2026-07-20T00:00:00Z")).id, "free");
+  // no paid-through anchor on a FAILED payment → free (don't leak an unbounded plan)
+  upsertBillingState({ plan: "growth", status: "unpaid", provider: "polar", currentPeriodEnd: null });
+  assert.equal(entitledPlan(getBillingState()).id, "free");
+});
+
+// ---- finding #4: server-side "already subscribed" gate (pure decision) ---------
+
+test("hasActiveSubscription gates a fresh plan checkout to non-subscribers only", () => {
+  upsertBillingState({ plan: "starter", status: "active", provider: "polar" });
+  assert.equal(hasActiveSubscription(getBillingState()), true);
+  upsertBillingState({ plan: "growth", status: "past_due", provider: "polar" });
+  assert.equal(hasActiveSubscription(getBillingState()), true); // failed-payment sub still exists at the MoR
+  upsertBillingState({ plan: "starter", status: "canceled", provider: "polar" });
+  assert.equal(hasActiveSubscription(getBillingState()), true); // cancel-at-period-end still bills
+  upsertBillingState({ plan: "free", status: "none", provider: "polar" });
+  assert.equal(hasActiveSubscription(getBillingState()), false); // never/no-longer subscribed → checkout ok
+  assert.equal(hasActiveSubscription(null), false);
+});
+
+// ---- finding #3: a reordered active after a revoke must NOT re-entitle -----------
+
+test("a reordered active after a revoke does NOT re-entitle the canceled customer", () => {
+  // Fresh subscription goes active → starter.
+  ingestBillingWebhook(fakeGateway(subEventFor("evt_ro1", "active", "sub_reorder", "2026-08-01T00:00:00Z", "2026-09-01T00:00:00Z")), "{}", {});
+  assert.equal(billingOverview().plan.id, "starter");
+  // Terminal revoke lands FIRST → clear to free (the sub id is kept as a tombstone).
+  ingestBillingWebhook(fakeGateway(subEventFor("evt_ro2", "revoked", "sub_reorder", "2026-08-01T00:00:00Z", "2026-09-01T00:00:00Z")), "{}", {});
+  assert.equal(getBillingState()?.plan, "free");
+  // A delayed pre-revoke active for the SAME sub lands SECOND → must stay free.
+  const late = ingestBillingWebhook(fakeGateway(subEventFor("evt_ro3", "active", "sub_reorder", "2026-08-01T00:00:00Z", "2026-09-01T00:00:00Z")), "{}", {});
+  assert.match(late.detail ?? "", /stale re-entitlement/);
+  assert.equal(getBillingState()?.plan, "free");
+  assert.equal(billingOverview().plan.id, "free");
+  // A GENUINE re-subscribe under a NEW sub id is still honored.
+  ingestBillingWebhook(fakeGateway(subEventFor("evt_ro4", "active", "sub_new", "2026-10-01T00:00:00Z", "2026-11-01T00:00:00Z")), "{}", {});
+  assert.equal(billingOverview().plan.id, "starter");
+});
+
+// ---- finding #1: refunds claw back the granted pack credits ---------------------
+
+test("a refunded pack claws the granted credits back, idempotently", () => {
+  const before = creditBalance("interview_minutes");
+  const grant = ingestBillingWebhook(fakeGateway(packOrderEvent("evt_rf1", "order_rf")), "{}", {});
+  assert.equal(grant.action, "grant_credits");
+  assert.equal(creditBalance("interview_minutes"), before + 100);
+  // Refund the SAME order → a compensating −100 debit brings it back.
+  const refund = ingestBillingWebhook(fakeGateway(packRefundEvent("evt_rf2", "order_rf")), "{}", {});
+  assert.equal(refund.action, "grant_credits");
+  assert.equal(creditBalance("interview_minutes"), before);
+  // A replayed refund (new event id, same order) must NOT double-revoke.
+  ingestBillingWebhook(fakeGateway(packRefundEvent("evt_rf3", "order_rf")), "{}", {});
+  assert.equal(creditBalance("interview_minutes"), before);
+});
+
+test("a refund past already-spent minutes floors the shown balance at 0 (ledger stays truthful)", () => {
+  upsertBillingState({ plan: "free", status: "none", provider: "polar" }); // interview_minutes included = 0
+  ingestBillingWebhook(fakeGateway(packOrderEvent("evt_cl1", "order_clamp")), "{}", {}); // +100
+  // Spend the entire balance (the debit clamps to the live balance → raw balance 0).
+  recordMeterUsage("interview_minutes", 1_000_000);
+  assert.equal(creditBalance("interview_minutes"), 0);
+  // Refund the pack → the ledger goes negative (an honest audit record)...
+  ingestBillingWebhook(fakeGateway(packRefundEvent("evt_cl2", "order_clamp")), "{}", {}); // −100
+  assert.ok(creditBalance("interview_minutes") < 0);
+  // ...but the DISPLAYED / spendable balance is floored at 0, never negative.
+  const minutes = billingOverview().meters.find((m) => m.meter === "interview_minutes");
+  assert.equal(minutes?.credits, 0);
+  assert.equal(minutes?.remaining, 0);
 });

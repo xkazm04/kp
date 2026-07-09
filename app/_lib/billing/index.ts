@@ -8,6 +8,7 @@ export type { BillingEvent, BillingGateway, Checkout, CheckoutRequest, ProductMa
 export {
   billingOverview,
   entitledPlan,
+  hasActiveSubscription,
   meterAllowance,
   recordMeterUsage,
   type Allowance,

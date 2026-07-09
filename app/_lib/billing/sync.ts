@@ -3,7 +3,13 @@
 
 import { ensureDb, getBillingState, grantBillingCredits, insertBillingEvent, recordBillingAlert, upsertBillingState } from "../db";
 import type { BillingGateway } from "./gateway";
-import { clearSubscriptionIsStale, reduceBillingEvent, subscriptionWriteIsStale, type BillingAction } from "./reduce";
+import {
+  clearSubscriptionIsStale,
+  reduceBillingEvent,
+  setForRevokedSubscriptionIsStale,
+  subscriptionWriteIsStale,
+  type BillingAction,
+} from "./reduce";
 
 export type IngestResult = {
   eventId: string;
@@ -25,6 +31,13 @@ export function applyBillingAction(action: BillingAction, provider: string): str
       const prior = getBillingState();
       if (subscriptionWriteIsStale(prior?.providerSubscriptionId ?? null, prior?.currentPeriodStart ?? null, action.subscriptionId, action.periodStart)) {
         return `stale subscription event ignored (period ${action.periodStart ?? "?"} not newer than stored)`;
+      }
+      // Out-of-order guard (re-entitlement direction): a REORDERED pre-revoke `active`
+      // for a subscription already cleared to free (its id kept as a tombstone below)
+      // must not re-entitle a canceled customer. The period anchor is nulled on clear,
+      // so the check above can't catch this; the tombstone id can.
+      if (setForRevokedSubscriptionIsStale(prior?.plan ?? "free", prior?.providerSubscriptionId ?? null, action.subscriptionId)) {
+        return `stale re-entitlement ignored (subscription ${action.subscriptionId ?? "?"} was already revoked)`;
       }
       // A `canceled` (cancel-at-period-end) carries the grace period in periodEnd;
       // entitledPlan keeps the customer until it passes. If Polar omits/malforms it,
@@ -62,7 +75,12 @@ export function applyBillingAction(action: BillingAction, provider: string): str
         status: "none",
         provider,
         providerCustomerId: action.customerId ?? prior?.providerCustomerId ?? null,
-        providerSubscriptionId: null,
+        // Keep the revoked subscription id as a TOMBSTONE (not null): the set-path
+        // `setForRevokedSubscriptionIsStale` guard uses it to reject a reordered
+        // pre-revoke `active` for this same, now-dead subscription (a genuine
+        // re-subscribe arrives under a new id, which the guard lets through). The
+        // period anchors are nulled — there's no live period once cleared.
+        providerSubscriptionId: action.subscriptionId ?? prior?.providerSubscriptionId ?? null,
         currentPeriodStart: null,
         currentPeriodEnd: null,
       });
@@ -75,7 +93,9 @@ export function applyBillingAction(action: BillingAction, provider: string): str
         reason: action.reason,
         providerRef: action.providerRef,
       });
-      return granted ? `+${action.qty} ${action.meter}` : `duplicate grant ${action.providerRef} skipped`;
+      return granted
+        ? `${action.qty >= 0 ? "+" : ""}${action.qty} ${action.meter}`
+        : `duplicate grant ${action.providerRef} skipped`;
     }
     case "ignore":
       if (action.unmapped) {

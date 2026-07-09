@@ -13,7 +13,7 @@ import { NextRequest } from "next/server";
 import { cleanupUnitDb } from "../../_lib/testing/unit-db.ts";
 import { POST as webhookPost } from "./webhook/route.ts";
 import { POST as checkoutPost } from "./checkout/route.ts";
-import { creditBalance, getBillingState } from "../../_lib/db/billing.ts";
+import { creditBalance, getBillingState, upsertBillingState } from "../../_lib/db/billing.ts";
 
 after(() => cleanupUnitDb());
 
@@ -154,6 +154,10 @@ test("checkout: the Enterprise contact-sales tier is rejected 400 and never hits
 
 test("checkout happy path returns the provider-hosted URL (provider hop stubbed)", async () => {
   configurePolarEnv();
+  // Precondition: a NON-subscriber (the legitimate first-checkout path). Earlier
+  // tests in this shared DB entitled a subscription; the server-side guard would
+  // (correctly) 403 a plan checkout while one is live, so start from free here.
+  upsertBillingState({ plan: "free", status: "none", provider: "polar" });
   const originalFetch = globalThis.fetch;
   const calls: Array<{ url: string; body: unknown }> = [];
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -169,6 +173,46 @@ test("checkout happy path returns the provider-hosted URL (provider hop stubbed)
     assert.equal(calls.length, 1);
     assert.match(calls[0].url, /\/v1\/checkouts\/$/);
     assert.deepEqual((calls[0].body as { products: string[] }).products, [PRODUCT_STARTER]);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("checkout: an existing subscriber is blocked 403 and pointed at the portal (no provider hop)", async () => {
+  configurePolarEnv();
+  // A live subscription exists — a stale tab or a crafted raw POST must NOT mint a
+  // second, parallel subscription (double-charge). The server, not just the client
+  // `changeVia` hint, enforces the portal-only-for-changes invariant.
+  upsertBillingState({ plan: "starter", status: "active", provider: "polar", providerSubscriptionId: "sub_live" });
+  const originalFetch = globalThis.fetch;
+  let providerHit = false;
+  globalThis.fetch = (async () => {
+    providerHit = true;
+    return new Response(JSON.stringify({ url: "https://polar.test/checkout/co_x", id: "co_x" }), { status: 200 });
+  }) as typeof fetch;
+  try {
+    const res = await checkoutPost(
+      new NextRequest("http://localhost/api/billing/checkout", { method: "POST", body: JSON.stringify({ plan: "growth" }) })
+    );
+    assert.equal(res.status, 403);
+    assert.match((await res.json()).error, /portal/i);
+    assert.equal(providerHit, false, "an already-subscribed checkout must never reach the payment gateway");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("checkout: a pack top-up is still allowed for an existing subscriber (one-time, sold on any tier)", async () => {
+  configurePolarEnv();
+  upsertBillingState({ plan: "starter", status: "active", provider: "polar", providerSubscriptionId: "sub_live" });
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async () =>
+    new Response(JSON.stringify({ url: "https://polar.test/checkout/co_pack", id: "co_pack" }), { status: 200 })) as typeof fetch;
+  try {
+    const res = await checkoutPost(
+      new NextRequest("http://localhost/api/billing/checkout", { method: "POST", body: JSON.stringify({ pack: "minutes_100" }) })
+    );
+    assert.equal(res.status, 200);
   } finally {
     globalThis.fetch = originalFetch;
   }
