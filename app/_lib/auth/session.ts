@@ -36,10 +36,15 @@ export type SessionPayload = {
   sub?: string;
   org?: string;
   role?: string;
+  // The operator-password login, marked EXPLICITLY (`op: true`) rather than inferred
+  // from the absence of `sub`. Absence of identity must never imply privilege: a
+  // claim-less cookie used to resolve to full owner capabilities, so any re-mint that
+  // dropped `sub` (see /api/auth/switch-workspace) escalated a member to owner.
+  op?: true;
 };
 
-/** Optional identity claims stamped into a per-user session at login. */
-export type SessionClaims = { sub?: string; org?: string; role?: string };
+/** Optional identity claims stamped into a session at login. */
+export type SessionClaims = { sub?: string; org?: string; role?: string; op?: true };
 
 function key(): string {
   const s = process.env.KP_SECRET;
@@ -69,8 +74,21 @@ export function signSession(workspace: string = DEFAULT_WORKSPACE, now: number =
   if (claims.sub) payload.sub = claims.sub;
   if (claims.org) payload.org = claims.org;
   if (claims.role) payload.role = claims.role;
+  if (claims.op) payload.op = true;
   const body = Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
   return `${body}.${hmac(body)}`;
+}
+
+/** True only for a session minted by the operator-password login, which carries no
+ *  per-user identity but holds full privilege.
+ *
+ *  Read this instead of testing `!currentUserId(session)`. A session can lack `sub` for
+ *  reasons that have nothing to do with being the operator — most importantly a re-mint
+ *  that forgot to carry the claims forward — and treating that as "operator" turns a
+ *  dropped field into a privilege grant. Fails closed: an older operator cookie predating
+ *  this claim resolves to no capabilities until the operator signs in again. */
+export function isOperatorSession(session: SessionPayload | null | undefined): boolean {
+  return session?.op === true;
 }
 
 /** Verify a session token: signature recomputes under KP_SECRET AND not expired.

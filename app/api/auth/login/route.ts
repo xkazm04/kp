@@ -82,5 +82,8 @@ export async function POST(request: Request) {
   if (!password || !constantTimeEqual(password, expected)) {
     return NextResponse.json({ error: "Incorrect password." }, { status: 401 });
   }
-  return withSessionCookie(NextResponse.json({ ok: true }), signSession());
+  // `op: true` marks the operator session EXPLICITLY. resolveCaller() used to infer
+  // "operator" from a missing `sub`, which meant any claim-less cookie carried owner
+  // capabilities. This is the only place that privilege is granted.
+  return withSessionCookie(NextResponse.json({ ok: true }), signSession(undefined, Date.now(), { op: true }));
 }

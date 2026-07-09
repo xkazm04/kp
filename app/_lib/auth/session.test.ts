@@ -1,8 +1,39 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { signSession, verifySession, currentWorkspaceId, DEFAULT_WORKSPACE, SESSION_TTL_MS, sessionEpoch } from "./session.ts";
+import { signSession, verifySession, currentWorkspaceId, isOperatorSession, DEFAULT_WORKSPACE, SESSION_TTL_MS, sessionEpoch } from "./session.ts";
 
 process.env.KP_SECRET = process.env.KP_SECRET || "test-master-secret";
+
+// CRITICAL (2026-07-09 scan, auth-sessions-workspace-tenancy #2): operator privilege was
+// inferred from the ABSENCE of a `sub` claim, so any claim-less cookie was a full owner —
+// and /api/auth/switch-workspace re-minted without claims. Privilege is now a positive,
+// explicit marker; absence of identity must never imply privilege.
+test("operator privilege requires the explicit `op` marker, never absent identity", () => {
+  const now = 3_000_000;
+  const operator = verifySession(signSession(undefined, now, { op: true }), now);
+  assert.equal(isOperatorSession(operator), true);
+
+  // A claim-less session (what a careless re-mint produces) is NOT an operator.
+  const claimless = verifySession(signSession("workspace", now), now);
+  assert.equal(claimless!.sub, undefined);
+  assert.equal(isOperatorSession(claimless), false);
+
+  // A real member session is not an operator either.
+  const member = verifySession(signSession("workspace", now, { sub: "usr-1", role: "recruiter" }), now);
+  assert.equal(isOperatorSession(member), false);
+
+  // `op` is signed, so it cannot be added without KP_SECRET.
+  assert.equal(isOperatorSession(null), false);
+});
+
+test("a member session that switches workspace keeps its identity", () => {
+  // The re-mint must carry `sub` forward; if it does not, resolveCaller() sees a
+  // claim-less cookie. Pinned here at the token layer, where the claims are set.
+  const now = 4_000_000;
+  const reminted = verifySession(signSession("workspace", now, { sub: "usr-7", org: "org-1", role: "recruiter" }), now);
+  assert.equal(reminted!.sub, "usr-7");
+  assert.equal(isOperatorSession(reminted), false);
+});
 
 test("sign then verify round-trips with the default workspace", () => {
   const now = 1_000_000;

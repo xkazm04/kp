@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { SESSION_COOKIE } from "./edge-verify";
-import { verifySession, currentWorkspaceId, currentUserId, currentOrgId, DEMO_WORKSPACE, type SessionPayload } from "./session";
+import { verifySession, currentWorkspaceId, currentUserId, currentOrgId, isOperatorSession, DEMO_WORKSPACE, type SessionPayload } from "./session";
 import { roleCapabilities, type Capability, type MemberRole } from "./roles";
 import { getMembership, capabilitiesForUserInWorkspace } from "../db/memberships";
 
@@ -33,8 +33,16 @@ async function resolveCaller(): Promise<Caller> {
   if (!process.env.KP_OPERATOR_PASSWORD) return { authed: true, caps: OWNER_CAPS }; // open dev
   const s = await currentSession();
   if (!s || currentWorkspaceId(s) === DEMO_WORKSPACE) return { authed: false, caps: EMPTY_CAPS };
+  // Owner capabilities require the EXPLICIT operator marker. This used to read
+  // `if (!currentUserId(s))` — i.e. it inferred operator from the absence of identity —
+  // so any claim-less session was a full owner. /api/auth/switch-workspace re-minted the
+  // cookie with `signSession(workspaceId)` and no claims, so any member could switch to
+  // the default workspace and come back an owner.
+  if (isOperatorSession(s)) return { authed: true, caps: OWNER_CAPS };
   const userId = currentUserId(s);
-  if (!userId) return { authed: true, caps: OWNER_CAPS }; // operator-password session = owner
+  // Authenticated but identity-less and not the operator: no capabilities (→ 403). Fails
+  // closed, so a dropped `sub` can never be mistaken for privilege again.
+  if (!userId) return { authed: true, caps: EMPTY_CAPS };
   // A valid user session with no membership on this team is authenticated but has
   // no capabilities here (→ 403, not 401).
   return { authed: true, caps: capabilitiesForUserInWorkspace(userId, currentWorkspaceId(s)) };

@@ -1,7 +1,17 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { SESSION_COOKIE, SESSION_TTL_MS, signSession, verifySession } from "@/app/_lib/auth/session";
+import {
+  SESSION_COOKIE,
+  SESSION_TTL_MS,
+  signSession,
+  verifySession,
+  currentUserId,
+  currentOrgId,
+  isOperatorSession,
+  type SessionClaims,
+} from "@/app/_lib/auth/session";
 import { getWorkspace, DEFAULT_WORKSPACE_ID } from "@/app/_lib/db";
+import { getMembership } from "@/app/_lib/db/memberships";
 import { canSwitchWorkspace } from "@/app/_lib/workspace-lock";
 import { jsonError } from "@/app/_lib/api-response";
 
@@ -31,8 +41,22 @@ export async function POST(request: Request) {
     if (!workspaceId || !getWorkspace(workspaceId)) {
       return NextResponse.json({ error: "Unknown workspace." }, { status: 404 });
     }
+    // Carry the caller's identity across the re-mint. Dropping it used to hand the new
+    // cookie to resolveCaller() with no `sub`, which read that absence as "operator" and
+    // granted owner capabilities — so any member could switch to the default workspace and
+    // return an owner. `role` is recomputed against the TARGET team (a user's role is
+    // per-membership, not global); capabilities are still resolved live from the DB, so the
+    // claim is for display and must never be the authority.
+    const userId = currentUserId(session);
     const res = NextResponse.json({ ok: true, workspace: workspaceId });
-    res.cookies.set(SESSION_COOKIE, signSession(workspaceId), {
+    const claims: SessionClaims = isOperatorSession(session)
+      ? { op: true }
+      : {
+          sub: userId ?? undefined,
+          org: currentOrgId(session) ?? undefined,
+          role: userId ? getMembership(userId, workspaceId)?.role : undefined,
+        };
+    res.cookies.set(SESSION_COOKIE, signSession(workspaceId, Date.now(), claims), {
       httpOnly: true,
       secure: true,
       sameSite: "lax",
