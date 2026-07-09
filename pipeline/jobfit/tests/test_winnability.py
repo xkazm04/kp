@@ -3,7 +3,7 @@ from __future__ import annotations
 import unittest
 
 from pipeline.jobfit.jobs import Job, JobRequirement
-from pipeline.jobfit.matching import MatchCandidate
+from pipeline.jobfit.matching import FIT_PROMISING_THRESHOLD, MatchCandidate, ko_filter, score_job
 from pipeline.jobfit.winnability import assess_winnability
 
 
@@ -33,25 +33,56 @@ class WinnabilityTest(unittest.TestCase):
         self.assertEqual(gate["eligibleDelta"], 2)  # dropping German restores both
 
     def test_demoting_an_unmet_must_have_raises_the_qualified_count(self) -> None:
-        # Everyone clears the gates (no languages required) but nobody has Kafka,
-        # so a Kafka must_have caps the qualified pool. Demoting it should lift it.
-        pool = [_cand(f"c{i}", ["python", "django", "postgres", "aws"]) for i in range(4)]
+        # A senior role that hard-requires Kafka, against a medior backend pool.
+        # Three candidates have the core stack (Python) but NOT Kafka, so the Kafka
+        # must_have alone drags them below the "promising" bar — they are blocked
+        # ONLY by Kafka. A fourth candidate does have Kafka and already qualifies.
+        # Demoting Kafka to nice_to_have must lift exactly the three blocked ones,
+        # so the qualified pool rises from 1 to 4 (a real, strictly-positive delta).
+        pool = [
+            _cand("flip1", ["python", "git", "sql"], seniority="medior"),
+            _cand("flip2", ["python", "git", "sql"], seniority="medior"),
+            _cand("flip3", ["python", "git", "sql"], seniority="medior"),
+            _cand("has_kafka", ["python", "kafka", "git"], seniority="medior"),
+        ]
         job = _job(
+            seniority="senior",
             requirements=[
                 JobRequirement(skill="python"),
-                JobRequirement(skill="django"),
-                JobRequirement(skill="postgres"),
-                JobRequirement(skill="aws"),
-                JobRequirement(skill="kafka"),  # nobody has this
-            ]
+                JobRequirement(skill="kafka"),  # only `has_kafka` has this
+            ],
         )
         out = assess_winnability(pool, job)
-        self.assertEqual(out["eligible"], 4)
+        self.assertEqual(out["eligible"], 4)  # all four clear the hard gates
+        self.assertEqual(out["qualified"], 1)  # only `has_kafka` reaches the bar while Kafka is a must
         kafka = next(m for m in out["looseMustHaves"] if m["skill"] == "kafka")
-        self.assertEqual(kafka["missingAmongEligible"], 4)
-        self.assertGreaterEqual(kafka["qualifiedDelta"], out["qualified"] and 0)
-        # Demoting the skill nobody has must not REDUCE qualified, and should be the
-        # top-ranked lever (largest qualifiedDelta or most-missing).
+        self.assertEqual(kafka["missingAmongEligible"], 3)
+
+        # Independently recount the qualified pool once Kafka is demoted, re-running
+        # the SAME production scorer the coach uses, and pin the coach's delta to
+        # that real change — NOT to a constant. (The prior RHS `out["qualified"] and
+        # 0` short-circuited to 0, silently degrading this to a mere `delta >= 0`.)
+        demoted_job = job.model_copy(
+            update={
+                "requirements": [
+                    r.model_copy(update={"kind": "nice_to_have"}) if r.skill == "kafka" else r
+                    for r in job.requirements
+                ]
+            }
+        )
+        demoted_qualified = sum(
+            1
+            for c in pool
+            if ko_filter(c, demoted_job)[0] and score_job(c, demoted_job).total >= FIT_PROMISING_THRESHOLD
+        )
+        self.assertEqual(demoted_qualified, 4)  # the three blocked-only-by-Kafka candidates flip in
+
+        # Headline invariant: demoting a must-have nobody has STRICTLY raises the
+        # qualified pool, and the reported delta equals the real recomputed change.
+        self.assertGreater(kafka["qualifiedDelta"], 0)
+        self.assertEqual(kafka["qualifiedDelta"], demoted_qualified - out["qualified"])
+        self.assertEqual(kafka["qualifiedDelta"], 3)
+        # …and it is the top-ranked lever (largest qualifiedDelta).
         self.assertEqual(out["looseMustHaves"][0]["skill"], "kafka")
 
     def test_salary_below_market_is_flagged(self) -> None:
@@ -64,7 +95,12 @@ class WinnabilityTest(unittest.TestCase):
 
     def test_empty_pool_is_zeroed_not_crashed(self) -> None:
         out = assess_winnability([], _job(requirements=[JobRequirement(skill="python")]))
-        self.assertEqual(out, {**out, "poolSize": 0, "eligible": 0, "qualified": 0})
+        # Pin each zeroed field explicitly; the prior `assertEqual(out, {**out, ...})`
+        # compared the output against a copy of ITSELF, so every key other than the
+        # three overridden ones was asserted only `out == out` (a tautology).
+        self.assertEqual(out["poolSize"], 0)
+        self.assertEqual(out["eligible"], 0)
+        self.assertEqual(out["qualified"], 0)
         self.assertEqual(out["looseGates"], [])
 
     def test_no_false_loosen_suggestion_when_gate_blocks_nobody(self) -> None:
