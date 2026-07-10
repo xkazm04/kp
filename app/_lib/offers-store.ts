@@ -286,12 +286,49 @@ export function getOpenOfferForEntry(entryId: string): OfferRow | null {
  *  check-then-insert across connections, and the partial unique index above
  *  backstops any writer that bypasses this helper. `created` tells the caller
  *  whether this call minted the row (vs. reusing an existing open offer). */
-export function getOrCreateOpenOffer(input: Parameters<typeof createOffer>[0]): { offer: OfferRow; created: boolean } {
+export function getOrCreateOpenOffer(
+  input: Parameters<typeof createOffer>[0]
+): { offer: OfferRow; created: boolean; updated: boolean } {
   const d = db();
-  const tx = d.transaction((): { offer: OfferRow; created: boolean } => {
+  const tx = d.transaction((): { offer: OfferRow; created: boolean; updated: boolean } => {
     const open = getOpenOfferForEntry(input.entryId);
-    if (open) return { offer: open, created: false };
-    return { offer: createOffer(input), created: true };
+    if (!open) return { offer: createOffer(input), created: true, updated: false };
+
+    // Re-extend after a draft edit (offers-onboarding #1): the stored row is the
+    // offer-of-record the BINDING accept page renders (offer-finalize.offerView →
+    // OfferClient reads offer.salary/currency), but the re-dispatched letter is
+    // minted from the LIVE draft. So if the recruiter corrected the number (typo,
+    // re-negotiation, wrong currency) and re-extends, the emailed terms and the
+    // accept page would diverge — a candidate could accept a figure that isn't the
+    // one they were sent. Refresh the SAME open row (same token/link — the
+    // idempotent re-send contract; never a second live link) to the incoming
+    // draft's terms so the accept page and the letter are one snapshot. Guarded to a
+    // material change, so a pure idempotent re-extend stays a verbatim re-send with
+    // its deadline and reminder claim untouched.
+    const nextCurrency = typeof input.currency === "string" ? input.currency : null;
+    const nextSalary = input.salary ?? null;
+    const termsChanged = nextSalary !== open.salary || nextCurrency !== open.currency;
+    if (!termsChanged) return { offer: open, created: false, updated: false };
+
+    // A corrected offer is effectively re-extended: restart the deadline window
+    // (honoring the draft's ttlDays) and re-arm the single T-48h reminder. The CAS
+    // on `status = 'extended'` means an offer that was accepted/declined/expired in
+    // the meantime is NEVER silently rewritten into a different amount — the update
+    // matches no open row and the current authoritative row is returned instead.
+    const expiresAt = new Date(offerExpiresAtMs(Date.now(), input.ttlDays)).toISOString();
+    const updatedRow = d
+      .prepare(
+        `UPDATE offers SET salary = ?, currency = ?, expires_at = ?, payload_json = ?, reminded_at = NULL
+          WHERE id = ? AND status = 'extended' RETURNING *`
+      )
+      .get(nextSalary, nextCurrency, expiresAt, JSON.stringify(input.payload ?? null), open.id) as
+      | Record<string, unknown>
+      | undefined;
+    if (!updatedRow) {
+      const current = getOpenOfferForEntry(input.entryId);
+      return { offer: current ?? open, created: false, updated: false };
+    }
+    return { offer: rowToOffer(updatedRow), created: false, updated: true };
   });
   return tx.immediate();
 }

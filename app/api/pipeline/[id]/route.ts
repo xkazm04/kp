@@ -43,7 +43,7 @@ async function extendOffer(request: NextRequest, entry: PipelineEntry, workspace
   // (idea-00987b3c): the old `getOpenOfferForEntry() ?? createOffer()` was a
   // TOCTOU that a double-clicked approval defeated, minting two live offer
   // links. A re-extend re-sends the SAME link — never a second one.
-  const { offer, created } = getOrCreateOpenOffer({
+  const { offer, created, updated } = getOrCreateOpenOffer({
     entryId: entry.id,
     candidateLabel: entry.candidateLabel,
     jobId: entry.jobId,
@@ -63,9 +63,12 @@ async function extendOffer(request: NextRequest, entry: PipelineEntry, workspace
   });
 
   // Decision SoR (moonshot D backfill): seal the recruiter's offer-terms decision —
-  // only on a genuinely NEW offer (created), not an idempotent re-extend of the same
-  // link. Best-effort; never blocks the offer dispatch.
-  if (created) {
+  // on a genuinely NEW offer (created) OR a re-extend that CORRECTED the terms
+  // (updated: the open row was refreshed to a new salary/currency), so the sealed
+  // record always matches the terms the candidate can now accept. A pure idempotent
+  // re-extend (same terms, same link) is not re-sealed. Best-effort; never blocks
+  // the offer dispatch.
+  if (created || updated) {
     sealDecisionSafe({
       kind: "offer_terms",
       actor: sealActor,
