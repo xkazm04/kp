@@ -323,5 +323,313 @@ and a regression-vs-baseline section.
   JSON (drift-proof, both languages) vs the TS-emits-brief entrypoint (fully faithful, one
   more moving part). Likely both: shared JSON for the constants, entrypoint for the composed
   grounded briefs.
-</content>
-</invoke>
+
+---
+
+## 9. The voice plane — audio-in-the-loop (V0–V3)
+
+Everything above tests the **brain** in text. A human vibecheck is a good smell test but is not a
+ship gate: it isn't repeatable, isn't measurable, and covers one voice, one accent, one network.
+This section adds the missing plane — a **synthetic candidate that actually speaks** — using a
+LOCAL TTS to generate the candidate's audio, streaming it into the real ElevenLabs realtime
+session, and reacting to the transcripts the protocol returns.
+
+### 9.1 Why it works (verified)
+
+- **The EL realtime WebSocket is speakable headlessly.** Client sends `{"user_audio_chunk": "<b64
+  PCM 16-bit mono 16 kHz>"}`; the server streams back `conversation_initiation_metadata`,
+  `user_transcript` (its ASR of what we said), `agent_response` (the agent's text), `audio`,
+  `interruption`, `vad_score`, and `ping` (answer with `{"type":"pong","event_id":N}`). Because the
+  **text transcripts arrive as events alongside the audio**, a headless driver needs no browser,
+  speakers, or microphone.
+- **Local TTS with Czech exists and is free.** [Piper](https://github.com/rhasspy/piper) runs
+  ~15 M-param ONNX voices on CPU (`en_US-lessac-medium`, `cs_CZ-jirka-medium`), measured here at
+  **2.5× real-time** and resampled 22 050 → 16 000 Hz with `soxr`. Generation is fully offline; only
+  the EL session egresses (so the harness inherits the same `KP_OFFLINE` seal as
+  `elevenlabs_backend.py`).
+
+### 9.2 The metric no other plane can produce: ground-truth WER
+
+Because the harness *generates* the candidate's speech from known text, it knows exactly what was
+said. That makes transcript fidelity **deterministically measurable**: word-error-rate between the
+spoken ground truth and (a) EL's `user_transcript`, and (b) the transcript the app actually stores
+and **feeds to the scorecard**. Today, if the ASR mangles "PostgreSQL" or a Czech surname, the
+scorecard silently scores garbage. With this harness that becomes a hard, gateable number — per
+language, per voice/accent, per noise level.
+
+### 9.3 Architecture — two tiers over the SAME scenarios/validators/judge
+
+```
+scenarios (existing bank) ──► persona LLM (Claude CLI, as today)
+                                  │ next utterance  ← ground truth text
+                                  ▼
+                            Piper TTS (local; cs + en)  → PCM16 @16 kHz
+          ┌───────────────────────┴───────────────────────┐
+          ▼ TIER A — headless (mass gate)                  ▼ TIER B — browser (nightly, 3–5)
+   EL WebSocket driver                              Playwright + getUserMedia override
+   session minted via the app's /api/interview/     feeds the same PCM as a fake mic, so the
+   connect (so session lifecycle, billing,          REAL VoiceInterview.tsx is exercised:
+   /complete + scorecard all run for real)          consent → mic test → live → confirm-End
+   speak user_audio_chunk ⇄ read user_transcript,   → finalize/persist
+   agent_response, audio, interruption
+          └───────────────────────┬───────────────────────┘
+                                  ▼
+        same VoiceTurn[] → same reliability validators + judge + report
+        + NEW audio metrics: ground-truth WER, first-audio latency, barge-in,
+          silence/noise robustness, per-voice/accent matrix
+```
+
+Tier A also injects behaviours **text cannot express**: mid-utterance barge-in (speak while agent
+audio is still arriving → expect an `interruption` event), long silences, mumbling (low-gain /
+sped-up audio), background noise at a controlled SNR, and accent variation by swapping Piper voices.
+A continuously-streamed silence "mic" between utterances keeps VAD/turn-taking realistic.
+
+### 9.4 What it gates — and what it still doesn't
+
+| Gated deterministically | Still needs a human |
+|---|---|
+| STT fidelity (**WER vs ground truth**, cs + en) | perceived naturalness / prosody of the agent's voice |
+| turn-taking: barge-in, no talking-over, silence handling | "does it *feel* pleasant to talk to" |
+| response latency percentiles (speech-end → first agent audio) | real devices, in-app webviews, hostile networks |
+| noise / accent robustness (SNR × voice matrix) | |
+| the full pipeline on **spoken** input: connect → live → stored transcript → scorecard | |
+
+### 9.5 Cost & constraints (honest)
+
+- Piper + persona LLM ≈ **free** (CPU TTS, subscription CLI). **EL minutes are the real cost.**
+- Audio must stream at **real-time pace** (latency/VAD are meaningless otherwise), so a 4-minute
+  probe costs 4 wall-clock minutes. Mass ⇒ parallel sessions (EL plans cap concurrency, typically
+  ~10–30) × **short-form probes** (3–5 min, each targeting one behaviour) rather than full 20-minute
+  interviews. Rough: 100 × 4 min ≈ 400 EL minutes ≈ **$32–36 per sweep** — a reasonable *ship gate*,
+  against ~$0 for the text plane, which stays the every-commit gate.
+- **OpenAI Realtime is deliberately deferred** for Tier A: it's WebRTC/SDP (no plain WS), so a
+  headless driver needs `aiortc` — doable but the flaky part. EL-first matches the current test
+  setup; Tier B's browser covers OpenAI when needed.
+- Buy-vs-build: voice-QA SaaS (Cekura, Hamming, Coval) sells this; Tier A is a few hundred lines on
+  top of the harness we already have, and reuses the personas, validators, judge, and report.
+
+### 9.6 Build phases
+
+- **V0 — prove the loop. ✅ DONE (2026-07-08).** See §9.7.
+- **V1 — metrics + gate. ✅ DONE (2026-07-10).** See §9.8.
+- **V2 — adversarial audio + the metric WER can't be. ✅ DONE (2026-07-10).** See §9.9.
+- **V3 — Tier B.** Playwright browser-in-the-loop over the real `VoiceInterview.tsx` (3–5 scenarios).
+
+Sources: [EL Agent WebSockets](https://elevenlabs.io/docs/eleven-agents/api-reference/eleven-agents/websocket),
+[EL client events](https://elevenlabs.io/docs/eleven-agents/customization/events/client-events),
+[Piper voices](https://github.com/rhasspy/piper/blob/master/VOICES.md),
+[Czech Piper model](https://huggingface.co/Thomcles/Piper-TTS-Czech).
+
+---
+
+## 9.7 V0 — built and proven (2026-07-08)
+
+```
+pipeline/jobfit/eval/voice/
+  tts.py         Piper (en_US-lessac-medium, cs_CZ-jirka-medium) -> PCM16 @16 kHz, soxr resample
+  wer.py         word error rate vs the spoken ground truth (Czech diacritics preserved)
+  app_client.py  /api/interview/connect + /complete — the session is minted through the APP
+  el_ws.py       headless realtime driver: continuous synthetic mic, playback clock, turn-taking
+  v0_smoke.py    the end-to-end proof + report
+pipeline/jobfit/tests/test_voice_harness.py   17 tests, no network, no EL minutes
+```
+
+Voices live in `data/piper` (gitignored, ~63 MB each); Piper measured at **2.5× real-time** on CPU.
+
+    npm run dev -- -p 3100          # kp's own port (:3000 is Vibeman here)
+    python -m pipeline.jobfit.eval.voice.v0_smoke --base-url http://localhost:3100 --turns 2
+
+**Result:** `5/5 checks PASS · corpus WER 0.00% over 40 words · first-audio latency 0.33 s / 3.59 s`,
+transcript persisted through the app (5 turns). ~2.5 EL minutes across three runs.
+
+### Three harness bugs the first runs exposed (all fixed)
+
+1. **The playback clock.** ElevenLabs streams the agent's audio *far faster than real time* — the
+   client is expected to **play** it. Treating "chunks stopped arriving" as "the agent stopped
+   talking" made the harness speak over the agent, and our first utterance was silently dropped (EL
+   transcribed it as `"..."`). Fix: track a virtual playback-end instant and wait for it. Without
+   this, every latency and turn-taking number is fiction.
+2. **Text lands before audio.** `agent_response` arrives before the first `audio` chunk, so the
+   "text-only turn" fallback fired instantly and again talked over the agent. Fix: a
+   `NO_AUDIO_GRACE_S` window before concluding a turn was genuinely text-only, plus a chunk-arrival
+   quiet requirement so a slow network can't drain the clock mid-utterance.
+3. **Real-time pacing is the cost model.** A written-style persona answer ran **25 s of speech**.
+   Spoken replies are capped (~30 words, word-boundary clipped — a mid-word slice is synthesized
+   literally) and the persona is told it is on a live voice call.
+
+### Two findings the harness produced on its first real call
+
+- **The lab does not test our brief.** `/api/interview/connect` returns `agentPrompt` only when
+  `session.mode === "candidate"` (`connect/route.ts:176`). The tokenless lab session gets `null`, so
+  ElevenLabs falls back to its **dashboard** agent prompt. Production candidate links are unaffected
+  (they receive the override), but V1 must drive an **entry-backed candidate token** to exercise the
+  real brief over voice.
+- **The EL dashboard agent prompt is stale — and the deterministic validator caught it.** In a live
+  call the agent answered an English-speaking candidate **in Czech** mid-conversation. Feeding that
+  *spoken* transcript straight into the text plane's `_check_language_consistency` reported
+  `switched to cs while the candidate is speaking en` — the exact P1b defect our briefs already fix.
+  Two things follow: (a) refresh the dashboard agent via `scripts/setup-eleven-agent.mjs` so the
+  no-override fallback isn't stale; (b) **the planes compose** — voice transcripts run unchanged
+  through the existing validators, judge and style metrics, which is the whole design bet paying off.
+
+---
+
+## 9.8 V1 — metrics + gate (2026-07-10)
+
+```
+voice/session_runner.py   one scenario spoken end-to-end; per-turn transcript alignment; voice gates
+voice/app_client.py       + simulate() / create()  -> candidate-mode sessions (so we get OUR brief)
+interview_eval.py         --backend voice: same Row, same validators, + WER/latency/dropped gates,
+                          voice section in the report, voice metrics in --dump
+tests/test_voice_harness.py  26 tests (percentiles, clipping, gates, corpus-WER pooling)
+```
+
+    npm run dev -- -p 3100
+    python -m pipeline.jobfit.eval.interview_eval --backend voice \
+        --voice-base-url http://localhost:3100 --scenario swe_senior_strong --voice-turns 2 --dump runs/voice
+
+**V1's headline fix:** sessions are minted `mode="candidate"` (via `/simulate`, or `/create` for an
+entry-backed run with a scorecard), because `/connect` only sends our `agentPrompt` for
+candidate-mode. `voice_checks` now *fails* a session that ran the dashboard prompt, so V0's silent
+fidelity gap can't recur. Per-turn alignment (transcripts emitted while THAT utterance was in
+flight) makes a dropped turn unambiguous rather than an off-by-one.
+
+### Results (two live sessions)
+
+| | en (`swe_senior_strong`) | cs (`adversarial_czech_switch`) |
+|---|---|---|
+| reliable / issues | ✓ none | ✓ none |
+| ran OUR brief | 1/1 | 1/1 |
+| corpus WER | **2.94 %** / 34 words | **8.33 %** / 36 words |
+| first-audio latency p50 / p95 | 0.31 s / 3.42 s | 0.92 s / 3.66 s |
+| dropped utterances | 0/2 | 0/2 |
+
+Both transcripts open bilingually (`Dobrý den! / Hello!` — the P1 fix) and then **lock** to the
+candidate's language for the rest of the call (P1b), which `_check_language_consistency` confirms on
+the *spoken* transcript. The V0 run, on the stale dashboard prompt, drifted to Czech — so V1 closes
+the loop that V0 opened.
+
+### The finding that justifies the whole plane
+
+The Czech session **passed every gate** and still corrupted the interview:
+
+    said : … hlavně s Pythonem a Reactem, k tomu PostgreSQL a Docker
+    heard: … hlavně s Pythonem a Rustem,  k tomu později SQL a Docker
+
+**React → Rust. PostgreSQL → "později SQL".** The agent then echoed it back ("jak jste využíval
+Python a **Rust**"), and that corrupted text is what `/complete` stores and the **scorecard** scores.
+The candidate would be rated on a fabricated skill set.
+
+Two consequences:
+
+- **Aggregate WER is the wrong gate for this.** 8.33 % sits well inside a 35 % budget, because one
+  substituted technology noun is *low WER, high semantic damage*. V2 needs an **entity WER**: WER
+  restricted to the terms the scorecard actually depends on (technologies, tools, numbers), with a
+  much tighter budget — plus a check that no domain term the candidate spoke vanished.
+- **There is a direct product mitigation.** The realtime protocol accepts
+  `conversation_config_override.asr.keywords` — thread the job's required skills / tech stack into
+  it at `/connect`, so the ASR biases toward "React" and "PostgreSQL" instead of inventing "Rust".
+
+### Two operational constraints V1 hit
+
+- **The voice plane spends the `interview_minutes` meter.** Candidate-mode sessions
+  (`/simulate`, `/create`) go through `meterGate`, and the **Free plan includes 0 interview minutes**
+  (`billing/plans.ts`), so they 402 immediately. (V0 didn't hit this only because the tokenless lab
+  path isn't metered.) A sweep needs a paid plan or prepaid credits — V2's "100 × 4-min probes" means
+  **~400 minutes of allowance**, not just ~$35 of ElevenLabs. Dev runs were unblocked with
+  `grantBillingCredits({meter:"interview_minutes", delta:120, reason:"voice-harness…"})`; remove with
+  `DELETE FROM billing_credits WHERE reason LIKE 'voice-harness%'`.
+- **kp's dev port.** `:3000` is Vibeman on this machine — run kp with `npm run dev -- -p 3100` and
+  pass `--voice-base-url` accordingly, or the harness silently talks to the wrong app.
+
+---
+
+## 9.9 V2 — entity WER + adversarial audio (2026-07-10)
+
+```
+voice/wer.py           + domain_terms() / entity_fidelity() — the metric WER can't be
+voice/audio.py         mix_noise(snr_db) / apply_gain / make_effect — seeded, reproducible
+voice/el_ws.py         speak(effect=…), wait_for_agent_start() (barge-in cue)
+voice/session_runner.py  entity + condition + barge-in in metrics/gates; audio effect + barge probe
+interview_eval.py      --voice-noise-snr / --voice-gain / --voice-barge-in; entity + condition in report
+tests/test_voice_harness.py  38 tests (entity fidelity on the real V1 data, noise SNR, gates)
+```
+
+    # noisy line; interrupt the agent mid-reply; a mumbling/quiet speaker
+    interview_eval --backend voice --voice-base-url http://localhost:3100 --scenario X --voice-noise-snr 8
+    interview_eval --backend voice ... --voice-barge-in
+    interview_eval --backend voice ... --voice-gain 0.4
+
+### Entity WER — the gate WER structurally cannot be
+
+`entity_fidelity(ref, hyp)` asks: **did the domain terms the candidate SPOKE survive into the
+transcript?** Domain terms are matched from an extensible tech lexicon, prefix-matched so Czech case
+endings resolve (`Reactem`→`react`, `Dockeru`→`docker`). A spoken term missing from the transcript is
+a *lost skill* the scorecard would then rate as absent (or as a fabricated substitute). `voice_checks`
+**fails** any session with a missing term. Proven offline on the exact V1 corruption:
+
+    said : … Pythonem a Reactem, k tomu PostgreSQL a Docker
+    heard: … Pythonem a Rustem,  k tomu později SQL a Docker
+    → aggregate WER 12.5 % (inside a 35 % budget → WER gate PASSES)
+    → entity recall 50 %, lost {react, postgresql}   (entity gate FAILS)
+
+### Adversarial audio (live-validated)
+
+- **Noise** (`--voice-noise-snr`): additive white noise at a target SNR (`mix_noise`, seeded). Live at
+  8 dB: WER rose **6.2 % → 10.8 %** on the same scenario; entities still survived (this utterance).
+- **Gain** (`--voice-gain`): amplitude scaling for a quiet/mumbling speaker.
+- **Barge-in** (`--voice-barge-in`): cut in `barge_in_delay` s into the agent's reply and record
+  whether it yielded (an `interruption` event). Live: the agent did **not** yield — but this is
+  **reported, not gated**, because "no yield" can be the EL agent's interruption *config* rather than a
+  defect. Investigate the agent's turn settings before treating it as a bug.
+
+### The finding V2 surfaced — a production language bug the text plane can't see
+
+Across three live spoken sessions of the English `swe_senior_strong` scenario, the agent drifted to
+Czech mid-conversation **despite running our brief** (`brief_ours 1/1`). Root cause found in the code:
+`VoiceInterview.tsx:807` sends the ElevenLabs override as `{agent:{prompt:{prompt}}}` with **no
+`agent.language`**. The candidate's language reaches `/api/interview/connect` (`route.ts:785→142`) but
+is **never forwarded into the EL client override**, so the agent runs on its Czech dashboard-default
+language and only the prompt text (P1/P1b) fights it — which, over voice, it loses ~2 of 3 times. The
+harness reproduces this faithfully (it too sends only `agent.prompt`), and the **text plane cannot see
+it at all** — it never goes through the EL client overrides. **Fix:** add
+`language: <candidate locale>` to the EL `overrides.agent` in `VoiceInterview.tsx` (belt-and-suspenders
+for P1/P1b over ElevenLabs; connects to the App §1 locale-threading).
+
+## 9.10 The two product fixes, and the harness bug found while sweeping (2026-07-10)
+
+**Fix 1 — `overrides.agent.language` (applied, live-verified).** `VoiceInterview.tsx` now sends the
+candidate locale in the EL agent override. Re-running the English `swe_senior_strong` scenario after the
+fix: `reliable: True`, no issues, `brief_ours: True`, WER 8.6%, entity recall 1.0, and the transcript
+stayed **entirely in English**. The drift that hit 3/3 prior runs is gone. The harness mirrors the fix
+(`el_ws` takes `language=scenario.language`) so it keeps reproducing what the browser actually sends.
+
+**Fix 2 — `asr.keywords` (constraint found; applied at agent level).** Per-session `asr.keywords` is
+**not in the `@elevenlabs/react` SDK override type** — only `agent`, `tts`, and `conversation`. Biasing
+ASR per job from the browser is therefore blocked, and the earlier claim that we could is wrong. What is
+achievable: a **static, agent-level** `asr.keywords` tech-term list in `scripts/setup-eleven-agent.mjs`
+(helps vocabulary and segmentation for `PostgreSQL`/`Kubernetes`, less so for homophones), which also
+carries a refreshed fallback `PROMPT` (P1/P1b lock, one-question, no-praise) to kill the stale
+dashboard-prompt finding. **Not yet run** — it recreates the agent and changes `ELEVENLABS_AGENT_ID`.
+Independently, the V2 **entity-WER gate** catches this whole class deterministically, offline.
+
+### The harness bug the sweep found before it spent a minute on it
+
+`run_scenarios_voice` took a single global `--voice-sim-mode` (default `regular`) and minted **every**
+scenario at that brief. But the curated bank mixes three briefs, and `voice_checks`' `agent_prompt_used`
+gate only asserts that *a* brief came back from `/connect` — not that it's the **right** one. So a
+mixed-bank voice run would have spoken the 3 `student` scenarios at the **default** brief, scored them
+against student expectations, and passed every gate: a paid, confident, wrong result — the exact failure
+mode this plane exists to prevent.
+
+Fixed by deriving the mint mode per scenario from `scenario.brief`, matching `simulate/route.ts`:
+
+| `scenario.brief` | mints via | brief actually spoken |
+|---|---|---|
+| `default` | `/simulate` `mode:"regular"` | `defaultInterviewerInstructions` |
+| `student` | `/simulate` `mode:"student"` | `studentInterviewerInstructions` |
+| `grounded` | `/create` (entry-backed) | `buildGroundedInterview` — **no sim mode exists** |
+
+`grounded` scenarios are now **skipped, loudly**, on a `--voice-kind sim` run (with the exact flags to
+run them properly) rather than silently mis-tested. `--voice-sim-mode` remains as an explicit override
+that forces one brief on every scenario. Pinned by `TestBriefIsMintedPerScenario` (5 offline tests).

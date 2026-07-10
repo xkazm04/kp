@@ -801,10 +801,19 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
         // full brief server-side in the session config. phase → live via
         // onConnect.
         const agentPrompt: string | undefined = data.agentPrompt ?? undefined;
+        // Pin the agent's LANGUAGE to the candidate's, not just via the prompt. The EL agent's
+        // dashboard default is Czech (setup-eleven-agent.mjs), and the prompt's "follow the
+        // candidate's language" rule loses to that config over voice (the voice-harness caught the
+        // agent replying in Czech to an English candidate ~2/3 of the time). The agent allows the
+        // language override, so send it whenever we have a concrete hint (candidate portal seeds it
+        // from the visitor's locale; the lab's "auto" leaves detection to the agent).
+        const agentOverride: { prompt?: { prompt: string }; language?: "cs" | "en" } = {};
+        if (agentPrompt) agentOverride.prompt = { prompt: agentPrompt };
+        if (language !== "auto") agentOverride.language = language;
         const maybe = conversation.startSession({
           signedUrl: c.signedUrl,
           connectionType: "websocket",
-          ...(agentPrompt ? { overrides: { agent: { prompt: { prompt: agentPrompt } } } } : {}),
+          ...(Object.keys(agentOverride).length ? { overrides: { agent: agentOverride } } : {}),
         }) as unknown;
         // Some SDK versions return a promise; surface a rejection instead of hanging.
         if (maybe && typeof (maybe as { then?: unknown }).then === "function") {

@@ -43,3 +43,4 @@ data/dumps/
 *AppDataLocalTemp*
 # mangled tmp\kp_*.json etc. written to the repo root
 tmpkp_*
+data/piper/

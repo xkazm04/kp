@@ -141,6 +141,32 @@ over-apologise or negotiate the premise of the interview."*
   (`saveFailed` state + `retrySave`).
 - **Duration honesty holds up** — the portal shows the real run-of-show duration, not a hardcoded
   value; kept.
+- **⚠ ASR corrupts technology names → the scorecard rates a fabricated skill set** (found 2026-07-10
+  by the voice harness, in a live Czech call). Ground truth vs what ElevenLabs heard:
+  `"Pythonem a Reactem, k tomu PostgreSQL"` → `"Pythonem a Rustem, k tomu později SQL"`. **React → Rust,
+  PostgreSQL → "později SQL"**. The agent then echoed the corruption back, and that text is what
+  `/complete` persists and `interview_scorecard` scores. Aggregate WER was only **8.3 %** — one
+  substituted noun is low WER but high semantic damage, so a WER budget will not catch this.
+  **↳ Partly applied (2026-07-10):** per-session `asr.keywords` is **not reachable through the
+  `@elevenlabs/react` SDK** (its override type exposes `agent`/`tts`/`conversation` but no `asr`), so
+  the per-job route is blocked without a non-SDK client. Applied the achievable form — a **static
+  agent-level** tech-term `asr.keywords` bias in `scripts/setup-eleven-agent.mjs` (helps
+  vocabulary/segmentation cases like PostgreSQL/Kubernetes more than true homophones). Not yet run
+  (it recreates the EL agent — a deploy step). The **entity-WER gate shipped in V2** and now catches
+  this class deterministically regardless.
+- **⚠→✅ ElevenLabs sessions send no `agent.language` override → the agent drifts to Czech** (found
+  2026-07-10 by the voice harness — 3/3 English spoken sessions drifted mid-call *despite* running our
+  brief). The candidate's language reached `/connect` but never the EL client override, so the agent
+  ran on its Czech dashboard default and the P1/P1b prompt lock lost ~2 of 3 times over voice. The
+  **text plane can't catch this** (it doesn't go through the EL overrides). **Applied (2026-07-10):**
+  `VoiceInterview.tsx` now sends `overrides.agent.language` from the candidate's locale (the agent
+  already permits the language override). Live-verified: the same English scenario now stays English
+  with no drift.
+- **⚠→✅ The ElevenLabs *dashboard* agent prompt is stale** (found 2026-07-08). The fallback prompt
+  used for non-override sessions predated P1/P1b/P2/P3. **Applied (2026-07-10):** refreshed the
+  fallback `PROMPT` in `scripts/setup-eleven-agent.mjs` (bilingual-lock language rule +
+  one-question-per-turn + no-praise) to match the briefs. Not yet run (deploy step); production
+  candidate links were always safe (they get the override).
 
 ---
 
@@ -212,15 +238,53 @@ All four landed in `interview_eval.py` (+ tests), and validated against the post
 
 ---
 
+## 5. First VOICE sweep — audio-in-the-loop (2026-07-10)
+
+The curated bank spoken end-to-end through the real ElevenLabs realtime agent (11 scenarios; the
+2 `grounded` ones need an entry-backed session and were skipped). This is the plane the text sweep
+cannot reach — WER, entity fidelity, latency, and the EL client overrides are only exercised here.
+
+**What passed (the wins):**
+- **Fix 1 (`overrides.agent.language`) holds at scale.** 11/11 sessions ran OUR brief, and **zero
+  language drift** across 10 English sessions + 1 Czech — the earlier 3/3 English→Czech drift is gone.
+- Corpus **WER 3.61%**, **0/22 utterances dropped**, **0 praise turns**, proper close **11/11**.
+- Only **1 double-barreled** turn (the Czech one) — P3 is holding over voice too.
+
+**What failed — and what each failure means:**
+
+- **`adversarial_czech_switch` — entity loss (REAL, product-relevant).** Candidate said *"…PostgreSQL
+  a Docker"*; the ASR wrote *"…po SQL a .NET"*. **Docker→.NET, PostgreSQL→"po SQL".** WER is only 8.8%
+  so the budget waves it through, but the candidate would be scored on **.NET (never said)** and denied
+  Docker/PostgreSQL. This is the V1 `React→Rust` fabricated-skill class, reproduced on a real Czech
+  call — exactly what the **entity gate** exists to catch, and the strongest concrete argument for the
+  **Fix 2 `asr.keywords` deploy** (Czech/code-switched calls mangle English tech nouns the worst).
+- **`adversarial_monologue` / `adversarial_hostile` — first-audio latency p95 breach (17.1s / 22.3s)
+  — NOT REPRODUCIBLE, ruled a transient artifact.** Both were **turn-1-only** outliers; every other
+  turn across the sweep was 0.9–6.1s. A targeted serial re-run of both came back clean —
+  monologue **17.1s→4.45s**, hostile **22.3s→4.31s** — so the spikes were **not** a product latency
+  regression. Most likely cause: the sweep ran `--voice-concurrency 2`, so two realtime WS sessions
+  plus two persona-LLM calls contended on the first turn; the serial recheck had no contention. Lesson:
+  a p95 over **n=2** samples under concurrency is not a latency signal — do not tune the agent on it.
+  If a future full sweep needs trustworthy latency numbers, run the latency-sensitive slice serially.
+
+**Follow-ups this sweep generates:**
+1. Deploy **Fix 2** (`setup-eleven-agent.mjs` → `asr.keywords` + refreshed prompt) — the Czech entity
+   loss is the justification. Recreates the agent → update `ELEVENLABS_AGENT_ID`. **This is the one
+   real, reproducible product finding from the sweep.**
+2. `pm_senior_terse` WER 23.5% (passed, budget 35%) — terse speech is the ASR's worst case; watch it.
+3. When measuring latency at scale, run serially (or a serial subset) — concurrency pollutes p95.
+
 ## Reproduce / expand
 
 ```bash
-# this sweep
+# this sweep (text)
 python -m pipeline.jobfit.eval.interview_eval --bank core --sample 12 --seed 1 --judge --dump runs/sweep
-# the full 100-scenario regression set
+# the full 100-scenario regression set (text)
 python -m pipeline.jobfit.eval.interview_eval --bank fixed --judge --dump runs/full
+# the VOICE sweep (spends EL minutes; brief is minted per scenario; grounded scenarios skipped)
+python -m pipeline.jobfit.eval.interview_eval --backend voice --bank core \
+  --voice-base-url http://localhost:3100 --voice-turns 2 --voice-concurrency 2 --dump runs/voice
 ```
 
 Each run writes `run.json` (aggregate + heatmap + per-scenario issues/critiques) and
 `transcripts/<scenario>.md` (full transcript + judge critique) — the raw material for the next pass.
-</content>

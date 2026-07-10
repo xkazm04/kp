@@ -658,6 +658,9 @@ class Row:
     quality_issues: list[str] = field(default_factory=list)
     scorecard: dict | None = None
     scorecard_issues: list[str] = field(default_factory=list)
+    # Voice plane (--backend voice): WER vs the spoken ground truth, first-audio latency, dropped
+    # utterances. None for the text/elevenlabs backends.
+    voice: dict | None = None
 
     @property
     def reliable(self) -> bool:
@@ -735,6 +738,92 @@ def golden_uncovered(scenarios: list[Scenario]) -> list[str]:
     rather than certify on the covered subset. Returns names in selection order."""
     golden = load_golden()
     return [s.name for s in scenarios if s.name not in golden]
+
+
+def _percentile(values: list[float], p: float) -> float | None:
+    """Nearest-rank percentile (p in 0..1); None for an empty sample."""
+    if not values:
+        return None
+    ordered = sorted(values)
+    return ordered[min(len(ordered) - 1, max(0, int(round(p * (len(ordered) - 1)))))]
+
+
+#: Which /simulate mode mints the brief a scenario is scored against. `regular` renders
+#: defaultInterviewerInstructions, `student` renders studentInterviewerInstructions
+#: (simulate/route.ts). The `grounded` brief has no sim mode — it only exists on an
+#: entry-backed session — so those scenarios are filtered out before a sim run.
+#:
+#: Deriving this per scenario matters: minting one global mode would speak a student
+#: scenario at the DEFAULT brief and still satisfy `agent_prompt_used` (which only asserts
+#: that *a* brief came back), scoring student expectations against the wrong agent.
+BRIEF_SIM_MODE = {"default": "regular", "student": "student"}
+
+
+def sim_brief_split(scenarios: list[Scenario]) -> tuple[list[Scenario], list[Scenario]]:
+    """Partition into (runnable under --voice-kind sim, needs an entry-backed session)."""
+    runnable = [s for s in scenarios if s.brief in BRIEF_SIM_MODE]
+    needs_entry = [s for s in scenarios if s.brief not in BRIEF_SIM_MODE]
+    return runnable, needs_entry
+
+
+def run_scenarios_voice(
+    scenarios: list[Scenario],
+    *,
+    base_url: str,
+    kind: str = "sim",
+    sim_mode: str | None = None,
+    entry_id: str | None = None,
+    turns: int = 2,
+    timeout: float = 90.0,
+    wer_budget: float = 0.35,
+    latency_budget: float = 8.0,
+    concurrency: int = 1,
+    gain: float = 1.0,
+    noise_snr_db: float | None = None,
+    barge_in: bool = False,
+    provider: ClaudeCliProvider | None = None,
+) -> list[Row]:
+    """VOICE backend (plane 2): actually SPEAK each scenario into a real ElevenLabs realtime
+    session via the app, then score the spoken transcript with the SAME validators as the text
+    plane, plus the audio-only invariants (WER, latency, dropped utterances).
+
+    Sessions are candidate-mode, so the agent runs OUR brief. ``sim_mode=None`` (the default) mints
+    each scenario at the brief it is scored against; pass one explicitly to force every scenario
+    onto the same brief. Real-time pacing means each scenario costs its own wall-clock minutes —
+    concurrency defaults to 1, and EL plans cap parallel sessions."""
+    import asyncio
+
+    from .voice.session_runner import run_voice_scenario, voice_checks
+
+    async def _all() -> list[Row]:
+        sem = asyncio.Semaphore(max(1, concurrency))
+
+        async def _one(s: Scenario) -> Row:
+            base = dict(scenario=s.name, brief=s.brief, behavior=s.behavior, seniority=s.seniority,
+                        source="voice", handles=s.handles)
+            mode = sim_mode or BRIEF_SIM_MODE.get(s.brief, "regular")
+            async with sem:
+                try:
+                    run = await run_voice_scenario(
+                        s, base_url=base_url, kind=kind, sim_mode=mode, entry_id=entry_id,
+                        turns=turns, timeout=timeout, provider=provider,
+                        gain=gain, noise_snr_db=noise_snr_db, barge_in=barge_in,
+                    )
+                except Exception as exc:  # noqa: BLE001 — one bad session can't sink the sweep
+                    return Row(**base, turns=[], ended=False, errored=True,
+                               issues=[f"voice: raised {type(exc).__name__}: {exc}"[:180]])
+            errored = bool(run.errored)
+            issues = check_transcript(run.turns, s, not errored, errored)
+            issues += voice_checks(run, wer_budget=wer_budget, latency_budget_s=latency_budget)
+            row = Row(**base, turns=run.turns, ended=not errored, errored=errored, issues=issues)
+            row.voice = run.metrics()
+            if run.scorecard:
+                row.scorecard = run.scorecard
+            return row
+
+        return list(await asyncio.gather(*[_one(s) for s in scenarios]))
+
+    return asyncio.run(_all())
 
 
 def run_golden(scenarios: list[Scenario]) -> list[Row]:
@@ -887,7 +976,7 @@ def _aggregate(rows: list[Row], uncovered: list[str] | None = None) -> dict[str,
         for m in METRIC_NAMES:
             style[m] += len(mf[m])
     selected = total + len(uncovered)
-    return {
+    out = {
         # reliability is honestly reported over the COVERED rows only …
         "reliability": round(reliable / total, 3) if total else 0.0,
         "quality_mean": round(sum(quals) / len(quals), 2) if quals else None,
@@ -901,6 +990,35 @@ def _aggregate(rows: list[Row], uncovered: list[str] | None = None) -> dict[str,
         "style": style,
         "closed": sum(1 for r in rows if r.ended),
     }
+    vrows = [r for r in rows if r.voice]
+    if vrows:
+        # Corpus WER pools errors over pooled reference words — NOT the mean of per-session WERs.
+        S = sum(r.voice["substitutions"] for r in vrows)
+        D = sum(r.voice["deletions"] for r in vrows)
+        I = sum(r.voice["insertions"] for r in vrows)
+        N = sum(r.voice["wer_words"] for r in vrows)
+        lat = [x for r in vrows for x in r.voice.get("latencies", [])]
+        ent_total = sum(r.voice.get("entities_total", 0) for r in vrows)
+        ent_missing = [m for r in vrows for m in r.voice.get("entities_missing", [])]
+        barge_rows = [r for r in vrows if r.voice.get("barge_in")]
+        out["voice"] = {
+            "sessions": len(vrows),
+            "corpus_wer": round((S + D + I) / N, 4) if N else None,
+            "wer_words": N,
+            "entity_recall": round((ent_total - len(ent_missing)) / ent_total, 4) if ent_total else None,
+            "entities_total": ent_total,
+            "entities_missing": ent_missing,
+            "latency_p50": _percentile(lat, 0.5),
+            "latency_p95": _percentile(lat, 0.95),
+            "dropped": sum(r.voice["dropped"] for r in vrows),
+            "utterances": sum(r.voice["utterances"] for r in vrows),
+            "interruptions": sum(r.voice["interruptions"] for r in vrows),
+            "agent_audio_s": round(sum(r.voice["agent_audio_s"] for r in vrows), 1),
+            "brief_ours": sum(1 for r in vrows if r.voice["agent_prompt_used"]),
+            "barge_in_sessions": len(barge_rows),
+            "barge_in_yielded": sum(1 for r in barge_rows if r.voice.get("barged")),
+        }
+    return out
 
 
 def _heatmap(rows: list[Row], attr: str) -> list[tuple[str, int, int, float, Any]]:
@@ -1038,6 +1156,40 @@ def _format_md(
     # Persona heatmaps — the "which personas break it" view.
     lines += _heatmap_md(rows, "behavior", "By behaviour")
     lines += _heatmap_md(rows, "seniority", "By seniority")
+    # Voice plane: the metrics only audio-in-the-loop can produce.
+    v = agg.get("voice")
+    if v:
+        ent = (f"**{v['entity_recall']:.1%}**" + (f" ⚠ lost: {', '.join(sorted(set(v['entities_missing'])))}"
+               if v["entities_missing"] else "")) if v.get("entity_recall") is not None else "n/a"
+        lines += [
+            "\n## Voice metrics (audio-in-the-loop)\n",
+            f"- sessions: **{v['sessions']}** · ran OUR brief: **{v['brief_ours']}/{v['sessions']}**"
+            + ("" if v["brief_ours"] == v["sessions"] else "  ⚠ some used the EL dashboard prompt"),
+            f"- corpus WER vs spoken ground truth: **{v['corpus_wer']:.2%}**" if v["corpus_wer"] is not None else "- corpus WER: n/a",
+            f"- **entity recall** (spoken tech terms that survived, over {v['entities_total']}): {ent}",
+            f"- dropped utterances: **{v['dropped']}/{v['utterances']}** · interruptions: {v['interruptions']}",
+            f"- first-audio latency p50 **{v['latency_p50']:.2f}s** · p95 **{v['latency_p95']:.2f}s**"
+            if v["latency_p50"] is not None else "- latency: n/a",
+        ]
+        if v.get("barge_in_sessions"):
+            lines.append(f"- barge-in: agent yielded in **{v['barge_in_yielded']}/{v['barge_in_sessions']}** interrupted sessions")
+        lines += [
+            f"- agent speech: {v['agent_audio_s']}s",
+            "",
+            "| scenario | condition | WER | entity recall | lost terms | p95 latency | dropped |",
+            "|---|---|---|---|---|---|---|",
+        ]
+        for r in rows:
+            if not r.voice:
+                continue
+            rv = r.voice
+            p95 = rv["latency_p95"]
+            er = f"{rv.get('entity_recall', 1.0):.0%}" if rv.get("entities_total") else "–"
+            lost = ", ".join(rv.get("entities_missing", [])) or "–"
+            lines.append(
+                f"| {r.scenario} | {rv.get('condition', 'clean')} | {rv['wer']:.1%} | {er} | {lost} "
+                f"| {f'{p95:.2f}s' if p95 is not None else '–'} | {rv['dropped']}/{rv['utterances']} |"
+            )
     # Deterministic style signals (P2/P3) — counts to trend, plus the worst offenders.
     style = agg.get("style", {})
     lines += [
@@ -1099,6 +1251,7 @@ def dump_run(rows: list[Row], agg: dict[str, Any], dirpath: str, diff: dict[str,
              "reliable": r.reliable, "issues": r.issues, "quality": r.quality,
              "quality_issues": r.quality_issues, "turns": len(r.turns), "ended": r.ended,
              "metrics": {m: len(v) for m, v in metric_flags(r.turns).items()},
+             "voice": r.voice,
              "scorecard": r.scorecard.get("recommendation") if r.scorecard else None}
             for r in rows
         ],
@@ -1122,6 +1275,17 @@ def dump_run(rows: list[Row], agg: dict[str, Any], dirpath: str, diff: dict[str,
             lines += ["", "**Flagged praise turns:**"] + [f"- {t[:160]}" for t in mf["evaluative_praise"]]
         if mf["double_barreled"]:
             lines += ["", "**Flagged double-barreled turns:**"] + [f"- {t[:160]}" for t in mf["double_barreled"]]
+        if r.voice:
+            v = r.voice
+            lines += [
+                "", f"- voice: WER {v['wer']:.1%} · dropped {v['dropped']}/{v['utterances']} · "
+                    f"latency p95 {v['latency_p95']:.2f}s" if v["latency_p95"] is not None else
+                    f"- voice: WER {v['wer']:.1%} · dropped {v['dropped']}/{v['utterances']}",
+                "", "**Spoken ground truth vs ASR:**",
+            ]
+            for gt, hyp in zip(v.get("ground_truth", []), v.get("heard", [])):
+                lines.append(f"- said : {gt}")
+                lines.append(f"  heard: {hyp or '(nothing — DROPPED)'}")
         lines += ["", "## Transcript", ""]
         for t in r.turns:
             who = "Interviewer" if t["role"] == "interviewer" else "Candidate"
@@ -1151,8 +1315,30 @@ def main(argv: list[str] | None = None) -> int:
                         help="Route each transcript through the real interview_scorecard() (downstream sanity).")
     parser.add_argument("--briefs", choices=["port", "ts"], default="port",
                         help="port = Python-rendered brief (drift-guarded, offline); ts = exact production brief via scripts/interview-brief.ts.")
-    parser.add_argument("--backend", choices=["text", "elevenlabs"], default="text",
-                        help="text = provider-agnostic Claude-CLI sim (covers OpenAI Realtime); elevenlabs = the real EL agent via simulate-conversation.")
+    parser.add_argument("--backend", choices=["text", "elevenlabs", "voice"], default="text",
+                        help="text = provider-agnostic Claude-CLI sim (covers OpenAI Realtime); elevenlabs = the real EL "
+                             "agent via simulate-conversation (text); voice = SPOKEN via local TTS into the real EL "
+                             "realtime session (spends EL minutes, adds WER + latency gates).")
+    voice = parser.add_argument_group("voice backend (--backend voice)")
+    voice.add_argument("--voice-base-url", default="http://localhost:3000", help="Running kp app (dev server).")
+    voice.add_argument("--voice-kind", choices=["sim", "entry"], default="sim",
+                       help="sim = candidate-mode demo session (our brief); entry = entry-backed (+ scorecard).")
+    voice.add_argument("--voice-sim-mode", choices=["regular", "student", "student-case"], default=None,
+                       help="Force one brief for every scenario. Default: derive it from each "
+                            "scenario's brief, so a student scenario is never spoken at the default brief.")
+    voice.add_argument("--voice-entry", default=None, help="Pipeline entry id (with --voice-kind entry).")
+    voice.add_argument("--voice-turns", type=int, default=2, help="Candidate turns spoken per scenario.")
+    voice.add_argument("--voice-timeout", type=float, default=90.0)
+    voice.add_argument("--voice-concurrency", type=int, default=1,
+                       help="Parallel spoken sessions (EL plans cap concurrency; each runs in real time).")
+    voice.add_argument("--wer-budget", type=float, default=0.35, help="Max corpus WER before a session fails.")
+    voice.add_argument("--latency-budget", type=float, default=8.0, help="Max first-audio latency p95 (s).")
+    voice.add_argument("--voice-noise-snr", type=float, default=None,
+                       help="V2 probe: mix noise into the candidate audio at this SNR dB (lower = noisier).")
+    voice.add_argument("--voice-gain", type=float, default=1.0,
+                       help="V2 probe: scale candidate audio amplitude (<1 = quiet/mumbling).")
+    voice.add_argument("--voice-barge-in", action="store_true",
+                       help="V2 probe: cut into the agent mid-reply and check it yields (interruption).")
     parser.add_argument("--dump", metavar="DIR",
                         help="Persist full transcripts + judge critiques to DIR for improvement analysis.")
     args = parser.parse_args(argv)
@@ -1181,6 +1367,49 @@ def main(argv: list[str] | None = None) -> int:
             sys.stderr.write(f"interview_eval: --backend elevenlabs needs {reason}\n")
             return 2
         rows = run_scenarios_elevenlabs(scenarios)
+    elif args.backend == "voice":
+        # Audio-in-the-loop: real EL realtime sessions, real-time pacing, real EL minutes.
+        from .voice import app_client, tts
+
+        ok, why = tts.available("en")
+        if not ok:
+            sys.stderr.write(f"interview_eval: --backend voice needs local TTS — {why}\n")
+            return 2
+        try:
+            if not app_client.get_availability(args.voice_base_url).get("elevenlabs"):
+                sys.stderr.write("interview_eval: --backend voice needs the app to report ElevenLabs available\n")
+                return 2
+        except app_client.AppError as exc:
+            sys.stderr.write(f"interview_eval: {exc}\n")
+            return 2
+        # A sim session can only mint the briefs in BRIEF_SIM_MODE. Speaking a `grounded` scenario
+        # at the default brief would still pass `agent_prompt_used` and score grounded expectations
+        # against the wrong agent — so drop those, loudly, rather than buy a misleading result.
+        if args.voice_kind == "sim" and args.voice_sim_mode is None:
+            scenarios, needs_entry = sim_brief_split(scenarios)
+            if needs_entry:
+                sys.stderr.write(
+                    f"interview_eval: skipping {len(needs_entry)} scenario(s) whose brief only exists on an "
+                    f"entry-backed session ({', '.join(s.name for s in needs_entry)}). "
+                    f"Run them with --voice-kind entry --voice-entry <id>.\n"
+                )
+            if not scenarios:
+                sys.stderr.write("interview_eval: nothing left to speak\n")
+                return 2
+        provider = ClaudeCliProvider(timeout=90)
+        if not provider.available():
+            sys.stderr.write("interview_eval: Claude CLI unavailable — voice personas use a canned reply\n")
+            provider = None
+        sys.stderr.write(
+            f"interview_eval: speaking {len(scenarios)} scenario(s) in real time — this spends ElevenLabs minutes\n"
+        )
+        rows = run_scenarios_voice(
+            scenarios, base_url=args.voice_base_url, kind=args.voice_kind, sim_mode=args.voice_sim_mode,
+            entry_id=args.voice_entry, turns=args.voice_turns, timeout=args.voice_timeout,
+            wer_budget=args.wer_budget, latency_budget=args.latency_budget,
+            concurrency=args.voice_concurrency, provider=provider,
+            gain=args.voice_gain, noise_snr_db=args.voice_noise_snr, barge_in=args.voice_barge_in,
+        )
     else:
         provider = ClaudeCliProvider(timeout=120)
         if not provider.available():
@@ -1244,6 +1473,7 @@ def main(argv: list[str] | None = None) -> int:
                             "turns": len(r.turns), "reliable": r.reliable, "issues": r.issues,
                             "quality": r.quality,
                             "metrics": {m: len(v) for m, v in metric_flags(r.turns).items()},
+                            "voice": r.voice,
                             "scorecard": r.scorecard.get("recommendation") if r.scorecard else None,
                         }
                         for r in rows
