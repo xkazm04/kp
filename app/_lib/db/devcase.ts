@@ -225,6 +225,28 @@ export function updateLifecycle(
   db.prepare(`UPDATE dev_lifecycle SET ${sets.join(", ")} WHERE id = ?`).run(...vals);
 }
 
+/**
+ * Atomic close-claim (bug-ui-scan-2026-07-09 #1). Flip the lifecycle to "closed"
+ * in ONE conditional statement and report whether THIS call performed the flip.
+ * `WHERE stage != 'closed'` is the compare-and-set: SQLite serializes the write,
+ * so of any number of overlapping / retried closes exactly the first sees
+ * `changes === 1` (returns true) and thus the sole right to run the adverse-action
+ * rejection dispatch; every later caller sees `changes === 0` (returns false) and
+ * no-ops. Synchronous by design — the flip is committed BEFORE the route's async
+ * `sendComm` loop begins, so a later send failure cannot roll the close back: the
+ * decision is the source of truth, the comms are best-effort (a missed note is
+ * recoverable from the durable Outbox via Resend). Replaces the old
+ * read-`stage`-then-`await`-then-write guard, whose check/act gap let two
+ * concurrent closes each re-send a full rejection batch.
+ */
+export function claimLifecycleClose(id: string): boolean {
+  const db = ensureDb();
+  const info = db
+    .prepare(`UPDATE dev_lifecycle SET stage = 'closed', updated_at = ? WHERE id = ? AND stage != 'closed'`)
+    .run(new Date().toISOString(), id);
+  return Number(info.changes) > 0;
+}
+
 // The one approve transition: persist the designed artifacts as a dev case and
 // flip the lifecycle to "approved" in a SINGLE transaction. Both writes hit this
 // connection, so wrapping them means a concurrent writer (another lifecycle task,

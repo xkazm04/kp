@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getLifecycle, listPostings, listSubmissions, setPostingStatus, updateLifecycle } from "@/app/_lib/db";
+import { claimLifecycleClose, getLifecycle, listPostings, listSubmissions, setPostingStatus, updateLifecycle } from "@/app/_lib/db";
 import { sendComm } from "@/app/_lib/comms";
 import { recordAudit } from "@/app/_lib/dev-control";
 
@@ -16,7 +16,19 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
   try {
     const lc = getLifecycle(id);
     if (!lc) return NextResponse.json({ error: "lifecycle not found" }, { status: 404 });
-    if (lc.stage === "closed") return NextResponse.json({ ok: true, alreadyClosed: true, notified: 0 });
+
+    // ATOMIC CLAIM (bug-ui-scan-2026-07-09 #1). The old guard read `lc.stage`, then
+    // hit `await sendComm(...)` in the loop below, then wrote `stage = "closed"` — a
+    // check-then-act window in which a second overlapping/retried close read the same
+    // still-open stage and re-dispatched the ENTIRE rejection batch (the dedup Set is
+    // per-request, useless across requests). Instead, flip the stage NOW via one
+    // conditional UPDATE (`WHERE stage != 'closed'`): exactly the request that flips
+    // it (changes === 1) owns the close and proceeds to notify; any concurrent or
+    // later call sees changes === 0 and no-ops here — before a single comm is sent.
+    // The flip is committed before the first `await`, so a mid-send failure can't undo
+    // the close (adverse comms are best-effort + Outbox-recoverable; the decision is
+    // the source of truth).
+    if (!claimLifecycleClose(id)) return NextResponse.json({ ok: true, alreadyClosed: true, notified: 0 });
 
     // Every posting this lifecycle distributed through (directly linked, or any
     // posting of its approved case).
@@ -63,11 +75,13 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
       setPostingStatus(posting.id, "closed");
     }
 
-    // Always reached now (sends no longer throw out of the loop): flip the stage and
-    // write the audit so the close is atomic-in-effect and a re-run short-circuits on
-    // the `stage === "closed"` guard above rather than re-notifying.
+    // Stage is already "closed" (claimed atomically above); now that the count is
+    // known, stamp the human-facing detail and write the audit. Only the claiming
+    // request reaches here, so exactly one audit row and one notified-count are
+    // written per close. (sends no longer throw out of the loop, so this is always
+    // reached.)
     const failNote = notifyFailures ? `, ${notifyFailures} note(s) failed (recoverable via Resend)` : "";
-    updateLifecycle(id, { stage: "closed", detail: `closed by a human — ${notified} candidate(s) notified${failNote}` });
+    updateLifecycle(id, { detail: `closed by a human — ${notified} candidate(s) notified${failNote}` });
     recordAudit({
       lifecycleId: id,
       actor: "human",
