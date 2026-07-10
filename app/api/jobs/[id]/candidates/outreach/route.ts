@@ -3,6 +3,7 @@ import { createPipelineEntry, getJob } from "@/app/_lib/db";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { AutomationError, runAutomationTask } from "@/app/_lib/automation-run";
 import { inferProfileLocale } from "@/app/_lib/comms-locale";
+import { candidateOutreachSuppression } from "@/app/_lib/rediscovery-alert-store";
 import { safeJsonError } from "@/app/_lib/api-response";
 
 // The outreach draft spawns the Claude CLI (automation_cli) — comfortably exceed
@@ -37,6 +38,26 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     };
     if (!body.candidateId) {
       return NextResponse.json({ error: "candidateId is required." }, { status: 400 });
+    }
+
+    // GDPR gate BEFORE we mint anything (bug-ui-scan #1): consult the candidate's
+    // EXISTING consent across all their entries. A rediscovery re-contact for a
+    // NEW role would otherwise INSERT a fresh entry with blank consent that reads
+    // as contactable — re-contacting a person who was anonymized/erased or whose
+    // consent lapsed. Suppress here so no entry is minted and no send fires;
+    // dispatchOutreach re-checks (defense in depth). Fail-closed inside the gate.
+    const suppressed = candidateOutreachSuppression(body.candidateId);
+    if (suppressed) {
+      return NextResponse.json(
+        {
+          error:
+            suppressed === "anonymized"
+              ? "This candidate has been anonymized and can no longer be contacted."
+              : "This candidate's data-processing consent has expired — re-consent is required before outreach.",
+          suppressed,
+        },
+        { status: 409 }
+      );
     }
 
     // jobTitle / roleFamily come from the authoritative server-side record (the

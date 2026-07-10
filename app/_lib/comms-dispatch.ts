@@ -3,7 +3,7 @@ import { sendComm } from "./comms";
 import type { OutboxStatus } from "./comms-status";
 import { ensureErasureToken, recordAutomationEvent, type PipelineEntry } from "./db";
 import { isEarlyCareer } from "./archetypes";
-import { outreachSuppressionReason } from "./consent";
+import { candidateOutreachSuppression } from "./rediscovery-alert-store";
 import { extractDeliverableAddress, extractRecipientName } from "./comms-recipient";
 import { buildIcs } from "./export-utils";
 import { publicBaseUrl } from "./public-base-url";
@@ -209,12 +209,19 @@ export type OutreachResult = { sent: true } | { sent: false; reason: "anonymized
  *  state BEFORE sending; on suppression, return the reason and record NOTHING (no
  *  outreach_sent marker), so a later re-consent can still be contacted. The consent
  *  system governed retention/anonymization but was never consulted on the outbound
- *  path — this closes that gap. */
+ *  path — this closes that gap.
+ *
+ *  Consent is resolved at the durable CANDIDATE identity, not this one entry:
+ *  rediscovery mints a fresh per-role entry with BLANK consent, so an entry-only
+ *  read would happily re-contact a person whose ORIGINAL consent expired or who was
+ *  anonymized/erased (bug-ui-scan #1). The entry's own snapshot is folded in so an
+ *  entry that carries no candidateId keeps the exact entry-level guarantee; the
+ *  gate FAILS CLOSED on an unreadable consent state. */
 export async function dispatchOutreach(
   entry: PipelineEntry,
   draft: { subject?: unknown; body?: unknown }
 ): Promise<OutreachResult> {
-  const suppress = outreachSuppressionReason({
+  const suppress = candidateOutreachSuppression(entry.candidateId, {
     givenAt: entry.consentGivenAt,
     expiresAt: entry.consentExpiresAt,
     anonymizedAt: entry.anonymizedAt,

@@ -2,6 +2,8 @@ import Database from "better-sqlite3";
 import { openStore } from "./db-path";
 import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 import { randomId } from "./random-id";
+import { outreachSuppressionReason, type ConsentSnapshot } from "./consent";
+import { resolveCandidateConsent } from "./rediscovery-relevance";
 
 // Standing silver-medalist alerts (idea-fdb45cd0). Isolated-connection store
 // (same pattern as application-status-store.ts / offers-store.ts): owns the
@@ -146,4 +148,72 @@ export function dismissRediscoveryAlert(id: string): boolean {
     .prepare(`UPDATE rediscovery_alerts SET dismissed_at = ? WHERE id = ? AND dismissed_at IS NULL`)
     .run(new Date().toISOString(), id);
   return res.changes > 0;
+}
+
+// ---- Cross-role outreach consent gate (bug-ui-scan #1) ----------------------
+//
+// Rediscovery re-contacts a candidate under a DIFFERENT role, and the "Reach out"
+// route mints a brand-new pipeline entry whose consent columns are blank — so a
+// per-ENTRY consent read (dispatchOutreach's original gate) reports "none"
+// (contactable) even for a person whose ORIGINAL consent expired or who was
+// anonymized/erased, silently defeating the suppression the gate exists to
+// enforce. Consent/anonymization are keyed to the ENTRY, but the durable identity
+// erasure + consent use is `candidate_id` — so resolve suppression against THAT,
+// across every one of the candidate's entries. Lives here (the rediscovery
+// module's DB seam) rather than db/pipeline.ts, reading pipeline_entries over this
+// isolated store's connection — every store opens the same kp.sqlite file.
+
+/** Every entry's consent snapshot for ONE durable candidate identity
+ *  (`candidate_id`). Isolated-connection read on the shared kp.sqlite.
+ *  DELIBERATELY workspace-GLOBAL — like anonymizeExpiredConsents' "process EVERY
+ *  tenant's expired consents" sweep, a person's consent/erasure is a property of
+ *  the person, not the team; reading only lifecycle timestamps (no PII/labels)
+ *  and over-suppressing across a rare same-id collision is the GDPR-safe
+ *  direction. Do not add a workspace filter here. */
+export function candidateConsentSnapshots(candidateId: string): ConsentSnapshot[] {
+  const key = (candidateId ?? "").trim();
+  if (!key) return [];
+  const rows = db()
+    .prepare(
+      `SELECT consent_given_at, consent_expires_at, anonymized_at
+         FROM pipeline_entries WHERE candidate_id = ?`
+    )
+    .all(key) as { consent_given_at: string | null; consent_expires_at: string | null; anonymized_at: string | null }[];
+  return rows.map((r) => ({
+    givenAt: r.consent_given_at,
+    expiresAt: r.consent_expires_at,
+    anonymizedAt: r.anonymized_at,
+  }));
+}
+
+/** THE candidate-level outreach compliance gate (GDPR / e-privacy). Resolves the
+ *  most-restrictive consent across every entry the candidate identity owns, so a
+ *  rediscovery re-contact honors the PERSON's real state — anonymized/erased, or
+ *  every consent grant lapsed — not the fresh per-role entry's blank consent.
+ *  `entrySnapshot` (the outreach entry's own consent) is folded in so a caller
+ *  that has no candidateId still gets the entry-level guarantee unchanged.
+ *
+ *  FAIL CLOSED: if the consent state cannot be read (DB error), suppress — a
+ *  missed send is recoverable, a consent-violating send is not. Returns the
+ *  suppression reason, or null when the candidate may be contacted. */
+export function candidateOutreachSuppression(
+  candidateId: string | null | undefined,
+  entrySnapshot?: ConsentSnapshot,
+  nowMs: number = Date.now()
+): "anonymized" | "consent_expired" | null {
+  try {
+    const snaps: ConsentSnapshot[] = entrySnapshot ? [entrySnapshot] : [];
+    const key = (candidateId ?? "").trim();
+    if (key) snaps.push(...candidateConsentSnapshots(key));
+    // Truly no record anywhere (no id, no entry) — recruiter-sourced first touch,
+    // contactable, exactly as an entry-level "none" read.
+    if (snaps.length === 0) return null;
+    return outreachSuppressionReason(resolveCandidateConsent(snaps), nowMs);
+  } catch (err) {
+    console.error(
+      `[rediscovery] consent gate could not resolve candidate "${candidateId}" — suppressing outreach (fail-closed):`,
+      err
+    );
+    return "consent_expired";
+  }
 }

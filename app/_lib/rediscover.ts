@@ -119,20 +119,124 @@ export async function raiseRediscoveryAlertsForJob(
   }
 }
 
-/** Sweep every published role and raise alerts — the "a strong candidate entered
- *  the pool" trigger, run on demand from the feed's Refresh (cheap: the free plan
- *  caps active roles, and the pool is shared so each rank is one CLI call).
- *  Returns the roles swept and the count of newly-surfaced silver medalists. */
-export async function sweepRediscoveryAlerts(
-  opts: { signal?: AbortSignal } = {}
-): Promise<{ jobsSwept: number; newAlerts: number }> {
-  const publishedIds = Object.entries(listJobStatuses())
-    .filter(([, status]) => status === "published")
-    .map(([jobId]) => jobId);
-  let newAlerts = 0;
-  for (const jobId of publishedIds) {
-    if (opts.signal?.aborted) break;
-    newAlerts += await raiseRediscoveryAlertsForJob(jobId, opts);
+// ---- Sweep bounds (bug-ui-scan #2) ------------------------------------------
+//
+// sweepRediscoveryAlerts used to fan out one recruiter_cli subprocess per
+// published role, sequentially, with NO cap, NO per-subprocess timeout, and NO
+// ceiling — the code only ASSUMED "the free plan caps active roles". A paid/seeded
+// workspace with dozens of open roles turned one Refresh click into a minutes-long
+// request that could exhaust the box and blow the serverless timeout mid-sweep. So
+// bound it three ways: a worker-pool CONCURRENCY cap, a per-role wall-clock TIMEOUT
+// (aborts a hung CLI), and an overall CEILING on roles processed per sweep (with a
+// loud log when it truncates — never a silent cap).
+
+/** Max roles processed in one sweep. Excess is deferred to the next Refresh and
+ *  logged — the request cost can never scale linearly with the catalog size. */
+export const SWEEP_MAX_ROLES = 25;
+/** Worker-pool size: at most this many recruiter_cli children run at once, so the
+ *  sweep's peak CPU/subprocess load is bounded regardless of the role count. */
+export const SWEEP_CONCURRENCY = 3;
+/** Per-role wall-clock bound. A role whose ranking outruns this is aborted (its
+ *  CLI child SIGKILLed via the signal) and contributes 0 — one slow/hung role can
+ *  never stall the whole sweep. Well under a serverless request budget. */
+export const SWEEP_JOB_TIMEOUT_MS = 60_000;
+
+/** Run `worker` over `items` with at most `concurrency` in flight at once — a
+ *  minimal fixed-size worker pool (no dependency). Workers pull from a shared
+ *  cursor, so a slow item doesn't hold a slot the others need. Pure/injectable so
+ *  the concurrency bound is unit-testable without real subprocesses. */
+export async function runWithPool<T>(
+  items: T[],
+  concurrency: number,
+  worker: (item: T, index: number) => Promise<void>
+): Promise<void> {
+  let cursor = 0;
+  const runOne = async (): Promise<void> => {
+    while (cursor < items.length) {
+      const i = cursor++;
+      await worker(items[i], i);
+    }
+  };
+  const workers = Array.from({ length: Math.max(1, Math.min(concurrency, items.length)) }, runOne);
+  await Promise.all(workers);
+}
+
+/** raiseRediscoveryAlertsForJob wrapped in a per-role wall-clock TIMEOUT (bundled
+ *  with the caller's abort signal). On timeout the combined signal aborts, which
+ *  rankPoolForJob threads into spawnPython → the CLI child is SIGKILLed and the
+ *  ranking rejects; raiseRediscoveryAlertsForJob already swallows that and returns
+ *  0, so a hung role degrades to "surfaced nothing", never a stalled sweep. The
+ *  `raise` dependency is injectable so the timeout is testable without a real CLI. */
+export async function raiseForJobBounded(
+  jobId: string,
+  parentSignal: AbortSignal | undefined,
+  opts: {
+    timeoutMs?: number;
+    raise?: (jobId: string, o: { signal?: AbortSignal }) => Promise<number>;
+  } = {}
+): Promise<number> {
+  const timeoutMs = opts.timeoutMs ?? SWEEP_JOB_TIMEOUT_MS;
+  const raise = opts.raise ?? raiseRediscoveryAlertsForJob;
+  const ac = new AbortController();
+  const onParentAbort = () => ac.abort();
+  if (parentSignal) {
+    if (parentSignal.aborted) ac.abort();
+    else parentSignal.addEventListener("abort", onParentAbort, { once: true });
   }
-  return { jobsSwept: publishedIds.length, newAlerts };
+  const timer = setTimeout(() => ac.abort(), timeoutMs);
+  try {
+    return await raise(jobId, { signal: ac.signal });
+  } finally {
+    clearTimeout(timer);
+    parentSignal?.removeEventListener("abort", onParentAbort);
+  }
+}
+
+export type SweepDeps = {
+  /** The published-role ids to sweep, most-relevant first (the caller truncates). */
+  listPublishedJobIds: () => string[];
+  /** Rank ONE role and persist its silver-medalist alerts, returning how many were
+   *  newly surfaced. Bounded by a per-role timeout + the caller's abort signal. */
+  raiseForJob: (jobId: string, signal: AbortSignal | undefined) => Promise<number>;
+};
+
+function defaultSweepDeps(): SweepDeps {
+  return {
+    listPublishedJobIds: () =>
+      Object.entries(listJobStatuses())
+        .filter(([, status]) => status === "published")
+        .map(([jobId]) => jobId),
+    raiseForJob: (jobId, signal) => raiseForJobBounded(jobId, signal),
+  };
+}
+
+/** Sweep published roles and raise silver-medalist alerts — the "a strong
+ *  candidate entered the pool" trigger, run on demand from the feed's Refresh.
+ *  BOUNDED (bug-ui-scan #2): at most SWEEP_MAX_ROLES roles per sweep (excess
+ *  deferred + logged), a SWEEP_CONCURRENCY worker pool, and a per-role timeout —
+ *  so the request cost can never scale linearly with the catalog. `deps` is
+ *  injectable for tests. Returns the roles actually swept, the newly-surfaced
+ *  count, and how many roles were deferred (`truncated`). */
+export async function sweepRediscoveryAlerts(
+  opts: { signal?: AbortSignal } = {},
+  deps: SweepDeps = defaultSweepDeps()
+): Promise<{ jobsSwept: number; newAlerts: number; truncated: number }> {
+  const publishedIds = deps.listPublishedJobIds();
+  const roles = publishedIds.slice(0, SWEEP_MAX_ROLES);
+  const truncated = publishedIds.length - roles.length;
+  if (truncated > 0) {
+    console.warn(
+      `[rediscovery] sweep truncated: ${publishedIds.length} published roles exceed the ${SWEEP_MAX_ROLES}-role/sweep ceiling — processing ${roles.length}, deferring ${truncated} to the next Refresh.`
+    );
+  }
+  let newAlerts = 0;
+  await runWithPool(roles, SWEEP_CONCURRENCY, async (jobId) => {
+    if (opts.signal?.aborted) return; // client hung up — stop scheduling new work
+    // Read-AFTER-await, then a synchronous += — `newAlerts += await …` would read
+    // newAlerts BEFORE suspending and write back a stale sum, so concurrent workers
+    // would lose increments (JS compound-assign reads the LHS before the RHS).
+    const added = await deps.raiseForJob(jobId, opts.signal);
+    newAlerts += added;
+  });
+  return { jobsSwept: roles.length, newAlerts, truncated };
 }

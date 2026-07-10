@@ -15,6 +15,13 @@ import {
 // roles and returns the refreshed feed (the "a strong candidate entered the pool"
 // trigger, on demand from the feed's Refresh).
 
+// The POST sweep fans out recruiter_cli rankings (now bounded by a worker pool +
+// per-role timeout + a roles-per-sweep ceiling in sweepRediscoveryAlerts). Give it
+// the same generous provider budget the single-CLI campaign/outreach routes use so
+// a legitimately busy sweep isn't killed at the platform's default serverless
+// timeout mid-run (bug-ui-scan #2).
+export const maxDuration = 180;
+
 // Relevance is filtered at read time against LIVE state — an alert for a role
 // since unpublished, or a candidate since pipelined into it, is no longer a
 // silver medalist even though its row persists (dismissed state is sticky).
@@ -52,9 +59,9 @@ export async function PATCH(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const { jobsSwept, newAlerts } = await sweepRediscoveryAlerts({ signal: request.signal });
+    const { jobsSwept, newAlerts, truncated } = await sweepRediscoveryAlerts({ signal: request.signal });
     const alerts = relevantAlerts(await currentWorkspace());
-    return NextResponse.json({ alerts, count: alerts.length, jobsSwept, newAlerts });
+    return NextResponse.json({ alerts, count: alerts.length, jobsSwept, newAlerts, truncated });
   } catch (error) {
     return safeJsonError(error, "api:rediscovery-alerts", "REDISCOVERY_ALERTS_FAILED");
   }
