@@ -386,6 +386,61 @@ export function closeEntriesByJobId(jobId: string, workspaceId: string = DEFAULT
   return tx();
 }
 
+/** Explicit inverse of closeEntriesByJobId (JOB2) — the reopen transition for a
+ *  CLOSED role. Restores every entry THIS role's close withdrew (status
+ *  `role_closed` → `active`) and records a `role_reopened` event per entry, ALL in
+ *  one synchronous transaction. Returns how many were restored.
+ *
+ *  Why it's a first-class transition and not a side effect of re-sourcing
+ *  (job-postings-lifecycle #1): reopen used to be "publish again and let sourcing
+ *  incidentally un-terminal whatever the matcher re-selects". That left the
+ *  pipeline half-resurrected — candidates the matcher no longer returned (or ALL of
+ *  them when sourcing errored/matched nobody) stayed stranded in `role_closed` with
+ *  a lying timeline, and there was NO audit event. Doing the restore here, up front
+ *  and independent of sourcing, makes the reopen deterministic and complete.
+ *
+ *  Scoping is the safety property: `role_closed` is a DISTINCT terminal status
+ *  written ONLY by closeEntriesByJobId, so `status='role_closed'` selects exactly
+ *  the entries this close withdrew and NOTHING else — a candidate a recruiter
+ *  `rejected`/`declined`/`rematched` on merit BEFORE the close carries a different
+ *  terminal status and is deliberately left closed (a reopen must never un-do a
+ *  human's merit reject). The close never touched `stage` (only `status`), so
+ *  restoring `status` alone returns each candidate to their exact pre-close stage.
+ *  The `AND status='role_closed'` guard on the UPDATE makes a lost race to a
+ *  concurrent writer a no-op (no double-restore, no spurious event). */
+export function reopenEntriesByJobId(jobId: string, workspaceId: string = DEFAULT_WORKSPACE_ID): number {
+  const db = ensureDb();
+  const now = new Date().toISOString();
+  const tx = db.transaction((): number => {
+    const rows = db
+      .prepare(
+        `SELECT id, candidate_label, job_title, archetype, stage
+           FROM pipeline_entries WHERE job_id = ? AND status = 'role_closed' AND workspace_id = ?`
+      )
+      .all(jobId, workspaceId) as { id: string; candidate_label: string; job_title: string | null; archetype: string; stage: string }[];
+    let restored = 0;
+    for (const r of rows) {
+      const res = db
+        .prepare(`UPDATE pipeline_entries SET status='active', updated_at=? WHERE id=? AND status='role_closed' AND workspace_id=?`)
+        .run(now, r.id, workspaceId);
+      if (res.changes === 0) continue; // lost the flip to a concurrent writer
+      recordEvent(db, {
+        entryId: r.id,
+        candidateLabel: r.candidate_label,
+        jobTitle: r.job_title,
+        archetype: r.archetype,
+        kind: "role_reopened",
+        fromStage: r.stage,
+        toStage: r.stage,
+        detail: "Role reopened — candidate restored to the pipeline.",
+      });
+      restored += 1;
+    }
+    return restored;
+  });
+  return tx();
+}
+
 // Prior pipeline outcomes per candidate — used by talent rediscovery to spot
 // "silver medalists" (rejected/closed elsewhere) who fit a different role.
 export type CandidateOutcome = { jobId: string | null; jobTitle: string | null; stage: string; status: string };
@@ -1410,7 +1465,7 @@ export function actOnPipelineEntry(
   // advance — recruiter click included — landed as one kind the analytics
   // attributed to automation, and policy rejects wrote BOTH rejected (human)
   // and auto_rejected (auto), double-counting in momentum and the rollup.
-  opts?: { expectedStage?: string; actor?: "human" | "system" },
+  opts?: { expectedStage?: string; expectedApprovalKind?: ApprovalKind | null; actor?: "human" | "system" },
   workspaceId: string = DEFAULT_WORKSPACE_ID
 ): PipelineEntry | null {
   const db = ensureDb();
@@ -1420,6 +1475,21 @@ export function actOnPipelineEntry(
   if (opts?.expectedStage !== undefined && row.stage !== opts.expectedStage) {
     console.warn(
       `[pipeline:act] skipped stale ${action} for entry ${id}: decided at stage '${opts.expectedStage}', row is now '${row.stage}'.`
+    );
+    return null;
+  }
+  // CAS half #2 (idea-b6310b92 / bug-ui-scan §hiring-automation #1): the automation
+  // snapshot also captured approval_kind, but the stage-only guard above misses a
+  // human who QUEUES a review DURING the seconds-long Python hop — that changes
+  // approval_kind WITHOUT changing stage, so a stale system decision waves through
+  // and either clears the fresh gate to NULL or (screening_review) auto-consumes it
+  // into the calendar. Fail closed: if the approval state moved under a stale
+  // decision, skip and yield to the human. `undefined` = the caller didn't snapshot
+  // it (human routes) → not checked; `null` is a real expectation ("no pending
+  // approval when I decided") that a mid-hop approval must not be allowed to violate.
+  if (opts?.expectedApprovalKind !== undefined && (row.approval_kind ?? null) !== opts.expectedApprovalKind) {
+    console.warn(
+      `[pipeline:act] skipped ${action} for entry ${id}: approval changed under a stale decision (decided at '${opts.expectedApprovalKind ?? "none"}', row is now '${row.approval_kind ?? "none"}').`
     );
     return null;
   }

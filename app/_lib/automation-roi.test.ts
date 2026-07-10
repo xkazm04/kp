@@ -13,17 +13,26 @@ test("aggregates minutes/hours/CZK from the per-kind estimates", () => {
 });
 
 test("the breakdown is sorted by time saved, highest first", () => {
-  const roi = automationRoi({ scored: 10, interview_prep_generated: 2, advanced: 1 });
-  // scored 80, prep 50, advanced 3
-  assert.deepEqual(roi.actions.map((a) => a.kind), ["scored", "interview_prep_generated", "advanced"]);
+  const roi = automationRoi({ scored: 10, interview_prep_generated: 2, auto_advanced: 1 });
+  // scored 80, prep 50, auto_advanced 3
+  assert.deepEqual(roi.actions.map((a) => a.kind), ["scored", "interview_prep_generated", "auto_advanced"]);
   assert.equal(roi.actions[0].minutesTotal, 80);
 });
 
 test("only mapped automated kinds contribute — human/failure kinds are ignored", () => {
-  const roi = automationRoi({ applied: 50, rejected: 20, onboarding_failed: 5, advanced: 3 });
-  // Only `advanced` (3 × 3 min) counts; the rest aren't saved recruiter labor.
+  // The automation's OWN advance (`auto_advanced`) is saved labor; a recruiter's
+  // gate click (`advanced`) is NOT — crediting it would count human work as
+  // automation ROI (bug-ui-scan §hiring-automation #3).
+  const roi = automationRoi({ applied: 50, rejected: 20, onboarding_failed: 5, advanced: 99, auto_advanced: 3 });
+  // Only `auto_advanced` (3 × 3 min) counts; the human `advanced` and the rest don't.
   assert.equal(roi.totalActions, 3);
   assert.equal(roi.minutesSaved, 9);
+  assert.equal(roi.actions.some((a) => a.kind === "advanced"), false, "a human `advanced` must never be credited to automation ROI");
+});
+
+test("credits the automation's OWN advance (auto_advanced), never the human advance", () => {
+  assert.equal(automationRoi({ auto_advanced: 10 }).minutesSaved, 30); // 10 × 3 min — the machine's advances ARE saved labor
+  assert.equal(automationRoi({ advanced: 10 }).minutesSaved, 0); // a recruiter's clicks are not automation ROI
 });
 
 test("a non-positive rate falls back to the default", () => {

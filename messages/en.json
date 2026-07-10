@@ -3197,7 +3197,11 @@
         "intake_degraded": "Intake degraded",
         "intake_resolved": "Intake captured manually",
         "fairness_gate_unknown_archetype": "Fairness gate: unknown archetype",
-        "observed_minted": "Observer link minted"
+        "aging_alert": "Aging past stage SLA",
+        "stale_alert": "Going stale in stage",
+        "fairness_gate_blocked_reject": "Fairness gate: auto-reject blocked",
+        "observed_minted": "Observer link minted",
+        "role_reopened": "Role reopened"
       },
       "kindsQueued": {
         "outreach_sent": "Outreach queued in Outbox (not delivered)",

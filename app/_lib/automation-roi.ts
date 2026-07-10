@@ -22,7 +22,7 @@ export const MINUTES_SAVED_PER_KIND: Record<string, number> = {
   auto_rejected: 5, // reviewing + writing a considered pass
   rejection_sent: 4, // composing + sending the rejection note
   interview_invite_sent: 4, // composing + sending the invite + link
-  advanced: 3, // reviewing + moving a candidate a stage on
+  auto_advanced: 3, // the policy pass moving a candidate a stage on (the machine's OWN advance). The human `advanced` is a recruiter click — NOT saved automation labor — so it is deliberately absent (bug-ui-scan §hiring-automation #3).
   acknowledgement_sent: 2, // the application-received reply
   interview_reminder_sent: 2, // the nudge before a scheduled screen
   screening_hold: 2, // flagging a borderline for human review

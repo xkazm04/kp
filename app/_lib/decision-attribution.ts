@@ -59,6 +59,14 @@ export const DECISION_META: Record<string, DecisionMeta> = {
   onboarding_failed: { auto: true, tone: "text-coral" },
   rejection_comms_failed: { auto: true, tone: "text-coral" },
   fairness_gate_unknown_archetype: { auto: true, tone: "text-coral" },
+  // Policy-pass ALERT kinds (AUTOMATION_ALERT_KINDS below) — automation-authored
+  // nudges + the fairness backstop's downgrade signal, written via
+  // recordAutomationEvent's alert loop. Previously UNMAPPED: they rendered an
+  // UNKNOWN badge and fell out of every attribution rollup, and the writer-coverage
+  // test's hardcoded list hid the gap (bug-ui-scan §hiring-automation #4).
+  aging_alert: { auto: true, tone: "text-amber-600" },
+  stale_alert: { auto: true, tone: "text-amber-600" },
+  fairness_gate_blocked_reject: { auto: true, tone: "text-coral" },
   observed_minted: { auto: true, tone: "text-steel" },
   matched: { auto: true, tone: "text-steel" },
   intake_degraded: { auto: true, tone: "text-coral" },
@@ -66,7 +74,22 @@ export const DECISION_META: Record<string, DecisionMeta> = {
   moved: { auto: false, tone: "text-steel" },
   added: { auto: false, tone: "text-steel" },
   intake_resolved: { auto: false, tone: "text-moss" },
+  // A recruiter reopening a closed role restores the candidates that role's close
+  // withdrew — a HUMAN-initiated, positive restoration. Without a mapping it
+  // rendered UNKNOWN in the decision log and fell out of any attribution rollup.
+  role_reopened: { auto: false, tone: "text-moss" },
 };
+
+// Policy-pass ALERT kinds — the aging/stale nudges evaluate_entry emits
+// (pipeline/jobfit/automation.py) plus the TS fairness backstop's downgrade
+// (FAIRNESS_BLOCKED_REJECT_ALERT). They flow through recordAutomationEvent's alert
+// loop, so they are automation-authored (auto:true above). Exported as the ONE
+// source of truth: automation-pass.ts consumes FAIRNESS_GATE_BLOCKED_REJECT from
+// here, and decision-attribution.test.ts derives its writer-coverage list from
+// AUTOMATION_ALERT_KINDS — so a new alert kind can't be written without a
+// DECISION_META mapping (the drift this module exists to stop).
+export const FAIRNESS_GATE_BLOCKED_REJECT = "fairness_gate_blocked_reject";
+export const AUTOMATION_ALERT_KINDS = ["aging_alert", "stale_alert", FAIRNESS_GATE_BLOCKED_REJECT] as const;
 
 // Outcome state of one automation-pass decision (persisted in
 // scheduler_runs.decisions_json). Rows persisted before the field existed are

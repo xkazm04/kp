@@ -3264,7 +3264,11 @@
         "intake_degraded": "Erfassung eingeschränkt",
         "intake_resolved": "Erfassung manuell nachgeholt",
         "fairness_gate_unknown_archetype": "Fairness-Gate: unbekannter Archetyp",
-        "observed_minted": "Beobachter-Link erstellt"
+        "aging_alert": "Phasen-SLA überschritten",
+        "stale_alert": "Bleibt zu lange in der Phase",
+        "fairness_gate_blocked_reject": "Fairness-Gate: Auto-Ablehnung blockiert",
+        "observed_minted": "Beobachter-Link erstellt",
+        "role_reopened": "Rolle wieder geöffnet"
       },
       "kindsQueued": {
         "outreach_sent": "Ansprache im Postausgang eingereiht (nicht zugestellt)",

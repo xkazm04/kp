@@ -14,13 +14,15 @@ import { resolveCandidatePoolEntry } from "./candidate-pool";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, PipelineError, spawnPython } from "./python-runner";
 import { rankPoolForJob } from "./recruiter-run";
 import { assertAutoRejectFair, type AutoRejectVerdict } from "./automation-fairness";
-import type { DecisionOutcome } from "./decision-attribution";
+import { FAIRNESS_GATE_BLOCKED_REJECT, type DecisionOutcome } from "./decision-attribution";
 
 // Audit event kind logged when the TS fairness backstop refuses a Python reject
 // and downgrades it to a hold. A non-zero count here means an upstream regression
 // tried to auto-reject an entry the fairness invariant protects — see
-// automation-fairness.ts (assertAutoRejectFair).
-export const FAIRNESS_BLOCKED_REJECT_ALERT = "fairness_gate_blocked_reject";
+// automation-fairness.ts (assertAutoRejectFair). Sourced from the shared
+// AUTOMATION_ALERT_KINDS set (decision-attribution.ts) so the writer and the
+// attribution map can never key it differently.
+export const FAIRNESS_BLOCKED_REJECT_ALERT = FAIRNESS_GATE_BLOCKED_REJECT;
 
 // THE single encoding of the fairness-backstop downgrade, shared by the dry-run
 // preview loop and the commit loop so the preview provably shows the SAME verdict
@@ -264,7 +266,7 @@ async function executeAutomationPass(dryRun: boolean): Promise<AutomationPassRes
       const snapshotStage = entrySnap?.stage;
       const entryWs = entrySnap?.workspaceId;
       if (d.action === "advance") {
-        const applied = actOnPipelineEntry(d.entryId, "accept", d.reason, { expectedStage: snapshotStage, actor: "system" }, entryWs); // logs `auto_advanced` + stamps stage_changed_at
+        const applied = actOnPipelineEntry(d.entryId, "accept", d.reason, { expectedStage: snapshotStage, expectedApprovalKind: entrySnap?.approvalKind, actor: "system" }, entryWs); // logs `auto_advanced` + stamps stage_changed_at; the approval CAS refuses if a human queued a review mid-hop
         if (applied) {
           summary.advanced += 1;
           d.outcome = "applied";

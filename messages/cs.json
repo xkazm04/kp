@@ -3197,7 +3197,11 @@
         "intake_degraded": "Neúplné zadání",
         "intake_resolved": "Zadání doplněno ručně",
         "fairness_gate_unknown_archetype": "Fairness pojistka: neznámý archetyp",
-        "observed_minted": "Odkaz pro pozorovatele vytvořen"
+        "aging_alert": "Překročeno SLA setrvání ve fázi",
+        "stale_alert": "Zastarává ve fázi",
+        "fairness_gate_blocked_reject": "Fairness pojistka: automatické zamítnutí blokováno",
+        "observed_minted": "Odkaz pro pozorovatele vytvořen",
+        "role_reopened": "Role znovu otevřena"
       },
       "kindsQueued": {
         "outreach_sent": "Oslovení ve frontě v Outboxu (nedoručeno)",

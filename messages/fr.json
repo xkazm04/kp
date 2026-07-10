@@ -3264,7 +3264,11 @@
         "intake_degraded": "Réception dégradée",
         "intake_resolved": "Réception saisie manuellement",
         "fairness_gate_unknown_archetype": "Contrôle d'équité : archétype inconnu",
-        "observed_minted": "Lien observateur généré"
+        "aging_alert": "Ancienneté au-delà du SLA de l'étape",
+        "stale_alert": "Stagne dans l'étape",
+        "fairness_gate_blocked_reject": "Contrôle d'équité : rejet auto bloqué",
+        "observed_minted": "Lien observateur généré",
+        "role_reopened": "Poste rouvert"
       },
       "kindsQueued": {
         "outreach_sent": "Prise de contact en file d'attente dans la boîte d'envoi (non remise)",
