@@ -3,7 +3,7 @@ import path from "node:path";
 import { getJob, getProfileRecord, loadAnalysis, type JobRecord } from "./db";
 import { getWorkspaceDefaultLocale } from "./db/workspaces";
 import { runReasoning } from "./reasoning-run";
-import { saveGroupEval } from "./group-eval";
+import { getGroupEval, saveGroupEval } from "./group-eval";
 import { isEarlyCareer } from "./archetypes";
 import { APP_CURRENCY } from "./format";
 import { isSameCurrency } from "./salary-band";
@@ -13,7 +13,7 @@ import { rankPoolForJob } from "./recruiter-run";
 import { computeDifferentiators } from "./group-eval-differentiators";
 import { compareByMatchScoreDesc, compareScoreDesc } from "./match-score";
 import { sealDecisionSafe } from "./decision-record-store";
-import { buildEligibilityList, governanceNote, normalizeGovernanceMode, sealsLead } from "./group-eval-governance";
+import { buildEligibilityList, governanceNote, normalizeGovernanceMode, resolveGovernanceMode, sealsLead } from "./group-eval-governance";
 import type { MatchResultView, ScoreDimension, Confidence, Reasoning as CanonicalReasoning } from "@/app/features/sub_match/MatchTypes";
 import type { Comparison, Fairness, FairnessScheme } from "@/app/features/sub_decisions/group-eval/types";
 import { assessRobustness } from "@/app/features/sub_decisions/group-eval/types";
@@ -260,7 +260,19 @@ export async function runGroupEval(params: Record<string, unknown>, signal?: Abo
   // Governance mode (P1-3): "recommendation" (default — AI synthesizes + seals a
   // single lead) vs "committee" / "eligibility_list" (the AI is ADVISORY only — it
   // never seals a winner; the committee / eligibility certification is the human's).
-  const governanceMode = normalizeGovernanceMode(params.governanceMode);
+  //
+  // Resolved SERVER-SIDE from the role's PERSISTED governance, not trusted solely from
+  // the per-request param (bug-ui-scan-2026-07-09 #1). The request param comes from an
+  // unpersisted per-mount segmented control that resets to "recommendation" on any fresh
+  // mount / different user / rerun; the role's stored eval carries the governance it was
+  // last run under. resolveGovernanceMode keeps a committee/eligibility role governed so a
+  // rerun whose client state reset can never silently downgrade it and auto-seal an AI lead.
+  const requestedGovernanceMode = normalizeGovernanceMode(params.governanceMode);
+  const priorEval = getGroupEval(roleKey);
+  const storedGovernanceMode = priorEval
+    ? normalizeGovernanceMode((priorEval.payload as { governanceMode?: unknown }).governanceMode)
+    : null;
+  const governanceMode = resolveGovernanceMode(storedGovernanceMode, requestedGovernanceMode);
   const advisory = !sealsLead(governanceMode);
   // Sort by fit BEFORE applying the cap so the strongest candidates are always
   // the ones compared — never an arbitrary insertion-order subset. The recommended

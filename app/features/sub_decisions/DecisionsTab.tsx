@@ -255,6 +255,13 @@ export function DecisionsTab() {
       }
       setEvalData(payload);
       setEvalCreatedAt((p?.evaluation?.createdAt as string) ?? null);
+      // Bind the segmented control to the role's PERSISTED governance (bug-ui-scan #1):
+      // evalMode is unpersisted per-mount state that defaults to "recommendation", so
+      // without this a rerun of a committee/eligibility role could re-send
+      // "recommendation" and (were the server to trust it) silently auto-seal an AI lead.
+      // The server also enforces this, but syncing the control keeps the UI honest and a
+      // subsequent rerun sends the correct mode.
+      if (payload.governanceMode) setEvalMode(payload.governanceMode);
       return;
     }
     const candidates = g.entries.map((e) => ({ entryId: e.id, candidateId: e.candidateId, label: e.candidateLabel, matchScore: e.matchScore }));
