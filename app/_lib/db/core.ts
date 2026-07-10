@@ -1382,11 +1382,30 @@ function seedAnalyses(db: Database.Database): void {
   // (no empty-table guard) so regenerating the committed JSON — e.g. after the
   // analysis shape grows — refreshes the seeded analyses without a DB reset. Real
   // analyses use random, non-`seed-` slugs, so they are never touched or replaced.
+  //
+  // NON-DESTRUCTIVE upsert (bug-ui-scan-2026-07-09 data-store #1): this was
+  // `INSERT OR REPLACE`, which is delete-then-insert — and the column list below
+  // predates disposition/decision_note/review_flags/github_json/workspace_id, so
+  // every reboot RESET a recruiter's disposition + GitHub deep-dive on the SHIPPED
+  // seeded-candidate population to NULL (silent, timer-driven data loss; only
+  // workspace_id was re-healed by the post-seed backfill). `ON CONFLICT(slug) DO
+  // UPDATE SET` now refreshes ONLY the seed-owned columns (label/jd/score/role/
+  // seniority/payload/created_at) and never touches the human- or later-computed
+  // columns, so a re-seed leaves an edited row's decisions intact. A genuinely new
+  // seed row still plain-INSERTs (workspace_id NULL → backfilled to 'workspace' below).
   const records = loadSeedArray<Record<string, unknown>>("analyses", SEED_ANALYSES_PATH);
   if (!records) return;
   const insert = db.prepare(
-    `INSERT OR REPLACE INTO analyses (slug, candidate_label, jd_slug, score, role_family, seniority, payload_json, created_at)
-     VALUES (@slug, @candidate_label, @jd_slug, @score, @role_family, @seniority, @payload_json, @created_at)`
+    `INSERT INTO analyses (slug, candidate_label, jd_slug, score, role_family, seniority, payload_json, created_at)
+     VALUES (@slug, @candidate_label, @jd_slug, @score, @role_family, @seniority, @payload_json, @created_at)
+     ON CONFLICT(slug) DO UPDATE SET
+       candidate_label = excluded.candidate_label,
+       jd_slug = excluded.jd_slug,
+       score = excluded.score,
+       role_family = excluded.role_family,
+       seniority = excluded.seniority,
+       payload_json = excluded.payload_json,
+       created_at = excluded.created_at`
   );
   const tx = db.transaction((rows: Array<Record<string, unknown>>) => {
     for (const rec of rows) {
