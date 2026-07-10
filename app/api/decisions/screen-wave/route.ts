@@ -43,15 +43,20 @@ export async function POST(request: NextRequest) {
     // token at all gets the "approval required" message, while a present-but-stale
     // token gets the "set changed, re-preview" message. Both are refused (409).
     const approvalToken = typeof body.approvalToken === "string" ? body.approvalToken.trim() : "";
+    // Art. 22 approver (finding SD-2): the "who reviewed this automated adverse decision"
+    // field is the most legally load-bearing part of the sealed record, so it must be an
+    // AUTHENTICATED fact, not a client assertion. This handler is already operator-gated
+    // (requireOperator above), so we bind the approver to the server-derived operator
+    // identity via operatorApprover() and IGNORE any body.approvedBy — a caller can no
+    // longer attribute the human review to an arbitrary name. (Per-user identity doesn't
+    // exist yet — single-operator deploy — so operatorApprover() is the authenticated
+    // actor; when it lands, derive the specific reviewer from the session here.)
     const approval =
       dryRun || !approvalToken
         ? undefined
         : {
             token: approvalToken,
-            approvedBy:
-              typeof body.approvedBy === "string" && body.approvedBy.trim()
-                ? body.approvedBy.trim()
-                : operatorApprover(),
+            approvedBy: operatorApprover(),
           };
     const result = await runScreenWave(body.jobId, checked.override, { dryRun, approval });
     return NextResponse.json(result);

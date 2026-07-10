@@ -1,7 +1,7 @@
 import Database from "better-sqlite3";
 import { openStore } from "./db-path";
 import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
-import { decisionContentHash } from "./decision-hash";
+import { decisionContentHash, decisionContentMac } from "./decision-hash";
 
 // Decision System of Record (moonshot D) — a tamper-evident hash chain of
 // consequential hiring decisions, stored in SQLite (a hash chain, NOT a
@@ -39,6 +39,10 @@ export type DecisionRecord = {
   reasonCode: string;
   payloadJson: string;
   createdAt: string;
+  // The id of the HMAC key this link was sealed under ("" = a legacy keyless row,
+  // sealed before the chain was keyed or when no key is configured). See the key
+  // registry below.
+  keyId: string;
 };
 
 export type ChainVerdict = { ok: boolean; count: number; brokenAtSeq: number | null };
@@ -55,7 +59,59 @@ type DecisionRow = {
   reason_code: string;
   payload_json: string;
   created_at: string;
+  key_id: string;
 };
+
+// --- Decision-chain keying (finding SD-1: keyless chain is not tamper-EVIDENT) ------
+//
+// The chain is keyed with HMAC-SHA256 (decisionContentMac) under a secret the DB
+// writer does NOT hold, so an insider with decision_records write access can no longer
+// re-run the seal code to forge a valid chain: without the key, no valid MAC.
+//
+// DEDICATED KEY, not KP_SECRET. The key is its own env var (KP_DECISION_HMAC_KEY), NOT
+// the session/provider-key secret KP_SECRET. KP_SECRET is a rotatable credential (it
+// also signs sessions and, per the skill-profile finding, is expected to rotate), and a
+// tamper-evident AUDIT chain must survive a rotation of the auth secret unbroken — so
+// the two secrets are decoupled. Rotating KP_SECRET never touches the audit history.
+//
+// ROTATION STORY. Each row stores the key id it was sealed under (key_id column). The
+// ACTIVE key is (KP_DECISION_HMAC_KEY_ID, default "k1") → KP_DECISION_HMAC_KEY. To
+// rotate: pick a new id, set KP_DECISION_HMAC_KEY to the new secret and
+// KP_DECISION_HMAC_KEY_ID to the new id, and KEEP the retired secret readable as
+// KP_DECISION_HMAC_KEY_<oldId>. verify resolves each row's key BY its stored id, so old
+// rows keep verifying under the retired key while new rows seal under the new one — a
+// rotation never invalidates history. (Retired keys must be kept available; dropping one
+// makes its rows unverifiable — that is the price of keying, and is asserted in tests.)
+//
+// LEGACY / BACKWARD COMPAT. Rows written before this change (and any row sealed while no
+// key is configured, e.g. dev/open mode) carry key_id "" and use the keyless hash, so the
+// pre-existing chain verifies unchanged. verify accepts a keyless row ONLY as a contiguous
+// PREFIX: once any keyed row has appeared, a later keyless row is treated as a DOWNGRADE
+// forgery. Consequently, enabling the key makes the ENTIRE prior history tamper-evident
+// too — editing any legacy row cascades into the first keyed link downstream, which can't
+// be reforged without the key. The only unprotected case is a chain that was NEVER keyed.
+
+const LEGACY_KEY_ID = "";
+
+/** The active (id, secret) to seal new rows under, or null when no key is configured
+ *  (dev / open mode) — in which case new rows are sealed keyless (legacy). */
+function activeDecisionKey(): { id: string; secret: string } | null {
+  const secret = process.env.KP_DECISION_HMAC_KEY?.trim();
+  if (!secret) return null;
+  const id = process.env.KP_DECISION_HMAC_KEY_ID?.trim() || "k1";
+  return { id, secret };
+}
+
+/** Resolve the secret for a row's stored key id. "" → null (a keyless legacy row).
+ *  The active id resolves to KP_DECISION_HMAC_KEY; a retired id resolves to
+ *  KP_DECISION_HMAC_KEY_<id> (kept available across a rotation). null for an id with no
+ *  key material available — verify then fails closed (can't prove that row's integrity). */
+function decisionKeyById(keyId: string): string | null {
+  if (keyId === LEGACY_KEY_ID) return null;
+  const activeId = process.env.KP_DECISION_HMAC_KEY_ID?.trim() || "k1";
+  if (keyId === activeId) return process.env.KP_DECISION_HMAC_KEY?.trim() || null;
+  return process.env[`KP_DECISION_HMAC_KEY_${keyId}`]?.trim() || null;
+}
 
 let _db: Database.Database | null = null;
 function db(): Database.Database {
@@ -74,7 +130,8 @@ function db(): Database.Database {
       reason_code TEXT NOT NULL,
       payload_json TEXT NOT NULL,
       created_at TEXT NOT NULL,
-      workspace_id TEXT NOT NULL DEFAULT 'workspace'
+      workspace_id TEXT NOT NULL DEFAULT 'workspace',
+      key_id TEXT NOT NULL DEFAULT ''
     );
     CREATE INDEX IF NOT EXISTS idx_decision_records_candidate ON decision_records(candidate_ref);
   `);
@@ -84,6 +141,14 @@ function db(): Database.Database {
   // head read (workspace_id, seq) keeps the seal's head lookup fast.
   try {
     d.exec(`ALTER TABLE decision_records ADD COLUMN workspace_id TEXT NOT NULL DEFAULT 'workspace'`);
+  } catch {
+    /* column already exists — idempotent */
+  }
+  // Chain keying (finding SD-1): key_id records which HMAC key sealed each row. Existing
+  // rows backfill to '' (legacy keyless) via the DEFAULT, so the pre-key chain verifies
+  // unchanged; new rows seal under the active key. Idempotent, same pattern as above.
+  try {
+    d.exec(`ALTER TABLE decision_records ADD COLUMN key_id TEXT NOT NULL DEFAULT ''`);
   } catch {
     /* column already exists — idempotent */
   }
@@ -121,6 +186,7 @@ function rowToRecord(r: DecisionRow): DecisionRecord {
     reasonCode: r.reason_code,
     payloadJson: r.payload_json,
     createdAt: r.created_at,
+    keyId: r.key_id ?? LEGACY_KEY_ID,
   };
 }
 
@@ -144,19 +210,36 @@ export function sealDecisionRecord(input: DecisionRecordInput): DecisionRecord {
       /* pipeline_entries absent on this connection — seal onto the default chain */
     }
     // Link off the latest hash IN THIS WORKSPACE — a per-tenant chain, so one team's
-    // seals never enter another's proof (org plan §6).
+    // seals never enter another's proof (org plan §6). Read its key_id too, to refuse a
+    // downgrade (see below).
     const last = d
-      .prepare(`SELECT content_hash FROM decision_records WHERE workspace_id = ? ORDER BY seq DESC LIMIT 1`)
-      .get(workspaceId) as { content_hash: string } | undefined;
+      .prepare(`SELECT content_hash, key_id FROM decision_records WHERE workspace_id = ? ORDER BY seq DESC LIMIT 1`)
+      .get(workspaceId) as { content_hash: string; key_id: string } | undefined;
     const prevHash = last?.content_hash ?? "";
-    const contentHash = decisionContentHash(prevHash, payload);
+    // Key the new link with the active HMAC key; fall back to the legacy keyless hash
+    // only when no key is configured (dev / open mode).
+    const active = activeDecisionKey();
+    // Safety net: never APPEND an unkeyed row onto a keyed chain. If this chain already
+    // has keyed rows but the key is now missing (an accidental un-set of KP_DECISION_HMAC_KEY),
+    // sealing keyless would create a downgrade row that permanently breaks verify. Throw
+    // instead — sealDecisionSafe turns it into a logged skip, leaving the chain verifiable.
+    // Operational contract: KP_DECISION_HMAC_KEY, once set, is rotated, never removed.
+    if (!active && last && (last.key_id ?? LEGACY_KEY_ID) !== LEGACY_KEY_ID) {
+      throw new Error(
+        "KP_DECISION_HMAC_KEY is unset but this decision chain is keyed — refusing to append an unkeyed (downgrade) row. Restore the key (rotate, never remove)."
+      );
+    }
+    const keyId = active ? active.id : LEGACY_KEY_ID;
+    const contentHash = active
+      ? decisionContentMac(prevHash, keyId, payload, active.secret)
+      : decisionContentHash(prevHash, payload);
     const info = d
       .prepare(
         `INSERT INTO decision_records
-          (prev_hash, content_hash, kind, actor, policy_version, candidate_ref, rationale, reason_code, payload_json, created_at, workspace_id)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          (prev_hash, content_hash, kind, actor, policy_version, candidate_ref, rationale, reason_code, payload_json, created_at, workspace_id, key_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
-      .run(prevHash, contentHash, input.kind, input.actor, input.policyVersion, input.candidateRef, input.rationale, input.reasonCode, payloadJson, createdAt, workspaceId);
+      .run(prevHash, contentHash, input.kind, input.actor, input.policyVersion, input.candidateRef, input.rationale, input.reasonCode, payloadJson, createdAt, workspaceId, keyId);
     return {
       seq: Number(info.lastInsertRowid),
       prevHash,
@@ -169,6 +252,7 @@ export function sealDecisionRecord(input: DecisionRecordInput): DecisionRecord {
       reasonCode: input.reasonCode,
       payloadJson,
       createdAt,
+      keyId,
     };
   });
   return tx();
@@ -210,6 +294,7 @@ export function verifyDecisionChain(workspaceId: string = DEFAULT_WORKSPACE_ID):
   // independent, so another team's rows are neither read nor needed for this proof.
   const rows = d.prepare(`SELECT * FROM decision_records WHERE workspace_id = ? ORDER BY seq ASC`).all(workspaceId) as DecisionRow[];
   let prevHash = "";
+  let seenKeyed = false;
   for (const r of rows) {
     let payload: unknown;
     try {
@@ -217,7 +302,22 @@ export function verifyDecisionChain(workspaceId: string = DEFAULT_WORKSPACE_ID):
     } catch {
       return { ok: false, count: rows.length, brokenAtSeq: r.seq };
     }
-    const expected = decisionContentHash(prevHash, payload);
+    const keyId = r.key_id ?? LEGACY_KEY_ID;
+    let expected: string;
+    if (keyId === LEGACY_KEY_ID) {
+      // A keyless row is legitimate ONLY within the pre-key prefix. Once any keyed row
+      // has been seen, a keyless row is a DOWNGRADE forgery (an insider re-hashed a keyed
+      // row with the public keyless algorithm to dodge the MAC) — reject it.
+      if (seenKeyed) return { ok: false, count: rows.length, brokenAtSeq: r.seq };
+      expected = decisionContentHash(prevHash, payload);
+    } else {
+      // Keyed row: recompute the MAC under the row's own key. No key material → fail
+      // closed (a rotated-away key that wasn't kept available; integrity unprovable).
+      const secret = decisionKeyById(keyId);
+      if (!secret) return { ok: false, count: rows.length, brokenAtSeq: r.seq };
+      seenKeyed = true;
+      expected = decisionContentMac(prevHash, keyId, payload, secret);
+    }
     if (r.prev_hash !== prevHash || r.content_hash !== expected) {
       return { ok: false, count: rows.length, brokenAtSeq: r.seq };
     }
