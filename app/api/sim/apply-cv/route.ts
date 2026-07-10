@@ -3,7 +3,7 @@ import { getJob } from "@/app/_lib/db";
 import { getJobStatus, isJobOpenForApplications } from "@/app/_lib/job-ingest";
 import { jsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
-import { extractUploadedText, ingestCvApplication } from "@/app/_lib/cv-intake";
+import { extractUploadedText, ingestCvApplication, simCvIntakeTarget } from "@/app/_lib/cv-intake";
 import { DEFAULT_LOCALE, isLocale } from "@/i18n/locales";
 
 export const maxDuration = 60;
@@ -52,6 +52,12 @@ export async function POST(request: NextRequest) {
     // Attribution: which channel the demo is exercising (email inbox vs. ad form).
     const channel = String(form.get("channel") ?? "email");
 
+    // Tenant isolation: scope the sim write to the sim/demo workspace with a
+    // `(SIM)`-marked title — NEVER the job owner's real pipeline (the default
+    // getJobWorkspace target). This keeps a demo CV purgeable by resetSim and
+    // excluded from the real analytics funnel/hire-rate. The match is still built
+    // against the real job.
+    const target = simCvIntakeTarget(job);
     const result = await ingestCvApplication({
       job,
       name: name || deriveNameFromFile(file.name),
@@ -61,6 +67,8 @@ export async function POST(request: NextRequest) {
       locale,
       // Keep repeated sim runs from generating acknowledgement dead-letters.
       sendAck: false,
+      workspaceId: target.workspaceId,
+      jobTitle: target.jobTitle,
     });
 
     return NextResponse.json({
@@ -72,7 +80,8 @@ export async function POST(request: NextRequest) {
       archetype: result.archetype,
       degraded: result.degraded,
       degradedReason: result.degradedReason,
-      jobTitle: job.title,
+      // The marked title actually stored on the entry (visibly a sim row).
+      jobTitle: target.jobTitle,
       stage: "Accepted",
     });
   } catch (error) {

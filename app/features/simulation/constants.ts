@@ -16,6 +16,13 @@ export const SIM_TITLE_LIKE = `%${SIM_MARKER}%`;
 export function isSimTitle(title: string | null | undefined): boolean {
   return typeof title === "string" && title.includes(SIM_MARKER);
 }
+/** Stamp the (SIM) marker onto a title so a simulated pipeline entry is purgeable
+ *  by resetSim AND excluded by every analytics filter — the ONE marker the writer,
+ *  the purge and every aggregate share (single-sourced here so they can't drift).
+ *  Idempotent: an already-marked title is returned unchanged (never "(SIM) (SIM)"). */
+export function markSimTitle(title: string): string {
+  return isSimTitle(title) ? title : `${title} ${SIM_MARKER}`;
+}
 export const SIM_TITLE = `Senior Java Backend Engineer ${SIM_MARKER}`;
 export const SIM_COMPANY = "Česká spořitelna";
 

@@ -1,7 +1,8 @@
 import { buildApplicantProfile } from "@/app/_lib/applicant-profile";
 import { applyDedupeKey, FALLBACK_ARCHETYPE } from "@/app/_lib/apply";
 import type { ApplyAnswers } from "@/app/_lib/apply-intake";
-import { createPipelineEntry, getJob, getJobWorkspace, recordEntryConsent } from "@/app/_lib/db";
+import { createPipelineEntry, getJob, getJobWorkspace, recordEntryConsent, DEFAULT_WORKSPACE_ID } from "@/app/_lib/db";
+import { markSimTitle } from "@/app/features/simulation/constants";
 import { dispatchApplicationReceived } from "@/app/_lib/comms-dispatch";
 import { randomId } from "@/app/_lib/random-id";
 import {
@@ -98,6 +99,11 @@ export async function ingestCvApplication(input: {
   /** The team the applicant is filed into — defaults to the job's owning team (a public
    *  applicant has no session); the webhook receiver overrides with its own workspace. */
   workspaceId?: string;
+  /** Stored `job_title` for the pipeline entry — defaults to the job's real title.
+   *  The sim path overrides it with a `(SIM)`-marked title (see simCvIntakeTarget) so
+   *  a demo CV is purgeable + analytics-excluded; the match is still built against the
+   *  real job. */
+  jobTitle?: string;
 }): Promise<CvIntakeResult> {
   const name = input.name.trim() || "Applicant";
   // Tenant (P1): file into the opening's owning team (public applicant, no session).
@@ -116,7 +122,7 @@ export async function ingestCvApplication(input: {
     archetype: (built.ok ? built.archetype : null) ?? FALLBACK_ARCHETYPE,
     roleFamily: input.job.roleFamily ?? null,
     jobId: input.job.id,
-    jobTitle: input.job.title,
+    jobTitle: input.jobTitle ?? input.job.title,
     stage: "Accepted",
     // Stable per-applicant key so re-sends of the same person collapse onto one
     // entry even though candidateId is a fresh profile id each build.
@@ -156,4 +162,19 @@ export async function ingestCvApplication(input: {
     archetype: built.ok ? built.archetype : null,
     candidateLabel: name,
   };
+}
+
+// The write target for a SIMULATED CV intake (the keyless "Test with a real CV"
+// channels card + /api/sim/apply-cv). Critical tenant-isolation seam: a demo/sim CV
+// must NEVER be filed into the job OWNER's real pipeline. Unlike the real inbound
+// path — which files into the opening's owning team via getJobWorkspace — a sim run
+// is scoped to the sim/demo workspace (DEFAULT_WORKSPACE_ID, where resetSim and the
+// sibling sim/inbound already operate) and its stored title carries the `(SIM)`
+// marker. That single marker is BOTH the purge key (resetSim) and the analytics
+// read-side exclusion (SIM_TITLE_LIKE), so a demo CV is fully purgeable and never
+// counts as a real applicant/hire — regardless of which real role it was tested
+// against. The candidate is still MATCHED against the real job (buildApplicantProfile
+// reads the real title); only the stored entry's workspace + title are scoped here.
+export function simCvIntakeTarget(job: Job): { workspaceId: string; jobTitle: string } {
+  return { workspaceId: DEFAULT_WORKSPACE_ID, jobTitle: markSimTitle(job.title) };
 }
