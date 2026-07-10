@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { meterGate } from "@/app/_lib/billing";
+import { meterGate, maxBillableInterviewMin } from "@/app/_lib/billing/enforce";
 import {
   createInterviewSession,
   getPipelineEntry,
@@ -21,12 +21,13 @@ import { GROUNDED_DEFAULT_MIN } from "@/app/_lib/interview-duration.mjs";
 // to hand to the candidate. After the call, /complete runs the scorecard.
 export async function POST(request: NextRequest) {
   try {
-    // Billing hard gate: voice minutes are the one meter with real per-unit cost.
-    // Require the WHOLE booked call to fit, not just "any minute left": an interview
-    // books ~GROUNDED_DEFAULT_MIN minutes (debited up to 2× at /complete), so gating
-    // on a single leftover minute let a near-empty meter run a full call with the
-    // overage un-funded. (Existing live links keep working; minutes debit at
-    // /complete; top-up packs reopen this.)
+    // Billing hard gate — CHEAP PRE-CHECK: voice minutes are the one meter with real
+    // per-unit cost. Reject an obviously-empty meter before doing the (possibly
+    // LLM-backed) run-of-show build below. This uses the 20-min default because the
+    // session's real booked length isn't known yet; the AUTHORITATIVE reservation —
+    // gating on the WORST CASE /complete can debit (bookedMin*2) — runs once `grounded`
+    // is built, before we revoke any existing link. (Minutes debit at /complete; top-up
+    // packs reopen this.)
     const quota = meterGate("interview_minutes", { minUnits: GROUNDED_DEFAULT_MIN });
     if (quota) return NextResponse.json(quota, { status: 402 });
     // Validate at the trust boundary instead of casting request.json() to a
@@ -60,6 +61,20 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Build the run-of-show FIRST so its booked duration is known — and BEFORE the
+    // revoke below, so a quota refusal or a build failure can never kill the
+    // candidate's existing live link (revoke now happens only once we're committed).
+    const grounded = await buildGroundedInterview(entryId);
+
+    // AUTHORITATIVE billing reservation: refuse unless the meter can cover the WORST
+    // CASE /complete can debit for THIS session — maxBillableInterviewMin(bookedMin) =
+    // bookedMin*2, the exact ceiling the debit clamps to. The cheap pre-gate above only
+    // reserved the 20-min default, so a session booked for 30 min (up to 60 billed) could
+    // pass with 20 minutes left and drive the priciest meter negative. Reserving the true
+    // ceiling closes that under-reservation.
+    const reserve = meterGate("interview_minutes", { minUnits: maxBillableInterviewMin(grounded.durationMin) });
+    if (reserve) return NextResponse.json(reserve, { status: 402 });
+
     // W6-4 (VOX1) — reissue semantics: a fresh link kills the prior ones.
     // Re-clicking "Create link" used to mint a SECOND live session (and email a
     // second invite) while the first stayed valid forever — and the
@@ -68,7 +83,6 @@ export async function POST(request: NextRequest) {
     // live per entry.
     const revoked = revokeOpenInterviewSessions(entryId);
 
-    const grounded = await buildGroundedInterview(entryId);
     const session = createInterviewSession({
       provider,
       mode: "candidate",

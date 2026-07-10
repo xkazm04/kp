@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerLocale } from "@/i18n/server";
 import { isLocale } from "@/i18n/locales";
 import { meterGate } from "@/app/_lib/billing";
+import { listRecentTasks } from "@/app/_lib/db";
 import type { AnalyzeParams } from "@/app/_lib/analyze-run";
 import { dedupeCvVariants } from "@/app/_lib/cv-variant";
 import { newRequestId } from "@/app/_lib/logger";
@@ -38,7 +39,9 @@ export async function POST(request: Request) {
   // meter (one person fully worked — variants of the same person count once). The
   // unit is DEBITED later, inside runAnalyze, only when a non-cached analysis is
   // actually delivered — so a failed, canceled, or duplicate/cached run never charges
-  // for work that wasn't done. This gate just refuses a submit when nothing remains.
+  // for work that wasn't done. This is a CHEAP PRE-CHECK (refuse a fully-empty meter
+  // before the multi-MB formData parse); the AUTHORITATIVE, in-flight-aware reservation
+  // that closes the concurrent-burst window runs just before startTask below.
   const quota = meterGate("ai_candidates");
   if (quota) return NextResponse.json(quota, { status: 402 });
 
@@ -132,6 +135,23 @@ export async function POST(request: Request) {
     blind,
     workspace,
   };
+
+  // Reservation gate (finding #2 — close the gate→debit burst window): the
+  // ai_candidates unit is debited LATER, inside the background task on a delivered
+  // non-cached result, so N concurrent submits that all read the same pre-debit balance
+  // could each pass the pre-check above and collectively overrun a hard cap. Each
+  // queued/running analyze task will debit at most ONE unit, so its task row IS a
+  // one-unit reservation: count those in flight and refuse unless a unit remains ON TOP
+  // of them. Race-safe because better-sqlite3 writes are synchronous and there is NO
+  // await between this count and startTask's row insert below — two concurrent requests
+  // can't both read the same count; each sees every earlier reservation and atomically
+  // adds its own. Rows are created under the default workspace (createTask's default),
+  // matching the single global meter this gate reads.
+  const inFlightAnalyze = listRecentTasks(new Date().toISOString(), 200).filter(
+    (t) => t.kind === "analyze" && (t.status === "queued" || t.status === "running")
+  ).length;
+  const reserve = meterGate("ai_candidates", { inFlight: inFlightAnalyze });
+  if (reserve) return NextResponse.json(reserve, { status: 402 });
 
   // No debit here — runAnalyze charges the unit only on a delivered, non-cached result.
   const task = startTask("analyze", params as unknown as Record<string, unknown>);

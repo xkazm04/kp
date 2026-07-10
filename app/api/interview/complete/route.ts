@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { recordMeterUsage } from "@/app/_lib/billing";
+import { maxBillableInterviewMin } from "@/app/_lib/billing/enforce";
 import {
   attachInterviewScorecard,
   completeInterviewSession,
@@ -146,7 +147,10 @@ export async function POST(request: NextRequest) {
       const bookedMin = session.durationMin ?? 8;
       const startedMs = session.startedAt ? Date.parse(session.startedAt) : NaN;
       const elapsedMin = Number.isFinite(startedMs) ? Math.ceil((Date.now() - startedMs) / 60_000) : bookedMin;
-      const billedMin = Math.min(Math.max(elapsedMin, 1), bookedMin * 2);
+      // The 2× ceiling is single-sourced (maxBillableInterviewMin) so /create can
+      // RESERVE exactly this amount — gate and debit read one function, never two
+      // different numbers (the reserve-vs-debit bug this seam closes).
+      const billedMin = Math.min(Math.max(elapsedMin, 1), maxBillableInterviewMin(bookedMin));
       recordMeterUsage("interview_minutes", billedMin);
       // Cost attribution (tiger F1): the meter above is a quantity-only quota
       // counter, but OpenAI Realtime vs ElevenLabs per-minute costs differ
