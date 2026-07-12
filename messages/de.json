@@ -2948,6 +2948,7 @@
     "revoked": "Dieser Nachweis wurde widerrufen",
     "tampered": "Signatur ungültig — nicht vertrauenswürdig",
     "incomplete": "Ausgestellt ohne bewertete Zusammenfassung",
+    "unverifiable": "Verifizierung vorübergehend nicht verfügbar",
     "summaryUnavailable": "Dieser Nachweis wurde ohne bewertete Kompetenzzusammenfassung ausgestellt, daher gibt es keinen Score und keine Kompetenzaufschlüsselung anzuzeigen.",
     "transferLabel": "Beständiger Kompetenz-Score",
     "confidenceLabel": "Konfidenz",

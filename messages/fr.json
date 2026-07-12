@@ -2948,6 +2948,7 @@
     "revoked": "Cette attestation a été révoquée",
     "tampered": "Signature invalide — ne pas s'y fier",
     "incomplete": "Émis sans synthèse chiffrée",
+    "unverifiable": "Vérification temporairement indisponible",
     "summaryUnavailable": "Cette attestation a été émise sans synthèse chiffrée des compétences ; il n'y a donc ni score ni détail des capacités à afficher.",
     "transferLabel": "Score de compétences durables",
     "confidenceLabel": "Confiance",

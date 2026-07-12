@@ -27,13 +27,21 @@ export default async function SkillProfilePage({ params }: { params: Promise<{ t
   // A validly-signed but SUBSTANTIVELY EMPTY credential (no axes, transfer score 0) is
   // NOT a confident "verified" verdict — it's an "incomplete" attestation, shown muted
   // so a third party never reads a green shield over a 0.
-  const state: "verified" | "revoked" | "tampered" | "incomplete" = verdict.revoked
+  //
+  // "unverifiable" comes BEFORE "tampered": when kp cannot check the signature because the
+  // credential key is unset/misconfigured server-side (verdict.verifiable === false), that
+  // is OUR configuration problem, not evidence the bearer forged anything. It renders a
+  // NEUTRAL "cannot verify" badge — never the red fraud accusation — so a KP_SECRET rotation
+  // or a missing KP_SKILL_PROFILE_KEY can't defame a genuine, non-revoked credential.
+  const state: "verified" | "revoked" | "tampered" | "incomplete" | "unverifiable" = verdict.revoked
     ? "revoked"
-    : !verdict.valid
-      ? "tampered"
-      : !verdict.substantive
-        ? "incomplete"
-        : "verified";
+    : !verdict.verifiable
+      ? "unverifiable"
+      : !verdict.valid
+        ? "tampered"
+        : !verdict.substantive
+          ? "incomplete"
+          : "verified";
 
   const badge =
     state === "verified"
@@ -42,7 +50,9 @@ export default async function SkillProfilePage({ params }: { params: Promise<{ t
         ? { Icon: ShieldX, cls: "border-stone-300 bg-stone-100 text-steel", label: t("revoked") }
         : state === "incomplete"
           ? { Icon: ShieldAlert, cls: "border-stone-300 bg-stone-100 text-steel", label: t("incomplete") }
-          : { Icon: ShieldAlert, cls: "border-red-200 bg-red-50 text-red-800", label: t("tampered") };
+          : state === "unverifiable"
+            ? { Icon: ShieldAlert, cls: "border-stone-300 bg-stone-100 text-steel", label: t("unverifiable") }
+            : { Icon: ShieldAlert, cls: "border-red-200 bg-red-50 text-red-800", label: t("tampered") };
 
   return (
     <main className="mx-auto max-w-xl px-4 py-12">
