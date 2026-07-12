@@ -2,6 +2,7 @@ import Database from "better-sqlite3";
 import { openStore } from "./db-path";
 import { isAtsEvent, type AtsEventType, SUBSCRIBABLE_EVENTS } from "./ats-webhook.ts";
 import { assertPublicHttpsEndpoint } from "./safe-url.ts";
+import { decryptAtsSecret, encryptAtsSecret, isEncryptedAtsSecret } from "./ats-secret.ts";
 
 // P1-5 — persistence for the outbound-webhook integration. Its OWN isolated
 // connection on the shared kp.sqlite (decision-config-store / offers-store
@@ -12,6 +13,14 @@ import { assertPublicHttpsEndpoint } from "./safe-url.ts";
 // itself, so the shared key can't be exfiltrated by reading config. getAtsSecret()
 // is the server-internal reader the dispatcher uses to sign. Same doctrine as the
 // offer erasure token (never surfaced to the client).
+//
+// AT REST — the doctrine above only guarded the API READ path; the secret was still
+// persisted PLAINTEXT, so the whole-DB export (db-portability dumps every column)
+// shipped it in clear. It is now ENCRYPTED at rest (ats-secret.ts, AES-256-GCM under
+// KP_ATS_SECRET_KEY/KP_SECRET): the column holds only ciphertext, so neither the
+// export nor a raw `sqlite3` read ever sees the secret. getAtsSecret() decrypts it
+// transiently to sign; a legacy plaintext row is tolerated and re-encrypted on the
+// next write.
 
 export type AtsConfigPublic = {
   webhookUrl: string | null;
@@ -69,9 +78,15 @@ export function getAtsConfig(): AtsConfigPublic {
   };
 }
 
-/** Server-internal: the signing secret, or null. Never goes over the API. */
+/** Server-internal: the DECRYPTED signing secret, or null. Never goes over the API.
+ *  A legacy plaintext row (written before at-rest encryption) is returned as-is so an
+ *  existing integration keeps signing; the next setAtsConfig write re-stores it
+ *  encrypted. Throws only if the ciphertext can't be decrypted (missing/rotated key)
+ *  — deliver() wraps this so a misconfiguration surfaces as a delivery failure. */
 export function getAtsSecret(): string | null {
-  return readRow()?.webhook_secret ?? null;
+  const stored = readRow()?.webhook_secret ?? null;
+  if (stored === null) return null;
+  return isEncryptedAtsSecret(stored) ? decryptAtsSecret(stored) : stored;
 }
 
 function validateUrl(raw: unknown): string | null {
@@ -112,10 +127,24 @@ function validateEvents(raw: unknown): AtsEventType[] {
 export function setAtsConfig(input: { webhookUrl?: unknown; webhookSecret?: unknown; events?: unknown }): AtsConfigPublic {
   const url = validateUrl(input.webhookUrl);
   const events = validateEvents(input.events);
-  let secret = getAtsSecret();
+  // Preserve the EXISTING stored (already-encrypted) secret when the caller omits
+  // webhookSecret — read the RAW column, never the decrypted plaintext, so a
+  // keep-existing write can't round-trip the secret back to plaintext.
+  let storedSecret: string | null = readRow()?.webhook_secret ?? null;
   if (input.webhookSecret !== undefined) {
     if (typeof input.webhookSecret !== "string") throw new AtsConfigError("webhookSecret must be a string.");
-    secret = input.webhookSecret === "" ? null : input.webhookSecret;
+    if (input.webhookSecret === "") {
+      storedSecret = null; // CLEAR — deliveries go unsigned
+    } else {
+      // Encrypt at rest — the signing secret must never be persisted (or exported) in
+      // clear. Refuse rather than fall back to plaintext when no key is configured
+      // (same stance as provider keys in llm-secret.ts).
+      try {
+        storedSecret = encryptAtsSecret(input.webhookSecret);
+      } catch (e) {
+        throw new AtsConfigError(e instanceof Error ? e.message : "Cannot store the webhook signing secret.");
+      }
+    }
   }
   db()
     .prepare(
@@ -124,6 +153,6 @@ export function setAtsConfig(input: { webhookUrl?: unknown; webhookSecret?: unkn
        ON CONFLICT(id) DO UPDATE SET webhook_url = excluded.webhook_url, webhook_secret = excluded.webhook_secret,
          events_json = excluded.events_json, updated_at = excluded.updated_at`
     )
-    .run(url, secret, JSON.stringify(events), new Date().toISOString());
+    .run(url, storedSecret, JSON.stringify(events), new Date().toISOString());
   return getAtsConfig();
 }
