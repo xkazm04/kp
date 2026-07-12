@@ -7,7 +7,7 @@ import { BTN_PRIMARY, BTN_SECONDARY, EYEBROW, FIELD, INTRO, META_LABEL, PANEL, P
 import { SectionTitle } from "@/app/_components/ui/SectionTitle";
 import { Skeleton } from "@/app/_components/Skeleton";
 import { CORAL } from "@/app/_lib/brand";
-import type { BrandConfig } from "@/app/_lib/brand-config";
+import { accentIsLegible, type BrandConfig } from "@/app/_lib/brand-config";
 
 // Branding tab (E3 white-label) — edit the workspace's display name, primary accent
 // color, and logo. The accent re-skins the whole app (and the candidate-facing
@@ -51,7 +51,17 @@ export function BrandingTab() {
   // valid hex, else the product default coral (so the swatch is never broken).
   const effectiveAccent = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(accent.trim()) ? accent.trim() : CORAL;
 
+  // A valid-hex accent that fails WCAG contrast (invisible white button text /
+  // focus rings). Drives both a live inline warning and a hard block on save, so
+  // the operator can't ship an unreadable accent app-wide + on candidate pages.
+  const accentIllegible =
+    /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(accent.trim()) && !accentIsLegible(accent.trim());
+
   const save = useCallback(async () => {
+    if (accent.trim() && !accentIsLegible(accent.trim())) {
+      setStatus({ kind: "error", text: t("accentContrast") });
+      return;
+    }
     setSaving(true);
     setStatus(null);
     try {
@@ -144,6 +154,11 @@ export function BrandingTab() {
                 ) : null}
               </div>
               <p className="mt-1 text-sm text-steel">{t("accentHelp")}</p>
+              {accentIllegible ? (
+                <p role="alert" className="mt-1 text-sm text-coral">
+                  {t("accentContrast")}
+                </p>
+              ) : null}
             </div>
 
             <div>
