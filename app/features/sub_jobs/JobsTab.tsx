@@ -48,6 +48,7 @@ export function JobsTab() {
     anyFilter,
     clearAll,
     reload,
+    patchJobStatus,
   } = useJobsList();
 
   const [openJob, setOpenJob] = useState<Job | null>(null);
@@ -234,7 +235,18 @@ export function JobsTab() {
         )}
       </div>
 
-      {openJob ? <JobPostingModal job={openJob} onClose={() => setOpenJob(null)} /> : null}
+      {openJob ? (
+        <JobPostingModal
+          job={openJob}
+          onClose={() => setOpenJob(null)}
+          onChanged={(status) => {
+            // Instant: flip the open row's badge/chips. Then reconcile the whole
+            // list (stats + the openOnly filter) against server truth.
+            patchJobStatus(openJob.id, status);
+            reload();
+          }}
+        />
+      ) : null}
     </section>
   );
 }

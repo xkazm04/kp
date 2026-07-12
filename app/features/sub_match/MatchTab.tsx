@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import type { AnalysisRow, MatchRef, MatchResponse, ProfileRow, WeightVector } from "./MatchTypes";
 import { Results } from "./Results";
+import { selectMatchView } from "./match-view";
 import { ChainEmptyState } from "@/app/_components/ChainEmptyState";
 import { SegmentedControl } from "@/app/_components/SegmentedControl";
 import { Select } from "@/app/_components/Select";
@@ -105,6 +106,12 @@ export function MatchTab() {
     return () => window.clearTimeout(timer);
   }, [profileParam, autoRan]);
 
+  // A prior ranking always wins over a transient error: selectMatchView keeps
+  // <Results> mounted on a failed re-rank and demotes the error to a
+  // non-destructive inline banner (job-ui #2). The full-panel error branch is
+  // reserved for when there is no ranking to protect.
+  const view = selectMatchView({ hasResult: result !== null, error, loading });
+
   return (
     <section className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
       <header className="border-b border-stone-200 pb-4">
@@ -186,16 +193,19 @@ export function MatchTab() {
       </div>
 
       <div className="mt-5">
-        {error ? (
-          <p className="rounded-md bg-red-50 p-3 text-base text-red-700">{error}</p>
-        ) : result ? (
+        {view.kind === "results" && result ? (
           <Results
             result={result}
             matchRef={matchRef}
             loading={loading}
+            // Keep the last good ranking on screen; a failed re-rank rides above it
+            // as a non-destructive banner rather than replacing the whole panel.
+            error={view.inlineError ? t("rerankFailed", { error: view.inlineError }) : null}
             onReweight={(w) => runMatchFor(matchRef, w)}
           />
-        ) : loading ? (
+        ) : view.kind === "error" ? (
+          <p className="rounded-md bg-red-50 p-3 text-base text-red-700">{view.message}</p>
+        ) : view.kind === "loading" ? (
           <p className="rounded-md bg-paper p-4 text-base text-steel">{t("matching")}</p>
         ) : (
           <ChainEmptyState

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { Job, Stats } from "./JobsTypes";
+import { mergeJobStatus, type JobLifecycleStatus } from "./job-status-merge";
 
 // The filter bar + debounced corpus fetch in one place. The fetch is driven
 // entirely by the filter values, so they live together: every filter change
@@ -93,5 +94,10 @@ export function useJobsList() {
     anyFilter,
     clearAll,
     reload: () => setReloadKey((k) => k + 1),
+    // Optimistically flip one row's lifecycle status so its badge/chips update the
+    // instant a publish/close/reopen succeeds; the caller pairs this with reload()
+    // to reconcile stats + the openOnly filter against server truth.
+    patchJobStatus: (jobId: string, status: JobLifecycleStatus) =>
+      setJobs((prev) => mergeJobStatus(prev, jobId, status)),
   };
 }

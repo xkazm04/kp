@@ -22,6 +22,7 @@ export function Results({
   result,
   matchRef,
   loading = false,
+  error = null,
   onReweight,
 }: {
   result: MatchResponse;
@@ -29,6 +30,9 @@ export function Results({
   // MAT1: re-run the match with a recruiter weight override (undefined = reset to
   // the archetype baseline). Omitted where re-weighting isn't wired.
   loading?: boolean;
+  // A re-rank/re-weight that failed while this (still-valid) ranking is on screen:
+  // shown as a non-destructive banner ABOVE the results, never replacing them.
+  error?: string | null;
   onReweight?: (weights?: WeightVector) => void;
 }) {
   const t = useTranslations("match.results");
@@ -147,6 +151,12 @@ export function Results({
 
   return (
     <div>
+      {/* Non-destructive re-rank error: the results below are the last good ranking. */}
+      {error ? (
+        <p role="alert" className="mb-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          {error}
+        </p>
+      ) : null}
       <div className="flex flex-wrap items-center gap-2">
         <Chip label={t("chipCandidate")} value={candidate.label ?? "—"} />
         <Chip label={t("chipArchetype")} value={enumLabel("archetype", archetype)} tone={early ? "green" : "neutral"} />

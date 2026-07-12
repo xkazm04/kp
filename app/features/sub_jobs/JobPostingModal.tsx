@@ -20,7 +20,18 @@ import type { Job } from "./JobsTypes";
 
 // Clicking a job opens this: a publish-ready posting (Markdown) with a copy
 // action, plus the candidate ranking for the role in a second tab.
-export function JobPostingModal({ job, onClose }: { job: Job; onClose: () => void }) {
+export function JobPostingModal({
+  job,
+  onClose,
+  onChanged,
+}: {
+  job: Job;
+  onClose: () => void;
+  // Fired after a lifecycle transition (close / publish / reopen) succeeds so the
+  // owning Jobs table can refresh the affected row's status badge/chips instead of
+  // going stale until a manual reload (job-postings-lifecycle #2).
+  onChanged?: (status: "published" | "closed") => void;
+}) {
   const t = useTranslations("jobs.posting");
   // The in-modal publish action reuses DraftsPanel's strings — same /publish
   // call, same "Source into Pipeline" verb. See docs/JD_LIFECYCLE.md.
@@ -55,6 +66,8 @@ export function JobPostingModal({ job, onClose }: { job: Job; onClose: () => voi
       if (!r.ok) throw new Error();
       setClosed(true);
       setClosedCount(typeof p?.withdrawn === "number" ? p.withdrawn : null);
+      // Tell the Jobs table the row is now closed so its badge/openOnly filter update.
+      onChanged?.("closed");
     } catch {
       setCloseError(t("closeFailed"));
     } finally {
@@ -99,6 +112,8 @@ export function JobPostingModal({ job, onClose }: { job: Job; onClose: () => voi
       setClosed(false);
       setClosedCount(null);
       setPublished(true);
+      // Publish AND reopen both land the role at 'published' — refresh the table row.
+      onChanged?.("published");
       setPublishNote(
         p.sourcingWarning
           ? { text: td("publishedButFailed", { warning: p.sourcingWarning }), tone: "warn" }
