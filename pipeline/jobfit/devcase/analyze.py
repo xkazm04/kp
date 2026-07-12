@@ -28,10 +28,15 @@ _SYSTEM = (
 )
 
 
-def _generate(provider: Any | None, prompt: str, deterministic, coerce) -> tuple[dict, str]:
+def _generate(provider: Any | None, prompt: str, deterministic, coerce, expected_keys=None) -> tuple[dict, str]:
     # Shared LLM-or-deterministic runner: on an LLM failure it logs the cause at WARNING
     # and stashes a one-line fallbackReason on the artifact (see provenance.generate_with_fallback).
-    return generate_with_fallback(provider, prompt, _SYSTEM, deterministic, coerce, _LOG)
+    # expected_keys pins the answer by shape so a trailing injected object can't win the parse (#3).
+    return generate_with_fallback(provider, prompt, _SYSTEM, deterministic, coerce, _LOG, expected_keys=expected_keys)
+
+
+# Known top-level schema keys of the need-analysis answer (bug-hunter #3).
+_ANALYZE_KEYS = ("realStack", "coreResponsibilities", "statedVsRealGaps", "trueComplexity", "riskAreas", "reflection", "confidence")
 
 
 # Cap the JD body forwarded to the prompt — enough for any real JD, bounded so a
@@ -160,6 +165,6 @@ def analyze_need(
             "confidence": conf,
         }
 
-    result, source = _generate(provider, prompt, deterministic, coerce)
+    result, source = _generate(provider, prompt, deterministic, coerce, expected_keys=_ANALYZE_KEYS)
     result["promptVersion"] = ANALYZE_NEED_PROMPT_VERSION
     return result, source

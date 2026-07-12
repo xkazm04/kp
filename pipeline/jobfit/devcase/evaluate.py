@@ -41,10 +41,19 @@ _DIMS = tuple(d["name"] for d in RUBRIC_DIMENSIONS)
 MISSING_DIMENSION_SCORE = 50
 
 
-def _generate(provider: Any | None, prompt: str, deterministic, coerce) -> tuple[dict, str]:
+def _generate(provider: Any | None, prompt: str, deterministic, coerce, expected_keys=None) -> tuple[dict, str]:
     # Shared LLM-or-deterministic runner: on an LLM failure it logs the cause at WARNING
     # and stashes a one-line fallbackReason on the artifact (see provenance.generate_with_fallback).
-    return generate_with_fallback(provider, prompt, _SYSTEM, deterministic, coerce, _LOG)
+    # expected_keys pins the answer by shape so an adversary-authored submission can't slip a
+    # trailing injected JSON object past the parser and inflate/suppress these scores (#3).
+    return generate_with_fallback(provider, prompt, _SYSTEM, deterministic, coerce, _LOG, expected_keys=expected_keys)
+
+
+# The known top-level schema keys of each scoring step's answer — passed to _generate so the
+# JSON selector can reject a trailing prompt-injected object that lacks the real answer's shape.
+_EVAL_KEYS = ("dimensionScores", "strengths", "concerns", "summary")
+_TRANSFER_KEYS = ("transferScore", "transfers", "gaps", "roleFitRationale")
+_FOLLOWUPS_KEYS = ("questions",)
 
 
 def _pct(x: float) -> int:
@@ -192,7 +201,7 @@ def evaluate_submission(reflection: dict, tooling: dict, case: dict, role: dict,
             "summary": str(payload.get("summary") or det["summary"]),
         }
 
-    result, source = _generate(provider, prompt, deterministic, coerce)
+    result, source = _generate(provider, prompt, deterministic, coerce, expected_keys=_EVAL_KEYS)
     result["dimensions"] = _ordered_dimensions(result.get("dimensionScores") or {}, rubric)
     # Propagate decision-confidence from the evidence: the evaluation is fused ENTIRELY from the
     # reflection + tooling signals, so it inherits the MIN of their confidences — an evaluation
@@ -251,7 +260,7 @@ def score_transfer(evaluation: dict, role: dict, *, provider: Any | None = None)
             "roleFitRationale": str(payload.get("roleFitRationale") or det["roleFitRationale"]),
         }
 
-    result, source = _generate(provider, prompt, deterministic, coerce)
+    result, source = _generate(provider, prompt, deterministic, coerce, expected_keys=_TRANSFER_KEYS)
     # Transfer is derived purely from the evaluation, so it INHERITS the evaluation's propagated
     # confidence — the transfer score is exactly as trustworthy as the evaluation it weights.
     result["confidence"] = _propagated_confidence(evaluation)
@@ -384,6 +393,6 @@ def mint_followups(reflection: dict, tooling: dict, evaluation: dict, case: dict
             )
         return {"questions": qs[:MAX_FOLLOWUPS]} if qs else det
 
-    result, source = _generate(provider, prompt, deterministic, coerce)
+    result, source = _generate(provider, prompt, deterministic, coerce, expected_keys=_FOLLOWUPS_KEYS)
     result["promptVersion"] = FOLLOWUPS_PROMPT_VERSION
     return result, source

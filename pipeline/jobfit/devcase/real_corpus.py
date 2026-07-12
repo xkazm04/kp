@@ -41,6 +41,14 @@ ROOT = Path(__file__).resolve().parents[3]
 OUT_DIR = ROOT / "data" / "seed_calibration"
 JOBS_PATH = OUT_DIR / "jobs.json"
 RAW_CACHE = OUT_DIR / "_raw_rows.json"
+# Freeze marker written by calibrate.py --freeze. Its presence means jobs.json is the
+# canonical Part-2 fixture (an expensive, hand-blessed corpus), so a SMALLER build must not
+# silently truncate it — see _persist_jobs / CorpusFrozenError (bug-hunter #1).
+FROZEN_PATH = OUT_DIR / "FROZEN.json"
+
+
+class CorpusFrozenError(RuntimeError):
+    """Raised when a build would shrink/overwrite a FROZEN canonical corpus without --force."""
 
 # Free, auth-less source: the HF datasets-server serves rows of any public dataset
 # over HTTPS. Verified shape: row = {position_title, company_name, job_description,
@@ -277,13 +285,36 @@ def load_jobs() -> list[dict[str, Any]]:
     return json.loads(JOBS_PATH.read_text(encoding="utf-8"))
 
 
-def build_corpus(count: int, *, resume: bool = True, fetch_limit: int | None = None) -> list[dict[str, Any]]:
+def _persist_jobs(jobs: list[dict[str, Any]], *, force: bool = False) -> None:
+    """Write the corpus to JOBS_PATH, REFUSING to shrink a FROZEN corpus.
+
+    A frozen corpus (FROZEN.json present) is the canonical, expensively-generated Part-2
+    fixture. A smaller build — e.g. a ``calibrate --count 12`` pilot — must never truncate it,
+    which would leave FROZEN.json describing a run that no longer exists on disk and quietly run
+    Part 2 on the shrunken set (bug-hunter #1). We refuse rather than clobber; pass ``force``
+    (``calibrate --rebuild --force`` / ``real_corpus --force``) to override deliberately.
+    A same-size or larger (re)build, or any build when no freeze marker exists, writes normally."""
+    OUT_DIR.mkdir(parents=True, exist_ok=True)
+    if not force and JOBS_PATH.exists() and FROZEN_PATH.exists():
+        try:
+            existing = json.loads(JOBS_PATH.read_text(encoding="utf-8"))
+        except Exception:
+            existing = []
+        if isinstance(existing, list) and len(jobs) < len(existing):
+            raise CorpusFrozenError(
+                f"refusing to shrink the FROZEN corpus ({len(existing)} jobs) to {len(jobs)}: "
+                f"jobs.json is the canonical Part-2 fixture. Re-run at the frozen size, delete "
+                f"{FROZEN_PATH.name}, or pass --force to overwrite deliberately."
+            )
+    JOBS_PATH.write_text(json.dumps(jobs, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def build_corpus(count: int, *, resume: bool = True, fetch_limit: int | None = None, force: bool = False) -> list[dict[str, Any]]:
     rows = fetch_rows(limit=fetch_limit, resume=resume)
     by_family = classify_rows(rows)
     picked = stratify(by_family, count)
     jobs = build_jobs(picked)
-    OUT_DIR.mkdir(parents=True, exist_ok=True)
-    JOBS_PATH.write_text(json.dumps(jobs, ensure_ascii=False, indent=2), encoding="utf-8")
+    _persist_jobs(jobs, force=force)
     return jobs
 
 
@@ -293,9 +324,14 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--count", type=int, default=100, help="Target corpus size (stratified across families).")
     p.add_argument("--no-resume", action="store_true", help="Ignore the raw cache and re-fetch from the dataset.")
     p.add_argument("--fetch-limit", type=int, default=None, help="Cap raw rows fetched (debug / quick runs).")
+    p.add_argument("--force", action="store_true", help="Overwrite a FROZEN corpus even if this build is smaller (destroys the blessed fixture).")
     args = p.parse_args(argv)
 
-    jobs = build_corpus(args.count, resume=not args.no_resume, fetch_limit=args.fetch_limit)
+    try:
+        jobs = build_corpus(args.count, resume=not args.no_resume, fetch_limit=args.fetch_limit, force=args.force)
+    except CorpusFrozenError as exc:
+        print(f"real_corpus: {exc}", file=sys.stderr)
+        return 1
 
     dist = Counter(j["role_family"] for j in jobs)
     sen = Counter(j["seniority"] for j in jobs)

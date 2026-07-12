@@ -39,15 +39,30 @@ from typing import Any
 
 from .._cli import configure_stdio
 from ..llm import resolve_provider
-from .analyze import analyze_need
-from .design import design_case, design_role
+from .analyze import ANALYZE_NEED_PROMPT_VERSION, analyze_need
+from .design import CASE_DESIGN_PROMPT_VERSION, ROLE_DESIGN_PROMPT_VERSION, design_case, design_role
 from .lifecycle_audits import judge as judge_artifacts, quality_summary, role_fit_verdicts
 from .lifecycle_eval import Row, _check_analysis, _check_case, _check_role, signals
 from .models import NeedAnalysis
 from .provenance import collect_fallback_reasons, combine_source
-from .real_corpus import OUT_DIR, build_corpus, load_jobs, scenarios_from_jobs
+from .real_corpus import JOBS_PATH, OUT_DIR, CorpusFrozenError, build_corpus, load_jobs, scenarios_from_jobs
 
 CASES_DIR = OUT_DIR / "cases"
+
+# The prompt versions a FRESH generation would stamp this run. A cached case file is only
+# reusable under --resume when its stored promptVersions match these AND it was generated under
+# the same model — otherwise re-calibrating a hardened prompt / a new model would serve stale
+# cases the model-under-test never produced, and the gate/--freeze would certify them (#2).
+EXPECTED_PROMPT_VERSIONS = {
+    "analyze": ANALYZE_NEED_PROMPT_VERSION,
+    "role": ROLE_DESIGN_PROMPT_VERSION,
+    "case": CASE_DESIGN_PROMPT_VERSION,
+}
+
+# Model tag stamped into a case file when no explicit --model is pinned (each step resolves its
+# own production provider). It still differs from an explicit "haiku"/"sonnet" tag, so pinning a
+# model after a default run correctly invalidates the cache.
+DEFAULT_MODEL_TAG = "default"
 
 # Acceptance gate — what "the generation prompt is hardened" means, made measurable.
 # Mirrors lifecycle_eval --strict (reliability + no error-fallbacks) plus the
@@ -121,20 +136,23 @@ def run(
     jobs_by_id: dict[str, dict],
     workers: int = 6,
     resume: bool = True,
+    model_tag: str = DEFAULT_MODEL_TAG,
 ) -> list[Row]:
     """Generate every case, WRITING each one as it completes so a timeout/kill mid-run
     preserves progress (the full 100-case run is ~hundreds of CLI calls). With
-    ``resume`` it skips any JD whose clean LLM case is already on disk, so a re-run
-    after an interrupted sweep is cheap. Returns the rows in scenario order."""
+    ``resume`` it skips any JD whose clean LLM case is already on disk AND was generated under
+    the SAME model + prompt versions as this run (``model_tag`` / EXPECTED_PROMPT_VERSIONS), so a
+    re-run after an interrupted sweep is cheap but a re-calibration on a new model/prompt is a
+    cache MISS that regenerates rather than certifying stale cases (#2). Returns rows in order."""
     CASES_DIR.mkdir(parents=True, exist_ok=True)
 
     def _process(scn: Any) -> Row:
         if resume:
-            cached = _row_from_file(scn, CASES_DIR / f"{scn.id}.json")
+            cached = _row_from_file(scn, CASES_DIR / f"{scn.id}.json", model_tag)
             if cached is not None and cached.source == "llm" and cached.reliable:
-                return cached  # a clean prior result — don't pay to regenerate it
+                return cached  # a clean prior result for THIS model/prompt — don't pay to regenerate it
         row = run_one(scn, analyze_provider, case_provider)
-        _write_case(row, jobs_by_id)  # incremental: survive a timeout/kill
+        _write_case(row, jobs_by_id, model_tag)  # incremental: survive a timeout/kill
         return row
 
     w = max(1, workers) if case_provider is not None else 1
@@ -153,7 +171,7 @@ def _prompt_versions(row: Row) -> dict[str, str]:
     }
 
 
-def _case_payload(row: Row, jobs_by_id: dict[str, dict]) -> dict:
+def _case_payload(row: Row, jobs_by_id: dict[str, dict], model_tag: str = DEFAULT_MODEL_TAG) -> dict:
     job = jobs_by_id.get(row.id, {})
     return {
         "job": {k: job.get(k) for k in ("id", "title", "company", "role_family", "seniority", "source")},
@@ -163,25 +181,42 @@ def _case_payload(row: Row, jobs_by_id: dict[str, dict]) -> dict:
         "source": row.source,
         "issues": row.issues,
         "fallbackReason": row.fallback_reasons,
+        # Stamp the model + prompt versions this case was generated under so --resume can tell
+        # whether a cached case still matches the model/prompt being calibrated now (#2).
+        "model": model_tag,
         "promptVersions": _prompt_versions(row),
     }
 
 
-def _write_case(row: Row, jobs_by_id: dict[str, dict]) -> None:
+def _write_case(row: Row, jobs_by_id: dict[str, dict], model_tag: str = DEFAULT_MODEL_TAG) -> None:
     """Write ONE case file (called as each row completes — see run())."""
     CASES_DIR.mkdir(parents=True, exist_ok=True)
     (CASES_DIR / f"{row.id}.json").write_text(
-        json.dumps(_case_payload(row, jobs_by_id), ensure_ascii=False, indent=2), encoding="utf-8"
+        json.dumps(_case_payload(row, jobs_by_id, model_tag), ensure_ascii=False, indent=2), encoding="utf-8"
     )
 
 
-def _row_from_file(scn: Any, path: Path) -> Row | None:
+def _cache_is_current(d: dict, model_tag: str) -> bool:
+    """A cached case file is reusable under --resume ONLY if it was generated under the same
+    model AND the same prompt versions as the current run. Otherwise re-calibrating a hardened
+    prompt / a newly-pinned model would silently serve the OLD cases, and the gate + --freeze
+    would certify a corpus the model/prompt under test never produced (bug-hunter #2)."""
+    if str(d.get("model") or "") != model_tag:
+        return False
+    stored = d.get("promptVersions") or {}
+    return all(str(stored.get(k) or "") == v for k, v in EXPECTED_PROMPT_VERSIONS.items())
+
+
+def _row_from_file(scn: Any, path: Path, model_tag: str = DEFAULT_MODEL_TAG) -> Row | None:
     """Reconstruct a Row from a previously written case file (for --resume).
-    Returns None if absent/unreadable so the caller regenerates it."""
+    Returns None if absent/unreadable, or if the cached case was generated under a DIFFERENT
+    model/prompt than this run (a cache MISS forces regeneration — see _cache_is_current, #2)."""
     if not path.exists():
         return None
     try:
         d = json.loads(path.read_text(encoding="utf-8"))
+        if not _cache_is_current(d, model_tag):
+            return None  # stale for THIS model/prompt — regenerate rather than certify it
         return Row(
             id=scn.id,
             label=scn.label,
@@ -276,22 +311,41 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--model", type=str, default=None, help="Pin a Claude CLI model for all steps (e.g. 'sonnet').")
     p.add_argument("--no-llm", action="store_true", help="Deterministic fallback only — plumbing dry-run.")
     p.add_argument("--no-resume", action="store_true", help="Re-fetch the raw dataset instead of reusing the cache.")
+    p.add_argument("--rebuild", action="store_true", help="(Re)build the JD corpus even if data/seed_calibration/jobs.json exists (default: reuse it — a pilot must not truncate a frozen corpus).")
+    p.add_argument("--force", action="store_true", help="With --rebuild, allow overwriting/shrinking a FROZEN corpus (destroys the blessed fixture).")
     p.add_argument("--strict", action="store_true", help="Exit non-zero if the acceptance gate fails.")
     p.add_argument("--freeze", action="store_true", help="Mark this run as the canonical Part 2 fixture (writes FROZEN.json).")
     args = p.parse_args(argv)
 
-    # Corpus: build it if missing or if --no-resume forces a refresh, else reuse.
-    jobs = build_corpus(args.count, resume=not args.no_resume)
+    # Corpus: REUSE the existing (possibly frozen) jobs.json by default — a --count pilot then
+    # runs on a SLICE of it and never rewrites the file, so it can't truncate the blessed 100-JD
+    # corpus that --freeze certified and Part 2 consumes (bug-hunter #1). Only (re)build when the
+    # corpus is absent or --rebuild is given; a shrinking rebuild over a frozen corpus is refused
+    # unless --force.
+    if JOBS_PATH.exists() and not args.rebuild:
+        jobs = load_jobs()
+        if len(jobs) < args.count:
+            sys.stderr.write(
+                f"calibrate: existing corpus has {len(jobs)} JDs (< --count {args.count}); "
+                f"running on all {len(jobs)}. Pass --rebuild to grow it.\n"
+            )
+    else:
+        try:
+            jobs = build_corpus(args.count, resume=not args.no_resume, force=args.force)
+        except CorpusFrozenError as exc:
+            sys.stderr.write(f"calibrate: {exc}\n")
+            return 1
     jobs = jobs[: args.count]
     jobs_by_id = {j["id"]: j for j in jobs}
     scenarios = scenarios_from_jobs(jobs)
+    model_tag = args.model or DEFAULT_MODEL_TAG
 
     analyze_provider, case_provider = _providers(args.no_llm, args.model)
     if not args.no_llm and case_provider is None:
         sys.stderr.write("calibrate: Claude CLI unavailable → deterministic mode (use --no-llm to silence)\n")
 
     print(f"Generating cases for {len(scenarios)} real JDs (workers={args.workers})…", file=sys.stderr)
-    rows = run(scenarios, analyze_provider, case_provider, jobs_by_id, workers=args.workers, resume=not args.no_resume)
+    rows = run(scenarios, analyze_provider, case_provider, jobs_by_id, workers=args.workers, resume=not args.no_resume, model_tag=model_tag)
     write_manifest(rows, jobs_by_id)
 
     sig = signals(rows)

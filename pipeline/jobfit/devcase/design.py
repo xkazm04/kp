@@ -94,10 +94,16 @@ _PROBE_REVEALS_DEFAULT: dict[str, str] = {
 }
 
 
-def _generate(provider: Any | None, prompt: str, deterministic, coerce) -> tuple[dict, str]:
+def _generate(provider: Any | None, prompt: str, deterministic, coerce, expected_keys=None) -> tuple[dict, str]:
     # Shared LLM-or-deterministic runner: on an LLM failure it logs the cause at WARNING
     # and stashes a one-line fallbackReason on the artifact (see provenance.generate_with_fallback).
-    return generate_with_fallback(provider, prompt, _SYSTEM, deterministic, coerce, _LOG)
+    # expected_keys pins the answer by shape so a trailing injected object can't win the parse (#3).
+    return generate_with_fallback(provider, prompt, _SYSTEM, deterministic, coerce, _LOG, expected_keys=expected_keys)
+
+
+# Known top-level schema keys per design step (bug-hunter #3).
+_ROLE_KEYS = ("title", "seniority", "roleFamily", "mustHaves", "niceToHaves", "responsibilities", "languages")
+_CASE_KEYS = ("title", "brief", "repoSeed", "tasks", "coverProbes", "timeboxHours")
 
 
 def _human(role_family: str) -> str:
@@ -178,7 +184,7 @@ def design_role(need: DevNeed, analysis: NeedAnalysis, *, provider: Any | None =
             "languages": _str_list(payload.get("languages")) or det["languages"],
         }
 
-    result, source = _generate(provider, prompt, deterministic, coerce)
+    result, source = _generate(provider, prompt, deterministic, coerce, expected_keys=_ROLE_KEYS)
     result["promptVersion"] = ROLE_DESIGN_PROMPT_VERSION
     return result, source
 
@@ -406,7 +412,7 @@ def design_case(
             "timeboxHours": tb,
         }
 
-    result, source = _generate(provider, prompt, deterministic, coerce)
+    result, source = _generate(provider, prompt, deterministic, coerce, expected_keys=_CASE_KEYS)
     result["rubricDimensions"] = _RUBRIC
     result["promptVersion"] = CASE_DESIGN_PROMPT_VERSION
     return result, source

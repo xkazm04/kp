@@ -200,4 +200,6 @@ def materialize_seed(
         lambda: deterministic_seed(case, role),
         lambda payload: _coerce(payload, case, role),
         _LOG,
+        # Pin the answer by shape so a trailing injected object can't win the parse (#3).
+        expected_keys=("files", "note"),
     )

@@ -49,10 +49,17 @@ _AGNOSTIC = (
 )
 
 
-def _generate(provider: Any | None, prompt: str, deterministic, coerce) -> tuple[dict, str]:
+def _generate(provider: Any | None, prompt: str, deterministic, coerce, expected_keys=None) -> tuple[dict, str]:
     # Shared LLM-or-deterministic runner: on an LLM failure it logs the cause at WARNING
     # and stashes a one-line fallbackReason on the artifact (see provenance.generate_with_fallback).
-    return generate_with_fallback(provider, prompt, _SYSTEM, deterministic, coerce, _LOG)
+    # expected_keys pins the answer by shape — the repo signals here are candidate-authored, so a
+    # trailing injected object that lacks these keys must not win the parse (#3).
+    return generate_with_fallback(provider, prompt, _SYSTEM, deterministic, coerce, _LOG, expected_keys=expected_keys)
+
+
+# Known top-level schema keys per step (see _generate / bug-hunter #3).
+_REFLECT_KEYS = ("narrative", "iterationPattern", "readBeforeWrite", "verificationHabits", "confidence")
+_TOOLING_KEYS = ("fluency", "probeOutcomes", "overRelianceFlags", "confidence")
 
 
 def _clamp01(value: Any, default: float) -> float:
@@ -187,7 +194,7 @@ def reflect_commits(commits: list[dict], repo: dict | None = None, *, provider: 
             "confidence": _clamp01(payload.get("confidence"), det["confidence"]),
         }
 
-    result, source = _generate(provider, prompt, deterministic, coerce)
+    result, source = _generate(provider, prompt, deterministic, coerce, expected_keys=_REFLECT_KEYS)
     result["promptVersion"] = COMMIT_REFLECTION_PROMPT_VERSION
     return result, source
 
@@ -268,6 +275,6 @@ def assess_tooling(reflection: dict, commits: list[dict], cover_probes: list[dic
             "confidence": _clamp01(payload.get("confidence"), det["confidence"]),
         }
 
-    result, source = _generate(provider, prompt, deterministic, coerce)
+    result, source = _generate(provider, prompt, deterministic, coerce, expected_keys=_TOOLING_KEYS)
     result["promptVersion"] = TOOLING_SIGNAL_PROMPT_VERSION
     return result, source
