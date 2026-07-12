@@ -175,6 +175,8 @@ export const TENANCY_EXEMPT_TABLES: ReadonlySet<string> = new Set([
   // a KP_MULTI_ORG / multi-tenant enhancement, not a KP_MULTI_WORKSPACE prerequisite.
   "brand_settings", // the org's candidate-facing brand (name/accent/logo)
   "ats_config", // the org's outbound ATS webhook integration (one endpoint)
+  "ats_delivery", // the ATS webhook delivery ledger (sibling of ats_config; deployment/org-level, not per-tenant)
+  "login_attempts", // brute-force throttle counters keyed by email/IP — deployment-global, no tenant dimension
   "analytics_targets", // the org's hiring targets — "the org's recruiter hourly rate", time-to-hire goal
   "llm_usage", // deployment-level LLM metering ledger (sibling of billing_usage; written off-request from Python)
   "scheduler", // global background-job scheduler state
@@ -205,6 +207,7 @@ export const TENANCY_EXEMPT_TABLES: ReadonlySet<string> = new Set([
 export const TENANCY_LAZY_TABLES: ReadonlySet<string> = new Set([
   "application_status_links",
   "ats_config",
+  "ats_delivery",
   "brand_settings",
   "decision_config",
   "decision_records",
@@ -215,6 +218,7 @@ export const TENANCY_LAZY_TABLES: ReadonlySet<string> = new Set([
   "interview_preps",
   "jd_templates",
   "job_ingests",
+  "login_attempts",
   "offers",
   "onboarding_intake",
   "onboarding_runs",
