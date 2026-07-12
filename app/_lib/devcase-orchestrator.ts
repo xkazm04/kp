@@ -3,8 +3,8 @@ import {
   getDevCase,
   getLifecycle,
   listSubmissions,
-  saveDevCaseScenario,
-  saveDevCaseSeed,
+  saveDevCaseScenarioIfAbsent,
+  saveDevCaseSeedIfAbsent,
   updateLifecycle,
   type LifecycleAnalysis,
 } from "./db";
@@ -142,84 +142,102 @@ export async function runLifecycle(id: string, progress?: Progress, signal?: Abo
     } else if (lc.stage === "approved") {
       const devCase = lc.caseId ? getDevCase(lc.caseId) : null;
       if (!devCase) throw new Error("approved lifecycle has no dev case");
-      // Idempotent publish. publish() mints a NEW posting + token with no caseId dedup
-      // (createPosting), so a crash/restart between here and the stage→collecting write
-      // below would re-run this handler and orphan a DUPLICATE posting — submissions on
-      // the earlier still-live token then disconnect from the lifecycle. If a prior run
-      // already published, reuse its postingId; otherwise publish once and persist the id
-      // IMMEDIATELY (before the long best-effort scenario/seed/sourcing steps) so a resume
-      // skips re-publishing. (Sourcing re-runs are safe — createPipelineEntry dedups on
-      // the stable dc-<caseId> jobId.)
+      // FREEZE-AT-PUBLISH (bug-ui-scan-2026-07-09 #1). The seed + interview scenario ARE
+      // the candidate-facing assignment; two candidates on ONE case must be handed the
+      // IDENTICAL materials and submit channel (comparability + audit trail — the core
+      // promise of a work-sample test). So the freeze boundary is the live token itself:
+      // materialize BOTH BEFORE minting the posting, and treat `postingId` (token live)
+      // as the immutability line. Once it is set, this whole block is skipped on ANY
+      // resume — a re-enqueued `approved` handler can never re-run the (non-deterministic)
+      // LLM and swap the assignment under candidates mid-flight, and there is no first-run
+      // window where the token is live but the seed not yet materialized (which used to
+      // route early candidates to a DIFFERENT submit channel). The old code published
+      // FIRST, then overwrote the seed/scenario in place via unconditional UPDATEs.
+      //
+      // Idempotency layers, both required: (1) the `!postingId` gate skips the block after
+      // the token is live; (2) each materialize is guarded by "artifact still absent" so a
+      // PARTIAL prior run (scenario frozen, crash before the seed / before publish) doesn't
+      // pay for the LLM again, and the save itself is a compare-and-set (…IfAbsent) that
+      // can only FILL an absent column — never clobber a frozen one. Publishing stays
+      // idempotent too: createPosting has no caseId dedup, so we persist postingId
+      // IMMEDIATELY after minting so a resume reuses it instead of orphaning a duplicate
+      // live token. (Sourcing re-runs below are safe — createPipelineEntry dedups on the
+      // stable dc-<caseId> jobId.)
+      let scenarioNote = "";
       let postingId = lc.postingId;
       if (!postingId) {
+        // Case-designed interview: turn the approved case into the role's AI-interview
+        // scenario (one per role, reused for every candidate so ratings stay comparable).
+        // Best-effort — a scenario failure must never block publishing; early-career
+        // interviews fall back to the generic script. The CLI's `source` rides INSIDE the
+        // stored blob (the save helper persists opaque JSON) so the case detail can badge a
+        // template-only scenario; a degraded generation gets its OWN audit action — it used
+        // to record the same success row as a real LLM scenario, hiding that every candidate
+        // would face generic template probes.
+        if (!devCase.scenario) {
+          try {
+            const { scenario, source: scenarioSource, fallbackReason } = await runInterviewScenario(
+              (devCase.case as Record<string, unknown>) ?? {},
+              lc.role ?? {},
+              lc.lang
+            );
+            saveDevCaseScenarioIfAbsent(devCase.id, { ...scenario, source: scenarioSource });
+            if (scenarioSource === "llm") {
+              scenarioNote = "; interview scenario ready";
+              recordAudit({ lifecycleId: id, actor: "auto", action: "interview_scenario", ref: devCase.id });
+            } else {
+              scenarioNote = "; interview scenario degraded (template probes)";
+              recordAudit({
+                lifecycleId: id,
+                actor: "system",
+                action: "scenario_template_only",
+                reason: fallbackReason.scenario ?? "LLM unavailable — deterministic template",
+                ref: devCase.id,
+              });
+            }
+          } catch {
+            /* interviews fall back to the generic early-career script */
+          }
+        }
+
+        // Materialized seed: the case's prose starting materials become a concrete
+        // starter file tree (one per case, shared by every candidate) — the
+        // anti-essay-grading half of the take-home hardening. Best-effort: a
+        // materialization failure must never block publishing; the case simply
+        // ships with prose materials as before. Same honesty contract as the
+        // scenario above: persist the provenance with the blob and audit a
+        // skeleton-only seed distinctly — never as "seed_materialized" SUCCESS.
+        if (!devCase.seed) {
+          try {
+            const { seed, source: seedSource, fallbackReason } = await runMaterializeSeed(
+              (devCase.case as Record<string, unknown>) ?? {},
+              lc.role ?? {},
+              lc.lang
+            );
+            saveDevCaseSeedIfAbsent(devCase.id, { ...seed, source: seedSource });
+            if (seedSource === "llm") {
+              scenarioNote += "; seed materialized";
+              recordAudit({ lifecycleId: id, actor: "auto", action: "seed_materialized", ref: devCase.id });
+            } else {
+              scenarioNote += "; seed skeleton only (prose materials)";
+              recordAudit({
+                lifecycleId: id,
+                actor: "system",
+                action: "seed_skeleton_only",
+                reason: fallbackReason.seed ?? "LLM unavailable — deterministic template",
+                ref: devCase.id,
+              });
+            }
+          } catch {
+            /* the case ships with prose starting materials as before */
+          }
+        }
+
+        // Now — and only now, with the assignment frozen onto the case — mint the live
+        // token. From here the seed/scenario are immutable (this block is skipped on resume).
         const posting = await getAdapter("local").publish(devCase);
         postingId = posting.id;
         updateLifecycle(id, { postingId });
-      }
-
-      // Case-designed interview: turn the approved case into the role's
-      // AI-interview scenario (one per role, reused for every candidate so
-      // ratings stay comparable). Best-effort — a scenario failure must never
-      // block publishing; early-career interviews fall back to the generic script.
-      // The CLI's `source` rides INSIDE the stored blob (the save helper persists
-      // opaque JSON) so the case detail can badge a template-only scenario; a
-      // degraded generation gets its OWN audit action — it used to record the same
-      // success row as a real LLM scenario, hiding that every candidate would face
-      // generic template probes.
-      let scenarioNote = "";
-      try {
-        const { scenario, source: scenarioSource, fallbackReason } = await runInterviewScenario(
-          (devCase.case as Record<string, unknown>) ?? {},
-          lc.role ?? {},
-          lc.lang
-        );
-        saveDevCaseScenario(devCase.id, { ...scenario, source: scenarioSource });
-        if (scenarioSource === "llm") {
-          scenarioNote = "; interview scenario ready";
-          recordAudit({ lifecycleId: id, actor: "auto", action: "interview_scenario", ref: devCase.id });
-        } else {
-          scenarioNote = "; interview scenario degraded (template probes)";
-          recordAudit({
-            lifecycleId: id,
-            actor: "system",
-            action: "scenario_template_only",
-            reason: fallbackReason.scenario ?? "LLM unavailable — deterministic template",
-            ref: devCase.id,
-          });
-        }
-      } catch {
-        /* interviews fall back to the generic early-career script */
-      }
-
-      // Materialized seed: the case's prose starting materials become a concrete
-      // starter file tree (one per case, shared by every candidate) — the
-      // anti-essay-grading half of the take-home hardening. Best-effort: a
-      // materialization failure must never block publishing; the case simply
-      // ships with prose materials as before. Same honesty contract as the
-      // scenario above: persist the provenance with the blob and audit a
-      // skeleton-only seed distinctly — never as "seed_materialized" SUCCESS.
-      try {
-        const { seed, source: seedSource, fallbackReason } = await runMaterializeSeed(
-          (devCase.case as Record<string, unknown>) ?? {},
-          lc.role ?? {},
-          lc.lang
-        );
-        saveDevCaseSeed(devCase.id, { ...seed, source: seedSource });
-        if (seedSource === "llm") {
-          scenarioNote += "; seed materialized";
-          recordAudit({ lifecycleId: id, actor: "auto", action: "seed_materialized", ref: devCase.id });
-        } else {
-          scenarioNote += "; seed skeleton only (prose materials)";
-          recordAudit({
-            lifecycleId: id,
-            actor: "system",
-            action: "seed_skeleton_only",
-            reason: fallbackReason.seed ?? "LLM unavailable — deterministic template",
-            ref: devCase.id,
-          });
-        }
-      } catch {
-        /* the case ships with prose starting materials as before */
       }
 
       // Proactive sourcing: rank the existing candidate DB against the role and seed the

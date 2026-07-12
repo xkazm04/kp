@@ -69,6 +69,36 @@ export function saveDevCaseSeed(id: string, seed: unknown): void {
   db.prepare(`UPDATE dev_cases SET seed_json = ? WHERE id = ?`).run(JSON.stringify(seed ?? null), id);
 }
 
+// FREEZE-AT-PUBLISH (bug-ui-scan-2026-07-09 #1). The seed + interview scenario are
+// the candidate-facing assignment; once a posting's token is live, two candidates on
+// the SAME case must be handed the IDENTICAL materials (comparability + audit trail).
+// These compare-and-set writes fill the column ONLY WHEN IT IS STILL ABSENT
+// (`WHERE ... IS NULL`) — SQLite serializes the UPDATE, so the FIRST materialization
+// wins and every later attempt (a lifecycle resume re-running the `approved` handler)
+// is a no-op that leaves the live seed untouched, instead of the old unconditional
+// UPDATE that overwrote it in place with a fresh (non-deterministic LLM) render.
+// Returns whether THIS call performed the write (false ⇒ already frozen).
+
+/** Freeze the interview scenario: set it only if the case has none yet. */
+export function saveDevCaseScenarioIfAbsent(id: string, scenario: unknown): boolean {
+  const db = ensureDb();
+  return (
+    db
+      .prepare(`UPDATE dev_cases SET scenario_json = ? WHERE id = ? AND scenario_json IS NULL`)
+      .run(JSON.stringify(scenario ?? null), id).changes > 0
+  );
+}
+
+/** Freeze the materialized seed: set it only if the case has none yet. */
+export function saveDevCaseSeedIfAbsent(id: string, seed: unknown): boolean {
+  const db = ensureDb();
+  return (
+    db
+      .prepare(`UPDATE dev_cases SET seed_json = ? WHERE id = ? AND seed_json IS NULL`)
+      .run(JSON.stringify(seed ?? null), id).changes > 0
+  );
+}
+
 export function saveDevCase(
   input: {
     need: unknown;

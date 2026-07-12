@@ -46,6 +46,12 @@ export default async function DevCaseApplyPage({ params }: { params: Promise<{ t
   const role = (devCase?.role ?? null) as RoleSpec | null;
   const markdown = kase ? caseToMarkdown(kase, role) : null;
 
+  // The persisted seed is the FROZEN assignment (bug-ui-scan-2026-07-09 #1): the
+  // orchestrator materializes it ONCE, before minting this posting's token, and the
+  // lifecycle never overwrites it after the token is live (saveDevCaseSeedIfAbsent).
+  // So reading it per-request here is safe — every candidate on this posting gets the
+  // byte-identical seed (and therefore the same submit channel below), never a fresh
+  // non-deterministic render swapped in by a resume mid-flight.
   // Defensive narrow of the persisted seed ({files: [{path, contents}], note}).
   const seedRaw = devCase?.seed as { files?: unknown; note?: unknown } | null;
   const seedFiles: SeedFile[] = Array.isArray(seedRaw?.files)
