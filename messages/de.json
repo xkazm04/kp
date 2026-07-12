@@ -3601,6 +3601,7 @@
     "intro": "Ihr Abonnement, der Verbrauch dieses Zeitraums und die Tarife, zu denen Sie wechseln können.",
     "checkoutConfirming": "Zahlung erhalten — Ihr neuer Tarif wird bestätigt…",
     "checkoutDone": "Alles erledigt. Ihr Tarif ist jetzt {plan}.",
+    "checkoutPending": "Zahlung erhalten — Ihr Konto wird aktualisiert. Aktualisieren Sie die Seite gleich, falls sich Ihr Tarif nicht ändert.",
     "loading": "Abrechnung wird geladen…",
     "loadFailed": "Abrechnung konnte nicht geladen werden — prüfen Sie die Verbindung und versuchen Sie es erneut.",
     "retry": "Erneut versuchen",

@@ -3534,6 +3534,7 @@
     "intro": "Your subscription, what this period has used, and the plans you can move to.",
     "checkoutConfirming": "Payment received — confirming your new plan…",
     "checkoutDone": "You're all set. Your plan is now {plan}.",
+    "checkoutPending": "Payment received — your account is updating. Refresh in a moment if your plan doesn't change.",
     "loading": "Loading billing…",
     "loadFailed": "Couldn't load billing — check the connection and try again.",
     "retry": "Try again",

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { checkoutBannerState } from "./checkout-banner";
 import { useSearchParams } from "next/navigation";
 import { AlertTriangle, CheckCircle2, ExternalLink, Info, Timer } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
@@ -219,15 +220,16 @@ export function BillingTab() {
   // hydration, so the "confirming" banner paints without a mismatch.
   const searchParams = useSearchParams();
   const [checkoutReturn] = useState(() => searchParams.get("billing") === "success");
-  // Flipped by the poll timers once the webhook has had time to land the new plan.
-  const [checkoutConfirmed, setCheckoutConfirmed] = useState(false);
-  // "confirming" while we re-poll the overview, then "done". Null when this
-  // wasn't a checkout return.
-  const checkout: "confirming" | "done" | null = checkoutReturn
-    ? checkoutConfirmed
-      ? "done"
-      : "confirming"
-    : null;
+  // The poll window elapsed — NOT "the plan is confirmed". Confirmation is derived from
+  // the real billing state below, so a timer alone can never assert a plan grant.
+  const [pollWindowElapsed, setPollWindowElapsed] = useState(false);
+  // The banner is bound to the ACTUAL billing state, not the timer: we only claim
+  // "your plan is now X" once /api/billing reflects a paid plan (plans-checkout #2).
+  const checkout = checkoutBannerState({
+    isCheckoutReturn: checkoutReturn,
+    pollWindowElapsed,
+    planReflectsPaid: Boolean(data && data.plan.id !== "free"),
+  });
 
   // State updates only happen in the async callbacks (never synchronously in
   // the effect body); the retry button clears the failure flag in its event
@@ -253,7 +255,9 @@ export function BillingTab() {
     const timers = [
       setTimeout(load, 2000),
       setTimeout(load, 5000),
-      setTimeout(() => setCheckoutConfirmed(true), 5500),
+      // Marks the poll window closed, NOT the plan confirmed — the banner only claims
+      // success once `data.plan` actually reflects it (see checkoutBannerState).
+      setTimeout(() => setPollWindowElapsed(true), 5500),
     ];
     const url = new URL(window.location.href);
     url.searchParams.delete("billing");
@@ -321,11 +325,21 @@ export function BillingTab() {
         <div
           role="status"
           aria-live="polite"
-          className={`${PANEL} flex items-center gap-2.5 border-moss/40 bg-moss/5 p-4`}
+          className={`${PANEL} flex items-center gap-2.5 p-4 ${
+            checkout === "confirmed" ? "border-moss/40 bg-moss/5" : "border-stone-200 bg-paper"
+          }`}
         >
-          <CheckCircle2 size={18} className="shrink-0 text-moss" aria-hidden />
-          <p className="text-base font-medium text-moss">
-            {checkout === "confirming" ? t("checkoutConfirming") : t("checkoutDone", { plan: data?.plan.name ?? "" })}
+          <CheckCircle2
+            size={18}
+            className={`shrink-0 ${checkout === "confirmed" ? "text-moss" : "text-steel"}`}
+            aria-hidden
+          />
+          <p className={`text-base font-medium ${checkout === "confirmed" ? "text-moss" : "text-steel"}`}>
+            {checkout === "confirmed"
+              ? t("checkoutDone", { plan: data?.plan.name ?? "" })
+              : checkout === "unconfirmed"
+                ? t("checkoutPending")
+                : t("checkoutConfirming")}
           </p>
         </div>
       ) : null}

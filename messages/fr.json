@@ -3601,6 +3601,7 @@
     "intro": "Votre abonnement, ce que cette période a consommé et les forfaits vers lesquels vous pouvez évoluer.",
     "checkoutConfirming": "Paiement reçu — confirmation de votre nouveau forfait…",
     "checkoutDone": "Tout est prêt. Votre forfait est désormais {plan}.",
+    "checkoutPending": "Paiement reçu — votre compte se met à jour. Actualisez dans un instant si votre offre ne change pas.",
     "loading": "Chargement de la facturation…",
     "loadFailed": "Impossible de charger la facturation — vérifiez la connexion et réessayez.",
     "retry": "Réessayer",

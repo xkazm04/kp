@@ -3534,6 +3534,7 @@
     "intro": "Vaše předplatné, čerpání v aktuálním období a tarify, na které můžete přejít.",
     "checkoutConfirming": "Platba přijata — potvrzujeme váš nový tarif…",
     "checkoutDone": "Hotovo. Váš tarif je nyní {plan}.",
+    "checkoutPending": "Platba přijata — váš účet se aktualizuje. Pokud se plán nezmění, za chvíli obnovte stránku.",
     "loading": "Načítání fakturace…",
     "loadFailed": "Fakturaci se nepodařilo načíst — zkontrolujte připojení a zkuste to znovu.",
     "retry": "Zkusit znovu",
