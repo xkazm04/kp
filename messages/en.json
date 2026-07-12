@@ -264,7 +264,7 @@
     "fr": "Français"
   },
   "jobMarket": {
-    "nav": { "home": "Home", "about": "About", "signIn": "Sign in" },
+    "nav": { "home": "Home", "about": "About", "signIn": "Sign in", "menu": "Menu" },
     "hero": {
       "eyebrow": "Open data, read out loud",
       "title": "The Czech job market, <emph>in the open</emph>.",
@@ -294,7 +294,10 @@
       "hintBody": "See its open vacancies and median pay.",
       "vacancies": "Open vacancies",
       "median": "Median salary",
-      "range": "Middle 50% earn {lo}–{hi}"
+      "range": "Middle 50% earn {lo}–{hi}",
+      "a11yVacancies": "open vacancies",
+      "a11yMedian": "median salary",
+      "a11yMedianUnavailable": "median salary not available"
     },
     "salary": {
       "eyebrow": "The field guide",
@@ -1102,7 +1105,8 @@
       "scrollRight": "Scroll one stage right",
       "boardAria": "Pipeline board, scroll horizontally",
       "showFewer": "Show fewer",
-      "moreCount": "+{count} more"
+      "moreCount": "+{count} more",
+      "movedAnnounce": "Moved {name} to {stage}"
     },
     "stageHelp": {
       "Accepted": "CV received — an inbound application or a proactively-sourced candidate, waiting to be screened.",
@@ -1128,7 +1132,9 @@
       "openProfileSuffix": " · open analyzed profile",
       "aiActions": "AI actions",
       "aiActionsFor": "AI actions for {name}",
-      "selectCandidate": "Select {name}"
+      "selectCandidate": "Select {name}",
+      "moveTo": "Move to…",
+      "moveToFor": "Move {name} to another stage"
     },
     "tokenLink": {
       "copy": "Copy link",
@@ -2432,6 +2438,7 @@
       "runMatching": "Run matching",
       "matchFailedStatus": "Match failed ({status}).",
       "matchFailed": "Match failed.",
+      "rerankFailed": "Re-rank failed — showing the previous ranking. {error}",
       "emptyPrompt": "Pick a candidate and run matching to see ranked, KO-filtered, scored jobs.",
       "emptyChainBody": "Candidates come from saved profiles or persisted CV analyses.",
       "emptyCtaProfile": "Create a profile",
@@ -3602,6 +3609,7 @@
     "accentLabel": "Primary accent color",
     "accentHelp": "Re-skins buttons, links, active items and focus rings across both themes. Leave empty for the default.",
     "accentClear": "Clear",
+    "accentContrast": "That accent is too light — white button text and focus rings would be invisible. Pick a darker color (at least 3:1 contrast).",
     "logoLabel": "Logo URL",
     "logoHelp": "An https:// link to your logo (PNG/SVG). Host it on your own domain for self-hosted installs.",
     "save": "Save branding",

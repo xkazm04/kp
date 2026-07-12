@@ -267,7 +267,8 @@
     "nav": {
       "home": "Accueil",
       "about": "À propos",
-      "signIn": "Se connecter"
+      "signIn": "Se connecter",
+      "menu": "Menu"
     },
     "hero": {
       "eyebrow": "Données ouvertes, en clair",
@@ -298,7 +299,10 @@
       "hintBody": "Consultez ses offres ouvertes et sa rémunération médiane.",
       "vacancies": "Offres ouvertes",
       "median": "Salaire médian",
-      "range": "Les 50 % du milieu gagnent {lo}–{hi}"
+      "range": "Les 50 % du milieu gagnent {lo}–{hi}",
+      "a11yVacancies": "offres ouvertes",
+      "a11yMedian": "salaire médian",
+      "a11yMedianUnavailable": "salaire médian non disponible"
     },
     "salary": {
       "eyebrow": "Le guide de terrain",
@@ -1127,7 +1131,8 @@
       "scrollRight": "Défiler d'une étape vers la droite",
       "boardAria": "Tableau du pipeline, défilement horizontal",
       "showFewer": "Afficher moins",
-      "moreCount": "+{count} de plus"
+      "moreCount": "+{count} de plus",
+      "movedAnnounce": "{name} déplacé vers {stage}"
     },
     "stageHelp": {
       "Accepted": "CV reçu — une candidature entrante ou un candidat issu du sourcing proactif, en attente de présélection.",
@@ -1153,7 +1158,9 @@
       "openProfileSuffix": " · ouvrir le profil analysé",
       "aiActions": "Actions AI",
       "aiActionsFor": "Actions AI pour {name}",
-      "selectCandidate": "Sélectionner {name}"
+      "selectCandidate": "Sélectionner {name}",
+      "moveTo": "Déplacer vers…",
+      "moveToFor": "Déplacer {name} vers une autre étape"
     },
     "tokenLink": {
       "copy": "Copier le lien",
@@ -2460,6 +2467,7 @@
       "runMatching": "Lancer le matching",
       "matchFailedStatus": "Échec du matching ({status}).",
       "matchFailed": "Échec du matching.",
+      "rerankFailed": "Échec du reclassement — le classement précédent reste affiché. {error}",
       "emptyPrompt": "Choisissez un candidat et lancez le matching pour voir des postes classés, filtrés KO et notés.",
       "emptyChainBody": "Les candidats proviennent de profils enregistrés ou d'analyses de CV sauvegardées.",
       "emptyCtaProfile": "Créer un profil",
@@ -3669,6 +3677,7 @@
     "accentLabel": "Couleur d'accent principale",
     "accentHelp": "Rehabille les boutons, liens, éléments actifs et anneaux de focus dans les deux thèmes. Laissez vide pour la valeur par défaut.",
     "accentClear": "Effacer",
+    "accentContrast": "Cet accent est trop clair — le texte blanc des boutons et les anneaux de focus seraient invisibles. Choisissez une couleur plus foncée (contraste d'au moins 3:1).",
     "logoLabel": "URL du logo",
     "logoHelp": "Un lien https:// vers votre logo (PNG/SVG). Hébergez-le sur votre propre domaine pour les installations autohébergées.",
     "save": "Enregistrer l'image de marque",

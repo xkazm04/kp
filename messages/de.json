@@ -267,7 +267,8 @@
     "nav": {
       "home": "Start",
       "about": "Über",
-      "signIn": "Anmelden"
+      "signIn": "Anmelden",
+      "menu": "Menü"
     },
     "hero": {
       "eyebrow": "Offene Daten, klar erzählt",
@@ -298,7 +299,10 @@
       "hintBody": "Sehen Sie ihre offenen Stellen und das Mediangehalt.",
       "vacancies": "Offene Stellen",
       "median": "Mediangehalt",
-      "range": "Mittlere 50% verdienen {lo}–{hi}"
+      "range": "Mittlere 50% verdienen {lo}–{hi}",
+      "a11yVacancies": "offene Stellen",
+      "a11yMedian": "Mediangehalt",
+      "a11yMedianUnavailable": "Mediangehalt nicht verfügbar"
     },
     "salary": {
       "eyebrow": "Der Wegweiser",
@@ -1127,7 +1131,8 @@
       "scrollRight": "Eine Phase nach rechts scrollen",
       "boardAria": "Pipeline-Board, horizontal scrollen",
       "showFewer": "Weniger anzeigen",
-      "moreCount": "+{count} weitere"
+      "moreCount": "+{count} weitere",
+      "movedAnnounce": "{name} nach {stage} verschoben"
     },
     "stageHelp": {
       "Accepted": "Lebenslauf erhalten — eine eingehende Bewerbung oder proaktiv gesourcte/r Kandidat/in, wartet auf das Screening.",
@@ -1153,7 +1158,9 @@
       "openProfileSuffix": " · analysiertes Profil öffnen",
       "aiActions": "AI-Aktionen",
       "aiActionsFor": "AI-Aktionen für {name}",
-      "selectCandidate": "{name} auswählen"
+      "selectCandidate": "{name} auswählen",
+      "moveTo": "Verschieben nach…",
+      "moveToFor": "{name} in eine andere Phase verschieben"
     },
     "tokenLink": {
       "copy": "Link kopieren",
@@ -2460,6 +2467,7 @@
       "runMatching": "Matching starten",
       "matchFailedStatus": "Matching fehlgeschlagen ({status}).",
       "matchFailed": "Matching fehlgeschlagen.",
+      "rerankFailed": "Neu-Ranking fehlgeschlagen — die vorherige Rangfolge wird weiter angezeigt. {error}",
       "emptyPrompt": "Wählen Sie einen Kandidaten und starten Sie das Matching, um gerankte, KO-gefilterte, bewertete Stellen zu sehen.",
       "emptyChainBody": "Kandidaten stammen aus gespeicherten Profilen oder gespeicherten CV-Analysen.",
       "emptyCtaProfile": "Profil erstellen",
@@ -3669,6 +3677,7 @@
     "accentLabel": "Primäre Akzentfarbe",
     "accentHelp": "Gestaltet Buttons, Links, aktive Elemente und Fokusrahmen in beiden Themes neu. Leer lassen für den Standard.",
     "accentClear": "Löschen",
+    "accentContrast": "Dieser Akzent ist zu hell — weißer Button-Text und Fokusrahmen wären unsichtbar. Wählen Sie eine dunklere Farbe (Kontrast mindestens 3:1).",
     "logoLabel": "Logo-URL",
     "logoHelp": "Ein https://-Link zu Ihrem Logo (PNG/SVG). Hosten Sie es bei Self-Hosting auf Ihrer eigenen Domain.",
     "save": "Branding speichern",

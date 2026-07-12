@@ -264,7 +264,7 @@
     "fr": "Français"
   },
   "jobMarket": {
-    "nav": { "home": "Domů", "about": "O aplikaci", "signIn": "Přihlásit se" },
+    "nav": { "home": "Domů", "about": "O aplikaci", "signIn": "Přihlásit se", "menu": "Nabídka" },
     "hero": {
       "eyebrow": "Otevřená data, přehledně",
       "title": "Český trh práce, <emph>bez příkras</emph>.",
@@ -294,7 +294,10 @@
       "hintBody": "Zobrazí volná místa a medián mzdy.",
       "vacancies": "Volná místa",
       "median": "Medián mzdy",
-      "range": "Prostředních 50 % bere {lo}–{hi}"
+      "range": "Prostředních 50 % bere {lo}–{hi}",
+      "a11yVacancies": "volných míst",
+      "a11yMedian": "medián mzdy",
+      "a11yMedianUnavailable": "medián mzdy není k dispozici"
     },
     "salary": {
       "eyebrow": "Přehled",
@@ -1102,7 +1105,8 @@
       "scrollRight": "Posunout o jednu fázi vpravo",
       "boardAria": "Nástěnka náboru, posouvejte vodorovně",
       "showFewer": "Zobrazit méně",
-      "moreCount": "+{count} dalších"
+      "moreCount": "+{count} dalších",
+      "movedAnnounce": "{name} přesunut/a do fáze {stage}"
     },
     "stageHelp": {
       "Accepted": "Přijatý životopis — příchozí přihláška nebo aktivně vyhledaný kandidát čekající na prověření.",
@@ -1128,7 +1132,9 @@
       "openProfileSuffix": " · otevřít analyzovaný profil",
       "aiActions": "Akce AI",
       "aiActionsFor": "Akce AI pro {name}",
-      "selectCandidate": "Vybrat {name}"
+      "selectCandidate": "Vybrat {name}",
+      "moveTo": "Přesunout do…",
+      "moveToFor": "Přesunout {name} do jiné fáze"
     },
     "tokenLink": {
       "copy": "Kopírovat odkaz",
@@ -2432,6 +2438,7 @@
       "runMatching": "Spustit párování",
       "matchFailedStatus": "Párování selhalo ({status}).",
       "matchFailed": "Párování selhalo.",
+      "rerankFailed": "Přeřazení selhalo — zobrazuje se předchozí pořadí. {error}",
       "emptyPrompt": "Vyberte kandidáta a spusťte párování, abyste viděli seřazené, KO-filtrované a ohodnocené pozice.",
       "emptyChainBody": "Kandidáti pocházejí z uložených profilů nebo z uložených analýz CV.",
       "emptyCtaProfile": "Vytvořit profil",
@@ -3602,6 +3609,7 @@
     "accentLabel": "Hlavní akcentní barva",
     "accentHelp": "Přebarví tlačítka, odkazy, aktivní položky a fokusové rámečky v obou motivech. Ponechte prázdné pro výchozí.",
     "accentClear": "Vymazat",
+    "accentContrast": "Tento akcent je příliš světlý — bílý text tlačítek a fokusové rámečky by byly neviditelné. Zvolte tmavší barvu (kontrast alespoň 3:1).",
     "logoLabel": "URL loga",
     "logoHelp": "Odkaz https:// na vaše logo (PNG/SVG). Pro self-hosted instalace jej hostujte na vlastní doméně.",
     "save": "Uložit branding",
