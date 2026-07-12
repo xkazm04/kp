@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { listPipeline } from "@/app/_lib/db";
-import { createTemplate, listRuns, listTemplates, runForEntry, startRun } from "@/app/_lib/onboarding-store";
+import { createTemplate, isEntryHired, listRuns, listTemplates, runForEntry, startRun } from "@/app/_lib/onboarding-store";
 import { coerceTasks } from "@/app/_lib/onboarding";
 import { safeJsonError } from "@/app/_lib/api-response";
 
@@ -56,7 +56,10 @@ export async function POST(request: NextRequest) {
     }
     const entry = listPipeline().find((e) => e.id === body.entryId);
     if (!entry) return NextResponse.json({ error: "Candidate not found or not active." }, { status: 404 });
-    if (entry.stage !== "Hired") {
+    // Route the stage gate through the ONE shared predicate the candidate token bridge
+    // also calls (isEntryHired), so the two hand-off entry points can't drift: only a
+    // live-Hired (stage 'Hired' + not closed out) candidate can be onboarded.
+    if (!isEntryHired(entry.id)) {
       return NextResponse.json({ error: "Only Hired candidates can be onboarded." }, { status: 409 });
     }
     const run = startRun({

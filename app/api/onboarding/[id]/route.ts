@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
+  cancelRun,
   getRunDetail,
   markSigned,
   requestSignature,
@@ -44,6 +45,13 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
       detail = requestSignature(id, body.document);
     } else if (body.action === "sign" && typeof body.signatureId === "string") {
       detail = markSigned(body.signatureId, typeof body.signer === "string" ? body.signer : "Signed");
+    } else if (body.action === "cancel") {
+      // Recruiter revoke (candidate-onboarding #2): withdrawing a hire invalidates the
+      // onboarding link — a cancelled run never resolves through the token bridge again
+      // (runForToken refuses `cancelled`), so the PII stops being re-provisioned. This
+      // route is operator-gated by proxy.ts, so a candidate can't self-cancel.
+      if (!cancelRun(id)) return NextResponse.json({ error: "Onboarding run not found." }, { status: 404 });
+      detail = getRunDetail(id);
     } else {
       return NextResponse.json({ error: "Unknown or malformed onboarding action." }, { status: 400 });
     }

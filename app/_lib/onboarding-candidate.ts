@@ -1,5 +1,5 @@
 import { getJob, recordAutomationEvent } from "./db";
-import { getRunDetail, runForEntry, saveIntake, startRun } from "./onboarding-store";
+import { getRunDetail, isEntryHired, runForEntry, saveIntake, startRun } from "./onboarding-store";
 import { getOfferByToken } from "./offers-store";
 
 // Candidate-facing onboarding bridge (offers #5). The recruiter-side onboarding feature
@@ -13,12 +13,25 @@ import { getOfferByToken } from "./offers-store";
 // link works even for a hire the recruiter hasn't opened yet.
 
 /** Resolve the accepted-offer token to the candidate's onboarding run. Null for any
- *  non-accepted / unlinked token (the page then shows "not available", leaking nothing). */
+ *  non-accepted / unlinked token, a candidate no longer live-Hired, or a revoked run
+ *  (the page then shows "not available", leaking nothing).
+ *
+ *  The frozen `offer.status === "accepted"` is necessary but NOT sufficient: an offer
+ *  accepted-then-withdrawn (un-hired / rejected / moved back) must stop provisioning.
+ *  So this defers to the SAME live-stage gate the recruiter POST uses (isEntryHired)
+ *  — the two hand-off gates can no longer disagree (bug-ui §candidate-onboarding #1).
+ *  A run already revoked to `cancelled` never resolves and is never silently
+ *  re-provisioned (bug-ui §candidate-onboarding #2). */
 function runForToken(token: string) {
   const offer = getOfferByToken(token);
   if (!offer || offer.status !== "accepted" || !offer.entryId) return null;
+  // Gate on the LIVE pipeline stage, not merely that an offer was once accepted.
+  if (!isEntryHired(offer.entryId)) return null;
+  const existing = runForEntry(offer.entryId);
+  // A revoked run stays revoked — never resolve it, never re-create around it.
+  if (existing && existing.status === "cancelled") return null;
   const run =
-    runForEntry(offer.entryId) ??
+    existing ??
     startRun({ entryId: offer.entryId, candidateLabel: offer.candidateLabel, jobTitle: offer.jobTitle });
   return { offer, run };
 }

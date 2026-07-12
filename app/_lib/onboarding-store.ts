@@ -2,6 +2,8 @@ import Database from "better-sqlite3";
 import { openStore } from "./db-path";
 import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 import { randomId } from "./random-id";
+import { PIPELINE_STAGES } from "./pipeline-stages";
+import { isTerminalEntryStatus } from "./pipeline-status";
 import {
   coerceQuestionnaire,
   coerceTasks,
@@ -242,11 +244,68 @@ export function startRun(input: {
   return rowToRun(row);
 }
 
+/** Revoke an onboarding run (bug-ui §candidate-onboarding #2). Tombstones it
+ *  `cancelled` — so the candidate token bridge stops resolving it AND startRun's
+ *  get-or-create can never silently re-provision a fresh one for the same entry — and
+ *  PURGES the candidate PII it accreted (pre-boarding intake answers, checklist task
+ *  states, e-signatures). This is the operator's revoke/erase for a withdrawn or
+ *  un-hired candidate whose onboarding link and stored emergency-contact / dietary /
+ *  equipment data would otherwise outlive the hire decision with no cancel path.
+ *  One synchronous transaction; idempotent — returns false only when no such run
+ *  exists. The run row itself is kept as a `cancelled` tombstone (its label/title are
+ *  already on the still-present pipeline entry) purely to block re-provisioning. */
+export function cancelRun(runId: string): boolean {
+  const d = db();
+  const tx = d.transaction((): boolean => {
+    const run = d.prepare(`SELECT id FROM onboarding_runs WHERE id = ?`).get(runId) as { id: string } | undefined;
+    if (!run) return false;
+    d.prepare(`DELETE FROM onboarding_intake WHERE run_id = ?`).run(runId);
+    d.prepare(`DELETE FROM onboarding_task_states WHERE run_id = ?`).run(runId);
+    d.prepare(`DELETE FROM onboarding_signatures WHERE run_id = ?`).run(runId);
+    d.prepare(`UPDATE onboarding_runs SET status = 'cancelled', completed_at = ? WHERE id = ?`).run(new Date().toISOString(), runId);
+    return true;
+  });
+  return tx();
+}
+
 export function runForEntry(entryId: string): OnboardingRun | null {
   const row = db().prepare(`SELECT * FROM onboarding_runs WHERE entry_id = ?`).get(entryId) as
     | Record<string, unknown>
     | undefined;
   return row ? rowToRun(row) : null;
+}
+
+// The terminal pipeline STAGE ("Hired") — the ONE stage at which onboarding may exist.
+const HIRED_STAGE = PIPELINE_STAGES[PIPELINE_STAGES.length - 1];
+
+/** THE shared onboarding gate (bug-ui §candidate-onboarding #1). An onboarding run
+ *  may be provisioned ONLY for a candidate whose LIVE pipeline entry is currently
+ *  Hired — i.e. stage === "Hired" AND not closed out. Both matter: a hire that is
+ *  later rejected keeps stage 'Hired' but flips `status` terminal, and an un-hire
+ *  (moved back / withdrawn) moves stage off 'Hired'; either must fail the gate. This
+ *  mirrors EXACTLY the recruiter "hired roster" (listPipeline → stage==='Hired',
+ *  which already excludes terminal statuses).
+ *
+ *  Both hand-off entry points call THIS one predicate so the gate can't drift: the
+ *  recruiter POST (/api/onboarding) and the candidate token bridge (runForToken).
+ *  Before this, the recruiter route enforced `stage==='Hired'` while the token bridge
+ *  gated only on the FROZEN accepted-offer status and never read the live stage — so
+ *  an offer accepted-then-withdrawn still provisioned an employee-record run.
+ *
+ *  Reads the shared `pipeline_entries` row on this isolated connection (the same by-id
+ *  derivation startRun already uses). Fails CLOSED — an unknown entry, or a connection
+ *  without pipeline_entries, provisions nothing. */
+export function isEntryHired(entryId: string): boolean {
+  try {
+    const row = db().prepare(`SELECT stage, status FROM pipeline_entries WHERE id = ?`).get(entryId) as
+      | { stage?: string; status?: string }
+      | undefined;
+    if (!row) return false;
+    return row.stage === HIRED_STAGE && !isTerminalEntryStatus(row.status);
+  } catch {
+    // pipeline_entries absent on this connection — no live stage to trust, so refuse.
+    return false;
+  }
 }
 
 function taskStates(runId: string): OnboardingTaskState[] {
