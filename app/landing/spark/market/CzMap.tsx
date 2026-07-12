@@ -15,7 +15,9 @@
  */
 import { useMemo } from "react";
 import { motion, useReducedMotion } from "framer-motion";
+import { useTranslations } from "next-intl";
 import { geo, heatColor, salaryColor, regionScale, type MapMetric, type Region } from "./data";
+import { regionAriaLabel } from "./regionLabel";
 import { INK, CORAL } from "../tokens";
 
 interface CzMapProps {
@@ -32,9 +34,17 @@ const ENTRIES = Object.entries(geo.regions).sort((a, b) => b[1].d.length - a[1].
 
 export default function CzMap({ regions, metric, activeCode, onActivate, className }: CzMapProps) {
   const reduce = useReducedMotion();
+  const t = useTranslations("jobMarket");
   const byCode = useMemo(() => new Map(regions.map((r) => [r.code, r])), [regions]);
   const scale = useMemo(() => regionScale(regions, metric), [regions, metric]);
   const activeGeo = activeCode ? geo.regions[activeCode] : null;
+  // Localised words the per-region accessible name stitches its figures between,
+  // so a keyboard/SR user hears the region's VALUE (not just its name) on focus.
+  const labelText = {
+    vacancies: t("map.a11yVacancies"),
+    median: t("map.a11yMedian"),
+    medianUnavailable: t("map.a11yMedianUnavailable"),
+  };
 
   return (
     <svg
@@ -46,8 +56,11 @@ export default function CzMap({ regions, metric, activeCode, onActivate, classNa
     >
       {ENTRIES.map(([code, g], i) => {
         const region = byCode.get(code);
-        const t = region ? scale(region) : 0;
-        const fill = !region ? "#e8e2d4" : metric === "volume" ? heatColor(t) : salaryColor(t);
+        const norm = region ? scale(region) : 0;
+        const fill = !region ? "#e8e2d4" : metric === "volume" ? heatColor(norm) : salaryColor(norm);
+        // Fold the region's figures into its accessible name (falls back to the
+        // bare geo name only for regions absent from the data snapshot).
+        const label = region ? regionAriaLabel(region, labelText) : g.name;
         return (
           <motion.path
             key={code}
@@ -58,7 +71,7 @@ export default function CzMap({ regions, metric, activeCode, onActivate, classNa
             strokeLinejoin="round"
             tabIndex={0}
             role="button"
-            aria-label={g.name}
+            aria-label={label}
             initial={reduce ? false : { opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={reduce ? undefined : { delay: i * 0.02, duration: 0.3 }}

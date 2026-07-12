@@ -109,7 +109,11 @@ export function MapLegend({ metric, lo, hi }: { metric: MapMetric; lo: string; h
 export function RegionDetail({ region }: { region: Region | null }) {
   const t = useTranslations("jobMarket");
   return (
-    <div className={`${STICKER} min-h-[212px] px-6 py-5`}>
+    // A polite live region: because activating a map region only swaps this
+    // card's text (no remount), a screen reader would otherwise never hear the
+    // change — role="status"/aria-live announces the newly selected region's
+    // figures. aria-atomic re-reads the whole card so name + values stay together.
+    <div className={`${STICKER} min-h-[212px] px-6 py-5`} role="status" aria-live="polite" aria-atomic="true">
       {!region ? (
         <div className="flex h-full min-h-[172px] flex-col items-center justify-center text-center">
           <p className={`${HAND} text-lg text-[#526b4f]`}>{t("map.hintTitle")}</p>

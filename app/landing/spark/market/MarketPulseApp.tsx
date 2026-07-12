@@ -8,7 +8,9 @@
  * map-led editorial scroll; the earlier variant switcher has been consolidated
  * away.
  */
+import { useState } from "react";
 import Link from "next/link";
+import { Menu, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import KandidateMark from "../../_components/KandidateMark";
 import { LandingLangSwitch } from "../LandingLangSwitch";
@@ -19,36 +21,77 @@ import MarketPulseAtlas from "./MarketPulseAtlas";
 
 export default function MarketPulseApp() {
   const t = useTranslations("jobMarket");
-  const onSignIn = () => void enterWorkspace();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const onSignIn = () => {
+    setMenuOpen(false);
+    void enterWorkspace();
+  };
   const coralEmph = (chunks: React.ReactNode) => <span className="text-[#d65a4a]">{chunks}</span>;
   const asOf = snapshot.meta.vacancies_date ?? snapshot.meta.generated_at.slice(0, 10);
 
   return (
     <main className="overflow-x-clip bg-[#fdf8ee] pb-28 text-[#17202a] font-[family-name:var(--font-spark-body)]">
       {/* ── Topbar ─────────────────────────────────────────────── */}
-      <header className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 pt-6">
-        <Link href="/" className="flex items-center gap-3">
-          <KandidateMark className="h-10 w-10 text-[#d65a4a] [--k-fg:#fdf8ee] [--k-accent:#17202a]" />
-          <span className={`${DISPLAY} text-2xl font-bold`}>
-            Kandi<span className="text-[#d65a4a]">D</span>ate
-          </span>
-        </Link>
-        <nav className="hidden items-center gap-6 text-[15px] font-bold sm:flex">
-          <Link href="/" className="hover:text-[#d65a4a]">
-            {t("nav.home")}
+      <header className="mx-auto w-full max-w-6xl px-6 pt-6">
+        <div className="flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-3">
+            <KandidateMark className="h-10 w-10 text-[#d65a4a] [--k-fg:#fdf8ee] [--k-accent:#17202a]" />
+            <span className={`${DISPLAY} text-2xl font-bold`}>
+              Kandi<span className="text-[#d65a4a]">D</span>ate
+            </span>
           </Link>
-          <Link href="/about" className="hover:text-[#d65a4a]">
-            {t("nav.about")}
-          </Link>
-          <LandingLangSwitch />
+          {/* Desktop nav (≥ sm) — unchanged. */}
+          <nav className="hidden items-center gap-6 text-[15px] font-bold sm:flex">
+            <Link href="/" className="hover:text-[#d65a4a]">
+              {t("nav.home")}
+            </Link>
+            <Link href="/about" className="hover:text-[#d65a4a]">
+              {t("nav.about")}
+            </Link>
+            <LandingLangSwitch />
+            <button
+              type="button"
+              onClick={onSignIn}
+              className="rounded-lg border-[3px] border-[#17202a] bg-[#caa54c] px-4 py-2 shadow-[3px_3px_0_#17202a] transition-all hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0_#17202a]"
+            >
+              {t("nav.signIn")}
+            </button>
+          </nav>
+          {/* Mobile menu toggle (< sm) — reveals the same links + Sign In, which
+              were otherwise unreachable on a phone (the desktop nav is sm:flex). */}
           <button
             type="button"
-            onClick={onSignIn}
-            className="rounded-lg border-[3px] border-[#17202a] bg-[#caa54c] px-4 py-2 shadow-[3px_3px_0_#17202a] transition-all hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0_#17202a]"
+            onClick={() => setMenuOpen((open) => !open)}
+            aria-expanded={menuOpen}
+            aria-controls="market-mobile-menu"
+            aria-label={t("nav.menu")}
+            className="rounded-lg border-[3px] border-[#17202a] bg-white p-2 shadow-[3px_3px_0_#17202a] transition-all hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0_#17202a] sm:hidden"
           >
-            {t("nav.signIn")}
+            {menuOpen ? <X className="h-6 w-6" aria-hidden /> : <Menu className="h-6 w-6" aria-hidden />}
           </button>
-        </nav>
+        </div>
+        {/* Mobile menu panel (< sm) */}
+        {menuOpen ? (
+          <nav
+            id="market-mobile-menu"
+            className="mt-4 flex flex-col items-start gap-4 rounded-2xl border-[3px] border-[#17202a] bg-white px-5 py-5 text-[15px] font-bold shadow-[6px_6px_0_#17202a] sm:hidden"
+          >
+            <Link href="/" onClick={() => setMenuOpen(false)} className="hover:text-[#d65a4a]">
+              {t("nav.home")}
+            </Link>
+            <Link href="/about" onClick={() => setMenuOpen(false)} className="hover:text-[#d65a4a]">
+              {t("nav.about")}
+            </Link>
+            <LandingLangSwitch />
+            <button
+              type="button"
+              onClick={onSignIn}
+              className="rounded-lg border-[3px] border-[#17202a] bg-[#caa54c] px-4 py-2 shadow-[3px_3px_0_#17202a] transition-all hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0_#17202a]"
+            >
+              {t("nav.signIn")}
+            </button>
+          </nav>
+        ) : null}
       </header>
 
       {/* ── Hero ───────────────────────────────────────────────── */}
