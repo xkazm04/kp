@@ -45,7 +45,9 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ error: "Azure OpenAI needs an endpoint (https://<resource>.openai.azure.com)." }, { status: 400 });
   }
   try {
-    saveProviderKey({
+    // Awaited: saveProviderKey now RESOLVES the endpoint host (DNS-rebind guard),
+    // so an invalid/private-resolving endpoint rejects here and maps to a 400.
+    await saveProviderKey({
       provider: body.provider,
       scope,
       apiKey: body.apiKey.trim(),

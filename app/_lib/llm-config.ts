@@ -12,7 +12,7 @@
 import { listLlmConfig, listProviderKeys, upsertProviderKey, type LlmConfigRow } from "./db";
 import { decryptProviderSecret, encryptProviderSecret } from "./llm-secret";
 import { resolveProviderApiKey } from "./provider-key-precedence";
-import { assertPublicHttpsEndpoint } from "./safe-url";
+import { assertPublicHttpsEndpointResolved } from "./ats-egress-guard.ts";
 
 // Keep in sync with PROVIDER_CAPABILITIES / USE_CASE_REQUIREMENTS in
 // pipeline/jobfit/llm/capabilities.py — Python is authoritative; these lists
@@ -88,15 +88,19 @@ function endpointHostAllowlist(): string[] {
     .filter(Boolean);
 }
 
-export function saveProviderKey(input: ProviderKeyInput): void {
+export async function saveProviderKey(input: ProviderKeyInput): Promise<void> {
   const meta: Record<string, unknown> = {};
   if (input.endpoint) {
     // SSRF guard: this endpoint is later handed to the provider SDK *with the
     // decrypted key*, so validate the host before it ever reaches the DB — reject
     // non-https, bare IPs (169.254.169.254 metadata, loopback, LAN) and internal
-    // hosts. For Azure, additionally constrain to *.openai.azure.com (or the
-    // configured allowlist) so a key can't be redirected to an attacker host.
-    assertPublicHttpsEndpoint(input.endpoint, `${input.provider} endpoint`);
+    // hosts. The string-level `assertPublicHttpsEndpoint` (in safe-url.ts) is the
+    // FIRST gate here; `assertPublicHttpsEndpointResolved` runs it and then RESOLVES
+    // the host, rejecting if any A/AAAA record is private/loopback/link-local/
+    // metadata — closing the DNS-rebinding pivot where a public-looking name
+    // (`https://rebind.attacker.com`) answers 169.254.169.254 at fetch time and the
+    // bearer key is exfiltrated. Same server-only guard the ATS webhook boundary uses.
+    await assertPublicHttpsEndpointResolved(input.endpoint, `${input.provider} endpoint`);
     if (input.provider === "azure_openai") {
       const host = new URL(input.endpoint).hostname.toLowerCase();
       const allowed = host.endsWith(AZURE_ENDPOINT_SUFFIX) || endpointHostAllowlist().includes(host);

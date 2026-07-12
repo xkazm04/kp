@@ -69,21 +69,44 @@ export function isPrivateAddress(ip: string): boolean {
   return isPrivateV4(addr);
 }
 
-/**
- * Full delivery-time vet for the webhook URL. First runs the string-level
- * `assertPublicHttpsEndpoint` (https-only; rejects IP literals + internal names),
- * then RESOLVES the host and rejects if any resolved address is non-public — this
- * is what closes the DNS-rebinding pivot. Returns the parse-normalized href on
- * success; THROWS an `Error` with an operator-facing message on rejection so the
- * caller can turn it into a delivery failure (never a leaked target status).
- */
-export async function assertDeliverableWebhookUrl(raw: string, label = "webhook URL"): Promise<string> {
-  const href = assertPublicHttpsEndpoint(raw, label); // https + no literal-IP/internal host
-  const host = new URL(href).hostname.toLowerCase();
+/** How a hostname is resolved to its A/AAAA addresses. The default lazily imports
+ *  node:dns (kept out of any client bundle — this module is server-only), but a
+ *  caller/test can inject a deterministic resolver so the resolve-and-reject logic
+ *  is unit-testable offline. */
+export type HostLookup = (host: string) => Promise<Array<{ address: string }>>;
+
+async function defaultHostLookup(host: string): Promise<Array<{ address: string }>> {
+  // Lazy so node:dns never enters a client bundle (safe-url.ts, which IS imported
+  // by "use client" components, must never gain this dependency — the guard lives
+  // here on purpose).
   const { lookup } = await import("node:dns/promises");
+  return lookup(host, { all: true, verbatim: true });
+}
+
+/**
+ * GENERIC server-only SSRF guard for an operator-supplied endpoint the SERVER will
+ * fetch with a secret (an ATS webhook URL, or an LLM provider base URL). First runs
+ * the string-level `assertPublicHttpsEndpoint` (https-only; rejects IP literals +
+ * internal names) — the same first gate as before — then RESOLVES the host and
+ * rejects if ANY resolved address is non-public. That resolution step is what closes
+ * the DNS-rebinding pivot (`https://rebind.attacker.com` → 169.254.169.254): the
+ * string check alone vets only the literal name. Returns the parse-normalized href
+ * on success; THROWS an `Error` with an operator-facing message on rejection.
+ *
+ * Shared so the ATS delivery boundary and the llm-config write boundary vet the
+ * host identically (extract-once; do NOT copy this into safe-url.ts, which is
+ * client-imported).
+ */
+export async function assertPublicHttpsEndpointResolved(
+  raw: string,
+  label = "endpoint",
+  lookupFn: HostLookup = defaultHostLookup,
+): Promise<string> {
+  const href = assertPublicHttpsEndpoint(raw, label); // https + no literal-IP/internal host (FIRST gate)
+  const host = new URL(href).hostname.toLowerCase();
   let results: Array<{ address: string }>;
   try {
-    results = await lookup(host, { all: true, verbatim: true });
+    results = await lookupFn(host);
   } catch {
     throw new Error(`Invalid ${label}: host "${host}" could not be resolved.`);
   }
@@ -96,4 +119,17 @@ export async function assertDeliverableWebhookUrl(raw: string, label = "webhook 
     }
   }
   return href;
+}
+
+/**
+ * Full delivery-time vet for the ATS webhook URL — a thin, domain-labelled wrapper
+ * over the shared `assertPublicHttpsEndpointResolved`. Kept as the ATS caller's
+ * name/label so ats-egress.ts is unchanged.
+ */
+export async function assertDeliverableWebhookUrl(
+  raw: string,
+  label = "webhook URL",
+  lookupFn: HostLookup = defaultHostLookup,
+): Promise<string> {
+  return assertPublicHttpsEndpointResolved(raw, label, lookupFn);
 }

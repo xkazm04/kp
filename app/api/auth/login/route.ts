@@ -1,9 +1,24 @@
 import { NextResponse } from "next/server";
 import { createHash, timingSafeEqual } from "node:crypto";
 import { ENTERED_COOKIE, SESSION_COOKIE, SESSION_TTL_MS, signSession } from "@/app/_lib/auth/session";
-import { verifyCredentials } from "@/app/_lib/db/users";
+import { verifyCredentials, normalizeEmail } from "@/app/_lib/db/users";
 import { listMembershipsForUser } from "@/app/_lib/db/memberships";
 import { DEFAULT_WORKSPACE_ID } from "@/app/_lib/db/workspaces";
+import { clientIpFrom, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
+import { isThrottled, recordFailedAttempt, clearFailures, type ThrottleOpts } from "@/app/_lib/auth/login-throttle";
+
+// Brute-force / credential-stuffing throttle (bug-ui-scan-2026-07-09 #4). Fixed
+// 15-minute window, persisted per-account AND per-IP (see login-throttle.ts). The
+// per-ACCOUNT bucket is the primary defense: a targeted account is protected even
+// when the attacker rotates source IPs. The per-IP bucket is a coarser cap (higher
+// limit — a shared corporate NAT is many legit users) that bounds a single host
+// spraying many accounts. CAVEAT: clientIpFrom trusts the first x-forwarded-for
+// hop, which a client can spoof unless kp sits behind a proxy that overwrites XFF —
+// hence the account bucket, which IP-spoofing can't evade, does the real work.
+const LOGIN_WINDOW_MS = 15 * 60_000;
+const ACCOUNT_THROTTLE: ThrottleOpts = { limit: 5, windowMs: LOGIN_WINDOW_MS };
+const IP_THROTTLE: ThrottleOpts = { limit: 20, windowMs: LOGIN_WINDOW_MS };
+const OPERATOR_THROTTLE: ThrottleOpts = { limit: 10, windowMs: LOGIN_WINDOW_MS };
 
 // Constant-time compare via fixed-length sha256 digests (no length-leak, no early
 // return) — the operator password is the only secret on that path.
@@ -47,12 +62,31 @@ export async function POST(request: Request) {
   const password = typeof body.password === "string" ? body.password : "";
   const email = typeof body.email === "string" ? body.email.trim() : "";
 
+  const ip = clientIpFrom(request.headers);
+
   if (email) {
+    // Throttle keyed on BOTH the account and the source IP. Refuse (429) before the
+    // credential check so a tripped bucket also sheds the scrypt cost (a cheap DoS
+    // otherwise). Keying on the normalized email means "Foo@x" and "foo@x" share one
+    // bucket, matching verifyCredentials' own normalization.
+    const acctKey = `login:acct:${normalizeEmail(email)}`;
+    const ipKey = `login:ip:${ip}`;
+    if (isThrottled(acctKey, ACCOUNT_THROTTLE) || isThrottled(ipKey, IP_THROTTLE)) {
+      return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+    }
     // Uniform 401 for both "no such user" and "wrong password" — never leak which.
     const user = password ? verifyCredentials(email, password) : null;
     if (!user) {
+      // Count the miss against both buckets, uniformly whether or not the email
+      // exists — so the 429 can never become a user-existence oracle.
+      recordFailedAttempt(acctKey, ACCOUNT_THROTTLE);
+      recordFailedAttempt(ipKey, IP_THROTTLE);
       return NextResponse.json({ error: "Incorrect email or password." }, { status: 401 });
     }
+    // Success frees both buckets so a legitimate user is never held back by their
+    // own earlier typos (and a good login is evidence the IP has real users on it).
+    clearFailures(acctKey);
+    clearFailures(ipKey);
     // Land the user on their first team (by created_at) with that role. A user with
     // no team yet falls back to the default workspace with no role (read-gated).
     const primary = listMembershipsForUser(user.id)[0];
@@ -79,9 +113,17 @@ export async function POST(request: Request) {
       return setEntered(res);
     }
   }
+  // Operator path has one shared secret, so a simpler per-IP throttle (no account
+  // dimension). Same fixed window; refuse before the constant-time compare.
+  const opKey = `login:op:${ip}`;
+  if (isThrottled(opKey, OPERATOR_THROTTLE)) {
+    return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+  }
   if (!password || !constantTimeEqual(password, expected)) {
+    recordFailedAttempt(opKey, OPERATOR_THROTTLE);
     return NextResponse.json({ error: "Incorrect password." }, { status: 401 });
   }
+  clearFailures(opKey);
   // `op: true` marks the operator session EXPLICITLY. resolveCaller() used to infer
   // "operator" from a missing `sub`, which meant any claim-less cookie carried owner
   // capabilities. This is the only place that privilege is granted.
