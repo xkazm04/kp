@@ -20,9 +20,11 @@ import {
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { ScoreBadge } from "@/app/_components/ScoreBadge";
+import { Select } from "@/app/_components/Select";
 import { useScoreProvenanceText } from "@/app/_components/ScoreProvenanceLabel";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { canonicalScoreOf, provenanceOf } from "@/app/_lib/match-score";
+import { moveTargetStages } from "./pipeline-move-targets";
 import { ARCHETYPE_STYLE, daysSince, slaForStage, styleFor, type Entry, type PipelineEvent } from "./PipelineTypes";
 
 // The pipeline-lifecycle event taxonomy that the activity feed renders richly.
@@ -169,6 +171,7 @@ export function CandidateRow({
   draggable = false,
   onDragStart,
   onDragEnd,
+  onMove,
 }: {
   entry: Entry;
   pending?: boolean;
@@ -179,11 +182,15 @@ export function CandidateRow({
   selected?: boolean;
   onToggleSelect?: () => void;
   // cea12908 — pointer drag-and-drop of a candidate between stage columns. Off by
-  // default; the board enables it when not in select mode. The keyboard path stays
-  // the row's open/select button + the bulk-move bar (drag is pointer-only).
+  // default; the board enables it when not in select mode.
   draggable?: boolean;
   onDragStart?: () => void;
   onDragEnd?: () => void;
+  // bug-ui pipeline #1 (WCAG 2.1.1) — the keyboard/assistive-tech twin of the
+  // pointer drag: a focusable "Move to…" menu that calls the SAME stage-change
+  // handler the drop does. Present exactly when drag is (the board passes it
+  // alongside `draggable`), so every drag has a keyboard-reachable equivalent.
+  onMove?: (toStage: string) => void;
 }) {
   const t = useTranslations("pipeline");
   const enumLabel = useEnumLabel();
@@ -219,6 +226,11 @@ export function CandidateRow({
   const selecting = selectMode && onToggleSelect;
   // Drag only outside select mode (in select mode the row is a checkbox).
   const dragOn = draggable && !selecting;
+  // bug-ui pipeline #1 — a card is keyboard-movable exactly when it's draggable
+  // (never in select mode). The "Move to…" menu offers the valid targets a manual
+  // move can succeed into (moveTargetStages) and calls the SAME onMove the drop does.
+  const moveOn = dragOn && !!onMove;
+  const moveTargets = moveOn ? moveTargetStages(entry.stage) : [];
   return (
     <div
       draggable={dragOn || undefined}
@@ -267,6 +279,26 @@ export function CandidateRow({
       <span className="shrink-0" title={scoreProvenance ?? undefined}>
         <ScoreBadge score={score} />
       </span>
+      {moveOn && moveTargets.length > 0 ? (
+        // The keyboard/AT twin of drag: a focusable listbox (Select is the APG
+        // combobox — arrows/Enter/Esc/typeahead, portalled so it escapes the
+        // board's overflow-x-auto clip). Revealed on hover OR focus so a keyboard
+        // user sees it when it lands in the tab order; the move funnels through
+        // the same onMove handler the drop calls.
+        <span className="shrink-0 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
+          <Select
+            value=""
+            onChange={(v) => {
+              if (v) onMove?.(v);
+            }}
+            options={moveTargets.map((s) => ({ value: s, label: enumLabel("stage", s) }))}
+            placeholder={t("candidateRow.moveTo")}
+            ariaLabel={t("candidateRow.moveToFor", { name: entry.candidateLabel })}
+            size="sm"
+            className="w-28"
+          />
+        </span>
+      ) : null}
       {onActions && !selecting ? (
         <button
           type="button"

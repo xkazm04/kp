@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { needsHumanDecision } from "@/app/_lib/approval-kinds";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { CandidateRow, Legend } from "./PipelineShared";
+import { moveTargetStages } from "./pipeline-move-targets";
 import { entryLaneKey, STAGE_HELP, STAGES, type Entry, type Position } from "./PipelineTypes";
 
 const CELL_LIMIT = 6;
@@ -50,6 +51,7 @@ function StageCell({
   onDragStartEntry,
   onDragEndEntry,
   onDropToStage,
+  onMoveEntry,
 }: {
   stage: string;
   entries: Entry[];
@@ -66,6 +68,10 @@ function StageCell({
   onDragStartEntry: (e: Entry) => void;
   onDragEndEntry: () => void;
   onDropToStage: (stage: string) => void;
+  // bug-ui pipeline #1 — the keyboard twin of the drop: a card's "Move to…" menu
+  // calls this with (entry, targetStage), funnelling into the SAME move+announce
+  // path the drop uses.
+  onMoveEntry: (e: Entry, toStage: string) => void;
 }) {
   const t = useTranslations("pipeline");
   const [expanded, setExpanded] = useState(false);
@@ -113,6 +119,7 @@ function StageCell({
           draggable={dragEnabled}
           onDragStart={() => onDragStartEntry(e)}
           onDragEnd={onDragEndEntry}
+          onMove={dragEnabled ? (toStage) => onMoveEntry(e, toStage) : undefined}
         />
       ))}
       {overflow > 0 ? (
@@ -164,6 +171,22 @@ export function PipelineBoard({
   // drop can resolve the source row regardless of which column started the drag.
   const [dragging, setDragging] = useState<Entry | null>(null);
   const dragEnabled = !!onMove && !selectMode;
+  // bug-ui pipeline #1 — the polite live-region text narrating a stage change so a
+  // screen-reader user hears the outcome of a keyboard (or drag) move even though
+  // the moved card silently re-renders into another column.
+  const [announce, setAnnounce] = useState("");
+  // ONE move path for BOTH the drop and the per-card "Move to…" menu: announce,
+  // then delegate to the caller's onMove (the optimistic set_stage). Same-stage is
+  // a no-op. We narrate optimistically only for a target the server can accept
+  // (moveTargetStages excludes Hired) — a drag onto a rejected column still calls
+  // onMove so its 422 surfaces, but we don't announce a success that rolls back.
+  const handleMove = (entry: Entry, toStage: string) => {
+    if (entry.stage === toStage) return;
+    if (moveTargetStages(entry.stage).includes(toStage)) {
+      setAnnounce(t("board.movedAnnounce", { name: entry.candidateLabel, stage: enumLabel("stage", toStage) }));
+    }
+    onMove?.(entry, toStage);
+  };
   // Stage help tooltip: catalog `stageHelp.<stage>`, falling back to the English
   // STAGE_HELP source (then the raw stage) for any unmapped stage.
   const stageHelp = (s: string): string => {
@@ -196,6 +219,11 @@ export function PipelineBoard({
 
   return (
     <section className="space-y-3">
+      {/* bug-ui pipeline #1 — polite live region narrating stage moves (keyboard or
+          drag). Stable across the board's re-renders so a text change is announced. */}
+      <div aria-live="polite" className="sr-only">
+        {announce}
+      </div>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-meta uppercase tracking-wide text-steel">{t("board.positions")}</h3>
         <div className="flex items-center gap-2">
@@ -297,10 +325,12 @@ export function PipelineBoard({
                       isDragging={!!dragging}
                       onDragStartEntry={setDragging}
                       onDragEndEntry={() => setDragging(null)}
+                      onMoveEntry={handleMove}
                       onDropToStage={(toStage) => {
-                        // Resolve the dragged entry from board state; only move on a
-                        // real cross-column drop. A same-stage drop is a no-op.
-                        if (dragging && dragging.stage !== toStage) onMove?.(dragging, toStage);
+                        // Resolve the dragged entry from board state and funnel the
+                        // drop through the SAME move+announce path the menu uses.
+                        // handleMove ignores a same-stage (no-op) drop.
+                        if (dragging) handleMove(dragging, toStage);
                         setDragging(null);
                       }}
                     />
