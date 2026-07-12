@@ -51,9 +51,20 @@ def main(argv: list[str] | None = None) -> int:
         # jobs not yet in the static corpus). Overrides win on id collision, mirroring
         # recruiter_cli's --job-json escape hatch.
         by_id = {j.id: j for j in corpus}
+        # Poison-pill isolation (bug-ui-scan 2026-07-09): one DB job row with a
+        # null/missing company/location/title/id must NOT abort the whole grid with
+        # a 500 for every candidate. Skip the bad record and surface it in
+        # `missingJobs` (id + error), symmetric with the missingCandidates channel
+        # below, so every other job still scores.
+        missing_jobs: list[dict] = []
         if args.jobs_json:
             for rec in json.loads(args.jobs_json.read_text(encoding="utf-8")):
-                job = Job.model_validate(rec)
+                try:
+                    job = Job.model_validate(rec)
+                except Exception as exc:  # noqa: BLE001 — one bad row must not fail the run
+                    job_id = rec.get("id") if isinstance(rec, dict) else None
+                    missing_jobs.append({"id": job_id, "error": str(exc)})
+                    continue
                 by_id[job.id] = job
 
         missing: list[str] = []
@@ -119,6 +130,7 @@ def main(argv: list[str] | None = None) -> int:
                     "cells": cells,
                     "missing": missing,
                     "missingCandidates": missing_candidates,
+                    "missingJobs": missing_jobs,
                 },
                 ensure_ascii=False,
             )

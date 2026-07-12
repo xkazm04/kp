@@ -107,6 +107,50 @@ class MatrixCliMissingCandidatesTest(unittest.TestCase):
         self.assertEqual(miss[0]["label"], "no-label")
 
 
+class MatrixCliMalformedJobsTest(unittest.TestCase):
+    """A poison-pill job record in --jobs-json (a DB row missing required
+    company/location) must be skipped and surfaced in `missingJobs`, not abort the
+    whole grid — symmetric with the missingCandidates isolation for profiles."""
+
+    def test_malformed_job_record_is_skipped_not_fatal(self) -> None:
+        # Job.company/location are required, so this record fails Job.model_validate.
+        malformed = {"id": "job-poison", "title": "No company or location"}
+        with tempfile.TemporaryDirectory() as tmp:
+            profiles_path = Path(tmp) / "profiles.json"
+            profiles_path.write_text(json.dumps([GOOD_PROFILE]), encoding="utf-8")
+            jobs_path = Path(tmp) / "jobs.json"
+            jobs_path.write_text(
+                json.dumps([JOB.model_dump(mode="json"), malformed]), encoding="utf-8"
+            )
+            out = io.StringIO()
+            with contextlib.redirect_stdout(out):
+                code = main(
+                    [
+                        "--profiles-json",
+                        str(profiles_path),
+                        "--job-ids",
+                        f"{JOB.id},job-poison",
+                        "--jobs-json",
+                        str(jobs_path),
+                    ]
+                )
+            payload = json.loads(out.getvalue() or "{}")
+
+        # Pre-fix: the inline validate loop raised -> emit_error -> exit 1.
+        self.assertEqual(code, 0)
+        # The valid job still scored for the candidate…
+        self.assertEqual([p["id"] for p in payload["positions"]], [JOB.id])
+        self.assertEqual(len(payload["cells"][0]), 1)
+        # …and the poison row is surfaced (id + error), not silently swallowed.
+        self.assertEqual([m["id"] for m in payload["missingJobs"]], ["job-poison"])
+        self.assertTrue(payload["missingJobs"][0]["error"])
+
+    def test_all_valid_reports_no_missing_jobs(self) -> None:
+        result = _run([GOOD_PROFILE])
+        self.assertEqual(result["code"], 0)
+        self.assertEqual(result["payload"]["missingJobs"], [])
+
+
 class MatrixCliDuplicatePositionTest(unittest.TestCase):
     def test_duplicate_job_ids_collapse_to_one_column(self) -> None:
         # listOpenPositions can repeat a job_id (a title edited between pipeline adds),

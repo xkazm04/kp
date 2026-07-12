@@ -33,6 +33,12 @@ DEFAULT_TIMEOUT_S = 180
 DEFAULT_MAX_TOKENS = 2048
 
 _MAX_ATTEMPTS = 3
+# The configured timeout is a TOTAL wall-clock ceiling across all retries. When
+# fewer than this many seconds remain before that deadline, stop instead of
+# starting (or sleeping into) an attempt that would run past it — so the total
+# never blows out to ~_MAX_ATTEMPTS × timeout (which the TS spawn kill would
+# SIGKILL mid-call, losing the metering ledger line for spend that DID occur).
+_MIN_ATTEMPT_S = 1.0
 
 # USD per million tokens (input, output) for models whose list price we know.
 # Used to stamp cost_usd on results; unknown models carry cost_usd=None and are
@@ -270,15 +276,34 @@ class TextProvider:
         self._assert_offline_egress_allowed()
         budget = timeout or self.timeout
         first_started = time.monotonic()
+        # `budget` is the TOTAL wall-clock deadline, not a per-attempt one: derive
+        # a monotonic deadline once and give each attempt only the time that
+        # REMAINS before it. Previously every one of _MAX_ATTEMPTS attempts got the
+        # full `budget`, so three transient timeouts ran ~3× the configured timeout
+        # (plus backoff) — outrunning the TS spawn's wall-clock kill, which then
+        # SIGKILLed the child mid-call and lost the ledger line.
+        deadline = first_started + budget
 
         def _elapsed_ms() -> int:
             return int((time.monotonic() - first_started) * 1000)
 
+        def _emit_error(exc: Exception) -> None:
+            monitor.emit_error(
+                provider=self.name, model=self.model, use_case=self.use_case,
+                error=exc, duration_ms=_elapsed_ms(),
+            )
+
         last: Exception | None = None
         for attempt in range(_MAX_ATTEMPTS):
+            # Overall-deadline gate: stop before starting an attempt that no longer
+            # fits in the remaining budget. The FIRST attempt always runs.
+            remaining = deadline - time.monotonic()
+            if attempt > 0 and remaining <= _MIN_ATTEMPT_S:
+                break
+            per_attempt = max(_MIN_ATTEMPT_S, int(remaining))
             started = time.monotonic()
             try:
-                result = self._call(prompt, system=system, timeout=budget)
+                result = self._call(prompt, system=system, timeout=per_attempt)
                 if not result.duration_ms:
                     result = dataclasses.replace(
                         result, duration_ms=int((time.monotonic() - started) * 1000)
@@ -294,26 +319,34 @@ class TextProvider:
                 return result
             except LLMError as exc:
                 # adapter-level permanent error (bad config, refusal) — no retry
-                monitor.emit_error(
-                    provider=self.name, model=self.model, use_case=self.use_case,
-                    error=exc, duration_ms=_elapsed_ms(),
-                )
+                _emit_error(exc)
                 raise
             except Exception as exc:  # noqa: BLE001 — classified below
                 last = exc
                 if attempt == _MAX_ATTEMPTS - 1 or not is_transient_error(exc):
-                    monitor.emit_error(
-                        provider=self.name, model=self.model, use_case=self.use_case,
-                        error=exc, duration_ms=_elapsed_ms(),
-                    )
+                    _emit_error(exc)
                     raise LLMError(
                         f"{self.name} call failed: {type(exc).__name__}: {exc}",
                         provider=self.name,
                     ) from exc
-                time.sleep(0.5 * (2**attempt) + random.uniform(0, 0.25))
-        raise LLMError(  # pragma: no cover — the loop always returns or raises
-            f"{self.name} call failed: {last}", provider=self.name
+                # Cap the backoff so the sleep itself can't push past the deadline,
+                # and never sleep away time the next attempt could have used.
+                backoff = 0.5 * (2**attempt) + random.uniform(0, 0.25)
+                remaining_after = deadline - time.monotonic()
+                if remaining_after <= _MIN_ATTEMPT_S:
+                    break
+                time.sleep(min(backoff, remaining_after - _MIN_ATTEMPT_S))
+        # Deadline exhausted between retries: record the failure in the ledger
+        # BEFORE raising (a SIGKILL from the TS wall-clock past the deadline would
+        # lose it entirely) so the spend/attempts that DID occur stay attributable.
+        err = LLMError(
+            f"{self.name} call exhausted its {budget}s deadline after "
+            f"{_MAX_ATTEMPTS} attempts: {last}",
+            provider=self.name,
+            subtype="deadline_exceeded",
         )
+        _emit_error(err)
+        raise err from last
 
     def complete_json(
         self,

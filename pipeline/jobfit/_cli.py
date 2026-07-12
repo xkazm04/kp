@@ -65,8 +65,27 @@ def load_jobs_arg(jobs: Path | None, jobs_json: Path | None) -> list[Any]:
     if jobs_json is None:
         return corpus
     by_id = {j.id: j for j in corpus}
+    # Poison-pill isolation (bug-ui-scan 2026-07-09): the --jobs-json override is
+    # the live DB corpus, and ONE row with a null/missing company, location,
+    # title, or id (an underspecified/legacy/partially-ingested job) made a bare
+    # `Job.model_validate(rec)` loop raise ValidationError — which aborted the
+    # ENTIRE match / Explain-fit run for EVERY candidate with a hard 500. Skip the
+    # bad record and keep going (recording which id failed on stderr), mirroring
+    # the per-candidate isolation match/matrix already implement, so a single
+    # poison row can never poison the batch: N-1 good jobs still score.
     for rec in json.loads(jobs_json.read_text(encoding="utf-8")):
-        job = Job.model_validate(rec)
+        try:
+            job = Job.model_validate(rec)
+        except Exception as exc:  # noqa: BLE001 — one bad row must not fail the run
+            job_id = rec.get("id") if isinstance(rec, dict) else None
+            # Plain-text stderr note (never the JSON error envelope emit_error
+            # prints): the run still exits 0, so the bridge parses stdout and
+            # ignores stderr; this line is only for operator diagnosis.
+            print(
+                f"[jobfit] skipped malformed --jobs-json record (id={job_id!r}): {exc}",
+                file=sys.stderr,
+            )
+            continue
         by_id[job.id] = job
     return list(by_id.values())
 
