@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
 import dynamic from "next/dynamic";
 import { Menu, X } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -17,6 +17,8 @@ import { CommandPalette } from "./CommandPalette";
 import { KeyboardShortcuts } from "./KeyboardShortcuts";
 import { RecentsNav } from "./RecentsNav";
 import { SectionRailNav } from "./nav/SectionRailNav";
+import { useDialogA11y } from "@/app/_components/useDialogA11y";
+import { isDrawerInert, isMainInert, shouldTrapDrawerFocus } from "./nav/drawer-a11y";
 import { useAttention } from "./useAttention";
 import { TasksIndicator } from "./tasks/TasksIndicator";
 import { TasksProvider } from "./tasks/TasksProvider";
@@ -78,6 +80,22 @@ const WorkspaceTab = dynamic(() => import("./sub_workspace/WorkspaceTab").then((
 const OrganizationTab = dynamic(() => import("./sub_organization/OrganizationTab").then((m) => ({ default: m.OrganizationTab })), { loading });
 const BrandingTab = dynamic(() => import("./sub_branding/BrandingTab").then((m) => ({ default: m.BrandingTab })), { loading });
 
+// Mounted ONLY while the mobile drawer is open (never on desktop, where the rail is
+// permanent). Reuses the shared dialog machinery on the <aside>: move focus inside on
+// open, trap Tab within the drawer, close on Escape (top-of-stack gated), lock body
+// scroll, and restore focus to the hamburger on close/unmount. Mounting on open (and
+// unmounting on close) is what fits the mount-lifecycle hook to a persistent element.
+function MobileDrawerA11y({
+  drawerRef,
+  onClose,
+}: {
+  drawerRef: RefObject<HTMLElement | null>;
+  onClose: () => void;
+}) {
+  useDialogA11y(drawerRef, onClose, { trap: true, lockScroll: true });
+  return null;
+}
+
 export function Workspace() {
   const router = useRouter();
   const params = useSearchParams();
@@ -95,6 +113,22 @@ export function Workspace() {
   // this, the full ~16-item nav stacked above content and pushed every page below the
   // fold on a phone — the studio was close to unusable on a handset.
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  // Below `md` the <aside> is the off-canvas drawer; at md+ it's the always-visible
+  // rail. `inert`/focus-trap decisions differ between the two and can't be expressed in
+  // CSS (inert is an attribute, not a property), so we track the breakpoint in JS. md =
+  // 768px (Tailwind), so "mobile" is < 768px. Defaults false → SSR/first client render
+  // agree (no hydration mismatch); the effect corrects it on mount.
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 767.98px)");
+    const sync = () => setIsMobile(mq.matches);
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
+  // The drawer element, wired to the shared dialog machinery while open (below).
+  const drawerRef = useRef<HTMLElement | null>(null);
+  const closeMobileNav = useCallback(() => setMobileNavOpen(false), []);
   const requested: WorkspaceTabId = isWorkspaceTabId(tabParam) ? tabParam : DEFAULT_TAB;
   // About is a dev-only deep-dive (ABOUT_TAB_IN_NAV); in production a direct
   // ?tab=about falls back to the default so the view can't be reached.
@@ -115,15 +149,8 @@ export function Workspace() {
     [router, search, setMobileNavOpen]
   );
 
-  // Close the mobile drawer on Escape (desktop rail is unaffected — it's never "open").
-  useEffect(() => {
-    if (!mobileNavOpen) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setMobileNavOpen(false);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [mobileNavOpen]);
+  // Escape-close, Tab-trap and focus-restore are owned by <MobileDrawerA11y> below,
+  // which mounts only while the drawer is open on mobile (the shared useDialogA11y).
 
   return (
     <TasksProvider>
@@ -162,9 +189,15 @@ export function Workspace() {
         />
       ) : null}
 
+      {/* Collapsed on mobile → `inert` removes the whole subtree from the tab order
+          AND the a11y tree (so aria-expanded={mobileNavOpen} is truthful), not merely
+          translated off-canvas. Never inert at md+ where the rail is the visible nav. */}
       <aside
+        ref={drawerRef}
         id="workspace-nav"
-        className={`bg-paper fixed inset-y-0 left-0 z-50 flex w-[17rem] max-w-[85vw] overflow-hidden border-r border-stone-300 shadow-xl transition-transform duration-200 ${
+        tabIndex={-1}
+        inert={isDrawerInert(isMobile, mobileNavOpen)}
+        className={`bg-paper fixed inset-y-0 left-0 z-50 flex w-[17rem] max-w-[85vw] overflow-hidden border-r border-stone-300 shadow-xl transition-transform duration-200 focus:outline-none ${
           mobileNavOpen ? "translate-x-0" : "-translate-x-full"
         } md:z-auto md:max-w-none md:shrink-0 md:translate-x-0 md:border-r md:shadow-none md:transition-none md:sticky md:top-0 md:h-screen`}
       >
@@ -220,7 +253,15 @@ export function Workspace() {
           no visible sidebar chrome). */}
       <KeyboardShortcuts onSelectTab={selectTab} />
 
-      <main id="main" tabIndex={-1} className="min-w-0 flex-1 bg-paper focus:outline-none">
+      {/* Modal focus-trap for the open mobile drawer (focus-in, Tab-trap, Escape,
+          focus-restore to the hamburger). Mounted only when isMobile && open. */}
+      {shouldTrapDrawerFocus(isMobile, mobileNavOpen) ? (
+        <MobileDrawerA11y drawerRef={drawerRef} onClose={closeMobileNav} />
+      ) : null}
+
+      {/* While the mobile drawer is open, the rest of the page is inert so focus can't
+          leak behind the scrim (the actual focus trap). Never inert at md+. */}
+      <main id="main" tabIndex={-1} inert={isMainInert(isMobile, mobileNavOpen)} className="min-w-0 flex-1 bg-paper focus:outline-none">
         {/* pb-24 keeps content clear of the fixed simulation bar. The boundary
             contains a single tab's render crash to this panel (sidebar + sim bar
             survive) and clears itself when resetKey/navActive changes on a tab
