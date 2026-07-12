@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { selectConsumesKeyWhileOpen } from "./select-keys";
 import { createPortal } from "react-dom";
 import { Check, ChevronDown, type LucideIcon, Search } from "lucide-react";
 
@@ -169,6 +170,11 @@ export function Select({
       }
       return;
     }
+    // While OPEN, keys the Select consumes must not bubble to a parent dialog's key
+    // handler: an open Select inside a useDialogA11y trap must eat its own Escape/Enter,
+    // or one Escape closes BOTH the dropdown and the surrounding dialog (bug-ui shared-ui
+    // #1). A CLOSED Select (handled above) lets Escape bubble so it can close the dialog.
+    if (selectConsumesKeyWhileOpen(e.key)) e.stopPropagation();
     switch (e.key) {
       case "ArrowDown":
         e.preventDefault();
