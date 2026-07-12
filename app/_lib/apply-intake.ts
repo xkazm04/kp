@@ -278,6 +278,34 @@ export function trimSeededSteps<T extends { id: string }>(
   return steps.filter((s) => !(s.id in answers));
 }
 
+/**
+ * Reconcile a restored in-progress draft (idea-939d96e9, localStorage) with an
+ * incoming lead-enrichment prefill (the ?lead= hand-off). The invariant this
+ * pins: the prefill's SEEDED keys — name/email and, critically, the KO gates the
+ * lead already passed — must ALWAYS win over the stored draft.
+ *
+ * Why it matters: on an enrichment visit `page.tsx` trims the passed-KO steps
+ * out of the chat ({@link trimSeededSteps}), so those `ko_* = true` answers live
+ * ONLY in the prefill — the shortened chat never re-asks them. A stale draft
+ * saved under the same job (e.g. a first-time attempt the candidate abandoned
+ * before the enrichment email) carries either a `ko_* = false` or, more often,
+ * no KO key at all. Letting the draft's answers overwrite the prefill would wipe
+ * the seeded KO=true, and the final POST's strict {@link failedKoStepIds} verdict
+ * would then silently DECLINE a candidate who had already qualified.
+ *
+ * A prefill-less (normal first-time) restore returns the draft's answers
+ * verbatim, preserving the resume-where-you-left-off UX. Pure + tested
+ * (apply-intake.test.ts).
+ */
+export function mergeDraftAnswers(
+  draftAnswers: Record<string, unknown>,
+  prefillAnswers?: Record<string, string | boolean> | null
+): Record<string, unknown> {
+  // Spread the prefill LAST so its seeded keys (name/email + passed KO gates)
+  // override any stale value the draft carries for the same key.
+  return prefillAnswers ? { ...draftAnswers, ...prefillAnswers } : { ...draftAnswers };
+}
+
 /** The free-text answers captured by the conversational apply flow. The
  *  early-career lanes capture their own fields (project/thesis, education,
  *  aspirations for a student; prior field + direction for a switcher) instead of

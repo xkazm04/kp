@@ -7,7 +7,7 @@ import { TextInput } from "@/app/_components/TextInput";
 import type { ApplyStep } from "@/app/_lib/apply";
 // Imported straight from the registry-free intake module (not the apply.ts
 // barrel) so the candidate-facing bundle doesn't pull in the archetype registry.
-import { APPLY_EMAIL_RE, coerceGithubHandle, isRetryableApplyStatus, nextVisibleStepIndex } from "@/app/_lib/apply-intake";
+import { APPLY_EMAIL_RE, coerceGithubHandle, isRetryableApplyStatus, mergeDraftAnswers, nextVisibleStepIndex } from "@/app/_lib/apply-intake";
 import { cvAutofill } from "@/app/_lib/cv-autofill";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 
@@ -28,8 +28,14 @@ export type ApplyPrefill = {
 
 // Where in-progress answers are stashed (idea-939d96e9) so a refresh / lost
 // signal / return-later resumes mid-chat instead of restarting. Keyed by jobId
-// because a candidate may be partway through more than one role's application.
-const draftKey = (jobId: string) => `kp:apply-draft:${jobId}`;
+// because a candidate may be partway through more than one role's application —
+// AND namespaced by the enrichment lead token when present, so a first-time
+// attempt's draft (keyed on jobId alone) can never be read on a later ?lead=
+// enrichment visit, whose chat runs a different, shorter (KO-trimmed) script.
+// Without this the stale first-time draft would clobber the seeded KO=true
+// answers and the server would wrongly DECLINE an already-qualified lead.
+const draftKey = (jobId: string, leadToken?: string | null) =>
+  leadToken ? `kp:apply-draft:${jobId}:${leadToken}` : `kp:apply-draft:${jobId}`;
 
 type ApplyDraft = { idx: number; answers: Record<string, unknown>; msgs: Msg[]; answeredIds: string[] };
 
@@ -46,6 +52,10 @@ export function ConversationalApply({
   const t = useTranslations("apply");
   const tCommon = useTranslations("common");
   const errMsg = useErrorMessage();
+  // The localStorage slot for this visit — namespaced by the enrichment lead
+  // token (see draftKey) so a first-time draft and an enrichment draft for the
+  // same job never share a slot. Stable across renders (both are props).
+  const draftStorageKey = draftKey(jobId, prefill?.leadToken);
   const [idx, setIdx] = useState(0);
   // Seeded from the server-built steps so the first prompt paints on hydration —
   // no initial fetch, no fatal load-error branch, no Loading… flash. The script
@@ -134,7 +144,7 @@ export function ConversationalApply({
   useEffect(() => {
     hydratedRef.current = true;
     try {
-      const raw = window.localStorage.getItem(draftKey(jobId));
+      const raw = window.localStorage.getItem(draftStorageKey);
       if (!raw) return;
       const d = JSON.parse(raw) as ApplyDraft;
       if (!d || typeof d.idx !== "number" || d.idx < 0 || d.idx >= steps.length) return;
@@ -142,7 +152,11 @@ export function ConversationalApply({
       if (Object.keys(d.answers).length === 0) return;
       answeredRef.current = new Set(Array.isArray(d.answeredIds) ? d.answeredIds : []);
       /* eslint-disable react-hooks/set-state-in-effect -- one-time hydration from localStorage (SSR-safe) */
-      setAnswers(d.answers);
+      // Reconcile the draft with the enrichment prefill: the seeded name/email +
+      // passed-KO keys ALWAYS win, so a stale draft can't wipe a returning lead's
+      // KO=true and make the server's strict verdict wrongly DECLINE them. With a
+      // prefill-less (normal) visit this is the draft's answers verbatim.
+      setAnswers(mergeDraftAnswers(d.answers, prefill?.answers));
       setMsgs(d.msgs);
       setIdx(d.idx);
       setResumed(true);
@@ -160,7 +174,7 @@ export function ConversationalApply({
     if (!hydratedRef.current) return;
     if (done) {
       try {
-        window.localStorage.removeItem(draftKey(jobId));
+        window.localStorage.removeItem(draftStorageKey);
       } catch {
         /* best-effort */
       }
@@ -169,11 +183,11 @@ export function ConversationalApply({
     if (Object.keys(answers).length === 0) return; // nothing worth saving yet
     try {
       const draft: ApplyDraft = { idx, answers, msgs, answeredIds: [...answeredRef.current] };
-      window.localStorage.setItem(draftKey(jobId), JSON.stringify(draft));
+      window.localStorage.setItem(draftStorageKey, JSON.stringify(draft));
     } catch {
       /* quota / unavailable — best-effort */
     }
-  }, [idx, answers, msgs, done, jobId]);
+  }, [idx, answers, msgs, done, draftStorageKey]);
 
   // Move focus to the first control of a newly-rendered step so keyboard / screen-reader
   // users don't have to tab from the top of the page on every ko / choice / file step (only
@@ -277,7 +291,7 @@ export function ConversationalApply({
     answeredRef.current = new Set();
     finalAnswersRef.current = null;
     try {
-      window.localStorage.removeItem(draftKey(jobId));
+      window.localStorage.removeItem(draftStorageKey);
     } catch {
       /* best-effort */
     }
