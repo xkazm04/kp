@@ -6,6 +6,7 @@ import { ResultPanel } from "@/app/_components/results/ResultPanel";
 import { AnalysisProgress } from "@/app/_components/AnalysisProgress";
 import { AnalyzeForm } from "./AnalyzeForm";
 import { AnalyzeFormCollapsed } from "./AnalyzeFormCollapsed";
+import { deriveCollapseDecision } from "./analyzeCollapse";
 import { useAnalyzeForm } from "./useAnalyzeForm";
 
 export function AnalyzeTab() {
@@ -13,21 +14,29 @@ export function AnalyzeTab() {
   const { inputs, flags, result, handlers } = state;
   const isAnalyzing = flags.isLoading || flags.isCompleting;
   // A GitHub-only run (GH3) produces no main analysis — its panel below counts
-  // as a result for the form auto-collapse too.
-  const hasResult = result.analysis !== null || result.githubStatus !== "idle";
+  // as a result for the form auto-collapse too. A CV error, however, is NOT a
+  // result: it forces `idle` true so the form re-expands and its aria-live error
+  // slot surfaces the failure, even when a parallel GitHub run succeeded (which
+  // would otherwise pin the form collapsed with the error visible nowhere —
+  // bug-ui-scan-2026-07-09 #1). See deriveCollapseDecision.
+  const { idle } = deriveCollapseDecision({
+    isAnalyzing,
+    hasAnalysis: result.analysis !== null,
+    githubStatus: result.githubStatus,
+    cvError: result.error !== null,
+  });
 
   // Auto-collapse the form on the leading edge of an analysis (or when a
   // result lands), and auto-expand again once we return to an idle state
-  // via reset(). The transition guard lets the user manually re-expand
-  // mid-result without being immediately collapsed again on re-render.
+  // (via reset() OR a CV error). The transition guard lets the user manually
+  // re-expand mid-result without being immediately collapsed again on re-render.
   const [expanded, setExpanded] = useState(true);
   const wasIdleRef = useRef(true);
   useEffect(() => {
-    const idle = !isAnalyzing && !hasResult;
     if (wasIdleRef.current && !idle) setExpanded(false);
     if (!wasIdleRef.current && idle) setExpanded(true);
     wasIdleRef.current = idle;
-  }, [isAnalyzing, hasResult]);
+  }, [idle]);
 
   return (
     <div className="space-y-5">
