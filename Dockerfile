@@ -92,6 +92,13 @@ COPY --from=builder --chown=kp:kp /app/public ./public
 COPY --from=builder --chown=kp:kp /app/pipeline ./pipeline
 COPY --from=builder --chown=kp:kp /app/data ./data
 COPY --from=builder --chown=kp:kp /opt/venv /opt/venv
+# The /diagrams (Architecture) page reads docs/diagrams/*.puml from disk at request
+# time. next.config.ts's `outputFileTracingIncludes` already bundles them into
+# .next/standalone (copied above), so this is belt-and-suspenders: it guarantees
+# the sources are present under /app/docs/diagrams (= process.cwd()/docs/diagrams
+# at runtime) even if the trace-include ever misses them, with no dependency on
+# file-tracing heuristics or workspace-root inference. ~40 KB.
+COPY --from=builder --chown=kp:kp /app/docs/diagrams ./docs/diagrams
 
 USER kp
 VOLUME ["/data"]

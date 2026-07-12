@@ -14,6 +14,20 @@ const nextConfig: NextConfig = {
   // Slims the image ~3-4x. See docs/SELF_HOSTING.md + the Dockerfile. (better-sqlite3
   // is externalized below; its native binding is traced into the standalone bundle.)
   output: "standalone",
+  // Ship the committed PlantUML sources into the standalone bundle. The
+  // /diagrams (Architecture) page reads docs/diagrams/*.puml from disk at request
+  // time via readFileSync(join(process.cwd(), "docs/diagrams", …)). Because that
+  // read is dynamic (not an `import`), Next's static file-tracing cannot see it,
+  // so under output:"standalone" the docs/ tree is never traced into
+  // .next/standalone and the runner has no .puml files — every diagram renders
+  // "Could not read …" in production (masked in `next dev`, where the source tree
+  // is present). This include copies them to <standalone-root>/docs/diagrams/*,
+  // where process.cwd() resolves them at runtime. Survives a plain `next build`
+  // with no Dockerfile dependency. Keys are matched against route paths; the
+  // Architecture page is /diagrams.
+  outputFileTracingIncludes: {
+    "/diagrams": ["./docs/diagrams/*.puml"],
+  },
   // Instant Navigations (Next 16.3) — "instant routing". cacheComponents flips
   // the app to dynamic-by-default with no implicit caching; any route that
   // awaits data must then Stream (<Suspense>), Cache ('use cache'), or Block

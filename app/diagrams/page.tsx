@@ -1,9 +1,8 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { PlantUml } from "@/app/_components/puml/PlantUml";
 import { DIAGRAM_STATUS_TOKENS } from "@/app/_components/puml/constants";
 import { WorkspaceShell } from "@/app/features/WorkspaceNav";
 import { PipelineExplorer } from "./PipelineExplorer";
+import { readDiagramSource } from "./readDiagramSource";
 
 // Renders per-request under the dynamic-locale layout and builds heavy PlantUML
 // SVGs from disk on demand — there is no useful static shell, so Block it under
@@ -13,32 +12,9 @@ export const instant = false;
 // Renders the real architecture sources straight from docs/diagrams/*.puml
 // (read server-side, so the page always reflects the committed source) through
 // our own PlantUML renderer — the stress test for big, nested-package diagrams.
-
-
-// docs/diagrams/*.puml are committed build artifacts: in production they never
-// change at runtime, so reading them from disk on every (force-dynamic) request
-// is pure repeated I/O. Cache each read by filename in module scope. In
-// development we always re-read so edits to the .puml sources show up live
-// without a restart — preserving the "always reflects the committed source"
-// behavior the page comment describes. A failed read is never cached, so a file
-// that appears later still recovers.
-const sourceCache = new Map<string, string>();
-
-function readDiagramSource(file: string): string {
-  const isProd = process.env.NODE_ENV === "production";
-  if (isProd) {
-    const cached = sourceCache.get(file);
-    if (cached !== undefined) return cached;
-  }
-  let source: string;
-  try {
-    source = readFileSync(join(process.cwd(), "docs", "diagrams", file), "utf8");
-  } catch {
-    return ""; // missing/unreadable — the page shows "Could not read …"; don't cache it
-  }
-  if (isProd) sourceCache.set(file, source);
-  return source;
-}
+// The on-disk read + module-scope cache live in ./readDiagramSource; those .puml
+// files reach the standalone production runtime via next.config.ts's
+// `outputFileTracingIncludes` for the /diagrams route.
 
 const DIAGRAMS: { file: string; label: string; blurb: string; featured?: boolean }[] = [
   {
