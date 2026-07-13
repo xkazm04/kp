@@ -20,7 +20,7 @@ import { PipelineBoard } from "./PipelineBoard";
 import { EventDot, useEventVerb, useRelativeTime } from "./PipelineShared";
 import { TodayRail } from "./TodayRail";
 import { recordRecent } from "@/app/features/recents";
-import { postPipelineAction } from "@/app/_lib/useAddToPipeline";
+import { postPipelineAction, postPipelineBatch, type PipelineBatchItem } from "@/app/_lib/useAddToPipeline";
 import { copyText } from "@/app/_lib/export-utils";
 import { daysSince, entryLaneKey, slaForStage, STAGE_SLA_DEFAULTS, STAGES, type Entry, type PipelineEvent, type Position } from "./PipelineTypes";
 
@@ -438,10 +438,10 @@ export function PipelineTab() {
   };
   const deleteView = (id: string) => persistViews(views.filter((v) => v.id !== id));
 
-  // PIPE1 — bulk move. Sequential set_stage POSTs, each carrying its OWN
-  // expectedStage (the stage the board showed for THAT card) — a 409 means a
-  // concurrent actor moved that candidate, and the MatrixTab W11 grammar
-  // applies: the failure STAYS SELECTED for retry while successes deselect.
+  // PIPE1 — bulk move. ONE batch POST, each item carrying its OWN expectedStage
+  // (the stage the board showed for THAT card) — a per-id 409 means a concurrent
+  // actor moved that candidate, and the MatrixTab W11 grammar applies: the failure
+  // STAYS SELECTED for retry while successes deselect.
   const toggleSelectMode = () => {
     setSelectMode((v) => !v);
     setSelectedIds(new Set());
@@ -473,6 +473,9 @@ export function PipelineTab() {
     // concurrency loss with a 422 forbidden transition) — deduped so the status
     // line names WHY, not just how many.
     const reasons = new Set<string>();
+    // Build the batch: skip vanished entries; count an already-at-target card as
+    // moved without a round trip (the server would no-op it anyway).
+    const items: PipelineBatchItem[] = [];
     for (const id of selectedIds) {
       const entry = (entries ?? []).find((x) => x.id === id);
       if (!entry) continue; // vanished since selection — nothing left to move
@@ -480,16 +483,21 @@ export function PipelineTab() {
         moved += 1; // already at the target — done, deselect
         continue;
       }
-      try {
-        const r = await postPipelineAction(id, { action: "set_stage", toStage: bulkStage, expectedStage: entry.stage });
-        if (r.ok) moved += 1;
-        else {
-          failures.add(id);
-          const reason = await pipelineActionReason(r);
-          if (reason) reasons.add(reason);
+      items.push({ id, action: "set_stage", toStage: bulkStage, expectedStage: entry.stage });
+    }
+    if (items.length > 0) {
+      const res = await postPipelineBatch(items);
+      if (res.ok) {
+        for (const r of res.results) {
+          if (r.ok) moved += 1;
+          else {
+            failures.add(r.id);
+            if (r.reason) reasons.add(r.reason);
+          }
         }
-      } catch {
-        failures.add(id);
+      } else {
+        // Transport-level failure — every attempted item stays selected for retry.
+        for (const it of items) failures.add(it.id);
       }
     }
     setSelectedIds(failures);
@@ -500,9 +508,9 @@ export function PipelineTab() {
 
   // bdc7fc01 — bulk accept/reject the AWAITING cohort in the selection. Acts only
   // on selected entries that need a human decision (others have nothing to decide
-  // and are left selected, untouched). Each carries its OWN expectedStage so a
-  // concurrent move is a 409 that STAYS SELECTED for retry — same grammar as
-  // bulkMove. A bulk reject emails everyone, so it's confirm-gated in the UI.
+  // and are left selected, untouched). ONE batch POST, each item carrying its OWN
+  // expectedStage so a concurrent move is a per-id 409 that STAYS SELECTED for retry
+  // — same grammar as bulkMove. A bulk reject emails everyone, so it's confirm-gated.
   const bulkDecide = async (action: "accept" | "reject") => {
     const awaiting = [...selectedIds]
       .map((id) => (entries ?? []).find((x) => x.id === id))
@@ -516,18 +524,19 @@ export function PipelineTab() {
     // Same as bulkMove: surface the server's distinct reasons for refused decides
     // (e.g. a 409 stage change that lost the CAS in the gap) rather than a count.
     const reasons = new Set<string>();
-    for (const e of awaiting) {
-      try {
-        const r = await postPipelineAction(e.id, { action, expectedStage: e.stage });
+    const items: PipelineBatchItem[] = awaiting.map((e) => ({ id: e.id, action, expectedStage: e.stage }));
+    const res = await postPipelineBatch(items);
+    if (res.ok) {
+      for (const r of res.results) {
         if (r.ok) ok += 1;
         else {
-          failed.add(e.id);
-          const reason = await pipelineActionReason(r);
-          if (reason) reasons.add(reason);
+          failed.add(r.id);
+          if (r.reason) reasons.add(r.reason);
         }
-      } catch {
-        failed.add(e.id);
       }
+    } else {
+      // Transport-level failure — every attempted decision stays selected for retry.
+      for (const e of awaiting) failed.add(e.id);
     }
     // Successes deselect; failures + any selected non-awaiting entries stay selected.
     const untouched = [...selectedIds].filter((id) => !awaiting.some((e) => e.id === id));

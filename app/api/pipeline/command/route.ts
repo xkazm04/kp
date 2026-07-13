@@ -61,10 +61,13 @@ export async function POST(request: NextRequest) {
 
     const description = describeCommand(cmd);
 
-    // Preview (no confirm): show what WOULD happen, execute nothing.
+    // Preview (no confirm): show what WOULD happen, execute nothing. Resolve the
+    // affected set ONCE — the row slice and the total both read it (run_policy has
+    // no candidate preview, so its total is null and the scan is skipped).
     if (!body.confirm) {
-      const rows = affected(cmd).slice(0, PREVIEW_CAP).map(toRow);
-      const total = cmd.kind === "run_policy" ? null : affected(cmd).length;
+      const hits = cmd.kind === "run_policy" ? [] : affected(cmd);
+      const rows = hits.slice(0, PREVIEW_CAP).map(toRow);
+      const total = cmd.kind === "run_policy" ? null : hits.length;
       return NextResponse.json({ kind: cmd.kind, description, mutating: isMutating(cmd), preview: rows, total });
     }
 

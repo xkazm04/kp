@@ -103,6 +103,36 @@ export function postPipelineAction(id: string, body: PipelineActionBody): Promis
   });
 }
 
+// One canonical batch move/decide POST against `/api/pipeline/batch` — the board's
+// bulk move + bulk accept/reject in ONE round trip instead of N serial per-entry
+// POSTs. Each item carries its OWN expectedStage CAS (the stage the board showed
+// for THAT card); the server runs each as an isolated per-id transaction and
+// reports a per-id outcome. Returns a discriminated result: `ok:false` is a
+// transport-level failure (the whole call fell over — the caller treats every item
+// as retryable), `ok:true` carries the per-id `results` (each ok, or failed + the
+// server's verbatim reason). Never throws.
+export type PipelineBatchItem =
+  | { id: string; action: "set_stage"; toStage: string; expectedStage: string }
+  | { id: string; action: "accept" | "reject"; expectedStage: string };
+export type PipelineBatchOutcome = { id: string; ok: boolean; reason?: string };
+
+export async function postPipelineBatch(
+  items: PipelineBatchItem[]
+): Promise<{ ok: true; results: PipelineBatchOutcome[] } | { ok: false }> {
+  try {
+    const r = await fetch("/api/pipeline/batch", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ items }),
+    });
+    const d = (await r.json().catch(() => null)) as { results?: PipelineBatchOutcome[] } | null;
+    if (r.ok && Array.isArray(d?.results)) return { ok: true, results: d.results };
+    return { ok: false };
+  } catch {
+    return { ok: false };
+  }
+}
+
 export function useAddToPipeline(jobId: string, jobTitle: string, source?: string | null): AddToPipeline {
   const [added, setAdded] = useState<Set<string>>(() => new Set());
   const [adding, setAdding] = useState<Set<string>>(() => new Set());
