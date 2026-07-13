@@ -351,6 +351,45 @@ class OpenAIAdapterTest(unittest.TestCase):
         # 1000 in × $0.25/MTok + 1000 out × $2.00/MTok
         self.assertAlmostEqual(out.cost_usd, 0.00225)
 
+    def _complete_with_resp(self, resp) -> None:
+        provider = OpenAIProvider(model="gpt-5-mini", api_key="k")
+        fake_client = SimpleNamespace(
+            chat=SimpleNamespace(completions=SimpleNamespace(create=lambda **kw: resp))
+        )
+        with mock.patch.object(OpenAIProvider, "_make_client", return_value=fake_client):
+            provider.complete("hi")
+
+    def test_top_level_error_body_raises_not_metered(self) -> None:
+        # bug-ui-scan-2026-07-09 (#3): OpenRouter/OpenAI idiom — HTTP 200 whose body
+        # carries {"error": ...} and no usable choices. Pre-fix this coerced to
+        # text="" and the base metered it as a PAID success; now it raises.
+        resp = SimpleNamespace(
+            error={"message": "Provider returned error", "code": 502}, choices=[], usage=None
+        )
+        with self.assertRaises(LLMError) as ctx:
+            self._complete_with_resp(resp)
+        self.assertEqual(ctx.exception.subtype, "provider_error")
+
+    def test_empty_choices_raises(self) -> None:
+        # A 200 with no error object but an empty choices array is a failed proxied
+        # call, not an empty-prose answer — pre-fix it returned a text="" success.
+        resp = SimpleNamespace(choices=[], usage=None)
+        with self.assertRaises(LLMError) as ctx:
+            self._complete_with_resp(resp)
+        self.assertEqual(ctx.exception.subtype, "empty_choices")
+
+    def test_content_filter_finish_reason_raises(self) -> None:
+        # finish_reason=content_filter → no usable output; must surface as an error.
+        resp = SimpleNamespace(
+            choices=[
+                SimpleNamespace(message=SimpleNamespace(content=None), finish_reason="content_filter")
+            ],
+            usage=None,
+        )
+        with self.assertRaises(LLMError) as ctx:
+            self._complete_with_resp(resp)
+        self.assertEqual(ctx.exception.subtype, "content_filter")
+
     def test_available_false_without_key(self) -> None:
         provider = OpenAIProvider(model="gpt-5-mini")
         with mock.patch.dict(os.environ, {}, clear=False), mock.patch(

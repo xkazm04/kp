@@ -66,15 +66,20 @@ def _cell(records: list[dict[str, Any]]) -> dict[str, Any] | None:
     judged = [r for r in llm if r.get("judge_score") is not None]
     if not judged:
         return None
-    dims = {k: _med_dim(judged, k) for k in _DIMS}
-    if any(v is None for v in dims.values()):
-        return None  # a cell missing a whole dimension isn't safely comparable
     scores = [r["judge_score"] for r in judged]
+    # bug-ui-scan-2026-07-09 (llm-provider-layer-python #4): the overall judge_score
+    # parsed fine, so the model genuinely ran and was judged — keep the cell. A
+    # per-dimension median that is missing (the judge formatted that one dim
+    # non-numerically, e.g. "8/10"/"high") is imputed from the overall median rather
+    # than voiding the whole column, which used to make a real, working model look
+    # like it produced nothing on the committed model-selection scorecard.
+    score_med = round(median(scores), 1)
+    dims = {k: (m if (m := _med_dim(judged, k)) is not None else score_med) for k in _DIMS}
     valids = [bool(r.get("valid")) for r in llm]
     p50s = [int(r.get("wall_ms") or 0) for r in llm]
     return {
         **dims,
-        "score": round(median(scores), 1),
+        "score": score_med,
         "valid": (sum(valids) >= len(valids) / 2) if valids else False,
         "judges": len(judged),
         # Reliability over ALL attempts (errors + fallbacks in the denominator).
