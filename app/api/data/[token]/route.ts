@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { anonymizeEntry, findEntryByErasureToken, getJob } from "@/app/_lib/db";
+import { anonymizeEntry, findEntryByErasureToken, getJob, interviewStatusByEntries } from "@/app/_lib/db";
+import { heldDataCategories } from "@/app/_lib/data-held";
 import { jsonOk, safeJsonError } from "@/app/_lib/api-response";
 
 
@@ -14,12 +15,20 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ to
     const entry = findEntryByErasureToken(token);
     if (!entry) return NextResponse.json({ error: "not found" }, { status: 404 });
     const company = entry.jobId ? getJob(entry.jobId)?.company ?? null : null;
+    // #5 — project the "what we hold" list from what this entry ACTUALLY has, so we
+    // never claim to hold interview records / scores for a candidate who only applied.
+    const held = heldDataCategories({
+      hasContact: entry.contact != null,
+      hasInterview: interviewStatusByEntries([entry.id])[entry.id] != null,
+      hasScore: entry.matchScore != null,
+    });
     return jsonOk({
       jobTitle: entry.jobTitle ?? null,
       company,
       appliedAt: entry.createdAt ?? null,
       consentExpiresAt: entry.consentExpiresAt ?? null,
       anonymized: entry.anonymizedAt != null,
+      held,
     });
   } catch (error) {
     return safeJsonError(error, "api:data", "DATA_LOOKUP_FAILED");

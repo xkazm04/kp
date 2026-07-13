@@ -4,7 +4,7 @@ import { isTerminalEntryStatus, TERMINAL_ENTRY_STATUSES } from "../pipeline-stat
 import { normalizeApplicantName, normalizeContact } from "../apply-intake";
 import { chunk, SQL_IN_CHUNK } from "../entries-param";
 import { randomToken } from "../random-id";
-import { CONSENT_TTL_DAYS, consentExpiresAt, maskCandidateName, scrubPiiFromPayload } from "../consent";
+import { CONSENT_TTL_DAYS, consentExpiresAt, consentWithholdsPii, maskCandidateName, scrubPiiFromPayload } from "../consent";
 import { anonymizeProfile } from "./profiles";
 import { coerceGithubEvidenceSummary, type GithubEvidenceSummary } from "../github-summary";
 import { recordPipelineOutcome } from "../dev-outcomes";
@@ -1311,6 +1311,36 @@ export function getPipelineEntry(id: string, workspaceId: string = DEFAULT_WORKS
   const db = ensureDb();
   const row = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ? AND workspace_id = ?`).get(id, workspaceId) as PipelineRow | undefined;
   return row ? rowToEntry(row) : null;
+}
+
+/** Read-time consent gate for a candidate's saved-analysis PII (bug-ui-scan-2026-07-09
+ *  privacy-consent-provenance #3): does the pipeline entry linked to this candidate_label
+ *  currently WITHHOLD PII (consent expired, or already anonymized)? Matched on the
+ *  NORMALIZED label (LOWER(TRIM(...)), workspace-scoped) — the exact canonical linkage
+ *  anonymizeEntry uses to scrub analyses — so /api/analyses/[slug] can scrub the CV
+ *  payload SYNCHRONOUSLY in the window between consent-expiry and the deferred sweep,
+ *  rather than serving the full CV until the sweep happens to run. Withholds if ANY
+ *  linked entry withholds: the same GDPR-safe over-scrub direction finding #2 documents
+ *  for the exact-label same-tenant namesake collision (read-time hiding is non-destructive
+ *  and reversible, unlike an over-scrub write). No linked entry ⇒ false (a recruiter-
+ *  uploaded analysis carries no pipeline consent lifecycle to enforce). */
+export function candidateLabelWithholdsPii(
+  candidateLabel: string | null,
+  workspaceId: string = DEFAULT_WORKSPACE_ID,
+  nowMs: number = Date.now(),
+): boolean {
+  const labelKey = (candidateLabel ?? "").trim().toLowerCase();
+  if (!labelKey) return false;
+  const rows = ensureDb()
+    .prepare(
+      `SELECT consent_given_at, consent_expires_at, anonymized_at
+         FROM pipeline_entries WHERE LOWER(TRIM(candidate_label)) = ? AND workspace_id = ?`
+    )
+    .all(labelKey, workspaceId) as { consent_given_at: string | null; consent_expires_at: string | null; anonymized_at: string | null }[];
+  if (rows.length === 0) return false;
+  return rows.some((r) =>
+    consentWithholdsPii({ givenAt: r.consent_given_at, expiresAt: r.consent_expires_at, anonymizedAt: r.anonymized_at }, nowMs)
+  );
 }
 
 /** The owning team of an entry — a by-id point read on a globally-unique PK. Lets a

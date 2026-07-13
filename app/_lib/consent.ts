@@ -61,6 +61,31 @@ export function consentStatus(snap: ConsentSnapshot, nowMs: number): ConsentStat
   return "active";
 }
 
+/** Read-time PII gate — the SYNCHRONOUS counterpart to the deferred expiry sweep
+ *  (anonymizeExpiredConsents). A consent that has EXPIRED, or an entry already
+ *  ANONYMIZED, must not surface PII at a read boundary regardless of whether the
+ *  periodic sweep has run yet: the sweep is an optimization, THIS is the control
+ *  (bug-ui-scan-2026-07-09 privacy-consent-provenance #3 — enforcement previously
+ *  lived only in the sweep, so an expired-consent candidate's CV/transcript stayed
+ *  fully served in the window before/without a sweep). Callers holding a snapshot
+ *  withhold or scrub PII when this returns true. */
+export function consentWithholdsPii(snap: ConsentSnapshot, nowMs: number = Date.now()): boolean {
+  const status = consentStatus(snap, nowMs);
+  return status === "expired" || status === "anonymized";
+}
+
+/** De-identify a transcript-bearing interview record for a read boundary when
+ *  consent withholds PII (bug-ui-scan-2026-07-09 privacy-consent-provenance #3):
+ *  drop the verbatim transcript + the free-text scorecard synthesis (both quote
+ *  the candidate's own words) and mask the label, while KEEPING the non-identifying
+ *  session metadata (status, timing, provider) so the modal still renders a state.
+ *  Pure + generic over the session shape; never mutates its input. */
+export function redactTranscriptForConsent<
+  T extends { transcript: unknown; scorecard: unknown; candidateLabel: string | null },
+>(session: T): T {
+  return { ...session, transcript: null, scorecard: null, candidateLabel: maskCandidateName(session.candidateLabel) };
+}
+
 /** Why a candidate may NOT receive unsolicited OUTREACH — the suppression gate the
  *  outreach/rediscovery path must consult before sending (CAN-SPAM/GDPR). Rediscovery
  *  re-contacts previously-rejected people, so an ANONYMIZED candidate (PII scrubbed,
