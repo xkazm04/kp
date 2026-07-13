@@ -2045,7 +2045,8 @@
       "telemetryHint": "Hint response",
       "hintIntegrated": "integrated into the answer",
       "hintAcknowledged": "acknowledged briefly",
-      "hintMissed": "not taken up"
+      "hintMissed": "not taken up",
+      "coverageCaveat": "Scored on a sampled transcript — the scorer read {kept} of {total} turns; the opening and closing were kept and the middle was omitted to fit the scoring budget. The full transcript is below."
     }
   },
   "library": {

@@ -49,8 +49,12 @@ export type VoiceInterviewProps = {
 // How long finalize() waits for a candidate utterance whose transcription is
 // still in flight when the call ends (idea-b70b8bd7). Whisper turnaround for a
 // short closing answer is well under this; past it we fall back to whatever
-// streamed into the delta buffer rather than hanging the "Ending…" state.
-const OAI_FINAL_TURN_GRACE_MS = 2000;
+// streamed into the delta buffer rather than hanging the "Ending…" state. Held
+// at 3s — the same bound as EL_DISCONNECT_GRACE_MS — so both provider paths give
+// the candidate's closing answer the same headroom to land before finalize
+// snapshots the transcript that feeds the scorecard (the rescue is still
+// single-finalize: finalizedRef latches before the wait).
+const OAI_FINAL_TURN_GRACE_MS = 3000;
 
 // How long end() waits for ElevenLabs onDisconnect to drive finalize() before
 // finalizing itself. The SDK delivers the candidate's final utterance via

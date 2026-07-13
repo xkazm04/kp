@@ -4,7 +4,7 @@ import { runAutomationTask } from "./automation-run";
 import { defaultInterviewerInstructions } from "./voice";
 import { getInterviewPrep } from "./interview-prep";
 import { runInterviewPrep, type ChronologyBlock } from "./interview-prep-run";
-import { buildScorecardNotes, transcriptToNotes } from "./interview-transcript";
+import { buildScorecardNotes, coverageFromNotes, transcriptToNotes } from "./interview-transcript";
 import { GROUNDED_DEFAULT_MIN, QUICK_SCREEN_MIN } from "./interview-duration.mjs";
 import { isEarlyCareer } from "./archetypes";
 import { isLocale, type Locale } from "@/i18n/locales";
@@ -279,8 +279,8 @@ export async function runInterviewScorecard(
   transcript: VoiceTurn[],
   workspaceId: string = DEFAULT_WORKSPACE_ID
 ): Promise<Record<string, unknown> | null> {
-  const { notes, truncated, droppedTurns, droppedChars, keptTurns, totalTurns } =
-    buildScorecardNotes(transcript);
+  const scNotes = buildScorecardNotes(transcript);
+  const { notes, truncated, droppedTurns, droppedChars, keptTurns, totalTurns } = scNotes;
   if (!notes) return null;
   // Make the silent-truncation cliff visible: only logs when sampling actually
   // discarded turns from the middle of the transcript (see ./interview-transcript).
@@ -311,6 +311,14 @@ export async function runInterviewScorecard(
   } catch {
     /* telemetry is enrichment — a failure must not lose the scorecard */
   }
+  // Make the scoring-truncation cliff HONEST, not just logged: when head+tail
+  // sampling meant the scorer read less than the full stored transcript, persist
+  // structured coverage on the scorecard so the transcript modal can show a
+  // truthful caveat. Attached only when truncated (coverageFromNotes returns
+  // null otherwise), so a full-coverage score carries no coverage object and the
+  // UI shows nothing — zero behavior change on the complete-transcript path.
+  const coverage = coverageFromNotes(scNotes);
+  if (coverage) (result as Record<string, unknown>).coverage = coverage;
   // Case-grounded interviews can mint observed evidence (step 4 of the case-first
   // design): when the conversation worked the role's shared case AND cleared the
   // honest gates, the candidate's profile gains observed-provenance skills — their

@@ -27,6 +27,7 @@ import {
   clampTurn,
   transcriptToNotes,
   buildScorecardNotes,
+  coverageFromNotes,
 } from "./interview-transcript.ts";
 
 const turn = (role: VoiceTurn["role"], text: string, at?: string): VoiceTurn => ({
@@ -193,4 +194,32 @@ test("an empty transcript yields empty, untruncated notes", () => {
   assert.equal(r.truncated, false);
   assert.equal(r.totalTurns, 0);
   assert.equal(r.keptTurns, 0);
+});
+
+// ---------------------------------------------------------------------------
+// coverageFromNotes — the honest "the scorer read less than the whole
+// transcript" record persisted on the scorecard (Direction 2).
+// ---------------------------------------------------------------------------
+
+test("coverageFromNotes is null when the scorer read the whole transcript", () => {
+  const r = buildScorecardNotes([turn("interviewer", "Hi"), turn("candidate", "Hello")]);
+  assert.equal(r.truncated, false);
+  assert.equal(coverageFromNotes(r), null); // no coverage object == full coverage
+});
+
+test("coverageFromNotes mirrors the sampling metadata and a 0..1 ratio when truncated", () => {
+  const big = Array.from({ length: 40 }, (_, i) =>
+    turn(i === 0 ? "interviewer" : i === 39 ? "candidate" : "interviewer", `Turn ${i} ${"w".repeat(300)}`),
+  );
+  const r = buildScorecardNotes(big);
+  assert.equal(r.truncated, true);
+  const cov = coverageFromNotes(r);
+  assert.ok(cov, "coverage present when truncated");
+  assert.equal(cov.version, 1);
+  assert.equal(cov.keptTurns, r.keptTurns);
+  assert.equal(cov.totalTurns, r.totalTurns);
+  assert.equal(cov.droppedTurns, r.droppedTurns);
+  assert.equal(cov.droppedChars, r.droppedChars);
+  assert.ok(cov.coverageRatio > 0 && cov.coverageRatio < 1, "ratio is a real fraction");
+  assert.equal(cov.coverageRatio, Math.round((r.keptTurns / r.totalTurns) * 100) / 100);
 });

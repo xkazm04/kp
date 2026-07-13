@@ -11,6 +11,7 @@ import { RATING_MAX, ratingToPercent, ratingTone } from "@/app/_lib/format";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
 import type { Scorecard, ScorecardRating } from "@/app/_lib/interview-scorecard";
 import type { InterviewTelemetry } from "@/app/_lib/interview-telemetry";
+import type { ScorecardCoverage } from "@/app/_lib/interview-transcript";
 import { talkSharePercent, formatSpokenDuration } from "@/app/_lib/voice/telemetry-format";
 import type { VoiceTurn } from "@/app/_lib/voice/types";
 import type { SchedEntry } from "./ScheduleTypes";
@@ -206,10 +207,11 @@ export function InterviewTranscriptModal({ entry, onClose }: { entry: SchedEntry
 
   const sc = session?.scorecard ?? null;
   const transcript = session?.transcript ?? [];
-  // Telemetry rides the AI scorecard object at runtime (see interview-run.ts) but
-  // isn't in the pure Scorecard type — read it through a narrow guard so absence
-  // degrades to nothing rather than empty chrome.
+  // Telemetry + scoring-coverage ride the AI scorecard object at runtime (see
+  // interview-run.ts) but aren't in the pure Scorecard type — read them through a
+  // narrow guard so absence degrades to nothing rather than empty chrome.
   const telemetry = (sc as { telemetry?: InterviewTelemetry } | null)?.telemetry ?? null;
+  const coverage = (sc as { coverage?: ScorecardCoverage } | null)?.coverage ?? null;
 
   // The transcript turn each rating's evidence quote came from (VOX3) + which turn
   // is currently highlighted by a click. Memoized on the loaded session so the
@@ -266,6 +268,13 @@ export function InterviewTranscriptModal({ entry, onClose }: { entry: SchedEntry
                 <p className="text-meta uppercase tracking-wide text-steel">{t("aiScorecard")}</p>
                 {sc.recommendation ? <InterviewRecommendationBadge rec={sc.recommendation} /> : null}
               </div>
+              {/* Honest coverage caveat — shown only when head+tail sampling meant the
+                  scorer read less than the full transcript; nothing when complete. */}
+              {coverage ? (
+                <p className="mt-2 rounded-md bg-dial-amber/15 px-2.5 py-1.5 text-sm text-ink">
+                  {t("coverageCaveat", { kept: coverage.keptTurns, total: coverage.totalTurns })}
+                </p>
+              ) : null}
               {sc.summary ? <p className="mt-1.5 text-base text-ink">{sc.summary}</p> : null}
               {sc.ratings && sc.ratings.length ? (
                 <ul className="mt-2.5 space-y-2.5">

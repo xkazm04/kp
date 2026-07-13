@@ -2074,7 +2074,8 @@
       "telemetryHint": "Reaktion auf den Hinweis",
       "hintIntegrated": "in die Antwort eingebaut",
       "hintAcknowledged": "kurz aufgegriffen",
-      "hintMissed": "nicht aufgegriffen"
+      "hintMissed": "nicht aufgegriffen",
+      "coverageCaveat": "Auf einem Auszug des Transkripts bewertet — das Modell las {kept} von {total} Redebeiträgen; Anfang und Ende blieben erhalten, die Mitte wurde wegen des Bewertungsbudgets weggelassen. Das vollständige Transkript steht unten."
     }
   },
   "library": {

@@ -126,6 +126,41 @@ export type ScorecardNotes = {
   totalTurns: number;
 };
 
+/** Structured record of how much of the STORED transcript the scorer actually
+ *  read — persisted on the scorecard (interview-run.ts) so a recruiter can tell a
+ *  full-transcript score from a head+tail-sampled one. Only produced when
+ *  sampling dropped turns; a complete score carries NO coverage object, so its
+ *  absence is the honest "the scorer read everything" signal. */
+export type ScorecardCoverage = {
+  version: 1;
+  /** Turns the scorer read (opening + closing kept). */
+  keptTurns: number;
+  /** Turns in the stored transcript. */
+  totalTurns: number;
+  /** Whole turns dropped from the middle to fit the scoring budget. */
+  droppedTurns: number;
+  /** Characters dropped from the joined transcript. */
+  droppedChars: number;
+  /** keptTurns / totalTurns, 0..1 (2-dp) — the coverage ratio. */
+  coverageRatio: number;
+};
+
+/** Derive the coverage record from a ScorecardNotes result, or null when the
+ *  scorer read the whole transcript. Kept beside buildScorecardNotes so the
+ *  recorded ratio is computed from the SAME numbers the sampling produced and
+ *  can't drift from what was actually scored. */
+export function coverageFromNotes(n: ScorecardNotes): ScorecardCoverage | null {
+  if (!n.truncated) return null;
+  return {
+    version: 1,
+    keptTurns: n.keptTurns,
+    totalTurns: n.totalTurns,
+    droppedTurns: n.droppedTurns,
+    droppedChars: n.droppedChars,
+    coverageRatio: n.totalTurns > 0 ? Math.round((n.keptTurns / n.totalTurns) * 100) / 100 : 1,
+  };
+}
+
 function omittedMarker(droppedTurns: number, droppedChars: number): string {
   const turns = droppedTurns === 1 ? "turn" : "turns";
   return `[… ${droppedTurns} ${turns} / ${droppedChars} characters omitted from the middle of the transcript to fit the scoring budget; the opening and closing are kept verbatim …]`;

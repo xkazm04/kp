@@ -2045,7 +2045,8 @@
       "telemetryHint": "Reakce na nápovědu",
       "hintIntegrated": "zapracována do odpovědi",
       "hintAcknowledged": "krátce zmíněna",
-      "hintMissed": "nevyužita"
+      "hintMissed": "nevyužita",
+      "coverageCaveat": "Hodnoceno na vzorku přepisu — model přečetl {kept} z {total} replik; začátek a konec byly zachovány a prostřední část byla vynechána kvůli rozpočtu na hodnocení. Celý přepis je níže."
     }
   },
   "library": {

@@ -2074,7 +2074,8 @@
       "telemetryHint": "Réaction à l'indice",
       "hintIntegrated": "intégré à la réponse",
       "hintAcknowledged": "brièvement évoqué",
-      "hintMissed": "non repris"
+      "hintMissed": "non repris",
+      "coverageCaveat": "Noté sur un extrait de la transcription — le modèle a lu {kept} tours sur {total} ; le début et la fin ont été conservés et le milieu a été omis pour respecter le budget de notation. La transcription complète est ci-dessous."
     }
   },
   "library": {
