@@ -4,6 +4,7 @@ import path from "node:path";
 import {
   cleanupWorkdir,
   createWorkdir,
+  parsePythonJson,
   parseStderrError,
   spawnPython,
 } from "@/app/_lib/python-runner";
@@ -51,7 +52,14 @@ export async function POST(request: NextRequest) {
       const err = parseStderrError(stderr, exitCode);
       return NextResponse.json({ error: err.message }, { status: err.status });
     }
-    return NextResponse.json(JSON.parse(stdout));
+    // bug-ui-scan-2026-07-09 (candidate-profile-job-matching #3): parse via
+    // parsePythonJson, not a bare parse of the child's stdout. This route drives an
+    // LLM (Gemini) — the path most prone to interpreter teardown chatter ("Event loop
+    // is closed", a ResourceWarning) printed on stdout AFTER the result JSON line. A
+    // bare parse chokes on that trailing noise and 500s a successful (paid) draft;
+    // scanning from the end for the last JSON object matches every sibling CLI seam
+    // (profile/route.ts, match/route.ts, reasoning-run.ts).
+    return NextResponse.json(parsePythonJson<Record<string, unknown>>(stdout, stderr));
   } catch (error) {
     const message = error instanceof Error ? error.message : "AI draft failed.";
     return NextResponse.json({ error: message }, { status: 500 });

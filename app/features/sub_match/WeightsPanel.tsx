@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { RotateCcw, SlidersHorizontal } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { isEarlyCareer, type WeightVector } from "./MatchTypes";
+import { isEarlyCareer, syncDraftToWeights, weightsDirty, type WeightVector } from "./MatchTypes";
 
 const DIMS = ["skills", "career", "personal"] as const;
 type Dim = (typeof DIMS)[number];
@@ -43,16 +43,26 @@ export function WeightsPanel({
   const dimKeys = dimKeysFor(archetype);
   const dimLabel = (d: Dim) => t(`dims.${dimKeys[d]}` as Parameters<typeof t>[0]);
 
+  // bug-ui-scan-2026-07-09 (candidate-profile-job-matching #5): re-anchor the draft
+  // sliders whenever the applied `weights` prop changes. After an "Apply re-rank" the
+  // server renormalizes to sum-100 and the parent re-seeds `weights` from the response
+  // (e.g. 60/20/20 -> 45/33/22); without this the sliders + labels kept showing the
+  // stale pre-normalization draft and `dirty` stayed true, leaving the button falsely
+  // enabled and the numbers disagreeing with the ranking beneath them.
+  useEffect(() => {
+    setDraft(syncDraftToWeights(weights));
+  }, [weights]);
+
   // Did the recruiter move anything off the in-effect vector? (rounded — the
   // sliders step in whole percent.)
-  const dirty = DIMS.some((d) => Math.round(draft[d] * 100) !== Math.round(weights[d] * 100));
+  const dirty = weightsDirty(draft, weights);
 
   if (!open) {
     return (
       <button
         type="button"
         onClick={() => {
-          setDraft(weights); // seed from the values actually in effect
+          setDraft(syncDraftToWeights(weights)); // seed from the values actually in effect
           setOpen(true);
         }}
         className="focus-ring mt-3 inline-flex items-center gap-1.5 rounded-md border border-stone-200 bg-white px-3 py-1.5 text-sm font-semibold text-ink hover:border-coral/40"

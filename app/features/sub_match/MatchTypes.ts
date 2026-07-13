@@ -85,6 +85,29 @@ export type KoReason = { key: string; label: string; count: number };
 // Python scorer (`_DIMENSION_KEYS`); labels are archetype-aware in the UI.
 export type WeightVector = { skills: number; career: number; personal: number };
 
+export const WEIGHT_DIMS = ["skills", "career", "personal"] as const;
+
+// bug-ui-scan-2026-07-09 (candidate-profile-job-matching #5): the two pure rules the
+// WeightsPanel's slider state depends on, extracted so they're unit-tested (a .tsx
+// can't be loaded by node --test).
+//
+// `weightsDirty` — did the recruiter move a slider off the in-effect vector? Compared
+// in WHOLE percent (the sliders step in 1%), so sub-percent float jitter from the
+// server's renormalization never falsely marks the panel dirty. Drives the "Apply
+// re-rank" enabled state.
+export function weightsDirty(draft: WeightVector, weights: WeightVector): boolean {
+  return WEIGHT_DIMS.some((d) => Math.round(draft[d] * 100) !== Math.round(weights[d] * 100));
+}
+
+// `syncDraftToWeights` — the vector the panel must re-anchor its draft sliders to after
+// each apply: the server-renormalized `weights` actually in effect, NEVER the recruiter's
+// pre-normalization drag. Returns a FRESH object so a setState always re-renders and the
+// panel never shares the prop's reference. Pre-fix the draft was never re-synced, so the
+// sliders + `{n}%` labels disagreed with the ranking and the button stayed falsely enabled.
+export function syncDraftToWeights(weights: WeightVector): WeightVector {
+  return { skills: weights.skills, career: weights.career, personal: weights.personal };
+}
+
 export type MatchResponse = {
   candidate: {
     label?: string;
