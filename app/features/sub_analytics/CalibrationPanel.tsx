@@ -102,7 +102,7 @@ export function CalibrationPanel() {
   // a score that never gates pipeline decisions — stays available, labeled.
   const [source, setSource] = useState<"pipeline" | "analysis">("pipeline");
   const url = `/api/analytics/calibration?source=${source}${family ? `&roleFamily=${encodeURIComponent(family)}` : ""}`;
-  const { data, error } = useJsonFetch<CalibrationResult & { families?: string[]; measures?: string }>(url);
+  const { data, error, reload } = useJsonFetch<CalibrationResult & { families?: string[]; measures?: string }>(url);
   const families = data?.families ?? [];
 
   return (
@@ -145,9 +145,19 @@ export function CalibrationPanel() {
       </div>
 
       {error ? (
-        <p className="mt-4 text-sm text-stone-500" role="status">
-          {t("error")}
-        </p>
+        // bug-ui-scan-2026-07-09 (analytics-calibration-dashboards #4): a transient fetch
+        // failure is recoverable — offer the same retry the sibling panels use, and
+        // announce it assertively (role="alert", not the polite role="status").
+        <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-stone-500" role="alert">
+          <span>{t("error")}</span>
+          <button
+            type="button"
+            onClick={reload}
+            className="focus-ring inline-flex h-8 items-center rounded-md border border-stone-200 px-3 text-sm font-semibold text-ink hover:border-coral/40"
+          >
+            {t("retry")}
+          </button>
+        </div>
       ) : !data ? (
         <p className="mt-4 text-sm text-stone-400" role="status">
           {t("loading")}

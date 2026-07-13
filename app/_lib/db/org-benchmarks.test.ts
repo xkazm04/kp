@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { cleanupUnitDb } from "../testing/unit-db.ts";
 import { ensureDb } from "./core.ts";
 import { createPipelineEntry } from "./pipeline.ts";
-import { orgHiringBenchmark, teamHiringStats, BENCHMARK_MIN_TEAMS } from "./org-benchmarks.ts";
+import { orgHiringBenchmark, teamHiringStats, teamBenchmark, BENCHMARK_MIN_TEAMS } from "./org-benchmarks.ts";
 
 after(() => cleanupUnitDb());
 
@@ -47,6 +47,38 @@ test("below the k-anonymity floor the rates are WITHHELD (only the team count is
   assert.equal(org.interviewRatePct, 0, "rates withheld below the floor");
   assert.equal(org.hireRatePct, 0);
   assert.equal(org.medianTimeToHireDays, null);
+});
+
+test("the benchmark a team sees EXCLUDES its own workspace — a 2-team org can't back out the lone peer (bug-ui-scan-2026-07-09 #3)", () => {
+  makeTeam("org-pair", "org-pair-a"); // the caller
+  makeTeam("org-pair", "org-pair-b"); // the single peer
+  addEntries("org-pair-a", TEN);
+  addEntries("org-pair-b", TEN);
+
+  // The raw org-wide aggregate (self INCLUDED) clears the floor and — paired with the
+  // caller's OWN known stats — would expose the single peer. This is the vulnerability.
+  assert.equal(orgHiringBenchmark("org-pair").available, true, "a self-included aggregate would leak the lone peer");
+
+  // What the route serves now: self excluded ⇒ only 1 OTHER team ⇒ withheld.
+  const { org, team } = teamBenchmark("org-pair-a");
+  assert.equal(org.available, false, "a lone peer's rates must stay withheld");
+  assert.equal(org.contributingTeams, 1, "the caller's own team is NOT counted toward the org aggregate");
+  assert.equal(org.interviewRatePct, 0, "rates withheld below the floor");
+  assert.equal(team.totalEntries, 10, "the team's OWN stats are still returned alongside");
+});
+
+test("with ≥2 OTHER teams the peer benchmark is available and never counts the caller (bug-ui-scan-2026-07-09 #3)", () => {
+  makeTeam("org-trio", "org-trio-a"); // the caller
+  makeTeam("org-trio", "org-trio-b");
+  makeTeam("org-trio", "org-trio-c");
+  addEntries("org-trio-a", TEN);
+  addEntries("org-trio-b", TEN);
+  addEntries("org-trio-c", TEN);
+
+  const { org } = teamBenchmark("org-trio-a");
+  assert.equal(org.available, true, "2 peer teams (20 entries) clear the k-anon floor");
+  assert.equal(org.contributingTeams, 2, "only the 2 OTHER teams contribute — the caller is excluded");
+  assert.equal(org.totalEntries, 20, "aggregates the 2 peers, not the caller's own 10");
 });
 
 test("the benchmark is AGGREGATE-ONLY — it returns no raw row, candidate, or team identity", () => {

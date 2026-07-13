@@ -23,7 +23,7 @@ function fmtTime(iso: string): string {
 export function DecisionRecordsPanel() {
   const t = useTranslations("analytics.decisionRecords");
   const tReasons = useTranslations("decisions.wave");
-  const { data, error } = useJsonFetch<Payload>("/api/decisions/records");
+  const { data, error, reload } = useJsonFetch<Payload>("/api/decisions/records");
 
   // Localized rationale (UAT E): the sealed `rationale` is byte-stable English (it's
   // hashed — never touch it), but a Czech auditor shouldn't have to read English.
@@ -81,9 +81,18 @@ export function DecisionRecordsPanel() {
       </div>
 
       {error ? (
-        <p className="mt-4 text-sm text-stone-500" role="status">
-          {t("error")}
-        </p>
+        // bug-ui-scan-2026-07-09 (analytics-calibration-dashboards #4): recover from a
+        // transient failure with the shared retry, announced assertively (role="alert").
+        <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-stone-500" role="alert">
+          <span>{t("error")}</span>
+          <button
+            type="button"
+            onClick={reload}
+            className="focus-ring inline-flex h-8 items-center rounded-md border border-stone-200 px-3 text-sm font-semibold text-ink hover:border-coral/40"
+          >
+            {t("retry")}
+          </button>
+        </div>
       ) : !data ? (
         <p className="mt-4 text-sm text-stone-400" role="status">
           {t("loading")}

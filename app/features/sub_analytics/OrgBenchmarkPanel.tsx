@@ -53,7 +53,31 @@ function Metric({
 
 export function OrgBenchmarkPanel() {
   const t = useTranslations("analytics.orgBenchmark");
-  const { data } = useJsonFetch<{ team: Stats; org: OrgBench }>("/api/benchmarks", t("loadFailed"));
+  const { data, error, reload } = useJsonFetch<{ team: Stats; org: OrgBench }>("/api/benchmarks", t("loadFailed"));
+  // bug-ui-scan-2026-07-09 (analytics-calibration-dashboards #5): a fetch FAILURE used to
+  // be indistinguishable from "still loading" and from the by-design locked state — the
+  // panel just vanished (if (!data) return null). Surface the error explicitly, with a
+  // retry, so the three states are separable and a transient 500 is recoverable.
+  if (error) {
+    return (
+      <section className={`${PANEL} p-5`}>
+        <div className="flex items-center gap-2">
+          <Building2 size={16} className="text-steel" />
+          <h3 className="text-sm font-semibold uppercase tracking-wide text-steel">{t("title")}</h3>
+        </div>
+        <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-steel" role="alert">
+          <span>{error}</span>
+          <button
+            type="button"
+            onClick={reload}
+            className="focus-ring inline-flex h-8 items-center rounded-md border border-stone-300 bg-white px-3 text-sm font-medium text-ink hover:bg-paper"
+          >
+            {t("retry")}
+          </button>
+        </div>
+      </section>
+    );
+  }
   // Secondary panel — stay silent (render nothing) until the payload lands, rather than
   // flashing a skeleton the way the primary funnel does.
   if (!data) return null;

@@ -104,3 +104,23 @@ export function orgHiringBenchmark(orgId: string, opts?: { excludeWorkspaceId?: 
   }
   return { ...stats, available: true, contributingTeams };
 }
+
+export type TeamBenchmarkResponse = { team: HiringStats; org: OrgHiringBenchmark };
+
+/** The /api/benchmarks payload for ONE calling team: its own hiring stats plus the
+ *  org AGGREGATE. The aggregate is computed with the caller's OWN workspace EXCLUDED
+ *  (the "vs peers" mode) so the k-anonymity floor (BENCHMARK_MIN_TEAMS) counts only
+ *  OTHER teams. bug-ui-scan-2026-07-09 (analytics-calibration-dashboards #3): with the
+ *  caller included, a 2-team org (caller + one peer) let the caller subtract its OWN
+ *  known stats from the "org" aggregate and back out the lone peer's figures — a
+ *  de-anonymization the module's invariant forbids. Excluding self means "the org" a
+ *  team sees is always ≥ BENCHMARK_MIN_TEAMS UNKNOWN teams, and the comparison is no
+ *  longer diluted by the team measuring itself against itself. */
+export function teamBenchmark(workspaceId: string = DEFAULT_WORKSPACE_ID): TeamBenchmarkResponse {
+  const team = teamHiringStats(workspaceId);
+  const orgId = orgIdForWorkspace(workspaceId);
+  const org: OrgHiringBenchmark = orgId
+    ? orgHiringBenchmark(orgId, { excludeWorkspaceId: workspaceId })
+    : { available: false, contributingTeams: 0, totalEntries: 0, interviewRatePct: 0, hireRatePct: 0, medianTimeToHireDays: null };
+  return { team, org };
+}
