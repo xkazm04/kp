@@ -10,6 +10,7 @@ import {
   duePreboardingReminders,
   ensureDefaultTemplate,
   getRunDetail,
+  listRuns,
   listTemplates,
   markPreboardingReminded,
   markSigned,
@@ -105,11 +106,49 @@ test("the e-sign seam: request → signed once, with signer recorded; unknown id
   assert.equal(sig.status, "requested");
   assert.equal(sig.document, "Employment contract");
 
-  const signed = markSigned(sig.id, "New Hire")!;
+  const signed = markSigned(run.id, sig.id, "New Hire")!;
   assert.deepEqual(
     signed.signatures.map((s) => ({ status: s.status, signer: s.signer })),
     [{ status: "signed", signer: "New Hire" }]
   );
   assert.ok(signed.signatures[0].signedAt);
-  assert.equal(markSigned("obs-nope", "x"), null);
+  assert.equal(markSigned(run.id, "obs-nope", "x"), null);
+});
+
+// bug-ui-scan-2026-07-09 (candidate-onboarding-hand-off #4): a signature can only be
+// signed WITHIN its own run. A signatureId belonging to RUN_B, presented on RUN_A's
+// URL, must not sign RUN_B's document nor swap RUN_A's on-screen detail to RUN_B.
+test("markSigned refuses a signature that belongs to a different run (object-level ownership)", () => {
+  const runA = startRun({ entryId: "ob-sign-A", candidateLabel: "Alice", jobTitle: "Eng" });
+  const runB = startRun({ entryId: "ob-sign-B", candidateLabel: "Bob", jobTitle: "PM" });
+  const sigB = requestSignature(runB.id, "Bob's contract")!.signatures[0];
+
+  // Signing RUN_B's signature via RUN_A's id is rejected (404 → null) …
+  assert.equal(markSigned(runA.id, sigB.id, "Mallory"), null, "cross-run sign must be refused");
+  // … and RUN_B's signature is untouched (still 'requested', no signer/stamp) —
+  // this assertion FAILS against pre-fix code, which would have signed sigB.
+  const stillRequested = getRunDetail(runB.id)!.signatures[0];
+  assert.equal(stillRequested.status, "requested");
+  assert.equal(stillRequested.signer, null);
+  assert.equal(stillRequested.signedAt, null);
+
+  // The correct run signs it and returns RUN_B's own detail.
+  const ok = markSigned(runB.id, sigB.id, "New Hire")!;
+  assert.equal(ok.run.id, runB.id);
+  assert.equal(ok.signatures[0].status, "signed");
+});
+
+// bug-ui-scan-2026-07-09 (candidate-onboarding-hand-off #3): the run table enforces
+// one run per entry (UNIQUE entry_id). startRun's get-or-create must therefore be
+// conflict-tolerant: a second provisioning for the same entry returns the existing run
+// (never a duplicate, never a UNIQUE crash), which is the atomic upsert the fix makes.
+test("startRun is conflict-tolerant — one run per entry, a re-provision returns the winner", () => {
+  const winner = startRun({ entryId: "ob-race", candidateLabel: "Winner", jobTitle: "Eng" });
+  // A concurrent second start for the same entry yields the SAME row, not a duplicate.
+  const loser = startRun({ entryId: "ob-race", candidateLabel: "Loser", jobTitle: "Other" });
+  assert.equal(loser.id, winner.id, "re-provisioning returns the single surviving run");
+  assert.equal(loser.candidateLabel, "Winner", "the winner's row is returned, not a new one");
+  // Exactly one row exists for the entry — the UNIQUE(entry_id) invariant holds.
+  const runs = listRuns().filter((r) => r.entryId === "ob-race");
+  assert.equal(runs.length, 1, "never two runs for one entry");
 });

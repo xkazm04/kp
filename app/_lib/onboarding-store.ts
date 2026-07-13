@@ -236,11 +236,19 @@ export function startRun(input: {
     /* pipeline_entries absent on this connection — keep the default workspace */
   }
   const templateId = input.templateId || ensureDefaultTemplate(workspaceId);
+  // Atomic get-or-create (bug-ui-scan-2026-07-09 candidate-onboarding-hand-off #3):
+  // the SELECT-miss above and this INSERT are not one atomic step, so a concurrent
+  // recruiter Start + candidate link-open can BOTH miss and both INSERT — the loser
+  // then violates UNIQUE(entry_id) and surfaces as a spurious 500 ONBOARDING_FAILED on
+  // the common near-simultaneous path, even though the run in fact exists. ON CONFLICT
+  // DO NOTHING makes the loser a no-op; we then re-read by entry_id (NOT by our own id,
+  // which may have lost) so both callers return the single surviving winner row.
   d.prepare(
     `INSERT INTO onboarding_runs (id, entry_id, template_id, candidate_label, job_title, status, started_at, workspace_id)
-     VALUES (?, ?, ?, ?, ?, 'active', ?, ?)`
+     VALUES (?, ?, ?, ?, ?, 'active', ?, ?)
+     ON CONFLICT(entry_id) DO NOTHING`
   ).run(id, input.entryId, templateId, input.candidateLabel ?? null, input.jobTitle ?? null, new Date().toISOString(), workspaceId);
-  const row = d.prepare(`SELECT * FROM onboarding_runs WHERE id = ?`).get(id) as Record<string, unknown>;
+  const row = d.prepare(`SELECT * FROM onboarding_runs WHERE entry_id = ?`).get(input.entryId) as Record<string, unknown>;
   return rowToRun(row);
 }
 
@@ -472,17 +480,27 @@ export function requestSignature(runId: string, document: string): OnboardingRun
 }
 
 /** Mark a requested signature as signed (provider seam — a real eIDAS callback
- *  would land here with the verified signer + timestamp). Audit-stamped. */
-export function markSigned(signatureId: string, signer: string): OnboardingRunDetail | null {
+ *  would land here with the verified signer + timestamp). Audit-stamped.
+ *
+ *  Object-level ownership (bug-ui-scan-2026-07-09 candidate-onboarding-hand-off #4):
+ *  the signature is resolved ONLY WITHIN its own run. The `sign` action carries the run
+ *  id in the URL, but this used to look the signature up by its global id alone and
+ *  return THAT signature's run detail — so a mismatched signatureId (one belonging to
+ *  RUN_B) signed RUN_B's document and returned RUN_B's detail, which the client stored
+ *  as RUN_A's, silently swapping the recruiter's on-screen run to another candidate.
+ *  Now BOTH ids must match; a signature that does not belong to `runId` (or does not
+ *  exist) returns null → 404, and the run detail returned is always `runId`'s own. */
+export function markSigned(runId: string, signatureId: string, signer: string): OnboardingRunDetail | null {
   const d = db();
-  const row = d.prepare(`SELECT run_id FROM onboarding_signatures WHERE id = ?`).get(signatureId) as
-    | { run_id: string }
+  const row = d.prepare(`SELECT id FROM onboarding_signatures WHERE id = ? AND run_id = ?`).get(signatureId, runId) as
+    | { id: string }
     | undefined;
   if (!row) return null;
-  d.prepare(`UPDATE onboarding_signatures SET status = 'signed', signer = ?, signed_at = ? WHERE id = ? AND status = 'requested'`).run(
+  d.prepare(`UPDATE onboarding_signatures SET status = 'signed', signer = ?, signed_at = ? WHERE id = ? AND run_id = ? AND status = 'requested'`).run(
     signer.trim().slice(0, 120) || "Signed",
     new Date().toISOString(),
-    signatureId
+    signatureId,
+    runId
   );
-  return getRunDetail(row.run_id);
+  return getRunDetail(runId);
 }
