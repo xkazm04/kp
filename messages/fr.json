@@ -1,4 +1,37 @@
 {
+  "diagrams": {
+    "eyebrow": "Architecture",
+    "title": "Diagrammes du système",
+    "intro": "Les sources PlantUML dans <path></path>, rendues en direct par notre propre moteur — même syntaxe de diagramme de composants, notre style. Les éléments <moss>teintés</moss> sont nouveaux en v2 (<tag></tag>) ; les flèches en pointillés sont des liens optionnels ou asynchrones.",
+    "readError": "Impossible de lire {file}.",
+    "legend": {
+      "live": "en direct / automatisé",
+      "gate": "point de contrôle humain (conservé à dessein)",
+      "gap": "écart restant (affiché dans une étape)"
+    },
+    "explorer": {
+      "instruction": "Cliquez sur une étape pour voir comment elle est câblée — l'étape ouverte reste encadrée ici à gauche."
+    },
+    "status": {
+      "live": "Automatisé",
+      "gate": "Point de contrôle humain",
+      "gap": "À construire"
+    },
+    "items": {
+      "tobe": {
+        "label": "pipeline en direct — JD → embauche",
+        "blurb": "Le pipeline de bout en bout, de la rédaction d'une description de poste jusqu'au candidat embauché, chaque étape câblée étant regroupée sous sa phase de simulation (Design JD · Source · Intake · Screen · Interview · Offer · Hired). Les cinq directions sont câblées — cliquez sur une étape pour ouvrir son implémentation réelle : quel module d'UI appelle quelle fonction, sur quelles tables de données."
+      },
+      "v1": {
+        "label": "v1 — analyse de CV d'origine",
+        "blurb": "Là où tout a commencé : un CV → au plus un JD → un seul appel à Gemini."
+      },
+      "v2": {
+        "label": "v2 — plateforme de matching (désormais construite)",
+        "blurb": "La plateforme de matching qui propulse désormais l'application : ingestion d'annonces, routage d'archétypes, le moteur de matching KO→score (déterministe, raisonnement via Claude CLI) et le graphe de taxonomie. Le pont sémantique/embedding est encore prévu."
+      }
+    }
+  },
   "meta": {
     "title": "KP — Adéquation au poste et estimation salariale",
     "description": "Pipeline assisté par AI pour évaluer le niveau de séniorité d'un CV et estimer les salaires sur le marché tchèque."
@@ -1544,6 +1577,11 @@
       "hired": "Recruté 🎉",
       "starting": "Démarrage…",
       "goToPhase": "Aller à {label}",
+      "phasesLabel": "Phases du pipeline",
+      "phaseStep": "{label} — {state}",
+      "phaseCompleted": "terminé",
+      "phaseCurrent": "en cours",
+      "phaseUpcoming": "à venir",
       "aiScreen": "Présélection AI",
       "screening": "Présélection…",
       "automationPass": "Passe d'automatisation",
@@ -2984,7 +3022,10 @@
     "axesLabel": "Axes de capacité",
     "methodology": "Évalué sur des capacités durables (cadrage du problème, aisance avec les outils, jugement, architecture, transfert) à partir d'un travail réalisé avec l'AI autorisée.",
     "methodologyLink": "Comment cela est mesuré",
-    "version": "Standard {version}"
+    "version": "Standard {version}",
+    "stale": "Vérifié — attestation ancienne",
+    "staleAge": "Authentique et non modifié, mais émis le {issued} selon la norme {version}. Demandez au candidat une évaluation à jour si la récence importe.",
+    "staleMethodology": "Authentique et non modifié, mais évalué selon la norme {version} (émis le {issued}), désormais remplacée. Demandez une évaluation selon la norme actuelle."
   },
   "devApply": {
     "workSurface": {
@@ -3032,6 +3073,7 @@
       "title": "Comparatif de l'entreprise",
       "subtitle": "Comment votre équipe se situe par rapport à l'ensemble de l'entreprise (agrégat anonymisé).",
       "loadFailed": "Impossible de charger le comparatif.",
+      "retry": "Réessayer",
       "locked": "Se débloque lorsque davantage d'équipes seront actives — {teams} y contribuent pour l'instant.",
       "interviewRate": "Taux d'entretien",
       "hireRate": "Taux de recrutement",
@@ -3113,6 +3155,7 @@
       "familyLabel": "Famille de postes",
       "familyAll": "Tous les postes",
       "error": "Impossible de charger le calibrage pour le moment.",
+      "retry": "Réessayer",
       "uncalibratedTitle": "Pas encore calibré",
       "uncalibratedBody": "Le calibrage nécessite au moins {min} candidats traités (avancés ou écartés). Pour l'instant : {n}.",
       "axisPredicted": "Prédit",
@@ -3129,6 +3172,7 @@
       "blurb": "Chaque rejet automatique est scellé dans une chaîne de hachage inviolable — les données vues, la version de la politique, la justification. Exportez le registre d'un candidat pour une demande de droit à l'explication.",
       "loading": "Chargement…",
       "error": "Impossible de charger les registres de décision.",
+      "retry": "Réessayer",
       "empty": "Aucune décision scellée pour l'instant — lancez une vague de présélection et les rejets automatiques seront scellés ici.",
       "verified": "Inviolable — {count} registres scellés, chaîne vérifiée.",
       "broken": "Intégrité de la chaîne rompue à l'enregistrement #{seq} — un enregistrement scellé a été modifié ou supprimé.",
@@ -3448,6 +3492,7 @@
     "introDefault": "Chaque candidat évalué face à chaque poste ouvert. Couleur = force de la correspondance ; un anneau signale les candidats déjà dans le pipeline de ce poste. Cliquez sur une cellule pour ouvrir la correspondance complète.",
     "ofCount": "{shown} sur {total}",
     "countLine": "{cands} candidats × {positions} postes",
+    "unassessedHidden": "{count} non évalué(s) pour aucun poste affiché — désactivez le seuil d’adéquation pour les inclure.",
     "minFit": "Correspondance min",
     "coverageGap": "{uncovered} postes ouverts sur {total} n’ont aucune correspondance forte — à sourcer :",
     "off": "Désactivé",

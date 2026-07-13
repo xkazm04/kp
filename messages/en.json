@@ -1,4 +1,37 @@
 {
+  "diagrams": {
+    "eyebrow": "Architecture",
+    "title": "System diagrams",
+    "intro": "The PlantUML sources in <path></path> rendered live by our own renderer — same component-diagram syntax, our styling. The <moss>tinted</moss> elements are v2-new (<tag></tag>); dashed arrows are optional or asynchronous links.",
+    "readError": "Could not read {file}.",
+    "legend": {
+      "live": "live / automated",
+      "gate": "human gate (kept by design)",
+      "gap": "remaining gap (shown inside a step)"
+    },
+    "explorer": {
+      "instruction": "Click any step to see how it's wired — the open step stays outlined here on the left."
+    },
+    "status": {
+      "live": "Automated",
+      "gate": "Human gate",
+      "gap": "To build"
+    },
+    "items": {
+      "tobe": {
+        "label": "live pipeline — JD → hire",
+        "blurb": "The end-to-end pipeline from authoring a job description to a hired candidate, with each wired step grouped under its simulation phase (Design JD · Source · Intake · Screen · Interview · Offer · Hired). All five gap directions are wired — click any step to open its real implementation: which UI module calls which function, against which data tables."
+      },
+      "v1": {
+        "label": "v1 — original CV analysis",
+        "blurb": "Where it began: one CV → at most one JD → a single Gemini call."
+      },
+      "v2": {
+        "label": "v2 — matching platform (now built)",
+        "blurb": "The matching platform now powering the app: job-ad ingestion, archetype routing, the KO→score matching engine (deterministic, Claude-CLI reasoning), and the taxonomy graph. The embedding/semantic bridge is still planned."
+      }
+    }
+  },
   "meta": {
     "title": "KP Job Fit & Salary Estimator",
     "description": "AI-assisted CV seniority scoring and salary estimation pipeline for the Czech market."
@@ -1515,6 +1548,11 @@
       "hired": "Hired 🎉",
       "starting": "Starting…",
       "goToPhase": "Go to {label}",
+      "phasesLabel": "Pipeline phases",
+      "phaseStep": "{label} — {state}",
+      "phaseCompleted": "completed",
+      "phaseCurrent": "current",
+      "phaseUpcoming": "upcoming",
       "aiScreen": "AI screen",
       "screening": "Screening…",
       "automationPass": "Automation pass",
@@ -2920,7 +2958,10 @@
     "axesLabel": "Capability axes",
     "methodology": "Scored on durable capabilities (problem framing, tooling fluency, judgment, architecture, transfer) from an AI-allowed work sample.",
     "methodologyLink": "How this is measured",
-    "version": "Standard {version}"
+    "version": "Standard {version}",
+    "stale": "Verified — older attestation",
+    "staleAge": "Genuine and untampered, but issued {issued} under standard {version}. Ask the candidate for a current assessment if recency matters.",
+    "staleMethodology": "Genuine and untampered, but scored under standard {version} (issued {issued}), which has since been superseded. Ask the candidate for an assessment on the current standard."
   },
   "devApply": {
     "workSurface": {
@@ -2968,6 +3009,7 @@
       "title": "Company benchmark",
       "subtitle": "How your team compares to the whole company (anonymized aggregate).",
       "loadFailed": "Couldn't load the benchmark.",
+      "retry": "Retry",
       "locked": "Unlocks when more teams are active — {teams} contributing so far.",
       "interviewRate": "Interview rate",
       "hireRate": "Hire rate",
@@ -3049,6 +3091,7 @@
       "familyLabel": "Role family",
       "familyAll": "All roles",
       "error": "Couldn't load calibration right now.",
+      "retry": "Retry",
       "uncalibratedTitle": "Not yet calibrated",
       "uncalibratedBody": "Calibration needs at least {min} decided candidates (advanced or passed). So far: {n}.",
       "axisPredicted": "Predicted",
@@ -3065,6 +3108,7 @@
       "blurb": "Every auto-rejection is sealed into a tamper-evident hash chain — the inputs it saw, the policy version, the rationale. Export a candidate's record for a right-to-explanation request.",
       "loading": "Loading…",
       "error": "Couldn't load decision records.",
+      "retry": "Retry",
       "empty": "No sealed decisions yet — run a screening wave and auto-rejections will be sealed here.",
       "verified": "Tamper-evident — {count} sealed records, chain verified.",
       "broken": "Chain integrity broken at record #{seq} — a sealed record was altered or removed.",
@@ -3380,6 +3424,7 @@
     "introDefault": "Every candidate scored against every open position. Colour = match strength; a ring marks candidates already in that position's pipeline. Click any cell to open the full match.",
     "ofCount": "{shown} of {total}",
     "countLine": "{cands} candidates × {positions} positions",
+    "unassessedHidden": "{count} not scored for any shown role — clear the fit floor to include them.",
     "minFit": "Min fit",
     "coverageGap": "{uncovered} of {total} open roles have no strong fit — source for these:",
     "off": "Off",

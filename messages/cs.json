@@ -1,4 +1,37 @@
 {
+  "diagrams": {
+    "eyebrow": "Architektura",
+    "title": "Systémové diagramy",
+    "intro": "Zdroje PlantUML v <path></path> vykreslené naživo naším vlastním rendererem — stejná syntaxe komponentových diagramů, náš vzhled. <moss>Zabarvené</moss> prvky jsou nové ve v2 (<tag></tag>); čárkované šipky jsou volitelné nebo asynchronní vazby.",
+    "readError": "Nepodařilo se načíst {file}.",
+    "legend": {
+      "live": "živé / automatizované",
+      "gate": "lidská brána (záměrně ponechána)",
+      "gap": "zbývající mezera (zobrazena uvnitř kroku)"
+    },
+    "explorer": {
+      "instruction": "Klikněte na kterýkoli krok a uvidíte, jak je zapojen — otevřený krok zůstává zvýrazněn zde vlevo."
+    },
+    "status": {
+      "live": "Automatizováno",
+      "gate": "Lidská brána",
+      "gap": "K vytvoření"
+    },
+    "items": {
+      "tobe": {
+        "label": "živá pipeline — JD → nábor",
+        "blurb": "Kompletní pipeline od sepsání popisu pozice až po přijatého kandidáta; každý zapojený krok je seskupen pod svou simulační fází (Design JD · Source · Intake · Screen · Interview · Offer · Hired). Všech pět směrů je zapojeno — kliknutím na kterýkoli krok otevřete jeho skutečnou implementaci: který UI modul volá kterou funkci a nad kterými datovými tabulkami."
+      },
+      "v1": {
+        "label": "v1 — původní analýza CV",
+        "blurb": "Kde to začalo: jedno CV → nejvýše jedno JD → jediné volání Gemini."
+      },
+      "v2": {
+        "label": "v2 — párovací platforma (nyní hotová)",
+        "blurb": "Párovací platforma, která nyní pohání aplikaci: příjem inzerátů, směrování archetypů, párovací engine KO→skóre (deterministický, uvažování přes Claude CLI) a taxonomický graf. Sémantický/embedding most je stále plánován."
+      }
+    }
+  },
   "meta": {
     "title": "KP – hodnocení vhodnosti a odhad mzdy",
     "description": "Pipeline pro AI hodnocení seniority z CV a odhad mzdy pro český trh."
@@ -1515,6 +1548,11 @@
       "hired": "Přijat/a 🎉",
       "starting": "Spouštění…",
       "goToPhase": "Přejít na {label}",
+      "phasesLabel": "Fáze náboru",
+      "phaseStep": "{label} — {state}",
+      "phaseCompleted": "dokončeno",
+      "phaseCurrent": "aktuální",
+      "phaseUpcoming": "nadcházející",
       "aiScreen": "Prověřit AI",
       "screening": "Screening…",
       "automationPass": "Automatický průchod",
@@ -2920,7 +2958,10 @@
     "axesLabel": "Osy schopností",
     "methodology": "Hodnoceno podle trvalých schopností (formulace problému, zběhlost v nástrojích, úsudek, architektura, přenos) z pracovního vzorku s povoleným AI.",
     "methodologyLink": "Jak se to měří",
-    "version": "Standard {version}"
+    "version": "Standard {version}",
+    "stale": "Ověřeno — starší doklad",
+    "staleAge": "Pravé a nezměněné, ale vydáno {issued} podle standardu {version}. Pokud záleží na aktuálnosti, vyžádejte si od kandidáta nové hodnocení.",
+    "staleMethodology": "Pravé a nezměněné, ale hodnoceno podle standardu {version} (vydáno {issued}), který byl mezitím nahrazen. Vyžádejte si od kandidáta hodnocení podle aktuálního standardu."
   },
   "devApply": {
     "workSurface": {
@@ -2968,6 +3009,7 @@
       "title": "Firemní srovnání",
       "subtitle": "Jak si váš tým vede oproti celé firmě (anonymizovaný souhrn).",
       "loadFailed": "Srovnání se nepodařilo načíst.",
+      "retry": "Zkusit znovu",
       "locked": "Odemkne se, až bude aktivních více týmů — zatím přispívá {teams}.",
       "interviewRate": "Míra pozvání na pohovor",
       "hireRate": "Míra náboru",
@@ -3049,6 +3091,7 @@
       "familyLabel": "Rodina rolí",
       "familyAll": "Všechny role",
       "error": "Kalibraci se teď nepodařilo načíst.",
+      "retry": "Zkusit znovu",
       "uncalibratedTitle": "Zatím nekalibrováno",
       "uncalibratedBody": "Kalibrace potřebuje alespoň {min} rozhodnutých kandidátů (postoupili nebo zamítnuti). Zatím: {n}.",
       "axisPredicted": "Předpovězeno",
@@ -3065,6 +3108,7 @@
       "blurb": "Každé automatické zamítnutí je zapečetěno do nezfalšovatelného hash řetězce — vstupy, které vidělo, verze politiky, odůvodnění. Na žádost o vysvětlení exportujte záznam kandidáta.",
       "loading": "Načítání…",
       "error": "Záznamy rozhodnutí se nepodařilo načíst.",
+      "retry": "Zkusit znovu",
       "empty": "Zatím žádná zapečetěná rozhodnutí — spusťte screeningovou vlnu a automatická zamítnutí se zde zapečetí.",
       "verified": "Nezfalšovatelné — {count} zapečetěných záznamů, řetězec ověřen.",
       "broken": "Narušena integrita řetězce u záznamu #{seq} — zapečetěný záznam byl změněn nebo odstraněn.",
@@ -3380,6 +3424,7 @@
     "introDefault": "Každý kandidát ohodnocen vůči každé otevřené pozici. Barva = síla shody; prstenec označuje kandidáty, kteří už jsou v pipeline dané pozice. Klikněte na libovolnou buňku pro otevření úplné shody.",
     "ofCount": "{shown} z {total}",
     "countLine": "{cands} kandidátů × {positions} pozic",
+    "unassessedHidden": "{count} nehodnoceno pro žádnou zobrazenou roli — zrušte filtr minimální shody, abyste je zahrnuli.",
     "minFit": "Min. shoda",
     "coverageGap": "{uncovered} z {total} otevřených rolí nemá silného kandidáta — hledejte pro tyto:",
     "off": "Vyp.",

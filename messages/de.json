@@ -1,4 +1,37 @@
 {
+  "diagrams": {
+    "eyebrow": "Architektur",
+    "title": "Systemdiagramme",
+    "intro": "Die PlantUML-Quellen in <path></path>, live gerendert von unserem eigenen Renderer — dieselbe Komponentendiagramm-Syntax, unser Styling. Die <moss>getönten</moss> Elemente sind v2-neu (<tag></tag>); gestrichelte Pfeile sind optionale oder asynchrone Verbindungen.",
+    "readError": "{file} konnte nicht gelesen werden.",
+    "legend": {
+      "live": "live / automatisiert",
+      "gate": "menschliches Gate (bewusst beibehalten)",
+      "gap": "verbleibende Lücke (innerhalb eines Schritts gezeigt)"
+    },
+    "explorer": {
+      "instruction": "Klicken Sie auf einen Schritt, um zu sehen, wie er verdrahtet ist — der geöffnete Schritt bleibt hier links umrandet."
+    },
+    "status": {
+      "live": "Automatisiert",
+      "gate": "Menschliches Gate",
+      "gap": "Zu bauen"
+    },
+    "items": {
+      "tobe": {
+        "label": "Live-Pipeline — JD → Einstellung",
+        "blurb": "Die durchgängige Pipeline vom Verfassen einer Stellenbeschreibung bis zur eingestellten Person, wobei jeder verdrahtete Schritt unter seiner Simulationsphase gruppiert ist (Design JD · Source · Intake · Screen · Interview · Offer · Hired). Alle fünf Lücken-Richtungen sind verdrahtet — klicken Sie auf einen beliebigen Schritt, um seine echte Implementierung zu öffnen: welches UI-Modul welche Funktion aufruft und gegen welche Datentabellen."
+      },
+      "v1": {
+        "label": "v1 — ursprüngliche CV-Analyse",
+        "blurb": "Wo alles begann: ein CV → höchstens ein JD → ein einziger Gemini-Aufruf."
+      },
+      "v2": {
+        "label": "v2 — Matching-Plattform (jetzt gebaut)",
+        "blurb": "Die Matching-Plattform, die die App jetzt antreibt: Ingestion von Stellenanzeigen, Archetyp-Routing, die KO→Score-Matching-Engine (deterministisch, Claude-CLI-Reasoning) und der Taxonomie-Graph. Die Embedding-/Semantik-Brücke ist noch geplant."
+      }
+    }
+  },
   "meta": {
     "title": "KP Job-Fit & Gehaltsschätzer",
     "description": "AI-gestützte Pipeline zur Bewertung der CV-Seniorität und Gehaltsschätzung für den tschechischen Markt."
@@ -1544,6 +1577,11 @@
       "hired": "Eingestellt 🎉",
       "starting": "Wird gestartet…",
       "goToPhase": "Zu {label} gehen",
+      "phasesLabel": "Pipeline-Phasen",
+      "phaseStep": "{label} — {state}",
+      "phaseCompleted": "abgeschlossen",
+      "phaseCurrent": "aktuell",
+      "phaseUpcoming": "bevorstehend",
       "aiScreen": "AI-Screening",
       "screening": "Screening…",
       "automationPass": "Automatiklauf",
@@ -2984,7 +3022,10 @@
     "axesLabel": "Kompetenzachsen",
     "methodology": "Bewertet anhand beständiger Kompetenzen (Problemrahmung, Tooling-Sicherheit, Urteilsvermögen, Architektur, Transfer) aus einer Arbeitsprobe mit erlaubter AI-Nutzung.",
     "methodologyLink": "Wie das gemessen wird",
-    "version": "Standard {version}"
+    "version": "Standard {version}",
+    "stale": "Verifiziert — älterer Nachweis",
+    "staleAge": "Echt und unverändert, aber ausgestellt am {issued} nach Standard {version}. Bitten Sie die Kandidatin bzw. den Kandidaten bei Bedarf um eine aktuelle Bewertung.",
+    "staleMethodology": "Echt und unverändert, aber bewertet nach Standard {version} (ausgestellt am {issued}), der inzwischen abgelöst wurde. Bitten Sie um eine Bewertung nach dem aktuellen Standard."
   },
   "devApply": {
     "workSurface": {
@@ -3032,6 +3073,7 @@
       "title": "Unternehmens-Benchmark",
       "subtitle": "Wie Ihr Team im Vergleich zum gesamten Unternehmen abschneidet (anonymisierte Aggregation).",
       "loadFailed": "Benchmark konnte nicht geladen werden.",
+      "retry": "Erneut versuchen",
       "locked": "Wird freigeschaltet, sobald mehr Teams aktiv sind — bisher {teams} beteiligt.",
       "interviewRate": "Interview-Quote",
       "hireRate": "Einstellungsquote",
@@ -3113,6 +3155,7 @@
       "familyLabel": "Berufsfeld",
       "familyAll": "Alle Berufsfelder",
       "error": "Kalibrierung konnte gerade nicht geladen werden.",
+      "retry": "Erneut versuchen",
       "uncalibratedTitle": "Noch nicht kalibriert",
       "uncalibratedBody": "Die Kalibrierung benötigt mindestens {min} entschiedene Kandidaten (weitergeleitet oder abgelehnt). Bisher: {n}.",
       "axisPredicted": "Vorhergesagt",
@@ -3129,6 +3172,7 @@
       "blurb": "Jede automatische Ablehnung wird in einer manipulationssicheren Hash-Kette versiegelt — die berücksichtigten Eingaben, die Richtlinienversion, die Begründung. Exportieren Sie den Datensatz eines Kandidaten für eine Auskunftsanfrage.",
       "loading": "Wird geladen…",
       "error": "Entscheidungsprotokolle konnten nicht geladen werden.",
+      "retry": "Erneut versuchen",
       "empty": "Noch keine versiegelten Entscheidungen — starten Sie eine Screening-Welle und automatische Ablehnungen werden hier versiegelt.",
       "verified": "Manipulationssicher — {count} versiegelte Datensätze, Kette verifiziert.",
       "broken": "Kettenintegrität bei Datensatz #{seq} verletzt — ein versiegelter Datensatz wurde verändert oder entfernt.",
@@ -3448,6 +3492,7 @@
     "introDefault": "Jeder Kandidat gegen jede offene Position bewertet. Farbe = Match-Stärke; ein Ring kennzeichnet Kandidaten, die bereits in der Pipeline dieser Position sind. Klicken Sie auf eine Zelle, um das vollständige Match zu öffnen.",
     "ofCount": "{shown} von {total}",
     "countLine": "{cands} Kandidaten × {positions} Positionen",
+    "unassessedHidden": "{count} für keine angezeigte Rolle bewertet — heben Sie den Eignungsfilter auf, um sie einzubeziehen.",
     "minFit": "Min. Eignung",
     "coverageGap": "{uncovered} von {total} offenen Positionen haben kein starkes Match — hierfür sourcen:",
     "off": "Aus",
