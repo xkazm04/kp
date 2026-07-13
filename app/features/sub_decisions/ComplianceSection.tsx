@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, Check, HelpCircle, Loader2, Scale, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import {
@@ -10,7 +10,7 @@ import {
   REGIME_IDS,
   type RegimeId,
 } from "@/app/_lib/compliance-regimes";
-import { computeAdverseImpact, ADVERSE_IMPACT_MIN_COHORT, type GroupCount } from "@/app/_lib/adverse-impact";
+import { computeAdverseImpact, parseGroupCounts, ADVERSE_IMPACT_MIN_COHORT } from "@/app/_lib/adverse-impact";
 import { Select } from "@/app/_components/Select";
 import { TextArea } from "@/app/_components/TextArea";
 
@@ -21,25 +21,15 @@ import { TextArea } from "@/app/_components/TextArea";
 // demographic data. The four-fifths check below is a ready primitive that runs
 // ENTIRELY in the browser on counts the recruiter pastes — nothing is stored.
 
-function parseGroups(text: string): GroupCount[] {
-  const out: GroupCount[] = [];
-  for (const line of text.split("\n")) {
-    const parts = line.split(",").map((p) => p.trim());
-    if (parts.length < 3) continue;
-    const [group, selRaw, totRaw] = parts;
-    const selected = Number(selRaw);
-    const total = Number(totRaw);
-    if (!group || !Number.isFinite(selected) || !Number.isFinite(total)) continue;
-    out.push({ group, selected, total });
-  }
-  return out;
-}
-
 export function ComplianceSection() {
   const t = useTranslations("decisions.compliance");
   const [jurisdiction, setJurisdiction] = useState<RegimeId>(DEFAULT_REGIME_ID);
+  // The last value the SERVER confirmed. The optimistic `jurisdiction` is reverted to
+  // this on a failed save (finding SD-3) so the recruiter's posture block can't assert
+  // a framing the candidate-facing /api/compliance disclosure never received.
+  const savedJurisdiction = useRef<RegimeId>(DEFAULT_REGIME_ID);
   const [saving, setSaving] = useState(false);
-  const [note, setNote] = useState<string | null>(null);
+  const [saveState, setSaveState] = useState<null | "saved" | "failed">(null);
   const [counts, setCounts] = useState("");
   // The EFFECTIVE retention window (derived server-side from KP_CONSENT_TTL_DAYS)
   // so the posture line states the enforced number, not a hardcoded "12 months"
@@ -51,7 +41,10 @@ export function ComplianceSection() {
       .then((r) => r.json())
       .then((p: { configs?: { compliance?: { jurisdiction?: unknown } } }) => {
         const j = p?.configs?.compliance?.jurisdiction;
-        if (typeof j === "string" && (REGIME_IDS as readonly string[]).includes(j)) setJurisdiction(j as RegimeId);
+        if (typeof j === "string" && (REGIME_IDS as readonly string[]).includes(j)) {
+          savedJurisdiction.current = j as RegimeId;
+          setJurisdiction(j as RegimeId);
+        }
       })
       .catch(() => {});
     fetch("/api/compliance")
@@ -65,9 +58,10 @@ export function ComplianceSection() {
   }, []);
 
   const pick = async (j: RegimeId) => {
+    const prev = savedJurisdiction.current; // the last value the server confirmed
     setJurisdiction(j); // optimistic
     setSaving(true);
-    setNote(null);
+    setSaveState(null);
     try {
       const r = await fetch("/api/decisions/config", {
         method: "POST",
@@ -75,9 +69,15 @@ export function ComplianceSection() {
         body: JSON.stringify({ phase: "compliance", config: { jurisdiction: j } }),
       });
       if (!r.ok) throw new Error();
-      setNote(t("saved"));
+      savedJurisdiction.current = j; // committed — the disclosure now serves this regime
+      setSaveState("saved");
     } catch {
-      setNote(t("saveFailed"));
+      // The POST never landed: revert the optimistic switch to the last PERSISTED
+      // value so the recruiter view can't diverge from the candidate disclosure
+      // (finding SD-3). The picker is disabled while `saving`, so no newer
+      // selection can be clobbered by this rollback.
+      setJurisdiction(prev);
+      setSaveState("failed");
     } finally {
       setSaving(false);
     }
@@ -86,8 +86,11 @@ export function ComplianceSection() {
   const regime = getRegime(jurisdiction);
   const standard = regime.adverseImpactStandard ?? t("standardFallback");
 
-  const groups = useMemo(() => parseGroups(counts), [counts]);
-  const impact = useMemo(() => (groups.length >= 2 ? computeAdverseImpact(groups) : null), [groups]);
+  const parsed = useMemo(() => parseGroupCounts(counts), [counts]);
+  const impact = useMemo(
+    () => (parsed.groups.length >= 2 ? computeAdverseImpact(parsed.groups) : null),
+    [parsed]
+  );
 
   return (
     <div className="space-y-4 border-t border-stone-200 pt-4">
@@ -108,12 +111,17 @@ export function ComplianceSection() {
             onChange={(v) => pick(v as RegimeId)}
             size="sm"
             className="w-full"
+            disabled={saving}
             options={Object.values(COMPLIANCE_REGIMES).map((r) => ({ value: r.id, label: t(`jur.${r.id}` as Parameters<typeof t>[0]) }))}
           />
           {saving ? <Loader2 size={15} className="shrink-0 animate-spin text-steel" /> : null}
-          {note ? (
-            <span role="status" aria-live="polite" className="shrink-0 text-meta text-steel">
-              {note}
+          {saveState ? (
+            <span
+              role={saveState === "failed" ? "alert" : "status"}
+              aria-live={saveState === "failed" ? "assertive" : "polite"}
+              className={`shrink-0 text-meta ${saveState === "failed" ? "font-semibold text-coral" : "text-steel"}`}
+            >
+              {saveState === "failed" ? t("saveFailed") : t("saved")}
             </span>
           ) : null}
         </div>
@@ -171,6 +179,22 @@ export function ComplianceSection() {
           className="mt-2 font-mono"
         />
         <p className="mt-1 text-meta text-steel">{t("aiCheckPrivacy")}</p>
+        {/* Malformed rows are made VISIBLE, not silently dropped (finding SD-4): a
+            four-fifths verdict computed on a silently-reduced set can flip which
+            group is the reference. Announce which lines were ignored. */}
+        {parsed.malformedRows.length > 0 ? (
+          <p role="alert" aria-live="polite" className="mt-2 flex items-start gap-1.5 text-meta font-medium text-coral">
+            <AlertTriangle size={13} className="mt-0.5 shrink-0" />
+            <span>
+              {t("parseIgnored", {
+                read: parsed.groups.length,
+                total: parsed.nonBlankRows,
+                ignored: parsed.malformedRows.length,
+                rows: parsed.malformedRows.join(", "),
+              })}
+            </span>
+          </p>
+        ) : null}
         {impact ? (
           <div className="mt-3">
             <table className="w-full text-sm">

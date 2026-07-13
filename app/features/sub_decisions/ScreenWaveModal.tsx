@@ -52,6 +52,10 @@ export function ScreenWaveModal({
   const [error, setError] = useState<string | null>(null);
   const [committing, setCommitting] = useState(false);
   const [committed, setCommitted] = useState<WaveResult | null>(null);
+  // Two-step confirm before the irreversible commit (finding SD-5): the preview
+  // doubles as the review, so a single click on the primary button would fire the
+  // emailed, sealed, irreversible batch. This gates it behind an explicit confirm.
+  const [confirmOpen, setConfirmOpen] = useState(false);
   // Bumped to force a fresh preview (and a fresh approval token) after a 409 — the
   // cohort changed since the displayed preview, so the recruiter must review the
   // current set before approving it.
@@ -124,12 +128,17 @@ export function ScreenWaveModal({
       setError(e instanceof Error ? e.message : t("waveFailed"));
     } finally {
       setCommitting(false);
+      setConfirmOpen(false); // close the confirm step; result/error shows in the main modal
     }
   };
 
   const view = committed ?? preview;
   const rejects = view?.decisions.filter((d) => d.action === "reject") ?? [];
   const keeps = view?.decisions.filter((d) => d.action === "keep") ?? [];
+
+  // Why the commit button is disabled — surfaced in an aria-live line beside the
+  // button (finding SD-5), not just a `title` invisible to screen readers / touch.
+  const commitDisabledReason = !enabled ? t("enableToCommit") : rejects.length === 0 ? t("nothingToReject") : null;
 
   // DEC4 — render the localized rationale from the structured reason code; the
   // persisted English `rationale` is the fallback (older shapes / unmapped code).
@@ -195,6 +204,7 @@ export function ScreenWaveModal({
     ) : null;
 
   return (
+    <>
     <Modal
       title={t("title", { role: roleTitle })}
       subtitle={committed ? t("committedSubtitle") : t("previewSubtitle")}
@@ -210,15 +220,22 @@ export function ScreenWaveModal({
             {t("done")}
           </button>
         ) : (
-          <button
-            type="button"
-            onClick={commit}
-            disabled={committing || loading || !enabled || rejects.length === 0}
-            title={!enabled ? t("enableToCommit") : rejects.length === 0 ? t("nothingToReject") : undefined}
-            className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-md bg-coral px-4 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-40"
-          >
-            <Ban size={15} /> {committing ? t("rejecting") : t("rejectAndNotify", { count: rejects.length })}
-          </button>
+          <>
+            {commitDisabledReason ? (
+              <span role="status" aria-live="polite" className="mr-auto text-meta text-steel">
+                {commitDisabledReason}
+              </span>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => setConfirmOpen(true)}
+              disabled={committing || loading || commitDisabledReason !== null}
+              title={commitDisabledReason ?? undefined}
+              className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-md bg-coral px-4 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-40"
+            >
+              <Ban size={15} /> {committing ? t("rejecting") : t("rejectAndNotify", { count: rejects.length })}
+            </button>
+          </>
         )
       }
     >
@@ -295,5 +312,44 @@ export function ScreenWaveModal({
         </div>
       )}
     </Modal>
+    {/* Explicit second confirmation before the irreversible, emailed, sealed dispatch
+        (finding SD-5). The server approval-token gate covers a STALE set (409); this
+        covers an accidental click on a FRESH one. Stacks over the preview via the
+        shared Modal/useDialogA11y machinery. */}
+    {confirmOpen ? (
+      <Modal
+        title={t("confirmTitle", { count: rejects.length })}
+        onClose={() => {
+          if (!committing) setConfirmOpen(false);
+        }}
+        size="md"
+        footer={
+          <>
+            <button
+              type="button"
+              onClick={() => setConfirmOpen(false)}
+              disabled={committing}
+              className="focus-ring inline-flex h-9 items-center rounded-md border border-stone-200 px-4 text-sm font-semibold text-ink hover:bg-stone-50 disabled:opacity-40"
+            >
+              {t("cancel")}
+            </button>
+            <button
+              type="button"
+              onClick={commit}
+              disabled={committing}
+              className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-md bg-coral px-4 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-40"
+            >
+              <Ban size={15} /> {committing ? t("rejecting") : t("rejectAndNotify", { count: rejects.length })}
+            </button>
+          </>
+        }
+      >
+        <p className="flex items-start gap-2 text-sm text-ink">
+          <AlertTriangle size={16} className="mt-0.5 shrink-0 text-coral" />
+          <span>{t("confirmBody", { count: rejects.length })}</span>
+        </p>
+      </Modal>
+    ) : null}
+    </>
   );
 }
