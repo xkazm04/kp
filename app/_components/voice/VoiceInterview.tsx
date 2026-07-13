@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ConversationProvider, useConversation } from "@elevenlabs/react";
 import { useLocale, useTranslations } from "next-intl";
-import { CheckCircle2, Clock, Mic, MicOff, PhoneOff, Sparkles, User } from "lucide-react";
+import { CheckCircle2, Clock, Mic, MicOff, PhoneOff, Sparkles, User, Volume2, VolumeX } from "lucide-react";
 import { parseOaiTranscriptEvent } from "@/app/_lib/voice/openai";
 // Provider id, transcript turn, and availability map are single-sourced in the
 // voice adapter layer. Import from voice/types (not the package index, which
@@ -16,7 +16,8 @@ import type { VoiceAvailability, VoiceProviderId, VoiceTurn } from "@/app/_lib/v
 import { VOICE_PROVIDER_ORDER as PROVIDER_ORDER, DEFAULT_VOICE_PROVIDER as DEFAULT_PROVIDER } from "@/app/_lib/voice/types";
 // Browser-safe pure helper (no server deps), so the "what counts as completed"
 // decision is single-sourced and unit-tested rather than inline in a callback.
-import { interviewFinalStatus } from "@/app/_lib/voice/finalize-status";
+// unmountBeaconStatus decides the status a page-unload beacon persists (#5).
+import { interviewFinalStatus, unmountBeaconStatus } from "@/app/_lib/voice/finalize-status";
 // Pre-flight capability check (idea-b0fc8018) — same browser-safe pure-helper
 // pattern; fails fast with an actionable message instead of letting
 // getUserMedia throw the generic "Failed to start the call".
@@ -118,6 +119,17 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
   // M3: seconds elapsed while live (orientation for a nervous candidate). M4: mic mute state.
   const [elapsed, setElapsed] = useState(0);
   const [muted, setMuted] = useState(false);
+  // bug-ui-scan-2026-07-09 (voice-interview #3): the OpenAI WebRTC path debounces a
+  // "disconnected" ICE state for 8s before treating it as a drop; during that grace
+  // nothing in the UI moved, so the candidate kept talking into a dead pipe. This
+  // flags the degraded window so the StatusPill can say "reconnecting" immediately.
+  const [unstable, setUnstable] = useState(false);
+  // bug-ui-scan-2026-07-09 (voice-interview #4): AI OUTPUT (interviewer voice) mute —
+  // distinct from the candidate mic mute above — and a recovery flag for when the
+  // browser blocks autoplay of the hidden <audio>, so the load-bearing audio channel
+  // has both a control and a "tap to enable" fallback.
+  const [audioMuted, setAudioMuted] = useState(false);
+  const [audioBlocked, setAudioBlocked] = useState(false);
   // H5 follow-up: a pre-call mic test — confirm "we can hear you" before dialing, so a muted/dead
   // mic is caught early (and a nervous candidate is reassured) rather than surfacing as a silent
   // dead-end mid-call.
@@ -140,6 +152,11 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
   // right after onError — so we must not blindly persist those as "completed".
   const reachedLiveRef = useRef(false);
   const erroredRef = useRef(false);
+  // bug-ui-scan-2026-07-09 (voice-interview #5): set the moment end() is invoked so
+  // the unmount beacon can tell a clean, in-flight End (→ beacon the real verdict)
+  // from a true mid-call abandonment (→ stay conservatively "failed"). A ref, not
+  // state, because the unmount cleanup closure captures mount-time state.
+  const endInFlightRef = useRef(false);
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const micRef = useRef<MediaStream | null>(null);
   const dcRef = useRef<RTCDataChannel | null>(null);
@@ -221,10 +238,21 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
     if (dropTimerRef.current) clearTimeout(dropTimerRef.current);
     dropTimerRef.current = null;
     setOaiSpeaking(false);
+    // bug-ui-scan-2026-07-09 (voice-interview #3, #4): the degraded-connection and
+    // blocked-audio cues are meaningless once the connection is gone — clear them
+    // so a closing/error card never shows a stale "reconnecting"/"tap to enable".
+    setUnstable(false);
+    setAudioBlocked(false);
     pcRef.current = null;
     dcRef.current = null;
     micRef.current = null;
-    if (audioRef.current) audioRef.current.srcObject = null;
+    if (audioRef.current) {
+      audioRef.current.srcObject = null;
+      // bug-ui-scan-2026-07-09 (voice-interview #4): the <audio> element persists
+      // across calls (single ref) — clear the output mute so a retry never inherits
+      // a stale muted state while the button reads "unmuted".
+      audioRef.current.muted = false;
+    }
   }, []);
 
   // Durable persist of the transcript — the ONLY record of the interview. Stash it
@@ -314,6 +342,11 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
       teardownOpenAi();
       setPhase("ended");
       setEndedAs(status);
+      // bug-ui-scan-2026-07-09 (voice-interview #2): a substantive call that ended on
+      // a late transport blip still finalizes "completed" (interviewFinalStatus) and
+      // WILL be scored — clear the transient connection error (set by onError / the
+      // OpenAI drop) so the success closing card isn't contradicted by a red banner.
+      if (status === "completed") setError(null);
       const sid = sessionIdRef.current;
       const tok = sessionTokenRef.current ?? token ?? null;
       if (sid && tok) {
@@ -376,6 +409,38 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
     } else {
       micRef.current?.getAudioTracks().forEach((tr) => (tr.enabled = !next));
     }
+  }
+
+  // bug-ui-scan-2026-07-09 (voice-interview #4): mute/unmute the AI's OUTPUT voice —
+  // the load-bearing channel of a voice interview — which previously had no control
+  // at all (only the candidate mic was muteable). OpenAI plays through the hidden
+  // <audio> element; ElevenLabs renders internally, so route through the SDK volume.
+  function toggleAudioMuted() {
+    const next = !audioMuted;
+    setAudioMuted(next);
+    if (providerRef.current === "elevenlabs") {
+      try {
+        conversation.setVolume({ volume: next ? 0 : 1 });
+      } catch {
+        /* SDK not ready — state still reflects intent */
+      }
+    } else if (audioRef.current) {
+      audioRef.current.muted = next;
+    }
+  }
+
+  // bug-ui-scan-2026-07-09 (voice-interview #4): recover from a blocked autoplay by
+  // re-invoking play() from the user gesture the browser requires. Cleared on
+  // success; a persistent failure leaves the button so the candidate can retry.
+  function enableAudio() {
+    const el = audioRef.current;
+    if (!el) return;
+    void el
+      .play()
+      .then(() => setAudioBlocked(false))
+      .catch(() => {
+        /* still blocked — keep the affordance visible */
+      });
   }
 
   // H5 follow-up: release the pre-call mic-test stream + analyser (called when the test ends, on a
@@ -531,16 +596,24 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
       // Flush a partial transcript on unmount (tab close / back-navigation) so a
       // real in-progress interview isn't lost silently. Only when the call went
       // live and wasn't already finalized; sendBeacon survives unload where a
-      // normal fetch would be cancelled. Persisted as "failed" so /complete records
-      // the partial without scoring it as a passed screen.
+      // normal fetch would be cancelled. bug-ui-scan-2026-07-09 (voice-interview #5):
+      // the status is no longer hardcoded "failed" — a clean End already in flight
+      // (endInFlightRef) beacons the real verdict, so a substantive call that ended
+      // cleanly a fraction before the tab closed is persisted "completed" and scored,
+      // while a true mid-call abandonment stays conservatively "failed".
       if (!finalizedRef.current && reachedLiveRef.current) {
         finalizedRef.current = true;
         const sid = sessionIdRef.current;
         const tok = sessionTokenRef.current ?? token ?? null;
         if (sid && tok) {
           try {
+            const status = unmountBeaconStatus(endInFlightRef.current, {
+              errored: erroredRef.current,
+              reachedLive: reachedLiveRef.current,
+              turnCount: turnsRef.current.length,
+            });
             const blob = new Blob(
-              [JSON.stringify({ token: tok, sessionId: sid, transcript: turnsRef.current, status: "failed" })],
+              [JSON.stringify({ token: tok, sessionId: sid, transcript: turnsRef.current, status })],
               { type: "application/json" }
             );
             navigator.sendBeacon("/api/interview/complete", blob);
@@ -613,15 +686,31 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
   function handleOaiDrop() {
     if (finalizedRef.current || !reachedLiveRef.current) return;
     erroredRef.current = true;
-    setError(t("errConnectionLost"));
-    void finalize(currentFinalStatus());
+    const status = currentFinalStatus();
+    // bug-ui-scan-2026-07-09 (voice-interview #2): only alarm the candidate when the
+    // drop actually fails the screen. A drop AFTER a substantive conversation
+    // finalizes "completed" (interviewFinalStatus) and is still scored, so it earns
+    // the success card — not a "connection dropped, press Start to reconnect" error.
+    if (status === "failed") setError(t("errConnectionLost"));
+    void finalize(status);
   }
 
   async function startOpenAi(c: { model: string; clientSecret: string; callsUrl: string }) {
     const pc = new RTCPeerConnection();
     pcRef.current = pc;
     pc.ontrack = (e) => {
-      if (audioRef.current) audioRef.current.srcObject = e.streams[0];
+      const el = audioRef.current;
+      if (el) {
+        el.srcObject = e.streams[0];
+        // bug-ui-scan-2026-07-09 (voice-interview #4): the interviewer's voice is the
+        // load-bearing channel. `autoPlay` fails SILENTLY on strict-mobile / low-power
+        // browsers, leaving the candidate in silence with no cue — call play()
+        // explicitly and, on rejection, raise a "tap to enable audio" recovery.
+        void el
+          .play()
+          .then(() => setAudioBlocked(false))
+          .catch(() => setAudioBlocked(true));
+      }
       startOaiSpeakingMeter(e.streams[0]);
     };
     // H4: react to a mid-call connection drop. "disconnected" can be a transient blip, so debounce
@@ -632,6 +721,10 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
       if (st === "failed") {
         handleOaiDrop();
       } else if (st === "disconnected") {
+        // bug-ui-scan-2026-07-09 (voice-interview #3): surface the degraded state
+        // IMMEDIATELY (not after the 8s debounce), so the candidate knows to pause
+        // instead of talking into a pipe that may already be gone.
+        setUnstable(true);
         if (!dropTimerRef.current) {
           dropTimerRef.current = setTimeout(() => {
             dropTimerRef.current = null;
@@ -641,6 +734,8 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
           }, 8000);
         }
       } else if (st === "connected") {
+        // bug-ui-scan-2026-07-09 (voice-interview #3): recovered — drop the cue.
+        setUnstable(false);
         if (dropTimerRef.current) {
           clearTimeout(dropTimerRef.current);
           dropTimerRef.current = null;
@@ -755,6 +850,13 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
     finalizedRef.current = false;
     reachedLiveRef.current = false;
     erroredRef.current = false;
+    // bug-ui-scan-2026-07-09 (voice-interview #3/#4/#5): clear the per-call transient
+    // UI/verdict state so a retry never inherits the previous call's degraded pill,
+    // blocked-audio banner, output-mute, or in-flight-End flag.
+    endInFlightRef.current = false;
+    setUnstable(false);
+    setAudioMuted(false);
+    setAudioBlocked(false);
     // Clear the prior call's session capability ids too: a re-connect that fails
     // before /connect returns fresh ones must not let finalize POST against the
     // previous (already-completed) session.
@@ -834,6 +936,10 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
 
   async function end() {
     setPhase("ending");
+    // bug-ui-scan-2026-07-09 (voice-interview #5): mark a clean End in flight so an
+    // unmount that races ahead of ElevenLabs onDisconnect beacons the REAL verdict
+    // (completed for a substantive call) instead of a hardcoded "failed".
+    endInFlightRef.current = true;
     if (providerRef.current === "elevenlabs") {
       // Defer finalize to onDisconnect so the candidate's final answer — delivered
       // by the SDK via onMessage a few hundred ms AFTER endSession() — is captured
@@ -1082,6 +1188,8 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
             <StatusPill
               phase={phase}
               speaking={liveProvider === "elevenlabs" ? conversation.isSpeaking : oaiSpeaking}
+              // bug-ui-scan-2026-07-09 (voice-interview #3): degraded-connection cue.
+              unstable={unstable}
             />
             {/* M4: mute for a "give me a moment"; M3: elapsed timer for orientation — both live-only. */}
             {phase === "live" ? (
@@ -1096,14 +1204,40 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
                   {muted ? <MicOff size={18} /> : <Mic size={18} />}
                   {muted ? t("muted") : t("muteMic")}
                 </button>
+                {/* bug-ui-scan-2026-07-09 (voice-interview #4): mute the AI's OUTPUT voice
+                    (the interviewer), separate from the candidate mic mute above. */}
+                <button
+                  type="button"
+                  onClick={toggleAudioMuted}
+                  aria-pressed={audioMuted}
+                  aria-label={audioMuted ? t("unmuteAudio") : t("muteAudio")}
+                  className="focus-ring inline-flex h-11 items-center justify-center rounded-md border border-stone-300 bg-white px-3 text-base font-medium text-ink transition-colors hover:bg-paper"
+                >
+                  {audioMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
+                </button>
                 <span
-                  className="inline-flex items-center gap-1.5 text-meta tabular-nums text-steel"
+                  // bug-ui-scan-2026-07-09 (voice-interview #3): annotate the timer while
+                  // the connection is degraded, so it doesn't read as normal progress.
+                  className={`inline-flex items-center gap-1.5 text-meta tabular-nums ${unstable ? "text-dial-amber" : "text-steel"}`}
                   aria-label={t("elapsedLabel")}
+                  title={unstable ? t("status.unstable") : undefined}
                 >
                   <Clock size={14} aria-hidden />
                   {`${Math.floor(elapsed / 60)}:${String(elapsed % 60).padStart(2, "0")}`}
                 </span>
               </>
+            ) : null}
+            {/* bug-ui-scan-2026-07-09 (voice-interview #4): autoplay-blocked recovery —
+                inside the aria-busy controls block so it's announced. */}
+            {audioBlocked && phase === "live" ? (
+              <button
+                type="button"
+                onClick={enableAudio}
+                className="focus-ring inline-flex h-11 items-center justify-center gap-2 rounded-md border border-dial-amber/50 bg-dial-amber/10 px-4 text-base font-semibold text-ink transition-colors hover:bg-dial-amber/20"
+              >
+                <Volume2 size={18} />
+                {t("enableAudio")}
+              </button>
             ) : null}
             {!providerAvailable ? (
               // M5: candidates can't fix "keys not configured" (an ops issue) and shouldn't see the
@@ -1235,8 +1369,24 @@ function TranscriptTurn({ role, text }: { role: "candidate" | "interviewer"; tex
   );
 }
 
-function StatusPill({ phase, speaking }: { phase: Phase; speaking: boolean }) {
+function StatusPill({ phase, speaking, unstable }: { phase: Phase; speaking: boolean; unstable?: boolean }) {
   const t = useTranslations("interview.voice");
+  // bug-ui-scan-2026-07-09 (voice-interview #3): a degraded connection overrides the
+  // live speaking/listening cue. UNLIKE the live pill this IS a live region
+  // (role="status") — it's a low-frequency, high-stakes transition the candidate
+  // must hear ("stop talking, we're reconnecting"), not the per-turn spam the live
+  // pill deliberately suppresses.
+  if (phase === "live" && unstable) {
+    return (
+      <span
+        role="status"
+        className="inline-flex items-center gap-2 rounded-full bg-dial-amber/20 px-3 py-1 text-meta text-ink"
+      >
+        <span className="voice-listen h-2.5 w-2.5 rounded-full bg-dial-amber" aria-hidden />
+        {t("status.unstable")}
+      </span>
+    );
+  }
   // The LIVE pill is NOT a live region: its speaking↔listening label toggles on every
   // turn, and announcing each toggle spammed the SR output that the transcript log
   // (role="log") already carries. It stays a VISUAL cue only; the phase pill below keeps
