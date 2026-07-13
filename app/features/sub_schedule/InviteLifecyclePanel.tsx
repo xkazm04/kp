@@ -10,6 +10,10 @@ import { useRelativeTime } from "@/app/features/sub_pipeline/PipelineShared";
 import { useDeliveryCapability } from "@/app/features/useDeliveryCapability";
 import { AddToCalendar } from "./AddToCalendar";
 import { MeetingLinkCell } from "./MeetingLinkCell";
+// bug-ui-scan-2026-07-09 (interview-scheduling-prep-rubric #3) — the today /
+// upcoming / awaiting split lives in a pure, unit-tested module so a confirmed
+// interview no longer vanishes the instant its start passes.
+import { bucketInvites, isInProgress } from "./invite-lifecycle-buckets";
 // The full invite wire row is single-sourced from the store (GET /api/schedule
 // returns listScheduleInvites() unprojected). Type-only import, so schedule-store's
 // better-sqlite3 runtime is NOT pulled into this client bundle. Replaces a lossy
@@ -74,18 +78,52 @@ export function InviteLifecyclePanel() {
   }
   if (invites.length === 0) return null;
 
-  const attention = invites.filter((i) => i.needsMoreSlots || i.needsReconcile);
-  const upcoming = invites
-    .filter((i) => i.status === "confirmed" && i.slotAt && Date.parse(i.slotAt) >= loadedAt && !attention.includes(i))
-    .sort((a, b) => Date.parse(a.slotAt as string) - Date.parse(b.slotAt as string));
-  const awaiting = invites.filter((i) => i.status !== "confirmed" && !attention.includes(i));
+  // bug-ui-scan-2026-07-09 (interview-scheduling-prep-rubric #3) — pure bucketing:
+  // adds a "today / in-progress / recent" bucket so a confirmed interview stays on
+  // the panel through its start time and immediate aftermath instead of disappearing.
+  const { attention, upcoming, today, awaiting } = bucketInvites(invites, loadedAt);
 
-  if (attention.length === 0 && upcoming.length === 0 && awaiting.length === 0) return null;
+  if (attention.length === 0 && upcoming.length === 0 && today.length === 0 && awaiting.length === 0) return null;
 
   const slotLine = (i: ScheduleInvite) =>
     i.slotAt
       ? `${slotLabel(i.slotAt, i.slot)}${i.durationMin ? ` · ${i.durationMin} min` : ""}`
       : (i.slot ?? "—");
+
+  // One agenda row, shared by the "today" and "upcoming" lists so they can't drift.
+  // `inProgress` adds a live chip on a call happening right now.
+  const agendaRow = (i: ScheduleInvite, inProgress = false) => (
+    <li key={i.id} className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 rounded-md border border-stone-100 bg-paper/40 px-3 py-1.5 text-sm">
+      <span className="font-semibold text-ink nums">{slotLine(i)}</span>
+      <span className="text-ink">{i.candidateLabel ?? "—"}</span>
+      {i.jobTitle ? <span className="text-steel">· {i.jobTitle}</span> : null}
+      {/* idea-b51106df — the candidate's own timezone, so the recruiter
+          reads slotLine() (their local time) knowing where the candidate is. */}
+      {i.candidateTz ? <span className="text-xs text-steel" title={i.candidateTz}>· {i.candidateTz}</span> : null}
+      {inProgress ? (
+        <span className="rounded-full bg-coral/15 px-1.5 py-0.5 text-xs font-semibold text-coral">{t("inProgress")}</span>
+      ) : null}
+      {i.rescheduleCount > 0 ? (
+        <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-xs font-semibold text-amber-800">
+          {t("rescheduled", { count: i.rescheduleCount })}
+        </span>
+      ) : null}
+      {/* idea-87af39c5 — the candidate's RSVP, an early no-show signal. */}
+      {i.attendanceStatus === "confirmed" ? (
+        <span className="rounded-full bg-moss/15 px-1.5 py-0.5 text-xs font-semibold text-moss">{t("attendanceConfirmed")}</span>
+      ) : null}
+      <span className="ml-auto flex items-center gap-2">
+        <span className="text-xs text-steel">
+          {i.reminderSentAt ? t(relayConfigured === false ? "reminderQueued" : "reminderSent") : t("reminderPending")}
+        </span>
+        <MeetingLinkCell token={i.token} url={i.meetingUrl} onSaved={(url) => updateInvite(i.token, { meetingUrl: url })} />
+        {(() => {
+          const ev = interviewCalendarEvent(i, { baseUrl: base, meetingUrl: i.meetingUrl });
+          return ev ? <AddToCalendar event={ev} uid={`interview-${i.token}`} /> : null;
+        })()}
+      </span>
+    </li>
+  );
 
   return (
     <section className="rounded-lg border border-stone-200 bg-white p-4 shadow-panel">
@@ -112,44 +150,20 @@ export function InviteLifecyclePanel() {
         </div>
       ) : null}
 
+      {/* bug-ui-scan-2026-07-09 (interview-scheduling-prep-rubric #3) — the in-
+          progress / just-finished bucket that used to vanish; shown first as the
+          most time-sensitive (a call happening now, or one needing a no-show call). */}
+      {today.length > 0 ? (
+        <div className="mt-3">
+          <p className="text-meta uppercase tracking-wide text-steel">{t("today", { count: today.length })}</p>
+          <ul className="mt-1.5 space-y-1">{today.map((i) => agendaRow(i, isInProgress(i.slotAt, i.durationMin, loadedAt)))}</ul>
+        </div>
+      ) : null}
+
       {upcoming.length > 0 ? (
         <div className="mt-3">
           <p className="text-meta uppercase tracking-wide text-steel">{t("upcoming", { count: upcoming.length })}</p>
-          <ul className="mt-1.5 space-y-1">
-            {upcoming.map((i) => (
-              <li key={i.id} className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 rounded-md border border-stone-100 bg-paper/40 px-3 py-1.5 text-sm">
-                <span className="font-semibold text-ink nums">{slotLine(i)}</span>
-                <span className="text-ink">{i.candidateLabel ?? "—"}</span>
-                {i.jobTitle ? <span className="text-steel">· {i.jobTitle}</span> : null}
-                {/* idea-b51106df — the candidate's own timezone, so the recruiter
-                    reads slotLine() (their local time) knowing where the candidate is. */}
-                {i.candidateTz ? <span className="text-xs text-steel" title={i.candidateTz}>· {i.candidateTz}</span> : null}
-                {i.rescheduleCount > 0 ? (
-                  <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-xs font-semibold text-amber-800">
-                    {t("rescheduled", { count: i.rescheduleCount })}
-                  </span>
-                ) : null}
-                {/* idea-87af39c5 — the candidate's RSVP, an early no-show signal. */}
-                {i.attendanceStatus === "confirmed" ? (
-                  <span className="rounded-full bg-moss/15 px-1.5 py-0.5 text-xs font-semibold text-moss">
-                    {t("attendanceConfirmed")}
-                  </span>
-                ) : null}
-                <span className="ml-auto flex items-center gap-2">
-                  <span className="text-xs text-steel">
-                    {i.reminderSentAt
-                      ? t(relayConfigured === false ? "reminderQueued" : "reminderSent")
-                      : t("reminderPending")}
-                  </span>
-                  <MeetingLinkCell token={i.token} url={i.meetingUrl} onSaved={(url) => updateInvite(i.token, { meetingUrl: url })} />
-                  {(() => {
-                    const ev = interviewCalendarEvent(i, { baseUrl: base, meetingUrl: i.meetingUrl });
-                    return ev ? <AddToCalendar event={ev} uid={`interview-${i.token}`} /> : null;
-                  })()}
-                </span>
-              </li>
-            ))}
-          </ul>
+          <ul className="mt-1.5 space-y-1">{upcoming.map((i) => agendaRow(i))}</ul>
         </div>
       ) : null}
 

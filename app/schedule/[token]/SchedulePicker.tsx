@@ -8,6 +8,7 @@ import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { useSlotLabel } from "@/app/_lib/use-slot-label";
 import { resolveTimeZone, timeZoneShortLabel } from "@/app/_lib/timezone";
 import { AddToCalendar } from "@/app/features/sub_schedule/AddToCalendar";
+import { candidateCalendarEvent } from "@/app/_lib/calendar-links";
 
 type Invite = {
   candidateLabel?: string | null;
@@ -155,18 +156,19 @@ export function SchedulePicker({ token }: { token: string }) {
   // time that never made it onto the calendar. Localized content; when the recruiter
   // attached a join link it becomes the location + a "Join" line. Feeds the
   // Add-to-calendar menu (Google / Outlook / .ics) on the booked card.
-  const calendarEvent = (() => {
-    if (!invite?.slotAt) return null;
-    const durMin = invite.durationMin ?? 30;
-    const meetingUrl = invite.meetingUrl?.trim() || null;
-    return {
-      title: invite.jobTitle ? t("icsTitleRole", { role: invite.jobTitle }) : t("icsTitle"),
-      start: invite.slotAt,
-      end: new Date(new Date(invite.slotAt).getTime() + durMin * 60_000).toISOString(),
-      description: meetingUrl ? `${t("icsDescription")}\n${t("joinInterview")}: ${meetingUrl}` : t("icsDescription"),
-      location: meetingUrl ?? undefined,
-    };
-  })();
+  // bug-ui-scan-2026-07-09 (interview-scheduling-prep-rubric #5) — build the event
+  // via the shared candidateCalendarEvent so the candidate and recruiter calendars
+  // derive the SAME default duration (was an inline `?? 30` here vs 45 on the
+  // recruiter side) and location fallback for one interview. Text stays localized.
+  const calendarEvent = candidateCalendarEvent(
+    { slotAt: invite?.slotAt ?? null, durationMin: invite?.durationMin ?? null, meetingUrl: invite?.meetingUrl },
+    {
+      title: invite?.jobTitle ? t("icsTitleRole", { role: invite.jobTitle }) : t("icsTitle"),
+      description: t("icsDescription"),
+      joinLabel: t("joinInterview"),
+      locationOnline: t("icsLocationOnline"),
+    }
+  );
 
   // RSVP on the confirmed booking (idea-87af39c5). "I'll be there" stamps an
   // attendance signal the recruiter sees; "I can't make it" frees the slot and

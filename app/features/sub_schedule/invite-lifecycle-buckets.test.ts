@@ -1,0 +1,98 @@
+// bug-ui-scan-2026-07-09 (interview-scheduling-prep-rubric #3) — pins the lifecycle
+// panel's bucketing. Non-vacuity: the pre-fix panel had only attention/upcoming
+// (future-only)/awaiting; a confirmed slot at-or-just-past "now" landed in NONE of
+// them (see `legacyUpcoming` below, which replicates the old predicate and drops
+// the row). The `today` bucket keeps those visible.
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { bucketInvites, isInProgress, RECENT_WINDOW_MS } from "./invite-lifecycle-buckets.ts";
+import type { ScheduleInvite } from "@/app/_lib/schedule-store";
+
+const NOW = Date.parse("2026-06-01T10:00:00.000Z");
+
+function inv(over: Partial<ScheduleInvite>): ScheduleInvite {
+  return {
+    id: over.id ?? `id-${Math.random()}`,
+    token: over.token ?? "tok",
+    entryId: "e",
+    candidateLabel: "C",
+    jobTitle: "R",
+    status: "pending",
+    slot: null,
+    slotAt: null,
+    reminderSentAt: null,
+    reminderAttempts: 0,
+    reminderLastAttemptAt: null,
+    needsReconcile: false,
+    reconcileReason: null,
+    needsMoreSlots: false,
+    moreSlotsFlaggedAt: null,
+    durationMin: null,
+    rescheduleCount: 0,
+    candidateTz: null,
+    attendanceStatus: null,
+    attendanceAt: null,
+    meetingUrl: null,
+    locale: null,
+    workspaceId: "workspace",
+    createdAt: "2026-06-01T00:00:00.000Z",
+    confirmedAt: null,
+    ...over,
+  };
+}
+
+// The old future-only rule, kept here purely to demonstrate the bug this fixes.
+const legacyUpcoming = (list: ScheduleInvite[]) =>
+  list.filter((i) => i.status === "confirmed" && i.slotAt && Date.parse(i.slotAt) >= NOW);
+
+test("a confirmed slot that just passed stays visible in `today` (not dropped as pre-fix)", () => {
+  const justPast = inv({ id: "past", status: "confirmed", slotAt: "2026-06-01T09:30:00.000Z", durationMin: 30 });
+  const { upcoming, today, awaiting, attention } = bucketInvites([justPast], NOW);
+  assert.equal(today.length, 1, "just-past confirmed interview is in `today`");
+  assert.equal(today[0].id, "past");
+  assert.equal(upcoming.length, 0);
+  assert.equal(awaiting.length, 0);
+  assert.equal(attention.length, 0);
+  // Non-vacuity: the pre-fix predicate would have shown it nowhere.
+  assert.equal(legacyUpcoming([justPast]).length, 0, "old rule dropped it from upcoming");
+});
+
+test("future confirmed → upcoming (sorted), old-past → dropped, non-confirmed → awaiting", () => {
+  const future2 = inv({ id: "f2", status: "confirmed", slotAt: "2026-06-01T14:00:00.000Z" });
+  const future1 = inv({ id: "f1", status: "confirmed", slotAt: "2026-06-01T12:00:00.000Z" });
+  const ancient = inv({ id: "old", status: "confirmed", slotAt: "2026-05-20T09:00:00.000Z" });
+  const pending = inv({ id: "p", status: "pending" });
+  const { upcoming, today, awaiting } = bucketInvites([future2, future1, ancient, pending], NOW);
+  assert.deepEqual(upcoming.map((i) => i.id), ["f1", "f2"], "upcoming sorted ascending by slot");
+  assert.equal(today.length, 0);
+  assert.ok(!upcoming.concat(today).some((i) => i.id === "old"), "an interview past the grace window is not shown");
+  assert.deepEqual(awaiting.map((i) => i.id), ["p"]);
+});
+
+test("flagged rows go to attention and never double-count in another bucket", () => {
+  const flagged = inv({ id: "flag", status: "confirmed", slotAt: "2026-06-01T12:00:00.000Z", needsReconcile: true });
+  const { attention, upcoming, today } = bucketInvites([flagged], NOW);
+  assert.deepEqual(attention.map((i) => i.id), ["flag"]);
+  assert.equal(upcoming.length, 0, "attention row not also in upcoming");
+  assert.equal(today.length, 0);
+});
+
+test("a slot exactly at `now` stays visible (no >=-flicker disappearance)", () => {
+  const atNow = inv({ id: "now", status: "confirmed", slotAt: "2026-06-01T10:00:00.000Z" });
+  const { upcoming, today } = bucketInvites([atNow], NOW);
+  assert.equal(upcoming.length + today.length, 1, "the boundary slot is shown, not hidden");
+});
+
+test("recent window boundary: past the window → not shown", () => {
+  const edge = new Date(NOW - RECENT_WINDOW_MS - 60_000).toISOString();
+  const stale = inv({ id: "stale", status: "confirmed", slotAt: edge });
+  const { today, upcoming, awaiting } = bucketInvites([stale], NOW);
+  assert.equal(today.length + upcoming.length + awaiting.length, 0);
+});
+
+test("isInProgress is true only between start and planned end", () => {
+  assert.equal(isInProgress("2026-06-01T09:45:00.000Z", 30, NOW), true, "started 15m ago, 30m long → in progress");
+  assert.equal(isInProgress("2026-06-01T09:00:00.000Z", 30, NOW), false, "finished 30m ago");
+  assert.equal(isInProgress("2026-06-01T11:00:00.000Z", 30, NOW), false, "not started yet");
+  assert.equal(isInProgress("2026-06-01T09:45:00.000Z", null, NOW), false, "unknown duration → no claim");
+});

@@ -1,9 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Link2, Pencil, Video } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { TextInput } from "@/app/_components/TextInput";
+// bug-ui-scan-2026-07-09 (interview-scheduling-prep-rubric #4) — shared dismissal
+// primitive, replacing the hand-rolled `fixed inset-0` viewport blanket that ate
+// the first outside click and gave no focus-return.
+import { usePopoverDismiss } from "./usePopoverDismiss";
 
 // The recruiter's per-interview meeting-link control on the agenda row: a "Join"
 // link when set, plus an add/edit popover that PATCHes /api/schedule. On save it
@@ -14,6 +18,10 @@ export function MeetingLinkCell({ token, url, onSaved }: { token: string; url: s
   const [value, setValue] = useState(url ?? "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  // bug-ui-scan-2026-07-09 (interview-scheduling-prep-rubric #4): Escape + outside-
+  // press dismissal (focus returns to the trigger), replacing the blanket button.
+  const containerRef = usePopoverDismiss<HTMLSpanElement>({ open: editing, onClose: () => setEditing(false), triggerRef });
 
   const open = () => {
     setValue(url ?? "");
@@ -46,16 +54,19 @@ export function MeetingLinkCell({ token, url, onSaved }: { token: string; url: s
   };
 
   return (
-    <span className="relative inline-flex items-center gap-1">
+    <span ref={containerRef} className="relative inline-flex items-center gap-1">
       {url ? (
         <a href={url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs font-semibold text-coral hover:underline">
           <Video size={12} aria-hidden /> {t("join")}
         </a>
       ) : null}
       <button
+        ref={triggerRef}
         type="button"
         onClick={open}
         aria-label={url ? t("editLink") : t("addLink")}
+        aria-haspopup="dialog"
+        aria-expanded={editing}
         className="focus-ring inline-flex items-center gap-1 rounded-md border border-stone-200 bg-white px-1.5 py-0.5 text-xs font-semibold text-steel hover:border-coral/40 hover:text-ink"
       >
         {url ? (
@@ -67,9 +78,9 @@ export function MeetingLinkCell({ token, url, onSaved }: { token: string; url: s
         )}
       </button>
       {editing ? (
-        <>
-          <button type="button" aria-hidden tabIndex={-1} onClick={() => setEditing(false)} className="fixed inset-0 z-40 cursor-default" />
-          <div className="absolute right-0 top-full z-50 mt-1 w-64 rounded-lg border border-stone-200 bg-white p-2 shadow-pop">
+        // Dismissal (Escape / outside press) via usePopoverDismiss — no blanket
+        // button that would swallow the first outside click.
+        <div role="dialog" aria-label={url ? t("editLink") : t("addLink")} className="absolute right-0 top-full z-50 mt-1 w-64 rounded-lg border border-stone-200 bg-white p-2 shadow-pop">
             <TextInput
               autoFocus
               value={value}
@@ -97,8 +108,7 @@ export function MeetingLinkCell({ token, url, onSaved }: { token: string; url: s
                 {t("save")}
               </button>
             </div>
-          </div>
-        </>
+        </div>
       ) : null}
     </span>
   );

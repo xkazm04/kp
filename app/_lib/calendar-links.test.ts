@@ -6,7 +6,15 @@
 //   npm run test:unit
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { eventDurationMin, googleCalendarUrl, icalUtc, interviewCalendarEvent, outlookCalendarUrl } from "./calendar-links.ts";
+import {
+  candidateCalendarEvent,
+  DEFAULT_DURATION_MIN,
+  eventDurationMin,
+  googleCalendarUrl,
+  icalUtc,
+  interviewCalendarEvent,
+  outlookCalendarUrl,
+} from "./calendar-links.ts";
 
 const EV = {
   title: "Interview · Jane Doe — Backend Engineer",
@@ -77,4 +85,38 @@ test("interviewCalendarEvent is null without a slot; defaults duration to 45 min
   assert.equal(interviewCalendarEvent({ token: "t", candidateLabel: "A", jobTitle: null, slotAt: null, durationMin: null }), null);
   const ev = interviewCalendarEvent({ token: "t", candidateLabel: "A", jobTitle: null, slotAt: "2026-06-01T14:00:00.000Z", durationMin: null });
   assert.equal(ev?.end, "2026-06-01T14:45:00.000Z");
+});
+
+// bug-ui-scan-2026-07-09 (interview-scheduling-prep-rubric #5) — the candidate and
+// recruiter events must agree on the DEFAULTS (duration + location) for one
+// interview. Non-vacuity: pre-fix SchedulePicker inlined `durationMin ?? 30` and
+// `location: undefined`, so a no-duration invite blocked 30 min (not 45) and named
+// no location — both assertions below fail against that code.
+const CANDIDATE_STRINGS = { title: "Interview", description: "Your interview.", joinLabel: "Join", locationOnline: "Online interview" };
+
+test("candidateCalendarEvent shares the recruiter's default duration + location", () => {
+  const slotAt = "2026-06-01T14:00:00.000Z";
+  const cand = candidateCalendarEvent({ slotAt, durationMin: null, meetingUrl: null }, CANDIDATE_STRINGS);
+  const rec = interviewCalendarEvent({ token: "t", candidateLabel: "A", jobTitle: null, slotAt, durationMin: null });
+  assert.ok(cand && rec);
+  // Same end instant → same blocked length as the recruiter's calendar.
+  assert.equal(cand.end, rec.end, "candidate and recruiter block the same duration");
+  assert.equal(cand.end, "2026-06-01T14:45:00.000Z");
+  assert.equal(DEFAULT_DURATION_MIN, 45);
+  // A neutral (localized) location instead of an empty one.
+  assert.equal(cand.location, "Online interview");
+});
+
+test("candidateCalendarEvent honors a real meeting link + explicit duration", () => {
+  const ev = candidateCalendarEvent(
+    { slotAt: "2026-06-01T14:00:00.000Z", durationMin: 22, meetingUrl: " https://meet.example/xyz " },
+    CANDIDATE_STRINGS
+  );
+  assert.equal(ev?.end, "2026-06-01T14:22:00.000Z", "explicit duration wins over the default");
+  assert.equal(ev?.location, "https://meet.example/xyz", "trimmed join link becomes the location");
+  assert.match(ev?.description ?? "", /Join: https:\/\/meet\.example\/xyz/);
+});
+
+test("candidateCalendarEvent is null without a booked slot", () => {
+  assert.equal(candidateCalendarEvent({ slotAt: null, durationMin: 30, meetingUrl: null }, CANDIDATE_STRINGS), null);
 });

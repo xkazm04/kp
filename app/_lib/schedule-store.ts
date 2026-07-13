@@ -196,12 +196,26 @@ export function createScheduleInvite(input: {
   durationMin?: number | null;
 }): ScheduleInvite {
   const d = db();
-  const now = new Date().toISOString();
-  const id = randomId("sch");
-  const token = randomToken("st");
+  // bug-ui-scan-2026-07-09 (interview-scheduling-prep-rubric #2) — one active
+  // invite per entry. Without this, re-inviting an entry (a bulk cohort that
+  // overlaps an already-invited candidate, or a second single/bulk call) minted a
+  // SECOND live token for the same entry_id — two independently confirmable links,
+  // so one candidate could book two slots in the scarce global pool, the confirm
+  // path ran actOnPipelineEntry twice, the reminder sweep double-sent, and the
+  // lifecycle agenda showed two rows for one person. coerceBulkEntryIds only dedupes
+  // WITHIN one request, so it didn't cover overlap across requests. Reconcile
+  // against any existing non-terminal (pending|confirmed) invite for this entry and
+  // return it instead of inserting a duplicate — making "invite this entry/cohort"
+  // idempotent regardless of overlap. A cancelled attendance returns the invite to
+  // 'pending' (still matched here), so a re-invite reuses that link rather than
+  // stacking a new one.
   // Tenant (P1): derive the owning team from the linked entry (a by-id lookup on the
   // shared file) so callers don't thread it. Degrades to the default workspace for an
   // orphan entry OR an isolated connection with no pipeline_entries table (test harness).
+  // Derived BEFORE the reconcile below so the idempotency lookup is itself
+  // workspace-scoped: an entry_id belongs to exactly one team, but every recruiter-facing
+  // schedule_invites query must filter workspace_id (schedule-tenancy.test.ts) and a new
+  // invite must never reconcile against a DIFFERENT tenant's row.
   let workspaceId = "workspace";
   try {
     const wsRow = d.prepare(`SELECT workspace_id FROM pipeline_entries WHERE id = ?`).get(input.entryId) as
@@ -211,6 +225,16 @@ export function createScheduleInvite(input: {
   } catch {
     /* no pipeline_entries on this connection — default workspace */
   }
+  const existing = d
+    .prepare(
+      `SELECT * FROM schedule_invites WHERE entry_id = ? AND workspace_id = ? AND status IN ('pending','confirmed')
+        ORDER BY created_at DESC LIMIT 1`
+    )
+    .get(input.entryId, workspaceId) as Record<string, unknown> | undefined;
+  if (existing) return rowTo(existing);
+  const now = new Date().toISOString();
+  const id = randomId("sch");
+  const token = randomToken("st");
   // RETURNING * hands the freshly-inserted row back in the same statement, so we
   // don't issue a second SELECT to read what we just wrote.
   const row = d

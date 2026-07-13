@@ -176,3 +176,40 @@ test("re-confirming after a cancel clears the stale cancelled RSVP", () => {
   assert.ok(r.ok);
   if (r.ok) assert.equal(r.invite.attendanceStatus, null, "a fresh booking starts with no RSVP");
 });
+
+// --- one active invite per entry (bug-ui-scan-2026-07-09 #2) ------------------
+// Non-vacuity: against the pre-fix createScheduleInvite (unconditional INSERT)
+// each call minted a NEW token/id for the same entry_id, so both assertions
+// (same token, single row) fail — the whole point of the bug.
+
+test("re-inviting a pending entry reuses the live invite instead of minting a duplicate", () => {
+  const entryId = "e-dup-pending";
+  const a = createScheduleInvite({ entryId, candidateLabel: "Dup", jobTitle: "Role" });
+  const b = createScheduleInvite({ entryId, candidateLabel: "Dup", jobTitle: "Role" });
+  assert.equal(b.token, a.token, "second invite for the same pending entry returns the first token");
+  assert.equal(b.id, a.id);
+  const d = new Database(TMP);
+  const rows = d.prepare(`SELECT COUNT(*) AS n FROM schedule_invites WHERE entry_id = ?`).get(entryId) as { n: number };
+  d.close();
+  assert.equal(rows.n, 1, "exactly one row exists for the entry");
+});
+
+test("re-inviting an already-confirmed entry returns the confirmed invite (no second bookable token)", () => {
+  const entryId = "e-dup-confirmed";
+  const a = createScheduleInvite({ entryId, candidateLabel: "Booked" });
+  const r = confirmScheduleInvite(a.token, "Slot", "2031-05-01T10:00:00.000Z");
+  assert.ok(r.ok);
+  const b = createScheduleInvite({ entryId, candidateLabel: "Booked" });
+  assert.equal(b.token, a.token, "re-invite returns the same (confirmed) invite, not a new pending one");
+  assert.equal(b.status, "confirmed");
+  const d = new Database(TMP);
+  const rows = d.prepare(`SELECT COUNT(*) AS n FROM schedule_invites WHERE entry_id = ?`).get(entryId) as { n: number };
+  d.close();
+  assert.equal(rows.n, 1, "no duplicate token minted for a confirmed entry");
+});
+
+test("a distinct entry still mints its own invite", () => {
+  const x = createScheduleInvite({ entryId: "e-dup-x" });
+  const y = createScheduleInvite({ entryId: "e-dup-y" });
+  assert.notEqual(x.token, y.token, "different entries get different invites");
+});
