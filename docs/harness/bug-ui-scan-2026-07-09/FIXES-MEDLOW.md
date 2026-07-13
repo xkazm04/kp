@@ -244,7 +244,36 @@ fire against the whole store.**
 wiring, committed with that context since it imports `retry-sync.ts`) and offers #2 (empty-intake
 guard) — verified both coexist (retry ×3, empty-guard ×6, full suite 1799 green).
 
+## Wave 20 — Identity, Data & Privacy (11 findings, all resolved, 4 contexts)
+
+6 commits (`4dc25a3` i18n + 4 fixes + `mock.ts` deletion). tsc 0 · node unit 1799 → **1824 (now STABLE)** · i18n 3326 → **3329** × 4 · `next build` ✓.
+
+- **auth-sessions-workspace-tenancy** (`66361a8`): #5 pure `classifyLoginResult` maps the real
+  login contract (2xx/401/429/5xx/network/timeout — was collapsing every failure into "wrong
+  password") + a 15s AbortController timeout. +7 tests.
+- **organizations-members-invites** (`318cb7e`): #3 **accept-invite signs the session from the
+  invite's workspaceId/role** (was `listMembershipsForUser(...)[0]` — the OLDEST membership, so
+  accepting an invite could log a user into the wrong team/role); #4 rewired onboarding to the
+  real role vocab + deleted the orphaned `mock.ts` enum; #5 invite submit-lock + accurate active
+  count. +3 tests.
+- **privacy-consent-provenance** (`<privacy>`): #3 **read-time consent gate** — expired/anonymized
+  consent now withholds the transcript/scorecard + scrubs CV + GH dossier + masks the label
+  SYNCHRONOUSLY across the by-entry + analyses APIs (covers drawer/modal transitively); #4 erase-
+  error UX split; #5 honest held-data list. +6 tests.
+- **data-store-persistence** (`<datastore>`): #2 gates the synthetic benchmark seed behind
+  `KP_SEED_DEMO`/non-prod (closes the loop with Wave-14 k-anon); #3 `assertTestDbIsolated()` kills
+  the "mis-ordered import writes real `kp.sqlite`" class; #4 more pg-portability lint; #5 **PID-KEYED
+  TEMP-DB FLAKE FIXED** — the unit-db sweep now gates deletion on `process.kill(pid,0)` liveness
+  (was reclaiming a live sibling's dir mid-test). Verified **0 failures across 5 full runs**. +10 tests.
+
+### Deploy note (Wave 20)
+- New optional env var **`KP_SEED_DEMO`** — set it (or run non-production) to seed the demo benchmark
+  team; unset in production keeps synthetic data out of real org benchmarks.
+
+**Long-open flake CLOSED:** the pid-keyed temp-DB flake (noted since data-store #4 in the memory
+index) is fixed — the node suite is now stable at 1824 across repeated runs.
+
 ## Status
-Med/Low: **118 of 155 closed**, 37 open (13 M + 24 L) — of the open, **4 are deferred-with-cause**
+Med/Low: **129 of 155 closed**, 26 open (9 M + 17 L) — of the open, **4 are deferred-with-cause**
 (1 product decision + 3 blocked on the voice-eval WIP; see Wave 15). Remaining topic waves:
-Identity/Data/Privacy, Jobs/JD/Sourcing, LLM + Billing.
+Jobs/JD/Sourcing, LLM + Billing.
