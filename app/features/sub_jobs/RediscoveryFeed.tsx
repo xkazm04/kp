@@ -5,6 +5,10 @@ import { Check, RefreshCw, Sparkles, UserPlus, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { ScoreBadge } from "@/app/_components/ScoreBadge";
 import { postPipelineAdd } from "@/app/_lib/useAddToPipeline";
+// bug-ui-scan-2026-07-09 (sourcing-campaigns-rediscovery #4): the add-outcome
+// transition (keep the row + badge it "Added ✓", THEN dismiss after a beat) lives in
+// this pure sibling so the previously-dead success branch is reachable and testable.
+import { applyAddResult, ADDED_BADGE_MS } from "./rediscovery-add";
 
 type Alert = {
   id: string;
@@ -124,12 +128,18 @@ export function RediscoveryFeed() {
       next.delete(a.candidateId);
       return next;
     });
-    if (res.ok) {
-      setAdded((s) => new Set(s).add(a.candidateId));
-      // Adding the candidate to this role makes the alert stale — drop + dismiss it.
-      dismiss(a.id);
-    } else {
-      setRowError((m) => new Map(m).set(a.candidateId, res.message));
+    // bug-ui-scan-2026-07-09 (sourcing-campaigns-rediscovery #4): route the outcome
+    // through the pure transition, then HONOR its dismiss timing. On success the row is
+    // KEPT so the green "Added ✓" badge actually renders, and dismissed only after a
+    // beat — pre-fix the row was filtered out in the same tick, so the badge branch was
+    // unreachable dead code and the candidate vanished with no confirmation. Each slice
+    // derives from the LATEST state (functional updater) so a second in-flight add of a
+    // different candidate can't drop the first.
+    setAdded((s) => applyAddResult({ added: s, rowError: new Map() }, a.candidateId, res).added);
+    setRowError((m) => applyAddResult({ added: new Set(), rowError: m }, a.candidateId, res).rowError);
+    const { dismiss: timing } = applyAddResult({ added: new Set(), rowError: new Map() }, a.candidateId, res);
+    if (timing === "deferred") {
+      window.setTimeout(() => dismiss(a.id), ADDED_BADGE_MS);
     }
   };
 

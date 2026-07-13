@@ -17,6 +17,10 @@ import { useReachOut } from "@/app/_lib/useReachOut";
 import { ConfidenceBandBadge, ConfidenceRange, FitTierBadge } from "@/app/_components/Badge";
 import { PotentialBadge } from "@/app/_components/PotentialBadge";
 import { ScoreBadge } from "@/app/_components/ScoreBadge";
+// bug-ui-scan-2026-07-09 (sourcing-campaigns-rediscovery #3): "latest request wins"
+// guard so a slow ranking for a previously-selected role can't clobber the current
+// role's list when the posting modal is reused across jobs.
+import { makeLatestRequestGuard } from "./request-guard";
 
 export function RecruiterCandidates({
   jobId,
@@ -47,23 +51,45 @@ export function RecruiterCandidates({
   // The jobId whose candidates are currently loaded — so auto-load fires once per job
   // (mount AND when the reused modal switches jobs), not just on first mount.
   const loadedJobRef = useRef<string | null>(null);
+  // bug-ui-scan-2026-07-09 (sourcing-campaigns-rediscovery #3): loadedJobRef only gates
+  // INITIATION; these gate late RESOLUTION. The guard drops a stale response (keyed by
+  // jobId) and the AbortController cancels the prior in-flight fetch — which SIGKILLs
+  // its orphaned recruiter_cli child — so switching roles can't leave the wrong role's
+  // ranked pool on screen.
+  const guardRef = useRef(makeLatestRequestGuard());
+  const abortRef = useRef<AbortController | null>(null);
   const { add, added, adding, error: cardError, announce } = useAddToPipeline(jobId, jobTitle, "sourcing");
   const { reach, reached, reaching, error: reachError, announce: reachAnnounce } = useReachOut(jobId);
 
   const load = async () => {
+    // bug-ui-scan-2026-07-09 (sourcing-campaigns-rediscovery #3): capture the jobId as
+    // the request key, abort any prior fetch, and re-check the key before every state
+    // write so only the current role's result lands.
+    const key = jobId;
+    guardRef.current.begin(key);
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
     setLoading(true);
     setError(null);
     try {
-      const r = await fetch(`/api/jobs/${encodeURIComponent(jobId)}/candidates`);
+      const r = await fetch(`/api/jobs/${encodeURIComponent(jobId)}/candidates`, { signal: controller.signal });
       const payload = await r.json();
+      if (!guardRef.current.isCurrent(key)) return; // a newer role's load superseded this one
       if (!r.ok) throw new Error(payload.error ?? t("failedStatus", { status: r.status }));
       setData(payload);
     } catch (caught) {
+      // A superseded or aborted request must never surface an error over the current role.
+      if (controller.signal.aborted || !guardRef.current.isCurrent(key)) return;
       setError(caught instanceof Error ? caught.message : t("failed"));
     } finally {
-      setLoading(false);
+      if (guardRef.current.isCurrent(key)) setLoading(false);
     }
   };
+
+  // Cancel any in-flight ranking when the modal unmounts — drops the stale response
+  // and SIGKILLs the orphaned CLI child instead of a setState-after-unmount.
+  useEffect(() => () => abortRef.current?.abort(), []);
 
   // Deferred kick-off (0 ms timer): load() flips the loading flag synchronously,
   // and a sync setState in the effect body would cascade a render before the

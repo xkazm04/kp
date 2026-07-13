@@ -4,6 +4,10 @@ import { AlertTriangle, CheckCircle2, Coins, Languages, SlidersHorizontal, Users
 import { useTranslations } from "next-intl";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
 import { EmptyState } from "./JobsShared";
+// bug-ui-scan-2026-07-09 (sourcing-campaigns-rediscovery #5): the salary band is
+// formatted through the shared APP_CURRENCY helper (see coach-salary.ts) instead of a
+// local cs-CZ + hardcoded "CZK" template, so the coach can't mislabel the currency.
+import { fmtBand } from "./coach-salary";
 
 type Gate = { kind: "language" | "education"; value: string; eligibleDelta: number };
 type MustHave = { skill: string; missingAmongEligible: number; qualifiedDelta: number };
@@ -29,9 +33,6 @@ type Winnability = {
   skipped?: { id: string; label: string; reason: string }[];
   note?: string;
 };
-
-const fmtBand = (band: [number, number] | null) =>
-  band ? `${band[0].toLocaleString("cs-CZ")} – ${band[1].toLocaleString("cs-CZ")} CZK` : null;
 
 // idea-aa039d0c — pre-publish winnability coach. Reuses the production scorers via
 // /api/jobs/[id]/winnability to answer "will this JD actually fill?" BEFORE the
