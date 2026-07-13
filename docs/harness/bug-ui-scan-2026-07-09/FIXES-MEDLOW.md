@@ -68,7 +68,39 @@ data-store #4); 3 clean full runs confirmed it, not a regression.
 unset ⇒ XFF is ignored and the socket IP is used for rate limiting. All Wave-13 pure helpers
 proven non-vacuous (each behavioral test fails against pre-fix code).
 
+## Wave 14 — Insights, Analytics & Simulation (15 findings, 4 contexts)
+
+5 commits (`923f8b0` i18n + 4 fixes). tsc 0 · node unit 1658 → **1695** · i18n 3269 → **3298** × 4 · python 878 OK · `next build` ✓.
+
+- **analytics-calibration-dashboards** (`e795199`): **k-anonymity leak** — new
+  `teamBenchmark(workspaceId)` computes the org aggregate with `excludeWorkspaceId`, so the
+  k-anon floor counts only *other* teams (a 2-team org could back out its lone peer by
+  subtracting its own stats); panel error branches render a real retry button with
+  `role="alert"` (was a swallowed `role="status"`); `OrgBenchmarkPanel` gets a distinct error
+  state before its silent null-return.
+- **architecture-diagrams** (`8540490`): a test guard asserts every `/api` route drawn in a
+  `STEP_DETAILS.puml` body/summary resolves to a real `route.ts` (catches diagram drift); the
+  diagrams page is localized (new `diagrams.*` namespace, async `getTranslations`); pure
+  `puml/a11y.ts` gives clickable nodes `aria-label`+`aria-pressed` and the interactive SVG
+  `role="group"` not `role="img"`; StepDrawer keyed by `active.id` so a switch remounts.
+- **guided-pipeline-simulation** (`226fecc`): **CROSS-TENANT LEAK** — sim `jobs`/`jds`
+  DELETEs were UNSCOPED and `/api/sim/reset` was hardcoded to the DEFAULT workspace; both now
+  scoped by the caller `workspace_id`. Pure `controlRoomConfirm.ts` arm→confirm gate on the 3
+  consequential controls (approve gate / apply-floor / reconcile), pause/resume stay immediate;
+  pure `phaseStep.ts` single-sources the stepper tri-state for visual + `aria-label`.
+- **skill-matrix-coverage** (`<this wave>`): per-IP throttle (30/10min → 429) on the
+  skill-profile verify route; pure `skillProfileFreshness` derives a "stale" amber verdict from
+  the already-signed `issuedAt`+`methodologyVersion` (NO re-sign — page previously showed green
+  for any age); pure `matrix-rows.ts` — `bestVisibleScore` returns `null` for a no-assessed-cell
+  row (was floored to a fake 0) and splits hidden-by-floor vs hidden-unassessed; pure
+  `matrix-popover.ts` clamps `top ≥ margin` (was negative on short viewports) + focus-trap / Esc
+  / focus-restore / `aria-modal`.
+
+**Two privacy/tenancy findings surfaced above Med here** (analytics k-anon self-exclusion,
+sim cross-tenant DELETE) — fixed at root with non-vacuous tenant-survival tests. All Wave-14
+pure helpers proven non-vacuous.
+
 ## Status
-Med/Low: **43 of 155 closed**, 112 open (82 M + 30 L). Remaining topic waves: Insights/Analytics/Sim,
-AI Matching engine, Candidate Analysis, Dev Hiring, Interviews/Scheduling, Offers/Automation +
-Identity/Data/Privacy, Jobs/JD/Sourcing + LLM + Billing.
+Med/Low: **58 of 155 closed**, 97 open (67 M + 30 L). Remaining topic waves: AI Matching engine,
+Candidate Analysis, Dev Hiring, Interviews/Scheduling, Offers/Automation + Identity/Data/Privacy,
+Jobs/JD/Sourcing + LLM + Billing.
