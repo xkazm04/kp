@@ -297,7 +297,9 @@
       "range": "Middle 50% earn {lo}–{hi}",
       "a11yVacancies": "open vacancies",
       "a11yMedian": "median salary",
-      "a11yMedianUnavailable": "median salary not available"
+      "a11yMedianUnavailable": "median salary not available",
+      "ariaLabel": "Map of Czech regions",
+      "legendScale": "Colour scale {desc}, from {lo} to {hi} (midpoint {mid})"
     },
     "salary": {
       "eyebrow": "The field guide",
@@ -957,6 +959,7 @@
     "empty": "Type to search — or jump to a tab below.",
     "noResults": "No matches for “{q}”.",
     "searchFailed": "Search is unavailable right now.",
+    "searching": "Searching…",
     "groups": {
       "recent": "Recent",
       "tabs": "Go to",

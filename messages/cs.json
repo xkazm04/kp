@@ -297,7 +297,9 @@
       "range": "Prostředních 50 % bere {lo}–{hi}",
       "a11yVacancies": "volných míst",
       "a11yMedian": "medián mzdy",
-      "a11yMedianUnavailable": "medián mzdy není k dispozici"
+      "a11yMedianUnavailable": "medián mzdy není k dispozici",
+      "ariaLabel": "Mapa krajů České republiky",
+      "legendScale": "Barevná škála {desc}, od {lo} do {hi} (střed {mid})"
     },
     "salary": {
       "eyebrow": "Přehled",
@@ -957,6 +959,7 @@
     "empty": "Pište pro hledání — nebo přejděte na záložku níže.",
     "noResults": "Žádné výsledky pro „{q}“.",
     "searchFailed": "Hledání je momentálně nedostupné.",
+    "searching": "Vyhledávání…",
     "groups": {
       "recent": "Nedávné",
       "tabs": "Přejít na",

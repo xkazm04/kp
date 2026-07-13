@@ -302,7 +302,9 @@
       "range": "Mittlere 50% verdienen {lo}–{hi}",
       "a11yVacancies": "offene Stellen",
       "a11yMedian": "Mediangehalt",
-      "a11yMedianUnavailable": "Mediangehalt nicht verfügbar"
+      "a11yMedianUnavailable": "Mediangehalt nicht verfügbar",
+      "ariaLabel": "Karte der tschechischen Regionen",
+      "legendScale": "Farbskala {desc}, von {lo} bis {hi} (Mittelwert {mid})"
     },
     "salary": {
       "eyebrow": "Der Wegweiser",
@@ -983,6 +985,7 @@
     "empty": "Zum Suchen tippen — oder unten zu einem Tab springen.",
     "noResults": "Keine Treffer für „{q}“.",
     "searchFailed": "Die Suche ist derzeit nicht verfügbar.",
+    "searching": "Wird gesucht…",
     "groups": {
       "recent": "Zuletzt",
       "tabs": "Gehe zu",

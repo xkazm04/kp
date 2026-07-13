@@ -302,7 +302,9 @@
       "range": "Les 50 % du milieu gagnent {lo}–{hi}",
       "a11yVacancies": "offres ouvertes",
       "a11yMedian": "salaire médian",
-      "a11yMedianUnavailable": "salaire médian non disponible"
+      "a11yMedianUnavailable": "salaire médian non disponible",
+      "ariaLabel": "Carte des régions tchèques",
+      "legendScale": "Échelle de couleurs {desc}, de {lo} à {hi} (milieu {mid})"
     },
     "salary": {
       "eyebrow": "Le guide de terrain",
@@ -983,6 +985,7 @@
     "empty": "Saisissez pour rechercher — ou accédez à un onglet ci-dessous.",
     "noResults": "Aucun résultat pour « {q} ».",
     "searchFailed": "La recherche est indisponible pour le moment.",
+    "searching": "Recherche…",
     "groups": {
       "recent": "Récents",
       "tabs": "Aller à",
