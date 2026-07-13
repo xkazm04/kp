@@ -3030,6 +3030,9 @@
     "submit": "Se connecter",
     "submitting": "Connexion…",
     "networkError": "Impossible de joindre le serveur — vérifiez votre connexion et réessayez.",
+    "rateLimited": "Trop de tentatives — veuillez patienter quelques minutes et réessayer.",
+    "serverError": "Une erreur s'est produite de notre côté — veuillez réessayer dans un instant.",
+    "timeoutError": "La requête a expiré — veuillez réessayer.",
     "success": "Connecté.",
     "error": "Identifiants incorrects — réessayez."
   },

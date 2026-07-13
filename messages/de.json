@@ -3030,6 +3030,9 @@
     "submit": "Anmelden",
     "submitting": "Wird angemeldet…",
     "networkError": "Server nicht erreichbar — prüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
+    "rateLimited": "Zu viele Versuche — bitte warten Sie einige Minuten und versuchen Sie es erneut.",
+    "serverError": "Auf unserer Seite ist ein Fehler aufgetreten — bitte versuchen Sie es gleich erneut.",
+    "timeoutError": "Zeitüberschreitung der Anfrage — bitte versuchen Sie es erneut.",
     "success": "Angemeldet.",
     "error": "Falsche Zugangsdaten — versuchen Sie es erneut."
   },

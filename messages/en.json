@@ -2966,6 +2966,9 @@
     "submit": "Sign in",
     "submitting": "Signing in…",
     "networkError": "Couldn't reach the server — check your connection and try again.",
+    "rateLimited": "Too many attempts — please wait a few minutes and try again.",
+    "serverError": "Something went wrong on our end — please try again in a moment.",
+    "timeoutError": "The request timed out — please try again.",
     "success": "Signed in.",
     "error": "Incorrect credentials — try again."
   },

@@ -2966,6 +2966,9 @@
     "submit": "Přihlásit se",
     "submitting": "Přihlašování…",
     "networkError": "Nepodařilo se spojit se serverem — zkontrolujte připojení a zkuste to znovu.",
+    "rateLimited": "Příliš mnoho pokusů — počkejte několik minut a zkuste to znovu.",
+    "serverError": "Na naší straně došlo k chybě — zkuste to prosím za chvíli znovu.",
+    "timeoutError": "Časový limit požadavku vypršel — zkuste to znovu.",
     "success": "Přihlášení proběhlo úspěšně.",
     "error": "Nesprávné přihlašovací údaje — zkuste to znovu."
   },
