@@ -44,6 +44,14 @@
     "factorEducation": "Education",
     "factorTraits": "Traits",
     "factorPoints": "Points",
+    "scoreBands": {
+      "early": "Early",
+      "developing": "Developing",
+      "solid": "Solid",
+      "strong": "Strong",
+      "excellent": "Excellent"
+    },
+    "scoreAria": "Score {score} out of 100, {band}",
     "compare": {
       "emptyTitle": "CV Variants",
       "emptyBody": "Upload 2-3 CV variants to score each against the same job in one run, see the score delta per component, and get a merged best variant recommendation.",
@@ -66,7 +74,15 @@
       "bulletsTitle": "Top Bullets (merged)",
       "bulletsEmpty": "No rewrite bullets surfaced from any variant.",
       "baselineTag": "baseline",
-      "baselineTitle": "First uploaded variant — every other column's delta is measured against this one."
+      "baselineTitle": "First uploaded variant — every other column's delta is measured against this one.",
+      "tableCaption": "CV variant comparison — each variant scored per component; the winning column is marked.",
+      "winnerLabel": "Winner"
+    },
+    "salary": {
+      "mid": "Mid",
+      "growthPct": "+{pct}%",
+      "target": "Target",
+      "gaugeAria": "Salary range {min} to {max} {currency}, midpoint {midpoint}, {growth} target {target}"
     },
     "tabs": {
       "extraction": "Extraction",
@@ -3554,6 +3570,8 @@
     "workingOnFile": "Working on {fileName}.",
     "workingOnProfile": "Working on your profile.",
     "progressLabel": "Progress",
+    "progressWorking": "Working…",
+    "variantsDone": "{done} of {total} variants complete",
     "cancelScan": "Cancel scan",
     "stages": {
       "extractTitle": "Extracting CV text",
@@ -3578,6 +3596,8 @@
     "reportLanguage": "Report language",
     "blind": "Blind screening",
     "blindTitle": "Redact identity (name, contact, photo, gendered terms, age) from the CV before scoring; the name is re-attached only in the result, and the trust ledger records what was redacted.",
+    "blindGithubSuppressed": "GitHub deep-dive is skipped in blind mode — it would reveal the identity blind screening redacts.",
+    "blindGithubOnly": "Blind mode skips the GitHub deep-dive, so add a CV to run an analysis.",
     "attachCv": "Attach a CV to enable Analyze.",
     "githubOnlyReady": "GitHub-only deep-dive ready — attach a CV for the full analysis.",
     "ready": "Ready — Gemini takes 15–25 seconds.",

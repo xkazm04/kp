@@ -44,6 +44,14 @@
     "factorEducation": "Vzdělání",
     "factorTraits": "Vlastnosti",
     "factorPoints": "Body",
+    "scoreBands": {
+      "early": "Začínající",
+      "developing": "Rozvíjející se",
+      "solid": "Solidní",
+      "strong": "Silný",
+      "excellent": "Vynikající"
+    },
+    "scoreAria": "Skóre {score} ze 100, {band}",
     "compare": {
       "emptyTitle": "Varianty CV",
       "emptyBody": "Nahrajte 2–3 varianty CV, abyste je v jednom běhu ohodnotili proti stejné pozici, viděli rozdíl skóre po složkách a dostali doporučení sloučené nejlepší varianty.",
@@ -66,7 +74,15 @@
       "bulletsTitle": "Nejlepší body (sloučené)",
       "bulletsEmpty": "Z žádné varianty nevzešly body k přepsání.",
       "baselineTag": "základ",
-      "baselineTitle": "První nahraná varianta — rozdíl každého dalšího sloupce se měří proti ní."
+      "baselineTitle": "První nahraná varianta — rozdíl každého dalšího sloupce se měří proti ní.",
+      "tableCaption": "Porovnání variant CV — každá varianta hodnocena po složkách; vítězný sloupec je označen.",
+      "winnerLabel": "Vítěz"
+    },
+    "salary": {
+      "mid": "Střed",
+      "growthPct": "+{pct} %",
+      "target": "Cíl",
+      "gaugeAria": "Mzdové rozpětí {min} až {max} {currency}, střed {midpoint}, cíl {growth} na {target}"
     },
     "tabs": {
       "extraction": "Extrakce",
@@ -3554,6 +3570,8 @@
     "workingOnFile": "Zpracovávám {fileName}.",
     "workingOnProfile": "Zpracovávám tvůj profil.",
     "progressLabel": "Průběh",
+    "progressWorking": "Pracuji…",
+    "variantsDone": "{done} z {total} variant hotovo",
     "cancelScan": "Zrušit analýzu",
     "stages": {
       "extractTitle": "Extrakce textu CV",
@@ -3578,6 +3596,8 @@
     "reportLanguage": "Jazyk reportu",
     "blind": "Anonymní screening",
     "blindTitle": "Před hodnocením odstranit z CV identitu (jméno, kontakt, fotka, rodově zabarvené výrazy, věk); jméno se znovu připojí až do výsledku a kontrolní záznam uvede, co bylo odstraněno.",
+    "blindGithubSuppressed": "Hloubkový rozbor GitHubu se v anonymním režimu přeskakuje – odhalil by identitu, kterou anonymní screening skrývá.",
+    "blindGithubOnly": "Anonymní režim přeskakuje hloubkový rozbor GitHubu, takže pro analýzu přidejte CV.",
     "attachCv": "Připojte CV pro spuštění analýzy.",
     "githubOnlyReady": "Hloubková analýza GitHubu připravena — pro plnou analýzu přiložte CV.",
     "ready": "Připraveno — Gemini trvá 15–25 sekund.",

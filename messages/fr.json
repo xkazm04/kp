@@ -44,6 +44,14 @@
     "factorEducation": "Formation",
     "factorTraits": "Traits",
     "factorPoints": "Points",
+    "scoreBands": {
+      "early": "Débutant",
+      "developing": "En développement",
+      "solid": "Solide",
+      "strong": "Fort",
+      "excellent": "Excellent"
+    },
+    "scoreAria": "Score {score} sur 100, {band}",
     "compare": {
       "emptyTitle": "Variantes de CV",
       "emptyBody": "Importez 2 à 3 variantes de CV pour les évaluer face au même poste en une seule passe, comparer l'écart de score par composant et obtenir la recommandation d'une meilleure variante fusionnée.",
@@ -66,7 +74,15 @@
       "bulletsTitle": "Meilleures puces (fusionnées)",
       "bulletsEmpty": "Aucune puce réécrite proposée à partir des variantes.",
       "baselineTag": "référence",
-      "baselineTitle": "Première variante importée — l'écart de chaque autre colonne est mesuré par rapport à celle-ci."
+      "baselineTitle": "Première variante importée — l'écart de chaque autre colonne est mesuré par rapport à celle-ci.",
+      "tableCaption": "Comparaison des variantes de CV — chaque variante notée par composant ; la colonne gagnante est marquée.",
+      "winnerLabel": "Gagnant"
+    },
+    "salary": {
+      "mid": "Médian",
+      "growthPct": "+{pct} %",
+      "target": "Cible",
+      "gaugeAria": "Fourchette salariale {min} à {max} {currency}, médian {midpoint}, objectif {growth} à {target}"
     },
     "tabs": {
       "extraction": "Extraction",
@@ -3622,6 +3638,8 @@
     "workingOnFile": "Traitement de {fileName}.",
     "workingOnProfile": "Traitement de votre profil.",
     "progressLabel": "Progression",
+    "progressWorking": "En cours…",
+    "variantsDone": "{done} sur {total} variantes terminées",
     "cancelScan": "Annuler l’analyse",
     "stages": {
       "extractTitle": "Extraction du texte du CV",
@@ -3646,6 +3664,8 @@
     "reportLanguage": "Langue du rapport",
     "blind": "Présélection à l’aveugle",
     "blindTitle": "Masque l’identité (nom, contact, photo, termes genrés, âge) du CV avant l’évaluation ; le nom n’est rattaché que dans le résultat, et le registre de confiance consigne ce qui a été masqué.",
+    "blindGithubSuppressed": "L’analyse GitHub approfondie est ignorée en mode aveugle – elle révélerait l’identité que le screening aveugle masque.",
+    "blindGithubOnly": "Le mode aveugle ignore l’analyse GitHub approfondie ; ajoutez un CV pour lancer une analyse.",
     "attachCv": "Joignez un CV pour activer l’analyse.",
     "githubOnlyReady": "Analyse GitHub approfondie prête — joignez un CV pour l’analyse complète.",
     "ready": "Prêt — Gemini prend 15–25 secondes.",

@@ -44,6 +44,14 @@
     "factorEducation": "Ausbildung",
     "factorTraits": "Eigenschaften",
     "factorPoints": "Punkte",
+    "scoreBands": {
+      "early": "Anfänger",
+      "developing": "In Entwicklung",
+      "solid": "Solide",
+      "strong": "Stark",
+      "excellent": "Ausgezeichnet"
+    },
+    "scoreAria": "Bewertung {score} von 100, {band}",
     "compare": {
       "emptyTitle": "CV-Varianten",
       "emptyBody": "Laden Sie 2–3 CV-Varianten hoch, um jede in einem Durchlauf gegen dieselbe Stelle zu bewerten, das Score-Delta je Komponente zu sehen und eine zusammengeführte Empfehlung für die beste Variante zu erhalten.",
@@ -66,7 +74,15 @@
       "bulletsTitle": "Top-Stichpunkte (zusammengeführt)",
       "bulletsEmpty": "Aus keiner Variante wurden umformulierte Stichpunkte ermittelt.",
       "baselineTag": "Basis",
-      "baselineTitle": "Zuerst hochgeladene Variante — das Delta jeder anderen Spalte wird an dieser gemessen."
+      "baselineTitle": "Zuerst hochgeladene Variante — das Delta jeder anderen Spalte wird an dieser gemessen.",
+      "tableCaption": "Vergleich der CV-Varianten — jede Variante nach Komponenten bewertet; die Gewinnerspalte ist markiert.",
+      "winnerLabel": "Gewinner"
+    },
+    "salary": {
+      "mid": "Mitte",
+      "growthPct": "+{pct} %",
+      "target": "Ziel",
+      "gaugeAria": "Gehaltsspanne {min} bis {max} {currency}, Mittelwert {midpoint}, Ziel {growth} bei {target}"
     },
     "tabs": {
       "extraction": "Extraktion",
@@ -3622,6 +3638,8 @@
     "workingOnFile": "{fileName} wird bearbeitet.",
     "workingOnProfile": "Ihr Profil wird bearbeitet.",
     "progressLabel": "Fortschritt",
+    "progressWorking": "Wird verarbeitet…",
+    "variantsDone": "{done} von {total} Varianten fertig",
     "cancelScan": "Scan abbrechen",
     "stages": {
       "extractTitle": "CV-Text wird extrahiert",
@@ -3646,6 +3664,8 @@
     "reportLanguage": "Berichtssprache",
     "blind": "Anonymes Screening",
     "blindTitle": "Identität (Name, Kontakt, Foto, geschlechtsbezogene Begriffe, Alter) vor der Bewertung aus dem CV schwärzen; der Name wird erst im Ergebnis wieder angefügt, und das Trust-Ledger hält fest, was geschwärzt wurde.",
+    "blindGithubSuppressed": "Der GitHub-Deep-Dive wird im Blind-Modus übersprungen – er würde die Identität offenlegen, die das Blind-Screening verbirgt.",
+    "blindGithubOnly": "Der Blind-Modus überspringt den GitHub-Deep-Dive — fügen Sie einen Lebenslauf hinzu, um eine Analyse auszuführen.",
     "attachCv": "Hängen Sie einen CV an, um die Analyse zu aktivieren.",
     "githubOnlyReady": "Reiner GitHub-Deep-Dive bereit — hängen Sie einen CV für die vollständige Analyse an.",
     "ready": "Bereit — Gemini braucht 15–25 Sekunden.",
