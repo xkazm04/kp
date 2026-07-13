@@ -135,8 +135,38 @@ pure helpers proven non-vacuous.
   `--strict` regression-gating to the deterministic golden path; #5 fold `must_hold`-derived
   ElevenLabs failures into `r.issues` (currently non-gating `r.quality_issues`).
 
+## Wave 16 — Candidate Analysis (13 findings, all resolved, 4 contexts)
+
+6 commits (`829721e` i18n + 4 fixes + 1 heredoc re-commit). tsc 0 · node unit 1696 → **1725** · i18n 3299 → **3315** × 4 · `next build` ✓. No Python touched (matching_eval N/A).
+
+- **candidate-profile-job-matching** (`e9bafad`): #3 `profile/draft` route uses
+  `parsePythonJson` (a bare `JSON.parse(stdout)` could 500 a SUCCESSFUL paid draft on
+  interpreter teardown noise); #5 `WeightsPanel` re-anchors sliders to the server-renormalized
+  vector after each apply (were stale → labels disagreed with the ranking + "Apply re-rank"
+  stayed falsely enabled); pure `weightsDirty`/`syncDraftToWeights`. #4 was a dedup of
+  analytics-calibration #1 (`toCsv` neutralization, already fixed).
+- **cv-analysis-workspace** (`44f67f8`): #3 pure `githubRunPolicy` bails the GitHub deep-dive
+  in blind mode (identity can no longer render beside a blind-scored CV); #4 `AnalysisProgress`
+  a11y (dropped the panel-wide `role=status`, narrowed to two small live regions); #5 **real
+  per-variant progress** wired end-to-end (server already persisted `progressDone/Total`) —
+  multi-variant shows "X of N variants", single run flips to indeterminate on the final stage
+  (kills the frozen 83% fake bar).
+- **github-evidence-cv-utilities** (`<github>`): #3 paginate owned repos to 300 with an honest
+  truncation note (prolific candidates' flagship repos now analyzed); #4 `SKILL_ALIASES` made
+  mutually exclusive (**intentional taxonomy refinement** — one JD keyword → one concept-level
+  match/gap, not three); #5 `extractCvEmail` disambiguates multi-email CVs.
+- **analysis-result-panels** (`<panels>`): #2 ArchetypeBanner OMITs the chip for absent values
+  (was a misleading definite "0%"); #3 ScoreDial band verdict + aria localized (was hardcoded
+  English on bilingual reports); #4 SalaryGauge growth caption DERIVED from the real rounded
+  target (+34% not a fixed "+30%"); #5 CompareTab table a11y (caption/scope/sr-only winner).
+
+**Behavior change flagged:** github-evidence #4 makes skill-alias buckets mutually exclusive —
+react/next.js resolve only to the `react` concept (previously also counted as typescript +
+javascript). Improves match/gap honesty; worth a glance if any downstream report expected the
+triple-count.
+
 ## Status
-Med/Low: **68 of 155 closed**, 87 open (63 M + 24 L) — of the open, **4 are deferred-with-cause**
-(1 product decision + 3 blocked on the voice-eval WIP; see above). Remaining topic waves:
-Candidate Analysis, Dev Hiring, Interviews/Scheduling, Offers/Automation + Identity/Data/Privacy,
+Med/Low: **81 of 155 closed**, 74 open (50 M + 24 L) — of the open, **4 are deferred-with-cause**
+(1 product decision + 3 blocked on the voice-eval WIP; see Wave 15). Remaining topic waves:
+Dev Hiring, Interviews/Scheduling, Offers/Automation + Identity/Data/Privacy,
 Jobs/JD/Sourcing + LLM + Billing.
