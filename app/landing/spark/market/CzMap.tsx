@@ -51,7 +51,7 @@ export default function CzMap({ regions, metric, activeCode, onActivate, classNa
       viewBox={geo.viewBox}
       className={className}
       role="group"
-      aria-label="Map of Czech regions"
+      aria-label={t("map.ariaLabel")}
       style={{ overflow: "visible" }}
     >
       {ENTRIES.map(([code, g], i) => {
@@ -72,6 +72,9 @@ export default function CzMap({ regions, metric, activeCode, onActivate, classNa
             tabIndex={0}
             role="button"
             aria-label={label}
+            // Reflect the selected region so the button role is honest to AT
+            // (which region's figures the detail card is currently showing).
+            aria-pressed={activeCode === code}
             initial={reduce ? false : { opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={reduce ? undefined : { delay: i * 0.02, duration: 0.3 }}
@@ -79,6 +82,14 @@ export default function CzMap({ regions, metric, activeCode, onActivate, classNa
             onMouseEnter={() => onActivate(code)}
             onFocus={() => onActivate(code)}
             onClick={() => onActivate(code)}
+            // Honour the button keyboard contract the role implies: Enter/Space
+            // activate the region (and Space must not scroll the page).
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " " || e.key === "Spacebar") {
+                e.preventDefault();
+                onActivate(code);
+              }
+            }}
           />
         );
       })}

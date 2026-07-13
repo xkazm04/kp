@@ -9,7 +9,7 @@
  */
 import { motion, useReducedMotion } from "framer-motion";
 import { useTranslations } from "next-intl";
-import { DISPLAY, HAND, STICKER, INK, CORAL, AMBER, MOSS, STEEL } from "../tokens";
+import { DISPLAY, HAND, STICKER, INK, CORAL, MOSS } from "../tokens";
 import {
   fmtCzk,
   fmtCzkShort,
@@ -17,7 +17,6 @@ import {
   fmtDate,
   heatColor,
   salaryColor,
-  FAMILY_ORDER,
   type MapMetric,
   type Region,
   type OrgType,
@@ -26,12 +25,7 @@ import {
   type RefSalary,
   type JdGroup,
 } from "./data";
-
-const FAMILY_COLORS = [CORAL, MOSS, AMBER, STEEL];
-export function familyColor(family: string): string {
-  const i = Math.max(0, (FAMILY_ORDER as readonly string[]).indexOf(family));
-  return FAMILY_COLORS[i % FAMILY_COLORS.length];
-}
+import { familyColor, orgColor } from "./marketColors";
 
 // ── stat tile ────────────────────────────────────────────────────────────────
 export function StatTile({ value, label, hint, tilt = 0 }: { value: string; label: string; hint?: string; tilt?: number }) {
@@ -81,23 +75,35 @@ export function MetricToggle({ metric, onChange }: { metric: MapMetric; onChange
 }
 
 // ── map legend ────────────────────────────────────────────────────────────────
-export function MapLegend({ metric, lo, hi }: { metric: MapMetric; lo: string; hi: string }) {
+// The choropleth encodes value as fill colour; the legend is how a reader maps a
+// mid-tone back to an approximate figure. It shows THREE labelled ticks (lo · mid
+// · hi) so the scale reads without hovering, and the whole widget is a single
+// `role="img"` whose localised `aria-label` states the full scale — so AT users
+// (for whom the gradient is decorative/aria-hidden) still get the range, not
+// silence.
+export function MapLegend({ metric, lo, mid, hi }: { metric: MapMetric; lo: string; mid: string; hi: string }) {
   const t = useTranslations("jobMarket");
+  const desc = metric === "volume" ? t("map.legendVolume") : t("map.legendSalary");
   const stops =
     metric === "volume"
       ? [heatColor(0), heatColor(0.5), heatColor(1)]
       : [salaryColor(0.05), salaryColor(0.5), salaryColor(1)];
   return (
-    <div className="flex items-center gap-3">
-      <span className="text-[13px] font-bold text-[#42606f]">{lo}</span>
-      <span
-        className="h-3 w-32 rounded-full border-[2px] border-[#17202a]"
-        style={{ background: `linear-gradient(90deg, ${stops[0]}, ${stops[1]}, ${stops[2]})` }}
-        aria-hidden
-      />
-      <span className="text-[13px] font-bold text-[#42606f]">{hi}</span>
-      <span className={`${HAND} ml-1 text-sm text-[#526b4f]`}>
-        {metric === "volume" ? t("map.legendVolume") : t("map.legendSalary")}
+    <div role="img" aria-label={t("map.legendScale", { desc, lo, mid, hi })} className="flex items-center gap-3">
+      {/* Visual scale — decorative for AT (the aria-label above carries it). */}
+      <div className="flex flex-col gap-1" aria-hidden>
+        <span
+          className="h-3 w-32 rounded-full border-[2px] border-[#17202a]"
+          style={{ background: `linear-gradient(90deg, ${stops[0]}, ${stops[1]}, ${stops[2]})` }}
+        />
+        <span className="flex w-32 justify-between text-[11px] font-bold text-[#42606f]">
+          <span>{lo}</span>
+          <span>{mid}</span>
+          <span>{hi}</span>
+        </span>
+      </div>
+      <span className={`${HAND} text-sm text-[#526b4f]`} aria-hidden>
+        {desc}
       </span>
     </div>
   );
@@ -241,17 +247,16 @@ export function OccupationList({ occupations }: { occupations: Occupation[] }) {
 export function OrgSplit({ orgTypes }: { orgTypes: OrgType[] }) {
   const t = useTranslations("jobMarket");
   const max = Math.max(...orgTypes.map((o) => o.medianSalary || 0));
-  const colors: Record<string, string> = { private: CORAL, public: STEEL, agency: AMBER };
   return (
     <div className="grid gap-3 sm:grid-cols-3">
       {orgTypes.map((o) => (
         <div key={o.orgType} className={`${STICKER} px-4 py-4`}>
-          <div className={`${HAND} text-sm`} style={{ color: colors[o.orgType] || INK }}>
+          <div className={`${HAND} text-sm`} style={{ color: orgColor(o.orgType) }}>
             {t(`orgTypes.${o.orgType}`)}
           </div>
           <div className={`${DISPLAY} mt-1 text-2xl font-extrabold`}>{fmtCzk(o.medianSalary)}</div>
           <div className="mt-2 h-2.5 w-full overflow-hidden rounded-full border-[2px] border-[#17202a] bg-white">
-            <div className="h-full rounded-full" style={{ width: `${((o.medianSalary || 0) / max) * 100}%`, background: colors[o.orgType] || INK }} />
+            <div className="h-full rounded-full" style={{ width: `${((o.medianSalary || 0) / max) * 100}%`, background: orgColor(o.orgType) }} />
           </div>
           <div className="mt-2 text-[13px] font-medium text-[#42606f]">{t("demand.openings", { n: fmtInt(o.vacancies) })}</div>
         </div>
@@ -293,7 +298,7 @@ export function JdCard({ item }: { item: JdGroup["items"][number] }) {
           ))}
         </div>
       )}
-      <span className={`${HAND} mt-auto pt-1 text-sm`} style={{ color: familyColor(item.orgType) }}>
+      <span className={`${HAND} mt-auto pt-1 text-sm`} style={{ color: orgColor(item.orgType) }}>
         {t(`orgTypes.${item.orgType}`)}
       </span>
     </div>

@@ -46,8 +46,12 @@ export default function MarketPulseAtlas() {
   const vals = snapshot.regions
     .map((r) => (metric === "volume" ? r.vacancies : r.medianSalary))
     .filter((v): v is number => v != null);
-  const lo = metric === "volume" ? fmtInt(Math.min(...vals)) : fmtCzkShort(Math.min(...vals));
-  const hi = metric === "volume" ? fmtInt(Math.max(...vals)) : fmtCzkShort(Math.max(...vals));
+  const fmt = metric === "volume" ? fmtInt : fmtCzkShort;
+  const min = Math.min(...vals);
+  const max = Math.max(...vals);
+  const lo = fmt(min);
+  const mid = fmt((min + max) / 2);
+  const hi = fmt(max);
   const jdGroup = snapshot.jd_references.find((g) => g.family === jdFamily);
 
   return (
@@ -57,7 +61,7 @@ export default function MarketPulseAtlas() {
         <div className="rounded-2xl border-[3px] border-[#17202a] bg-white p-5 shadow-[6px_6px_0_#17202a]">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <MetricToggle metric={metric} onChange={setMetric} />
-            <MapLegend metric={metric} lo={lo} hi={hi} />
+            <MapLegend metric={metric} lo={lo} mid={mid} hi={hi} />
           </div>
           <CzMap regions={snapshot.regions} metric={metric} activeCode={active} onActivate={setActive} className="h-auto w-full" />
         </div>
