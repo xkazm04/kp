@@ -2,6 +2,18 @@ import { NextRequest } from "next/server";
 import { recordOutbox } from "@/app/_lib/db";
 import { isBounceOutcome } from "@/app/_lib/comms-status";
 import { jsonError, jsonOk, safeJsonError } from "@/app/_lib/api-response";
+import {
+  secretsMatch,
+  isTimestampFresh,
+  callbackNonce,
+  createReplayGuard,
+  type ReplayGuard,
+} from "./callback-auth.ts";
+
+// Process-local replay/idempotency store, kept on globalThis so it survives a
+// Next.js dev HMR reload (same pattern as the other in-memory singletons here).
+const replayStore = globalThis as unknown as { __commsCallbackReplayGuard?: ReplayGuard };
+const replayGuard: ReplayGuard = (replayStore.__commsCallbackReplayGuard ??= createReplayGuard());
 
 
 // CW-2 (communications-inbound-channels #2) — the relay delivery-status callback.
@@ -15,20 +27,34 @@ import { jsonError, jsonOk, safeJsonError } from "@/app/_lib/api-response";
 // green `sent` in the Comms Center (see comms-view.ts `deriveCommsView`), so a
 // recruiter chases an undeliverable offer instead of trusting a false "sent".
 //
-// AUTH: fail-closed shared secret. The endpoint is DISABLED (503) unless
-// COMMS_CALLBACK_SECRET is set, and then every call must present it as
-// `x-comms-secret` (or `?secret=`). A deployment opts in deliberately; an
-// unconfigured deployment can't be poked by a forged receipt. Document the secret
-// alongside COMMS_WEBHOOK_URL in docs/COMMS_DELIVERY.md.
+// AUTH: fail-closed shared secret, hardened (communications-inbound-channels #4).
+// The endpoint is DISABLED (503) unless COMMS_CALLBACK_SECRET is set. Every call
+// must then present the secret ONLY in the `x-comms-secret` HEADER — the old
+// `?secret=` query form was dropped because URLs are logged and forwarded by
+// design (access/proxy logs, Referer), so a query-string secret leaks verbatim.
+// The compare is constant-time and length-independent (secretsMatch). A caller
+// timestamp header `x-comms-timestamp` (ISO-8601 or epoch-ms) must be within a
+// ±5-minute window, and an in-process idempotency guard drops an exact replay
+// inside that window — so a captured valid callback can't be replayed to forge or
+// re-forge a bounce. A deployment opts in deliberately; an unconfigured one can't
+// be poked. Document the secret + timestamp header alongside COMMS_WEBHOOK_URL in
+// docs/COMMS_DELIVERY.md.
 export async function POST(request: NextRequest) {
   try {
     const secret = process.env.COMMS_CALLBACK_SECRET;
     if (!secret) {
       return jsonError(null, "Delivery callbacks are not enabled (set COMMS_CALLBACK_SECRET).", 503);
     }
-    const presented = request.headers.get("x-comms-secret") ?? request.nextUrl.searchParams.get("secret");
-    if (presented !== secret) {
+    // Header only — never the URL (no `?secret=`), and a constant-time compare.
+    const presented = request.headers.get("x-comms-secret");
+    if (!secretsMatch(presented, secret)) {
       return jsonError(null, "Unauthorized.", 401);
+    }
+    // Freshness window bounds how long a captured callback stays replayable.
+    const nowMs = Date.now();
+    const timestamp = request.headers.get("x-comms-timestamp");
+    if (!isTimestampFresh(timestamp, nowMs)) {
+      return jsonError(null, "Stale or missing callback timestamp.", 401);
     }
 
     const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
@@ -50,6 +76,21 @@ export async function POST(request: NextRequest) {
     }
 
     const detail = typeof body.detail === "string" && body.detail.trim() ? body.detail.trim() : outcome;
+
+    // Idempotency: an exact replay of this receipt (within the freshness window)
+    // must not record a second bounce. Prefer a caller-supplied `x-comms-nonce`,
+    // else derive one from the timestamp + receipt identity.
+    const nonce = callbackNonce({
+      timestamp,
+      ref,
+      kind,
+      outcome,
+      detail,
+      explicitNonce: request.headers.get("x-comms-nonce"),
+    });
+    if (replayGuard.isReplay(nonce, nowMs)) {
+      return jsonOk({ recorded: false, duplicate: true });
+    }
     const recipient =
       typeof body.recipient === "string" && body.recipient.trim() ? body.recipient.trim() : "(relay callback)";
     recordOutbox({

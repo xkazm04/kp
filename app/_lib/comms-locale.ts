@@ -20,13 +20,26 @@ import { getWorkspaceDefaultLocale } from "./db/workspaces";
 import { getProfileRecord } from "./db/profiles";
 
 /** The locale every candidate-facing comm for this entry renders in: the
- *  entry's own (valid) locale, else the workspace default. Never throws — a
- *  detached/unseeded context degrades to DEFAULT_LOCALE rather than failing a
- *  dispatch over locale bookkeeping. */
-export function resolveCommsLocale(locale: string | null | undefined): Locale {
+ *  entry's own (valid) locale, else the entry's WORKSPACE default. Never throws —
+ *  a detached/unseeded context degrades to DEFAULT_LOCALE rather than failing a
+ *  dispatch over locale bookkeeping.
+ *
+ *  `workspaceId` is the team the entry was filed into (webhook.workspaceId, which
+ *  intakeLead/ingestCvApplication already carry). Pass it so a NULL-locale
+ *  candidate falls back to THEIR team's default_locale, not a fixed tenant's.
+ *  Omitting it reads DEFAULT_WORKSPACE_ID — behaviour-preserving today (every
+ *  webhook defaults to "workspace", so there is only one default_locale to read),
+ *  and the reason finding #5 is Low, not a live bug. The latent wrong-language
+ *  lands the day a second workspace with a different default_locale exists AND a
+ *  NULL-locale candidate is filed into it; closing it fully then only needs the
+ *  dispatch call sites (comms-dispatch.formatOfferDeadline/dispatch,
+ *  automation-run — both owned elsewhere) to surface `entry.workspaceId` (not yet
+ *  on the PipelineEntry type) and pass it here. This helper is already ready for
+ *  that id. */
+export function resolveCommsLocale(locale: string | null | undefined, workspaceId?: string): Locale {
   if (isLocale(locale)) return locale;
   try {
-    return getWorkspaceDefaultLocale();
+    return getWorkspaceDefaultLocale(workspaceId);
   } catch {
     return DEFAULT_LOCALE;
   }
