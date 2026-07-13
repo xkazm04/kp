@@ -817,7 +817,8 @@
     "attendanceConfirmed": "Présence confirmée — merci !",
     "slotsRefreshFailed": "Impossible d'actualiser les horaires disponibles — rechargez la page pour voir les derniers.",
     "rsvpCancelledNote": "Votre horaire a été libéré. Choisissez-en un nouveau ci-dessous et nous en informerons l'équipe.",
-    "joinInterview": "Rejoindre l'entretien"
+    "joinInterview": "Rejoindre l'entretien",
+    "icsLocationOnline": "Entretien en ligne"
   },
   "data": {
     "eyebrow": "Vos données",
@@ -999,6 +1000,9 @@
       "muteMic": "Couper le microphone",
       "unmuteMic": "Réactiver le microphone",
       "muted": "Coupé",
+      "muteAudio": "Couper la voix de l'examinateur",
+      "unmuteAudio": "Réactiver la voix de l'examinateur",
+      "enableAudio": "Appuyez pour activer le son",
       "elapsedLabel": "Temps écoulé",
       "completedNext": "Vous recevrez une réponse par e-mail, généralement sous quelques jours.",
       "micTestBtn": "Tester votre microphone",
@@ -1025,7 +1029,8 @@
         "ended": "Appel terminé",
         "error": "Erreur",
         "aiSpeaking": "AI parle",
-        "listening": "À l'écoute"
+        "listening": "À l'écoute",
+        "unstable": "Connexion instable — reconnexion…"
       }
     }
   },
@@ -1927,6 +1932,8 @@
       "needsMoreSlots": "le candidat n'a trouvé aucun créneau libre — ouvrez d'autres horaires",
       "needsReconcile": "réservé, mais le pipeline n'a pas avancé ({reason})",
       "upcoming": "{count, plural, one {Entretien à venir (#)} other {Entretiens à venir (#)}}",
+      "today": "{count, plural, one {Aujourd'hui et en cours (#)} other {Aujourd'hui et en cours (#)}}",
+      "inProgress": "en cours",
       "rescheduled": "{count, plural, one {replanifié ×#} other {replanifié ×#}}",
       "reminderSent": "rappel envoyé",
       "reminderQueued": "rappel en file d'attente (non remis)",
@@ -2466,7 +2473,10 @@
       "humanOnly": "tour mené par un humain",
       "humanOnlyTitle": "Noté par un recruteur selon la grille de préparation — aucun entretien vocal AI n'a eu lieu, les lignes de notation AI sont donc volontairement vides",
       "evidenceHeading": "Preuves — citations mot pour mot derrière chaque note",
-      "humanScorecardHeading": "Scorecard humaine"
+      "humanScorecardHeading": "Scorecard humaine",
+      "unrecognizedRubric": "Noté sur une grille non reconnue — ces notes ne sont pas directement comparables aux cohortes standard.",
+      "offRubric": "hors barème",
+      "offRubricTitle": "Ce candidat a été noté sur cet axe, mais il ne figure pas dans le barème actuel de la cohorte — probablement une compétence renommée ou révisée, affichée à part plutôt que supprimée."
     },
     "candidates": {
       "failedStatus": "Échec ({status}).",

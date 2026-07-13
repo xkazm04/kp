@@ -791,7 +791,8 @@
     "attendanceConfirmed": "Attendance confirmed — thanks!",
     "slotsRefreshFailed": "Couldn't refresh the available times — reload the page to see the latest.",
     "rsvpCancelledNote": "Your time has been released. Pick a new one below and we'll let the team know.",
-    "joinInterview": "Join interview"
+    "joinInterview": "Join interview",
+    "icsLocationOnline": "Online interview"
   },
   "data": {
     "eyebrow": "Your data",
@@ -973,6 +974,9 @@
       "muteMic": "Mute microphone",
       "unmuteMic": "Unmute microphone",
       "muted": "Muted",
+      "muteAudio": "Mute interviewer's voice",
+      "unmuteAudio": "Unmute interviewer's voice",
+      "enableAudio": "Tap to enable audio",
       "elapsedLabel": "Elapsed time",
       "completedNext": "You'll hear back by email, usually within a few days.",
       "micTestBtn": "Test your microphone",
@@ -999,7 +1003,8 @@
         "ended": "Call ended",
         "error": "Error",
         "aiSpeaking": "AI speaking",
-        "listening": "Listening"
+        "listening": "Listening",
+        "unstable": "Connection unstable — reconnecting…"
       }
     }
   },
@@ -1898,6 +1903,8 @@
       "needsMoreSlots": "candidate found no open slot — open more times",
       "needsReconcile": "booked, but the pipeline didn't advance ({reason})",
       "upcoming": "{count, plural, one {Upcoming interview (#)} other {Upcoming interviews (#)}}",
+      "today": "{count, plural, one {Today & in progress (#)} other {Today & in progress (#)}}",
+      "inProgress": "in progress",
       "rescheduled": "{count, plural, one {rescheduled ×#} other {rescheduled ×#}}",
       "reminderSent": "reminder sent",
       "reminderQueued": "reminder queued (not delivered)",
@@ -2437,7 +2444,10 @@
       "humanOnly": "human-led round",
       "humanOnlyTitle": "Scored by a recruiter on the prep rubric — no AI voice interview ran, so the AI rating rows are intentionally blank",
       "evidenceHeading": "Evidence — verbatim quotes behind every rating",
-      "humanScorecardHeading": "Human scorecard"
+      "humanScorecardHeading": "Human scorecard",
+      "unrecognizedRubric": "Scored on an unrecognized rubric — these ratings aren't directly comparable to the standard cohorts.",
+      "offRubric": "off-rubric",
+      "offRubricTitle": "This candidate was scored on this axis, but it isn't in the cohort's current rubric — likely a renamed or revised competency, so it's shown separately rather than dropped."
     },
     "candidates": {
       "failedStatus": "Failed ({status}).",

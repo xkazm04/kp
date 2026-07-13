@@ -791,7 +791,8 @@
     "attendanceConfirmed": "Účast potvrzena — děkujeme!",
     "slotsRefreshFailed": "Nepodařilo se obnovit dostupné termíny — načtěte stránku znovu, ať vidíte aktuální nabídku.",
     "rsvpCancelledNote": "Váš termín byl uvolněn. Vyberte si níže nový a dáme týmu vědět.",
-    "joinInterview": "Připojit se k pohovoru"
+    "joinInterview": "Připojit se k pohovoru",
+    "icsLocationOnline": "Online pohovor"
   },
   "data": {
     "eyebrow": "Vaše údaje",
@@ -973,6 +974,9 @@
       "muteMic": "Ztlumit mikrofon",
       "unmuteMic": "Zapnout mikrofon",
       "muted": "Ztlumeno",
+      "muteAudio": "Ztlumit hlas tazatele",
+      "unmuteAudio": "Zapnout hlas tazatele",
+      "enableAudio": "Klepnutím zapnete zvuk",
       "elapsedLabel": "Uplynulý čas",
       "completedNext": "Ozveme se vám e-mailem, obvykle během několika dní.",
       "micTestBtn": "Otestovat mikrofon",
@@ -999,7 +1003,8 @@
         "ended": "Hovor ukončen",
         "error": "Chyba",
         "aiSpeaking": "AI mluví",
-        "listening": "Poslouchám"
+        "listening": "Poslouchám",
+        "unstable": "Nestabilní spojení — obnovuji…"
       }
     }
   },
@@ -1898,6 +1903,8 @@
       "needsMoreSlots": "kandidát nenašel volný termín — otevřete další časy",
       "needsReconcile": "rezervováno, ale nábor se neposunul ({reason})",
       "upcoming": "{count, plural, one {Nadcházející pohovor (#)} few {Nadcházející pohovory (#)} other {Nadcházejících pohovorů (#)}}",
+      "today": "{count, plural, one {Dnes a probíhá (#)} few {Dnes a probíhá (#)} other {Dnes a probíhá (#)}}",
+      "inProgress": "probíhá",
       "rescheduled": "{count, plural, one {přeloženo ×#} other {přeloženo ×#}}",
       "reminderSent": "připomínka odeslána",
       "reminderQueued": "připomínka ve frontě (nedoručeno)",
@@ -2437,7 +2444,10 @@
       "humanOnly": "lidské kolo",
       "humanOnlyTitle": "Hodnoceno náborářem podle rubriky přípravy — AI hlasový pohovor neproběhl, řádky AI hodnocení jsou záměrně prázdné",
       "evidenceHeading": "Evidence — doslovné citace za každým hodnocením",
-      "humanScorecardHeading": "Lidská hodnoticí karta"
+      "humanScorecardHeading": "Lidská hodnoticí karta",
+      "unrecognizedRubric": "Hodnoceno podle neznámé rubriky — tato hodnocení nelze přímo porovnat se standardními kohortami.",
+      "offRubric": "mimo rubriku",
+      "offRubricTitle": "Tento kandidát byl na této ose hodnocen, ale není v aktuální rubrice kohorty — pravděpodobně přejmenovaná nebo upravená kompetence, proto se zobrazuje zvlášť, místo aby byla vynechána."
     },
     "candidates": {
       "failedStatus": "Selhalo ({status}).",

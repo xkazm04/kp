@@ -817,7 +817,8 @@
     "attendanceConfirmed": "Teilnahme bestätigt — danke!",
     "slotsRefreshFailed": "Die verfügbaren Zeiten konnten nicht aktualisiert werden — laden Sie die Seite neu, um den aktuellen Stand zu sehen.",
     "rsvpCancelledNote": "Ihr Termin wurde freigegeben. Wählen Sie unten einen neuen aus, und wir informieren das Team.",
-    "joinInterview": "Am Interview teilnehmen"
+    "joinInterview": "Am Interview teilnehmen",
+    "icsLocationOnline": "Online-Interview"
   },
   "data": {
     "eyebrow": "Ihre Daten",
@@ -999,6 +1000,9 @@
       "muteMic": "Mikrofon stummschalten",
       "unmuteMic": "Stummschaltung aufheben",
       "muted": "Stummgeschaltet",
+      "muteAudio": "Stimme des Interviewers stummschalten",
+      "unmuteAudio": "Stimme des Interviewers aktivieren",
+      "enableAudio": "Tippen, um Ton zu aktivieren",
       "elapsedLabel": "Verstrichene Zeit",
       "completedNext": "Sie hören per E-Mail von uns, üblicherweise innerhalb weniger Tage.",
       "micTestBtn": "Mikrofon testen",
@@ -1025,7 +1029,8 @@
         "ended": "Gespräch beendet",
         "error": "Fehler",
         "aiSpeaking": "AI spricht",
-        "listening": "Hört zu"
+        "listening": "Hört zu",
+        "unstable": "Verbindung instabil — Wiederverbindung…"
       }
     }
   },
@@ -1927,6 +1932,8 @@
       "needsMoreSlots": "Kandidat/in fand keinen freien Slot — mehr Zeiten öffnen",
       "needsReconcile": "gebucht, aber die Pipeline ist nicht weitergerückt ({reason})",
       "upcoming": "{count, plural, one {Anstehendes Interview (#)} other {Anstehende Interviews (#)}}",
+      "today": "{count, plural, one {Heute & laufend (#)} other {Heute & laufend (#)}}",
+      "inProgress": "läuft",
       "rescheduled": "{count, plural, one {verschoben ×#} other {verschoben ×#}}",
       "reminderSent": "Erinnerung gesendet",
       "reminderQueued": "Erinnerung in Warteschlange (nicht zugestellt)",
@@ -2466,7 +2473,10 @@
       "humanOnly": "Von Menschen geführte Runde",
       "humanOnlyTitle": "Von einem Recruiter nach der Vorbereitungsrubrik bewertet — es lief kein AI-Voice-Interview, daher bleiben die AI-Bewertungszeilen bewusst leer",
       "evidenceHeading": "Belege — wörtliche Zitate hinter jeder Bewertung",
-      "humanScorecardHeading": "Menschliche Scorecard"
+      "humanScorecardHeading": "Menschliche Scorecard",
+      "unrecognizedRubric": "Nach einer unbekannten Rubrik bewertet — diese Bewertungen sind nicht direkt mit den Standard-Kohorten vergleichbar.",
+      "offRubric": "außerhalb der Rubrik",
+      "offRubricTitle": "Diese Kandidatin/dieser Kandidat wurde auf dieser Achse bewertet, sie ist aber nicht in der aktuellen Rubrik der Kohorte — vermutlich eine umbenannte oder überarbeitete Kompetenz, daher wird sie separat gezeigt statt weggelassen."
     },
     "candidates": {
       "failedStatus": "Fehlgeschlagen ({status}).",
