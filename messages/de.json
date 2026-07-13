@@ -3762,6 +3762,8 @@
     "manageOpening": "Wird geöffnet…",
     "noCustomerYet": "Noch kein Abrechnungskonto — es wird mit Ihrem ersten Kauf angelegt.",
     "portalFailed": "Das Abrechnungsportal konnte nicht geöffnet werden.",
+    "portalBlocked": "Ihr Browser hat den Tab des Abrechnungsportals blockiert.",
+    "portalOpenLink": "Portal öffnen",
     "status": {
       "none": "Kein Abonnement",
       "active": "Aktiv",
@@ -3922,7 +3924,10 @@
       "colCached": "Gecacht",
       "colCost": "Gesch. Kosten (USD)",
       "total": "Gesamt",
-      "cache": "Prompt-Cache: {rows} gecachte Antworten · {expired} abgelaufen, warten auf Bereinigung"
+      "cache": "Prompt-Cache: {rows} gecachte Antworten · {expired} abgelaufen, warten auf Bereinigung",
+      "fallbackCalls": "{count} Fallback",
+      "unpricedCalls": "{count} ohne Preis",
+      "unpricedNote": "Einige Aufrufe sind ohne Preis (Azure und benutzerdefinierte Modelle ergeben hier $0) — die tatsächlichen Kosten finden Sie in LightTrack."
     },
     "useCases": {
       "match_reasoning": "Match-Begründung",
@@ -3981,7 +3986,9 @@
       "saving": "Wird gespeichert…",
       "saved": "Schlüssel gespeichert.",
       "saveFailed": "Schlüssel konnte nicht gespeichert werden.",
-      "kpSecretHint": "Lösung: Setzen Sie die Umgebungsvariable KP_SECRET auf dem Server und speichern Sie erneut."
+      "kpSecretHint": "Lösung: Setzen Sie die Umgebungsvariable KP_SECRET auf dem Server und speichern Sie erneut.",
+      "replace": "Schlüssel ersetzen",
+      "replaceWarning": "Für {provider} ({scope}) existiert bereits ein Schlüssel. Beim Speichern wird er überschrieben — das lässt sich nicht rückgängig machen."
     }
   }
 }

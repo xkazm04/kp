@@ -3694,6 +3694,8 @@
     "manageOpening": "Otevírání…",
     "noCustomerYet": "Zatím nemáte fakturační účet — vznikne při prvním nákupu.",
     "portalFailed": "Fakturační portál se nepodařilo otevřít.",
+    "portalBlocked": "Prohlížeč zablokoval kartu s fakturačním portálem.",
+    "portalOpenLink": "Otevřít portál",
     "status": {
       "none": "Bez předplatného",
       "active": "Aktivní",
@@ -3854,7 +3856,10 @@
       "colCached": "Z cache",
       "colCost": "Odhad nákladů (USD)",
       "total": "Celkem",
-      "cache": "Cache promptů: {rows} uložených odpovědí · {expired} expirovaných čeká na úklid"
+      "cache": "Cache promptů: {rows} uložených odpovědí · {expired} expirovaných čeká na úklid",
+      "fallbackCalls": "{count} záložních",
+      "unpricedCalls": "{count} bez ceny",
+      "unpricedNote": "Některá volání nemají cenu (Azure a vlastní modely se zde sčítají jako $0) — jejich skutečnou cenu najdete v LightTrack."
     },
     "useCases": {
       "match_reasoning": "Zdůvodnění shody",
@@ -3913,7 +3918,9 @@
       "saving": "Ukládání…",
       "saved": "Klíč uložen.",
       "saveFailed": "Klíč se nepodařilo uložit.",
-      "kpSecretHint": "Řešení: nastavte na serveru proměnnou prostředí KP_SECRET a uložte klíč znovu."
+      "kpSecretHint": "Řešení: nastavte na serveru proměnnou prostředí KP_SECRET a uložte klíč znovu.",
+      "replace": "Nahradit klíč",
+      "replaceWarning": "Klíč pro {provider} ({scope}) už existuje. Uložením jej přepíšete — tuto akci nelze vrátit zpět."
     }
   }
 }

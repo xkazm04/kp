@@ -3694,6 +3694,8 @@
     "manageOpening": "Opening…",
     "noCustomerYet": "No billing customer yet — it's created with your first purchase.",
     "portalFailed": "Couldn't open the billing portal.",
+    "portalBlocked": "Your browser blocked the billing portal tab.",
+    "portalOpenLink": "Open the portal",
     "status": {
       "none": "No subscription",
       "active": "Active",
@@ -3854,7 +3856,10 @@
       "colCached": "Cached",
       "colCost": "Est. cost (USD)",
       "total": "Total",
-      "cache": "Prompt cache: {rows} cached responses · {expired} expired awaiting cleanup"
+      "cache": "Prompt cache: {rows} cached responses · {expired} expired awaiting cleanup",
+      "fallbackCalls": "{count} fallback",
+      "unpricedCalls": "{count} unpriced",
+      "unpricedNote": "Some calls are unpriced (Azure and custom models sum to $0 here) — see LightTrack for their real cost."
     },
     "useCases": {
       "match_reasoning": "Match reasoning",
@@ -3913,7 +3918,9 @@
       "saving": "Saving…",
       "saved": "Key saved.",
       "saveFailed": "Couldn't save the key.",
-      "kpSecretHint": "Fix: set the KP_SECRET environment variable on the server, then save again."
+      "kpSecretHint": "Fix: set the KP_SECRET environment variable on the server, then save again.",
+      "replace": "Replace key",
+      "replaceWarning": "A key already exists for {provider} ({scope}). Saving overwrites it — this can't be undone."
     }
   }
 }

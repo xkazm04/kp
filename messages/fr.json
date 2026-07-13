@@ -3762,6 +3762,8 @@
     "manageOpening": "Ouverture…",
     "noCustomerYet": "Aucun client de facturation pour l'instant — il est créé lors de votre premier achat.",
     "portalFailed": "Impossible d'ouvrir le portail de facturation.",
+    "portalBlocked": "Votre navigateur a bloqué l'onglet du portail de facturation.",
+    "portalOpenLink": "Ouvrir le portail",
     "status": {
       "none": "Aucun abonnement",
       "active": "Actif",
@@ -3922,7 +3924,10 @@
       "colCached": "En cache",
       "colCost": "Coût est. (USD)",
       "total": "Total",
-      "cache": "Cache de prompt : {rows} réponses en cache · {expired} expirées en attente de nettoyage"
+      "cache": "Cache de prompt : {rows} réponses en cache · {expired} expirées en attente de nettoyage",
+      "fallbackCalls": "{count} de repli",
+      "unpricedCalls": "{count} sans tarif",
+      "unpricedNote": "Certains appels sont sans tarif (Azure et les modèles personnalisés totalisent 0 $ ici) — consultez LightTrack pour leur coût réel."
     },
     "useCases": {
       "match_reasoning": "Raisonnement de matching",
@@ -3981,7 +3986,9 @@
       "saving": "Enregistrement…",
       "saved": "Clé enregistrée.",
       "saveFailed": "Impossible d'enregistrer la clé.",
-      "kpSecretHint": "Correction : définissez la variable d'environnement KP_SECRET sur le serveur, puis réenregistrez."
+      "kpSecretHint": "Correction : définissez la variable d'environnement KP_SECRET sur le serveur, puis réenregistrez.",
+      "replace": "Remplacer la clé",
+      "replaceWarning": "Une clé existe déjà pour {provider} ({scope}). L'enregistrement l'écrasera — action irréversible."
     }
   }
 }
