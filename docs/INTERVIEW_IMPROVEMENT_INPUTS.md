@@ -124,6 +124,18 @@ over-apologise or negotiate the premise of the interview."*
 > guardrail rules — `interview_optimize`'s `--ablate`/rule format, or a direct edit to
 > `student-interview.ts`. I can apply + re-sweep to confirm no regressions on request.
 
+> **P4–P7 — ✅ Applied (2026-07-13).** All four landed as shared constants in
+> `app/_lib/student-interview.ts` (`PERSONA_DRAW_OUT` / `PERSONA_VERIFY_CLAIMS` /
+> `PERSONA_HOLD_FLOOR` / `PERSONA_HOSTILITY`, grouped as `PERSONA_CRAFT_RULES`), reaching every
+> brief builder — `defaultInterviewerInstructions`, `composeBrief`, `composeDebriefBrief`, and the
+> student/case-grounded `personaLines` — plus the Python port in `interview_eval.py` (the
+> drift-guard parity test was extended to cover the four new constants and is green; the TS↔Python
+> brief bridge confirms the rendered briefs stay byte-identical). A judged validation sweep
+> (`--bank core --sample 12 --seed 1 --judge --dump runs/perfect-p4p7`) was launched with the rules
+> in place and is pending at the time of writing — record its reliability / language-drift /
+> quality numbers here when it completes. As with P3, the style metrics (`double_barreled`,
+> `evaluative_praise`) are single-run noisy — read any one sweep directionally, not decisively.
+
 ---
 
 ## 2. App / flow — ✅ applied (2026-07-06)

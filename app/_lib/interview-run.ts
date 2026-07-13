@@ -11,6 +11,7 @@ import { isLocale, type Locale } from "@/i18n/locales";
 import {
   caseGroundedInterviewerInstructions,
   devCaseIdFromJobId,
+  PERSONA_CRAFT_RULES,
   PERSONA_GENDER_GRAMMAR,
   PERSONA_LANGUAGE_DETECT,
   PERSONA_ONE_QUESTION,
@@ -73,6 +74,7 @@ function composeBrief(
     PERSONA_GENDER_GRAMMAR,
     PERSONA_LANGUAGE_DETECT,
     PERSONA_ONE_QUESTION,
+    ...PERSONA_CRAFT_RULES,
     `Begin by briefly introducing yourself as an AI assistant, ${company}, and the ${title} position in two or three sentences, and mention that the call is transcribed for a human recruiter.`,
     `Then lead the conversation through this run of show (about ${durationMin} minutes total), keeping each topic roughly time-boxed. Ask the listed questions naturally, one at a time, with short follow-ups, and adapt to the candidate's answers:`,
     runOfShow,
@@ -128,6 +130,7 @@ function composeDebriefBrief(
     PERSONA_GENDER_GRAMMAR,
     PERSONA_LANGUAGE_DETECT,
     PERSONA_ONE_QUESTION,
+    ...PERSONA_CRAFT_RULES,
     "Begin by briefly introducing yourself as an AI assistant in two sentences, mention the call is transcribed for a human recruiter, and say this conversation is about the take-home assignment they submitted — you'd like to understand how they approached it.",
     "Using AI tools to build the submission is expected and NEVER penalised — what matters is whether they own the decisions in it. Never imply suspicion or that authorship is being verified; every question is genuine curiosity about their reasoning.",
     `Open by letting them walk you through their approach in their own words for a couple of minutes, then work through these questions (about ${durationMin} minutes total), one at a time, adapting natural follow-ups to their answers — push gently for the WHY, the alternative they rejected, and what would make them decide differently:`,

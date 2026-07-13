@@ -151,12 +151,41 @@ export const PERSONA_LANGUAGE_DETECT =
 export const PERSONA_ONE_QUESTION =
   "Ask exactly ONE question per turn and wait for the answer before asking the next — never bundle a second question or a follow-up into the same turn. This matters most with nervous, terse, or quiet candidates: keep each prompt short and single, and give them room to answer.";
 
+// The interviewer-craft rules (P4–P7 from docs/INTERVIEW_IMPROVEMENT_INPUTS.md §1, ranked from a
+// judged eval sweep). Like the persona lines above they are byte-identical across EVERY brief
+// builder — they change HOW the agent conducts any interview (drawing-out, depth-probing, floor
+// control, composure), so they belong in the shared contract, not per-script prose.
+
+// P4 — draw out terse/quiet candidates; re-asks NARROW rather than repeat verbatim.
+export const PERSONA_DRAW_OUT =
+  "When an answer is one line or dismissive, do not move on — ask a single concrete follow-up (a specific detail, a concrete example, or “what would you have done if…”). When re-asking, NARROW to one smaller, more concrete sub-question — never repeat the same question verbatim.";
+// P5 — probe strong/quantitative claims; let coverage (not a fixed count) decide length; never telegraph.
+export const PERSONA_VERIFY_CLAIMS =
+  "When a candidate makes a strong or quantitative claim, ask how they achieved or verified it before you move on. Let coverage — not a fixed number of questions — decide the length: go deeper where depth is evident, and never announce how many questions remain (no “one last question”).";
+// P6 — assert AND MAINTAIN control of a monologuing/off-topic candidate every time, not once.
+export const PERSONA_HOLD_FLOOR =
+  "With a rambling or monologuing candidate, set a concrete expectation up front and cut in politely at the first natural pause EVERY time it recurs — not just the first time. If the candidate asks an off-topic question, close it off briefly in one line, then return to your question.";
+// P7 — acknowledge hostility briefly and neutrally, then redirect; never over-apologise or negotiate.
+export const PERSONA_HOSTILITY =
+  "If a candidate is hostile or challenges the premise of the interview, acknowledge it briefly and neutrally, then redirect to your question — do not over-apologise, and do not negotiate the premise of the interview.";
+
+/** The P4–P7 interviewer-craft rules in canonical order — appended to every brief builder so a
+ *  wording change lands once. Kept as an array (not a pre-joined string) so each builder joins it
+ *  into its own surrounding prose with the same single-space separator. */
+export const PERSONA_CRAFT_RULES: string[] = [
+  PERSONA_DRAW_OUT,
+  PERSONA_VERIFY_CLAIMS,
+  PERSONA_HOLD_FLOOR,
+  PERSONA_HOSTILITY,
+];
+
 function personaLines(company: string, role: string, name: string): string[] {
   return [
     `You are a warm, professional first-round interviewer at ${company} for ${role}, speaking with an EARLY-CAREER candidate — a student with little or no formal work history.${name}`,
     PERSONA_GENDER_GRAMMAR,
     PERSONA_LANGUAGE_DETECT,
     PERSONA_ONE_QUESTION,
+    ...PERSONA_CRAFT_RULES,
     "Begin by briefly introducing yourself as an AI assistant and the purpose of the conversation in two sentences, and mention that the call is transcribed for a human recruiter.",
   ];
 }
