@@ -137,6 +137,40 @@ test("a REFUNDED pack order claws the credits back (idempotent negative grant, d
   assert.equal((action as { providerRef: string }).providerRef, "order_88:refund");
 });
 
+test("a multi-unit pack order grants pack.qty × quantity (and the refund claws the same back)", () => {
+  // Finding #4: mapPolarEvent now reads data.quantity; the grant multiplies the fixed
+  // pack size by it. A quantity:3 order the customer PAID 3× for must credit 300, not
+  // the hardcoded 100 (pre-fix under-delivered a multi-unit checkout).
+  const paid = mapPolarEvent("evt_q", {
+    type: "order.paid",
+    data: { id: "order_q", product_id: "prod_pack", customer_id: "cus_1", quantity: 3 },
+  });
+  assert.equal(paid.quantity, 3);
+  assert.deepEqual(reduceBillingEvent(paid, PRODUCTS), {
+    kind: "grant_credits",
+    meter: "interview_minutes",
+    qty: 300,
+    providerRef: "order_q",
+    reason: "pack purchase (order.paid)",
+  });
+  // The refund of that same multi-unit order reverses the FULL granted total (-300),
+  // keeping grant and claw-back symmetric.
+  const refund = mapPolarEvent("evt_qr", {
+    type: "order.refunded",
+    data: { id: "order_q", product_id: "prod_pack", quantity: 3 },
+  });
+  assert.equal((reduceBillingEvent(refund, PRODUCTS) as { qty: number }).qty, -300);
+  // A missing/absent quantity defaults to 1 (single pack), and a malformed value too.
+  const noQty = mapPolarEvent("evt_q0", { type: "order.paid", data: { id: "order_z", product_id: "prod_pack" } });
+  assert.equal(noQty.quantity, 1);
+  assert.equal((reduceBillingEvent(noQty, PRODUCTS) as { qty: number }).qty, 100);
+  const badQty = mapPolarEvent("evt_q1", {
+    type: "order.paid",
+    data: { id: "order_b", product_id: "prod_pack", quantity: "not-a-number" },
+  });
+  assert.equal(badQty.quantity, 1);
+});
+
 test("a refund on a NON-pack (plan) order still grants nothing (subscription events carry that)", () => {
   const event = mapPolarEvent("evt_pr", {
     type: "order.refunded",
@@ -207,6 +241,20 @@ test("an unmapped subscription product is flagged unmapped (loud signal, not ben
   const action = reduceBillingEvent(event, PRODUCTS);
   assert.equal(action.kind, "ignore");
   assert.equal((action as { unmapped?: boolean }).unmapped, true);
+});
+
+test("an unmapped subscription carries a stable providerRef so repeated alerts dedupe (finding #5)", () => {
+  // The alert dedupe key must be STABLE across repeated distinct subscription.updated
+  // deliveries for the same dark subscription — otherwise each fresh event id piles up
+  // a new open billing_alerts row. The subscription id (else its product) is that key.
+  const bySub = reduceBillingEvent(subscriptionEvent("active", "prod_not_configured"), PRODUCTS);
+  assert.equal((bySub as { providerRef?: string }).providerRef, "unmapped:sub_1");
+  // With no subscription id, fall back to the product id (still stable per misconfig).
+  const noSub = mapPolarEvent("evt_np", {
+    type: "subscription.updated",
+    data: { status: "active", product_id: "prod_not_configured", customer_id: "cus_1" },
+  });
+  assert.equal((reduceBillingEvent(noSub, PRODUCTS) as { providerRef?: string }).providerRef, "unmapped:prod_not_configured");
 });
 
 test("a mapped subscription is NOT flagged unmapped", () => {

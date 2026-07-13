@@ -109,9 +109,12 @@ export function applyBillingAction(action: BillingAction, provider: string): str
           `[billing:webhook] UNMAPPED PRODUCT on a money event — subscriber NOT entitled: ${action.reason}. Check POLAR_PRODUCT_* env against the Polar dashboard.`
         );
         // Durable, queryable signal (not just a log line): an admin surface / health
-        // check can list paid-but-dark subscriptions. The event-id dedupe gate means
-        // this runs at most once per fresh event.
-        recordBillingAlert({ kind: "unmapped_product", detail: action.reason });
+        // check can list paid-but-dark subscriptions. The event-id dedupe gate stops
+        // identical REDELIVERIES; the stable providerRef (the dark subscription) then
+        // collapses repeated DISTINCT subscription.updated events for the same
+        // misconfiguration to ONE open alert instead of piling up N rows.
+        // bug-ui-scan-2026-07-09 (billing-engine-webhooks #5)
+        recordBillingAlert({ kind: "unmapped_product", detail: action.reason, providerRef: action.providerRef });
       }
       return action.reason;
   }

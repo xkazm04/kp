@@ -22,6 +22,12 @@ export type BillingEvent = {
   customerId: string | null;
   subscriptionId: string | null;
   orderId: string | null;
+  // Units purchased on an order (Polar one-time products support a per-checkout
+  // quantity). mapPolarEvent always sets it (>= 1); optional so hand-built events
+  // (tests / other providers) may omit it — the reducer treats absent as 1. Pack
+  // grants multiply the fixed pack size by this so a multi-unit order isn't
+  // under-delivered. bug-ui-scan-2026-07-09 (billing-engine-webhooks #4)
+  quantity?: number;
   periodStart: string | null;
   periodEnd: string | null;
   raw: unknown;

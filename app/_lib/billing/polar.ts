@@ -60,6 +60,14 @@ export function mapPolarEvent(eventId: string, payload: unknown): BillingEvent {
   const product = (data.product ?? {}) as Record<string, unknown>;
   const customer = (data.customer ?? {}) as Record<string, unknown>;
   const str = (v: unknown): string | null => (typeof v === "string" && v ? v : null);
+  // Ordered units, defensively parsed: a finite positive integer, else 1. Polar
+  // may send quantity as a number or a numeric string; anything else (missing on
+  // a subscription event, malformed) falls back to a single unit so the grant is
+  // never under- OR over-counted. bug-ui-scan-2026-07-09 (billing-engine-webhooks #4)
+  const posInt = (v: unknown): number => {
+    const n = typeof v === "number" ? v : typeof v === "string" ? Number(v) : NaN;
+    return Number.isFinite(n) && n >= 1 ? Math.floor(n) : 1;
+  };
 
   return {
     id: eventId,
@@ -70,6 +78,7 @@ export function mapPolarEvent(eventId: string, payload: unknown): BillingEvent {
     customerId: str(data.customer_id) ?? str(customer.id),
     subscriptionId: kind === "subscription" ? str(data.id) : str(data.subscription_id),
     orderId: kind === "order" ? str(data.id) : null,
+    quantity: posInt(data.quantity),
     periodStart: str(data.current_period_start),
     periodEnd: str(data.current_period_end),
     raw: payload,
