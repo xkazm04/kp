@@ -126,11 +126,19 @@ type GithubRepo = {
 // aliasMatches is WHOLE-TOKEN (tokenizeForSkills keeps + # .), so short aliases like
 // "go"/"c#"/"c++" can't substring-match ("go" ≠ "google"). The job-fit signals expose
 // trackedSkillCount so the UI can say "compared against N tracked skills", honestly.
+//
+// FINDING #4 (bug-ui-scan-2026-07-09, github-evidence-cv-utilities): the buckets are
+// counted as DISJOINT concepts (one match/gap each), so an alias that lives in several
+// buckets fans one JD keyword into several verdicts — "react" used to sit in
+// typescript + javascript + react, turning a single React gap into THREE gap bullets
+// (and a React-only candidate into three "matches", inflating apparent breadth). The
+// alias sets are now mutually exclusive: "react"/"next.js"/"nextjs" belong only to the
+// `react` bucket, so one underlying skill can produce at most one verdict.
 const SKILL_ALIASES: Record<string, string[]> = {
   python: ["python", "fastapi", "django", "flask", "pandas", "numpy"],
-  typescript: ["typescript", "ts", "next.js", "nextjs", "react"],
-  javascript: ["javascript", "node", "react", "next.js", "nextjs"],
-  react: ["react", "frontend", "ui"],
+  typescript: ["typescript", "ts"],
+  javascript: ["javascript", "node"],
+  react: ["react", "frontend", "ui", "next.js", "nextjs"],
   go: ["go", "golang"],
   rust: ["rust"],
   java: ["java", "spring", "jvm"],
@@ -201,15 +209,14 @@ export async function POST(request: Request) {
         "That handle is a GitHub organization, not a personal account. Enter an individual developer's username."
       );
     }
-    const repos = await githubFetch<GithubRepo[]>(
-      `https://api.github.com/users/${encodeURIComponent(username)}/repos?per_page=100&sort=updated&type=owner`
-    );
-    // GitHub can return a 200 whose body is an object (e.g. a secondary-rate-limit notice),
-    // not the declared array — `repos.filter` would then throw an opaque "is not a function".
-    // Validate the shape so the failure is a clear, logged error the panel can surface.
-    if (!Array.isArray(repos)) {
-      throw new Error("Unexpected GitHub response shape (expected a repository array).");
-    }
+    // FINDING #3 (edge-case / silent-wrong-result): read the owned-repo list ACROSS
+    // pages, not just the first per_page=100. Because sort=updated makes page 1 the
+    // NEWEST repos, a prolific candidate (>100 repos) silently lost their oldest —
+    // often most-starred / flagship — work from every total below (stars, forks,
+    // language mix, the deep-review shortlist). Paginate up to a bounded cap and flag
+    // when even that is exceeded so a truncated portfolio is annotated, never presented
+    // as complete. Per-page shape validation lives inside the helper.
+    const { repos, truncated: reposTruncated } = await fetchOwnedRepoPages(username, user.public_repos);
     const ownedRepos = repos.filter((repo) => !repo.fork);
     const reposForLanguages = ownedRepos.slice(0, 20);
     // FINDING #2 (silent-failure): each /languages sub-fetch swallows its error to
@@ -283,6 +290,14 @@ export async function POST(request: Request) {
     // panel keys its Potential-Gaps caveat off (limitations.includes(this)), so a
     // partially-blind run is never presented as a complete one.
     if (!languageCoverageComplete) limitations.push(EVIDENCE_INCOMPLETE_NOTE);
+    // FINDING #3: when the owned-repo list was truncated at the page cap, say so as a
+    // first-class limitation so a recruiter never reads ownedReposAnalyzed / totalStars
+    // as a complete portfolio when older (often most-starred) repos went unanalyzed.
+    if (reposTruncated) {
+      limitations.push(
+        `Only the ${repos.length} most-recently-updated repositories were analyzed of ${user.public_repos} public on this account; older repositories (which may include the most-starred work) were not included in the totals.`
+      );
+    }
 
     const payload = {
       username: user.login,
@@ -385,6 +400,42 @@ async function githubFetch<T>(url: string): Promise<T> {
     throw new GithubHttpError(response.status, `GitHub API returned ${response.status}.`);
   }
   return response.json() as Promise<T>;
+}
+
+// FINDING #3 (bug-ui-scan-2026-07-09, github-evidence-cv-utilities): fetch a user's
+// owned repos across pages, up to a bounded cap, so a prolific candidate isn't
+// truncated to their 100 most-recently-updated repos. Stops early on a short page
+// (the natural end of the list); if the whole cap is consumed with a still-full page
+// AND GitHub's own public_repos count exceeds what we collected, reports truncated so
+// the caller can annotate the undercount instead of implying a complete portfolio.
+const REPO_PAGE_SIZE = 100; // GitHub's max per_page for /users/{user}/repos
+const REPO_PAGE_CAP = 3; // fetch at most 3×100 = 300 owned repos, bounding the extra REST calls
+async function fetchOwnedRepoPages(
+  username: string,
+  publicRepos: number
+): Promise<{ repos: GithubRepo[]; truncated: boolean }> {
+  const collected: GithubRepo[] = [];
+  let reachedEnd = false;
+  for (let page = 1; page <= REPO_PAGE_CAP; page++) {
+    const pageRepos = await githubFetch<GithubRepo[]>(
+      `https://api.github.com/users/${encodeURIComponent(username)}/repos?per_page=${REPO_PAGE_SIZE}&sort=updated&type=owner&page=${page}`
+    );
+    // GitHub can return a 200 whose body is an object (e.g. a secondary-rate-limit
+    // notice), not the declared array — `.filter` would then throw an opaque "is not a
+    // function". Validate every page so the failure is a clear, logged error.
+    if (!Array.isArray(pageRepos)) {
+      throw new Error("Unexpected GitHub response shape (expected a repository array).");
+    }
+    collected.push(...pageRepos);
+    if (pageRepos.length < REPO_PAGE_SIZE) {
+      reachedEnd = true;
+      break;
+    }
+  }
+  // Truncated only when we stopped at the cap (not on a short page) AND GitHub reports
+  // more public repos than we collected — i.e. real repos actually went unanalyzed.
+  const truncated = !reachedEnd && collected.length < publicRepos;
+  return { repos: collected, truncated };
 }
 
 function mergeLanguageMaps(maps: Array<Record<string, number>>) {

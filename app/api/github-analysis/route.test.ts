@@ -94,6 +94,23 @@ function githubResponse(pathname: string): Response {
       return Response.json([]);
     case "/repos/emptyuser/repo/contents":
       return Response.json([]);
+
+    // --- #4: overlapping-bucket dedupe (pyuser: python-only evidence) -----------
+    case "/users/pyuser":
+      return Response.json({
+        login: "pyuser",
+        html_url: "https://github.com/pyuser",
+        public_repos: 1,
+        followers: 0,
+        type: "User",
+      });
+    case "/users/pyuser/repos":
+      // A python-only candidate — NO react/typescript/javascript/next.js token anywhere,
+      // so a React requirement in the JD is a genuine, single gap.
+      return Response.json([repo("pyuser", "svc", "A python service", "Python")]);
+    case "/repos/pyuser/svc/languages":
+      return Response.json({ Python: 1000 });
+
     default:
       throw new Error(`unexpected GitHub fetch in test: ${pathname}`);
   }
@@ -234,4 +251,26 @@ test("#2 a genuinely empty account yields 'no evidence' (codeReview 'empty'), no
   } finally {
     delete process.env.GEMINI_API_KEY;
   }
+});
+
+// --- Finding #4 ---------------------------------------------------------------------
+
+test("#4 one JD skill produces ONE gap, not several, across overlapping buckets", async () => {
+  // A React requirement against a python-only candidate. "react" used to be an alias of
+  // three buckets (typescript, javascript, react), so this fanned into THREE gap bullets
+  // for one underlying missing skill.
+  const res = await POST(post({ profile: "pyuser", jobDescriptionText: "We need a strong react developer." }) as never);
+  const body = (await res.json()) as {
+    error?: string;
+    jobFitSignals: { matchingSkills: string[]; potentialGaps: string[] };
+  };
+
+  assert.equal(body.error, undefined);
+  // Exactly one concept-level gap — the buckets are now mutually exclusive.
+  assert.deepEqual(body.jobFitSignals.potentialGaps, ["react"], "one skill = one gap");
+  assert.ok(!body.jobFitSignals.potentialGaps.includes("typescript"), "no phantom typescript gap");
+  assert.ok(!body.jobFitSignals.potentialGaps.includes("javascript"), "no phantom javascript gap");
+  // NON-VACUITY: against pre-fix aliases, "react" fired the typescript, javascript AND
+  // react buckets, so potentialGaps was ["typescript","javascript","react"] — the
+  // deepEqual(["react"]) assertion fails.
 });
