@@ -2,7 +2,7 @@
 
 import { AlertTriangle, Check } from "lucide-react";
 import { useTranslations } from "next-intl";
-import type { JdLintFinding } from "@/app/_lib/jd-lint";
+import { jdLintMessage, type JdLintFinding } from "@/app/_lib/jd-lint";
 
 // The inclusivity + specificity lint findings panel, extracted so the SAME panel
 // renders on every authoring surface — the public-page in-place editor
@@ -24,19 +24,25 @@ export function JdLintPanel({ findings }: { findings: JdLintFinding[] }) {
         <AlertTriangle size={14} aria-hidden /> {t("lintHeading")}
       </p>
       <ul className="mt-1 list-inside list-disc space-y-0.5">
-        {findings.map((f, i) => (
-          <li key={i}>
-            {f.kind === "vague"
-              ? t("lintVague", { phrase: f.phrase })
-              : f.kind === "exclusionary"
-                ? t("lintExclusionary", { phrase: f.phrase })
-                : f.kind === "manyMustHaves"
-                  ? t("lintManyMustHaves", { count: f.count })
-                  : f.what === "salary"
-                    ? t("lintMissingSalary")
-                    : t("lintMissingPlace")}
-          </li>
-        ))}
+        {findings.map((f, i) => {
+          // Route through jdLintMessage so the key/params come from an EXHAUSTIVELY
+          // switched mapping — an unhandled kind can no longer fall through to the
+          // "missing place" label. bug-ui-scan-2026-07-09 (jd-authoring-library-templates #5)
+          const m = jdLintMessage(f);
+          return (
+            <li key={i}>
+              {m.key === "lintVague"
+                ? t("lintVague", m.values)
+                : m.key === "lintExclusionary"
+                  ? t("lintExclusionary", m.values)
+                  : m.key === "lintManyMustHaves"
+                    ? t("lintManyMustHaves", m.values)
+                    : m.key === "lintMissingSalary"
+                      ? t("lintMissingSalary")
+                      : t("lintMissingPlace")}
+            </li>
+          );
+        })}
       </ul>
     </div>
   );

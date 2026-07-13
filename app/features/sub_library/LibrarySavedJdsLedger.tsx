@@ -9,13 +9,14 @@
 // register is calm and data-forward (the Studio Light contract): nothing tilts,
 // nothing floats.
 //
-// Column headers, action labels, and empty/error copy are plain English; i18n of
-// the new header controls is a follow-up (the file already threads useTranslations
-// for the shared library.tab keys).
-/* eslint-disable i18next/no-literal-string */
+// All user-facing copy threads next-intl `t()` (the `library.tab` namespace) — the
+// column headers, filter menus, action tooltips, and detail-modal panels included —
+// so cs/de/fr recruiters get a fully localized surface; the eslint
+// i18next/no-literal-string gate is ON for this file (no blanket disable).
+// bug-ui-scan-2026-07-09 (jd-authoring-library-templates #3)
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { forwardRef, useEffect, useId, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import {
   AlertTriangle,
   Briefcase,
@@ -62,6 +63,7 @@ import {
 } from "./jd-library";
 import { JdCandidateList } from "./JdCandidateList";
 import { LibraryGeneratePanel } from "./LibraryGeneratePanel";
+import { switchTab, duplicateToBuilder, nextMenuIndex, type LedgerNavState } from "./ledger-nav";
 
 const ICON_BTN =
   "focus-ring inline-grid h-8 w-8 place-items-center rounded-md text-steel transition-colors hover:bg-paper hover:text-coral disabled:opacity-40";
@@ -85,7 +87,11 @@ export function LibrarySavedJdsLedger() {
     const id = setInterval(refresh, 3500);
     return () => clearInterval(id);
   }, [hasAnalyzing, refresh]);
-  const [tab, setTab] = useState<"saved" | "generate">("saved");
+  // #2 — both sub-panels stay mounted; `nav.tab` toggles which is visible and
+  // `nav.builderKey` is the builder's React key. A manual tab switch keeps the key
+  // (draft preserved), Duplicate advances it (remount → re-reads prefill).
+  // bug-ui-scan-2026-07-09 (jd-authoring-library-templates #2)
+  const [nav, setNav] = useState<LedgerNavState>({ tab: "saved", builderKey: 0 });
   const [query, setQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
   const [status, setStatus] = useState<StatusFilter>("all");
@@ -121,7 +127,8 @@ export function LibrarySavedJdsLedger() {
     });
     setDuplicating(null);
     setOpenRow(null);
-    setTab("generate");
+    // Advance builderKey so the (already-mounted) builder remounts with this prefill.
+    setNav((s) => duplicateToBuilder(s));
   };
 
   const counts = useMemo(() => (rows ? statusCounts(rows) : null), [rows]);
@@ -165,27 +172,30 @@ export function LibrarySavedJdsLedger() {
   return (
     <div className="mt-5">
       <SegmentedControl
-        label="Library section"
-        value={tab}
+        label={t("sectionLabel")}
+        value={nav.tab}
         // A manual switch clears any pending Duplicate prefill so it can't re-seed a
         // form the user opened themselves — the prefill only survives the
-        // programmatic switch startDuplicate does.
+        // programmatic switch startDuplicate does. It keeps nav.builderKey, so the
+        // builder is NOT remounted and a half-typed draft survives the swap
+        // (bug-ui-scan-2026-07-09 jd-authoring-library-templates #2).
         onChange={(v) => {
           setPrefill(null);
-          setTab(v);
+          setNav((s) => switchTab(s, v));
         }}
         options={[
           { value: "saved", label: t("savedJds") },
-          { value: "generate", label: "Generate" },
+          { value: "generate", label: t("generate") },
         ]}
       />
 
-      {tab === "generate" ? (
-        <div className="mt-5">
-          <LibraryGeneratePanel onSaved={reload} prefill={prefill} />
-        </div>
-      ) : (
-        <div className="mt-5">
+      {/* #2 — both panels stay mounted so switching tabs can't unmount the builder
+          and discard a typed JD draft; the inactive one is display:none. The
+          Generate panel is keyed by nav.builderKey so ONLY a Duplicate remounts it. */}
+      <div className={nav.tab === "generate" ? "mt-5" : "hidden"}>
+        <LibraryGeneratePanel key={nav.builderKey} onSaved={reload} prefill={prefill} />
+      </div>
+      <div className={nav.tab === "saved" ? "mt-5" : "hidden"}>
           {ingested ? (
             <CompletionCta
               className="mb-4"
@@ -229,7 +239,7 @@ export function LibrarySavedJdsLedger() {
                                   setSearchOpen(false);
                                 }
                               }}
-                              placeholder="Search roles"
+                              placeholder={t("searchRoles")}
                               aria-label={t("searchAria")}
                               className="focus-ring h-7 w-44 rounded border border-stone-300 bg-white pl-7 pr-6 text-sm font-normal normal-case tracking-normal text-ink caret-coral placeholder:text-steel"
                             />
@@ -240,20 +250,20 @@ export function LibrarySavedJdsLedger() {
                                 setSearchOpen(false);
                               }}
                               className="focus-ring absolute right-1 rounded p-0.5 text-steel transition-colors hover:text-ink"
-                              aria-label="Clear search"
+                              aria-label={t("clearSearch")}
                             >
                               <X size={13} aria-hidden />
                             </button>
                           </div>
                         ) : (
                           <span className="inline-flex items-center gap-1.5">
-                            Role
+                            {t("colRole")}
                             <button
                               type="button"
                               onClick={() => setSearchOpen(true)}
                               className="focus-ring rounded p-0.5 text-steel transition-colors hover:text-ink"
-                              aria-label="Search roles"
-                              title="Search roles"
+                              aria-label={t("searchRoles")}
+                              title={t("searchRoles")}
                             >
                               <Search size={13} aria-hidden />
                             </button>
@@ -261,22 +271,22 @@ export function LibrarySavedJdsLedger() {
                         )}
                       </th>
                       <th scope="col" className={`${META_LABEL} px-4 py-2.5`}>
-                        <ColumnHeaderFilter title="Field" options={fieldOptions} selected={field} onSelect={setField} />
+                        <ColumnHeaderFilter title={t("colField")} options={fieldOptions} selected={field} onSelect={setField} />
                       </th>
                       <th scope="col" className={`${META_LABEL} px-4 py-2.5`}>
-                        <ColumnHeaderFilter title="Seniority" options={seniorityOptions} selected={seniority} onSelect={setSeniority} />
+                        <ColumnHeaderFilter title={t("colSeniority")} options={seniorityOptions} selected={seniority} onSelect={setSeniority} />
                       </th>
                       <th scope="col" className={`${META_LABEL} px-4 py-2.5`}>
                         <ColumnHeaderFilter
-                          title="Status"
+                          title={t("colStatus")}
                           options={statusOptions}
                           selected={status === "all" ? null : status}
                           onSelect={(v) => setStatus((v as StatusFilter) ?? "all")}
                         />
                       </th>
-                      <th scope="col" className={`${META_LABEL} whitespace-nowrap px-4 py-2.5`}>Analyzed</th>
-                      <th scope="col" className={`${META_LABEL} whitespace-nowrap px-4 py-2.5`}>Saved</th>
-                      <th scope="col" className={`${META_LABEL} px-4 py-2.5 text-right`}>Actions</th>
+                      <th scope="col" className={`${META_LABEL} whitespace-nowrap px-4 py-2.5`}>{t("colAnalyzed")}</th>
+                      <th scope="col" className={`${META_LABEL} whitespace-nowrap px-4 py-2.5`}>{t("colSaved")}</th>
+                      <th scope="col" className={`${META_LABEL} px-4 py-2.5 text-right`}>{t("colActions")}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-stone-200">
@@ -284,7 +294,7 @@ export function LibrarySavedJdsLedger() {
                       <tr>
                         <td colSpan={COLS} className="px-4 py-10 text-center">
                           <p className="text-base font-semibold text-ink">{t("noMatchTitle")}</p>
-                          <p className="mt-1 text-base text-steel">{query.trim() ? t("noMatchBody", { query: query.trim() }) : "No JDs match these filters."}</p>
+                          <p className="mt-1 text-base text-steel">{query.trim() ? t("noMatchBody", { query: query.trim() }) : t("noMatchFilters")}</p>
                         </td>
                       </tr>
                     ) : (
@@ -325,7 +335,7 @@ export function LibrarySavedJdsLedger() {
                             <td className="whitespace-nowrap px-4 py-2.5 align-middle text-sm text-steel">{shortDate(row.created_at)}</td>
                             <td className="px-4 py-2.5 align-middle">
                               <div className="flex items-center justify-end gap-0.5">
-                                <button type="button" onClick={() => setOpenRow(row)} className={ICON_BTN} title="Open detail" aria-label={`Open ${row.title}`}>
+                                <button type="button" onClick={() => setOpenRow(row)} className={ICON_BTN} title={t("openDetail")} aria-label={t("openDetailAria", { title: row.title })}>
                                   <Maximize2 size={15} aria-hidden />
                                 </button>
                                 <button
@@ -333,8 +343,8 @@ export function LibrarySavedJdsLedger() {
                                   onClick={() => startDuplicate(row)}
                                   disabled={duplicating === row.slug || row.analysis_status === "analyzing"}
                                   className={ICON_BTN}
-                                  title={row.analysis_status === "analyzing" ? "Still analyzing…" : "Duplicate into the Generate form"}
-                                  aria-label={`Duplicate ${row.title}`}
+                                  title={row.analysis_status === "analyzing" ? t("stillAnalyzing") : t("duplicateIntoForm")}
+                                  aria-label={t("duplicateAria", { title: row.title })}
                                 >
                                   {duplicating === row.slug ? <Loader2 size={15} className="animate-spin" aria-hidden /> : <Copy size={15} aria-hidden />}
                                 </button>
@@ -358,7 +368,6 @@ export function LibrarySavedJdsLedger() {
             ) : null}
           </div>
         </div>
-      )}
 
       {openRow ? (
         <LedgerDetailModal
@@ -381,13 +390,14 @@ export function LibrarySavedJdsLedger() {
 // (bg-blue-50/text-blue-700) but animates, which the shared Badge (fixed icon
 // class) can't. Used wherever a JD is mid-build.
 function AnalyzingChip() {
+  const t = useTranslations("library.tab");
   return (
     <span
-      aria-label="AI analysis in progress"
+      aria-label={t("analyzingAria")}
       className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-sm font-semibold text-blue-700"
     >
       <Loader2 className="h-3 w-3 animate-spin" aria-hidden />
-      <span>Analyzing</span>
+      <span>{t("analyzingLabel")}</span>
     </span>
   );
 }
@@ -406,9 +416,17 @@ function SeniorityCell({ value }: { value: string | null | undefined }) {
   );
 }
 
-// A column-header enum filter: the uppercase title doubles as the dropdown trigger,
-// with a coral dot when a value is active. Options are the (pre-sorted) enum values
-// plus an "All" reset. Closes on outside-click or Escape.
+// A column-header enum filter: the title doubles as the dropdown trigger, with a
+// coral dot when a value is active. Options are the (pre-sorted) enum values plus
+// an "All" reset. Closes on outside-click or Escape.
+//
+// #4 — this is a MENU of single-select choices, not a listbox: the old markup
+// announced `aria-haspopup="listbox"` + `role="option"` on focusable <button>s but
+// implemented none of the listbox keyboard contract (no focus-in on open, no arrow
+// navigation, no aria-activedescendant/controls), which misleads assistive tech.
+// Rebuilt as an honest `role="menu"` of `role="menuitemradio"` buttons with real
+// roving focus (focus the selected item on open, Arrow/Home/End move focus,
+// aria-controls links trigger↔menu). bug-ui-scan-2026-07-09 (jd-authoring-library-templates #4)
 function ColumnHeaderFilter({
   title,
   options,
@@ -420,8 +438,20 @@ function ColumnHeaderFilter({
   selected: string | null;
   onSelect: (value: string | null) => void;
 }) {
+  const t = useTranslations("library.tab");
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const menuId = useId();
+
+  // The menu items in DOM order: the "All" reset (value null) then each option.
+  const items: { value: string | null; label: string; count?: number; icon?: LucideIcon }[] = [
+    { value: null, label: t("filterAll") },
+    ...options,
+  ];
+  // Focus target on open: the currently-selected item, else "All" (index 0).
+  const selectedIndex = Math.max(0, items.findIndex((it) => it.value === selected));
 
   useEffect(() => {
     if (!open) return;
@@ -429,7 +459,10 @@ function ColumnHeaderFilter({
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
     };
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
+      if (e.key === "Escape") {
+        setOpen(false);
+        triggerRef.current?.focus(); // return focus to the trigger, per menu semantics
+      }
     };
     document.addEventListener("mousedown", onDoc);
     document.addEventListener("keydown", onKey);
@@ -439,16 +472,40 @@ function ColumnHeaderFilter({
     };
   }, [open]);
 
+  // On open, move focus INTO the menu (the selected item) so keyboard/SR users land
+  // where the listbox contract promised but never delivered.
+  useEffect(() => {
+    if (open) itemRefs.current[selectedIndex]?.focus();
+  }, [open, selectedIndex]);
+
   const activeLabel = selected ? options.find((o) => o.value === selected)?.label : null;
+
+  const choose = (value: string | null) => {
+    onSelect(value);
+    setOpen(false);
+    triggerRef.current?.focus();
+  };
+
+  // Roving focus: Arrow/Home/End move DOM focus between the (natively focusable)
+  // menuitem buttons; the pure index math lives in ledger-nav (unit-tested).
+  const onMenuKeyDown = (e: ReactKeyboardEvent<HTMLDivElement>) => {
+    const cur = itemRefs.current.findIndex((el) => el === document.activeElement);
+    const next = nextMenuIndex(cur, e.key, items.length);
+    if (next == null) return;
+    e.preventDefault();
+    itemRefs.current[next]?.focus();
+  };
 
   return (
     <div ref={ref} className="relative inline-flex">
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen((o) => !o)}
-        aria-haspopup="listbox"
+        aria-haspopup="menu"
         aria-expanded={open}
-        title={activeLabel ? `${title}: ${activeLabel}` : `Filter by ${title.toLowerCase()}`}
+        aria-controls={open ? menuId : undefined}
+        title={activeLabel ? t("filterActive", { name: title, value: activeLabel }) : t("filterBy", { name: title })}
         className={`focus-ring -mx-1 inline-flex items-center gap-1 rounded px-1 py-0.5 transition-colors hover:text-ink ${selected ? "text-coral" : ""}`}
       >
         <span>{title}</span>
@@ -457,45 +514,56 @@ function ColumnHeaderFilter({
       </button>
       {open ? (
         <div
-          role="listbox"
+          id={menuId}
+          role="menu"
+          aria-label={t("filterBy", { name: title })}
+          onKeyDown={onMenuKeyDown}
           className="absolute left-0 top-full z-20 mt-1 max-h-72 min-w-[11rem] overflow-auto rounded-lg border border-stone-200 bg-white py-1 shadow-pop"
         >
-          <FilterRow label="All" active={selected == null} onClick={() => { onSelect(null); setOpen(false); }} />
-          {options.map((o) => (
+          {items.map((it, idx) => (
             <FilterRow
-              key={o.value}
-              label={o.label}
-              count={o.count}
-              icon={o.icon}
-              active={selected === o.value}
-              onClick={() => { onSelect(o.value); setOpen(false); }}
+              key={it.value ?? "__all__"}
+              ref={(el) => { itemRefs.current[idx] = el; }}
+              label={it.label}
+              count={it.count}
+              icon={it.icon}
+              active={selected === it.value}
+              onClick={() => choose(it.value)}
             />
           ))}
-          {options.length === 0 ? <p className="px-3 py-2 text-xs normal-case tracking-normal text-steel">No values yet</p> : null}
+          {options.length === 0 ? <p className="px-3 py-2 text-xs normal-case tracking-normal text-steel">{t("filterNoValues")}</p> : null}
         </div>
       ) : null}
     </div>
   );
 }
 
-function FilterRow({ label, count, icon: Icon, active, onClick }: { label: string; count?: number; icon?: LucideIcon; active: boolean; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      role="option"
-      aria-selected={active}
-      onClick={onClick}
-      className={`focus-ring flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm normal-case tracking-normal transition-colors hover:bg-paper ${active ? "font-semibold text-coral" : "text-ink"}`}
-    >
-      {Icon ? <Icon size={14} aria-hidden className="shrink-0 text-steel" /> : null}
-      <span className="flex-1 truncate">{label}</span>
-      {typeof count === "number" ? <span className="nums text-xs text-steel">{count}</span> : null}
-      {active ? <Check size={13} aria-hidden className="shrink-0" /> : null}
-    </button>
-  );
-}
+// A single filter choice. `role="menuitemradio"` + `aria-checked` is honest about
+// the single-select semantics (unlike the old `role="option"`, which promised
+// listbox behaviour); the button stays natively focusable so the parent menu can
+// rove focus with the arrow keys. bug-ui-scan-2026-07-09 (jd-authoring-library-templates #4)
+const FilterRow = forwardRef<HTMLButtonElement, { label: string; count?: number; icon?: LucideIcon; active: boolean; onClick: () => void }>(
+  function FilterRow({ label, count, icon: Icon, active, onClick }, ref) {
+    return (
+      <button
+        ref={ref}
+        type="button"
+        role="menuitemradio"
+        aria-checked={active}
+        onClick={onClick}
+        className={`focus-ring flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm normal-case tracking-normal transition-colors hover:bg-paper ${active ? "font-semibold text-coral" : "text-ink"}`}
+      >
+        {Icon ? <Icon size={14} aria-hidden className="shrink-0 text-steel" /> : null}
+        <span className="flex-1 truncate">{label}</span>
+        {typeof count === "number" ? <span className="nums text-xs text-steel">{count}</span> : null}
+        {active ? <Check size={13} aria-hidden className="shrink-0" /> : null}
+      </button>
+    );
+  }
+);
 
 function RowIngest({ row, reload, onIngested }: { row: JdRow; reload: () => void; onIngested: (jobId: string | null) => void }) {
+  const t = useTranslations("library.tab");
   const { state, run } = useIngestJob(row.slug, (jobId) => {
     onIngested(jobId);
     reload();
@@ -506,8 +574,8 @@ function RowIngest({ row, reload, onIngested }: { row: JdRow; reload: () => void
       onClick={run}
       disabled={state === "busy"}
       className={`${ICON_BTN} ${state === "error" ? "text-coral" : "hover:text-coral"}`}
-      title={state === "error" ? "Couldn't ingest — retry" : "Ingest as a matchable job"}
-      aria-label={`Ingest ${row.title} as a matchable job`}
+      title={state === "error" ? t("ingestRetryBrief") : t("ingestAsJobBrief")}
+      aria-label={t("ingestRowAria", { title: row.title })}
     >
       {state === "busy" ? <Loader2 size={15} className="animate-spin" aria-hidden /> : <Briefcase size={15} aria-hidden />}
     </button>
@@ -558,11 +626,11 @@ function LedgerDetailModal({
       const r = await fetch(`/api/jds/${encodeURIComponent(row.slug)}/retry-analysis`, { method: "POST" });
       if (!r.ok) {
         const p = await r.json().catch(() => ({}));
-        throw new Error(p.error ?? "Couldn't retry the build.");
+        throw new Error(p.error ?? t("retryFailed"));
       }
       refresh(); // reflects the reset-to-analyzing state; the poll then tracks it
     } catch (e) {
-      setRetryError(e instanceof Error ? e.message : "Couldn't retry the build.");
+      setRetryError(e instanceof Error ? e.message : t("retryFailed"));
     } finally {
       setRetrying(false);
     }
@@ -574,7 +642,7 @@ function LedgerDetailModal({
         {/* Metadata rail */}
         <aside className="space-y-4">
           <div className="space-y-2">
-            <p className={META_LABEL}>Status</p>
+            <p className={META_LABEL}>{t("colStatus")}</p>
             {analyzing ? (
               <AnalyzingChip />
             ) : (
@@ -583,11 +651,11 @@ function LedgerDetailModal({
           </div>
           <div className="grid grid-cols-2 gap-2">
             <div className="rounded-lg border border-stone-200 bg-white px-3 py-2 shadow-pop">
-              <p className={META_LABEL}>Analyzed</p>
+              <p className={META_LABEL}>{t("colAnalyzed")}</p>
               <p className="font-serif text-h2 leading-none text-ink nums">{row.analysisCount ?? 0}</p>
             </div>
             <div className="rounded-lg border border-stone-200 bg-white px-3 py-2 shadow-pop">
-              <p className={META_LABEL}>Saved</p>
+              <p className={META_LABEL}>{t("colSaved")}</p>
               <p className="mt-1 text-sm font-semibold text-ink">{shortDate(row.created_at)}</p>
             </div>
           </div>
@@ -613,10 +681,10 @@ function LedgerDetailModal({
               </button>
             ) : null}
             <Link href={`/jds/${encodeURIComponent(row.slug)}`} className="focus-ring flex w-full items-center gap-2 rounded-md border border-stone-200 px-3 py-2 text-sm font-semibold text-ink hover:border-coral/40">
-              <ExternalLink size={15} aria-hidden /> Open public page
+              <ExternalLink size={15} aria-hidden /> {t("detailOpenPublic")}
             </Link>
             <Link href={`/?tab=analyze&jd=${encodeURIComponent(row.slug)}`} className="focus-ring flex w-full items-center gap-2 rounded-md bg-ink px-3 py-2 text-sm font-semibold text-white hover:bg-steel">
-              <Sparkles size={15} aria-hidden /> Analyze a CV
+              <Sparkles size={15} aria-hidden /> {t("detailAnalyzeCv")}
             </Link>
           </div>
           <div className="space-y-2 border-t border-stone-200 pt-4">
@@ -639,7 +707,7 @@ function LedgerDetailModal({
               <Skeleton className="h-3 w-4/5" />
             </div>
           ) : status === "error" || !jd ? (
-            <p className="rounded-md bg-red-50 p-3 text-sm text-red-700">Couldn&apos;t load this description right now.</p>
+            <p className="rounded-md bg-red-50 p-3 text-sm text-red-700">{t("detailLoadError")}</p>
           ) : (
             <div className="space-y-4">
               {artifacts?.salary ? <SalaryCard salary={artifacts.salary} sources={artifacts.salarySources} source={artifacts.salarySource} /> : null}
@@ -648,7 +716,7 @@ function LedgerDetailModal({
                   <Markdown content={jd.body} />
                 </article>
               ) : (
-                <p className="text-sm italic text-steel">This role doesn&apos;t have a description yet.</p>
+                <p className="text-sm italic text-steel">{t("noDescriptionYet")}</p>
               )}
               {hasCaseContent(artifacts?.case) ? <CaseCard kase={artifacts!.case as CaseArtifact} /> : null}
             </div>
@@ -686,23 +754,23 @@ function hasCaseContent(kase: CaseArtifact | null | undefined): kase is CaseArti
 
 // In-progress placeholder shown in the detail while the detached build runs.
 function BuildingPanel() {
+  const t = useTranslations("library.tab");
   return (
     <div className="flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-stone-300 bg-paper/50 px-6 py-12 text-center">
       <Loader2 size={28} className="animate-spin text-blue-700" aria-hidden />
-      <p className="text-sm font-semibold text-ink">Building this job description…</p>
-      <p className="max-w-sm text-sm text-steel">
-        AI is analyzing the need, researching the market, and drafting the role. This takes a minute or two — you can close this and it&apos;ll keep going.
-      </p>
+      <p className="text-sm font-semibold text-ink">{t("buildingTitle")}</p>
+      <p className="max-w-sm text-sm text-steel">{t("buildingBody")}</p>
     </div>
   );
 }
 
 // Failed build — the error plus a one-click retry (replays the original inputs).
 function FailedPanel({ error, retrying, retryError, onRetry }: { error: string | null; retrying: boolean; retryError: string | null; onRetry: () => void }) {
+  const t = useTranslations("library.tab");
   return (
     <div className="rounded-lg border border-red-200 bg-red-50/60 p-5">
       <p className="flex items-center gap-2 text-sm font-semibold text-red-700">
-        <AlertTriangle size={16} aria-hidden /> The AI build didn&apos;t finish.
+        <AlertTriangle size={16} aria-hidden /> {t("buildFailedTitle")}
       </p>
       {error ? <p className="mt-2 break-words text-sm text-red-700/90">{error}</p> : null}
       <button
@@ -712,7 +780,7 @@ function FailedPanel({ error, retrying, retryError, onRetry }: { error: string |
         className="focus-ring mt-3 inline-flex h-9 items-center gap-2 rounded-md bg-ink px-4 text-sm font-semibold text-white hover:bg-steel disabled:opacity-50"
       >
         {retrying ? <Loader2 size={15} className="animate-spin" aria-hidden /> : <RefreshCw size={15} aria-hidden />}
-        Retry build
+        {t("retryBuild")}
       </button>
       {retryError ? <p className="mt-2 text-sm text-red-700">{retryError}</p> : null}
     </div>
@@ -722,13 +790,14 @@ function FailedPanel({ error, retrying, retryError, onRetry }: { error: string |
 // Read-only market-salary card (the band is AI-fixed; editing lives on the public
 // page) — the recruiter-facing surface for the grounded band + its cited sources.
 function SalaryCard({ salary, sources, source }: { salary: unknown; sources?: string[]; source?: string }) {
+  const t = useTranslations("library.tab");
   const s = normalizeMarketSalary(salary);
   const links = dedupeBy(safeHttpLinks(sources ?? []), (l) => l.href).slice(0, 3);
-  const provenance = source === "llm" ? "web-grounded" : source === "deterministic" ? "estimated" : source ?? "estimated";
+  const provenance = source === "llm" ? t("provWebGrounded") : source === "deterministic" ? t("provEstimated") : source ?? t("provEstimated");
   return (
     <div className="rounded-lg border border-stone-200 bg-paper/50 p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-meta uppercase tracking-wide text-steel">Market salary · {provenance}</p>
+        <p className="text-meta uppercase tracking-wide text-steel">{t("marketSalary")} · {provenance}</p>
         {s.available ? (
           <span className="inline-flex items-center gap-1.5 rounded-md bg-white px-2 py-1 text-sm font-semibold text-ink">
             <Lock size={12} className="text-steel" aria-hidden />
@@ -736,14 +805,14 @@ function SalaryCard({ salary, sources, source }: { salary: unknown; sources?: st
           </span>
         ) : (
           <span className="inline-flex items-center gap-1.5 rounded-md bg-white px-2 py-1 text-sm font-semibold text-steel">
-            <AlertTriangle size={12} className="text-amber-500" aria-hidden /> Salary unavailable
+            <AlertTriangle size={12} className="text-amber-500" aria-hidden /> {t("salaryUnavailable")}
           </span>
         )}
       </div>
       {s.summary ? <p className="mt-1.5 text-sm text-ink">{s.summary}</p> : null}
       {links.length ? (
         <p className="mt-1 text-sm text-steel">
-          Sources:{" "}
+          {t("sourcesLabel")}{" "}
           {links.map((l, i) => (
             <span key={l.href}>
               {i > 0 ? " · " : ""}
@@ -758,10 +827,11 @@ function SalaryCard({ salary, sources, source }: { salary: unknown; sources?: st
 
 // The interview case (shown when "Case analysis" was ticked) — read-only overview.
 function CaseCard({ kase }: { kase: CaseArtifact }) {
+  const t = useTranslations("library.tab");
   const tasks = Array.isArray(kase.tasks) ? kase.tasks : [];
   return (
     <div className="rounded-lg border border-stone-200 bg-white p-4 shadow-panel">
-      <p className="text-meta uppercase tracking-wide text-coral">Interview case</p>
+      <p className="text-meta uppercase tracking-wide text-coral">{t("interviewCase")}</p>
       {kase.title ? <h3 className="mt-1 font-serif text-h3 font-semibold text-ink">{kase.title}</h3> : null}
       {kase.brief ? <p className="mt-2 whitespace-pre-line text-sm text-steel">{kase.brief}</p> : null}
       {tasks.length ? (
@@ -771,7 +841,7 @@ function CaseCard({ kase }: { kase: CaseArtifact }) {
           ))}
         </ul>
       ) : null}
-      {typeof kase.timeboxHours === "number" ? <p className="mt-2 text-sm text-steel">Timebox: ~{kase.timeboxHours}h</p> : null}
+      {typeof kase.timeboxHours === "number" ? <p className="mt-2 text-sm text-steel">{t("timebox", { hours: kase.timeboxHours })}</p> : null}
     </div>
   );
 }

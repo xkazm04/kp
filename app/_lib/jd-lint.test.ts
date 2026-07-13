@@ -6,7 +6,7 @@
 // Runner: Node's built-in test runner with type stripping — npm run test:unit
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { findVaguePhrases, lintJd } from "./jd-lint.ts";
+import { findVaguePhrases, jdLintMessage, lintJd, type JdLintFinding } from "./jd-lint.ts";
 
 // ---------------------------------------------------------------------------
 // findVaguePhrases — English boilerplate
@@ -143,4 +143,22 @@ test("an inclusive, concrete JD has no exclusionary findings", () => {
   const findings = lintJd({ body });
   assert.equal(findings.filter((f) => f.kind === "exclusionary").length, 0);
   assert.equal(findings.filter((f) => f.kind === "manyMustHaves").length, 0);
+});
+
+// --- jdLintMessage exhaustiveness (bug-ui-scan-2026-07-09 jd-authoring #5) -----
+
+test("jdLintMessage maps every finding kind to its own translation key + values", () => {
+  assert.deepEqual(jdLintMessage({ kind: "vague", phrase: "rockstar" }), { key: "lintVague", values: { phrase: "rockstar" } });
+  assert.deepEqual(jdLintMessage({ kind: "exclusionary", phrase: "young" }), { key: "lintExclusionary", values: { phrase: "young" } });
+  assert.deepEqual(jdLintMessage({ kind: "manyMustHaves", count: 9 }), { key: "lintManyMustHaves", values: { count: 9 } });
+  assert.deepEqual(jdLintMessage({ kind: "missing", what: "salary" }), { key: "lintMissingSalary" });
+  assert.deepEqual(jdLintMessage({ kind: "missing", what: "place" }), { key: "lintMissingPlace" });
+});
+
+test("jdLintMessage throws on an unknown kind instead of mislabeling it 'missing place'", () => {
+  // Pre-fix the panel's ternary fell through to lintMissingPlace for ANY kind it
+  // didn't match; jdLintMessage rejects it (assertNever) so a new kind must be
+  // handled explicitly. This assertion FAILS against that fall-through behaviour
+  // (which would return lintMissingPlace, not throw).
+  assert.throws(() => jdLintMessage({ kind: "tooShort" } as unknown as JdLintFinding));
 });

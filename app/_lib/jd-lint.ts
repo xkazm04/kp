@@ -126,3 +126,37 @@ export function lintJd(input: { body: string; salaryAvailable?: boolean }): JdLi
   if (mustHaves > MANY_MUST_HAVES) findings.push({ kind: "manyMustHaves", count: mustHaves });
   return findings;
 }
+
+// A `library.result.lint*` translation-key + ICU-values descriptor for one lint
+// finding. Colocated with the JdLintFinding union and switched EXHAUSTIVELY so a
+// future kind is a COMPILE error at the `assertNever` default — rather than the
+// panel's nested ternary silently falling through to the "missing place" label
+// for an unrelated finding. bug-ui-scan-2026-07-09 (jd-authoring-library-templates #5)
+export type JdLintMessage =
+  | { key: "lintVague"; values: { phrase: string } }
+  | { key: "lintExclusionary"; values: { phrase: string } }
+  | { key: "lintManyMustHaves"; values: { count: number } }
+  | { key: "lintMissingSalary"; values?: undefined }
+  | { key: "lintMissingPlace"; values?: undefined };
+
+export function jdLintMessage(f: JdLintFinding): JdLintMessage {
+  switch (f.kind) {
+    case "vague":
+      return { key: "lintVague", values: { phrase: f.phrase } };
+    case "exclusionary":
+      return { key: "lintExclusionary", values: { phrase: f.phrase } };
+    case "manyMustHaves":
+      return { key: "lintManyMustHaves", values: { count: f.count } };
+    case "missing":
+      return f.what === "salary" ? { key: "lintMissingSalary" } : { key: "lintMissingPlace" };
+    default:
+      return assertNever(f);
+  }
+}
+
+// Compile-time exhaustiveness guard: reaching this with a real value means a
+// JdLintFinding kind was added without a jdLintMessage branch (a type error here),
+// and the runtime throw stops a silently-mislabeled finding from shipping.
+function assertNever(x: never): never {
+  throw new Error(`Unhandled JdLintFinding: ${JSON.stringify(x)}`);
+}
