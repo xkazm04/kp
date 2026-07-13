@@ -4,11 +4,24 @@
 //   node scripts/setup-eleven-agent.mjs
 //
 // It picks a voice from your account, uses the multilingual eleven_flash_v2_5
-// model, sets a Czech-first interviewer prompt, and ENABLES prompt/first-message/
-// language overrides so our per-candidate grounded questions take effect at
-// runtime. On success it writes ELEVENLABS_AGENT_ID back into .env.local.
+// model, sets a bilingual interviewer prompt, biases the ASR toward common tech
+// terms (asr.keywords — "Fix 2" for the React→Rust / PostgreSQL→"později SQL"
+// entity-corruption class), and ENABLES prompt/first-message/language overrides
+// so the per-candidate CANDIDATE-SAFE grounded brief takes effect at runtime
+// (/connect builds it via app/_lib/voice/candidate-brief.ts; VoiceInterview.tsx
+// sends it as overrides.agent.prompt). On success it writes ELEVENLABS_AGENT_ID
+// back into .env.local.
 //
-// Re-running creates a NEW agent (ElevenLabs has no upsert); the newest id wins.
+// ── DEPLOY STEP — do not run casually ───────────────────────────────────────
+// Re-running creates a NEW agent (ElevenLabs has no upsert) and ROTATES
+// ELEVENLABS_AGENT_ID, so treat a run as a deploy:
+//   1. node scripts/setup-eleven-agent.mjs   (creates the agent, updates .env.local)
+//   2. restart the server so the new id is picked up
+//   3. rotate ELEVENLABS_AGENT_ID in any other environment that pins it
+// In-flight sessions on the old agent keep working (their signed URLs pin it);
+// new sessions mint against the new agent. Delete the old agent in the dashboard
+// when convenient. The script is idempotent in effect: same inputs → an agent
+// with the same config, newest id wins.
 
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import path from "node:path";
@@ -35,16 +48,19 @@ function upsertEnv(text, key, value) {
 
 // This is only the FALLBACK prompt for sessions with no per-candidate override (the lab, or an
 // agent that disallows overrides). Kept in sync with the shared brief constants in
-// app/_lib/student-interview.ts (PERSONA_LANGUAGE_DETECT + the no-feedback/no-praise CLOSING) so
-// the fallback isn't stale — the voice harness caught an earlier version drifting to Czech and
-// praising answers. Candidate-mode sessions still override this with the grounded brief.
+// app/_lib/student-interview.ts (PERSONA_ONE_QUESTION + PERSONA_CRAFT_CONDENSED +
+// PERSONA_GENDER_GRAMMAR + PERSONA_LANGUAGE_DETECT, in that order — the harness showed language
+// drift when other prose separates the lock from the end of the persona block) so the fallback
+// isn't stale — the voice harness caught an earlier version drifting to Czech and praising
+// answers. Candidate-mode sessions still override this with the candidate-safe grounded brief.
 const PROMPT = [
   "You are a warm, professional first-round screening interviewer at Česká spořitelna.",
+  "Ask exactly ONE question per turn and wait for the answer before asking the next — never bundle a second question or a follow-up into the same turn. This matters most with nervous, terse, or quiet candidates: keep each prompt short and single, and give them room to answer.",
+  "Interviewing craft: when an answer is one line or dismissive, ask one concrete follow-up, and when re-asking, narrow to a smaller concrete sub-question — never repeat the question verbatim — and ask that follow-up plainly and directly, with no acknowledgement or preamble before it. When a candidate makes a strong or quantitative claim, ask how they achieved or verified it. Let coverage — not a fixed question count — decide length, and never announce how many questions remain. With a rambling candidate, set a concrete expectation up front and politely cut in at natural pauses every time it recurs; close off an off-topic question in one line, then return to yours. Just before closing, if the candidate mentioned specific technologies or tools, read back the key ones in one short turn and let them confirm or correct you; if none came up, skip that.",
   "You are male — when you speak Czech, use masculine grammatical forms for yourself (e.g. „rád bych“, „zeptal bych se“, „řekl jsem“).",
-  "Do not assume the candidate's language: open by greeting briefly in both Czech and English, then LOCK onto the one language the candidate replies in and use ONLY that language for every remaining turn; never switch unless the candidate does first.",
-  "Ask exactly ONE question per turn and wait for the answer before asking the next — never bundle two questions into one turn.",
+  "Do not assume the candidate's language: open by greeting briefly in both Czech and English, then LOCK onto the one language the candidate replies in and use ONLY that language for every remaining turn — greetings, acknowledgements, and closing included. Do not mix the two languages after your opening, and never switch to the other language unless the candidate does first (then follow them). Before EVERY turn you produce, check which language the candidate's last message was in and answer in that language — this rule outranks every other instruction in this brief.",
   "Ask at most 3–4 short questions about their recent experience, with brief follow-ups.",
-  `Do not give feedback, scores, or any hiring decision, and never praise or judge the quality of an answer; acknowledge answers neutrally and warmly. Keep the whole call under ${QUICK_SCREEN_MIN} minutes,`,
+  `Do not give feedback, scores, or any hiring decision, and never praise or judge the quality of an answer or tell the candidate their thinking, instinct, or approach is right — stay warm by showing interest, not by approving. Keep the whole call under ${QUICK_SCREEN_MIN} minutes,`,
   "then thank them and say a human recruiter will review the conversation.",
 ].join(" ");
 

@@ -18,6 +18,7 @@ import {
   type VoiceProviderId,
 } from "@/app/_lib/voice";
 import { QUICK_SCREEN_MIN } from "@/app/_lib/interview-duration.mjs";
+import { buildCandidateSafeBrief } from "@/app/_lib/interview-run";
 import { safeJsonError } from "@/app/_lib/api-response";
 import { rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
 import { CONSENT_REQUIRED_ERROR, isConnectConsentSatisfied } from "@/app/_lib/interview-consent";
@@ -169,14 +170,27 @@ export async function POST(request: NextRequest) {
     // config (adapter.connect above). ElevenLabs' signed-url flow has NO
     // server-side session config — its prompt overrides are client-sent by
     // design — so a candidate-mode ElevenLabs session gets a CANDIDATE-SAFE
-    // agent prompt instead: the generic screening script built only from the
-    // public job title + booked length, never the private brief. The stored
-    // run-of-show can itself carry assessment annotations, so no per-candidate
-    // material is projected into this prompt at all.
-    const agentPrompt =
-      connect.provider === "elevenlabs" && session.mode === "candidate"
-        ? defaultInterviewerInstructions({ role: session.jobTitle, durationMin: session.durationMin })
-        : null;
+    // brief instead. Entry-backed sessions now get the GROUNDED candidate-safe
+    // brief (buildCandidateSafeBrief: run-of-show topics + the questions asked
+    // aloud + time-boxes + the opening-language hint, rebuilt through the
+    // ALLOW-LIST sanitizers in voice/candidate-brief.ts so listenFor/redFlag/
+    // goal-annotations structurally cannot survive) — previously EL candidate
+    // sessions ran a generic role-title prompt while OpenAI ran fully grounded.
+    // Sessions with no entry (or nothing grounded to say) keep the generic
+    // prompt built only from the public job title + booked length.
+    let agentPrompt: string | null = null;
+    if (connect.provider === "elevenlabs" && session.mode === "candidate") {
+      let grounded: string | null = null;
+      if (session.entryId) {
+        try {
+          grounded = buildCandidateSafeBrief(session.entryId);
+        } catch {
+          /* grounding is enrichment — fall back to the generic candidate-safe prompt */
+        }
+      }
+      agentPrompt =
+        grounded ?? defaultInterviewerInstructions({ role: session.jobTitle, durationMin: session.durationMin });
+    }
     // The session token rides back so /complete can demand it as the completion
     // capability (idea-5248c3e9). Candidate/sim callers already hold it (it is
     // how they got here); for a fresh lab session this is the creator receiving

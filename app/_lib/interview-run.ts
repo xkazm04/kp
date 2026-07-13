@@ -24,6 +24,13 @@ import {
   type CaseInterviewScenario,
 } from "./student-interview";
 import { extractTelemetry } from "./interview-telemetry";
+import {
+  composeCandidateBrief,
+  sanitizeChronologyBlock,
+  sanitizeFollowupQuestion,
+  sanitizeScenarioPhase,
+  type CandidateSafeBlock,
+} from "./voice/candidate-brief";
 
 // Re-exported for back-compat: the transcript→notes flattener now lives with the
 // rest of the documented truncation policy in ./interview-transcript.
@@ -253,6 +260,76 @@ export async function buildGroundedInterview(entryId: string): Promise<{
     jobId: entry.jobId ?? null,
     jobTitle: entry.jobTitle ?? null,
   };
+}
+
+/** Candidate-safe GROUNDED brief for an entry — the ElevenLabs candidate-session
+ *  counterpart of buildGroundedInterview. EL's signed-url flow has no server-side
+ *  prompt config: the prompt override is client-sent (VoiceInterview.tsx), so it
+ *  transits the candidate's BROWSER and must contain nothing the candidate may
+ *  not read. Every block passes through the ALLOW-LIST sanitizers in
+ *  voice/candidate-brief.ts (the unit-tested security boundary): topics,
+ *  aloud-questions and time-boxes survive; goals, listenFor, redFlag and
+ *  coachability stage directions do not. Read-only like plannedInterviewMinutes
+ *  (never generates missing prep); returns null when there is nothing grounded
+ *  to say, so the caller falls back to the generic candidate-safe prompt. */
+export function buildCandidateSafeBrief(entryId: string): string | null {
+  const entry = getPipelineEntry(entryId);
+  if (!entry) return null;
+
+  const job = entry.jobId ? getJob(entry.jobId) : null;
+  const company = job?.company || "Česká spořitelna";
+  const title = entry.jobTitle || job?.title || "the role";
+  const ctx = [job?.seniority, job?.location, job?.workMode].filter(Boolean).join(" · ");
+  const roleLine = ctx ? `${title} (${ctx})` : title;
+  const preferredLang: Locale | null = isLocale(entry.locale) ? entry.locale : null;
+  const candidateLabel = entry.candidateLabel ?? null;
+
+  // Same branch order as buildGroundedInterview: debrief > case-grounded student >
+  // generic student > grounded prep > null (generic fallback).
+  const followups = submissionFollowups(entry);
+  if (followups.length > 0) {
+    const questions = followups.map(sanitizeFollowupQuestion).filter((q): q is string => q !== null);
+    if (questions.length === 0) return null;
+    const blocks: CandidateSafeBlock[] = [
+      { topic: "Your take-home — how you approached it", questions: [] },
+      { topic: "Decisions deep-dive", questions },
+      { topic: "Your questions", questions: [] },
+    ];
+    return withOpeningLanguage(
+      composeCandidateBrief({ company, roleLine, candidateLabel, durationMin: debriefDurationMin(followups.length), blocks }),
+      preferredLang
+    );
+  }
+
+  if (isEarlyCareer(entry.archetype)) {
+    const caseId = devCaseIdFromJobId(entry.jobId);
+    const scenario = caseId ? ((getDevCase(caseId)?.scenario as CaseInterviewScenario | null) ?? null) : null;
+    const phases = scenario && Array.isArray(scenario.phases) && scenario.phases.length > 0 ? scenario.phases : STUDENT_SCRIPT;
+    const blocks = phases.map(sanitizeScenarioPhase).filter((b): b is CandidateSafeBlock => b !== null);
+    if (blocks.length === 0) return null;
+    return withOpeningLanguage(
+      composeCandidateBrief({
+        company,
+        roleLine,
+        candidateLabel,
+        durationMin: scenario?.durationMin || STUDENT_SCRIPT_MIN,
+        blocks,
+        // The case intro is narrated ALOUD to the candidate by design — safe to ground on.
+        intro: scenario?.caseIntro ?? null,
+      }),
+      preferredLang
+    );
+  }
+
+  const prep = (getInterviewPrep(entryId)?.payload as PrepPayload | undefined) ?? undefined;
+  const chron = prep?.chronology ?? [];
+  if (chron.length === 0) return null;
+  const blocks = chron.map(sanitizeChronologyBlock).filter((b): b is CandidateSafeBlock => b !== null);
+  if (blocks.length === 0) return null;
+  return withOpeningLanguage(
+    composeCandidateBrief({ company, roleLine, candidateLabel, durationMin: prep?.durationMin ?? GROUNDED_DEFAULT_MIN, blocks }),
+    preferredLang
+  );
 }
 
 /** Read-only estimate of how long the entry's interview will run — the same
