@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { toast } from "@/app/_components/toast-store";
 import { TextInput } from "@/app/_components/TextInput";
+import { classifyLoginResult, type LoginFetchResult } from "./login-result";
 
 // Auth foundation (P2) — the operator sign-in. Posts the password to
 // /api/auth/login; on success the signed cookie is set and we return to `next`
@@ -14,6 +15,10 @@ function safeNext(): string {
   const n = new URLSearchParams(window.location.search).get("next") ?? "/";
   return n.startsWith("/") && !n.startsWith("//") ? n : "/";
 }
+
+// Upper bound on a login round-trip before we abort and re-enable the form
+// (bug-ui-scan-2026-07-09 auth-sessions-workspace-tenancy #5).
+const LOGIN_TIMEOUT_MS = 15_000;
 
 export function LoginClient() {
   const t = useTranslations("login");
@@ -27,24 +32,60 @@ export function LoginClient() {
     setStatus("submitting");
     // An email routes to per-user login; blank falls back to the operator password.
     const trimmedEmail = email.trim();
-    const r = await fetch("/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(trimmedEmail ? { email: trimmedEmail, password } : { password }),
-    }).catch(() => null);
-    if (r && r.ok) {
-      // Client-side navigation keeps the toast alive across the redirect (the
-      // Toaster lives in the root layout).
-      toast.success(t("success"));
-      router.replace(safeNext());
-      router.refresh();
-    } else if (!r) {
-      // Network failure ≠ wrong password: the fetch never reached the server, so
-      // the inline "incorrect password" message would blame the wrong thing.
-      setStatus("idle");
-      toast.error(t("networkError"));
-    } else {
-      setStatus("error");
+
+    // bug-ui-scan-2026-07-09 (auth-sessions-workspace-tenancy #5): a stalled
+    // request must not strand the form in "submitting" forever. Abort after a
+    // fixed budget so the fetch rejects and we recover the form.
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), LOGIN_TIMEOUT_MS);
+    let result: LoginFetchResult;
+    try {
+      const r = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(trimmedEmail ? { email: trimmedEmail, password } : { password }),
+        signal: controller.signal,
+      });
+      result = { status: r.status };
+    } catch (err) {
+      // AbortError = our timeout fired; anything else = the fetch never reached
+      // the server. Neither is a wrong-password case.
+      result = { failure: err instanceof DOMException && err.name === "AbortError" ? "timeout" : "network" };
+    } finally {
+      clearTimeout(timer);
+    }
+
+    // bug-ui-scan-2026-07-09 (auth-sessions-workspace-tenancy #5): branch on the
+    // real outcome instead of collapsing every non-ok into the inline "wrong
+    // password" message. Only a 401 blames the credentials; 429/5xx/timeout/
+    // network each get an honest toast and re-enable the form.
+    switch (classifyLoginResult(result)) {
+      case "success":
+        // Client-side navigation keeps the toast alive across the redirect (the
+        // Toaster lives in the root layout).
+        toast.success(t("success"));
+        router.replace(safeNext());
+        router.refresh();
+        return;
+      case "credential":
+        setStatus("error");
+        return;
+      case "rateLimited":
+        setStatus("idle");
+        toast.error(t("rateLimited"));
+        return;
+      case "serverError":
+        setStatus("idle");
+        toast.error(t("serverError"));
+        return;
+      case "timeout":
+        setStatus("idle");
+        toast.error(t("timeoutError"));
+        return;
+      case "network":
+        setStatus("idle");
+        toast.error(t("networkError"));
+        return;
     }
   }
 
