@@ -173,6 +173,15 @@ same-network gateway.
 - [ ] `KP_DB_PATH` on a persistent, backed-up volume (absolute path); restore tested.
 - [ ] TLS terminated by a reverse proxy (Caddy / nginx / Traefik) in front — KP
       speaks plain HTTP on `:3000`.
+- [ ] `KP_TRUSTED_PROXY` set to the number of proxy hops in front of KP (**`1`**
+      for a single Caddy / nginx / Traefik) so the public-route rate limits
+      (apply, quick-apply, offer, schedule, login) key on the **real** client IP.
+      **Unset ⇒ KP ignores `X-Forwarded-For` entirely** (it is client-forgeable,
+      so trusting it would let a script mint a fresh throttle bucket per request)
+      and every request shares **one** bucket — spoof-proof, but coarse: a burst
+      of legitimate applicants behind different IPs can collide on the shared cap.
+      Residual: never set it **larger** than the real hop count, or an attacker
+      can inject extra `X-Forwarded-For` entries and forge the trusted position.
 - [ ] `NEXT_PUBLIC_APP_BASE_URL` (+ `NEXT_PUBLIC_SITE_URL`) set to your public
       origin so candidate-facing links and OG metadata resolve correctly.
 - [ ] Only the provider keys you actually use are set (§6).
