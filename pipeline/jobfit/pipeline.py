@@ -665,6 +665,58 @@ def _score_from_payload(raw: Any, repairs: list[str] | None = None) -> ScoreBrea
     )
 
 
+# --- Salary currency/period validation & multi-market plausibility ----------
+# bug-ui-scan-2026-07-09 (cv-extraction-pipeline-services #4): currency/period were
+# trusted as raw strings and the magnitude ceiling only guarded CZK/month, so an
+# absurd or injected non-CZK figure (e.g. USD 5,000,000/yr) — or a garbage code
+# ("BTC"/"fortnight") that sidesteps the CZK gate entirely — was reported as a
+# plausible negotiation anchor with no reviewer warning. We validate against an
+# allow-list and give EVERY market a magnitude bound by annualizing the figure.
+
+# Per-currency ANNUAL gross plausibility ceilings (order-of-magnitude sanity bounds,
+# not precise market data). Each sits well above its market's real senior/exec comp,
+# so a genuine offer never trips it but a hallucinated/injected order-of-magnitude
+# error does. CZK is DERIVED from the CZK/month ceiling (x12) so CZK/month behaviour
+# is byte-for-byte unchanged. Covers the ISO codes the Gemini prompt can emit.
+_ANNUAL_CEILING_BY_CURRENCY: dict[str, int] = {
+    "CZK": SALARY_PLAUSIBILITY_CEILING * 12,  # 4,200,000/yr — mirror of the CZK/month cap
+    "EUR": 600_000,
+    "USD": 700_000,
+    "GBP": 600_000,
+    "CHF": 700_000,
+    "PLN": 2_500_000,
+    "SEK": 7_000_000,
+    "NOK": 7_000_000,
+    "DKK": 5_000_000,
+    "HUF": 250_000_000,
+    "RON": 3_000_000,
+    "BGN": 1_200_000,
+    "CAD": 900_000,
+    "AUD": 950_000,
+    "SGD": 800_000,
+    "AED": 1_500_000,
+    "INR": 60_000_000,
+    "JPY": 100_000_000,
+}
+# The ISO-4217 allow-list is exactly the keys above (no drift between the two).
+_KNOWN_CURRENCIES = frozenset(_ANNUAL_CEILING_BY_CURRENCY)
+# Multiplier that annualizes a figure so one per-currency yearly ceiling bounds every
+# market uniformly (2080 = 40h x 52wk).
+_PERIOD_TO_ANNUAL: dict[str, int] = {"hour": 2080, "month": 12, "year": 1}
+# Permissive fallback for a recognized-but-unmapped currency (cannot occur while the
+# allow-list mirrors the map, but keeps the lookup total).
+_DEFAULT_ANNUAL_CEILING = 100_000_000
+
+
+def _normalize_currency_period(currency: str | None, period: str | None) -> tuple[str, str]:
+    """Normalize a salary currency (upper) / period (lower), defaulting empties to
+    the CZK/month baseline. Well-formed Gemini output (uppercase ISO code, lowercase
+    period) is unchanged; this only tidies stray casing/whitespace."""
+    cur = (str(currency or "").strip().upper()) or "CZK"
+    per = (str(period or "").strip().lower()) or "month"
+    return cur, per
+
+
 def _salary_from_payload(raw: Any, repairs: list[str] | None = None) -> SalaryEstimate:
     had_section = isinstance(raw, dict)
     if not had_section:
@@ -693,9 +745,23 @@ def _salary_from_payload(raw: Any, repairs: list[str] | None = None) -> SalaryEs
     midpoint = _optional_int(raw.get("midpoint"))
     if midpoint is None or not (minimum <= midpoint <= maximum):
         midpoint = round_salary((minimum + maximum) / 2)
+    # bug-ui-scan-2026-07-09 (cv-extraction-pipeline-services #4): validate currency
+    # (ISO allow-list) and period ({hour,month,year}) at ingest. Keep an unrecognized
+    # code (don't silently rewrite the numbers' meaning) but flag it for manual review
+    # so it can't quietly sidestep the plausibility ceiling downstream.
+    currency, period = _normalize_currency_period(raw.get("currency"), raw.get("period"))
+    if (
+        repairs is not None
+        and (minimum > 0 or maximum > 0)
+        and (currency not in _KNOWN_CURRENCIES or period not in _PERIOD_TO_ANNUAL)
+    ):
+        repairs.append(
+            f"Salary currency/period unrecognized ({currency}/{period}) — "
+            "verify the figure (manual review)"
+        )
     return SalaryEstimate(
-        currency=str(raw.get("currency") or "CZK"),
-        period=str(raw.get("period") or "month"),
+        currency=currency,
+        period=period,
         minimum=minimum,
         maximum=maximum,
         midpoint=midpoint,
@@ -1127,11 +1193,20 @@ def _salary_sanity_checks(salary: SalaryEstimate) -> list[str]:
         return ["No salary estimate produced"]
     order_ok = 0 < salary.minimum <= salary.midpoint <= salary.maximum
     checks = ["Salary range order OK" if order_ok else "Salary range is inconsistent"]
-    # The magnitude ceiling is a CZK/month guard (it catches a yearly figure
-    # mistaken for monthly or a stray extra zero). It is meaningless for other
-    # currencies/periods — a US $180k/yr or an Indian ₹25 LPA legitimately sits far
-    # above a CZK/month ceiling — so only apply it when the estimate is CZK/month.
-    if salary.currency.upper() == "CZK" and salary.period == "month":
-        plausible = salary.maximum <= SALARY_PLAUSIBILITY_CEILING
-        checks.append("Salary range seems plausible" if plausible else "Salary range needs manual review")
+    # bug-ui-scan-2026-07-09 (cv-extraction-pipeline-services #4): magnitude sanity for
+    # EVERY market, not just CZK/month. Previously the ceiling only fired for CZK/month,
+    # so an absurd non-CZK figure (US $5,000,000/yr) — or a garbage currency/period that
+    # can't match the CZK gate — passed as "plausible" with no reviewer warning. We now
+    # annualize the top of the band and compare it to a per-currency yearly ceiling;
+    # CZK/month is unchanged because its ceiling is the old one x12. An unrecognized
+    # currency or period can't be annualized/bounded, so it goes straight to manual
+    # review rather than passing unchecked.
+    currency, period = _normalize_currency_period(salary.currency, salary.period)
+    if currency not in _KNOWN_CURRENCIES or period not in _PERIOD_TO_ANNUAL:
+        checks.append("Salary currency/period unrecognized — needs manual review")
+        return checks
+    annual_max = salary.maximum * _PERIOD_TO_ANNUAL[period]
+    ceiling = _ANNUAL_CEILING_BY_CURRENCY.get(currency, _DEFAULT_ANNUAL_CEILING)
+    plausible = annual_max <= ceiling
+    checks.append("Salary range seems plausible" if plausible else "Salary range needs manual review")
     return checks
