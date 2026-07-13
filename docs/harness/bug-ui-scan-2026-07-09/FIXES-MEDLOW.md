@@ -195,7 +195,35 @@ commit with the co-mingling documented (both agents' full `test:unit` = 1755 con
   EXISTS`) but **will fail to create on an existing DB that already holds duplicate OPEN postings
   for the same (workspace,case,channel)** — dedup such rows before deploy.
 
+## Wave 18 — Interviews & Scheduling (13 findings, all resolved, 3 contexts)
+
+7 commits (`f41f168` i18n + 3 fixes + orchestrator tenancy fix). tsc 0 · node unit 1755 → **1784** · i18n 3326 × 4 · `next build` ✓.
+
+- **interview-scheduling-prep-rubric** (`f31d211`): #2 `createScheduleInvite` reconciles against
+  an existing non-terminal invite (no second bookable token → no double slot/approve/reminder);
+  #3 pure "Today & in progress" lifecycle bucket (4h grace); #4 shared `usePopoverDismiss` hook
+  fixes the two-click popover trap + Esc/focus-return; #5 shared calendar-event helper
+  (candidate default 30→45 when unknown — **intentional shift**). +14 tests.
+- **voice-interview** (`<voice>`): **WIP boundary respected** (zero edits under `eval/voice`,
+  `interview_eval.py`). #2 `interviewFinalStatus` finalizes "completed" after a late transport
+  blip if past 6 substantive turns (was failing scoreable calls); #3 instant "connection
+  unstable" pill on ICE disconnect; #4 AI-output mute + audio-blocked recovery; #5 unmount beacon
+  reports the real verdict on a clean End. +9 tests.
+- **interview-simulation-comparison** (`<sim>`): #1 unrecognized-rubric banner (was a silent
+  ratingless table); #2 off-rubric rows so a real score is never blanked on rubric-version drift;
+  #3 `isAttachableSimSession` gates attach to completed candidate-mode sims (**attaching a
+  never-run sim now 404s — intended**); #4 dedup by session id; #5 idempotent transcript-attach
+  audit that doesn't leak the portal token. +13 tests.
+
+**Orchestrator caught + fixed a self-inflicted tenancy regression:** interview-scheduling's first
+cut of the #2 reconcile query (`WHERE entry_id = ? AND status IN (…)`) lacked `workspace_id`, so
+`schedule-tenancy.test.ts` failed in the full suite (a sibling agent flagged it). Fixed by deriving
+`workspaceId` BEFORE the reconcile and scoping the lookup — both the test fix and a real
+defense-in-depth correction (never reconcile a new invite against another tenant's row). **Lesson:
+run the FULL `test:unit`, not just the touched files' tests — the source-guard tenancy tests only
+fire against the whole store.**
+
 ## Status
-Med/Low: **94 of 155 closed**, 61 open (37 M + 24 L) — of the open, **4 are deferred-with-cause**
+Med/Low: **107 of 155 closed**, 48 open (24 M + 24 L) — of the open, **4 are deferred-with-cause**
 (1 product decision + 3 blocked on the voice-eval WIP; see Wave 15). Remaining topic waves:
-Interviews/Scheduling, Offers/Automation + Identity/Data/Privacy, Jobs/JD/Sourcing + LLM + Billing.
+Offers/Automation + Identity/Data/Privacy, Jobs/JD/Sourcing + LLM + Billing.
