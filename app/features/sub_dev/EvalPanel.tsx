@@ -101,9 +101,32 @@ export function EvalPanel({ ev, onPromote, promoted, promoting = false }: { ev: 
       </div>
       {e.summary ? <p className="mt-1.5 text-micro text-ink">{e.summary}</p> : null}
       {hasFindings ? (
-        <div className="mt-1 grid grid-cols-2 gap-2 text-micro">
-          {(e.strengths ?? []).length ? <div><span className="font-semibold text-moss">+ </span>{(e.strengths ?? []).join("; ")}</div> : null}
-          {(e.concerns ?? []).length ? <div><span className="font-semibold text-coral">! </span>{(e.concerns ?? []).join("; ")}</div> : null}
+        // bug-ui-scan-2026-07-09 (dev-submissions-live-work-surface #5): stack to one
+        // column below `sm` (the two micro columns were unreadable in the embedded
+        // recruiter drawer), and render each set as a REAL <ul> of <li> instead of a
+        // `join("; ")` run-on so screen readers get list semantics and each item is
+        // scannable on its own line.
+        <div className="mt-1 grid grid-cols-1 gap-2 text-micro sm:grid-cols-2">
+          {(e.strengths ?? []).length ? (
+            <div>
+              <p className="font-semibold text-moss">+ Strengths</p>
+              <ul className="mt-0.5 list-disc space-y-0.5 pl-4 text-ink">
+                {(e.strengths ?? []).map((s, i) => (
+                  <li key={i}>{s}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+          {(e.concerns ?? []).length ? (
+            <div>
+              <p className="font-semibold text-coral">! Concerns</p>
+              <ul className="mt-0.5 list-disc space-y-0.5 pl-4 text-ink">
+                {(e.concerns ?? []).map((c, i) => (
+                  <li key={i}>{c}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
         </div>
       ) : (
         <div className="mt-1 flex items-start gap-1.5 rounded bg-paper px-2 py-1 text-micro text-steel">

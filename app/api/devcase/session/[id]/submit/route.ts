@@ -13,6 +13,17 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (!session.token) return NextResponse.json({ error: "session has no posting token" }, { status: 400 });
     const posting = getPostingByToken(session.token);
     if (!posting) return NextResponse.json({ error: "posting not found" }, { status: 404 });
+    // bug-ui-scan-2026-07-09 (dev-submissions-live-work-surface #2): the live-session
+    // finalize is a SECOND intake path — it must inherit the inbound webhook's honest
+    // closed-posting rejection (inbound/route.ts:33) instead of minting a submission on
+    // an intake the recruiter has closed. Re-read via the session token and 410 when
+    // the posting has closed, matching the public path so the two intakes agree.
+    if (posting.status === "closed") {
+      return NextResponse.json(
+        { error: "This role's intake has closed and is no longer accepting submissions." },
+        { status: 410 }
+      );
+    }
     // UAT M9 — the live-work surface is now the SOLE submit path for workspace
     // cases, so it carries the candidate's identity (name + contact) the repo form
     // used to, keeping a winning evaluation reachable.

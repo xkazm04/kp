@@ -2,12 +2,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { AlertTriangle, ArrowRight, GitBranch, Mail, MessageSquare, Sparkles, UserSearch } from "lucide-react";
+import { AlertTriangle, ArrowRight, GitBranch, Loader2, Mail, MessageSquare, RotateCcw, Sparkles, UserSearch } from "lucide-react";
 import { useTasks, useTaskResult } from "@/app/features/tasks/TasksProvider";
 import { GithubAnalysisPanel } from "@/app/_components/GithubAnalysisPanel";
 import { assertScore, scoreTone, type ScoreTone } from "@/app/_lib/format";
 import { parseRepoRef } from "@/app/_lib/repo-snapshot";
 import { githubAnalysisSchema, type GithubAnalysis } from "@/app/_lib/schemas";
+import { evalTaskView } from "./evalTaskState";
 import { EvalPanel } from "./EvalPanel";
 import type { EvalBundle, Submission } from "./DevTypes";
 
@@ -165,8 +166,12 @@ export function SubmissionRow({
   // The poll omits the eval bundle; useTaskResult fetches it on demand once the
   // evaluate task finishes. `fresh` stays null during that brief fetch, falling
   // back to the submission's saved evaluation.
-  const { status: evalStatus, full: evalFull } = useTaskResult(taskId);
-  const busy = evalStatus === "running" || evalStatus === "queued";
+  // bug-ui-scan-2026-07-09 (dev-submissions-live-work-surface #3): also read the hook's
+  // `error` + `resultUnavailable` so a failed/interrupted evaluation surfaces a cause +
+  // Retry instead of silently reverting to "Evaluate" (it used to look like a no-op).
+  const { status: evalStatus, full: evalFull, error: evalError, resultUnavailable } = useTaskResult(taskId);
+  const evalView = evalTaskView({ status: evalStatus, error: evalError, resultUnavailable });
+  const busy = evalView.busy;
   const fresh = evalStatus === "succeeded" ? ((evalFull?.result as EvalBundle | undefined) ?? null) : null;
   const ev = fresh ?? submission.evaluation ?? null;
 
@@ -229,66 +234,77 @@ export function SubmissionRow({
 
   return (
     <li className={`rounded-md border p-2 ${isTop ? "border-moss/30 bg-moss/5 ring-1 ring-moss/40" : "border-stone-100 bg-paper/40"}`}>
-      <div className="flex items-center gap-1.5 text-micro">
-        {rank ? (
-          <span className={`shrink-0 rounded px-1 text-micro font-bold text-white ${rank === 1 ? "bg-moss" : "bg-ink"}`}>#{rank}</span>
-        ) : null}
-        {isTop ? (
-          <span className="shrink-0 rounded-full bg-moss/15 px-1.5 py-0.5 text-micro font-semibold uppercase tracking-wide text-moss">
-            Top match
-          </span>
-        ) : null}
-        {channel ? (
-          <span className="shrink-0 rounded-full bg-paper px-1.5 py-0.5 text-micro font-semibold uppercase tracking-wide text-steel">
-            {channel}
-          </span>
-        ) : null}
-        <GitBranch size={11} className="shrink-0 text-steel" />
-        <span className="font-semibold text-ink">{submission.candidateRef}</span>
-        <span className="min-w-0 flex-1 truncate text-steel">{submission.repoRef}</span>
-        {ts != null ? (
-          <span
-            className={`shrink-0 rounded px-1.5 py-0.5 text-micro font-semibold nums ${CHIP_TONE[scoreTone(ts)]}`}
-            aria-label={`Transfer fit score ${ts} of 100`}
-          >
-            {ts}<span className="opacity-70"> fit</span>
-          </span>
-        ) : null}
-        {owner ? (
-          <button
-            type="button"
-            onClick={toggleAuthorGithub}
-            aria-expanded={ghOpen}
-            title={`Assess @${owner}'s public GitHub profile against this role`}
-            className="focus-ring inline-flex h-6 shrink-0 items-center gap-1 rounded border border-stone-200 bg-white px-1.5 text-micro font-semibold text-steel hover:bg-paper hover:text-ink"
-          >
-            <UserSearch size={10} /> {ghOpen ? "Hide author" : "Author's GitHub"}
+      {/* bug-ui-scan-2026-07-09 (dev-submissions-live-work-surface #4): split the old
+          single micro-type row into a primary IDENTITY line (who + fit score, the
+          recruiter's first read, name promoted one step in the type scale) and a
+          SECONDARY actions cluster that wraps as one unit — so the candidate name no
+          longer competes at equal weight with three utility buttons and the layout
+          stays predictable across the narrow dev-studio drawer. */}
+      <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1.5">
+        <div className="flex min-w-0 flex-1 items-center gap-1.5 text-micro">
+          {rank ? (
+            <span className={`shrink-0 rounded px-1 text-micro font-bold text-white ${rank === 1 ? "bg-moss" : "bg-ink"}`}>#{rank}</span>
+          ) : null}
+          {isTop ? (
+            <span className="shrink-0 rounded-full bg-moss/15 px-1.5 py-0.5 text-micro font-semibold uppercase tracking-wide text-moss">
+              Top match
+            </span>
+          ) : null}
+          {channel ? (
+            <span className="shrink-0 rounded-full bg-paper px-1.5 py-0.5 text-micro font-semibold uppercase tracking-wide text-steel">
+              {channel}
+            </span>
+          ) : null}
+          <GitBranch size={12} className="shrink-0 text-steel" />
+          {/* Identity, promoted to text-body so who this is outranks the utilities. */}
+          <span className="shrink-0 text-body font-semibold text-ink">{submission.candidateRef}</span>
+          {ts != null ? (
+            <span
+              className={`shrink-0 rounded px-1.5 py-0.5 text-micro font-semibold nums ${CHIP_TONE[scoreTone(ts)]}`}
+              aria-label={`Transfer fit score ${ts} of 100`}
+            >
+              {ts}<span className="opacity-70"> fit</span>
+            </span>
+          ) : null}
+          <span className="min-w-0 flex-1 truncate text-steel">{submission.repoRef}</span>
+        </div>
+        <div className="flex shrink-0 flex-wrap items-center gap-1.5 text-micro">
+          {owner ? (
+            <button
+              type="button"
+              onClick={toggleAuthorGithub}
+              aria-expanded={ghOpen}
+              title={`Assess @${owner}'s public GitHub profile against this role`}
+              className="focus-ring inline-flex h-6 shrink-0 items-center gap-1 rounded border border-stone-200 bg-white px-1.5 text-micro font-semibold text-steel hover:bg-paper hover:text-ink"
+            >
+              <UserSearch size={10} /> {ghOpen ? "Hide author" : "Author's GitHub"}
+            </button>
+          ) : null}
+          <button type="button" onClick={evaluate} disabled={busy}
+            className="focus-ring inline-flex h-6 shrink-0 items-center gap-1 rounded border border-stone-200 bg-white px-1.5 text-micro font-semibold text-coral hover:bg-coral/5 disabled:opacity-50">
+            <Sparkles size={10} /> {busy ? "Evaluating…" : ev ? "Re-evaluate" : "Evaluate"}
           </button>
-        ) : null}
-        <button type="button" onClick={evaluate} disabled={busy}
-          className="focus-ring inline-flex h-6 shrink-0 items-center gap-1 rounded border border-stone-200 bg-white px-1.5 text-micro font-semibold text-coral hover:bg-coral/5 disabled:opacity-50">
-          <Sparkles size={10} /> {busy ? "Evaluating…" : ev ? "Re-evaluate" : "Evaluate"}
-        </button>
-        {/* d142462d — evaluated but not promoted: offer a kind feedback brief so
-            the candidate isn't ghosted. Queued to the outbox for the recruiter. */}
-        {ev && !isPromoted ? (
-          <button
-            type="button"
-            onClick={queueFeedback}
-            disabled={feedback === "queuing" || feedback === "queued"}
-            title="Queue a kind strengths/growth note to the outbox (you send it; the adverse decision stays yours)"
-            className="focus-ring inline-flex h-6 shrink-0 items-center gap-1 rounded border border-stone-200 bg-white px-1.5 text-micro font-semibold text-steel hover:bg-paper hover:text-ink disabled:opacity-50"
-          >
-            <MessageSquare size={10} />{" "}
-            {feedback === "queued"
-              ? "Feedback queued"
-              : feedback === "queuing"
-                ? "Queuing…"
-                : feedback === "error"
-                  ? "Retry feedback"
-                  : "Send feedback"}
-          </button>
-        ) : null}
+          {/* d142462d — evaluated but not promoted: offer a kind feedback brief so
+              the candidate isn't ghosted. Queued to the outbox for the recruiter. */}
+          {ev && !isPromoted ? (
+            <button
+              type="button"
+              onClick={queueFeedback}
+              disabled={feedback === "queuing" || feedback === "queued"}
+              title="Queue a kind strengths/growth note to the outbox (you send it; the adverse decision stays yours)"
+              className="focus-ring inline-flex h-6 shrink-0 items-center gap-1 rounded border border-stone-200 bg-white px-1.5 text-micro font-semibold text-steel hover:bg-paper hover:text-ink disabled:opacity-50"
+            >
+              <MessageSquare size={10} />{" "}
+              {feedback === "queued"
+                ? "Feedback queued"
+                : feedback === "queuing"
+                  ? "Queuing…"
+                  : feedback === "error"
+                    ? "Retry feedback"
+                    : "Send feedback"}
+            </button>
+          ) : null}
+        </div>
       </div>
       <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-micro text-steel">
         {submission.contact ? (
@@ -316,6 +332,28 @@ export function SubmissionRow({
       {ghOpen ? (
         <div className="mt-2">
           <GithubAnalysisPanel status={gh.status} analysis={gh.analysis} error={gh.error} onRetry={assessAuthor} />
+        </div>
+      ) : null}
+      {/* bug-ui-scan-2026-07-09 (dev-submissions-live-work-surface #3): give the pending
+          evaluation a visible target on a first-ever run (busy with no prior bundle). */}
+      {evalView.busy && !ev ? (
+        <div className="mt-2 flex items-center gap-1.5 rounded-md border border-stone-200 bg-paper/60 px-2 py-1.5 text-micro text-steel" aria-live="polite">
+          <Loader2 size={12} className="shrink-0 animate-spin" aria-hidden /> Evaluating this submission…
+        </div>
+      ) : null}
+      {/* A failed/interrupted evaluation (or an unfetchable result) now shows the cause +
+          a Retry, instead of the button silently reverting to "Evaluate" as if nothing ran. */}
+      {evalView.failed ? (
+        <div role="alert" className="mt-2 flex flex-wrap items-center gap-2 rounded-md border border-coral/30 bg-coral/5 px-2 py-1.5 text-micro text-coral">
+          <AlertTriangle size={12} className="shrink-0" aria-hidden />
+          <span className="min-w-0">{evalView.message}</span>
+          <button
+            type="button"
+            onClick={evaluate}
+            className="focus-ring ml-auto inline-flex shrink-0 items-center gap-1 rounded border border-coral/40 bg-white px-1.5 py-0.5 font-semibold text-coral hover:bg-coral/10"
+          >
+            <RotateCcw size={10} aria-hidden /> Retry
+          </button>
         </div>
       ) : null}
       {ev ? <EvalPanel ev={ev} onPromote={promote} promoted={isPromoted} promoting={promoting} /> : null}
