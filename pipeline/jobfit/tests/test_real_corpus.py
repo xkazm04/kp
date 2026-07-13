@@ -175,5 +175,78 @@ class TestFrozenCorpusProtection(unittest.TestCase):
         self.assertEqual(len(json.loads(real_corpus.JOBS_PATH.read_text())), 100)
 
 
+class TestFetchRowsCacheExtent(unittest.TestCase):
+    """#4 — a narrow ``--fetch-limit`` cache must NOT silently satisfy a later BROADER request.
+    Reusing a tiny slice for an unlimited build rebuilds the whole corpus narrow (the industry-lock
+    the harness exists to break) while every report reads green. The cache stamps its extent in a
+    sibling meta file; a request the cache can't cover re-fetches. (Network is faked — no HTTP.)"""
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        d = Path(self.tmp)
+        self._orig = (real_corpus.OUT_DIR, real_corpus.RAW_CACHE, real_corpus._fetch_page)
+        real_corpus.OUT_DIR = d
+        real_corpus.RAW_CACHE = d / "_raw_rows.json"
+        # Fake dataset: 250 distinct rows, served in <=100-row pages, counting every network hit.
+        self.dataset = [
+            {"position_title": f"Role {i}", "company_name": "Co", "job_description": "jd"}
+            for i in range(250)
+        ]
+        self.calls: list[tuple[int, int]] = []
+
+        def fake_fetch_page(offset, length):
+            self.calls.append((offset, length))
+            page = self.dataset[offset : offset + length]
+            return {"num_rows_total": len(self.dataset), "rows": [{"row": r} for r in page]}
+
+        real_corpus._fetch_page = fake_fetch_page
+
+    def tearDown(self):
+        real_corpus.OUT_DIR, real_corpus.RAW_CACHE, real_corpus._fetch_page = self._orig
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_narrow_cache_does_not_satisfy_a_broader_request(self):
+        narrow = real_corpus.fetch_rows(limit=50)  # a quick debug pull
+        self.assertEqual(len(narrow), 50)
+        after_narrow = len(self.calls)
+        self.assertGreater(after_narrow, 0)
+        # A later FULL build (limit=None) must RE-FETCH, not reuse the narrow slice.
+        full = real_corpus.fetch_rows(limit=None)
+        self.assertEqual(len(full), 250)  # pre-fix: returned the cached slice, not 250
+        self.assertGreater(len(self.calls), after_narrow)  # network was hit again
+        # …and now the cache is full, so a subsequent request is served offline.
+        before = len(self.calls)
+        self.assertEqual(len(real_corpus.fetch_rows(limit=100)), 100)
+        self.assertEqual(len(self.calls), before)
+
+    def test_full_cache_serves_any_request_offline(self):
+        self.assertEqual(len(real_corpus.fetch_rows(limit=None)), 250)
+        before = len(self.calls)
+        # A full pull covers both a broad and a narrow later request with no new fetch.
+        self.assertEqual(len(real_corpus.fetch_rows(limit=None)), 250)
+        self.assertEqual(len(real_corpus.fetch_rows(limit=30)), 30)
+        self.assertEqual(len(self.calls), before)
+
+    def test_narrow_cache_serves_a_smaller_or_equal_request_offline(self):
+        real_corpus.fetch_rows(limit=80)
+        before = len(self.calls)
+        # A later request for <= the cached extent is covered without a re-fetch (no over-correction).
+        self.assertEqual(len(real_corpus.fetch_rows(limit=50)), 50)
+        self.assertEqual(len(self.calls), before)
+
+    def test_legacy_meta_less_cache_is_refetched_for_a_full_request(self):
+        # A cache from before the extent-stamp fix (no meta file) is treated as truncated: an
+        # unlimited request re-fetches rather than certify a broad corpus from an unknown slice.
+        real_corpus.OUT_DIR.mkdir(parents=True, exist_ok=True)
+        real_corpus.RAW_CACHE.write_text(
+            json.dumps([{"position_title": "Old", "company_name": "C", "job_description": "jd"}]),
+            encoding="utf-8",
+        )  # no sibling meta file
+        before = len(self.calls)
+        full = real_corpus.fetch_rows(limit=None)
+        self.assertEqual(len(full), 250)  # pre-fix: returned the 1-row legacy slice
+        self.assertGreater(len(self.calls), before)
+
+
 if __name__ == "__main__":
     unittest.main()

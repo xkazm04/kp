@@ -67,6 +67,16 @@ def _score_int(value: Any, default: int) -> int:
         return default
 
 
+def _num(value: Any, default: float) -> float:
+    """Coerce a genuine 0..1 numeric, distinguishing MISSING (-> default) from a measured zero.
+    `float(x or default)` conflated the two: a candidate whose measured fluency / readBeforeWrite
+    is exactly 0.0 (the worst case — "never read before generating") hit the falsy-`or` and was
+    silently scored as the neutral default, upgrading the single strongest negative signal to a
+    middling score. bug-ui-scan-2026-07-09 (dev-case-pipeline-python #5). (bool excluded — it is
+    never a valid ratio and `isinstance(True, int)` is True.)"""
+    return float(value) if isinstance(value, (int, float)) and not isinstance(value, bool) else default
+
+
 def _propagated_confidence(*artifacts: Any) -> float:
     """Decision-confidence PROPAGATED to a final artifact from the upstream signals it is built
     from: the MIN of their 0..1 ``confidence`` self-ratings, clamped (see the confidence scale in
@@ -134,8 +144,10 @@ def evaluate_submission(reflection: dict, tooling: dict, case: dict, role: dict,
     )
 
     def deterministic() -> dict:
-        fluency = float(tooling.get("fluency") or 0.5)
-        rbw = float(reflection.get("readBeforeWrite") or 0.4)
+        # Distinguish a MEASURED zero from a MISSING value — a legitimate 0.0 fluency /
+        # readBeforeWrite must score as 0, not the neutral default (#5).
+        fluency = _num(tooling.get("fluency"), 0.5)
+        rbw = _num(reflection.get("readBeforeWrite"), 0.4)
         verif = min(1.0, len(reflection.get("verificationHabits") or []) / 2.0)
         # Filter to dict outcomes (a stored / hand-built ToolingSignal may carry
         # strings or None) so `.get` can't raise — mirrors mint_followups and

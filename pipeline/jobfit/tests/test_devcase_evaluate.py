@@ -44,6 +44,28 @@ class TestEvaluate(unittest.TestCase):
         ev, _ = evaluate_submission(self.reflection, self.tooling, self.case, self.role, provider=None)
         self.assertEqual(ev["dimensionScores"]["tooling"], 80)  # fluency 0.8 -> 80
 
+    def test_measured_zero_fluency_is_not_upgraded_to_neutral(self):
+        # #5: a genuine 0.0 fluency is the strongest negative tooling signal. `float(x or 0.5)`
+        # used to conflate it with MISSING and silently score tooling 50 — the opposite of what
+        # the rubric surfaces. It must now score 0. (Pre-fix: 50 -> this assert fails.)
+        tooling = {"fluency": 0.0, "probeOutcomes": []}
+        ev, _ = evaluate_submission(self.reflection, tooling, self.case, self.role, provider=None)
+        self.assertEqual(ev["dimensionScores"]["tooling"], 0)
+
+    def test_measured_zero_read_before_write_lowers_framing(self):
+        # #5: readBeforeWrite 0.0 ("never read before generating") must not be upgraded to the
+        # 0.4 default. framing = _pct(0.55*0.0 + 0.45*0.5) = 22, vs the pre-fix ~44 (rbw->0.4).
+        reflection = {"readBeforeWrite": 0.0, "verificationHabits": [], "narrative": "x"}
+        tooling = {"fluency": 0.0, "probeOutcomes": []}
+        ev, _ = evaluate_submission(reflection, tooling, self.case, self.role, provider=None)
+        self.assertEqual(ev["dimensionScores"]["framing"], 22)
+
+    def test_missing_fluency_and_rbw_still_default_to_neutral(self):
+        # The other half of "missing != zero": an ABSENT signal must still read as the neutral
+        # default (tooling 50), so the fix does not over-correct into scoring missing as zero.
+        ev, _ = evaluate_submission({"narrative": "x"}, {"probeOutcomes": []}, self.case, self.role, provider=None)
+        self.assertEqual(ev["dimensionScores"]["tooling"], 50)  # fluency absent -> neutral 0.5
+
     def test_observed_ungraded_probes_do_not_halve_judgment(self):
         # The Live Work Surface emits detected probes with handledWell=None (handling
         # not gradeable from process). Those must be no-signal, so judgment rests on
