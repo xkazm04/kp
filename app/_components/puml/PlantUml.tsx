@@ -6,6 +6,7 @@ import { Modal } from "@/app/_components/Modal";
 import { parsePuml } from "./parse";
 import { isDiagramTooLarge, layoutDiagram, type Box, type PositionedDiagram, type PositionedEdge } from "./layout";
 import { DIAGRAM_PAD, DIAGRAM_STATUS_TOKENS, FONT_FAMILY, LINE_H } from "./constants";
+import { clickableNodeAria, diagramSvgRole } from "./a11y";
 
 // SVG renderer for our PlantUML component-diagram subset. Layout coordinates
 // come from ELK; every shape, colour, and stroke here is ours, drawn from the
@@ -169,6 +170,8 @@ function renderNode(box: Box, onNodeClick?: NodeClick, activeNodeId?: string) {
     className?: string;
     role?: string;
     tabIndex?: number;
+    "aria-label"?: string;
+    "aria-pressed"?: boolean;
     onClick?: () => void;
     onKeyDown?: (e: { key: string; preventDefault: () => void }) => void;
   } = {
@@ -177,6 +180,10 @@ function renderNode(box: Box, onNodeClick?: NodeClick, activeNodeId?: string) {
       ? {
           role: "button",
           tabIndex: 0,
+          // bug-ui-scan-2026-07-09 (architecture-diagrams #4): name each clickable
+          // node and expose its open/active state so SR users get a labeled button
+          // with a programmatic equivalent of the coral "active" border.
+          ...clickableNodeAria(box.label, active),
           onClick: () => onNodeClick!({ id: box.id, label: box.label }),
           onKeyDown: (e) => {
             if (e.key === "Enter" || e.key === " ") {
@@ -572,7 +579,10 @@ function DiagramSvg({
   return (
     <svg
       viewBox={`0 0 ${W} ${H}`}
-      role="img"
+      // bug-ui-scan-2026-07-09 (architecture-diagrams #4): an interactive funnel
+      // must be a `group`, not `img` — role="img" collapses descendants to one
+      // opaque image in many AT, hiding its clickable step buttons.
+      role={diagramSvgRole(Boolean(onNodeClick))}
       aria-label={layout.title ? `Diagram: ${layout.title}` : "Component diagram"}
       preserveAspectRatio="xMidYMid meet"
       className={zoomed ? "m-auto block shrink-0" : "mx-auto block h-auto"}

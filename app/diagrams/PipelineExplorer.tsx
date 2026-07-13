@@ -2,14 +2,17 @@
 
 import { useRef, useState } from "react";
 import { X } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { PlantUml } from "@/app/_components/puml/PlantUml";
 import { useDialogA11y } from "@/app/_components/useDialogA11y";
 import { STEP_DETAILS, type StepDetail, type StepStatus } from "./pipelineSteps";
 
-const STATUS_META: Record<StepStatus, { label: string; cls: string }> = {
-  live: { label: "Automated", cls: "bg-moss/15 text-moss" },
-  gate: { label: "Human gate", cls: "bg-coral/10 text-coral" },
-  gap: { label: "To build", cls: "bg-stone-100 text-steel" },
+// bug-ui-scan-2026-07-09 (architecture-diagrams #3): status pill labels now come
+// from messages/*.json (t("status.<status>")); only the colour class stays local.
+const STATUS_CLS: Record<StepStatus, string> = {
+  live: "bg-moss/15 text-moss",
+  gate: "bg-coral/10 text-coral",
+  gap: "bg-stone-100 text-steel",
 };
 
 // The to-be funnel, made interactive. Clicking a step opens a half-page drawer
@@ -17,12 +20,12 @@ const STATUS_META: Record<StepStatus, { label: string; cls: string }> = {
 // left (the active step keeps a coral border) so the relation is visible.
 export function PipelineExplorer({ source }: { source: string }) {
   const [active, setActive] = useState<{ id: string; detail: StepDetail } | null>(null);
+  const t = useTranslations("diagrams");
 
   return (
     <>
-      <p className="mt-2 text-meta text-steel">
-        Click any step to see how it&apos;s wired — the open step stays outlined here on the left.
-      </p>
+      {/* bug-ui-scan-2026-07-09 (architecture-diagrams #3): localized instruction. */}
+      <p className="mt-2 text-meta text-steel">{t("explorer.instruction")}</p>
       {/* When a step is open, the funnel shifts into the left half so both the
           funnel and the drawer are visible at once. */}
       <div className={`transition-[padding] duration-300 ${active ? "lg:pr-[52%]" : ""}`}>
@@ -46,7 +49,11 @@ export function PipelineExplorer({ source }: { source: string }) {
           }}
         />
       </div>
-      {active ? <StepDrawer detail={active.detail} onClose={() => setActive(null)} /> : null}
+      {/* bug-ui-scan-2026-07-09 (architecture-diagrams #5): key by step id so
+          switching steps while the drawer is open REMOUNTS it — re-running the
+          focus-in / scroll-reset affordances instead of silently swapping content
+          under a persistent instance whose mount-only focus effect never re-fires. */}
+      {active ? <StepDrawer key={active.id} detail={active.detail} onClose={() => setActive(null)} /> : null}
     </>
   );
 }
@@ -56,8 +63,9 @@ function StepDrawer({ detail, onClose }: { detail: StepDetail; onClose: () => vo
   // restore + Escape only — never trap Tab or lock page scroll.
   const ref = useRef<HTMLElement | null>(null);
   useDialogA11y(ref, onClose, { trap: false, lockScroll: false });
+  const t = useTranslations("diagrams");
 
-  const s = STATUS_META[detail.status];
+  const cls = STATUS_CLS[detail.status];
   return (
     // pointer-events-none on the wrapper keeps the left half (the funnel)
     // clickable; the panel re-enables pointer events for itself.
@@ -72,7 +80,7 @@ function StepDrawer({ detail, onClose }: { detail: StepDetail; onClose: () => vo
       >
         <header className="sticky top-0 z-10 flex items-start gap-3 border-b border-stone-200 bg-paper/95 px-6 py-4 backdrop-blur">
           <div className="min-w-0 flex-1">
-            <span className={`inline-block rounded-full px-2.5 py-0.5 text-meta ${s.cls}`}>{s.label}</span>
+            <span className={`inline-block rounded-full px-2.5 py-0.5 text-meta ${cls}`}>{t(`status.${detail.status}`)}</span>
             <h2 className="mt-1 font-serif text-h2 text-ink">{detail.title}</h2>
           </div>
           <button

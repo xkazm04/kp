@@ -81,3 +81,47 @@ test("alias contract: every funnel step has a STEP_DETAILS entry and vice versa"
     "funnel node aliases and STEP_DETAILS keys must match 1:1"
   );
 });
+
+// bug-ui-scan-2026-07-09 (architecture-diagrams #2): the guards above pin the
+// CITATIONS (files[]) and the click CONTRACT (alias↔detail), but not the CLAIMS
+// drawn in the SVG — the `[POST /api/…]` boxes users read as "this is how it's
+// ACTUALLY wired". A re-route (move/rename an endpoint) left those bodies stale
+// with a fully green CI. This guard resolves every `/api/…` route named in a step
+// body or summary to a real App-Router `route.ts`, so a moved endpoint now fails
+// CI the same way a dead files[] path already does. (Function/module identifiers
+// in the bodies are deliberately NOT checked here: they are a noisy mix of Python
+// symbols, prose and bare filenames whose full paths the files[] guard already
+// pins — routes are the subset that maps 1:1 and deterministically to disk.)
+const API_ROUTE = /\/api\/[A-Za-z0-9/_.-]*(?:\[[A-Za-z0-9_]+\][A-Za-z0-9/_.-]*)*/g;
+
+/** Map a referenced route path to its App-Router file: "/api/jds/save" ->
+ *  "app/api/jds/save/route.ts"; dynamic segments ("/api/offer/[token]") map to
+ *  the literal bracketed directory that exists on disk. Trailing slashes are
+ *  tolerated. Returns null for the bare "/api" prefix (no concrete route). */
+function routeFileFor(route: string): string | null {
+  const clean = route.replace(/\/+$/, "");
+  if (clean === "/api" || clean === "/api/") return null;
+  return path.join("app", clean.replace(/^\//, ""), "route.ts");
+}
+
+test("every /api route drawn in a step body/summary resolves to a real route.ts", () => {
+  const missing: string[] = [];
+  for (const [stepId, detail] of Object.entries(STEP_DETAILS)) {
+    const haystack = `${detail.puml}\n${detail.summary}`;
+    const seen = new Set<string>();
+    for (const match of haystack.matchAll(API_ROUTE)) {
+      const route = match[0];
+      if (seen.has(route)) continue;
+      seen.add(route);
+      const rel = routeFileFor(route);
+      if (rel && !existsSync(path.resolve(ROOT, rel))) {
+        missing.push(`${stepId}: "${route}" -> ${rel} (no route.ts)`);
+      }
+    }
+  }
+  assert.equal(
+    missing.length,
+    0,
+    `STEP_DETAILS draws ${missing.length} route(s) with no matching App-Router file:\n  ${missing.join("\n  ")}`
+  );
+});
