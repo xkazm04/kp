@@ -321,35 +321,53 @@ def _aggregate(rows: list[Row]) -> dict[str, Any]:
     }
 
 
-def _passes(agg: dict[str, Any]) -> bool:
+def _passes(agg: dict[str, Any], judge_requested: bool = False) -> bool:
     if agg["reliability"] < RELIABILITY_THRESHOLD:
+        return False
+    # bug-ui-scan-2026-07-09 (hiring-automation-scheduler #5): a `--judge` run that
+    # produced ZERO usable scores leaves quality_mean=None. That is NOT the same as
+    # "judge not requested" — it means the judge was down or every score was
+    # unparseable. A strict quality gate must fail closed here, not silently degrade
+    # to a reliability-only PASS while the banner reads "quality N/A" (success
+    # theater in the very gate meant to catch quality regressions).
+    if judge_requested and agg["quality_mean"] is None:
         return False
     if agg["quality_mean"] is not None and agg["quality_mean"] < QUALITY_THRESHOLD:
         return False
     return True
 
 
-def _automation_banner(agg: dict[str, Any], st) -> str:
+def _automation_banner(agg: dict[str, Any], st, judge_requested: bool = False) -> str:
     """Lead the automation report with the aggregate verdict, e.g.
     ``▌ 24/24 checks PASS · reliability 100% · quality 4.2 ✓``.
 
     Reliability is a per-run hard gate; quality is a single mean-threshold gate.
     Both fold into one ``checks`` count (the quality gate counts as one extra
-    check when the judge ran), so the verdict word can never contradict the
-    count — same model as the matching eval's banner."""
+    check when the judge ran OR was requested-but-unavailable), so the verdict word
+    can never contradict the count — same model as the matching eval's banner."""
     total_runs = agg.get("total", 0)
     reliable = agg.get("reliable", 0)
     q = agg.get("quality_mean")
     judged = q is not None
+    # bug-ui-scan-2026-07-09 (hiring-automation-scheduler #5): a --judge run that
+    # scored nothing is a FAILED quality gate, not an absent one — count it as a
+    # check so the count can't read "N/N PASS" while the verdict word says FAIL.
+    judge_missing = judge_requested and not judged
     quality_ok = judged and q >= QUALITY_THRESHOLD
-    total = total_runs + (1 if judged else 0)
+    quality_counted = judged or judge_missing
+    total = total_runs + (1 if quality_counted else 0)
     n_pass = reliable + (1 if quality_ok else 0)
     n_fail = total - n_pass
-    passed = _passes(agg)
+    passed = _passes(agg, judge_requested)
     # Bare glyph (no styler): it inherits the banner's single headline color
     # rather than nesting its own ANSI reset, which would strip the banner's
     # color/bold from anything after it (e.g. a trailing "· N FAIL").
-    quality_chip = f"quality {q} {glyph(quality_ok)}" if judged else f"quality {GLYPH_NA}"
+    if judged:
+        quality_chip = f"quality {q} {glyph(quality_ok)}"
+    elif judge_missing:
+        quality_chip = f"quality {GLYPH_NA} {glyph(False)}"  # requested but unavailable → a failed check
+    else:
+        quality_chip = f"quality {GLYPH_NA}"
     parts = [
         f"{n_pass}/{total} checks {'PASS' if passed else 'FAIL'}",
         f"reliability {agg.get('reliability', 0.0):.0%}",
@@ -360,15 +378,20 @@ def _automation_banner(agg: dict[str, Any], st) -> str:
     return verdict_banner(parts, passed=passed, s=st)
 
 
-def _format_md(rows: list[Row], agg: dict[str, Any], *, color: bool = False) -> str:
+def _format_md(rows: list[Row], agg: dict[str, Any], *, color: bool = False, judge_requested: bool = False) -> str:
     st = _make_styler(color)
+    # bug-ui-scan-2026-07-09 (hiring-automation-scheduler #5): when the judge was
+    # requested but scored nothing, surface it as a hard failure line rather than a
+    # bland "quality N/A" so the report doesn't read like a clean skip.
+    judge_missing = judge_requested and agg.get("quality_mean") is None
     lines = [
         st("# Automation quality-gating eval", "bold") + "\n",
         # Lead with the verdict so the run outcome reads before the tables.
-        _automation_banner(agg, st) + "\n",
+        _automation_banner(agg, st, judge_requested) + "\n",
         f"Scenarios: {len(SCENARIOS)} · task-runs: {agg['total']}\n",
         f"**Reliability: {agg['reliability']:.0%}** (threshold {RELIABILITY_THRESHOLD:.0%}) · "
         f"**Quality: {agg['quality_mean'] if agg['quality_mean'] is not None else GLYPH_NA}** (threshold {QUALITY_THRESHOLD})"
+        + (" · ⚠ judge requested but produced NO usable scores — quality gate FAILED" if judge_missing else "")
         + (f" · ⚠ {agg['unscored']} run(s) un-scored by judge" if agg.get("quality_mean") is not None and agg.get("unscored") else "")
         + "\n",
         "## Per task\n",
@@ -423,7 +446,9 @@ def main(argv: list[str] | None = None) -> int:
             json.dumps(
                 {
                     "aggregate": agg,
-                    "passes": _passes(agg),
+                    # bug-ui-scan-2026-07-09 (hiring-automation-scheduler #5): pass the
+                    # judge-requested flag so a --judge run that scored nothing fails.
+                    "passes": _passes(agg, args.judge),
                     "rows": [{"task": r.task, "scenario": r.scenario, "source": r.source, "reliable": r.reliable, "issues": r.issues, "quality": r.quality} for r in rows],
                 },
                 indent=2,
@@ -431,9 +456,12 @@ def main(argv: list[str] | None = None) -> int:
             )
         )
     else:
-        print(_format_md(rows, agg, color=use_color))
+        print(_format_md(rows, agg, color=use_color, judge_requested=args.judge))
 
-    return 1 if (args.strict and not _passes(agg)) else 0
+    # bug-ui-scan-2026-07-09 (hiring-automation-scheduler #5): a strict --judge run
+    # whose judge produced zero scores now exits non-zero instead of passing on
+    # reliability alone.
+    return 1 if (args.strict and not _passes(agg, args.judge)) else 0
 
 
 if __name__ == "__main__":

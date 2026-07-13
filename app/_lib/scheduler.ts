@@ -1,5 +1,5 @@
 import { isPassInFlight, runAutomationPass } from "./automation-pass";
-import { advanceAfterForcedRun, claimDueRun, ensureSchedule, recordRun } from "./scheduler-store";
+import { advanceAfterForcedRun, claimDueRun, ensureSchedule, getSchedule, recordRun } from "./scheduler-store";
 
 // The clock's per-tick work: atomically claim a due run, run the SHARED policy
 // pass, and record it durably. Called by the heartbeat in instrumentation.ts and
@@ -8,8 +8,16 @@ export async function tickScheduler(opts?: { force?: boolean; trigger?: string }
   ran: boolean;
   summary?: unknown;
   error?: string;
+  reason?: string;
 }> {
   ensureSchedule();
+  // bug-ui-scan-2026-07-09 (hiring-automation-scheduler #2): `force` was meant to
+  // bypass only the DUE-gate, not the ENABLED gate. On the clock path claimDueRun
+  // already refuses a disabled job — but a forced/manual "Run now" tick skipped
+  // that check and ran a full APPLYING pass even with automation toggled OFF as a
+  // kill-switch (advanceAfterForcedRun no-ops when disabled, but runAutomationPass
+  // did not). "Off" must mean off: refuse a forced pass on a disabled schedule.
+  if (opts?.force && !getSchedule().enabled) return { ran: false, reason: "disabled" };
   // claimDueRun is the lock: exactly one caller wins per due window, and it
   // advances next_due_at so a restart / second process can't double-fire.
   if (!opts?.force && !claimDueRun()) return { ran: false };

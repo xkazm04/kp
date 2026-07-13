@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { automationRoi, DEFAULT_RECRUITER_HOURLY_CZK, MANUAL_HOURS_PER_HIRE } from "./automation-roi.ts";
+import { automationRoi, DEFAULT_RECRUITER_HOURLY_CZK, MANUAL_HOURS_PER_HIRE, MINUTES_SAVED_PER_KIND } from "./automation-roi.ts";
+import { DECISION_META } from "./decision-attribution.ts";
 
 test("aggregates minutes/hours/CZK from the per-kind estimates", () => {
   // 10 scored (8 min) + 5 outreach (6 min) + 2 prep (25 min) = 80+30+50 = 160 min
@@ -33,6 +34,18 @@ test("only mapped automated kinds contribute — human/failure kinds are ignored
 test("credits the automation's OWN advance (auto_advanced), never the human advance", () => {
   assert.equal(automationRoi({ auto_advanced: 10 }).minutesSaved, 30); // 10 × 3 min — the machine's advances ARE saved labor
   assert.equal(automationRoi({ advanced: 10 }).minutesSaved, 0); // a recruiter's clicks are not automation ROI
+});
+
+test("every ROI-credited kind is an AUTO kind in DECISION_META (bug-ui-scan §hiring-automation #3)", () => {
+  // Pin the ROI map's keys against DECISION_META's auto:true set so a future
+  // actor split (like the advanced/auto_advanced one that caused #3) can't
+  // silently re-key a credit onto human labor. If someone re-adds `advanced`
+  // (auto:false) this fails — the credit map keys on the wrong side of the split.
+  for (const kind of Object.keys(MINUTES_SAVED_PER_KIND)) {
+    const meta = DECISION_META[kind];
+    assert.ok(meta, `${kind} is credited by ROI but absent from DECISION_META`);
+    assert.equal(meta.auto, true, `${kind} is credited as automation ROI but is not an AUTO kind`);
+  }
 });
 
 test("a non-positive rate falls back to the default", () => {
