@@ -291,7 +291,51 @@ index) is fixed — the node suite is now stable at 1824 across repeated runs.
   #5 exhaustive `jdLintMessage` + `assertNever` (a new finding kind is now a compile error, not a
   silent "missing place"). +8 tests.
 
-## Status
-Med/Low: **139 of 155 closed**, 16 open (5 M + 11 L) — of the open, **4 are deferred-with-cause**
-(1 product decision + 3 blocked on the voice-eval WIP; see Wave 15). Remaining topic wave:
-LLM Provider Layer & Models + Billing & Monetization (Wave 22 — the last).
+## Wave 22 — LLM Provider Layer & Models + Billing & Monetization (12 findings, all resolved, 4 contexts)
+
+5 commits (`fa6d09b` i18n + 4 fixes). tsc 0 · node unit 1848 → **1877** · python 918 → **931** · i18n 3371 → **3378** × 4 · **matching_eval 8/8 + fairness 4/4** · `next build` ✓.
+
+- **billing-engine-webhooks** (`0c03c5c`): #4 pack grant credits `mapped.qty × quantity` (defensive
+  `posInt`, symmetric refund reversal, idempotency preserved); #5 unmapped "paid-but-dark" alerts
+  carry a stable `providerRef` so repeats dedupe into one open alert. +2 tests.
+- **llm-provider-layer-python** (`9aa17e9`): #3 `openai_api` raises a typed `LLMError` on
+  HTTP-200-with-error bodies (was metering an empty error as a paid success); #4 judge/bake rescue
+  numeric-string dims + impute an absent per-dim median (was voiding the whole model column); #5
+  credential expiry uses `max()` of years + month-adjacency. +14 tests.
+- **plans-checkout-billing-ui** (`<billing-ui>`): #3 synchronous pre-open portal fix (popup-block →
+  clickable fallback); #4 catalog↔charge price reconciliation (`price-reconcile.ts` + `npm run
+  polar:setup`); #5 Enterprise header shows "Custom" not "Free". +15 tests.
+- **model-api-key-management** (`<models>`): #2 Azure endpoint scoped to Azure keys (client + server
+  backstop); #3 unpriced LLM spend surfaced (was $0); #4 destructive key-overwrite guard; #5
+  deterministic fallback serves counted separately. +14 tests.
+
+### Behavior changes flagged for sign-off (Wave 22)
+- **plans #5**: Enterprise current-plan header now shows **"Custom"** (was "Free") — a display
+  correction, not a charge change.
+- **billing-engine #4**: multi-unit pack grant — **mild, no current impact** (multi-unit checkout
+  not currently enabled; single-unit still grants 100/-100).
+- **plans #4 (deferred sub-item)**: actually provisioning a CZK pack price is DEFERRED (Polar
+  multi-currency API unverified) — shipped as a loud reconcile warning instead; the $34 pack charge
+  is unchanged.
+- **model-api-key #1** (a High): its report heading still reads `[STILL-OPEN]` — likely a stale scan
+  label (like Wave-15 cv-extraction #5, which was already fixed), but worth a verify pass.
+
+## Status — MED/LOW SWEEP COMPLETE
+Med/Low: **151 of 155 closed** (Waves 12–22, all 11 topic waves done). **4 open — all
+deferred-with-cause**, none a silent skip:
+1. **matching-transformation-engine #5** (product decision) — lone-floor salary band contradicts a
+   pinned golden + fabricates an unstated ceiling; needs a team call.
+2–4. **evaluation-fairness-seed-data #3/#4/#5** (blocked on WIP) — all root-cause inside the user's
+   protected `pipeline/jobfit/eval/interview_eval.py`; precise fixes noted for a single-owner pass
+   once the voice-eval WIP lands.
+Plus one deferred SUB-item inside an otherwise-fixed finding (plans #4 CZK provisioning).
+
+**Totals across the Med/Low sweep:** ~50 fix commits + 11 i18n commits + 11 doc commits across 11
+waves; every wave verified tsc 0 · full `node --test` (1560 → **1877**) · python (781 → **931**) ·
+`i18n:check` 4-locale parity (3249 → **3378**) · **matching_eval 8/8 + fairness 4/4 zero-delta** ·
+`next build` ✓. Zero net regressions (one self-inflicted tenancy regression in Wave 18 caught by the
+source-guard suite and fixed same-wave). The long-open pid-keyed temp-DB flake is fixed (Wave 20).
+
+### Deploy env vars introduced across the sweep
+`KP_TRUSTED_PROXY` (W13, optional), `KP_SEED_DEMO` (W20, optional). Plus the W17 partial index
+`uq_dev_postings_open` (dedup duplicate OPEN postings before deploy).
