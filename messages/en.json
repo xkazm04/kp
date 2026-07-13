@@ -2973,6 +2973,7 @@
     "confidenceLabel": "Confidence",
     "issuedLabel": "Issued",
     "axesLabel": "Capability axes",
+    "axisMeterLabel": "{axis}: {score} out of 100",
     "methodology": "Scored on durable capabilities (problem framing, tooling fluency, judgment, architecture, transfer) from an AI-allowed work sample.",
     "methodologyLink": "How this is measured",
     "version": "Standard {version}",

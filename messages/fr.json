@@ -3037,6 +3037,7 @@
     "confidenceLabel": "Confiance",
     "issuedLabel": "Émis le",
     "axesLabel": "Axes de capacité",
+    "axisMeterLabel": "{axis} : {score} sur 100",
     "methodology": "Évalué sur des capacités durables (cadrage du problème, aisance avec les outils, jugement, architecture, transfert) à partir d'un travail réalisé avec l'AI autorisée.",
     "methodologyLink": "Comment cela est mesuré",
     "version": "Standard {version}",

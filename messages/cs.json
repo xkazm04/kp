@@ -2973,6 +2973,7 @@
     "confidenceLabel": "Spolehlivost",
     "issuedLabel": "Vydáno",
     "axesLabel": "Osy schopností",
+    "axisMeterLabel": "{axis}: {score} ze 100",
     "methodology": "Hodnoceno podle trvalých schopností (formulace problému, zběhlost v nástrojích, úsudek, architektura, přenos) z pracovního vzorku s povoleným AI.",
     "methodologyLink": "Jak se to měří",
     "version": "Standard {version}",

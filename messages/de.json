@@ -3037,6 +3037,7 @@
     "confidenceLabel": "Konfidenz",
     "issuedLabel": "Ausgestellt",
     "axesLabel": "Kompetenzachsen",
+    "axisMeterLabel": "{axis}: {score} von 100",
     "methodology": "Bewertet anhand beständiger Kompetenzen (Problemrahmung, Tooling-Sicherheit, Urteilsvermögen, Architektur, Transfer) aus einer Arbeitsprobe mit erlaubter AI-Nutzung.",
     "methodologyLink": "Wie das gemessen wird",
     "version": "Standard {version}",
