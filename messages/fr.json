@@ -796,7 +796,9 @@
   },
   "status": {
     "eyebrow": "Statut de la candidature",
-    "loadFailed": "Nous n'avons pas trouvé cette candidature. Vérifiez votre lien ou contactez l'équipe de recrutement.",
+    "loadFailed": "Nous n'avons pas pu charger votre statut pour le moment. Vérifiez votre connexion et réessayez.",
+    "linkInvalid": "Ce lien n'est plus valide. Consultez vos e-mails pour votre lien de statut le plus récent, ou contactez l'équipe de recrutement.",
+    "refresh": "Actualiser",
     "forRole": "Votre candidature pour {role}",
     "forRoleGeneric": "Votre candidature",
     "updated": "Dernière mise à jour {date}",
@@ -1207,6 +1209,7 @@
       "cancel": "Annuler",
       "doneCount": "Terminé — {count, plural, =1 {1 candidat traité} other {# candidats traités}}.",
       "doneHeldAtOffer": "{count, plural, =1 {1 candidat à l'étape Offre attend} other {# candidats à l'étape Offre attendent}} le processus d'offre — envoyez l'offre ; faire avancer ne recrute jamais.",
+      "doneDroppedOut": "{count, plural, =1 {1 candidat de l'aperçu a été ignoré} other {# candidats de l'aperçu ont été ignorés}} — plus sous le seuil au moment de la confirmation, donc non rejetés.",
       "doneSummary": "Passe de règles terminée — {advanced} avancé, {rejected} rejeté, {held} en attente.",
       "dismiss": "Ignorer"
     },
@@ -1705,7 +1708,8 @@
       "statusNa": "s.o.",
       "anyAdverse": "Impact défavorable potentiel — au moins un groupe est sous le seuil de 80%.",
       "insufficientSample": "Échantillon insuffisant — aucun groupe n’atteint {min} candidats, le ratio des quatre cinquièmes n’a donc pas de valeur probante. Cela ne signifie pas qu’aucun impact défavorable n’a été constaté.",
-      "noAdverse": "Aucun groupe ne tombe sous le seuil des quatre cinquièmes de 80%."
+      "noAdverse": "Aucun groupe ne tombe sous le seuil des quatre cinquièmes de 80%.",
+      "parseIgnored": "{read} ligne(s) lue(s) sur {total} — {ignored} ignorée(s) (lignes : {rows}). Chaque ligne doit comporter : groupe, sélectionnés, total. Le résultat ci-dessous est calculé uniquement sur les lignes correctement lues."
     },
     "wave": {
       "title": "Vague de présélection · {role}",
@@ -1716,6 +1720,9 @@
       "rejectAndNotify": "Rejeter {count} et notifier",
       "enableToCommit": "Activez le rejet automatique pour valider",
       "nothingToReject": "Rien à rejeter avec ces paramètres",
+      "confirmTitle": "Rejeter {count, plural, one {# candidat} other {# candidats}} ?",
+      "confirmBody": "Cette action rejettera {count, plural, one {# candidat} other {# candidats}}, mettra en file d'attente leurs notifications de rejet et scellera chaque décision dans le registre d'audit inviolable. Cette action est irréversible.",
+      "cancel": "Annuler",
       "committedBanner": "Vague validée — <b>{rejected} rejetés</b>, {kept} conservés sur {cohort}.",
       "commsFailures": "{count, plural, one {# notification n'a pas pu être mise en file} other {# notifications n'ont pas pu être mises en file}} — relancez-les manuellement.",
       "autoRejectWeakest": "Rejeter automatiquement les candidats les plus faibles",
@@ -1838,6 +1845,8 @@
       "rejectedAria": "rejetés",
       "fairnessCheck": "Robustesse de la pondération",
       "fairnessScopeNote": "Vérifie la stabilité du classement sous différentes pondérations de notation — n'évalue pas les biais démographiques ou de groupe protégé (l'application ne détient pas de telles données).",
+      "fairnessInsufficient": "Échantillon insuffisant — avec un seul candidat, il n'y a aucun champ de comparaison : aucun favori n'est désigné et le contrôle de robustesse de la pondération ne s'applique pas. Ajoutez d'autres candidats pour classer et comparer.",
+      "fairnessMatrixCaption": "Matrice de robustesse de la pondération : chaque ligne est un candidat évalué et chaque colonne le schéma de pondération d'un candidat ; une cellule est l'adéquation du candidat de la ligne recalculée sous la pondération du candidat de la colonne, et la dernière colonne est la moyenne sur tous les schémas.",
       "fairnessUniform": "Non testé — chaque candidat utilise la même pondération standard, il n’existe donc aucune pondération fondée sur les preuves à faire varier. Avec des pondérations uniformes, le recalcul inter-schémas est sans effet (l’ordre ne peut pas changer) : cette exécution n’établit donc pas que le classement est indépendant de la pondération, seulement qu’il n’existe aucune différence de pondération à tester.",
       "aiTunedWeights": "Poids ajustés par AI",
       "ruleBasedWeights": "Poids basés sur des règles",
@@ -2745,7 +2754,15 @@
       "searchPlaceholder": "Rechercher un candidat, un destinataire ou un objet",
       "kindAll": "Tous les types",
       "showing": "Affichage de {shown} sur {total}",
-      "showMore": "Afficher plus"
+      "showMore": "Afficher plus",
+      "resend": "Renvoyer",
+      "resending": "Envoi…",
+      "resent": "Envoyé",
+      "resendFailed": "Échec du renvoi — réessayez.",
+      "bouncedResendHint": "Cette adresse a rebondi — renvoyer au même destinataire échouera de nouveau. Saisissez une adresse e-mail corrigée pour essayer une autre adresse.",
+      "bouncedRecipientLabel": "E-mail corrigé",
+      "bouncedRecipientPlaceholder": "nom@entreprise.fr",
+      "bouncedResendInvalid": "Saisissez une adresse e-mail valide avant de renvoyer."
     },
     "eyebrow": "Espace de travail",
     "title": "Canaux et intégrations",

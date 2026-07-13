@@ -796,7 +796,9 @@
   },
   "status": {
     "eyebrow": "Bewerbungsstatus",
-    "loadFailed": "Wir konnten diese Bewerbung nicht finden. Bitte prüfen Sie Ihren Link oder wenden Sie sich an das Recruiting-Team.",
+    "loadFailed": "Wir konnten Ihren Status gerade nicht laden. Bitte prüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
+    "linkInvalid": "Dieser Link ist nicht mehr gültig. Prüfen Sie Ihre E-Mails auf den aktuellsten Status-Link oder wenden Sie sich an das Recruiting-Team.",
+    "refresh": "Aktualisieren",
     "forRole": "Ihre Bewerbung für {role}",
     "forRoleGeneric": "Ihre Bewerbung",
     "updated": "Zuletzt aktualisiert {date}",
@@ -1207,6 +1209,7 @@
       "cancel": "Abbrechen",
       "doneCount": "Fertig — {count, plural, =1 {1 Kandidat/in} other {# Kandidat/innen}} bearbeitet.",
       "doneHeldAtOffer": "{count, plural, =1 {1 Kandidat/in in der Angebotsphase wartet} other {# Kandidat/innen in der Angebotsphase warten}} auf den Angebotsprozess — unterbreiten Sie das Angebot; Weiterleiten stellt niemals ein.",
+      "doneDroppedOut": "{count, plural, =1 {1 in der Vorschau gezeigte/r Kandidat/in wurde übersprungen} other {# in der Vorschau gezeigte Kandidat/innen wurden übersprungen}} — beim Bestätigen nicht mehr unter dem Schwellenwert, daher nicht abgelehnt.",
       "doneSummary": "Richtlinien-Durchlauf abgeschlossen — {advanced} weitergeleitet, {rejected} abgelehnt, {held} zurückgehalten.",
       "dismiss": "Ausblenden"
     },
@@ -1705,7 +1708,8 @@
       "statusNa": "k. A.",
       "anyAdverse": "Mögliche Benachteiligung — mindestens eine Gruppe liegt unter der 80-%-Schwelle.",
       "insufficientSample": "Unzureichende Stichprobe — keine Gruppe erreicht {min} Bewerbende, daher ist das Vier-Fünftel-Verhältnis nicht aussagekräftig. Das ist kein Nachweis, dass keine Benachteiligung vorliegt.",
-      "noAdverse": "Keine Gruppe liegt unter der 80-%-Vier-Fünftel-Schwelle."
+      "noAdverse": "Keine Gruppe liegt unter der 80-%-Vier-Fünftel-Schwelle.",
+      "parseIgnored": "{read} von {total} Zeilen gelesen — {ignored} ignoriert (Zeilen: {rows}). Jede Zeile benötigt: Gruppe, ausgewählt, gesamt. Das Ergebnis unten wird nur aus den erfolgreich gelesenen Zeilen berechnet."
     },
     "wave": {
       "title": "Screening-Welle · {role}",
@@ -1716,6 +1720,9 @@
       "rejectAndNotify": "{count} ablehnen & benachrichtigen",
       "enableToCommit": "Auto-Ablehnung aktivieren, um zu übernehmen",
       "nothingToReject": "Mit diesen Einstellungen nichts abzulehnen",
+      "confirmTitle": "{count, plural, one {# Kandidat/in} other {# Kandidat/innen}} ablehnen?",
+      "confirmBody": "Damit werden {count, plural, one {# Kandidat/in} other {# Kandidat/innen}} abgelehnt, deren Ablehnungsbenachrichtigungen eingereiht und jede Entscheidung im manipulationssicheren Auditprotokoll versiegelt. Dies kann nicht rückgängig gemacht werden.",
+      "cancel": "Abbrechen",
       "committedBanner": "Welle übernommen — <b>{rejected} abgelehnt</b>, {kept} von {cohort} behalten.",
       "commsFailures": "{count, plural, one {# Benachrichtigung konnte nicht eingereiht werden} other {# Benachrichtigungen konnten nicht eingereiht werden}} — stupsen Sie diese manuell an.",
       "autoRejectWeakest": "Die schwächsten Kandidaten automatisch ablehnen",
@@ -1838,6 +1845,8 @@
       "rejectedAria": "abgelehnt",
       "fairnessCheck": "Robustheit der Gewichtung",
       "fairnessScopeNote": "Prüft die Stabilität der Rangfolge unter verschiedenen Bewertungsschwerpunkten — es bewertet keine demografische Verzerrung oder Verzerrung nach geschützten Gruppen (die App speichert keine solchen Daten).",
+      "fairnessInsufficient": "Unzureichende Stichprobe — mit nur einem Kandidaten gibt es kein Feld zum Vergleichen, daher wird kein Favorit gekürt und die Prüfung der Gewichtungsrobustheit entfällt. Fügen Sie weitere Kandidaten zum Ranking und Vergleich hinzu.",
+      "fairnessMatrixCaption": "Matrix der Gewichtungsrobustheit: Jede Zeile ist ein bewerteter Kandidat und jede Spalte das Gewichtungsschema eines Kandidaten; eine Zelle ist die unter der Gewichtung des Spaltenkandidaten neu berechnete Passung des Zeilenkandidaten, und die letzte Spalte ist der Mittelwert über alle Schemata.",
       "fairnessUniform": "Nicht getestet — jeder Kandidat verwendet dieselbe Standardgewichtung, es gibt also keine evidenzbasierte Gewichtung, die variiert werden könnte. Bei einheitlichen Gewichten ist die schemaübergreifende Neubewertung ein No-Op (die Reihenfolge kann sich nicht ändern); dieser Durchlauf belegt daher nicht, dass die Rangfolge gewichtungsunabhängig ist, sondern nur, dass es keinen Gewichtungsunterschied zu testen gibt.",
       "aiTunedWeights": "AI-abgestimmte Gewichte",
       "ruleBasedWeights": "Regelbasierte Gewichte",
@@ -2745,7 +2754,15 @@
       "searchPlaceholder": "Kandidat/in, Empfänger/in oder Betreff suchen",
       "kindAll": "Alle Arten",
       "showing": "{shown} von {total} angezeigt",
-      "showMore": "Mehr anzeigen"
+      "showMore": "Mehr anzeigen",
+      "resend": "Erneut senden",
+      "resending": "Wird gesendet…",
+      "resent": "Gesendet",
+      "resendFailed": "Senden fehlgeschlagen — bitte erneut versuchen.",
+      "bouncedResendHint": "Diese Adresse ist unzustellbar — ein erneuter Versand an dieselbe Adresse schlägt wieder fehl. Geben Sie eine korrigierte E-Mail-Adresse ein, um eine andere Adresse zu versuchen.",
+      "bouncedRecipientLabel": "Korrigierte E-Mail",
+      "bouncedRecipientPlaceholder": "name@firma.de",
+      "bouncedResendInvalid": "Geben Sie vor dem Senden eine gültige E-Mail-Adresse ein."
     },
     "eyebrow": "Arbeitsbereich",
     "title": "Kanäle & Integrationen",

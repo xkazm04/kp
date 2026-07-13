@@ -770,7 +770,9 @@
   },
   "status": {
     "eyebrow": "Application status",
-    "loadFailed": "We couldn't find that application. Check your link, or contact the hiring team.",
+    "loadFailed": "We couldn't load your status right now. Please check your connection and try again.",
+    "linkInvalid": "This link is no longer valid. Check your email for your most recent status link, or contact the hiring team.",
+    "refresh": "Refresh",
     "forRole": "Your application for {role}",
     "forRoleGeneric": "Your application",
     "updated": "Last updated {date}",
@@ -1181,6 +1183,7 @@
       "cancel": "Cancel",
       "doneCount": "Done — {count, plural, =1 {1 candidate} other {# candidates}} actioned.",
       "doneHeldAtOffer": "{count, plural, =1 {1 candidate at Offer awaits} other {# candidates at Offer await}} the offer flow — extend the offer; advancing never hires.",
+      "doneDroppedOut": "{count, plural, =1 {1 previewed candidate was skipped} other {# previewed candidates were skipped}} — no longer below the threshold when you confirmed, so they weren't rejected.",
       "doneSummary": "Policy pass done — {advanced} advanced, {rejected} rejected, {held} held.",
       "dismiss": "Dismiss"
     },
@@ -1676,7 +1679,8 @@
       "statusNa": "n/a",
       "anyAdverse": "Potential adverse impact — at least one group is below the 80% threshold.",
       "insufficientSample": "Insufficient sample — no group reaches {min} applicants, so the four-fifths ratio is not meaningful. This is not a finding of no adverse impact.",
-      "noAdverse": "No group falls below the 80% four-fifths threshold."
+      "noAdverse": "No group falls below the 80% four-fifths threshold.",
+      "parseIgnored": "Read {read} of {total} rows — {ignored} ignored (rows: {rows}). Each row needs: group, selected, total. The result below is computed only on the rows that parsed."
     },
     "wave": {
       "title": "Screening wave · {role}",
@@ -1687,6 +1691,9 @@
       "rejectAndNotify": "Reject {count} & notify",
       "enableToCommit": "Enable auto-reject to commit",
       "nothingToReject": "Nothing to reject with these settings",
+      "confirmTitle": "Reject {count, plural, one {# candidate} other {# candidates}}?",
+      "confirmBody": "This will reject {count, plural, one {# candidate} other {# candidates}}, queue their rejection notifications, and seal each decision to the tamper-evident audit record. This cannot be undone.",
+      "cancel": "Cancel",
       "committedBanner": "Wave committed — <b>{rejected} rejected</b>, {kept} kept of {cohort}.",
       "commsFailures": "{count, plural, one {# notification} other {# notifications}} failed to queue — nudge those manually.",
       "autoRejectWeakest": "Auto-reject the weakest candidates",
@@ -1809,6 +1816,8 @@
       "rejectedAria": "rejected",
       "fairnessCheck": "Weighting robustness",
       "fairnessScopeNote": "Checks ranking stability under different scoring emphases — it does not assess demographic or protected-class bias (the app holds no such data).",
+      "fairnessInsufficient": "Insufficient sample — with only one candidate there is no field to compare against, so no lead is crowned and the weighting-robustness check does not apply. Add more candidates to rank and compare.",
+      "fairnessMatrixCaption": "Weighting-robustness matrix: each row is a scored candidate and each column a candidate's weighting scheme; a cell is the row candidate's fit re-scored under the column candidate's weighting, and the last column is the mean across all schemes.",
       "fairnessUniform": "Not tested — every candidate uses the same standard weighting, so there is no evidence-driven weighting to vary. With uniform weights the cross-scheme re-scoring is a no-op (the order cannot change), so this run does not establish the ranking is weighting-independent, only that no weighting difference exists to test.",
       "aiTunedWeights": "AI-tuned weights",
       "ruleBasedWeights": "Rule-based weights",
@@ -2716,7 +2725,15 @@
       "searchPlaceholder": "Search candidate, recipient, or subject",
       "kindAll": "All kinds",
       "showing": "Showing {shown} of {total}",
-      "showMore": "Show more"
+      "showMore": "Show more",
+      "resend": "Resend",
+      "resending": "Resending…",
+      "resent": "Resent",
+      "resendFailed": "Couldn't resend — try again.",
+      "bouncedResendHint": "This address bounced — resending to the same one will bounce again. Enter a corrected email to try a different address.",
+      "bouncedRecipientLabel": "Corrected email",
+      "bouncedRecipientPlaceholder": "name@company.com",
+      "bouncedResendInvalid": "Enter a valid email address before resending."
     },
     "eyebrow": "Workspace",
     "title": "Channels & integrations",

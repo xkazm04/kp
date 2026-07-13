@@ -770,7 +770,9 @@
   },
   "status": {
     "eyebrow": "Stav přihlášky",
-    "loadFailed": "Tuto přihlášku se nepodařilo najít. Zkontrolujte odkaz nebo kontaktujte náborový tým.",
+    "loadFailed": "Váš stav se teď nepodařilo načíst. Zkontrolujte připojení a zkuste to znovu.",
+    "linkInvalid": "Tento odkaz už není platný. Zkontrolujte e-mail, kde najdete nejnovější odkaz na stav, nebo kontaktujte náborový tým.",
+    "refresh": "Obnovit",
     "forRole": "Vaše přihláška na pozici {role}",
     "forRoleGeneric": "Vaše přihláška",
     "updated": "Naposledy aktualizováno {date}",
@@ -1181,6 +1183,7 @@
       "cancel": "Zrušit",
       "doneCount": "Hotovo — zpracováno {count, plural, =1 {1 kandidát} few {# kandidáti} other {# kandidátů}}.",
       "doneHeldAtOffer": "{count, plural, =1 {1 kandidát ve fázi Nabídka čeká} few {# kandidáti ve fázi Nabídka čekají} other {# kandidátů ve fázi Nabídka čeká}} na nabídkový proces — odešlete nabídku; posun nikdy nenajímá.",
+      "doneDroppedOut": "{count, plural, =1 {1 kandidát z náhledu byl přeskočen} few {# kandidáti z náhledu byli přeskočeni} other {# kandidátů z náhledu bylo přeskočeno}} — při potvrzení už nebyli pod hranicí, takže nebyli odmítnuti.",
       "doneSummary": "Policy pass dokončen — {advanced} posunuto, {rejected} zamítnuto, {held} pozdrženo.",
       "dismiss": "Zavřít"
     },
@@ -1676,7 +1679,8 @@
       "statusNa": "n/a",
       "anyAdverse": "Možný nepříznivý dopad — alespoň jedna skupina je pod prahem 80 %.",
       "insufficientSample": "Nedostatečný vzorek — žádná skupina nedosahuje {min} uchazečů, takže poměr čtyř pětin nemá vypovídací hodnotu. Neznamená to, že nebyl zjištěn nepříznivý dopad.",
-      "noAdverse": "Žádná skupina není pod prahem čtyř pětin (80 %)."
+      "noAdverse": "Žádná skupina není pod prahem čtyř pětin (80 %).",
+      "parseIgnored": "Načteno {read} z {total} řádků — {ignored} ignorováno (řádky: {rows}). Každý řádek musí mít: skupina, vybráno, celkem. Výsledek níže je spočítán jen z řádků, které se podařilo načíst."
     },
     "wave": {
       "title": "Vlna prověřování · {role}",
@@ -1687,6 +1691,9 @@
       "rejectAndNotify": "Zamítnout {count} a upozornit",
       "enableToCommit": "Pro potvrzení zapněte automatické zamítání",
       "nothingToReject": "S těmito nastaveními není co zamítnout",
+      "confirmTitle": "Zamítnout {count, plural, one {# kandidáta} few {# kandidáty} other {# kandidátů}}?",
+      "confirmBody": "Tímto zamítnete {count, plural, one {# kandidáta} few {# kandidáty} other {# kandidátů}}, zařadíte jim oznámení o zamítnutí do fronty a každé rozhodnutí zapečetíte do neměnného auditního záznamu. Tuto akci nelze vzít zpět.",
+      "cancel": "Zrušit",
       "committedBanner": "Vlna potvrzena — <b>{rejected} zamítnuto</b>, {kept} ponecháno z {cohort}.",
       "commsFailures": "{count, plural, one {# upozornění se nepodařilo} few {# upozornění se nepodařilo} many {# upozornění se nepodařilo} other {# upozornění se nepodařilo}} zařadit do fronty — pošlete je ručně.",
       "autoRejectWeakest": "Automaticky zamítnout nejslabší kandidáty",
@@ -1809,6 +1816,8 @@
       "rejectedAria": "zamítnut/a",
       "fairnessCheck": "Robustnost vážení",
       "fairnessScopeNote": "Ověřuje stabilitu pořadí při různém důrazu na skóre — neposuzuje demografickou předpojatost ani příslušnost k chráněné skupině (aplikace taková data nemá).",
+      "fairnessInsufficient": "Nedostatečný vzorek — s jediným kandidátem není s čím porovnávat, takže se nekoruje žádný lídr a kontrola robustnosti vážení se neuplatní. Přidejte další kandidáty k seřazení a porovnání.",
+      "fairnessMatrixCaption": "Matice robustnosti vážení: každý řádek je hodnocený kandidát a každý sloupec schéma vážení jednoho kandidáta; buňka je fit kandidáta z řádku přepočítaný podle vážení kandidáta ze sloupce a poslední sloupec je průměr napříč všemi schématy.",
       "fairnessUniform": "Netestováno — všichni kandidáti používají stejné standardní vážení, takže neexistuje žádné vážení odvozené z důkazů, které by šlo měnit. Při jednotných vahách je přepočet napříč schématy prázdnou operací (pořadí se nemůže změnit), takže tento běh nedokládá, že je ranking nezávislý na vahách — pouze to, že neexistuje rozdíl ve vážení, který by šlo otestovat.",
       "aiTunedWeights": "Váhy laděné AI",
       "ruleBasedWeights": "Váhy podle pravidel",
@@ -2716,7 +2725,15 @@
       "searchPlaceholder": "Hledat kandidáta, příjemce nebo předmět",
       "kindAll": "Všechny typy",
       "showing": "Zobrazeno {shown} z {total}",
-      "showMore": "Zobrazit více"
+      "showMore": "Zobrazit více",
+      "resend": "Odeslat znovu",
+      "resending": "Odesílání…",
+      "resent": "Odesláno",
+      "resendFailed": "Nepodařilo se odeslat — zkuste to znovu.",
+      "bouncedResendHint": "Tato adresa se vrátila jako nedoručitelná — odeslání na stejnou adresu se opět vrátí. Zadejte opravený e-mail a zkuste jinou adresu.",
+      "bouncedRecipientLabel": "Opravený e-mail",
+      "bouncedRecipientPlaceholder": "jmeno@firma.cz",
+      "bouncedResendInvalid": "Před odesláním zadejte platnou e-mailovou adresu."
     },
     "eyebrow": "Pracovní prostor",
     "title": "Kanály a integrace",
