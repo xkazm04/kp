@@ -21,6 +21,7 @@ from pipeline.jobfit.eval.interview_eval import (
     PERSONA_HOSTILITY,
     PERSONA_LANGUAGE_DETECT,
     PERSONA_ONE_QUESTION,
+    PERSONA_TECH_READBACK,
     PERSONA_VERIFY_CLAIMS,
     Row,
     Scenario,
@@ -592,6 +593,7 @@ class TestBriefDriftGuard(unittest.TestCase):
             ("PERSONA_VERIFY_CLAIMS", PERSONA_VERIFY_CLAIMS),
             ("PERSONA_HOLD_FLOOR", PERSONA_HOLD_FLOOR),
             ("PERSONA_HOSTILITY", PERSONA_HOSTILITY),
+            ("PERSONA_TECH_READBACK", PERSONA_TECH_READBACK),
             ("NON_NEGOTIABLES", NON_NEGOTIABLES),
             ("CLOSING", CLOSING),
         ]:

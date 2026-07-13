@@ -169,14 +169,24 @@ export const PERSONA_HOLD_FLOOR =
 export const PERSONA_HOSTILITY =
   "If a candidate is hostile or challenges the premise of the interview, acknowledge it briefly and neutrally, then redirect to your question — do not over-apologise, and do not negotiate the premise of the interview.";
 
-/** The P4–P7 interviewer-craft rules in canonical order — appended to every brief builder so a
- *  wording change lands once. Kept as an array (not a pre-joined string) so each builder joins it
- *  into its own surrounding prose with the same single-space separator. */
+// Skill read-back (docs/INTERVIEW_IMPROVEMENT_INPUTS.md §2/§5): voice transcription corrupts
+// technology names on real calls (React→Rust, PostgreSQL→"později SQL", Docker→.NET), and the
+// scorecard then rates a fabricated skill set. One confirmation turn before the close makes the
+// candidate the authority on what they actually said; the scorecard synthesis is instructed to
+// prefer that turn over earlier transcript mentions. Gated: skipped when no technologies came up.
+export const PERSONA_TECH_READBACK =
+  "Just before you close: IF the candidate mentioned specific technologies, tools, or product names during the conversation, spend ONE short turn reading back the key ones you noted and asking whether you heard them right (for example “Before we wrap — I noted PostgreSQL, Docker and React; did I get those right?”), and accept their confirmation or correction as the final word on what they use. Keep it to a single quick turn. If no specific technologies or tools came up, skip this step entirely — never invent a list.";
+
+/** The P4–P7 interviewer-craft rules in canonical order, plus the closing tech read-back —
+ *  appended to every brief builder so a wording change lands once. Kept as an array (not a
+ *  pre-joined string) so each builder joins it into its own surrounding prose with the same
+ *  single-space separator. */
 export const PERSONA_CRAFT_RULES: string[] = [
   PERSONA_DRAW_OUT,
   PERSONA_VERIFY_CLAIMS,
   PERSONA_HOLD_FLOOR,
   PERSONA_HOSTILITY,
+  PERSONA_TECH_READBACK,
 ];
 
 function personaLines(company: string, role: string, name: string): string[] {

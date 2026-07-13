@@ -31,7 +31,9 @@ SCREENING_PROMPT_VERSION = "screening-v1"
 OUTREACH_PROMPT_VERSION = "outreach-v2"
 REJECTION_PROMPT_VERSION = "rejection-v2"
 PREP_PROMPT_VERSION = "interview-prep-v1"
-SCORECARD_PROMPT_VERSION = "scorecard-v3"
+# scorecard-v4: the prompt carries the ASR read-back trust rule (prefer the candidate's closing
+# confirmation of technologies over earlier corrupted mentions; flag unconfirmed entities).
+SCORECARD_PROMPT_VERSION = "scorecard-v4"
 REMATCH_PROMPT_VERSION = "rematch-v1"
 # offer-v3: the result names its pricing basis — the draft-time fresh fit check
 # rides structured as `matchBasis` (rendered under its own label by the approval
@@ -625,6 +627,16 @@ def interview_scorecard(candidate: MatchCandidate, job: Job, notes: str, *, lang
         "Ground every rating in the transcript: the evidence MUST be a short, near-verbatim quote of the "
         "candidate's own words that justifies the score — do not paraphrase or invent. If the transcript "
         "does not cover a competency, set its evidence to an empty string and rate it 3 (not assessed).\n"
+        # Read-back trust rule (docs/INTERVIEW_IMPROVEMENT_INPUTS.md §2/§5): the brief now has the
+        # agent read back the technologies it heard before closing; that confirmation turn — not the
+        # raw ASR earlier in the call — is the authoritative record of the candidate's stack.
+        "The transcript comes from voice recognition, which can corrupt technology and product names "
+        "(e.g. React heard as Rust, PostgreSQL heard as 'později SQL'). If the interviewer read back a "
+        "list of technologies near the end and the candidate confirmed or corrected it, treat that "
+        "confirmation/correction as the AUTHORITATIVE record of the candidate's technologies — where it "
+        "conflicts with an earlier mention, the confirmation wins. Do not credit a specific technology "
+        "that appears only in earlier, unconfirmed turns as an established skill: note it in the summary "
+        "as unconfirmed (possible transcription error) rather than asserting it.\n"
         'Return JSON: { "ratings": [ { "competency": str (exactly one of the above), "rating": int 1-5, '
         '"evidence": str (verbatim candidate quote, or "") } ], "summary": str, '
         f'"recommendation": "{RECOMMENDATION_CHOICES}" }}. '

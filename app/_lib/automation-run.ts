@@ -41,7 +41,11 @@ export const AUTOMATION_VERSION: Record<string, string> = {
   outreach: "outreach-v2",
   rejection: "rejection-v2",
   prep: "interview-prep-v1",
-  scorecard: "scorecard-v3",
+  // v4 — the scorecard prompt carries the ASR read-back trust rule (the candidate's
+  // closing confirmation of technologies beats earlier corrupted transcript mentions;
+  // unconfirmed entities are flagged, not asserted); bumped so cached v3 scorecards
+  // self-invalidate.
+  scorecard: "scorecard-v4",
   rematch: "rematch-v1",
   // v3 — the offer payload carries its structured pricing basis (matchBasis, the
   // draft-time fresh fit check) and a rationale that names that producer

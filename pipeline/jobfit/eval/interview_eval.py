@@ -114,11 +114,22 @@ PERSONA_HOSTILITY = (
     "and neutrally, then redirect to your question — do not over-apologise, and do not negotiate "
     "the premise of the interview."
 )
+# Skill read-back (§2/§5): ASR corrupts tech nouns (React→Rust, PostgreSQL→"později SQL");
+# one gated confirmation turn before the close makes the candidate the authority.
+PERSONA_TECH_READBACK = (
+    "Just before you close: IF the candidate mentioned specific technologies, tools, or product "
+    "names during the conversation, spend ONE short turn reading back the key ones you noted and "
+    "asking whether you heard them right (for example “Before we wrap — I noted PostgreSQL, Docker "
+    "and React; did I get those right?”), and accept their confirmation or correction as the final "
+    "word on what they use. Keep it to a single quick turn. If no specific technologies or tools "
+    "came up, skip this step entirely — never invent a list."
+)
 PERSONA_CRAFT_RULES = [
     PERSONA_DRAW_OUT,
     PERSONA_VERIFY_CLAIMS,
     PERSONA_HOLD_FLOOR,
     PERSONA_HOSTILITY,
+    PERSONA_TECH_READBACK,
 ]
 NON_NEGOTIABLES = (
     "Non-negotiables: in the coachability phase, deliberately offer ONE concrete hint or gentle "
