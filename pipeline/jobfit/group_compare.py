@@ -95,15 +95,34 @@ def deterministic_comparison(context: dict[str, Any]) -> dict[str, Any]:
             f"({_bold(_fmt(skills_leader.get('skills')))})."
         )
 
-    def coverage(c: dict[str, Any]) -> tuple[int, int]:
-        matched = len(c.get("matchedSkills") or [])
-        missing = len(c.get("missingSkills") or [])
-        return matched, matched + missing
+    # "Most required-skill coverage" must rank by the FEWEST unmet must-haves — not
+    # by the count of matched skills. ``missingSkills`` is must-have-only (score_skills
+    # only files a must-have there), while ``matchedSkills`` counts must-haves AND
+    # nice-to-haves. The old metric divided that mixed numerator by a must-only
+    # denominator — a candidate with 2 musts + 3 nice-to-haves and 1 must missing read
+    # as "covers the most required skills (5/6)" though the role's must-haves were
+    # 2/3 — and ``max(..., key=matched)`` could crown whoever merely matched the most
+    # nice-to-haves. Rank on the must-have gap alone (tie-break by matched breadth) and
+    # state that gap honestly rather than a fabricated fraction that mixes populations.
+    # bug-ui-scan-2026-07-09 (matching-transformation-engine #4).
+    def unmet_musts(c: dict[str, Any]) -> int:
+        return len(c.get("missingSkills") or [])
 
-    best_cov = max(cands, key=lambda c: coverage(c)[0])
-    bm, bt = coverage(best_cov)
-    if bt:
-        points.append(f"{_bold(str(best_cov.get('label')))} covers the most required skills ({_bold(f'{bm}/{bt}')}).")
+    def matched_count(c: dict[str, Any]) -> int:
+        return len(c.get("matchedSkills") or [])
+
+    best_cov = min(cands, key=lambda c: (unmet_musts(c), -matched_count(c)))
+    # Emit the point only when the field carries real skill data (the old ``if bt:``
+    # guard) — a job-less role with no matched/missing skills makes no coverage claim.
+    if any(matched_count(c) or unmet_musts(c) for c in cands):
+        gap = unmet_musts(best_cov)
+        if gap == 0:
+            points.append(f"{_bold(str(best_cov.get('label')))} has **no unmet must-haves**.")
+        else:
+            points.append(
+                f"{_bold(str(best_cov.get('label')))} has the fewest unmet must-haves "
+                f"({_bold(f'{gap} missing')})."
+            )
 
     if n > 1:
         runner = cands[1]

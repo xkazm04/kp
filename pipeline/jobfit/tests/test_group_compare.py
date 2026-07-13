@@ -80,6 +80,77 @@ class DeterministicComparisonTest(unittest.TestCase):
         self.assertIn("Solo", c["headline"])
 
 
+class CoverageMetricTest(unittest.TestCase):
+    """bug-ui-scan-2026-07-09 (matching-transformation-engine #4): the "covers the
+    most required skills" point must rank by FEWEST unmet must-haves, not by raw
+    matched-skill count (which counts nice-to-haves), and must not present the
+    mixed-population ``matched/(matched+missing)`` ratio."""
+
+    # Two candidates for one role. Omar matched all 3 must-haves (0 unmet). Nadia
+    # matched only 2 must-haves + 3 nice-to-haves (5 matched) and is missing 1
+    # must-have. Pre-fix, Nadia won on raw matched count (5 > 3) and was credited
+    # "covers the most required skills (5/6)"; the true must-have leader is Omar.
+    CONTEXT = {
+        "roleTitle": "Backend Engineer",
+        "candidates": [
+            {
+                "label": "Omar",
+                "archetype": "bau",
+                "seniority": "senior",
+                "total": 80,
+                "skills": 80,
+                "matchedSkills": ["Python", "Django", "PostgreSQL"],
+                "missingSkills": [],
+                "verdict": "Covers every must-have.",
+            },
+            {
+                "label": "Nadia",
+                "archetype": "bau",
+                "seniority": "medior",
+                "total": 70,
+                "skills": 70,
+                "matchedSkills": ["Python", "Django", "Docker", "AWS", "React"],
+                "missingSkills": ["PostgreSQL"],
+                "verdict": "Broad but missing a must-have.",
+            },
+        ],
+    }
+
+    def test_no_mixed_population_ratio_is_emitted(self) -> None:
+        text = _all_text(deterministic_comparison(self.CONTEXT))
+        # The old label + its must+nice / must-only ratio must be gone.
+        self.assertNotIn("covers the most required skills", text)
+        self.assertNotIn("5/6", text)
+
+    def test_coverage_credits_the_fewest_unmet_must_haves(self) -> None:
+        points = deterministic_comparison(self.CONTEXT)["keyPoints"]
+        cov = [p for p in points if "unmet must-have" in p]
+        self.assertEqual(len(cov), 1, points)
+        # Omar (0 unmet must-haves) leads coverage over Nadia (5 matched, 1 unmet).
+        self.assertIn("Omar", cov[0])
+        self.assertNotIn("Nadia", cov[0])
+        self.assertIn("no unmet must-haves", cov[0])
+
+    def test_reports_gap_count_when_the_leader_still_misses_a_must(self) -> None:
+        ctx = {
+            "roleTitle": "Data Engineer",
+            "candidates": [
+                # P: 1 matched, 1 unmet must-have (gap 1) — the fewest gaps.
+                {"label": "Pia", "archetype": "bau", "total": 72, "skills": 72,
+                 "matchedSkills": ["SQL"], "missingSkills": ["Spark"]},
+                # Q: 3 matched (2 nice-to-haves) but 2 unmet must-haves (gap 2).
+                {"label": "Quinn", "archetype": "bau", "total": 66, "skills": 66,
+                 "matchedSkills": ["SQL", "Airflow", "dbt"], "missingSkills": ["Spark", "Kafka"]},
+            ],
+        }
+        points = deterministic_comparison(ctx)["keyPoints"]
+        cov = [p for p in points if "unmet must-have" in p]
+        self.assertEqual(len(cov), 1, points)
+        self.assertIn("Pia", cov[0])  # fewest gaps wins, not Quinn's higher matched count
+        self.assertIn("1 missing", cov[0])
+        self.assertNotIn("3/5", _all_text(deterministic_comparison(ctx)))
+
+
 class GenerateFallbackTest(unittest.TestCase):
     def test_no_provider_is_deterministic(self) -> None:
         comparison, source = generate(CONTEXT, provider=None)
