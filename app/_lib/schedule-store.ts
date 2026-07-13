@@ -369,14 +369,27 @@ export type RescheduleResult =
  *  now and RESETS the reminder cycle (reminder_sent_at / attempts cleared) so the
  *  reminder fires for the NEW time, not the abandoned one. Bounded by MAX_RESCHEDULES.
  *  Only a confirmed invite is reschedulable — a pending one books via confirm. */
-export function rescheduleScheduleInvite(token: string, slot: string, slotAt: string, candidateTz?: string | null): RescheduleResult {
+export function rescheduleScheduleInvite(
+  token: string,
+  slot: string,
+  slotAt: string,
+  candidateTz?: string | null,
+  // Direction 2 — a RECRUITER-initiated move (recruiter-side invite control). The
+  // MAX_RESCHEDULES cap exists to stop a CANDIDATE churning the calendar; a recruiter
+  // repairing a booking is trusted, so `recruiter:true` bypasses the cap AND does not
+  // consume the candidate's reschedule budget. The collision authority and the
+  // reminder-cycle reset are identical — the recruiter path layers on this same
+  // transaction rather than forking a parallel one.
+  opts?: { recruiter?: boolean }
+): RescheduleResult {
+  const recruiter = opts?.recruiter === true;
   const d = db();
   const tx = d.transaction((): RescheduleResult => {
     const current = d.prepare(`SELECT * FROM schedule_invites WHERE token = ?`).get(token) as Record<string, unknown> | undefined;
     if (!current) return { ok: false, reason: "not_found", invite: null };
     const inv = rowTo(current);
     if (inv.status !== "confirmed") return { ok: false, reason: "not_confirmed", invite: inv };
-    if (inv.rescheduleCount >= MAX_RESCHEDULES) return { ok: false, reason: "limit", invite: inv };
+    if (!recruiter && inv.rescheduleCount >= MAX_RESCHEDULES) return { ok: false, reason: "limit", invite: inv };
     // Re-picking the same time is a no-op (the reschedule count is precious) —
     // don't burn a reschedule or churn the reminder cycle for an unchanged slot.
     if (inv.slotAt === slotAt) return { ok: true, invite: inv };
@@ -386,10 +399,12 @@ export function rescheduleScheduleInvite(token: string, slot: string, slotAt: st
       .prepare(`SELECT 1 FROM schedule_invites WHERE status = 'confirmed' AND slot_at = ? AND token != ? AND workspace_id = ? LIMIT 1`)
       .get(slotAt, token, inv.workspaceId);
     if (clash) return { ok: false, reason: "taken", invite: inv };
+    // A recruiter move doesn't spend the candidate's reschedule budget.
+    const countClause = recruiter ? "" : "reschedule_count = reschedule_count + 1,";
     const updated = d
       .prepare(
         `UPDATE schedule_invites
-            SET slot = ?, slot_at = ?, confirmed_at = ?, reschedule_count = reschedule_count + 1,
+            SET slot = ?, slot_at = ?, confirmed_at = ?, ${countClause}
                 candidate_tz = COALESCE(?, candidate_tz),
                 attendance_status = NULL, attendance_at = NULL,
                 reminder_sent_at = NULL, reminder_attempts = 0, reminder_last_attempt_at = NULL,
@@ -490,6 +505,16 @@ export function markScheduleInviteNoShow(token: string): ScheduleInvite | null {
  *  of swallowing the error — lets an operator find and repair the divergence. */
 export function markScheduleInviteNeedsReconcile(token: string, reason: string): void {
   db().prepare(`UPDATE schedule_invites SET needs_reconcile = 1, reconcile_reason = ? WHERE token = ?`).run(reason, token);
+}
+
+/** Clear the needs-reconcile flag once a recruiter has repaired the drift (Direction
+ *  2 — recruiter-side invite control). Idempotent: returns true only when a flag was
+ *  actually set (1→0), so the caller can tell a real resolve from a no-op double-tap. */
+export function resolveScheduleInviteReconcile(token: string): boolean {
+  const res = db()
+    .prepare(`UPDATE schedule_invites SET needs_reconcile = 0, reconcile_reason = NULL WHERE token = ? AND needs_reconcile = 1`)
+    .run(token);
+  return res.changes > 0;
 }
 
 /** Flag an invite whose entire proposal horizon was already booked when the

@@ -47,6 +47,8 @@ const {
   cancelAttendance,
   declineScheduleInvite,
   markScheduleInviteNoShow,
+  markScheduleInviteNeedsReconcile,
+  resolveScheduleInviteReconcile,
   bookedSlots,
   isTerminalScheduleInviteStatus,
   MAX_RESCHEDULES,
@@ -260,4 +262,48 @@ test("a distinct entry still mints its own invite", () => {
   const x = createScheduleInvite({ entryId: "e-dup-x" });
   const y = createScheduleInvite({ entryId: "e-dup-y" });
   assert.notEqual(x.token, y.token, "different entries get different invites");
+});
+
+// --- Direction 2: recruiter-side invite control ---------------------------------
+
+test("recruiter reschedule bypasses MAX_RESCHEDULES and doesn't spend the candidate budget", () => {
+  const token = makeConfirmed("2031-01-06T08:00:00.000Z", "R0");
+  // Exhaust the candidate's reschedule budget with slots distinct from the initial one
+  // (an unchanged slot is a no-op that doesn't consume the budget).
+  for (let n = 1; n <= MAX_RESCHEDULES; n += 1) {
+    const r = rescheduleScheduleInvite(token, `C${n}`, `2031-01-06T${String(10 + n).padStart(2, "0")}:00:00.000Z`);
+    assert.equal(r.ok, true, `candidate move ${n} should succeed`);
+  }
+  // A further CANDIDATE move is capped...
+  const capped = rescheduleScheduleInvite(token, "Cx", "2031-01-06T20:00:00.000Z");
+  assert.equal(capped.ok, false);
+  if (!capped.ok) assert.equal(capped.reason, "limit");
+  const countBefore = getScheduleInviteByToken(token)!.rescheduleCount;
+  // ...but a RECRUITER move goes through and does not consume the budget.
+  const rec = rescheduleScheduleInvite(token, "Rec", "2031-01-07T10:00:00.000Z", null, { recruiter: true });
+  assert.equal(rec.ok, true, "recruiter move bypasses the cap");
+  if (rec.ok) {
+    assert.equal(rec.invite.slotAt, "2031-01-07T10:00:00.000Z");
+    assert.equal(rec.invite.rescheduleCount, countBefore, "recruiter move must not consume the candidate's budget");
+    assert.equal(rec.invite.reminderSentAt, null, "reminder cycle resets on the recruiter move");
+  }
+});
+
+test("recruiter reschedule still honors the per-team collision check", () => {
+  makeConfirmed("2031-02-03T10:00:00.000Z", "Occupied");
+  const token = makeConfirmed("2031-02-03T09:00:00.000Z", "Mover");
+  const clash = rescheduleScheduleInvite(token, "x", "2031-02-03T10:00:00.000Z", null, { recruiter: true });
+  assert.equal(clash.ok, false);
+  if (!clash.ok) assert.equal(clash.reason, "taken");
+});
+
+test("resolveScheduleInviteReconcile clears the drift flag once (idempotent)", () => {
+  const inv = createScheduleInvite({ entryId: "e-reconcile", candidateLabel: "P", jobTitle: "Role" });
+  markScheduleInviteNeedsReconcile(inv.token, "stage gate not ready");
+  assert.equal(getScheduleInviteByToken(inv.token)!.needsReconcile, true);
+  assert.equal(resolveScheduleInviteReconcile(inv.token), true, "first resolve flips the flag");
+  const after = getScheduleInviteByToken(inv.token)!;
+  assert.equal(after.needsReconcile, false);
+  assert.equal(after.reconcileReason, null);
+  assert.equal(resolveScheduleInviteReconcile(inv.token), false, "second resolve is a no-op");
 });

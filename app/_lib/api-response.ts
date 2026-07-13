@@ -72,6 +72,8 @@ export const STORE_ERRORS = {
   SCHEDULE_CONFIRM_FAILED: "Could not confirm that slot. Please try again.",
   // Recruiter invite-lifecycle read (W6-3).
   SCHEDULE_LOOKUP_FAILED: "Could not load the scheduling overview. Please try again.",
+  // Recruiter-side invite control: cancel / reschedule / no-show / resolve-reconcile.
+  SCHEDULE_MANAGE_FAILED: "Could not update that interview. Please try again.",
   // Command-palette cross-entity search (SHELL1) — sits directly on better-sqlite3.
   SEARCH_FAILED: "Search is unavailable right now. Please try again.",
   // Sidebar attention badges (SHELL2) — same store class.

@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AlertTriangle, CalendarClock, CalendarX, Hourglass } from "lucide-react";
+import { AlertTriangle, Ban, CalendarClock, CalendarX, Hourglass, UserX, Wrench } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { toast } from "@/app/_components/toast-store";
 import { useSlotLabel } from "@/app/_lib/use-slot-label";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import { interviewCalendarEvent } from "@/app/_lib/calendar-links";
@@ -45,10 +46,60 @@ export function InviteLifecyclePanel() {
   // fresh as the fetch, which is the honest claim anyway.
   const [loadedAt, setLoadedAt] = useState(0);
   const [failed, setFailed] = useState(false);
+  // Direction 2 — recruiter-side invite control. `armed` is the two-step inline
+  // confirm latch (token+action) reused from the app's delete idiom; `busy` gates a
+  // row while its action is in flight; the reschedule sub-flow loads this team's
+  // offered slots lazily and lets the recruiter pick one.
+  const [armed, setArmed] = useState<{ token: string; action: "cancel" | "no_show" | "resolve_reconcile" } | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [rescheduleToken, setRescheduleToken] = useState<string | null>(null);
+  const [rescheduleSlots, setRescheduleSlots] = useState<{ value: string; label: string }[] | null>(null);
   // Patch one invite in place (e.g. after a meeting link save) so the row + its
   // calendar event refresh without a full refetch.
   const updateInvite = (token: string, patch: Partial<ScheduleInvite>) =>
     setInvites((prev) => prev?.map((i) => (i.token === token ? { ...i, ...patch } : i)) ?? prev);
+
+  // Run a recruiter action against an invite, then adopt the server's returned row so
+  // it re-buckets in place (a cancel drops it to awaiting, a no-show to closed, a
+  // reschedule updates the slot, a resolve clears the flag) without a full refetch.
+  const runAction = async (token: string, action: string, slotAt?: string) => {
+    setBusy(token);
+    try {
+      const r = await fetch("/api/schedule", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, action, slotAt }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        toast.error(typeof d.error === "string" ? d.error : t("actionFailed"));
+        return false;
+      }
+      if (d.invite) updateInvite(token, d.invite as ScheduleInvite);
+      return true;
+    } catch {
+      toast.error(t("actionFailed"));
+      return false;
+    } finally {
+      setBusy(null);
+      setArmed(null);
+    }
+  };
+
+  // Open the reschedule sub-flow for a confirmed row: lazily load this team's offered
+  // slots (the same collision-aware mechanism the candidate picker uses).
+  const openReschedule = async (token: string) => {
+    setRescheduleToken(token);
+    setRescheduleSlots(null);
+    try {
+      const r = await fetch("/api/schedule?slots=1");
+      const d = await r.json();
+      setRescheduleSlots(Array.isArray(d.slots) ? d.slots : []);
+    } catch {
+      setRescheduleSlots([]);
+      toast.error(t("actionFailed"));
+    }
+  };
 
   useEffect(() => {
     let alive = true;
@@ -97,6 +148,92 @@ export function InviteLifecyclePanel() {
       ? `${slotLabel(i.slotAt, i.slot)}${i.durationMin ? ` · ${i.durationMin} min` : ""}`
       : (i.slot ?? "—");
 
+  // Direction 2 — the recruiter control cluster on a confirmed row: reschedule
+  // (re-offer from this team's offered slots), cancel (free the slot), and mark
+  // no-show. Cancel/no-show are two-step (armed → confirm) via the app's inline
+  // delete idiom; reschedule swaps in a lazily-loaded offered-slot picker.
+  const recruiterControls = (i: ScheduleInvite) => {
+    const isBusy = busy === i.token;
+    if (rescheduleToken === i.token) {
+      return (
+        <div className="mt-1 flex w-full flex-wrap items-center gap-1.5 border-t border-stone-100 pt-1.5" role="group" aria-label={t("rescheduleGroupAria")}>
+          <span className="text-meta uppercase tracking-wide text-steel">{t("rescheduleTo")}</span>
+          {rescheduleSlots === null ? (
+            <span className="text-xs text-steel">{t("loading")}</span>
+          ) : rescheduleSlots.length === 0 ? (
+            <span className="text-xs text-steel">{t("noRescheduleSlots")}</span>
+          ) : (
+            rescheduleSlots.map((s) => (
+              <button
+                key={s.value}
+                type="button"
+                disabled={isBusy}
+                onClick={async () => {
+                  const ok = await runAction(i.token, "reschedule", s.value);
+                  if (ok) {
+                    setRescheduleToken(null);
+                    setRescheduleSlots(null);
+                  }
+                }}
+                className="focus-ring rounded-md border border-stone-200 px-2 py-1 text-xs font-semibold text-ink hover:border-coral/50 disabled:opacity-50"
+              >
+                {slotLabel(s.value, s.label)}
+              </button>
+            ))
+          )}
+          <button
+            type="button"
+            onClick={() => {
+              setRescheduleToken(null);
+              setRescheduleSlots(null);
+            }}
+            className="focus-ring ml-auto rounded-md px-2 py-1 text-xs font-semibold text-steel hover:text-ink"
+          >
+            {t("cancel")}
+          </button>
+        </div>
+      );
+    }
+    const isArmed = armed?.token === i.token;
+    return (
+      <div className="mt-1 flex w-full flex-wrap items-center gap-1.5 border-t border-stone-100 pt-1.5">
+        {isArmed && armed.action === "cancel" ? (
+          <span className="inline-flex items-center gap-1.5" role="group" aria-label={t("cancelPrompt")}>
+            <span className="text-micro font-semibold text-amber-800">{t("cancelPrompt")}</span>
+            <button type="button" disabled={isBusy} onClick={() => runAction(i.token, "cancel")} className="focus-ring rounded-md border border-amber-300 bg-amber-50 px-2 py-1 text-micro font-semibold text-amber-800 hover:bg-amber-100 disabled:opacity-50">
+              {t("confirmAction")}
+            </button>
+            <button type="button" autoFocus onClick={() => setArmed(null)} className="focus-ring rounded-md px-2 py-1 text-micro font-semibold text-steel hover:bg-stone-100">
+              {t("cancel")}
+            </button>
+          </span>
+        ) : isArmed && armed.action === "no_show" ? (
+          <span className="inline-flex items-center gap-1.5" role="group" aria-label={t("noShowPrompt")}>
+            <span className="text-micro font-semibold text-red-700">{t("noShowPrompt")}</span>
+            <button type="button" disabled={isBusy} onClick={() => runAction(i.token, "no_show")} className="focus-ring rounded-md border border-red-300 bg-red-50 px-2 py-1 text-micro font-semibold text-red-700 hover:bg-red-100 disabled:opacity-50">
+              {t("confirmAction")}
+            </button>
+            <button type="button" autoFocus onClick={() => setArmed(null)} className="focus-ring rounded-md px-2 py-1 text-micro font-semibold text-steel hover:bg-stone-100">
+              {t("cancel")}
+            </button>
+          </span>
+        ) : (
+          <>
+            <button type="button" disabled={isBusy} onClick={() => openReschedule(i.token)} className="focus-ring inline-flex items-center gap-1 rounded-md border border-stone-200 px-2 py-1 text-micro font-semibold text-ink hover:border-coral/50 disabled:opacity-50">
+              <CalendarClock size={12} aria-hidden /> {t("reschedule")}
+            </button>
+            <button type="button" disabled={isBusy} onClick={() => setArmed({ token: i.token, action: "cancel" })} className="focus-ring inline-flex items-center gap-1 rounded-md border border-stone-200 px-2 py-1 text-micro font-semibold text-steel hover:border-coral/50 disabled:opacity-50">
+              <Ban size={12} aria-hidden /> {t("cancelBooking")}
+            </button>
+            <button type="button" disabled={isBusy} onClick={() => setArmed({ token: i.token, action: "no_show" })} className="focus-ring inline-flex items-center gap-1 rounded-md border border-stone-200 px-2 py-1 text-micro font-semibold text-red-700 hover:border-red-300 hover:bg-red-50 disabled:opacity-50">
+              <UserX size={12} aria-hidden /> {t("markNoShow")}
+            </button>
+          </>
+        )}
+      </div>
+    );
+  };
+
   // One agenda row, shared by the "today" and "upcoming" lists so they can't drift.
   // `inProgress` adds a live chip on a call happening right now.
   const agendaRow = (i: ScheduleInvite, inProgress = false) => (
@@ -129,6 +266,7 @@ export function InviteLifecyclePanel() {
           return ev ? <AddToCalendar event={ev} uid={`interview-${i.token}`} /> : null;
         })()}
       </span>
+      {recruiterControls(i)}
     </li>
   );
 
@@ -151,6 +289,28 @@ export function InviteLifecyclePanel() {
                 <span className="text-red-700">
                   {i.needsMoreSlots ? t("needsMoreSlots") : t("needsReconcile", { reason: i.reconcileReason ?? "" })}
                 </span>
+                {/* Direction 2 — in-app repair for the drift the store surfaces but
+                    the recruiter previously could only read: resolve clears the flag
+                    (two-step) once the mismatch is handled. */}
+                {i.needsReconcile ? (
+                  <span className="mt-1 flex items-center gap-1.5">
+                    {armed?.token === i.token && armed.action === "resolve_reconcile" ? (
+                      <span className="inline-flex items-center gap-1.5" role="group" aria-label={t("resolvePrompt")}>
+                        <span className="text-micro font-semibold text-red-700">{t("resolvePrompt")}</span>
+                        <button type="button" disabled={busy === i.token} onClick={() => runAction(i.token, "resolve_reconcile")} className="focus-ring rounded-md border border-red-300 bg-white px-2 py-1 text-micro font-semibold text-red-700 hover:bg-red-100 disabled:opacity-50">
+                          {t("confirmAction")}
+                        </button>
+                        <button type="button" autoFocus onClick={() => setArmed(null)} className="focus-ring rounded-md px-2 py-1 text-micro font-semibold text-steel hover:bg-stone-100">
+                          {t("cancel")}
+                        </button>
+                      </span>
+                    ) : (
+                      <button type="button" disabled={busy === i.token} onClick={() => setArmed({ token: i.token, action: "resolve_reconcile" })} className="focus-ring inline-flex items-center gap-1 rounded-md border border-red-200 bg-white px-2 py-1 text-micro font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50">
+                        <Wrench size={12} aria-hidden /> {t("resolveReconcile")}
+                      </button>
+                    )}
+                  </span>
+                ) : null}
               </li>
             ))}
           </ul>
