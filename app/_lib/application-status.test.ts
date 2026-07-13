@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   candidateStatusFor,
+  classifyStatusError,
   isTerminalCandidateStatus,
   timelineIndex,
   CANDIDATE_TIMELINE,
@@ -26,6 +27,20 @@ test("candidateStatusFor maps terminal statuses regardless of stage", () => {
 
 test("candidateStatusFor falls back to received on an unknown stage", () => {
   assert.equal(candidateStatusFor("active", "Nonsense"), "received");
+});
+
+test("classifyStatusError distinguishes an invalid/expired link from a retryable fault", () => {
+  // A bad/expired token (the route's 404) is a PERMANENT, link-level problem —
+  // it must NOT read as a transient error the candidate should retry.
+  assert.equal(classifyStatusError(404), "invalid");
+  assert.equal(classifyStatusError(410), "invalid");
+  assert.equal(classifyStatusError(400), "invalid");
+  // Transient faults are retryable: no response at all (offline), 5xx, back-pressure.
+  assert.equal(classifyStatusError(null), "retryable");
+  assert.equal(classifyStatusError(500), "retryable");
+  assert.equal(classifyStatusError(503), "retryable");
+  assert.equal(classifyStatusError(408), "retryable");
+  assert.equal(classifyStatusError(429), "retryable");
 });
 
 test("terminal + timeline helpers", () => {

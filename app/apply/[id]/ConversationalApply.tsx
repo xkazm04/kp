@@ -475,7 +475,7 @@ export function ConversationalApply({
         // stay intact; the recovery action matches WHY it failed (see the
         // submitError contract above): a transient blip re-POSTs the same answers,
         // while a server-rejected input restarts so the candidate can fix it.
-        <div className="mt-4 rounded-lg border border-coral/40 bg-coral/5 p-4">
+        <div role="alert" className="mt-4 rounded-lg border border-coral/40 bg-coral/5 p-4">
           <p className="text-base text-coral">{submitError.message}</p>
           {submitError.retryable ? (
             <button

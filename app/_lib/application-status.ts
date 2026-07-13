@@ -51,3 +51,27 @@ export function isTerminalCandidateStatus(s: CandidateStatus): boolean {
 export function timelineIndex(s: CandidateStatus): number {
   return CANDIDATE_TIMELINE.indexOf(s);
 }
+
+/** How a status-page load failed, from the candidate's point of view:
+ *  - `invalid`   — the LINK is the problem (unknown/expired token). Permanent
+ *                  and user-actionable; retrying the same URL is futile.
+ *  - `retryable` — a transient fault (offline, 5xx, back-pressure). The same
+ *                  request can succeed later, so offer a Retry. */
+export type StatusFetchError = "invalid" | "retryable";
+
+/**
+ * Classify a failed `/api/status/[token]` load so the candidate gets an honest,
+ * actionable message instead of one dead-end string for every failure
+ * (bug-ui-scan-2026-07-09 #4). `status` is the HTTP status, or `null` when the
+ * fetch threw before any response (offline / DNS / CORS).
+ *
+ * Mirrors {@link isRetryableApplyStatus}: no response, a 5xx, or 408/429 is
+ * RETRYABLE; every other 4xx — notably the route's 404 for an unknown/expired
+ * token — is a permanent, link-level problem the candidate must fix (or request a
+ * fresh link), so it maps to `invalid`. Pure + tested (application-status.test.ts).
+ */
+export function classifyStatusError(status: number | null): StatusFetchError {
+  if (status === null) return "retryable";
+  if (status >= 500 || status === 408 || status === 429) return "retryable";
+  return "invalid";
+}
