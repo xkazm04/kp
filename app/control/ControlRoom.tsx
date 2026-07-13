@@ -7,6 +7,7 @@ import { Select } from "@/app/_components/Select";
 import { useLoader } from "@/app/_lib/useLoader";
 import { aggregateLoadState } from "@/app/_lib/load-state";
 import { formatRelativeTime } from "@/app/_lib/format";
+import { armOrExecute } from "./controlRoomConfirm";
 
 type Audit = { id: number; lifecycleId: string | null; actor: string; action: string; reason: string | null; createdAt: string };
 type LC = { id: string; title: string | null; stage: string; detail: string | null };
@@ -37,6 +38,11 @@ export function ControlRoom() {
   const [form, setForm] = useState({ candidate: "", score: "", outcome: "hired", perf: "4" });
   // id of the recorded outcome currently picking a 1–5 performance score (one at a time).
   const [perfFor, setPerfFor] = useState<number | null>(null);
+  // bug-ui-scan-2026-07-09 (guided-pipeline-simulation #3): the consequential control
+  // currently ARMED (awaiting a confirm click) — approve/apply-floor/reconcile need a
+  // deliberate two-step so a misclick on this oversight surface can't fire an
+  // irreversible action. null = nothing armed. Pause/resume bypass this (kill switch).
+  const [armed, setArmed] = useState<string | null>(null);
 
   // The 3s poll keeps the last good status/outcomes visible when the API drops
   // and tracks per-loader failure + freshness, so a stale view is flagged rather
@@ -153,6 +159,15 @@ export function ControlRoom() {
     await load();
   };
 
+  // bug-ui-scan-2026-07-09 (guided-pipeline-simulation #3): route a consequential
+  // control through the two-step gate. First click arms (button flips to "Confirm…");
+  // a second click on the SAME control runs it. Any other control re-arms instead.
+  const guard = (key: string, run: () => void | Promise<void>) => {
+    const { execute, nextArmed } = armOrExecute(armed, key);
+    setArmed(nextArmed);
+    if (execute) void run();
+  };
+
   const paused = s?.autonomy === "paused";
   const active = (s?.lifecycles ?? []).filter((l) => !["promoted", "closed"].includes(l.stage));
 
@@ -201,8 +216,17 @@ export function ControlRoom() {
               Pause (kill switch)
             </button>
           )}
-          <button type="button" onClick={() => act("reconcile")} disabled={busy} className="focus-ring h-9 rounded-md border border-stone-200 bg-white px-3 text-sm font-semibold text-ink hover:border-coral/40 disabled:opacity-50">
-            Reconcile
+          {/* bug-ui-scan-2026-07-09 (guided-pipeline-simulation #3): reconcile mutates
+              lifecycle state — gate it behind a confirm, visually lit while armed. */}
+          <button
+            type="button"
+            onClick={() => guard("reconcile", () => act("reconcile"))}
+            disabled={busy}
+            className={`focus-ring h-9 rounded-md border px-3 text-sm font-semibold disabled:opacity-50 ${
+              armed === "reconcile" ? "border-coral bg-coral/10 text-coral" : "border-stone-200 bg-white text-ink hover:border-coral/40"
+            }`}
+          >
+            {armed === "reconcile" ? "Confirm reconcile?" : "Reconcile"}
           </button>
         </section>
 
@@ -217,8 +241,16 @@ export function ControlRoom() {
                     <span className="block truncate text-sm font-semibold text-ink">{g.title || "Role"}</span>
                     <span className="block truncate text-[11px] text-steel">{g.detail}</span>
                   </span>
-                  <button type="button" onClick={() => approve(g.id)} className="focus-ring h-8 shrink-0 rounded-md bg-moss px-3 text-[11px] font-semibold text-white hover:opacity-90">
-                    Approve &amp; continue
+                  {/* bug-ui-scan-2026-07-09 (guided-pipeline-simulation #3): approving an
+                      Art. 22 human gate is irreversible — require a deliberate confirm. */}
+                  <button
+                    type="button"
+                    onClick={() => guard(g.id, () => approve(g.id))}
+                    className={`focus-ring h-8 shrink-0 rounded-md px-3 text-[11px] font-semibold text-white hover:opacity-90 ${
+                      armed === g.id ? "bg-coral ring-2 ring-coral/40" : "bg-moss"
+                    }`}
+                  >
+                    {armed === g.id ? "Confirm approve?" : "Approve & continue"}
                   </button>
                 </div>
               ))}
@@ -271,8 +303,11 @@ export function ControlRoom() {
           </p>
 
           <div className="mt-2 flex flex-wrap items-center gap-1.5 rounded-lg border border-stone-200 bg-white p-2.5 shadow-panel">
-            <input value={form.candidate} onChange={(e) => setForm({ ...form, candidate: e.target.value })} placeholder="candidate" className="focus-ring h-8 w-28 rounded border border-stone-200 bg-white px-2 text-xs text-ink caret-coral placeholder:text-steel" />
-            <input value={form.score} onChange={(e) => setForm({ ...form, score: e.target.value })} placeholder="score" className="focus-ring h-8 w-16 rounded border border-stone-200 bg-white px-2 text-xs text-ink caret-coral placeholder:text-steel" />
+            {/* bug-ui-scan-2026-07-09 (guided-pipeline-simulation #5): a placeholder is
+                not an accessible name (it vanishes once a value is typed) — name each
+                field explicitly so a screen reader announces it recording an outcome. */}
+            <input aria-label="Candidate reference" value={form.candidate} onChange={(e) => setForm({ ...form, candidate: e.target.value })} placeholder="candidate" className="focus-ring h-8 w-28 rounded border border-stone-200 bg-white px-2 text-xs text-ink caret-coral placeholder:text-steel" />
+            <input aria-label="Predicted score" value={form.score} onChange={(e) => setForm({ ...form, score: e.target.value })} placeholder="score" className="focus-ring h-8 w-16 rounded border border-stone-200 bg-white px-2 text-xs text-ink caret-coral placeholder:text-steel" />
             <Select
               value={form.outcome}
               onChange={(v) => setForm({ ...form, outcome: v })}
@@ -308,8 +343,18 @@ export function ControlRoom() {
                 <span className="text-steel">Active promote floor</span>
                 <span className="font-serif text-lg text-ink">{o.activeFloor}</span>
                 {o.calibration.suggestedFloor != null && o.calibration.resolved >= 4 && o.calibration.suggestedFloor !== o.activeFloor ? (
-                  <button type="button" onClick={() => applyFloor(o.calibration.suggestedFloor!)} disabled={busy} className="focus-ring ml-auto h-7 rounded-md bg-coral px-2.5 text-[11px] font-semibold text-white hover:opacity-90 disabled:opacity-50">
-                    Apply suggested → {o.calibration.suggestedFloor}
+                  // bug-ui-scan-2026-07-09 (guided-pipeline-simulation #3): applying the
+                  // suggested floor changes the promote threshold for every future
+                  // auto-decision — gate it behind a confirm (two-step, lit while armed).
+                  <button
+                    type="button"
+                    onClick={() => guard("floor", () => applyFloor(o.calibration.suggestedFloor!))}
+                    disabled={busy}
+                    className={`focus-ring ml-auto h-7 rounded-md px-2.5 text-[11px] font-semibold text-white hover:opacity-90 disabled:opacity-50 ${
+                      armed === "floor" ? "bg-ink ring-2 ring-coral/40" : "bg-coral"
+                    }`}
+                  >
+                    {armed === "floor" ? `Confirm → ${o.calibration.suggestedFloor}?` : `Apply suggested → ${o.calibration.suggestedFloor}`}
                   </button>
                 ) : (
                   <span className="ml-auto text-[10px] uppercase text-steel">{o.calibration.resolved} resolved</span>
@@ -371,12 +416,16 @@ export function ControlRoom() {
                           row.performance
                         ) : row.outcome === "hired" ? (
                           perfFor === row.id ? (
-                            <span className="inline-flex items-center gap-1">
+                            // bug-ui-scan-2026-07-09 (guided-pipeline-simulation #5): name
+                            // the rating group and each digit so an SR announces "Rate
+                            // performance 3 of 5", not a bare "3".
+                            <span role="group" aria-label="Performance rating, 1 to 5" className="inline-flex items-center gap-1">
                               {[1, 2, 3, 4, 5].map((p) => (
                                 <button
                                   key={p}
                                   type="button"
                                   disabled={busy}
+                                  aria-label={`Rate performance ${p} of 5`}
                                   onClick={() => void addPerformance(row, p)}
                                   className="focus-ring h-5 w-5 rounded border border-stone-200 bg-white text-[10px] font-semibold text-ink hover:border-moss/50 hover:bg-moss/5 disabled:opacity-50"
                                 >

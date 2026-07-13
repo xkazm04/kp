@@ -27,6 +27,7 @@ import { CommandBar } from "@/app/features/sub_pipeline/CommandBar";
 import { SchedulerControl } from "@/app/features/sub_pipeline/SchedulerControl";
 import { PassPreviewModal } from "@/app/features/sub_pipeline/PassPreviewModal";
 import { SIM_PHASES } from "./constants";
+import { phaseStepState, type PhaseStepState } from "./phaseStep";
 import { useSimulation } from "./SimulationProvider";
 import { PHASE_ICON, useAutomationPass, useControlMode, usePublishBarHeight, type PassSummary } from "./controlCenterKit";
 
@@ -137,6 +138,15 @@ function PassStrip({ pass }: { pass: ReturnType<typeof useAutomationPass> }) {
   // reject-first), not here — this strip only carries the after-states.
   return null;
 }
+
+// bug-ui-scan-2026-07-09 (guided-pipeline-simulation #4): the i18n key that spells
+// out each step's state for its accessible name (kept beside the states so they
+// can't drift). The icon/color stay decorative; this is the non-color cue.
+const PHASE_STATE_KEY: Record<PhaseStepState, "phaseCompleted" | "phaseCurrent" | "phaseUpcoming"> = {
+  completed: "phaseCompleted",
+  current: "phaseCurrent",
+  upcoming: "phaseUpcoming",
+};
 
 export function ControlDock() {
   const router = useRouter();
@@ -284,17 +294,22 @@ export function ControlDock() {
               <span className="hidden shrink-0 items-center gap-1.5 text-meta font-semibold uppercase tracking-wide text-coral sm:flex">
                 <Sparkles size={13} /> {t("guidedDemo")}
               </span>
-              <ol className="flex flex-1 flex-wrap items-center gap-1">
+              {/* bug-ui-scan-2026-07-09 (guided-pipeline-simulation #4): name the list
+                  and embed done/current/upcoming into each step's accessible name, so
+                  the chronology isn't conveyed by color + an aria-hidden icon alone. */}
+              <ol aria-label={t("phasesLabel")} className="flex flex-1 flex-wrap items-center gap-1">
                 {SIM_PHASES.map((p, i) => {
                   const Icon = PHASE_ICON[p.id];
-                  const done = sim.done || activeIdx > i;
-                  const active = activeIdx === i && !sim.done;
+                  const state = phaseStepState({ activeIdx, index: i, simDone: sim.done });
+                  const done = state === "completed";
+                  const active = state === "current";
                   return (
                     <li key={p.id} className="flex items-center">
                       <button
                         type="button"
                         onClick={() => router.replace(buildUrl({ tab: p.tab }, searchParams.toString()), { scroll: false })}
                         aria-current={active ? "step" : undefined}
+                        aria-label={t("phaseStep", { label: p.label, state: t(PHASE_STATE_KEY[state]) })}
                         title={t("goToPhase", { label: p.label })}
                         className={`focus-ring inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-sm transition-colors ${
                           active
