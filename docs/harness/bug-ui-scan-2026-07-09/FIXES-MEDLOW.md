@@ -273,7 +273,25 @@ guard) — verified both coexist (retry ×3, empty-guard ×6, full suite 1799 gr
 **Long-open flake CLOSED:** the pid-keyed temp-DB flake (noted since data-store #4 in the memory
 index) is fixed — the node suite is now stable at 1824 across repeated runs.
 
+## Wave 21 — Jobs, JD Library & Sourcing (10 findings, all resolved, 3 contexts)
+
+4 commits (`<i18n>` + 3 fixes). tsc 0 · node unit 1824 → **1848** · i18n 3329 → **3371** × 4 · `next build` ✓.
+
+- **job-postings-lifecycle** (`<jobs>`): #3 `split-ads` separator narrowed to dashes only (an ad's
+  in-body `===`/`___`/`***` markdown no longer fragments into garbage jobs); #4 clears stale ingest
+  results/progress on start/toggle/cancel; #5 pure bounded ingest latch (open-on-hit/clear-on-miss +
+  clears the openOnly filter so the new draft is reachable). +13 tests.
+- **sourcing-campaigns-rediscovery** (`<sourcing>`): #3 latest-request-wins candidate fetch (aborts +
+  SIGKILLs the orphaned `recruiter_cli` on job switch); #4 rediscovery "Added ✓" badge actually
+  renders before a deferred dismiss (was a dead same-tick branch); #5 `CoachPanel` salary via shared
+  `formatSalaryRange`/`APP_CURRENCY` (was hardcoded cs-CZ + CZK). +9 tests.
+- **jd-authoring-library-templates** (`<jd>`): #2 tab-swap preserves the builder draft (both panels
+  mounted, keyed by `builderKey`); #3 localized the whole JD-library surface (**43 new keys**, catalog
+  3329→3371); #4 fake `role=listbox` filter → honest `role=menu`/`menuitemradio` with roving focus;
+  #5 exhaustive `jdLintMessage` + `assertNever` (a new finding kind is now a compile error, not a
+  silent "missing place"). +8 tests.
+
 ## Status
-Med/Low: **129 of 155 closed**, 26 open (9 M + 17 L) — of the open, **4 are deferred-with-cause**
-(1 product decision + 3 blocked on the voice-eval WIP; see Wave 15). Remaining topic waves:
-Jobs/JD/Sourcing, LLM + Billing.
+Med/Low: **139 of 155 closed**, 16 open (5 M + 11 L) — of the open, **4 are deferred-with-cause**
+(1 product decision + 3 blocked on the voice-eval WIP; see Wave 15). Remaining topic wave:
+LLM Provider Layer & Models + Billing & Monetization (Wave 22 — the last).
