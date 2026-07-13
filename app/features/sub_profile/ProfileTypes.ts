@@ -23,11 +23,16 @@ export type ArchetypeDef = {
   checklist: ArchetypeChecklistItem[];
 };
 
-// A candidate row for the archetype matrix (served by /api/profile/candidates) —
-// a saved CV analysis tagged with its routed archetype; the slug opens its full
-// Analyze output at /history/<slug>.
+// A candidate row for the archetype matrix (served by /api/profile/candidates) — a
+// UNION of BOTH stores tagged with `source`: a saved CV analysis (slug → /history)
+// or a saved v2 intake profile (id → the ?edit= editor deep link). `score` is the
+// analysis total for an analysis and null for a profile (no match score — honest,
+// never fabricated).
 export type CandidateRow = {
-  slug: string;
+  key: string;
+  source: "profile" | "analysis";
+  slug: string | null;
+  id: string | null;
   name: string;
   role: string | null;
   seniority: string | null;

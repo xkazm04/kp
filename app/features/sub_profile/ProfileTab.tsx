@@ -7,6 +7,7 @@ import { buildUrl } from "@/app/features/tabs";
 import type { ArchetypeDef, ProfilePayload } from "./ProfileTypes";
 import { ArchetypeManager } from "./ArchetypeManager";
 import { CandidateMatrix } from "./CandidateMatrix";
+import { ProfileRoster } from "./ProfileRoster";
 import { ProfileEditor, type EditorMode } from "./ProfileEditor";
 
 type EditorState = {
@@ -28,6 +29,22 @@ export function ProfileTab() {
   const [archLoading, setArchLoading] = useState(true);
   const [editor, setEditor] = useState<EditorState | null>(null);
   const [note, setNote] = useState<string | null>(null);
+  // Bumped when the roster changes (a delete) so the matrix, a sibling that fetches
+  // the same union, refetches instead of showing a just-deleted profile.
+  const [dataRev, setDataRev] = useState(0);
+
+  // Open the editor for a saved profile id — the single "?edit= flow" reused by both
+  // the pipeline deep link (below) and the roster's Edit action.
+  const openEditor = useCallback(
+    (id: string) =>
+      fetch(`/api/profile?id=${encodeURIComponent(id)}`)
+        .then((r) => (r.ok ? r.json() : Promise.reject(new Error("not found"))))
+        .then((p) =>
+          setEditor({ mode: "edit", editingId: id, initialPayload: (p.profile?.payload as ProfilePayload) ?? null })
+        )
+        .catch(() => setNote(t("deepLinkError"))),
+    [t]
+  );
 
   const reloadArchetypes = useCallback(
     () =>
@@ -56,24 +73,7 @@ export function ProfileTab() {
     const editId = params.get("edit");
     if (!editId) return;
     router.replace(buildUrl({ edit: null }, params.toString()), { scroll: false });
-    let alive = true;
-    fetch(`/api/profile?id=${encodeURIComponent(editId)}`)
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error("not found"))))
-      .then((p) => {
-        if (alive) {
-          setEditor({
-            mode: "edit",
-            editingId: editId,
-            initialPayload: (p.profile?.payload as ProfilePayload) ?? null,
-          });
-        }
-      })
-      .catch(() => {
-        if (alive) setNote(t("deepLinkError"));
-      });
-    return () => {
-      alive = false;
-    };
+    void openEditor(editId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -97,8 +97,11 @@ export function ProfileTab() {
         </p>
       ) : null}
       <ArchetypeManager archetypes={archetypes} loading={archLoading} onChanged={reloadArchetypes} />
+      <ProfileRoster onEdit={(id) => void openEditor(id)} onChanged={() => setDataRev((v) => v + 1)} />
       <CandidateMatrix
         archetypes={archetypes}
+        reloadKey={dataRev}
+        onEditProfile={(id) => void openEditor(id)}
         onNewProfile={() => setEditor({ mode: "create", editingId: null, initialPayload: null })}
       />
     </div>

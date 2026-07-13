@@ -5,16 +5,25 @@ import Link from "next/link";
 import { Plus, Users } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { ScoreBadge } from "@/app/_components/ScoreBadge";
+import { archetypeDisplayKey } from "@/app/_lib/archetypes";
+import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import type { ArchetypeDef, CandidateRow } from "./ProfileTypes";
 
 export function CandidateMatrix({
   archetypes,
   onNewProfile,
+  onEditProfile,
+  reloadKey = 0,
 }: {
   archetypes: ArchetypeDef[];
   onNewProfile: () => void;
+  /** Open the editor for a saved profile cell (same ?edit= flow the roster uses). */
+  onEditProfile: (id: string) => void;
+  /** Bump to force a refetch (e.g. after a roster delete elsewhere on the tab). */
+  reloadKey?: number;
 }) {
   const t = useTranslations("profile.matrix");
+  const enumLabel = useEnumLabel();
   const [candidates, setCandidates] = useState<CandidateRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -24,8 +33,14 @@ export function CandidateMatrix({
       .then((r) => r.json())
       .then((p) => {
         if (!alive) return;
-        if (p.error) setError(p.error);
-        else setCandidates((p.candidates as CandidateRow[]) ?? []);
+        if (p.error) {
+          setError(p.error);
+        } else {
+          // Clear any prior error in the continuation (not synchronously in the
+          // effect body) so a successful refetch after a transient failure recovers.
+          setError(null);
+          setCandidates((p.candidates as CandidateRow[]) ?? []);
+        }
       })
       .catch(() => {
         if (alive) setError(t("loadFailed"));
@@ -33,15 +48,19 @@ export function CandidateMatrix({
     return () => {
       alive = false;
     };
-  }, [t]);
+  }, [t, reloadKey]);
 
   // Columns = the registry archetypes, plus any archetype that appears on a
-  // candidate but isn't (or no longer is) in the registry, so no candidate is
+  // candidate but isn't (or no longer is) in the registry — mapped through
+  // archetypeDisplayKey so the fail-closed "unknown" sentinel folds into a single
+  // honest "Unrouted" column instead of a raw "unknown" one, and no candidate is
   // dropped from the matrix.
   const columns = useMemo(() => {
     const cols = archetypes.map((a) => ({ id: a.id, label: a.label }));
     const known = new Set(cols.map((c) => c.id));
-    const extra = [...new Set((candidates ?? []).map((c) => c.archetype).filter((id) => !known.has(id)))];
+    const extra = [
+      ...new Set((candidates ?? []).map((c) => archetypeDisplayKey(c.archetype)).filter((id) => !known.has(id))),
+    ];
     return [...cols, ...extra.map((id) => ({ id, label: id }))];
   }, [archetypes, candidates]);
 
@@ -52,7 +71,8 @@ export function CandidateMatrix({
     const order = new Map(columns.map((c, i) => [c.id, i]));
     return [...candidates].sort(
       (a, b) =>
-        (order.get(a.archetype) ?? 99) - (order.get(b.archetype) ?? 99) || (b.score ?? -1) - (a.score ?? -1)
+        (order.get(archetypeDisplayKey(a.archetype)) ?? 99) - (order.get(archetypeDisplayKey(b.archetype)) ?? 99) ||
+        (b.score ?? -1) - (a.score ?? -1)
     );
   }, [candidates, columns]);
 
@@ -97,17 +117,23 @@ export function CandidateMatrix({
                       scope="col"
                       className="px-3 py-2.5 text-left text-sm font-semibold uppercase tracking-wide text-steel"
                     >
-                      {c.label}
+                      {/* Registry columns carry their own label; the synthetic
+                          "unrouted"/extra columns (label === id) localize via the enum. */}
+                      {c.label === c.id ? enumLabel("archetype", c.id) : c.label}
                     </th>
                   ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-stone-100">
                 {rows.map((cand) => (
-                  <tr key={cand.slug} className="align-top">
+                  <tr key={cand.key} className="align-top">
                     {columns.map((c) => (
                       <td key={c.id} className="px-3 py-2">
-                        {c.id === cand.archetype ? <CandidateCell cand={cand} /> : <span className="text-stone-300">{"·"}</span>}
+                        {c.id === archetypeDisplayKey(cand.archetype) ? (
+                          <CandidateCell cand={cand} onEditProfile={onEditProfile} />
+                        ) : (
+                          <span className="text-stone-300">{"·"}</span>
+                        )}
                       </td>
                     ))}
                   </tr>
@@ -121,22 +147,43 @@ export function CandidateMatrix({
   );
 }
 
-function CandidateCell({ cand }: { cand: CandidateRow }) {
+function CandidateCell({ cand, onEditProfile }: { cand: CandidateRow; onEditProfile: (id: string) => void }) {
   const t = useTranslations("profile.matrix");
-  return (
-    <Link
-      href={`/history/${cand.slug}`}
-      className="focus-ring group block rounded-md border border-stone-200 bg-white px-2.5 py-1.5 hover:border-coral/50 hover:bg-coral/5"
-      title={t("openAnalysisTitle", { name: cand.name })}
-    >
+  // Route by store: a profile opens the editor (the same ?edit= flow, invoked
+  // directly since a same-tab query change wouldn't re-fire the mount effect); an
+  // analysis opens its Analyze output at /history/<slug>. A cheap source chip marks
+  // which store a cell came from — no per-source column explosion.
+  const isProfile = cand.source === "profile";
+  const cellClass =
+    "focus-ring group block w-full rounded-md border border-stone-200 bg-white px-2.5 py-1.5 text-left hover:border-coral/50 hover:bg-coral/5";
+  const body = (
+    <>
       <div className="flex items-center justify-between gap-2">
         <span className="min-w-0 truncate font-semibold text-ink group-hover:text-coral">{cand.name}</span>
         <ScoreBadge score={cand.score} />
       </div>
-      <p className="mt-0.5 truncate text-sm capitalize text-steel">
-        {cand.role ?? "—"}
-        {cand.seniority ? ` · ${cand.seniority}` : ""}
-      </p>
+      <div className="mt-0.5 flex items-center justify-between gap-2">
+        <p className="min-w-0 truncate text-sm capitalize text-steel">
+          {cand.role ?? "—"}
+          {cand.seniority ? ` · ${cand.seniority}` : ""}
+        </p>
+        <span
+          className={`shrink-0 rounded-full px-1.5 py-0.5 text-micro font-semibold uppercase tracking-wide ${
+            isProfile ? "bg-coral/10 text-coral" : "bg-stone-100 text-steel"
+          }`}
+        >
+          {isProfile ? t("sourceProfile") : t("sourceAnalysis")}
+        </span>
+      </div>
+    </>
+  );
+  return isProfile ? (
+    <button type="button" onClick={() => cand.id && onEditProfile(cand.id)} className={cellClass} title={t("openProfileTitle", { name: cand.name })}>
+      {body}
+    </button>
+  ) : (
+    <Link href={`/history/${cand.slug}`} className={cellClass} title={t("openAnalysisTitle", { name: cand.name })}>
+      {body}
     </Link>
   );
 }
