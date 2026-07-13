@@ -1,7 +1,7 @@
 "use client";
 
-import { Fragment } from "react";
-import { ArrowLeft, ClipboardList, FileWarning, Lock, MicVocal, Send, Users } from "lucide-react";
+import { Fragment, useState } from "react";
+import { AlertTriangle, ArrowLeft, ClipboardList, FileCode2, FileWarning, Lock, MicVocal, Send, Users } from "lucide-react";
 import { Markdown } from "@/app/_components/Markdown";
 import { formatRelativeTime } from "@/app/_lib/format";
 import { ApplyTokenPill } from "./ApplyTokenPill";
@@ -13,7 +13,11 @@ import { caseToMarkdown } from "./DevHelpers";
 import { MiniList, ProbeRow, RubricChip } from "./DevShared";
 import { SubmissionForm } from "./SubmissionForm";
 import { SubmissionRow } from "./SubmissionRow";
-import type { DevCaseDetail, Posting } from "./DevTypes";
+// #3 + #5 (bug-ui-scan-2026-07-09) — publish-gate + seed-preview logic extracted to
+// pure siblings so they are unit-testable (node --test can't load this .tsx).
+import { canConfirmPublish, degradedReasons, isDegradedPublish } from "./CaseDetail.publish";
+import { seedPreview } from "./CaseDetail.seed";
+import type { DevCaseDetail, Posting, SeedFile } from "./DevTypes";
 
 /** The readable case document: the candidate-facing assignment rendered as
  *  formatted Markdown (caseToMarkdown — probes can never leak into it), followed
@@ -82,6 +86,43 @@ export function CaseDetail({
   const scenarioDegraded = hasScenario && kase.scenario?.source != null && kase.scenario.source !== "llm";
   const seedDegraded = kase.seed?.source != null && kase.seed.source !== "llm";
 
+  // #3 — Publish is effectively IRREVERSIBLE here (mints a live apply token + sources
+  // real candidates) and used to fire on a single unguarded click, degraded or not. Gate
+  // it behind an explicit confirm step; a degraded case additionally needs the "publish
+  // anyway" acknowledgement (canConfirmPublish). NOTE: the fix sketch's third leg — an
+  // in-surface "Close posting" control — is intentionally SKIPPED here: there is no
+  // per-posting close endpoint (only /api/devcase/lifecycle/[id]/close, which dispatches
+  // candidate rejections and is owned by the lifecycle context), so adding a live button
+  // with no safe backing endpoint would be worse than deferring it.
+  const [confirmingPublish, setConfirmingPublish] = useState(false);
+  const [ackDegraded, setAckDegraded] = useState(false);
+  const degraded = isDegradedPublish({ scenarioDegraded, seedDegraded });
+  const publishReasons = degradedReasons({ scenarioDegraded, seedDegraded });
+  const canPublishNow = canConfirmPublish({ scenarioDegraded, seedDegraded, acknowledgedDegraded: ackDegraded });
+  const confirmPublish = () => {
+    if (!canPublishNow) return;
+    setConfirmingPublish(false);
+    setAckDegraded(false);
+    publish(kase.id);
+  };
+  const cancelPublish = () => {
+    setConfirmingPublish(false);
+    setAckDegraded(false);
+  };
+
+  // #5 — the materialized seed the candidate is actually handed (the apply page ships
+  // these via LiveWorkSurface). Narrowed defensively, same shape as the apply page, so
+  // the author can preview the concrete deliverable before publishing — not just the
+  // prose brief. A degraded/skeleton seed is then visible, not only hinted by a pill.
+  const seedFiles: SeedFile[] = Array.isArray(kase.seed?.files)
+    ? (kase.seed.files as unknown[]).filter(
+        (f): f is SeedFile =>
+          typeof f === "object" && f !== null &&
+          typeof (f as SeedFile).path === "string" &&
+          typeof (f as SeedFile).contents === "string",
+      )
+    : [];
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
@@ -118,8 +159,11 @@ export function CaseDetail({
         <div className="ml-auto flex gap-1.5">
           <button
             type="button"
-            onClick={() => publish(kase.id)}
-            disabled={published || publishing}
+            // #3 — open the confirm step instead of publishing on this single click.
+            onClick={() => setConfirmingPublish(true)}
+            disabled={published || publishing || confirmingPublish}
+            aria-haspopup="dialog"
+            aria-expanded={confirmingPublish}
             className="focus-ring inline-flex h-8 items-center gap-1.5 rounded-md border border-stone-200 bg-white px-2.5 text-micro font-semibold text-ink hover:border-coral/40 disabled:opacity-50"
           >
             <Send size={12} /> {published ? "Published" : publishing ? "Publishing…" : "Publish"}
@@ -136,10 +180,88 @@ export function CaseDetail({
         </div>
       </div>
 
+      {/* #3 — confirm-before-publish. Publishing is effectively irreversible from here,
+          so it takes an explicit confirm; a degraded case takes a "publish anyway" ack. */}
+      {confirmingPublish && !published ? (
+        <div role="alertdialog" aria-label="Confirm publish" className="rounded-lg border border-coral/30 bg-coral/5 p-4">
+          <h3 className="flex items-center gap-1.5 text-meta font-semibold uppercase tracking-wide text-coral">
+            <Send size={12} /> Publish this case?
+          </h3>
+          <p className="mt-2 max-w-prose text-sm text-steel">
+            Publishing mints a live candidate-facing apply link and sources real candidates from your database into
+            the pipeline. This can&apos;t be undone from here.
+          </p>
+          {degraded ? (
+            <div className="mt-3 rounded-md border border-amber-300 bg-amber-50 p-3">
+              <p className="flex items-center gap-1.5 text-meta font-semibold text-amber-700">
+                <AlertTriangle size={13} /> This case is degraded
+              </p>
+              <ul className="mt-1.5 list-disc space-y-1 pl-5 text-xs text-amber-800">
+                {publishReasons.map((r) => (
+                  <li key={r}>{r}</li>
+                ))}
+              </ul>
+              <label className="mt-2 flex items-start gap-2 text-xs font-medium text-amber-900">
+                <input
+                  type="checkbox"
+                  checked={ackDegraded}
+                  onChange={(e) => setAckDegraded(e.target.checked)}
+                  className="mt-0.5"
+                />
+                I understand this case is degraded — publish it anyway.
+              </label>
+            </div>
+          ) : null}
+          <div className="mt-3 flex gap-1.5">
+            <button
+              type="button"
+              onClick={confirmPublish}
+              disabled={!canPublishNow || publishing}
+              className="focus-ring inline-flex h-8 items-center gap-1.5 rounded-md bg-coral px-3 text-micro font-semibold text-white hover:bg-coral/90 disabled:opacity-50"
+            >
+              <Send size={12} /> {publishing ? "Publishing…" : "Confirm & publish"}
+            </button>
+            <button
+              type="button"
+              onClick={cancelPublish}
+              className="focus-ring inline-flex h-8 items-center rounded-md border border-stone-200 bg-white px-3 text-micro font-semibold text-steel hover:text-ink"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : null}
+
       {/* the assignment, as the candidate would read it */}
       <article className="rounded-lg border border-stone-200 bg-white px-6 py-5 shadow-panel sm:px-8 sm:py-6">
         <Markdown content={caseToMarkdown(c, role)} className="max-w-3xl" />
       </article>
+
+      {/* #5 — the materialized seed the candidate is actually handed (collapsed). Lets the
+          author verify the concrete starter files before publishing, not only the brief. */}
+      {seedFiles.length > 0 ? (
+        <details className="rounded-lg border border-stone-200 bg-white shadow-panel">
+          <summary className="focus-ring flex cursor-pointer list-none items-center gap-1.5 px-4 py-3 text-meta font-semibold uppercase tracking-wide text-steel">
+            <FileCode2 size={13} className="text-coral" /> Materialized seed — what the candidate receives
+            <span className="text-coral">· {seedFiles.length} file{seedFiles.length === 1 ? "" : "s"}</span>
+          </summary>
+          <div className="space-y-3 border-t border-stone-200 px-4 py-3">
+            {seedDegraded ? (
+              <p className="text-xs text-amber-700">
+                Skeleton only — this is the prose-only fallback, not concrete starter files. Re-run before sending.
+              </p>
+            ) : null}
+            {seedFiles.map((f) => (
+              <div key={f.path}>
+                <p className="font-mono text-xs font-semibold text-ink">{f.path}</p>
+                <pre className="mt-1 max-h-40 overflow-auto rounded-md border border-stone-200 bg-stone-50 p-2 font-mono text-[11px] leading-relaxed text-steel">
+                  {seedPreview(f.contents)}
+                </pre>
+              </div>
+            ))}
+          </div>
+        </details>
+      ) : null}
 
       {/* internal material — everything a candidate must never see */}
       <section className="rounded-lg border border-amber-200 bg-amber-50/40 p-4">

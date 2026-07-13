@@ -459,6 +459,20 @@ export function listOutboxFiltered(
   return rows.map(rowToOutboxEntry);
 }
 
+/** Map a dev_postings row to the Posting shape (shared by the by-id/by-token/dedup reads). */
+function rowToPosting(r: Record<string, unknown>): Posting {
+  return {
+    id: r.id as string,
+    caseId: (r.case_id as string) ?? null,
+    channel: r.channel as string,
+    token: (r.token as string) ?? null,
+    roleTitle: (r.role_title as string) ?? null,
+    caseTitle: (r.case_title as string) ?? null,
+    status: r.status as string,
+    createdAt: r.created_at as string,
+  };
+}
+
 export function createPosting(input: {
   caseId: string;
   channel: string;
@@ -467,16 +481,36 @@ export function createPosting(input: {
   caseTitle: string | null;
 }): Posting {
   const db = ensureDb();
-  const now = new Date().toISOString();
-  const id = randomId("pst");
   // Tenant (P1): a posting inherits its case's workspace (by-id read of the team's case).
   const wsRow = db.prepare(`SELECT workspace_id FROM dev_cases WHERE id = ?`).get(input.caseId) as { workspace_id?: string } | undefined;
   const workspaceId = wsRow?.workspace_id ?? DEFAULT_WORKSPACE_ID;
+  // PUBLISH DEDUP (bug-ui-scan-2026-07-09 (dev-case-authoring-publishing #4)). Publish
+  // must be idempotent per (workspace, case, channel) while a posting stays OPEN —
+  // otherwise a concurrent / multi-tab / reload-mid-request re-publish mints a SECOND
+  // live apply token for one case and its submissions split across two tokens,
+  // fragmenting the case-wide shortlist so the "true #1" ranking is wrong. Two layers,
+  // mirroring createSubmission: (1) reuse the case+channel's existing OPEN posting if one
+  // is already present — read-then-insert is atomic here because better-sqlite3 is
+  // synchronous and Node is single-threaded, so no other in-process request interleaves
+  // mid-function; (2) the partial UNIQUE index (core.ts) + targetless ON CONFLICT DO
+  // NOTHING makes even a cross-connection double-insert impossible. Either way the SAME
+  // existing token is returned, never a duplicate. A CLOSED posting is excluded, so a
+  // deliberate re-publish after closing still mints a fresh posting.
+  const selectOpen = `SELECT * FROM dev_postings WHERE workspace_id = ? AND case_id = ? AND channel = ? AND status = 'open' ORDER BY created_at ASC LIMIT 1`;
+  const existing = db.prepare(selectOpen).get(workspaceId, input.caseId, input.channel) as Record<string, unknown> | undefined;
+  if (existing) return rowToPosting(existing);
+
+  const now = new Date().toISOString();
+  const id = randomId("pst");
   db.prepare(
     `INSERT INTO dev_postings (id, case_id, channel, token, role_title, case_title, status, created_at, workspace_id)
-     VALUES (?, ?, ?, ?, ?, ?, 'open', ?, ?)`
+     VALUES (?, ?, ?, ?, ?, ?, 'open', ?, ?)
+     ON CONFLICT DO NOTHING`
   ).run(id, input.caseId, input.channel, input.token, input.roleTitle, input.caseTitle, now, workspaceId);
-  return { id, caseId: input.caseId, channel: input.channel, token: input.token, roleTitle: input.roleTitle, caseTitle: input.caseTitle, status: "open", createdAt: now };
+  // Re-select the canonical open row: ours if the insert won, or the row a concurrent
+  // connection inserted first (the unique index rejected ours via ON CONFLICT DO NOTHING).
+  const row = db.prepare(selectOpen).get(workspaceId, input.caseId, input.channel) as Record<string, unknown>;
+  return rowToPosting(row);
 }
 
 export function listPostings(workspaceId: string = DEFAULT_WORKSPACE_ID): Posting[] {
@@ -503,17 +537,7 @@ export function listPostings(workspaceId: string = DEFAULT_WORKSPACE_ID): Postin
 export function getPostingByToken(token: string): Posting | null {
   const db = ensureDb();
   const r = db.prepare(`SELECT * FROM dev_postings WHERE token = ?`).get(token) as Record<string, unknown> | undefined;
-  if (!r) return null;
-  return {
-    id: r.id as string,
-    caseId: (r.case_id as string) ?? null,
-    channel: r.channel as string,
-    token: (r.token as string) ?? null,
-    roleTitle: (r.role_title as string) ?? null,
-    caseTitle: (r.case_title as string) ?? null,
-    status: r.status as string,
-    createdAt: r.created_at as string,
-  };
+  return r ? rowToPosting(r) : null;
 }
 
 // Atomic, idempotent on (posting, candidate, repo): the UNIQUE index +
@@ -624,6 +648,27 @@ export function getDevSession(id: string): DevSession | null {
   return r ? rowToSession(r) : null;
 }
 
+// bug-ui-scan-2026-07-09 (dev-submissions-live-work-surface #2): a per-token session
+// throttle. Apply tokens are deliberately shareable PUBLIC links, so an unauthenticated
+// holder is the trust boundary — session POST otherwise minted unlimited sessions per
+// token, a cheap storage-exhaustion vector (each session then flushes events). Counting
+// sessions created since a window boundary lets the route enforce a per-token/day cap.
+export function countRecentDevSessionsForToken(token: string, sinceIso: string): number {
+  const db = ensureDb();
+  const r = db
+    .prepare(`SELECT COUNT(*) AS n FROM dev_sessions WHERE token = ? AND created_at >= ?`)
+    .get(token, sinceIso) as { n: number };
+  return Number(r.n);
+}
+
+// bug-ui-scan-2026-07-09 (dev-submissions-live-work-surface #2): the absolute ceiling on
+// stored events per session. The flush route caps per-FLUSH (MAX_EVENTS) but not the
+// number of flushes, so one session could accumulate unbounded rows. Genuine sessions
+// emit coarse (debounced) events — hundreds, not tens of thousands — so this bounds
+// abuse while never touching a real candidate's run. Enforced atomically in
+// appendDevSessionEvents below.
+export const MAX_SESSION_EVENTS = 20000;
+
 export function getDevSessionEvents(id: string): DevSessionEvent[] {
   const db = ensureDb();
   const rows = db
@@ -661,8 +706,16 @@ export function appendDevSessionEvents(id: string, events: DevSessionEvent[]): n
     const workspaceId = active.workspace_id ?? DEFAULT_WORKSPACE_ID;
     const max = db.prepare(`SELECT COALESCE(MAX(seq), 0) AS m FROM dev_session_events WHERE session_id = ?`).get(id) as { m: number };
     let seq = Number(max.m);
+    // bug-ui-scan-2026-07-09 (dev-submissions-live-work-surface #2): the per-session
+    // event ceiling. `seq` is the current row count (contiguous, no deletes), so only
+    // accept up to MAX_SESSION_EVENTS total — a leaked token can no longer amplify one
+    // session into unbounded rows. At the cap this is a no-op that returns the high-water
+    // seq unchanged; excess events in an over-cap flush are dropped.
+    const room = MAX_SESSION_EVENTS - seq;
+    if (room <= 0) return seq;
+    const accepted = events.length > room ? events.slice(0, room) : events;
     const stmt = db.prepare(`INSERT INTO dev_session_events (session_id, seq, t, kind, path, size, created_at, workspace_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`);
-    for (const e of events) {
+    for (const e of accepted) {
       seq += 1;
       // `size` = paste magnitude (char count) for "paste" events; null otherwise.
       const size = typeof e.size === "number" && Number.isFinite(e.size) ? e.size : null;
@@ -722,17 +775,7 @@ export function setPostingStatus(id: string, status: string): boolean {
 export function getPosting(id: string): Posting | null {
   const db = ensureDb();
   const r = db.prepare(`SELECT * FROM dev_postings WHERE id = ?`).get(id) as Record<string, unknown> | undefined;
-  if (!r) return null;
-  return {
-    id: r.id as string,
-    caseId: (r.case_id as string) ?? null,
-    channel: r.channel as string,
-    token: (r.token as string) ?? null,
-    roleTitle: (r.role_title as string) ?? null,
-    caseTitle: (r.case_title as string) ?? null,
-    status: r.status as string,
-    createdAt: r.created_at as string,
-  };
+  return r ? rowToPosting(r) : null;
 }
 
 export function saveSubmissionEvaluation(id: string, evaluation: unknown, transferScore: number): void {

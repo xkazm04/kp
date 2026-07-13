@@ -958,6 +958,22 @@ export function ensureDb(): Database.Database {
   } catch {
     /* pre-existing duplicate rows prevent the unique index; skip */
   }
+  // Publish idempotency (bug-ui-scan-2026-07-09 (dev-case-authoring-publishing #4)):
+  // at most ONE OPEN posting per (workspace, case, channel). The partial UNIQUE index
+  // turns createPosting's INSERT ... ON CONFLICT DO NOTHING into a hard guarantee, so a
+  // concurrent / multi-tab / reload re-publish can't mint a second live apply token for
+  // one case and split its submissions across two tokens. A CLOSED posting is outside
+  // the index, so a deliberate re-publish after closing still mints a fresh posting.
+  // Guarded like the submissions index — a legacy DB with duplicate OPEN postings keeps
+  // the app-level reuse (createPosting's read-then-insert) instead of the index.
+  try {
+    db.exec(
+      `CREATE UNIQUE INDEX IF NOT EXISTS uq_dev_postings_open
+         ON dev_postings (workspace_id, case_id, channel) WHERE status = 'open'`
+    );
+  } catch {
+    /* pre-existing duplicate open postings prevent the unique index; skip */
+  }
   // Atomic task dedup across connections (the scheduler ticks on its own connection
   // and an external cron can hit /api/automation/run): a partial UNIQUE index forbids
   // two ACTIVE rows sharing a dedupe_key, turning startTask's app-level read-then-write
