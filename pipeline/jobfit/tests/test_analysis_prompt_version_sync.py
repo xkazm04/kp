@@ -40,8 +40,15 @@ TAXONOMY_JSON = REPO_ROOT / "data" / "taxonomy.json"
 # EXPECTED_PROMPT_VERSION mirrors the live value in cache-key.ts. When the analysis
 # fingerprint below changes you MUST bump PROMPT_VERSION there (so stale caches are
 # retired) and update both constants here in the same commit.
+# NOTE (Direction 1, matching-engine): the fingerprint was re-recorded when
+# data/taxonomy.json gained `family_degree_terms` + `adjacent_domain_signals`.
+# The whole-file taxonomy hash is deliberately conservative, so it trips on ANY
+# taxonomy edit — but those two keys are read ONLY by the early-career/switcher
+# transform (transform.py / transferable.py), never by the Gemini analysis prompt
+# or ANALYSIS_RESPONSE_SCHEMA, so no cached analysis output changed. PROMPT_VERSION
+# is therefore intentionally NOT bumped (no stale-cache invalidation is warranted).
 EXPECTED_PROMPT_VERSION = "v5-2026-06-09-lang-cachekey"
-EXPECTED_ANALYSIS_FINGERPRINT = "e728396d599cf50181a5e46821d87bd682336b3ecbb121b12d1b804e98c3db6e"
+EXPECTED_ANALYSIS_FINGERPRINT = "701a21b8ed1cff46c5424a90dcb835a820e59cd29e3e5e8eed0d822b90da355f"
 
 
 def _strip_ts_comments(text: str) -> str:

@@ -114,6 +114,30 @@ def role_family_catalog() -> list[tuple[str, str]]:
             catalog.append((fam, desc))
     return catalog
 
+# Role-family-keyed surface heuristics for the early-career / career-switcher
+# transform (transform.compute_potential, transferable.domain_distance). The
+# taxonomy owns them as DATA so all 16 families are covered — a non-tech family is
+# no longer silently degraded to an empty tuple the way the old hardcoded 3-family
+# dicts in transform.py/transferable.py did. See data/taxonomy.json
+# ::_doc_family_heuristics. Every ROLE_FAMILY must appear in both, or the transform
+# would quietly score that family's candidates against no evidence at all.
+FAMILY_DEGREE_TERMS: dict[str, tuple[str, ...]] = {
+    str(fam): tuple(str(t) for t in terms)
+    for fam, terms in (_TAXONOMY.get("family_degree_terms") or {}).items()
+}
+ADJACENT_DOMAIN_SIGNALS: dict[str, tuple[str, ...]] = {
+    str(fam): tuple(str(s) for s in sigs)
+    for fam, sigs in (_TAXONOMY.get("adjacent_domain_signals") or {}).items()
+}
+for _map_name, _fam_map in (("family_degree_terms", FAMILY_DEGREE_TERMS), ("adjacent_domain_signals", ADJACENT_DOMAIN_SIGNALS)):
+    _missing_families = [f for f in ROLE_FAMILIES if f not in _fam_map]
+    if _missing_families:
+        raise RuntimeError(
+            f"{_TAXONOMY_PATH}::{_map_name} is missing entries for role families "
+            f"{_missing_families}. Every family in salary_benchmarks.json must be "
+            "covered so the early-career/switcher transform has surface heuristics for it."
+        )
+
 COMPANY_ADJUSTMENTS: dict[str, dict[str, Any]] = dict(_TAXONOMY.get("company_adjustments", {}))
 COMPANY_MODIFIER_EFFECTS: dict[str, dict[str, Any]] = dict(_TAXONOMY.get("company_modifier_effects", {}))
 SALARY_SIGNAL_RATIONALE: dict[str, str] = {

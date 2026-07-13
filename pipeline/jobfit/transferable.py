@@ -12,6 +12,8 @@ from __future__ import annotations
 
 from typing import Iterable
 
+from .taxonomy import ADJACENT_DOMAIN_SIGNALS
+
 # Prior-role surface signals (CZ + EN) -> transferable meta-skills.
 _TRANSFERABLE_MAP: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
     (("teacher", "lecturer", "tutor", "educator", "učitel", "lektor", "pedagog", "trenér"),
@@ -74,22 +76,10 @@ def map_transferable(evidence: Iterable) -> list[tuple[str, str]]:
 # finance analyst moving into data work crosses a far shorter bridge than a nurse
 # into backend engineering, and a binary "wants_domain_change" can't tell those
 # apart. Token lists are surface substrings (CZ + EN) matched against prior
-# job/internship evidence text — the same mechanism as _TRANSFERABLE_MAP.
-_ADJACENT_SIGNALS: dict[str, tuple[str, ...]] = {
-    "data_ai": (
-        "analyst", "analytik", "finance", "účet", "controller", "controlling", "audit",
-        "research", "statist", "math", "excel", "sql", "reporting", "bi ",
-    ),
-    "software_engineering": (
-        "develop", "vývoj", "program", "engineer", "inženýr", "qa", "test",
-        "support", "helpdesk", "admin", "it ", "analyst", "analytik", "data",
-    ),
-    "product_project": (
-        "manager", "vedoucí", "coordinator", "koordinátor", "project", "projekt",
-        "product", "produkt", "marketing", "sales", "obchod", "consultant",
-        "konzultant", "business",
-    ),
-}
+# job/internship evidence text — the same mechanism as _TRANSFERABLE_MAP. They now
+# live in data/taxonomy.json (taxonomy.ADJACENT_DOMAIN_SIGNALS) covering all 16
+# role families, so a switch INTO a non-tech family is graded, not defaulted FAR.
+_ADJACENT_SIGNALS = ADJACENT_DOMAIN_SIGNALS
 
 DISTANCE_ADJACENT = "adjacent"
 DISTANCE_MODERATE = "moderate"

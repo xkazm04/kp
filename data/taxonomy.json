@@ -19,6 +19,43 @@
     "customer_support": "Customer support & success — support agents, customer service, help desk, customer success.",
     "general_professional": "General professional / other — office, administrative, coordination, consulting, and any white-collar role not covered by a more specific family. The default fallback."
   },
+  "_doc_family_heuristics": "family_degree_terms + adjacent_domain_signals are the role-family-keyed surface heuristics behind the early-career/career-switcher transform (pipeline/jobfit/transform.py::compute_potential and transferable.py::domain_distance). family_degree_terms: substrings (CZ+EN, lowercased) that hint a candidate's degree/education_detail is relevant to the target family, lifting the potential 'foundation' term. adjacent_domain_signals: prior-role surface signals (matched against a switcher's job/internship evidence) that sit ADJACENT to the target family, so the domain-distance grade sees a short bridge (finance analyst -> data work) vs a far one. Both cover all role_families so 13 non-tech families are no longer silently degraded to a bare fallback. The software_engineering/data_ai/product_project values preserve the original hardcoded tech lists exactly.",
+  "family_degree_terms": {
+    "software_engineering": ["comput", "software", "informat", "programm", "fel", "fit", "kybernet"],
+    "data_ai": ["data", "machine learning", "ai", "statist", "math", "analyt"],
+    "product_project": ["manage", "business", "econom", "product", "marketing"],
+    "healthcare_clinical": ["nurs", "medic", "zdravot", "lékař", "ošetřov", "pharm", "farmac", "physio", "fyzio", "clinical", "health", "biomed"],
+    "life_sciences_research": ["biolog", "chem", "physic", "fyzik", "science", "věd", "research", "výzkum", "pharma", "farmac", "biotech", "molecul", "genet", "laborat"],
+    "skilled_trades": ["electric", "elektro", "mechan", "weld", "svář", "machin", "construct", "stavební", "řemesl", "průmysl", "automotive", "cnc", "instalatér", "technical"],
+    "operations_logistics": ["logist", "supply", "operations", "provoz", "doprav", "transport", "manufactur", "výrob", "warehouse", "sklad", "industrial", "produkc"],
+    "frontline_service": ["hospitality", "gastro", "hotel", "tourism", "cestovní", "retail", "služeb", "culinary", "kuchař"],
+    "sales_marketing": ["market", "sales", "obchod", "business", "commerce", "econom", "brand", "communic", "media", "reklam"],
+    "finance_accounting": ["financ", "account", "účet", "econom", "ekonom", "audit", "banking", "bank", "tax", "daň", "actuar", "pojist"],
+    "legal_compliance": ["law", "práv", "legal", "juris", "compliance", "regulat", "politic"],
+    "hr_people": ["psycholog", "human resource", "personál", "sociolog", "andrago", "labor", "manage", "people"],
+    "education_academic": ["educ", "pedagog", "teach", "učitel", "didakt", "vzdělá", "academ", "philolog", "philosoph"],
+    "creative_design": ["design", "art", "umění", "graphic", "grafik", "media", "architect", "architekt", "vizuál", "creative", "film", "photo", "journalis", "žurnalis", "typograf"],
+    "customer_support": ["communic", "service", "služeb", "business", "languages", "jazyk", "administ"],
+    "general_professional": ["business", "manage", "econom", "administ", "human", "social", "arts", "liberal"]
+  },
+  "adjacent_domain_signals": {
+    "software_engineering": ["develop", "vývoj", "program", "engineer", "inženýr", "qa", "test", "support", "helpdesk", "admin", "it ", "analyst", "analytik", "data"],
+    "data_ai": ["analyst", "analytik", "finance", "účet", "controller", "controlling", "audit", "research", "statist", "math", "excel", "sql", "reporting", "bi "],
+    "product_project": ["manager", "vedoucí", "coordinator", "koordinátor", "project", "projekt", "product", "produkt", "marketing", "sales", "obchod", "consultant", "konzultant", "business"],
+    "healthcare_clinical": ["nurse", "sestra", "zdravot", "care", "pečovat", "ošetřov", "medic", "lékař", "doctor", "pharma", "lékárn", "physio", "fyzio", "clinic", "hospital", "nemocnic", "paramedic", "záchranář"],
+    "life_sciences_research": ["research", "výzkum", "lab", "laborator", "scientist", "věd", "analyst", "analytik", "chem", "biolog", "pharma", "quality", "kontrol", "statist", "clinical trial"],
+    "skilled_trades": ["electric", "elektrikář", "mechan", "údržb", "maintenance", "weld", "svář", "machin", "operator", "operátor", "technician", "technik", "construct", "stavb", "assembl", "montáž", "installer", "instalatér", "fitter", "zámečník"],
+    "operations_logistics": ["warehouse", "sklad", "logist", "driver", "řidič", "dispatch", "supply", "operations", "provoz", "production", "výrob", "assembl", "montáž", "forklift", "manufactur", "planner", "plánov"],
+    "frontline_service": ["retail", "prodavač", "cashier", "pokladní", "waiter", "číšník", "barist", "hospitality", "hotel", "recepč", "front desk", "shop", "store", "gastro", "kuchař", "cook", "service", "obsluh", "úklid"],
+    "sales_marketing": ["sales", "obchod", "prodej", "account", "business development", "marketing", "brand", "market", "growth", "pr ", "advertis", "reklam", "campaign", "kampa", "retail", "merchandis"],
+    "finance_accounting": ["account", "účet", "finance", "financ", "controller", "controlling", "audit", "analyst", "analytik", "bank", "credit", "úvěr", "tax", "daň", "invoice", "faktur", "reporting", "underwrit", "pojist"],
+    "legal_compliance": ["lawyer", "právník", "advokát", "legal", "právní", "paralegal", "compliance", "risk", "riziko", "regulat", "audit", "contract", "smlouv", "governance", "notář"],
+    "hr_people": ["hr ", "recruit", "nábor", "talent", "personál", "people", "human resource", "l&d", "training", "školení", "payroll", "mzd", "sourcing", "nábor"],
+    "education_academic": ["teacher", "učitel", "lecturer", "lektor", "tutor", "professor", "profesor", "instructor", "pedagog", "trainer", "trenér", "školitel", "faculty", "academ", "vzdělá", "mentor", "vychovatel"],
+    "creative_design": ["design", "designer", "grafik", "graphic", "ux", "ui", "copywriter", "content", "obsah", "editor", "redaktor", "creative", "kreativ", "art", "photo", "foto", "video", "producer", "producent", "brand", "animator"],
+    "customer_support": ["support", "podpora", "helpdesk", "customer", "zákaznick", "service", "servis", "success", "call center", "agent", "operátor", "klient", "client", "dispečink"],
+    "general_professional": ["office", "kancelář", "administ", "admin", "coordinator", "koordinátor", "assistant", "asisten", "consultant", "konzultant", "manager", "manažer", "specialist", "specialista", "clerk", "referent", "back office"]
+  },
   "terms": [
     {
       "id": "python",
