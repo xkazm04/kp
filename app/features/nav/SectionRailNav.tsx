@@ -86,7 +86,7 @@ export function SectionRailNav({
         }`}
       >
         {Icon ? <Icon size={20} aria-hidden /> : <span className="h-5 w-5 rounded-full bg-current opacity-40" aria-hidden />}
-        <span className="text-[10.5px] font-semibold leading-none">{label}</span>
+        <span className="text-[11px] font-semibold leading-tight">{label}</span>
       </button>
     );
   };
@@ -94,7 +94,7 @@ export function SectionRailNav({
   return (
     <div className="flex h-full w-full min-h-0">
       {/* ── Level 1 — icon rail ── */}
-      <div className="flex w-16 shrink-0 flex-col gap-1 border-r border-stone-200 bg-paper p-2">
+      <div className="flex w-[4.75rem] shrink-0 flex-col gap-1 border-r border-stone-200 bg-paper p-2">
         {railTop}
         <div className="flex flex-1 flex-col gap-1">{railGroups.map((g) => railButton(g))}</div>
         {pinnedGroup ? railButton(pinnedGroup, true) : null}

@@ -8,6 +8,7 @@ import { Modal } from "@/app/_components/Modal";
 import { TextInput } from "@/app/_components/TextInput";
 import { KBD } from "@/app/_components/ui/recipes";
 import { recordRecent, useRecents } from "./recents";
+import { paletteItemId, paletteListView } from "./palette-results";
 import { useSimulation } from "./simulation/SimulationProvider";
 import { buildTabSwitchUrl, buildUrl, clearedTabScopedParams, navLabel, NAV_GROUPS, type WorkspaceTabId } from "./tabs";
 
@@ -63,6 +64,9 @@ export function CommandPalette() {
   const [query, setQuery] = useState("");
   const [hits, setHits] = useState<SearchHit[]>([]);
   const [error, setError] = useState<string | null>(null);
+  // #4 — in-flight flag for the debounced search, so a prior query's hits don't
+  // linger silently and the palette shows a "Searching…" affordance instead.
+  const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState(0);
   const inputRef = useRef<HTMLInputElement | null>(null);
   // The server renders "Ctrl K"; an Apple client computes "⌘K" at hydration.
@@ -77,6 +81,7 @@ export function CommandPalette() {
     setQuery("");
     setHits([]);
     setError(null);
+    setLoading(false);
     setSelected(0);
     setOpen(true);
   }, []);
@@ -120,21 +125,29 @@ export function CommandPalette() {
     if (!open) return;
     const q = query.trim();
     if (q.length < 2) return;
+    // Pending from the first keystroke (debounce included), so the list can't sit on
+    // the prior query's results without a signal that a newer term is being fetched.
+    setLoading(true);
     const controller = new AbortController();
     const timer = setTimeout(() => {
       fetch(`/api/search?q=${encodeURIComponent(q)}`, { signal: controller.signal })
         .then(async (r) => {
           const body = (await r.json().catch(() => null)) as { results?: SearchHit[]; error?: string } | null;
+          // An aborted (superseded) request leaves `loading` for the newer run to own.
           if (controller.signal.aborted) return;
           if (!r.ok || !body || body.error) {
             setError(body?.error ?? t("searchFailed"));
-            return;
+          } else {
+            setError(null);
+            setHits(Array.isArray(body.results) ? body.results : []);
           }
-          setError(null);
-          setHits(Array.isArray(body.results) ? body.results : []);
+          setLoading(false);
         })
         .catch(() => {
-          if (!controller.signal.aborted) setError(t("searchFailed"));
+          if (!controller.signal.aborted) {
+            setError(t("searchFailed"));
+            setLoading(false);
+          }
         });
     }, DEBOUNCE_MS);
     return () => {
@@ -209,6 +222,15 @@ export function CommandPalette() {
   // Clamp the highlight whenever the list shrinks under it.
   const active = Math.min(selected, Math.max(0, items.length - 1));
 
+  // #3 — keep the keyboard-highlighted option scrolled into the listbox viewport.
+  // aria-activedescendant moves the a11y focus but never scrolls the container, so on a
+  // long result set (recents + tabs + entity hits > the 50vh list) ArrowDown slid the
+  // active row out of sight. `block: "nearest"` scrolls only when it's actually clipped.
+  useEffect(() => {
+    if (!open) return;
+    document.getElementById(paletteItemId(active))?.scrollIntoView({ block: "nearest" });
+  }, [active, open]);
+
   const go = (item: PaletteItem) => {
     // SHELL3: an entity pick is exactly the "I opened this" moment recents
     // exist to capture (tab actions aren't — they're navigation, not work).
@@ -219,6 +241,15 @@ export function CommandPalette() {
     if (item.action) item.action();
     else if (item.href) router.push(item.href);
   };
+
+  // #4 — pure decision for the results region: Searching affordance, dim-stale, or
+  // the no-results/empty placeholder (see palette-results.ts).
+  const listView = paletteListView({
+    loading,
+    queryLen: query.trim().length,
+    itemCount: items.length,
+    hasError: !!error,
+  });
 
   const onInputKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "ArrowDown") {
@@ -256,7 +287,7 @@ export function CommandPalette() {
               role="combobox"
               aria-expanded={items.length > 0}
               aria-controls="palette-results"
-              aria-activedescendant={items[active] ? `palette-item-${active}` : undefined}
+              aria-activedescendant={items[active] ? paletteItemId(active) : undefined}
               value={query}
               onChange={(e) => {
                 setQuery(e.target.value);
@@ -264,13 +295,25 @@ export function CommandPalette() {
                 if (e.target.value.trim().length < 2) {
                   setHits([]);
                   setError(null);
+                  setLoading(false);
                 }
               }}
               onKeyDown={onInputKey}
               placeholder={t("placeholder")}
             />
             {error ? <p className="text-sm text-coral">{error}</p> : null}
-            <ul id="palette-results" role="listbox" aria-label={t("title")} className="max-h-[50vh] space-y-0.5 overflow-y-auto">
+            {listView.showSearching ? (
+              <p className="px-2 text-sm text-steel" aria-live="polite">
+                {t("searching")}
+              </p>
+            ) : null}
+            <ul
+              id="palette-results"
+              role="listbox"
+              aria-label={t("title")}
+              aria-busy={listView.showSearching || undefined}
+              className={`max-h-[50vh] space-y-0.5 overflow-y-auto ${listView.dimItems ? "opacity-50 transition-opacity" : ""}`}
+            >
               {items.map((item, i) => {
                 const groupStart = i === 0 || items[i - 1].group !== item.group;
                 return (
@@ -282,7 +325,7 @@ export function CommandPalette() {
                     ) : null}
                     <button
                       type="button"
-                      id={`palette-item-${i}`}
+                      id={paletteItemId(i)}
                       role="option"
                       aria-selected={i === active}
                       onClick={() => go(item)}
@@ -297,10 +340,11 @@ export function CommandPalette() {
                   </li>
                 );
               })}
-              {items.length === 0 ? (
-                <li className="px-2 py-3 text-base text-steel">
-                  {query.trim().length >= 2 && !error ? t("noResults", { q: query.trim() }) : t("empty")}
-                </li>
+              {listView.placeholder === "no-results" ? (
+                <li className="px-2 py-3 text-base text-steel">{t("noResults", { q: query.trim() })}</li>
+              ) : null}
+              {listView.placeholder === "empty" ? (
+                <li className="px-2 py-3 text-base text-steel">{t("empty")}</li>
               ) : null}
             </ul>
           </div>

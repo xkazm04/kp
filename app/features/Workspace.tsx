@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
 import dynamic from "next/dynamic";
 import { Menu, X } from "lucide-react";
@@ -19,6 +19,7 @@ import { RecentsNav } from "./RecentsNav";
 import { SectionRailNav } from "./nav/SectionRailNav";
 import { useDialogA11y } from "@/app/_components/useDialogA11y";
 import { isDrawerInert, isMainInert, shouldTrapDrawerFocus } from "./nav/drawer-a11y";
+import { navKey, shouldCloseDrawerOnNav } from "./nav/drawer-nav-close";
 import { useAttention } from "./useAttention";
 import { TasksIndicator } from "./tasks/TasksIndicator";
 import { TasksProvider } from "./tasks/TasksProvider";
@@ -99,6 +100,7 @@ function MobileDrawerA11y({
 export function Workspace() {
   const router = useRouter();
   const params = useSearchParams();
+  const pathname = usePathname();
   const t = useTranslations("nav");
   // Translate a nav key (tabs.<id> / groups.<key>) through the catalog, falling
   // back to the English label baked into tabs.ts for any not-yet-translated entry.
@@ -148,6 +150,21 @@ export function Workspace() {
     // check requires the declared deps to match what the body references.
     [router, search, setMobileNavOpen]
   );
+
+  // Close the mobile drawer on ANY in-shell navigation, not just a sidebar tab pick.
+  // The badge-slice pill (onSliceNav) and the command palette (which has no access to
+  // mobileNavOpen) navigate through separate entry points that selectTab's own close
+  // never covered, leaving the drawer parked over the freshly-loaded content. Keying an
+  // effect on the navigation identity (pathname + search) clears it for every present
+  // and future path. bug-ui-scan 2026-07-09 (#2).
+  const currentNavKey = navKey(pathname, search);
+  const prevNavKey = useRef(currentNavKey);
+  useEffect(() => {
+    if (shouldCloseDrawerOnNav(prevNavKey.current, currentNavKey)) {
+      prevNavKey.current = currentNavKey;
+      setMobileNavOpen(false);
+    }
+  }, [currentNavKey]);
 
   // Escape-close, Tab-trap and focus-restore are owned by <MobileDrawerA11y> below,
   // which mounts only while the drawer is open on mobile (the shared useDialogA11y).
