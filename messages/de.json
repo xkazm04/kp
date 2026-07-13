@@ -824,7 +824,16 @@
     "linkExpiredBody": "Dieser Link war eine Weile geöffnet und ist nun abgelaufen, ohne dass ein Termin gebucht wurde.",
     "linkClosedTitle": "Dieses Interview ist nicht mehr offen",
     "linkClosedBody": "Dieses Interview wurde geschlossen, daher lässt sich hier kein Termin buchen.",
-    "linkClosedHelp": "Wenn Sie noch einen Termin benötigen, antworten Sie bitte auf Ihre letzte E-Mail vom Hiring-Team."
+    "linkClosedHelp": "Wenn Sie noch einen Termin benötigen, antworten Sie bitte auf Ihre letzte E-Mail vom Hiring-Team.",
+    "proposeTitle": "Schlagen Sie ein paar für Sie passende Termine vor",
+    "proposeBody": "Keiner der angebotenen Termine passt? Schlagen Sie bis zu drei Termine an Werktagen innerhalb der Arbeitszeit vor, und das Hiring-Team bestätigt Ihnen einen davon.",
+    "proposeSubmit": "Vorgeschlagene Termine senden",
+    "proposeSlotAria": "Vorgeschlagener Termin {n}",
+    "proposeEmpty": "Bitte fügen Sie mindestens einen Termin hinzu.",
+    "proposalsPendingTitle": "Ihre vorgeschlagenen Termine liegen beim Hiring-Team",
+    "proposalsPendingBody": "Wir haben Ihre vorgeschlagenen Termine an das Hiring-Team weitergeleitet. Es bestätigt Ihnen in Kürze einen davon — Sie können diese Seite schließen.",
+    "proposalsDeclinedTitle": "Diese Termine ließen sich nicht einrichten",
+    "proposalsDeclinedBody": "Das Hiring-Team konnte die von Ihnen vorgeschlagenen Termine nicht berücksichtigen. Es meldet sich direkt bei Ihnen, um einen passenden Termin zu finden."
   },
   "data": {
     "eyebrow": "Ihre Daten",
@@ -1974,7 +1983,12 @@
       "noShowPrompt": "Als nicht erschienen markieren?",
       "confirmAction": "Bestätigen",
       "resolveReconcile": "Klären",
-      "resolvePrompt": "Als geklärt markieren?"
+      "resolvePrompt": "Als geklärt markieren?",
+      "proposedTimes": "hat eigene Termine vorgeschlagen — einen annehmen oder ablehnen",
+      "proposalsGroupAria": "Vom Kandidaten vorgeschlagene Termine",
+      "acceptProposal": "{time} annehmen",
+      "declineProposals": "Alle ablehnen",
+      "declineProposalsPrompt": "Vorgeschlagene Termine ablehnen?"
     },
     "eyebrow": "Entscheidungen · Planung",
     "title": "Interview-Kalender",

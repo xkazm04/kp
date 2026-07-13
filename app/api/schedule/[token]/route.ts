@@ -14,10 +14,11 @@ import {
   markScheduleInviteNeedsReconcile,
   MAX_RESCHEDULES,
   rescheduleScheduleInvite,
+  setScheduleInviteProposals,
   isTerminalScheduleInviteStatus,
   type ScheduleInvite,
 } from "@/app/_lib/schedule-store";
-import { offeredSlotFor, proposeSlots, isScheduleInviteExpired } from "@/app/_lib/schedule-slots";
+import { offeredSlotFor, proposeSlots, isScheduleInviteExpired, validateProposedSlots } from "@/app/_lib/schedule-slots";
 import { isValidTimeZone } from "@/app/_lib/timezone";
 import { logScheduleNoSlots, logScheduleReconcile } from "@/app/_lib/logger";
 import { jsonOk, safeJsonError } from "@/app/_lib/api-response";
@@ -51,6 +52,11 @@ function publicInviteView(invite: ScheduleInvite) {
     // The interview join link, when the recruiter has set one — so the candidate's
     // booked card can show a "Join" button and bake it into their calendar event.
     meetingUrl: invite.meetingUrl,
+    // "Propose your own times" escalation state (server-authored, safe on the wire):
+    // 'pending' after the candidate suggests times (page shows "waiting on the team"),
+    // 'declined' when the recruiter couldn't accommodate (honest "they'll reach out").
+    proposalStatus: invite.proposalStatus,
+    proposals: invite.proposals,
   };
 }
 
@@ -80,6 +86,10 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ to
   // already-booked times, including this candidate's current one (they're moving
   // away from it). The cap stops the "change time" affordance from churning.
   const canReschedule = invite.status === "confirmed" && invite.rescheduleCount < MAX_RESCHEDULES;
+  // A confirmed candidate who has spent every self-reschedule is stuck (the "change
+  // time" affordance is gone). This flags exactly that dead-end so the page can offer
+  // the "propose your own times" escalation instead of the old "reply to your email".
+  const rescheduleCapReached = invite.status === "confirmed" && invite.rescheduleCount >= MAX_RESCHEDULES;
   // Per-team calendar: only this invite's own team's confirmed slots block a time.
   const slots = invite.status !== "confirmed" || canReschedule ? proposeSlots(bookedSlots(invite.workspaceId)) : [];
   // The busiest-calendar edge (idea-5df8e10f): a pending invite whose entire
@@ -99,7 +109,7 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ to
       /* flagging is best-effort — never block the candidate's read */
     }
   }
-  return jsonOk({ invite: publicInviteView(invite), slots, noSlots, canReschedule });
+  return jsonOk({ invite: publicInviteView(invite), slots, noSlots, canReschedule, rescheduleCapReached });
 }
 
 // POST → candidate confirms a slot: record it, set it on the pipeline entry
@@ -121,6 +131,9 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
       // Direction 1 — the candidate withdraws from the interview entirely (a terminal
       // 'declined' fate), distinct from an rsvp cancel that frees the slot for re-booking.
       withdraw?: boolean;
+      // "Propose your own times" escalation: 1–MAX_PROPOSALS candidate-suggested ISO
+      // instants, validated server-side (proposedSlotFor) before they land on the invite.
+      propose?: unknown;
     };
     // The candidate's IANA timezone (idea-b51106df), captured so the recruiter
     // agenda can show a cross-border booking in the candidate's real local time.
@@ -148,6 +161,34 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
       const declined = declineScheduleInvite(token);
       if (!declined) return NextResponse.json({ error: "not found" }, { status: 404 });
       return jsonOk({ ok: true, invite: publicInviteView(declined), withdrawn: true });
+    }
+
+    // PROPOSE YOUR OWN TIMES: a STUCK candidate escalates with 1–MAX_PROPOSALS concrete
+    // times. Only reachable from the two genuine dead-ends — a pending invite whose
+    // whole horizon is booked, or a confirmed invite past the self-reschedule cap — so a
+    // candidate with open slots is steered back to the picker rather than into a manual
+    // loop. The instants cross a trust boundary: validateProposedSlots re-authors every
+    // label server-side and refuses anything out of hours/past/off-horizon.
+    if (Array.isArray(body.propose)) {
+      // A rejected/declined candidate can't escalate (mirrors the confirm/rsvp guard).
+      if (invite.entryId) {
+        const linkedEntry = getPipelineEntry(invite.entryId);
+        if (linkedEntry && linkedEntry.status !== "active") {
+          return NextResponse.json({ error: "This interview is no longer available." }, { status: 409 });
+        }
+      }
+      const stuckPending = invite.status === "pending" && proposeSlots(bookedSlots(invite.workspaceId)).length === 0;
+      const stuckCapped = invite.status === "confirmed" && invite.rescheduleCount >= MAX_RESCHEDULES;
+      if (!stuckPending && !stuckCapped) {
+        return NextResponse.json({ error: "There are still open times — please pick one from the list." }, { status: 409 });
+      }
+      const proposed = validateProposedSlots(body.propose);
+      if (!proposed) {
+        return NextResponse.json({ error: "Please suggest 1–3 future weekday times during working hours." }, { status: 400 });
+      }
+      const saved = setScheduleInviteProposals(token, proposed);
+      if (!saved) return NextResponse.json({ error: "not found" }, { status: 404 });
+      return jsonOk({ ok: true, invite: publicInviteView(saved), proposed: true });
     }
 
     // RSVP (idea-87af39c5): a confirmed candidate confirms attendance or cancels,

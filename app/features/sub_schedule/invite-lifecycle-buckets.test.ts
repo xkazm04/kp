@@ -5,7 +5,7 @@
 // the row). The `today` bucket keeps those visible.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { bucketInvites, closedReason, isInProgress, RECENT_WINDOW_MS } from "./invite-lifecycle-buckets.ts";
+import { bucketInvites, closedReason, hasPendingProposals, isInProgress, RECENT_WINDOW_MS } from "./invite-lifecycle-buckets.ts";
 import type { ScheduleInvite } from "@/app/_lib/schedule-store";
 
 const NOW = Date.parse("2026-06-01T10:00:00.000Z");
@@ -33,6 +33,9 @@ function inv(over: Partial<ScheduleInvite>): ScheduleInvite {
     attendanceStatus: null,
     attendanceAt: null,
     meetingUrl: null,
+    proposals: null,
+    proposalsAt: null,
+    proposalStatus: null,
     locale: null,
     workspaceId: "workspace",
     createdAt: "2026-06-01T00:00:00.000Z",
@@ -121,4 +124,19 @@ test("closedReason names the fate and a terminal row never appears in attention 
   const { closed, attention } = bucketInvites([flaggedNoShow], NOW);
   assert.deepEqual(closed.map((i) => i.id), ["fn"]);
   assert.equal(attention.length, 0, "a terminal row is not an actionable attention row");
+});
+
+// --- "Propose your own times" escalation surfaces as attention-worthy
+test("a pending-proposals invite is attention-worthy, even a confirmed one past the cap", () => {
+  const props = [{ value: "2026-06-09T11:00:00.000Z", label: "Tue 9 Jun · 11:00" }];
+  // A confirmed invite would normally be upcoming; a pending proposal pulls it to attention.
+  const capped = inv({ id: "cap", status: "confirmed", slotAt: "2026-06-01T14:00:00.000Z", proposals: props, proposalStatus: "pending" });
+  const stalled = inv({ id: "stall", status: "pending", needsMoreSlots: true, proposals: props, proposalStatus: "pending" });
+  // A cleared/declined proposal is NOT attention.
+  const declined = inv({ id: "dec", status: "confirmed", slotAt: "2026-06-01T14:00:00.000Z", proposalStatus: "declined" });
+  const { attention, upcoming } = bucketInvites([capped, stalled, declined], NOW);
+  assert.deepEqual(attention.map((i) => i.id).sort(), ["cap", "stall"], "pending proposals are attention rows");
+  assert.deepEqual(upcoming.map((i) => i.id), ["dec"], "a declined-proposal confirmed invite is a normal upcoming row");
+  assert.equal(hasPendingProposals(capped), true);
+  assert.equal(hasPendingProposals(declined), false);
 });

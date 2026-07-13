@@ -798,7 +798,16 @@
     "linkExpiredBody": "Tento odkaz byl nějakou dobu otevřený a jeho platnost nyní vypršela, aniž by byl rezervován termín.",
     "linkClosedTitle": "Tento pohovor už není otevřený",
     "linkClosedBody": "Tento pohovor byl uzavřen, takže zde není možné rezervovat žádný termín.",
-    "linkClosedHelp": "Pokud stále potřebujete naplánovat termín, odpovězte prosím na svůj poslední e-mail od náborového týmu."
+    "linkClosedHelp": "Pokud stále potřebujete naplánovat termín, odpovězte prosím na svůj poslední e-mail od náborového týmu.",
+    "proposeTitle": "Navrhněte několik termínů, které vám vyhovují",
+    "proposeBody": "Žádný z nabízených termínů se nehodí? Navrhněte až tři termíny ve všední dny během pracovní doby a náborový tým vám jeden potvrdí.",
+    "proposeSubmit": "Odeslat navržené termíny",
+    "proposeSlotAria": "Navržený termín {n}",
+    "proposeEmpty": "Přidejte prosím alespoň jeden termín.",
+    "proposalsPendingTitle": "Vaše navržené termíny má náborový tým",
+    "proposalsPendingBody": "Vaše navržené termíny jsme předali náborovému týmu. Brzy vám jeden potvrdí — tuto stránku můžete zavřít.",
+    "proposalsDeclinedTitle": "Tyto termíny se nám nepodařilo zajistit",
+    "proposalsDeclinedBody": "Náborový tým nemohl vyhovět termínům, které jste navrhli. Ozve se vám přímo, aby našel termín, který vám bude vyhovovat."
   },
   "data": {
     "eyebrow": "Vaše údaje",
@@ -1945,7 +1954,12 @@
       "noShowPrompt": "Označit jako nedostavení se?",
       "confirmAction": "Potvrdit",
       "resolveReconcile": "Vyřešit",
-      "resolvePrompt": "Označit jako vyřešené?"
+      "resolvePrompt": "Označit jako vyřešené?",
+      "proposedTimes": "navrhl(a) vlastní termíny — jeden přijměte, nebo odmítněte",
+      "proposalsGroupAria": "Termíny navržené kandidátem",
+      "acceptProposal": "Přijmout {time}",
+      "declineProposals": "Odmítnout vše",
+      "declineProposalsPrompt": "Odmítnout navržené termíny?"
     },
     "eyebrow": "Rozhodnutí · Plánování",
     "title": "Kalendář pohovorů",

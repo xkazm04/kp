@@ -9,7 +9,7 @@
 //   npm run test:unit
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { offeredSlotFor, parseInterviewTimes, proposeSlots, SLOT_HORIZON_DAYS, isScheduleInviteExpired, INVITE_LINK_TTL_DAYS, gridSlotToIso, isoToGridSlot } from "./schedule-slots.ts";
+import { offeredSlotFor, parseInterviewTimes, proposeSlots, SLOT_HORIZON_DAYS, isScheduleInviteExpired, INVITE_LINK_TTL_DAYS, gridSlotToIso, isoToGridSlot, proposedSlotFor, validateProposedSlots, MAX_PROPOSALS } from "./schedule-slots.ts";
 
 test("parseInterviewTimes is config-driven, validated, deduped, and falls back safely", () => {
   assert.deepEqual(parseInterviewTimes(undefined), ["10:00", "14:00"]);
@@ -90,6 +90,44 @@ test("the scheduling horizon is a single source of truth bounding every proposal
   for (const s of proposeSlots([], 10_000)) {
     assert.ok(Date.parse(s.value) <= horizonEndMs, `proposed slot ${s.value} stays within the horizon`);
   }
+});
+
+// --- Candidate "propose your own times" escalation (trust boundary) --------------
+test("proposedSlotFor accepts ANY weekday working hour and mints a server-authored label", () => {
+  // 11:30 is NOT an offered time (offeredSlotFor rejects it) but IS a sane business
+  // hour — the escalation exists precisely to name times the fixed grid never offered.
+  assert.equal(offeredSlotFor(utc(9, 11, 30), NOW, TZ), null, "sanity: 11:30 isn't an offered slot");
+  const v = proposedSlotFor(utc(9, 11, 30), NOW, TZ); // Tue 9 Jun 11:30 UTC
+  assert.ok(v, "a weekday working-hour time should validate as a proposal");
+  assert.equal(v!.label, "Tue 9 Jun · 11:30", "label is server-authored from the instant");
+  assert.equal(v!.value, utc(9, 11, 30));
+});
+
+test("proposedSlotFor refuses past, weekend, out-of-hours, off-horizon, and garbage times", () => {
+  assert.equal(proposedSlotFor(utc(8, 11), NOW, TZ), null, "past must be refused");
+  assert.equal(proposedSlotFor(utc(13, 11), NOW, TZ), null, "Saturday must be refused");
+  assert.equal(proposedSlotFor(utc(9, 7), NOW, TZ), null, "07:00 is before business hours");
+  assert.equal(proposedSlotFor(utc(9, 18), NOW, TZ), null, "18:00 is at/after the business-hours end");
+  assert.ok(proposedSlotFor(utc(9, 17, 30), NOW, TZ), "17:30 is inside business hours");
+  assert.equal(proposedSlotFor(new Date(Date.UTC(2026, 6, 14, 11, 0, 0, 0)).toISOString(), NOW, TZ), null, "beyond the horizon must be refused");
+  assert.equal(proposedSlotFor("<script>alert(1)</script>", NOW, TZ), null);
+  assert.equal(proposedSlotFor("not-a-date", NOW, TZ), null);
+  assert.equal(proposedSlotFor(undefined, NOW, TZ), null);
+});
+
+test("validateProposedSlots bounds the batch (1..MAX_PROPOSALS), dedupes, and rejects any bad time", () => {
+  const a = utc(9, 11); // Tue 11:00
+  const b = utc(9, 15); // Tue 15:00
+  const c = utc(10, 9); // Wed 09:00
+  assert.equal(validateProposedSlots([], NOW, TZ), null, "empty batch is invalid");
+  assert.equal(validateProposedSlots([a, b, c, a], NOW, TZ), null, "over MAX_PROPOSALS is invalid");
+  assert.equal(validateProposedSlots([a, utc(13, 11)], NOW, TZ), null, "any weekend time voids the whole batch");
+  const ok = validateProposedSlots([a, b], NOW, TZ);
+  assert.ok(ok, "a valid batch validates");
+  assert.deepEqual(ok!.map((s) => s.value), [a, b], "server-authored values in input order");
+  const deduped = validateProposedSlots([a, a, b], NOW, TZ);
+  assert.deepEqual(deduped!.map((s) => s.value), [a, b], "an exact duplicate instant is dropped");
+  assert.equal(MAX_PROPOSALS, 3);
 });
 
 // --- Direction 1: invite link TTL / expiry (derived, pure) ----------------------

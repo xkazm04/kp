@@ -19,8 +19,16 @@ type Invite = {
   durationMin?: number | null;
   attendanceStatus?: string | null;
   meetingUrl?: string | null;
+  // "Propose your own times" escalation state: 'pending' (waiting on the team) or
+  // 'declined' (couldn't accommodate — they'll reach out). null when no escalation.
+  proposalStatus?: string | null;
 };
 type Slot = { value: string; label: string };
+
+// Mirrors MAX_PROPOSALS on the server (schedule-slots.ts): the escalation form offers
+// up to three time inputs. Kept as a literal so the client bundle doesn't import the
+// better-sqlite3-adjacent module chain.
+const MAX_PROPOSE_TIMES = 3;
 
 export function SchedulePicker({ token }: { token: string }) {
   const t = useTranslations("schedule");
@@ -63,6 +71,13 @@ export function SchedulePicker({ token }: { token: string }) {
   // a transient notice after a cancel returns the candidate to the slot picker.
   const [rsvpPending, setRsvpPending] = useState<"confirm" | "cancel" | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  // "Propose your own times" escalation (shown only in the two stuck states): the
+  // candidate's proposal_status from the server, the datetime-local inputs, and a
+  // submitting latch. `capReached` gates the escalation on the booked card.
+  const [proposalStatus, setProposalStatus] = useState<string | null>(null);
+  const [capReached, setCapReached] = useState(false);
+  const [proposeTimes, setProposeTimes] = useState<string[]>(["", "", ""]);
+  const [proposing, setProposing] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -78,6 +93,8 @@ export function SchedulePicker({ token }: { token: string }) {
         setSlots(d.slots ?? []);
         setNoSlots(Boolean(d.noSlots));
         setCanReschedule(Boolean(d.canReschedule));
+        setCapReached(Boolean(d.rescheduleCapReached));
+        setProposalStatus(d.invite?.proposalStatus ?? null);
         if (d.closed) setClosedReason(typeof d.closedReason === "string" ? d.closedReason : "closed");
         if (d.invite?.status === "confirmed") setConfirmed(d.invite.slot ?? "");
       })
@@ -252,6 +269,95 @@ export function SchedulePicker({ token }: { token: string }) {
     }
   };
 
+  // "Propose your own times" escalation: the candidate names up to MAX_PROPOSE_TIMES
+  // concrete times. Each datetime-local value is the candidate's browser-local wall
+  // clock; sent as an ISO instant, the server validates it in the INTERVIEW zone
+  // (weekday + working hours) and re-authors the label — arbitrary text never lands.
+  const submitProposals = async () => {
+    const isos = proposeTimes
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .map((s) => {
+        const d = new Date(s);
+        return Number.isNaN(d.getTime()) ? null : d.toISOString();
+      })
+      .filter((v): v is string => v !== null);
+    if (isos.length === 0) {
+      setError(t("proposeEmpty"));
+      return;
+    }
+    setProposing(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/schedule/${token}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ propose: isos }),
+      });
+      const d = await res.json();
+      if (!res.ok) {
+        if (res.status === 410) setClosedReason("closed");
+        else setError(errMsg(d, t("confirmFailed")));
+        return;
+      }
+      setProposalStatus("pending");
+    } catch {
+      setError(t("confirmFailed"));
+    } finally {
+      setProposing(false);
+    }
+  };
+
+  // The escalation surface, shared by the two stuck states (a fully-booked horizon and
+  // the reschedule cap). Shows the honest waiting / declined state once submitted, else
+  // the proposal form. Tokens only; verified in both themes.
+  const proposeSection = () => {
+    if (proposalStatus === "pending") {
+      return (
+        <div role="status" className="mt-4 rounded-md border border-moss/40 bg-moss/5 p-4">
+          <p className="flex items-center gap-2 font-medium text-ink">
+            <CalendarClock size={16} className="text-moss" aria-hidden /> {t("proposalsPendingTitle")}
+          </p>
+          <p className="mt-1 text-base text-steel">{t("proposalsPendingBody")}</p>
+        </div>
+      );
+    }
+    if (proposalStatus === "declined") {
+      return (
+        <div role="status" className="mt-4 rounded-md border border-amber-200 bg-amber-50 p-4">
+          <p className="font-medium text-amber-800">{t("proposalsDeclinedTitle")}</p>
+          <p className="mt-1 text-base text-amber-800">{t("proposalsDeclinedBody")}</p>
+        </div>
+      );
+    }
+    return (
+      <div className="mt-4 border-t border-stone-200 pt-4">
+        <p className="font-serif text-h3 text-ink">{t("proposeTitle")}</p>
+        <p className="mt-1 text-base text-steel">{t("proposeBody")}</p>
+        <div className="mt-3 space-y-2">
+          {Array.from({ length: MAX_PROPOSE_TIMES }).map((_, idx) => (
+            <input
+              key={idx}
+              type="datetime-local"
+              value={proposeTimes[idx] ?? ""}
+              onChange={(e) => setProposeTimes((prev) => prev.map((p, i) => (i === idx ? e.target.value : p)))}
+              aria-label={t("proposeSlotAria", { n: idx + 1 })}
+              className="focus-ring w-full rounded-md border border-stone-200 bg-white px-3 py-2 text-base text-ink"
+            />
+          ))}
+        </div>
+        <button
+          type="button"
+          disabled={proposing}
+          onClick={submitProposals}
+          className="focus-ring mt-3 inline-flex items-center gap-1.5 rounded-md bg-coral px-3 py-1.5 text-base font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+        >
+          <CalendarClock size={15} aria-hidden /> {proposing ? t("booking") : t("proposeSubmit")}
+        </button>
+      </div>
+    );
+  };
+
   if (error)
     return (
       <p role="alert" className="rounded-md border border-stone-200 bg-paper p-4 text-base text-coral">
@@ -380,6 +486,10 @@ export function SchedulePicker({ token }: { token: string }) {
             {t("withdraw")}
           </button>
         </div>
+        {/* Reschedule cap hit: the "different time" affordance is gone, so instead of
+            the old "reply to your confirmation email" dead-end, let the candidate
+            propose concrete times the recruiter can accept. */}
+        {capReached ? proposeSection() : null}
       </div>
     );
   }
@@ -435,7 +545,11 @@ export function SchedulePicker({ token }: { token: string }) {
             <CalendarClock className="text-steel" aria-hidden /> {t("allTakenTitle")}
           </p>
           <p className="mt-2 text-body text-ink">{t("allTakenBody")}</p>
-          <p className="mt-2 text-base text-steel">{t("nothingToDo")}</p>
+          {/* A pending invite whose whole horizon is booked (server-set `noSlots`) is a
+              genuine dead-end — offer the "propose your own times" escalation. A
+              reschedule-into-a-full-horizon (noSlots false) keeps the "Keep current
+              time" recovery above, so it only needs the passive "nothing to do" note. */}
+          {noSlots ? proposeSection() : <p className="mt-2 text-base text-steel">{t("nothingToDo")}</p>}
         </div>
       ) : (
         <>

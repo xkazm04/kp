@@ -49,6 +49,8 @@ const {
   markScheduleInviteNoShow,
   markScheduleInviteNeedsReconcile,
   resolveScheduleInviteReconcile,
+  setScheduleInviteProposals,
+  declineScheduleInviteProposals,
   bookedSlots,
   isTerminalScheduleInviteStatus,
   MAX_RESCHEDULES,
@@ -339,4 +341,52 @@ test("grid book: resolve pick → confirm a canonical, collision-checked invite;
     assert.equal(rebooked.invite.slotAt, moved!.value);
     assert.equal(rebooked.invite.rescheduleCount, 0, "recruiter grid move doesn't spend the candidate budget");
   }
+});
+
+// --- Candidate "propose your own times" escalation -------------------------------
+test("setScheduleInviteProposals stores server-authored times on a pending invite and marks it pending", () => {
+  const inv = createScheduleInvite({ entryId: "e-prop-1", candidateLabel: "Prop Cand", jobTitle: "Role" });
+  const proposals = [
+    { value: "2026-06-09T11:00:00.000Z", label: "Tue 9 Jun · 11:00" },
+    { value: "2026-06-10T15:00:00.000Z", label: "Wed 10 Jun · 15:00" },
+  ];
+  const saved = setScheduleInviteProposals(inv.token, proposals);
+  assert.ok(saved, "proposals saved on a pending invite");
+  assert.equal(saved!.proposalStatus, "pending");
+  assert.deepEqual(saved!.proposals, proposals);
+  // Round-trips through the store (JSON persisted + parsed back).
+  const reread = getScheduleInviteByToken(inv.token)!;
+  assert.deepEqual(reread.proposals, proposals);
+  assert.equal(reread.proposalStatus, "pending");
+});
+
+test("a terminal invite refuses proposals; a confirmed invite accepts them", () => {
+  const declinedInv = createScheduleInvite({ entryId: "e-prop-2", candidateLabel: "X", jobTitle: "R" });
+  declineScheduleInvite(declinedInv.token); // → terminal 'declined'
+  assert.equal(setScheduleInviteProposals(declinedInv.token, [{ value: "2026-06-09T11:00:00.000Z", label: "L" }]), null, "terminal invite refuses proposals");
+  const confirmedTok = makeConfirmed("2026-06-11T11:00:00.000Z");
+  const saved = setScheduleInviteProposals(confirmedTok, [{ value: "2026-06-12T11:00:00.000Z", label: "Fri 12 Jun · 11:00" }]);
+  assert.ok(saved, "a confirmed invite (e.g. at the reschedule cap) can carry proposals");
+  assert.equal(saved!.proposalStatus, "pending");
+});
+
+test("declineScheduleInviteProposals clears the times and records the honest 'declined' state", () => {
+  const inv = createScheduleInvite({ entryId: "e-prop-3", candidateLabel: "Y", jobTitle: "R" });
+  setScheduleInviteProposals(inv.token, [{ value: "2026-06-09T11:00:00.000Z", label: "Tue 9 Jun · 11:00" }]);
+  const declined = declineScheduleInviteProposals(inv.token);
+  assert.ok(declined);
+  assert.equal(declined!.proposalStatus, "declined");
+  assert.equal(declined!.proposals, null, "proposed times are cleared on decline");
+  // Idempotent: a second decline (no longer pending) is a no-op.
+  assert.equal(declineScheduleInviteProposals(inv.token), null);
+});
+
+test("booking (confirm) clears a pending proposal — the booking is the record", () => {
+  const inv = createScheduleInvite({ entryId: "e-prop-4", candidateLabel: "Z", jobTitle: "R" });
+  setScheduleInviteProposals(inv.token, [{ value: "2026-06-09T11:00:00.000Z", label: "Tue 9 Jun · 11:00" }]);
+  const r = confirmScheduleInvite(inv.token, "Tue 9 Jun · 11:00", "2026-06-13T11:00:00.000Z");
+  assert.ok(r.ok);
+  const reread = getScheduleInviteByToken(inv.token)!;
+  assert.equal(reread.proposalStatus, null, "confirm clears proposal_status");
+  assert.equal(reread.proposals, null, "confirm clears proposals");
 });

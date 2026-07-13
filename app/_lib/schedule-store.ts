@@ -76,6 +76,16 @@ function db(): Database.Database {
       -- becomes the calendar event's location + a "Join" link on both the recruiter
       -- agenda and the candidate's booked card. NULL until set.
       meeting_url TEXT,
+      -- Candidate "propose your own times" escalation: when a candidate is stranded
+      -- (horizon fully booked, or past the self-reschedule cap) they suggest 1-3
+      -- concrete times. proposals holds the SERVER-authored value/label JSON (the
+      -- label is minted by proposedSlotFor, never candidate text); proposal_status is
+      -- NULL, 'pending' (awaiting the recruiter), or 'declined' (recruiter couldn't
+      -- accommodate - the candidate page reads this honest state). Cleared when a booking
+      -- supersedes it (confirm/reschedule). Additive columns; existing rows read NULL.
+      proposals TEXT,
+      proposals_at TEXT,
+      proposal_status TEXT,
       created_at TEXT NOT NULL,
       confirmed_at TEXT
     );
@@ -98,6 +108,9 @@ function db(): Database.Database {
     "attendance_at TEXT",
     "meeting_url TEXT",
     "workspace_id TEXT",
+    "proposals TEXT",
+    "proposals_at TEXT",
+    "proposal_status TEXT",
   ]) {
     try {
       d.exec(`ALTER TABLE schedule_invites ADD COLUMN ${col}`);
@@ -173,11 +186,30 @@ export type ScheduleInvite = {
   attendanceStatus: string | null; // idea-87af39c5 — RSVP on the booking: 'confirmed' | 'cancelled' | null
   attendanceAt: string | null; // ISO time the RSVP was recorded
   meetingUrl: string | null; // optional interview join link (Meet/Teams/Zoom…); null until the recruiter sets it
+  proposals: { value: string; label: string }[] | null; // candidate-proposed alternative times (server-authored labels); null when none pending
+  proposalsAt: string | null; // ISO time the candidate submitted their proposed times
+  proposalStatus: string | null; // null | 'pending' (awaiting recruiter) | 'declined' (recruiter couldn't accommodate)
   locale: string | null; // SIM3 — the linked entry's applicant locale, when joined (dueReminders); null otherwise
   workspaceId: string; // P1 — the owning team (the linked entry's workspace)
   createdAt: string;
   confirmedAt: string | null;
 };
+
+/** Parse the stored proposals JSON back into typed slots, tolerating a null/empty or
+ *  malformed column (an old row, or a hand-edited value) by degrading to null. */
+function parseProposals(raw: string | null | undefined): { value: string; label: string }[] | null {
+  if (!raw) return null;
+  try {
+    const arr = JSON.parse(raw);
+    if (!Array.isArray(arr)) return null;
+    const out = arr
+      .filter((x): x is { value: string; label: string } => !!x && typeof x.value === "string" && typeof x.label === "string")
+      .map((x) => ({ value: x.value, label: x.label }));
+    return out.length > 0 ? out : null;
+  } catch {
+    return null;
+  }
+}
 
 function rowTo(r: Record<string, unknown>): ScheduleInvite {
   return {
@@ -202,6 +234,9 @@ function rowTo(r: Record<string, unknown>): ScheduleInvite {
     attendanceStatus: (r.attendance_status as string) ?? null,
     attendanceAt: (r.attendance_at as string) ?? null,
     meetingUrl: (r.meeting_url as string) ?? null,
+    proposals: parseProposals(r.proposals as string | null | undefined),
+    proposalsAt: (r.proposals_at as string) ?? null,
+    proposalStatus: (r.proposal_status as string) ?? null,
     // Only the dueReminders join selects entry_locale; every other read leaves it null.
     locale: (r.entry_locale as string) ?? null,
     workspaceId: (r.workspace_id as string) ?? "workspace",
@@ -331,7 +366,8 @@ export function confirmScheduleInvite(token: string, slot: string, slotAt?: stri
         `UPDATE schedule_invites
             SET status = 'confirmed', slot = ?, slot_at = ?, confirmed_at = ?, candidate_tz = COALESCE(?, candidate_tz),
                 attendance_status = NULL, attendance_at = NULL,
-                needs_more_slots = 0, more_slots_flagged_at = NULL
+                needs_more_slots = 0, more_slots_flagged_at = NULL,
+                proposals = NULL, proposals_at = NULL, proposal_status = NULL
           WHERE token = ? RETURNING *`
       )
       .get(slot, slotAt ?? null, new Date().toISOString(), candidateTz ?? null, token) as Record<string, unknown>;
@@ -408,7 +444,8 @@ export function rescheduleScheduleInvite(
                 candidate_tz = COALESCE(?, candidate_tz),
                 attendance_status = NULL, attendance_at = NULL,
                 reminder_sent_at = NULL, reminder_attempts = 0, reminder_last_attempt_at = NULL,
-                needs_more_slots = 0, more_slots_flagged_at = NULL
+                needs_more_slots = 0, more_slots_flagged_at = NULL,
+                proposals = NULL, proposals_at = NULL, proposal_status = NULL
           WHERE token = ? RETURNING *`
       )
       .get(slot, slotAt, new Date().toISOString(), candidateTz ?? null, token) as Record<string, unknown>;
@@ -530,6 +567,40 @@ export function flagScheduleInviteNeedsMoreSlots(token: string): boolean {
     )
     .run(new Date().toISOString(), token);
   return res.changes > 0;
+}
+
+/** Candidate "propose your own times" escalation: persist 1–MAX_PROPOSALS server-
+ *  authored proposed slots on a STUCK (pending or confirmed) invite and mark it
+ *  'pending' so the recruiter lifecycle panel surfaces it as attention-worthy. The
+ *  caller validates/mints the slots (validateProposedSlots) — this only persists the
+ *  server-authored [{value,label}] shape. Refuses a terminal invite via the status
+ *  guard (the token route's 410 gate already blocks expired/declined/no_show upstream).
+ *  Returns the updated row, or null when the token doesn't exist or is terminal. */
+export function setScheduleInviteProposals(token: string, proposals: { value: string; label: string }[]): ScheduleInvite | null {
+  const json = JSON.stringify(proposals.map((p) => ({ value: p.value, label: p.label })));
+  const updated = db()
+    .prepare(
+      `UPDATE schedule_invites
+          SET proposals = ?, proposals_at = ?, proposal_status = 'pending'
+        WHERE token = ? AND status IN ('pending','confirmed') RETURNING *`
+    )
+    .get(json, new Date().toISOString(), token) as Record<string, unknown> | undefined;
+  return updated ? rowTo(updated) : null;
+}
+
+/** Recruiter declined all of a candidate's proposed times: clear them and record the
+ *  honest 'declined' state the candidate page reads ("couldn't accommodate — the
+ *  recruiter will reach out"). Only a currently-'pending' proposal declines (so a
+ *  double-tap or a stale request is a no-op). Returns the updated row, or null. */
+export function declineScheduleInviteProposals(token: string): ScheduleInvite | null {
+  const updated = db()
+    .prepare(
+      `UPDATE schedule_invites
+          SET proposals = NULL, proposals_at = NULL, proposal_status = 'declined'
+        WHERE token = ? AND proposal_status = 'pending' RETURNING *`
+    )
+    .get(token) as Record<string, unknown> | undefined;
+  return updated ? rowTo(updated) : null;
 }
 
 /** ISO datetimes already taken by confirmed invites — so two candidates don't

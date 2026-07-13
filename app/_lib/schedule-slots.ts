@@ -194,6 +194,73 @@ export function offeredSlotFor(slotAtIso: unknown, nowMs: number = Date.now(), t
   return { value: new Date(ms).toISOString(), label: slotLabel(ms, time, tz) };
 }
 
+// --- Candidate "propose your own times" escalation ------------------------------
+//
+// Two dead-ends used to strand a candidate: after MAX_RESCHEDULES they were told to
+// "reply to your confirmation email", and when the whole horizon was booked the
+// needs_more_slots flag sat on the invite with no flow behind it. The escalation lets
+// a STUCK candidate name 1–MAX_PROPOSALS concrete times the recruiter can accept.
+//
+// This is still a candidate trust boundary (idea-e05aedfb's invariant): a proposed
+// time is only persisted as a slot the SERVER would consider sane — future, within the
+// horizon, a weekday, inside business hours in the interview zone, to the exact minute
+// — and its label is SERVER-authored, never candidate text. It is DELIBERATELY wider
+// than offeredSlotFor (any working hour, not just the two fixed offered times): the
+// candidate reaches this path precisely because the offered grid is exhausted. The
+// recruiter (trusted) then books an accepted proposal through the same collision-
+// checked transactions confirmScheduleInvite/rescheduleScheduleInvite already enforce.
+
+/** The business-hour window (interview zone) a candidate-PROPOSED time must fall in:
+ *  [startHour, endHour). Wider than the fixed offered times but still fenced to sane
+ *  weekday working hours so the trust boundary holds. */
+export const PROPOSAL_HOURS = { startHour: 8, endHour: 18 } as const;
+
+/** How many alternative times a stuck candidate may propose in one escalation. */
+export const MAX_PROPOSALS = 3;
+
+function pad2(n: number): string {
+  return String(n).padStart(2, "0");
+}
+
+/** Validate a single candidate-PROPOSED time and mint its canonical, server-authored
+ *  label — or null when it isn't a sane interview time: unparsable, past, beyond the
+ *  horizon, on a weekend, or outside business hours, all reckoned in the INTERVIEW
+ *  ZONE to the exact minute (stray seconds or a non-canonical offset are refused, like
+ *  offeredSlotFor). Unlike offeredSlotFor it accepts ANY business-day working hour, not
+ *  only the two fixed offered times. `nowMs` is injectable for tests. */
+export function proposedSlotFor(slotAtIso: unknown, nowMs: number = Date.now(), tz: string = INTERVIEW_TZ): { value: string; label: string } | null {
+  if (typeof slotAtIso !== "string" || slotAtIso.length === 0 || slotAtIso.length > 40) return null;
+  const ms = Date.parse(slotAtIso);
+  if (Number.isNaN(ms)) return null;
+  if (ms <= nowMs || ms > nowMs + MAX_SLOT_AHEAD_MS) return null;
+  const p = zonedParts(ms, tz);
+  if (p.weekday === 0 || p.weekday === 6) return null; // weekend in the interview zone
+  if (p.hour < PROPOSAL_HOURS.startHour || p.hour >= PROPOSAL_HOURS.endHour) return null; // outside business hours
+  // Demand the EXACT canonical instant for that wall time in the zone (reject stray
+  // seconds/ms or a non-offered UTC offset) — a slot's identity is the instant.
+  if (ms !== zonedInstant(p.year, p.month, p.day, p.hour, p.minute, tz)) return null;
+  const time = `${pad2(p.hour)}:${pad2(p.minute)}`;
+  return { value: new Date(ms).toISOString(), label: slotLabel(ms, time, tz) };
+}
+
+/** Validate a WHOLE candidate proposal batch (1–MAX_PROPOSALS times). Returns the
+ *  server-authored, de-duplicated slots (input order preserved) or null when the batch
+ *  is the wrong size or ANY instant fails proposedSlotFor — the route maps null to one
+ *  honest "suggest 1–3 future weekday working-hour times" message. */
+export function validateProposedSlots(raw: unknown, nowMs: number = Date.now(), tz: string = INTERVIEW_TZ): { value: string; label: string }[] | null {
+  if (!Array.isArray(raw) || raw.length === 0 || raw.length > MAX_PROPOSALS) return null;
+  const out: { value: string; label: string }[] = [];
+  const seen = new Set<string>();
+  for (const item of raw) {
+    const v = proposedSlotFor(item, nowMs, tz);
+    if (!v) return null;
+    if (seen.has(v.value)) continue; // drop an exact duplicate instant
+    seen.add(v.value);
+    out.push(v);
+  }
+  return out.length > 0 ? out : null;
+}
+
 // --- One scheduling engine: grid ⇄ canonical instant (Direction 3) --------------
 //
 // The manual week grid (ScheduleCalendar) speaks in timezone-less wall-clock strings

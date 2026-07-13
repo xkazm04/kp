@@ -47,6 +47,13 @@ export function closedReason(invite: ScheduleInvite, nowMs: number): "expired" |
   return null;
 }
 
+/** Whether an invite carries a pending candidate "propose your own times" escalation
+ *  the recruiter must accept (per time) or decline. Attention-worthy: the candidate is
+ *  stuck (horizon booked, or past the self-reschedule cap) and waiting on a human. */
+export function hasPendingProposals(invite: ScheduleInvite): boolean {
+  return invite.proposalStatus === "pending" && (invite.proposals?.length ?? 0) > 0;
+}
+
 /** Partition invites for the lifecycle panel. `nowMs` is captured at load time so
  *  the split is a pure function of state during render. */
 export function bucketInvites(
@@ -59,7 +66,7 @@ export function bucketInvites(
   // stale flag (needsReconcile) lingers on it.
   const closed = invites.filter((i) => closedReason(i, nowMs) !== null);
   const live = invites.filter((i) => !closed.includes(i));
-  const attention = live.filter((i) => i.needsMoreSlots || i.needsReconcile);
+  const attention = live.filter((i) => i.needsMoreSlots || i.needsReconcile || hasPendingProposals(i));
   const rest = live.filter((i) => !attention.includes(i));
 
   const upcoming: ScheduleInvite[] = [];

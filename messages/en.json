@@ -798,7 +798,16 @@
     "linkExpiredBody": "This link was open for a while and has now expired without a time being booked.",
     "linkClosedTitle": "This interview is no longer open",
     "linkClosedBody": "This interview has been closed, so there's no time to book here.",
-    "linkClosedHelp": "If you still need to schedule, please reply to your latest email from the hiring team."
+    "linkClosedHelp": "If you still need to schedule, please reply to your latest email from the hiring team.",
+    "proposeTitle": "Suggest a few times that work for you",
+    "proposeBody": "None of the offered slots fit? Propose up to three weekday times during working hours and the hiring team will confirm one with you.",
+    "proposeSubmit": "Send my suggested times",
+    "proposeSlotAria": "Suggested time {n}",
+    "proposeEmpty": "Please add at least one time.",
+    "proposalsPendingTitle": "Your suggested times are with the hiring team",
+    "proposalsPendingBody": "We've passed your proposed times to the hiring team. They'll confirm one with you shortly — you can close this page.",
+    "proposalsDeclinedTitle": "We couldn't fit those times",
+    "proposalsDeclinedBody": "The hiring team couldn't accommodate the times you suggested. They'll reach out to you directly to find one that works."
   },
   "data": {
     "eyebrow": "Your data",
@@ -1945,7 +1954,12 @@
       "noShowPrompt": "Mark as no-show?",
       "confirmAction": "Confirm",
       "resolveReconcile": "Resolve",
-      "resolvePrompt": "Mark as reconciled?"
+      "resolvePrompt": "Mark as reconciled?",
+      "proposedTimes": "proposed their own times — accept one or decline",
+      "proposalsGroupAria": "Candidate's proposed times",
+      "acceptProposal": "Accept {time}",
+      "declineProposals": "Decline all",
+      "declineProposalsPrompt": "Decline the proposed times?"
     },
     "eyebrow": "Decisions · Schedule",
     "title": "Interview calendar",

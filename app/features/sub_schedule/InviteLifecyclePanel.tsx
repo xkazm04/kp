@@ -14,7 +14,7 @@ import { MeetingLinkCell } from "./MeetingLinkCell";
 // bug-ui-scan-2026-07-09 (interview-scheduling-prep-rubric #3) — the today /
 // upcoming / awaiting split lives in a pure, unit-tested module so a confirmed
 // interview no longer vanishes the instant its start passes.
-import { bucketInvites, closedReason, isInProgress } from "./invite-lifecycle-buckets";
+import { bucketInvites, closedReason, hasPendingProposals, isInProgress } from "./invite-lifecycle-buckets";
 // The full invite wire row is single-sourced from the store (GET /api/schedule
 // returns listScheduleInvites() unprojected). Type-only import, so schedule-store's
 // better-sqlite3 runtime is NOT pulled into this client bundle. Replaces a lossy
@@ -50,7 +50,7 @@ export function InviteLifecyclePanel() {
   // confirm latch (token+action) reused from the app's delete idiom; `busy` gates a
   // row while its action is in flight; the reschedule sub-flow loads this team's
   // offered slots lazily and lets the recruiter pick one.
-  const [armed, setArmed] = useState<{ token: string; action: "cancel" | "no_show" | "resolve_reconcile" } | null>(null);
+  const [armed, setArmed] = useState<{ token: string; action: "cancel" | "no_show" | "resolve_reconcile" | "decline_proposals" } | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [rescheduleToken, setRescheduleToken] = useState<string | null>(null);
   const [rescheduleSlots, setRescheduleSlots] = useState<{ value: string; label: string }[] | null>(null);
@@ -286,13 +286,50 @@ export function InviteLifecyclePanel() {
               <li key={i.id} className="rounded-md border border-red-200 bg-red-50/60 px-3 py-1.5 text-sm">
                 <span className="font-semibold text-ink">{i.candidateLabel ?? "—"}</span>
                 {i.jobTitle ? <span className="text-steel"> · {i.jobTitle}</span> : null}{" "}
+                {hasPendingProposals(i) ? (
+                  // "Propose your own times" escalation: the candidate suggested times;
+                  // accept one (books via the collision-checked path) or decline all
+                  // (returns an honest "couldn't accommodate" state to the candidate).
+                  <>
+                    <span className="text-red-700">{t("proposedTimes")}</span>
+                    <div className="mt-1.5 flex flex-wrap items-center gap-1.5" role="group" aria-label={t("proposalsGroupAria")}>
+                      {(i.proposals ?? []).map((p) => (
+                        <button
+                          key={p.value}
+                          type="button"
+                          disabled={busy === i.token}
+                          onClick={() => runAction(i.token, "accept_proposal", p.value)}
+                          className="focus-ring rounded-md border border-moss/40 bg-moss/10 px-2 py-1 text-micro font-semibold text-moss hover:bg-moss/20 disabled:opacity-50"
+                        >
+                          {t("acceptProposal", { time: slotLabel(p.value, p.label) })}
+                        </button>
+                      ))}
+                      {armed?.token === i.token && armed.action === "decline_proposals" ? (
+                        <span className="inline-flex items-center gap-1.5" role="group" aria-label={t("declineProposalsPrompt")}>
+                          <span className="text-micro font-semibold text-red-700">{t("declineProposalsPrompt")}</span>
+                          <button type="button" disabled={busy === i.token} onClick={() => runAction(i.token, "decline_proposals")} className="focus-ring rounded-md border border-red-300 bg-white px-2 py-1 text-micro font-semibold text-red-700 hover:bg-red-100 disabled:opacity-50">
+                            {t("confirmAction")}
+                          </button>
+                          <button type="button" autoFocus onClick={() => setArmed(null)} className="focus-ring rounded-md px-2 py-1 text-micro font-semibold text-steel hover:bg-stone-100">
+                            {t("cancel")}
+                          </button>
+                        </span>
+                      ) : (
+                        <button type="button" disabled={busy === i.token} onClick={() => setArmed({ token: i.token, action: "decline_proposals" })} className="focus-ring rounded-md border border-stone-200 px-2 py-1 text-micro font-semibold text-steel hover:border-red-300 hover:bg-red-50 disabled:opacity-50">
+                          {t("declineProposals")}
+                        </button>
+                      )}
+                    </div>
+                  </>
+                ) : (
                 <span className="text-red-700">
                   {i.needsMoreSlots ? t("needsMoreSlots") : t("needsReconcile", { reason: i.reconcileReason ?? "" })}
                 </span>
+                )}
                 {/* Direction 2 — in-app repair for the drift the store surfaces but
                     the recruiter previously could only read: resolve clears the flag
                     (two-step) once the mismatch is handled. */}
-                {i.needsReconcile ? (
+                {i.needsReconcile && !hasPendingProposals(i) ? (
                   <span className="mt-1 flex items-center gap-1.5">
                     {armed?.token === i.token && armed.action === "resolve_reconcile" ? (
                       <span className="inline-flex items-center gap-1.5" role="group" aria-label={t("resolvePrompt")}>

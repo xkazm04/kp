@@ -824,7 +824,16 @@
     "linkExpiredBody": "Ce lien est resté ouvert un certain temps et a désormais expiré sans qu'un créneau ait été réservé.",
     "linkClosedTitle": "Cet entretien n'est plus ouvert",
     "linkClosedBody": "Cet entretien a été clôturé ; il n'y a donc aucun créneau à réserver ici.",
-    "linkClosedHelp": "Si vous avez encore besoin de planifier un créneau, répondez à votre dernier e-mail de l'équipe de recrutement."
+    "linkClosedHelp": "Si vous avez encore besoin de planifier un créneau, répondez à votre dernier e-mail de l'équipe de recrutement.",
+    "proposeTitle": "Proposez quelques créneaux qui vous conviennent",
+    "proposeBody": "Aucun des créneaux proposés ne convient ? Proposez jusqu'à trois créneaux en semaine pendant les heures de bureau et l'équipe de recrutement en confirmera un avec vous.",
+    "proposeSubmit": "Envoyer mes créneaux proposés",
+    "proposeSlotAria": "Créneau proposé {n}",
+    "proposeEmpty": "Veuillez ajouter au moins un créneau.",
+    "proposalsPendingTitle": "Vos créneaux proposés ont été transmis à l'équipe de recrutement",
+    "proposalsPendingBody": "Nous avons transmis vos créneaux proposés à l'équipe de recrutement. Elle vous en confirmera un sous peu — vous pouvez fermer cette page.",
+    "proposalsDeclinedTitle": "Nous n'avons pas pu retenir ces créneaux",
+    "proposalsDeclinedBody": "L'équipe de recrutement n'a pas pu retenir les créneaux que vous avez proposés. Elle vous contactera directement pour trouver un créneau qui convienne."
   },
   "data": {
     "eyebrow": "Vos données",
@@ -1974,7 +1983,12 @@
       "noShowPrompt": "Marquer comme absence ?",
       "confirmAction": "Confirmer",
       "resolveReconcile": "Résoudre",
-      "resolvePrompt": "Marquer comme résolu ?"
+      "resolvePrompt": "Marquer comme résolu ?",
+      "proposedTimes": "a proposé ses propres créneaux — acceptez-en un ou refusez",
+      "proposalsGroupAria": "Créneaux proposés par le candidat",
+      "acceptProposal": "Accepter {time}",
+      "declineProposals": "Tout refuser",
+      "declineProposalsPrompt": "Refuser les créneaux proposés ?"
     },
     "eyebrow": "Décisions · Planification",
     "title": "Calendrier des entretiens",

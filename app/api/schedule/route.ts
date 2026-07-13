@@ -4,16 +4,18 @@ import {
   cancelAttendance,
   confirmScheduleInvite,
   createScheduleInvite,
+  declineScheduleInviteProposals,
   getScheduleInviteByToken,
   listScheduleInvites,
+  markScheduleInviteNeedsReconcile,
   markScheduleInviteNoShow,
   rescheduleScheduleInvite,
   resolveScheduleInviteReconcile,
   setScheduleInviteMeetingUrl,
 } from "@/app/_lib/schedule-store";
-import { getPipelineEntry } from "@/app/_lib/db";
+import { actOnPipelineEntry, getPipelineEntry } from "@/app/_lib/db";
 import { plannedInterviewMinutes } from "@/app/_lib/interview-run";
-import { gridSlotToIso, offeredSlotFor, proposeSlots } from "@/app/_lib/schedule-slots";
+import { gridSlotToIso, offeredSlotFor, proposedSlotFor, proposeSlots } from "@/app/_lib/schedule-slots";
 import { sealDecisionSafe } from "@/app/_lib/decision-record-store";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { jsonOk, safeJsonError } from "@/app/_lib/api-response";
@@ -174,6 +176,71 @@ export async function POST(request: Request) {
           return NextResponse.json({ error: "invite not found" }, { status: 404 });
         }
         return jsonOk({ invite: moved.invite });
+      }
+      case "accept_proposal": {
+        // Accept ONE of the candidate's proposed times (the "propose your own times"
+        // escalation). The recruiter is trusted, but the accepted instant still passes
+        // through the SAME collision-checked transactions the candidate flow uses — and
+        // is re-validated (proposedSlotFor) in case the proposal has since aged into the
+        // past. A confirmed invite (past the reschedule cap) moves with recruiter
+        // authority; a pending invite books its first slot. Both clear the proposal state.
+        const chosen = (invite.proposals ?? []).find((p) => p.value === body.slotAt);
+        if (!chosen) {
+          return NextResponse.json({ error: "That proposed time is no longer on the invite." }, { status: 409 });
+        }
+        const offered = proposedSlotFor(chosen.value);
+        if (!offered) {
+          return NextResponse.json({ error: "That proposed time has passed — ask the candidate to suggest new times." }, { status: 409 });
+        }
+        const result =
+          invite.status === "confirmed"
+            ? rescheduleScheduleInvite(body.token, offered.label, offered.value, null, { recruiter: true })
+            : confirmScheduleInvite(body.token, offered.label, offered.value);
+        if (!result.ok) {
+          if (result.reason === "taken") {
+            return NextResponse.json({ error: "That time is already booked — pick another." }, { status: 409 });
+          }
+          return NextResponse.json({ error: "Could not book that time." }, { status: 409 });
+        }
+        // Keep the recruiter board in sync (mirrors the candidate confirm): record the
+        // slot on the linked entry, flagging drift rather than swallowing a stage-gate
+        // failure; seal the outcome-bearing decision.
+        if (invite.entryId) {
+          try {
+            actOnPipelineEntry(invite.entryId, "approve_event", offered.label);
+          } catch (advanceError) {
+            markScheduleInviteNeedsReconcile(body.token, advanceError instanceof Error ? advanceError.message : String(advanceError));
+          }
+          sealDecisionSafe({
+            kind: "interview_scheduled",
+            actor: "human:recruiter",
+            policyVersion: "manual",
+            candidateRef: invite.entryId,
+            rationale: `Recruiter accepted the candidate's proposed time (${offered.label}).`,
+            reasonCode: "interview_scheduled",
+            inputs: { slot: offered.label, slotAt: offered.value },
+          });
+        }
+        return jsonOk({ invite: getScheduleInviteByToken(body.token) });
+      }
+      case "decline_proposals": {
+        // The recruiter couldn't accommodate any proposed time: clear them and record
+        // the honest 'declined' state the candidate page reads. The booking (if any) is
+        // untouched — declining alternatives isn't cancelling a confirmed interview.
+        const updated = declineScheduleInviteProposals(body.token);
+        if (!updated) return NextResponse.json({ error: "There are no proposed times to decline." }, { status: 409 });
+        if (invite.entryId) {
+          sealDecisionSafe({
+            kind: "interview_proposal_declined",
+            actor: "human:recruiter",
+            policyVersion: "manual",
+            candidateRef: invite.entryId,
+            rationale: "Recruiter could not accommodate the candidate's proposed times; the candidate is told to expect direct outreach.",
+            reasonCode: "interview_proposal_declined",
+            inputs: {},
+          });
+        }
+        return jsonOk({ invite: updated });
       }
       case "resolve_reconcile": {
         const resolved = resolveScheduleInviteReconcile(body.token);
