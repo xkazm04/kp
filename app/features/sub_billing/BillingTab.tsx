@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { checkoutBannerState } from "./checkout-banner";
+import { planPriceKind } from "./plan-price";
+import { portalOutcome } from "./portal-open";
 import { useSearchParams } from "next/navigation";
 import { AlertTriangle, CheckCircle2, ExternalLink, Info, Timer } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
@@ -90,6 +92,50 @@ function MeterRow({ meter, name }: { meter: MeterOverview; name: string }) {
   );
 }
 
+// Shared plan-price renderer — the ONE place the "custom / free / paid" decision is
+// turned into markup, used by BOTH the current-plan header and each catalog card so
+// they can never diverge. bug-ui-scan-2026-07-09 (plans-checkout-billing-ui #5): the
+// header used to branch on `priceCzk === 0` alone and printed "Free" for Enterprise
+// (a contact-sales tier whose priceCzk is a 0 sentinel). `size` only tunes the primary
+// line's typography; the branching (contactSales → Custom, 0 → Free, else CZK+≈USD) is
+// identical on both surfaces.
+function PlanPrice({
+  plan,
+  size,
+}: {
+  plan: Pick<PlanDef, "contactSales" | "priceCzk" | "priceUsdApprox">;
+  size: "header" | "card";
+}) {
+  const t = useTranslations("billing.plans");
+  const format = useFormatter();
+  const price = planPriceKind(plan);
+  const primary = size === "card" ? "mt-1 text-h2 font-semibold text-ink" : "mt-0.5 text-base text-ink";
+  if (price.kind === "custom") {
+    return (
+      <>
+        <p className={primary}>{t("custom")}</p>
+        <p className="text-sm text-steel">{t("contactNote")}</p>
+      </>
+    );
+  }
+  if (price.kind === "free") {
+    return <p className={`${primary} nums`}>{t("priceFree")}</p>;
+  }
+  return (
+    <>
+      <p className={`${primary} nums`}>
+        {format.number(price.czk, { style: "currency", currency: "CZK", maximumFractionDigits: 0 })}
+      </p>
+      <p className="text-sm text-steel">
+        {t("approxUsd", {
+          price: format.number(price.usdApprox, { style: "currency", currency: "USD", maximumFractionDigits: 0 }),
+        })}{" "}
+        · {t("perMonth")}
+      </p>
+    </>
+  );
+}
+
 // One catalog plan: price (CZK primary, USD approximate), per-meter allowance, and
 // an action. `changeVia` decides that action: a customer with NO active paid plan
 // gets a fresh CHECKOUT (first subscription); a customer who already has a paid plan
@@ -118,37 +164,15 @@ function PlanCard({
   onManage: () => void;
 }) {
   const t = useTranslations("billing.plans");
-  const format = useFormatter();
   return (
     <div className={current ? "rounded-lg border border-coral/40 bg-coral/5 p-4 dark:rounded-2xl" : `${PANEL} p-4`}>
       <div className="flex items-center justify-between gap-2">
         <p className="font-serif text-h3 text-ink">{plan.name}</p>
         {current ? <Badge tone="positive" label={t("current")} className="shrink-0" /> : null}
       </div>
-      {plan.contactSales ? (
-        // Contact-sales (Enterprise): custom-priced, so we render "Custom" instead of a
-        // number and a note on how it's priced — never a CZK/USD figure.
-        <>
-          <p className="mt-1 text-h2 font-semibold text-ink">{t("custom")}</p>
-          <p className="text-sm text-steel">{t("contactNote")}</p>
-        </>
-      ) : (
-        <>
-          <p className="mt-1 text-h2 font-semibold text-ink nums">
-            {plan.priceCzk === 0
-              ? t("priceFree")
-              : format.number(plan.priceCzk, { style: "currency", currency: "CZK", maximumFractionDigits: 0 })}
-          </p>
-          {plan.priceCzk > 0 ? (
-            <p className="text-sm text-steel">
-              {t("approxUsd", {
-                price: format.number(plan.priceUsdApprox, { style: "currency", currency: "USD", maximumFractionDigits: 0 }),
-              })}{" "}
-              · {t("perMonth")}
-            </p>
-          ) : null}
-        </>
-      )}
+      {/* plans-checkout-billing-ui #5: price via the shared renderer so this card and
+          the current-plan header apply the SAME contactSales-first rule. */}
+      <PlanPrice plan={plan} size="card" />
       <ul className="mt-3 space-y-1 border-t border-stone-200 pt-3 text-sm">
         {Object.entries(plan.limits).map(([meter, limit]) => (
           <li key={meter} className="flex items-baseline justify-between gap-2">
@@ -211,8 +235,10 @@ export function BillingTab() {
   const [purchase, setPurchase] = useState<{ key: string; error: string | null } | null>(null);
   const [portalBusy, setPortalBusy] = useState(false);
   // `hint` renders calm (steel) — the portal's 404 means "no billing customer
-  // yet", a normal pre-first-purchase state, not a failure.
-  const [portalNote, setPortalNote] = useState<{ text: string; hint: boolean } | null>(null);
+  // yet", a normal pre-first-purchase state, not a failure. `url` is set only when a
+  // popup blocker killed the pre-opened tab (plans-checkout-billing-ui #3): the note
+  // then carries a clickable fallback link so the portal stays reachable.
+  const [portalNote, setPortalNote] = useState<{ text: string; hint: boolean; url?: string } | null>(null);
   // Post-checkout return: the provider redirected to /?tab=billing&billing=success.
   // The flag is captured ONCE via lazy initial state (render-derived and sticky, so
   // it survives the URL cleanup below) rather than a synchronous setState in the
@@ -297,16 +323,40 @@ export function BillingTab() {
     if (portalBusy) return;
     setPortalBusy(true);
     setPortalNote(null);
+    // bug-ui-scan-2026-07-09 (plans-checkout-billing-ui #3): pre-open the tab
+    // SYNCHRONOUSLY, while we still hold the click's user-activation token — opening it
+    // AFTER the fetch await let a popup blocker (Safari/Firefox strict, or any blocker)
+    // swallow the click with zero feedback, so the customer couldn't reach the only
+    // surface to cancel/downgrade/see invoices. We sever `opener` (about:blank inherits
+    // our origin) to keep the security noopener/noreferrer gave — and we can't USE those
+    // flags here because they force window.open to return null, which would make the
+    // "was it blocked?" check impossible.
+    const tab = typeof window !== "undefined" ? window.open("about:blank", "_blank") : null;
+    if (tab) tab.opener = null;
     try {
       const r = await fetch("/api/billing/portal", { method: "POST" });
       const p = (await r.json().catch(() => ({}))) as { url?: string; error?: string };
-      if (r.status === 404) {
-        setPortalNote({ text: t("noCustomerYet"), hint: true });
-        return;
+      const outcome = portalOutcome({ status: r.status, ok: r.ok, url: p.url, error: p.error }, Boolean(tab));
+      switch (outcome.kind) {
+        case "navigate":
+          tab!.location.href = outcome.url;
+          break;
+        case "fallback":
+          // The synchronous pre-open was itself blocked: keep the portal reachable with a
+          // clickable link instead of a dead, feedback-less click.
+          setPortalNote({ text: t("portalBlocked"), hint: false, url: outcome.url });
+          break;
+        case "hint":
+          tab?.close();
+          setPortalNote({ text: t("noCustomerYet"), hint: true });
+          break;
+        case "error":
+          tab?.close();
+          setPortalNote({ text: outcome.message || t("portalFailed"), hint: false });
+          break;
       }
-      if (!r.ok || !p.url) throw new Error(p.error || t("portalFailed"));
-      window.open(p.url, "_blank", "noopener,noreferrer");
     } catch (e) {
+      tab?.close();
       setPortalNote({ text: e instanceof Error ? e.message : t("portalFailed"), hint: false });
     } finally {
       setPortalBusy(false);
@@ -383,24 +433,9 @@ export function BillingTab() {
               <div>
                 <p className={META_LABEL}>{t("currentPlan")}</p>
                 <p className="mt-1 font-serif text-h2 text-ink">{data.plan.name}</p>
-                <p className="mt-0.5 text-base text-ink nums">
-                  {data.plan.priceCzk === 0
-                    ? t("plans.priceFree")
-                    : format.number(data.plan.priceCzk, { style: "currency", currency: "CZK", maximumFractionDigits: 0 })}
-                  {data.plan.priceCzk > 0 ? (
-                    <span className="text-sm text-steel">
-                      {" "}
-                      {t("plans.approxUsd", {
-                        price: format.number(data.plan.priceUsdApprox, {
-                          style: "currency",
-                          currency: "USD",
-                          maximumFractionDigits: 0,
-                        }),
-                      })}{" "}
-                      · {t("plans.perMonth")}
-                    </span>
-                  ) : null}
-                </p>
+                {/* plans-checkout-billing-ui #5: shared renderer — Enterprise (contactSales)
+                    now shows "Custom", not the "Free" the old priceCzk===0 branch printed. */}
+                <PlanPrice plan={data.plan} size="header" />
                 {data.periodEnd ? (
                   <p className="mt-1 text-sm text-steel">
                     {t("periodEnd", { date: format.dateTime(new Date(data.periodEnd), { dateStyle: "long" }) })}
@@ -426,6 +461,16 @@ export function BillingTab() {
               {portalNote ? (
                 <p role={portalNote.hint ? "status" : "alert"} className={`text-sm ${portalNote.hint ? "text-steel" : "text-coral"}`}>
                   {portalNote.text}
+                  {/* plans-checkout-billing-ui #3: when a popup blocker killed the pre-opened
+                      tab, offer a manual link so the portal is never an unreachable dead-end. */}
+                  {portalNote.url ? (
+                    <>
+                      {" "}
+                      <a href={portalNote.url} target="_blank" rel="noopener noreferrer" className="font-medium underline">
+                        {t("portalOpenLink")}
+                      </a>
+                    </>
+                  ) : null}
                 </p>
               ) : null}
             </div>

@@ -79,11 +79,12 @@ the client, never inferred from a checkout redirect.
 ## Polar sandbox checklist (before any real charge)
 
 > **Shortcut:** with `POLAR_ACCESS_TOKEN` + `POLAR_SERVER` in `.env`, steps 2
-> and 4 are one command — `node scripts/polar-setup.mjs --tunnel
-> https://<your>.trycloudflare.com`. Idempotent: verifies the product ids,
-> creates the missing minute pack, and creates the webhook endpoint (writing
-> its secret to `.env`) or re-points the existing endpoint's URL at the new
-> tunnel (secret unchanged). Run once per dev session after starting the
+> and 4 are one command — `npm run polar:setup -- --tunnel
+> https://<your>.trycloudflare.com`. Idempotent: verifies the product ids AND
+> reconciles each product's live price against the catalog (warning loudly on
+> drift), creates the missing minute pack, and creates the webhook endpoint
+> (writing its secret to `.env`) or re-points the existing endpoint's URL at the
+> new tunnel (secret unchanged). Run once per dev session after starting the
 > tunnel; restart the dev server afterwards (Next reloads `.env` on change).
 
 1. Create a sandbox org at sandbox.polar.sh → Organization Access Token →
