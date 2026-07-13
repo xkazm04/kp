@@ -42,6 +42,7 @@ export function Select({
   name,
   className = "",
   size = "md",
+  sizeVariant,
   disabled = false,
   searchable,
   clearable = false,
@@ -59,7 +60,10 @@ export function Select({
   id?: string;
   name?: string;
   className?: string;
+  /** Compact/standard height. `sizeVariant` is the family-wide name (matches
+   *  TextInput/TextArea); `size` is kept as a back-compat alias. */
   size?: "sm" | "md";
+  sizeVariant?: "sm" | "md";
   disabled?: boolean;
   /** Show a filter box above the list. Defaults to auto (on when > 8 options). */
   searchable?: boolean;
@@ -217,7 +221,7 @@ export function Select({
     }
   };
 
-  const sizeCls = size === "sm" ? "h-9 px-2.5 text-sm" : "h-10 px-3 text-base";
+  const sizeCls = (sizeVariant ?? size) === "sm" ? "h-9 px-2.5 text-sm" : "h-10 px-3 text-base";
   const TriggerIcon = selected?.icon;
 
   return (

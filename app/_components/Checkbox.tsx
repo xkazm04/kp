@@ -14,10 +14,13 @@ export type CheckboxProps = Omit<React.InputHTMLAttributes<HTMLInputElement>, "t
   hint?: React.ReactNode;
   /** Wrapper classes when a label/hint is present. */
   wrapperClassName?: string;
+  /** Mark the control invalid — the family-wide `invalid` prop (sets aria-invalid
+   *  and an error-tone accent). */
+  invalid?: boolean;
 };
 
 export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(function Checkbox(
-  { label, hint, className = "", wrapperClassName = "", disabled, ...rest },
+  { label, hint, className = "", wrapperClassName = "", disabled, invalid = false, ...rest },
   ref
 ) {
   const box = (
@@ -25,7 +28,8 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(function Che
       ref={ref}
       type="checkbox"
       disabled={disabled}
-      className={`focus-ring h-4 w-4 shrink-0 accent-coral disabled:opacity-60 ${label ? "mt-0.5" : ""} ${className}`}
+      aria-invalid={invalid || undefined}
+      className={`focus-ring h-4 w-4 shrink-0 disabled:opacity-60 ${invalid ? "accent-red-500" : "accent-coral"} ${label ? "mt-0.5" : ""} ${className}`}
       {...rest}
     />
   );

@@ -1,19 +1,22 @@
 import { Fragment, type ReactNode } from "react";
 import { PlantUml } from "./puml/PlantUml";
+import { safeLinkHref } from "./markdown-html";
 
 // A small, dependency-free Markdown renderer for the subset job postings need:
 // # / ## / ### headings, - / * bullet and 1. ordered lists, --- rules, blank-line
-// paragraphs, and inline **bold** / *italic* / `code`. It builds React elements
-// (never dangerouslySetInnerHTML), so input text is rendered safely.
+// paragraphs, inline **bold** / *italic* / `code` / `[text](url)` links / <u>, and
+// backslash escapes (`\*` prints a literal `*`). It builds React elements (never
+// dangerouslySetInnerHTML), so input text — including link hrefs — is rendered safely.
 
 function inline(text: string, keyBase: string): ReactNode[] {
   const out: ReactNode[] = [];
-  // Match the FIRST of **bold**, *italic*, `code` left to right — bold listed before italic
-  // so `**` wins over `*`, and a non-greedy `[\s\S]+?` lets an emphasis span CONTAIN other
-  // markers. The old `[^*]+` dropped any bold/italic that contained a `*` (rendering the raw
-  // asterisks). Bold and italic recurse into their content so nested emphasis renders; code
-  // is literal (no recursion). Still builds React elements, never dangerouslySetInnerHTML.
-  const re = /\*\*([\s\S]+?)\*\*|\*([\s\S]+?)\*|`([^`]+)`|<u>([\s\S]*?)<\/u>/;
+  // A `\`-escape wins first (so `\*` prints a literal `*`), then `[text](url)`, then
+  // the FIRST of **bold**, *italic*, `code`, <u> left to right — bold before italic so
+  // `**` wins over `*`, and a non-greedy `[\s\S]+?` lets an emphasis span CONTAIN other
+  // markers. Bold/italic/link-text recurse so nested emphasis renders; code is literal.
+  // Still builds React elements, never dangerouslySetInnerHTML.
+  // Groups: 1 escaped char · 2 link text · 3 link url · 4 bold · 5 italic · 6 code · 7 underline.
+  const re = /\\([\\*`<#.-])|\[([^\]]+)\]\(([^)]+)\)|\*\*([\s\S]+?)\*\*|\*([\s\S]+?)\*|`([^`]+)`|<u>([\s\S]*?)<\/u>/;
   let rest = text;
   let n = 0;
   while (rest.length) {
@@ -23,13 +26,32 @@ function inline(text: string, keyBase: string): ReactNode[] {
       break;
     }
     if (m.index > 0) out.push(<Fragment key={`${keyBase}-t${n++}`}>{rest.slice(0, m.index)}</Fragment>);
+    if (m[1] !== undefined) {
+      // Escaped literal — emit the character itself, stripped of its backslash.
+      out.push(<Fragment key={`${keyBase}-e${n++}`}>{m[1]}</Fragment>);
+      rest = rest.slice(m.index + m[0].length);
+      continue;
+    }
     const key = `${keyBase}-m${n++}`;
-    if (m[1] !== undefined) out.push(<strong key={key} className="font-semibold text-ink">{inline(m[1], key)}</strong>);
-    else if (m[2] !== undefined) out.push(<em key={key}>{inline(m[2], key)}</em>);
+    if (m[2] !== undefined) {
+      // [text](url) — a real <a> when the scheme is safe (http/https/mailto), else the
+      // raw syntax as inert text. href is a prop (never dangerouslySetInnerHTML).
+      const href = safeLinkHref(m[3]);
+      out.push(
+        href ? (
+          <a key={key} href={href} target="_blank" rel="noopener noreferrer" className="font-medium text-coral underline decoration-coral/40 underline-offset-2 hover:decoration-coral">
+            {inline(m[2], key)}
+          </a>
+        ) : (
+          <Fragment key={key}>{m[0]}</Fragment>
+        )
+      );
+    } else if (m[4] !== undefined) out.push(<strong key={key} className="font-semibold text-ink">{inline(m[4], key)}</strong>);
+    else if (m[5] !== undefined) out.push(<em key={key}>{inline(m[5], key)}</em>);
     // <u>…</u> — the one HTML tag the RichTextEditor round-trips (markdown has no
     // native underline); rendered as a real <u>, still React elements (safe).
-    else if (m[4] !== undefined) out.push(<u key={key}>{inline(m[4], key)}</u>);
-    else out.push(<code key={key} className="rounded bg-stone-100 px-1 py-0.5 text-[0.9em]">{m[3]}</code>);
+    else if (m[7] !== undefined) out.push(<u key={key}>{inline(m[7], key)}</u>);
+    else out.push(<code key={key} className="rounded bg-stone-100 px-1 py-0.5 text-[0.9em]">{m[6]}</code>);
     rest = rest.slice(m.index + m[0].length);
   }
   return out;
