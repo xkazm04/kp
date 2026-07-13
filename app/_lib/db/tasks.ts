@@ -318,3 +318,37 @@ export function listQueuedTaskIds(): string[] {
   const rows = db.prepare(`SELECT id FROM tasks WHERE status='queued' ORDER BY created_at ASC -- tenancy:global`).all() as { id: string }[];
   return rows.map((r) => r.id);
 }
+
+/**
+ * (id, started_at) for every 'running' row — the wall-clock reaper's input
+ * (bug-ui-scan-2026-07-09 #2). Cross-tenant by design: the ONE runner owns every
+ * team's live tasks, so a stuck slot must be reclaimable regardless of tenant.
+ * The reaper (tasks.ts) decides staleness via task-maintenance.isTaskStale.
+ */
+export function listRunningTaskTimes(): { id: string; startedAt: string | null }[] {
+  const db = ensureDb();
+  const rows = db
+    .prepare(`SELECT id, started_at FROM tasks WHERE status='running' -- tenancy:global`)
+    .all() as { id: string; started_at: string | null }[];
+  return rows.map((r) => ({ id: r.id, startedAt: r.started_at }));
+}
+
+/**
+ * Retention prune (bug-ui-scan-2026-07-09 #3): delete TERMINAL task rows whose
+ * effective finish time is before `beforeIso`, reclaiming the unbounded params_json
+ * / result_json blobs. The `status NOT IN ('queued','running')` guard makes it
+ * impossible to delete an in-flight task no matter the cutoff. Cross-tenant system
+ * housekeeping (the runner is global), so tagged `-- tenancy:global`. Returns the
+ * number of rows deleted.
+ */
+export function pruneFinishedTasks(beforeIso: string): number {
+  const db = ensureDb();
+  const info = db
+    .prepare(
+      `DELETE FROM tasks
+        WHERE status NOT IN ('queued','running')
+          AND COALESCE(finished_at, created_at) < ? -- tenancy:global`
+    )
+    .run(beforeIso);
+  return info.changes as number;
+}

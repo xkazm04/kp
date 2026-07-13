@@ -1,6 +1,7 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { tasksSignature } from "@/app/_lib/task-view";
 
 export type TaskStatus = "queued" | "running" | "succeeded" | "failed" | "canceled" | "interrupted";
 
@@ -72,7 +73,15 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
     try {
       const r = await fetch("/api/tasks");
       const p = await r.json();
-      if (Array.isArray(p.tasks)) setTasks(p.tasks as Task[]);
+      if (Array.isArray(p.tasks)) {
+        const next = p.tasks as Task[];
+        // The 2s poll parses a fresh array every tick, so an unconditional
+        // setTasks committed a NEW reference even when nothing changed —
+        // re-rendering every useTasks() consumer for the whole life of a running
+        // task. Commit only when a cheap rendered-state signature actually differs;
+        // an unchanged poll returns the SAME reference and is a no-op.
+        setTasks((prev) => (tasksSignature(prev) === tasksSignature(next) ? prev : next));
+      }
     } catch {
       /* transient — next tick retries */
     }
@@ -178,18 +187,29 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
     };
   }, [refresh]);
 
-  const value: Ctx = {
-    tasks,
-    running: tasks.filter(ACTIVE),
-    startTask,
-    retryTask,
-    cancelTask,
-    refresh,
-    fetchTask,
-    findActive: (predicate) => tasks.find((t) => ACTIVE(t) && predicate(t)),
-    startError,
-    clearStartError: () => setStartError(null),
-  };
+  const clearStartError = useCallback(() => setStartError(null), []);
+
+  // Memoize the context value so it only changes when the task list REALLY changes
+  // (the signature-gated refresh above keeps `tasks` referentially stable across
+  // no-op polls) or a start error flips — instead of rebuilding a fresh object,
+  // `running` array, and `findActive` closure every render and cascading a
+  // re-render through every consumer on each 2s tick. All the callbacks are stable
+  // (useCallback), so `tasks` and `startError` are the only real inputs.
+  const value = useMemo<Ctx>(
+    () => ({
+      tasks,
+      running: tasks.filter(ACTIVE),
+      startTask,
+      retryTask,
+      cancelTask,
+      refresh,
+      fetchTask,
+      findActive: (predicate) => tasks.find((t) => ACTIVE(t) && predicate(t)),
+      startError,
+      clearStartError,
+    }),
+    [tasks, startTask, retryTask, cancelTask, refresh, fetchTask, startError, clearStartError]
+  );
 
   return <TasksContext.Provider value={value}>{children}</TasksContext.Provider>;
 }

@@ -8,6 +8,7 @@ import { SystemCard } from "./SystemCard";
 import { BackupCard } from "./BackupCard";
 import { IntegrationsCard } from "./IntegrationsCard";
 import { useReducedMotion } from "@/app/_lib/useReducedMotion";
+import { progressDisplay } from "@/app/_lib/task-view";
 import { useInfiniteScroll, type InfinitePage } from "@/app/_lib/useInfiniteScroll";
 import { formatRelativeTime } from "@/app/_lib/format";
 import { TextInput } from "@/app/_components/TextInput";
@@ -37,11 +38,6 @@ const STATUS: Record<TaskStatus, StatusMeta> = {
 };
 
 const ACTIVE = (t: Task) => t.status === "running" || t.status === "queued";
-
-function pct(t: Task): number {
-  if (t.progressTotal <= 0) return t.status === "running" ? 8 : 0;
-  return Math.round((t.progressDone / t.progressTotal) * 100);
-}
 
 // Tasks show "—" for a never-run/invalid timestamp; otherwise the shared
 // relative-time renderer (formatRelativeTime, which returns "" on invalid).
@@ -342,6 +338,8 @@ function Group({ title, count, children }: { title: string; count: number; child
 
 function ActiveCard({ task, onCancel }: { task: Task; onCancel: () => void }) {
   const meta = STATUS[task.status];
+  const reduced = useReducedMotion();
+  const disp = progressDisplay(task);
   // Cancel is destructive (kills a running job) and was a single unguarded click with
   // no feedback. Require an inline confirm, then show a pending state until the card
   // drops off on the next refresh.
@@ -390,8 +388,25 @@ function ActiveCard({ task, onCancel }: { task: Task; onCancel: () => void }) {
           </button>
         )}
       </div>
-      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-stone-200">
-        <div className="h-full rounded-full bg-coral transition-all duration-500" style={{ width: `${Math.max(6, pct(task))}%` }} />
+      {/* Finding 5: a determinate bar ONLY when there's a real total. A running
+          task with no total is genuinely indeterminate — show an animated
+          "working" treatment (a pulsing full bar, gated on reduced-motion) rather
+          than a frozen fake ~8% that reads as a job stalled at 8%. */}
+      <div
+        className="mt-2 h-1.5 overflow-hidden rounded-full bg-stone-200"
+        role="progressbar"
+        aria-valuenow={disp.mode === "determinate" ? disp.pct : undefined}
+        aria-valuemin={disp.mode === "determinate" ? 0 : undefined}
+        aria-valuemax={disp.mode === "determinate" ? 100 : undefined}
+        aria-label={disp.mode === "indeterminate" ? "Working…" : undefined}
+      >
+        {disp.mode === "determinate" ? (
+          <div className="h-full rounded-full bg-coral transition-all duration-500" style={{ width: `${Math.max(6, disp.pct)}%` }} />
+        ) : disp.mode === "indeterminate" ? (
+          <div className={`h-full w-full rounded-full ${reduced ? "bg-coral/40" : "bg-coral/70 animate-pulse"}`} />
+        ) : (
+          <div className="h-full w-1/6 rounded-full bg-stone-300" />
+        )}
       </div>
       <div className="mt-1.5 flex items-center justify-between gap-3 text-sm text-steel">
         <span className="min-w-0 truncate">

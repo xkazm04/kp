@@ -6,11 +6,20 @@ import {
   interruptStaleTasks,
   lifecycleByPosting,
   listQueuedTaskIds,
+  listRunningTaskTimes,
+  pruneFinishedTasks,
   listActiveEntriesForAutomation,
   markTaskRunning,
   setTaskProgress,
   type TaskRecord,
 } from "./db";
+import {
+  TASK_MAX_RUNTIME_MS,
+  TASK_RETENTION_DAYS,
+  MAINTENANCE_INTERVAL_MS,
+  tasksToReap,
+  taskRetentionCutoffIso,
+} from "./task-maintenance.ts";
 import { runAutomationTask } from "./automation-run";
 import { runReasoning } from "./reasoning-run";
 import { runAnalyze, type AnalyzeParams } from "./analyze-run";
@@ -137,6 +146,36 @@ let booted = false;
 let running = 0;
 const queue: string[] = [];
 const controllers = new Map<string, AbortController>();
+let lastMaintenanceMs = 0;
+
+// Opportunistic, throttled housekeeping driven off task submissions (NOT the
+// automation clock, which is separately monitored and can die — Finding 1):
+//   #2 reap orphaned 'running' rows past the wall-clock budget that have NO live
+//      in-process controller (a row this process isn't watching — e.g. left by a
+//      prior incarnation the boot sweep raced). A row we ARE watching is left to
+//      its own runOne watchdog, which is what actually frees the in-memory slot.
+//   #3 delete terminal rows older than the retention window so params_json /
+//      result_json blobs can't accumulate forever.
+// Best-effort and self-contained: any failure is logged and the next submission
+// retries. Exported so tests / callers can force a sweep.
+export function runMaintenance(nowMs: number = Date.now()): void {
+  if (nowMs - lastMaintenanceMs < MAINTENANCE_INTERVAL_MS) return;
+  lastMaintenanceMs = nowMs;
+  try {
+    for (const id of tasksToReap(listRunningTaskTimes(), nowMs)) {
+      if (controllers.has(id)) continue; // an in-process watchdog owns this one
+      finishTask(id, "interrupted", { error: "reaped: running past the wall-clock budget with no live handler" });
+    }
+  } catch (e) {
+    console.error("[tasks] stale-task reaper failed:", e);
+  }
+  try {
+    const pruned = pruneFinishedTasks(taskRetentionCutoffIso(nowMs));
+    if (pruned) console.log(`[tasks] pruned ${pruned} finished task(s) older than ${TASK_RETENTION_DAYS}d`);
+  } catch (e) {
+    console.error("[tasks] retention prune failed:", e);
+  }
+}
 
 // One-time, idempotent stale-task reconciliation for the current process. The
 // in-process queue is volatile, so rows a previous process left behind are split
@@ -176,6 +215,7 @@ export function isKnownKind(kind: string): boolean {
 
 export function startTask(kind: string, params: Record<string, unknown>): TaskRecord {
   ensureRecovered();
+  runMaintenance(); // throttled reap + retention prune, piggy-backed on submissions
   const spec = HANDLERS[kind];
   if (!spec) throw new Error(`unknown task kind: ${kind}`);
   // A stable key may reuse an in-flight run; a null key means the identifying
@@ -245,18 +285,44 @@ async function runOne(id: string): Promise<void> {
   // marks the row failed and the finally decrements `running`, keeping the runner
   // self-correcting instead of permanently leaking a MAX_CONCURRENT slot.
   const controller = new AbortController();
+  // Wall-clock watchdog (Finding 2). A handler that HANGS (an LLM/HTTP call with
+  // no timeout, a stuck lock, SQLite contention) would otherwise never settle, so
+  // its row stays 'running' and holds one of only MAX_CONCURRENT slots forever;
+  // two hangs deadlock the whole queue. Race the handler against a hard budget:
+  // when it fires we abort (cooperative — a well-behaved handler bails) and treat
+  // the row as 'interrupted', so the finally ALWAYS frees the slot even if the
+  // handler never settles. This makes "a stuck handler holds a slot forever"
+  // impossible at the runner level rather than per handler.
+  let watchdog: ReturnType<typeof setTimeout> | undefined;
+  const TIMED_OUT = Symbol("timed-out");
   try {
     running += 1;
     controllers.set(id, controller);
     markTaskRunning(id);
-    const result = await spec.run({
+    const runPromise = spec.run({
       taskId: id,
       workspaceId: task.workspaceId,
       params: (task.params as Record<string, unknown>) ?? {},
       progress: (d, t, m) => setTaskProgress(id, d, t, m),
       signal: controller.signal,
     });
-    finishTask(id, controller.signal.aborted ? "canceled" : "succeeded", { result });
+    // A hung handler that loses this race is orphaned (a JS promise can't be
+    // force-killed); swallow any late rejection so it can't surface as an
+    // unhandledRejection after we've already moved the slot on.
+    runPromise.catch(() => {});
+    const timeout = new Promise<typeof TIMED_OUT>((resolve) => {
+      watchdog = setTimeout(() => {
+        controller.abort();
+        resolve(TIMED_OUT);
+      }, TASK_MAX_RUNTIME_MS);
+      (watchdog as { unref?: () => void }).unref?.(); // never keep the process alive for the watchdog alone
+    });
+    const outcome = await Promise.race([runPromise, timeout]);
+    if (outcome === TIMED_OUT) {
+      finishTask(id, "interrupted", { error: `exceeded the ${TASK_MAX_RUNTIME_MS}ms wall-clock budget` });
+    } else {
+      finishTask(id, controller.signal.aborted ? "canceled" : "succeeded", { result: outcome });
+    }
   } catch (error) {
     // The recovery write reuses the same (possibly contended) DB connection that may
     // have just failed markTaskRunning. Guard it: an unguarded throw here escapes
@@ -274,6 +340,7 @@ async function runOne(id: string): Promise<void> {
       );
     }
   } finally {
+    if (watchdog) clearTimeout(watchdog);
     controllers.delete(id);
     running -= 1;
     pump();
