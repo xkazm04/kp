@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { buildDurableSkillProfile, isSubstantiveSkillProfile, signProfile, verifyProfile, skillProfileFreshness, PROFILE_FRESHNESS_DAYS, DSP_VERSION } from "./skill-profile.ts";
+import { buildDurableSkillProfile, isSubstantiveSkillProfile, signProfile, verifyProfile, skillProfileFreshness, PROFILE_FRESHNESS_DAYS, DSP_VERSION, resolveSkillProfileCardState, skillProfileShowsScoreCard } from "./skill-profile.ts";
 
 // Sign/verify need KP_SECRET (the operator master secret), same as llm-secret.test.
 process.env.KP_SECRET = process.env.KP_SECRET || "test-master-secret";
@@ -127,6 +127,43 @@ test("an unparseable issue date can't be aged, but a superseded methodology stil
     ageDays: null, ageYears: null, stale: false, reason: null,
   });
   assert.equal(skillProfileFreshness({ issuedAt: "not-a-date", methodologyVersion: "dsp-v0" }, now).stale, true);
+});
+
+// bug-ui-scan-2026-07-09 (dev-lifecycle-cohort-outcomes #2): the public score card must be
+// gated on the full TRUST state, not on `substantive` alone. A tampered/revoked/unverifiable
+// credential can still be substantive (it HAS numbers), and the old gate rendered those
+// untrusted numbers as the visual focus under a red "do not trust" badge. These pin the
+// priority ordering and the show/hide contract.
+const V = { revoked: false, verifiable: true, valid: true, substantive: true, stale: false };
+
+test("resolveSkillProfileCardState follows the trust priority (revoked ▸ unverifiable ▸ tampered ▸ incomplete ▸ stale ▸ verified)", () => {
+  assert.equal(resolveSkillProfileCardState(V), "verified");
+  assert.equal(resolveSkillProfileCardState({ ...V, stale: true }), "stale");
+  assert.equal(resolveSkillProfileCardState({ ...V, substantive: false }), "incomplete");
+  // A SUBSTANTIVE-but-untrusted credential must resolve to its untrusted state, never "verified".
+  assert.equal(resolveSkillProfileCardState({ ...V, valid: false }), "tampered");
+  assert.equal(resolveSkillProfileCardState({ ...V, verifiable: false }), "unverifiable");
+  assert.equal(resolveSkillProfileCardState({ ...V, revoked: true }), "revoked");
+  // Priority: revoked outranks a mismatch/config problem; unverifiable outranks tampered.
+  assert.equal(resolveSkillProfileCardState({ revoked: true, verifiable: false, valid: false, substantive: true, stale: true }), "revoked");
+  assert.equal(resolveSkillProfileCardState({ ...V, verifiable: false, valid: false }), "unverifiable");
+});
+
+test("skillProfileShowsScoreCard reveals numbers ONLY for genuine attested states (verified, stale)", () => {
+  assert.equal(skillProfileShowsScoreCard("verified"), true);
+  assert.equal(skillProfileShowsScoreCard("stale"), true); // genuine but old — numbers shown, green shield withheld
+  // The regression this closes: a tampered/revoked/unverifiable card is substantive, so the
+  // old `substantive`-only gate showed it. The card must now be HIDDEN for every one of them.
+  assert.equal(skillProfileShowsScoreCard("tampered"), false);
+  assert.equal(skillProfileShowsScoreCard("revoked"), false);
+  assert.equal(skillProfileShowsScoreCard("unverifiable"), false);
+  assert.equal(skillProfileShowsScoreCard("incomplete"), false);
+});
+
+test("a tampered-but-substantive credential hides its score card (the #2 fix end-to-end)", () => {
+  const state = resolveSkillProfileCardState({ ...V, valid: false }); // signature mismatch, still has numbers
+  assert.equal(state, "tampered");
+  assert.equal(skillProfileShowsScoreCard(state), false); // pre-fix (`substantive` gate) this was shown
 });
 
 test("sign throws when KP_SECRET is unset", () => {

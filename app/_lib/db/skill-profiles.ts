@@ -217,16 +217,46 @@ export function issueSkillProfile(submissionId: string): IssueResult {
   if (!sub) return { ok: false, reason: "not_found" };
   if (sub.status !== "evaluated" || sub.transferScore == null) return { ok: false, reason: "not_evaluated" };
 
-  // Idempotent: reuse a non-revoked profile already minted for this submission.
+  const posting = sub.postingId ? getPosting(sub.postingId) : null;
+
+  // Idempotent: reuse a non-revoked profile already minted for this submission — BUT only
+  // while it still attests the CURRENT evaluation. bug-ui-scan-2026-07-09
+  // (dev-lifecycle-cohort-outcomes #4): a re-evaluation (saveSubmissionEvaluation overwrites
+  // eval_json + transfer_score, e.g. after a rubric fix) changes the axes/score, yet a mint
+  // keyed purely on submission_id kept handing back the STALE credential — the public
+  // /skill card silently diverged from the corrected evaluation with no reissue path. So
+  // fingerprint the live evaluation into the reuse check: rebuild the profile from today's
+  // evaluation under the existing row's issuedAt (so only genuine content — axes, score,
+  // confidence, case — differs, never the timestamp) and compare canonical forms. Identical
+  // ⇒ nothing changed, hand back the same credential (true idempotency). Different ⇒ the
+  // evaluation moved, so REVOKE the now-stale credential and fall through to mint a fresh
+  // signed artifact that attests the current scores.
   const existingRow = db
     .prepare(`SELECT * FROM skill_profiles WHERE submission_id = ? AND revoked_at IS NULL ORDER BY issued_at DESC LIMIT 1`)
     .get(submissionId) as Row | undefined;
   if (existingRow) {
     const issued = rowToIssued(existingRow);
-    if (issued) return { ok: true, token: issued.token, profile: issued.profile, created: false };
+    if (issued) {
+      const current = buildDurableSkillProfile({
+        candidateRef: sub.candidateRef ?? "candidate",
+        caseId: posting?.caseId ?? null,
+        issuedAt: issued.profile.issuedAt,
+        eval: (sub.evaluation ?? {}) as EvalForProfile,
+      });
+      // Reuse when the current evaluation still builds the SAME attested content. Only a
+      // substantive rebuild can supersede — a re-eval that wiped all scores (empty, non-
+      // substantive) must not silently revoke a genuine credential (there'd be nothing to
+      // reissue); leave the existing one intact in that case.
+      if (!isSubstantiveSkillProfile(current) || canonicalize(current) === canonicalize(issued.profile)) {
+        return { ok: true, token: issued.token, profile: issued.profile, created: false };
+      }
+      db.prepare(`UPDATE skill_profiles SET revoked_at = ? WHERE token = ? AND revoked_at IS NULL`).run(
+        new Date().toISOString(),
+        existingRow.token
+      );
+    }
   }
 
-  const posting = sub.postingId ? getPosting(sub.postingId) : null;
   const issuedAt = new Date().toISOString();
   const profile = buildDurableSkillProfile({
     candidateRef: sub.candidateRef ?? "candidate",

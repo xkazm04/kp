@@ -3,7 +3,7 @@ import Link from "next/link";
 import { ShieldCheck, ShieldAlert, ShieldX } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { verifySkillProfileToken } from "@/app/_lib/db";
-import { skillProfileFreshnessNow } from "@/app/_lib/skill-profile";
+import { skillProfileFreshnessNow, resolveSkillProfileCardState, skillProfileShowsScoreCard } from "@/app/_lib/skill-profile";
 
 
 // Durable Skill Profile (moonshot A) — the public, candidate-owned, shareable
@@ -42,17 +42,13 @@ export default async function SkillProfilePage({ params }: { params: Promise<{ t
   // credential drops to a muted amber "issued a while ago" verdict with the numbers still
   // shown, never a confident green. Integrity is unaffected; only currency is flagged.
   const freshness = skillProfileFreshnessNow(p);
-  const state: "verified" | "revoked" | "tampered" | "incomplete" | "unverifiable" | "stale" = verdict.revoked
-    ? "revoked"
-    : !verdict.verifiable
-      ? "unverifiable"
-      : !verdict.valid
-        ? "tampered"
-        : !verdict.substantive
-          ? "incomplete"
-          : freshness.stale
-            ? "stale"
-            : "verified";
+  const state = resolveSkillProfileCardState({
+    revoked: verdict.revoked,
+    verifiable: verdict.verifiable,
+    valid: verdict.valid,
+    substantive: verdict.substantive,
+    stale: freshness.stale,
+  });
 
   const badge =
     state === "verified"
@@ -88,7 +84,13 @@ export default async function SkillProfilePage({ params }: { params: Promise<{ t
         </p>
       ) : null}
 
-      {verdict.substantive ? (
+      {/* bug-ui-scan-2026-07-09 (dev-lifecycle-cohort-outcomes #2): gate the numeric score
+          card on the full TRUST state (verified/stale = genuine, attested), NOT on
+          `substantive` alone. A tampered/revoked/unverifiable credential can still be
+          "substantive" (has numbers), so the old gate rendered attacker-/stale-controlled
+          scores as the visual focus directly under a red "do not trust" badge. Untrusted or
+          unattested states now fall through to the muted "summary unavailable" block. */}
+      {skillProfileShowsScoreCard(state) ? (
       <section className="mt-6 rounded-lg border border-stone-200 bg-white p-6 shadow-panel">
         <div className="flex items-end justify-between gap-4">
           <div>
@@ -109,17 +111,37 @@ export default async function SkillProfilePage({ params }: { params: Promise<{ t
           <div className="mt-6">
             <h2 className="text-meta uppercase text-steel">{t("axesLabel")}</h2>
             <ul className="mt-2 space-y-2">
-              {axes.map(([name, score]) => (
+              {axes.map(([name, score]) => {
+                const pct = Math.max(0, Math.min(100, score));
+                return (
                 <li key={name}>
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-ink">{name}</span>
                     <span className="font-mono text-stone-500">{Math.round(score)}</span>
                   </div>
-                  <div className="mt-1 h-1.5 w-full rounded-full bg-stone-100">
-                    <div className="h-full rounded-full bg-ink" style={{ width: `${Math.max(0, Math.min(100, score))}%` }} />
+                  {/* bug-ui-scan-2026-07-09 (dev-lifecycle-cohort-outcomes #5): the axis meter
+                      was a purely presentational div — no role/value, so assistive tech got the
+                      number with no notion of scale, and a 0-score axis rendered a visually
+                      empty track indistinguishable from "no data". Expose it as a labelled
+                      meter, and draw a faint baseline tick at score 0 so an empty bar reads as
+                      "low", not "missing". */}
+                  <div
+                    role="meter"
+                    aria-valuenow={Math.round(pct)}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-label={t("axisMeterLabel", { axis: name, score: Math.round(score) })}
+                    className="mt-1 h-1.5 w-full rounded-full bg-stone-100"
+                  >
+                    {pct > 0 ? (
+                      <div className="h-full rounded-full bg-ink" style={{ width: `${pct}%` }} />
+                    ) : (
+                      <div className="h-full w-1 rounded-full bg-stone-300" aria-hidden />
+                    )}
                   </div>
                 </li>
-              ))}
+                );
+              })}
             </ul>
           </div>
         ) : null}

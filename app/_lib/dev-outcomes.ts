@@ -117,7 +117,7 @@ export type OutcomeRecord = {
 export function recordOutcome(input: OutcomeInput): "inserted" | "updated" {
   const d = db();
   const candidate = input.candidateRef?.trim();
-  const existing = (
+  let existing = (
     input.ref != null
       ? d.prepare(`SELECT id, predicted_score, performance, note FROM dev_outcomes WHERE ref = ? ORDER BY id DESC LIMIT 1`).get(input.ref)
       : candidate
@@ -126,6 +126,26 @@ export function recordOutcome(input: OutcomeInput): "inserted" | "updated" {
             .get(candidate, input.outcome)
         : undefined
   ) as { id: number; predicted_score: number | null; performance: number | null; note: string | null } | undefined;
+  // bug-ui-scan-2026-07-09 (dev-lifecycle-cohort-outcomes #3): the refless identity key
+  // (trimmed candidateRef, outcome) is neither unique nor stable — two DIFFERENT real people
+  // who share a candidateRef (a common name) and outcome would collapse into one row, the
+  // second record silently OVERWRITING the first's predictedScore and biasing calibration.
+  // A refless entry that asserts its OWN predicted score DIFFERENT from the matched row's is
+  // therefore a distinct outcome (a different candidate / posting), not a completion — insert
+  // it rather than merge. A refless entry with no score (or the same score) is still a
+  // completion of the matched row (e.g. "add a perf score to the alice hire") and updates in
+  // place, so the auto-hire dedup path is unaffected. (The ref path is exact identity and is
+  // never second-guessed.) NOTE: a same-name/same-score/same-outcome collision between two
+  // real people remains indistinguishable without a `ref` — the residual the fix can't reach.
+  if (
+    existing &&
+    input.ref == null &&
+    input.predictedScore != null &&
+    existing.predicted_score != null &&
+    input.predictedScore !== existing.predicted_score
+  ) {
+    existing = undefined;
+  }
   if (existing) {
     d.prepare(`UPDATE dev_outcomes SET predicted_score = ?, outcome = ?, performance = ?, note = ?, recorded_at = ? WHERE id = ?`).run(
       input.predictedScore ?? existing.predicted_score,

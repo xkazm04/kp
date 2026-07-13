@@ -120,6 +120,45 @@ export function skillProfileFreshnessNow(dsp: { issuedAt: string; methodologyVer
   return skillProfileFreshness(dsp, Date.now());
 }
 
+// The public /skill/[token] card renders one of six trust states. Priority (highest first):
+// revoked ▸ unverifiable ▸ tampered ▸ incomplete ▸ stale ▸ verified. Pulled OUT of the server
+// component so it is a pure, testable leaf (skill-profile.test.ts) and the render body carries
+// no branching logic.
+export type SkillProfileCardState = "verified" | "revoked" | "tampered" | "incomplete" | "unverifiable" | "stale";
+
+export function resolveSkillProfileCardState(v: {
+  revoked: boolean;
+  verifiable: boolean; // false ONLY when key material is missing (config), NOT tampering
+  valid: boolean; // signature recomputes AND not revoked
+  substantive: boolean; // carries real graded content (axes / non-zero score)
+  stale: boolean; // genuine but past the validity window or a superseded methodology
+}): SkillProfileCardState {
+  return v.revoked
+    ? "revoked"
+    : !v.verifiable
+      ? "unverifiable"
+      : !v.valid
+        ? "tampered"
+        : !v.substantive
+          ? "incomplete"
+          : v.stale
+            ? "stale"
+            : "verified";
+}
+
+/** Whether the numeric score card (transfer score, axes, confidence) may be shown. Only a
+ *  GENUINE, attested credential earns the numbers: "verified" (current) and "stale" (genuine
+ *  but old — numbers shown, the confident green shield withheld). Every UNTRUSTED or
+ *  UNATTESTED state — "tampered" (forged), "revoked", "unverifiable" (cannot check),
+ *  "incomplete" (no scored content) — must render the muted "summary unavailable" block
+ *  instead, so attacker-/stale-controlled numbers are never presented as if kp attested them.
+ *  Before this the card gated on `substantive` alone, so a tampered-but-substantive profile
+ *  showed its full untrusted score card directly under a red badge
+ *  (bug-ui-scan-2026-07-09 (dev-lifecycle-cohort-outcomes #2)). Pure + testable. */
+export function skillProfileShowsScoreCard(state: SkillProfileCardState): boolean {
+  return state === "verified" || state === "stale";
+}
+
 function signingKey(): string {
   const secret = process.env.KP_SECRET;
   if (!secret) {
