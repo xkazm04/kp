@@ -33,6 +33,7 @@ from .models import (
     SalaryEstimate,
     ScoreBreakdown,
 )
+from .market_config import ACTIVE_MARKET, MarketConfig
 from .profiling import build_profile
 from .salary_band import SALARY_PLAUSIBILITY_CEILING, round_salary
 from .taxonomy import (
@@ -708,12 +709,15 @@ _PERIOD_TO_ANNUAL: dict[str, int] = {"hour": 2080, "month": 12, "year": 1}
 _DEFAULT_ANNUAL_CEILING = 100_000_000
 
 
-def _normalize_currency_period(currency: str | None, period: str | None) -> tuple[str, str]:
+def _normalize_currency_period(
+    currency: str | None, period: str | None, *, market: MarketConfig = ACTIVE_MARKET
+) -> tuple[str, str]:
     """Normalize a salary currency (upper) / period (lower), defaulting empties to
-    the CZK/month baseline. Well-formed Gemini output (uppercase ISO code, lowercase
-    period) is unchanged; this only tidies stray casing/whitespace."""
-    cur = (str(currency or "").strip().upper()) or "CZK"
-    per = (str(period or "").strip().lower()) or "month"
+    the active market's baseline (CZK/month for the Czech default). Well-formed
+    Gemini output (uppercase ISO code, lowercase period) is unchanged; this only
+    tidies stray casing/whitespace."""
+    cur = (str(currency or "").strip().upper()) or market.currency
+    per = (str(period or "").strip().lower()) or market.period
     return cur, per
 
 

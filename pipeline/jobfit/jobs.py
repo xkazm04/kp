@@ -26,6 +26,7 @@ from typing import Any, Protocol
 
 from pydantic import Field
 
+from .market_config import ACTIVE_MARKET
 from .models import _Base
 from .salary_band import normalize_band
 from .taxonomy import (
@@ -54,7 +55,9 @@ EDU_LEVELS = ("phd", "master", "bachelor", "university", "none")
 # nowhere else.
 DEFAULT_POLICY: dict[str, str] = {
     "company": "Confidential",  # ad named no employer (blind / agency posting)
-    "location": "Praha",        # no city given — assume the CZ-market hub
+    # No city given — assume the active market's hub (CZ default: "Praha"). Sourced
+    # from MarketConfig so re-homing the market moves this locale phantom too.
+    "location": ACTIVE_MARKET.default_location,
     "work_mode": "onsite",      # missing/off-taxonomy work mode — assume onsite
     "seniority": "medior",      # missing/off-taxonomy seniority — assume mid-level
 }
