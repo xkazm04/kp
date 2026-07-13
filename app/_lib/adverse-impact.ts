@@ -41,6 +41,51 @@ export const ADVERSE_IMPACT_MIN_COHORT = 30;
 /** Aggregate counts for one group the recruiter supplies. */
 export type GroupCount = { group: string; selected: number; total: number };
 
+/** The outcome of parsing the recruiter's pasted "group, selected, total" lines.
+ *  Malformed rows are made VISIBLE (finding SD-4) rather than silently dropped: the
+ *  reference group is "highest selection rate among whatever parsed", so quietly
+ *  discarding a mistyped line can change which group anchors the ratio and flip a
+ *  group between "ok" and "adverse impact". Blank/whitespace-only lines are not
+ *  input and are neither parsed nor counted as malformed. */
+export type ParsedGroupCounts = {
+  /** The rows that parsed into a usable group count. */
+  groups: GroupCount[];
+  /** 1-based line numbers of NON-BLANK rows that failed to parse (fewer than three
+   *  comma fields, an empty group name, or a non-numeric selected/total). */
+  malformedRows: number[];
+  /** Count of non-blank rows seen — `groups.length + malformedRows.length`. */
+  nonBlankRows: number;
+};
+
+/**
+ * Parse recruiter-pasted counts into groups, SURFACING malformed rows instead of
+ * silently skipping them (finding SD-4). Each non-blank line must be `group,
+ * selected, total` with a non-empty group name and a finite numeric selected and
+ * total; any line that isn't is recorded in `malformedRows` (1-based, by original
+ * line position) so the UI can warn that the verdict was computed over a subset —
+ * never quietly excluded. Pure and stateless; blank lines are ignored (not errors).
+ */
+export function parseGroupCounts(text: string): ParsedGroupCounts {
+  const groups: GroupCount[] = [];
+  const malformedRows: number[] = [];
+  const lines = text.split("\n");
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i].trim() === "") continue; // a blank line is not input, not an error
+    const parts = lines[i].split(",").map((p) => p.trim());
+    const [group, selRaw, totRaw] = parts;
+    const selected = Number(selRaw);
+    const total = Number(totRaw);
+    // An empty numeric field (`Number("")` === 0) is a typo, not a real 0 — flag it
+    // rather than fabricating a count, so the row is visible instead of assumed.
+    if (parts.length < 3 || !group || selRaw === "" || totRaw === "" || !Number.isFinite(selected) || !Number.isFinite(total)) {
+      malformedRows.push(i + 1);
+      continue;
+    }
+    groups.push({ group, selected, total });
+  }
+  return { groups, malformedRows, nonBlankRows: groups.length + malformedRows.length };
+}
+
 export type GroupImpact = {
   group: string;
   /** Clamped, non-negative selected count (≤ total). */

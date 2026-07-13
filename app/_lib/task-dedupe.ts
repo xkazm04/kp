@@ -17,6 +17,11 @@
 // (a "has notes" flag, an optional caseId, a JD length) are appended only after
 // the required parts have produced a real key.
 
+// The one non-trivial builder that folds MULTIPLE identity dimensions (role +
+// governance mode + candidate-set fingerprint) lives in its own pure module so its
+// logic is unit-testable in isolation (bug-ui-scan-2026-07-09 #3).
+import { groupEvalDedupeKey } from "./group-eval-dedupe.ts";
+
 /**
  * Join a dedupe key from a prefix and its REQUIRED identifying parts. Returns
  * `null` if any part is null/undefined or blank after trimming — the signal that
@@ -60,7 +65,12 @@ export const DEDUPE_BUILDERS: Record<string, (p: Record<string, unknown>) => str
   },
   evaluate_submission: (p) => stableKey("evaluate_submission", p.submissionId),
   lifecycle: (p) => stableKey("lifecycle", p.lifecycleId), // one run per case; a re-trigger resumes when idle
-  group_eval: (p) => stableKey("group_eval", p.roleKey), // one run per role; re-trigger reuses an in-flight run
+  // bug-ui-scan-2026-07-09 #3: keyed by role + governance mode + candidate-set
+  // fingerprint (NOT the role alone) so a concurrent re-trigger with a different mode
+  // or pool starts its OWN run instead of being handed the in-flight run's stale,
+  // auto-sealed result. A true retry (same role, mode AND set) still dedupes. See
+  // group-eval-dedupe.ts for the pure key logic.
+  group_eval: groupEvalDedupeKey,
   jd_build: (p) => {
     // Backgrounded flow: a placeholder JD owns the build, so the slug IS the
     // identity — each Generate mints a distinct JD (hence a distinct build), while

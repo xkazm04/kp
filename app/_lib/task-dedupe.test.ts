@@ -8,6 +8,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { buildDedupeKey, stableKey } from "./task-dedupe.ts";
+import { groupEvalDedupeKey } from "./group-eval-dedupe.ts";
 
 test("stableKey joins present, non-empty parts with the prefix", () => {
   assert.equal(stableKey("analyze", "abc"), "analyze:abc");
@@ -33,7 +34,11 @@ test("analyze: a missing baseDir does NOT collapse to a constant", () => {
 });
 
 test("group_eval / lifecycle / interview_prep / evaluate_submission reject missing identity", () => {
-  assert.equal(buildDedupeKey("group_eval", { roleKey: "backend" }), "group_eval:backend");
+  // bug-ui-scan-2026-07-09 #3: the group_eval key now folds governance mode +
+  // candidate-set fingerprint (see group-eval-dedupe.test.ts), so buildDedupeKey must
+  // route through groupEvalDedupeKey rather than the old role-only `group_eval:backend`.
+  assert.equal(buildDedupeKey("group_eval", { roleKey: "backend" }), groupEvalDedupeKey({ roleKey: "backend" }));
+  assert.match(buildDedupeKey("group_eval", { roleKey: "backend" }) ?? "", /^group_eval:backend:recommendation:/);
   assert.equal(buildDedupeKey("group_eval", {}), null);
   assert.equal(buildDedupeKey("lifecycle", { lifecycleId: "lc1" }), "lifecycle:lc1");
   assert.equal(buildDedupeKey("lifecycle", {}), null);

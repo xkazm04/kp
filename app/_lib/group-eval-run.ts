@@ -11,6 +11,7 @@ import { poolEntryFromAnalysis, type CandidatePoolEntry } from "./candidate-pool
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "./python-runner";
 import { rankPoolForJob } from "./recruiter-run";
 import { computeDifferentiators } from "./group-eval-differentiators";
+import { hasComparableCohort } from "./group-eval-cohort";
 import { compareByMatchScoreDesc, compareScoreDesc } from "./match-score";
 import { sealDecisionSafe } from "./decision-record-store";
 import { buildEligibilityList, governanceNote, normalizeGovernanceMode, resolveGovernanceMode, sealsLead } from "./group-eval-governance";
@@ -303,6 +304,14 @@ export async function runGroupEval(params: Record<string, unknown>, signal?: Abo
   // read and the salary expectation below all share this snapshot (idea-c7c2d014).
   const resolved = resolveCandidates(input);
 
+  // Min-cohort floor (bug-ui-scan-2026-07-09 #4): a comparative verdict — a lead "over
+  // the field", "unique" differentiators, a robust cross-scheme ranking — is meaningless
+  // below GROUP_EVAL_MIN_COHORT (a single candidate). Every candidate produces exactly
+  // one row below, so the compared-field size IS input.length. When too small, we crown
+  // NO lead (so nothing auto-seals), claim NO robustness, and report "insufficient
+  // sample" — the same defect class adverse-impact.ts guards with its own min-cohort.
+  const comparable = hasComparableCohort(input.length);
+
   // Full deterministic breakdown per candidate (best-effort; needs the role's job).
   const job = jobId ? getJob(jobId) : null;
   let rows = new Map<string, RecruiterRow>();
@@ -324,8 +333,10 @@ export async function runGroupEval(params: Record<string, unknown>, signal?: Abo
   // proves something when the ranker ran AND the weights actually vary. Resolve the honest
   // status ONCE from the same facts — a job (so a ranker ran) + whether it produced a
   // varying fairness matrix — so the panel and the sealed record can never imply a check
-  // that did not run (a no-op, a ranker failure, or a job-less role).
-  const robustness = assessRobustness(!!job, fairness);
+  // that did not run (a no-op, a ranker failure, or a job-less role). Below the
+  // min-cohort floor there is no field to re-rank, so robustness is "insufficient_sample"
+  // — never a trivial length-1 "pass" (bug-ui-scan-2026-07-09 #4).
+  const robustness = comparable ? assessRobustness(!!job, fairness) : "insufficient_sample";
 
   // Per-candidate AI reasoning, CONCURRENTLY (idea-bce9547b): this used to be a
   // sequential `await runReasoning(...)` per candidate — on cache misses, up to
@@ -401,10 +412,12 @@ export async function runGroupEval(params: Record<string, unknown>, signal?: Abo
     return compareScoreDesc(a.score, b.score);
   });
   const top = candidates[0] ?? null;
-  // The recommended LEAD must pass knockout. With the ko-aware sort above, top is
-  // the best ko-passing candidate when one exists; if the whole field failed KO,
-  // there is no lead to crown or seal (top.koPassed === false).
-  const lead = top && top.koPassed !== false ? top : null;
+  // The recommended LEAD must pass knockout AND the field must clear the min-cohort
+  // floor. With the ko-aware sort above, top is the best ko-passing candidate when one
+  // exists; if the whole field failed KO — or there is only ONE candidate, so there is
+  // no field to lead over (bug-ui-scan-2026-07-09 #4) — there is no lead to crown or
+  // seal. A null lead means no `group_eval_lead`/`group_eval_advisory` is sealed below.
+  const lead = comparable && top && top.koPassed !== false ? top : null;
 
   // Canonical role requirements (must-have first): the role's declared
   // requirements, so the skills matrix is ordered and complete even for a skill no
@@ -441,6 +454,10 @@ export async function runGroupEval(params: Record<string, unknown>, signal?: Abo
   let deterministicSummary: string;
   if (!candidates.length) {
     deterministicSummary = `No candidates to evaluate for ${roleTitle}.`;
+  } else if (!comparable) {
+    // Single-candidate field (bug-ui-scan-2026-07-09 #4): nothing to compare against, so
+    // no lead is crowned/sealed and the weighting-robustness check does not apply.
+    deterministicSummary = `Only ${candidates.length} candidate for ${roleTitle} — a single candidate can't be ranked against a field, so no lead is crowned and the weighting-robustness check does not apply (insufficient sample). Add more candidates to compare.`;
   } else if (!lead) {
     deterministicSummary = `${candidates.length} candidate(s) for ${roleTitle}, but none pass the role's must-haves (knockout) — no lead. Review the field below.`;
   } else if (governanceMode === "eligibility_list") {

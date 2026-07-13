@@ -31,6 +31,10 @@ after(() => cleanupUnitDb());
 // A job-less, profile-less candidate with a stored match score: enough to crown +
 // (in recommendation mode) auto-seal a lead, with no ranker/reasoning Python needed.
 const candidate = (entryId: string) => ({ entryId, candidateId: null, label: "Ada Byron", matchScore: 90 });
+// A lower-scored rival so the field clears the min-cohort floor (GROUP_EVAL_MIN_COHORT=2,
+// bug-ui-scan-2026-07-09 #4 — a single candidate no longer crowns/seals a lead). Scored
+// well below `candidate` so the tracked entry stays the deterministic lead.
+const rival = (entryId: string) => ({ entryId: `${entryId}-rival`, candidateId: null, label: "Grace Hopper", matchScore: 40 });
 const sealedKinds = (entryId: string) => listDecisionRecords({ candidateRef: entryId }).map((r) => r.kind);
 
 test("resolveGovernanceMode: a stored governed mode wins over a recommendation request; other changes honour the request", () => {
@@ -54,7 +58,7 @@ test("committee governance persists across a reload/rerun and blocks the AI auto
   const first = await runGroupEval({
     roleKey,
     roleTitle: "Faculty Search",
-    candidates: [candidate(entryId)],
+    candidates: [candidate(entryId), rival(entryId)],
     governanceMode: "committee",
   });
   assert.equal(first.governanceMode, "committee");
@@ -72,7 +76,7 @@ test("committee governance persists across a reload/rerun and blocks the AI auto
   const second = await runGroupEval({
     roleKey,
     roleTitle: "Faculty Search",
-    candidates: [candidate(entryId)],
+    candidates: [candidate(entryId), rival(entryId)],
     governanceMode: "recommendation",
   });
   assert.equal(second.governanceMode, "committee", "a reset client mode must not downgrade a governed role");
@@ -88,7 +92,7 @@ test("recommendation mode is unchanged — a fresh role auto-seals the AI lead",
   const res = await runGroupEval({
     roleKey,
     roleTitle: "Backend Engineer",
-    candidates: [candidate(entryId)],
+    candidates: [candidate(entryId), rival(entryId)],
     governanceMode: "recommendation",
   });
   assert.equal(res.governanceMode, "recommendation");

@@ -35,7 +35,10 @@ export type Fairness = {
 //                    no fairness data (it failed / did not run): "could not assess".
 //   not_applicable — a job-less role: there is no ranker, so robustness legitimately does
 //                    not apply (the panel stays hidden — no false claim).
-export type RobustnessStatus = "assessed" | "not_varied" | "unavailable" | "not_applicable";
+//   insufficient_sample — the field is below the min-cohort floor (a SINGLE candidate,
+//                    group-eval-cohort.ts), so there is no field to re-rank: no robustness
+//                    is claimed and no lead is crowned (bug-ui-scan-2026-07-09 #4).
+export type RobustnessStatus = "assessed" | "not_varied" | "unavailable" | "not_applicable" | "insufficient_sample";
 
 /** The honest robustness status of a group eval, derived from whether the role had a
  *  job (so a ranker ran) and whether that ranker produced a fairness matrix whose

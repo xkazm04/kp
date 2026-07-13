@@ -57,9 +57,11 @@ test("caps the list and keeps must-haves over the cap boundary", () => {
     { skill: "m1", kind: "must_have" },
   ];
   // Six exclusive edges, five of them nice-to-have listed first; the lone must-have
-  // (m1) must survive the cap of 5 by being ordered first.
+  // (m1) must survive the cap of 5 by being ordered first. One present rival that
+  // matches none of them satisfies the min-cohort floor (#4) while keeping all six
+  // edges exclusive to the lead, so the cap/ordering is what's under test.
   const lead = { matchedSkills: ["n1", "n2", "n3", "n4", "n5", "m1"] };
-  const result = computeDifferentiators(lead, [], wideReqs, 5);
+  const result = computeDifferentiators(lead, [{ matchedSkills: [] }], wideReqs, 5);
   assert.equal(result.length, 5);
   assert.equal(result[0], "m1");
   assert.ok(!result.includes("n5"));
@@ -85,6 +87,8 @@ test("tolerates missing/null matchedSkills on lead and rivals", () => {
 });
 
 test("de-duplicates a skill the lead lists twice", () => {
+  // One present-but-non-matching rival satisfies the min-cohort floor (#4) while
+  // leaving GraphQL exclusive to the lead, so dedup is what's under test.
   const lead = { matchedSkills: ["GraphQL", "GraphQL"] };
-  assert.deepEqual(computeDifferentiators(lead, [], reqs), ["GraphQL"]);
+  assert.deepEqual(computeDifferentiators(lead, [{ matchedSkills: [] }], reqs), ["GraphQL"]);
 });

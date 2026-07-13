@@ -32,6 +32,13 @@ export function computeDifferentiators(
   limit = 5,
 ): string[] {
   if (!lead) return [];
+  // Min-cohort floor (bug-ui-scan-2026-07-09 #4): a "unique strength" is a requirement
+  // skill NO rival matched — meaningless with no rivals. With an empty field EVERY
+  // requirement skill trivially passes `!rivalMatched.has(skill)` and would be crowned a
+  // differentiator ("all skills unique from n=1"). A genuine, EXCLUSIVE edge needs at
+  // least one rival to be exclusive AGAINST — so with no rivals there is nothing to
+  // differentiate.
+  if (rivals.length === 0) return [];
   // Requirement skill -> kind, so the edge can be both constrained to role needs
   // and ordered must-have first.
   const reqKind = new Map(requirements.map((r) => [r.skill, r.kind] as const));
