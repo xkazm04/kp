@@ -1388,6 +1388,8 @@
         "analysis": "Analýza CV uložena — skóre {score}",
         "analysisNoScore": "Analýza CV uložena",
         "openReport": "Otevřít report",
+        "byName": "podle jména",
+        "byNameHint": "Přiřazeno k tomuto kandidátovi pouze podle jména — nespojuje je žádný společný záznam, může tak jít o jinou osobu se stejným jménem.",
         "interviewCreated": "Vytvořen odkaz na hlasový pohovor",
         "interviewCompleted": "Hlasový pohovor dokončen",
         "inviteSent": "Pozvánka k plánování odeslána",

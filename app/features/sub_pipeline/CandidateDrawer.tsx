@@ -143,43 +143,6 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
   const dialogRef = useRef<HTMLElement | null>(null);
   useDialogA11y(dialogRef, onClose, { trap: true, lockScroll: true });
 
-  useEffect(() => {
-    let alive = true;
-    fetch(`/api/interview/by-entry?entry=${encodeURIComponent(entry.id)}`)
-      .then((r) => r.json())
-      .then((d) => {
-        const s = d.session as { status?: string; transcript?: unknown[]; scorecard?: Scorecard | null } | null;
-        if (!alive || !s || s.status !== "completed") return;
-        const sc = s.scorecard ?? null;
-        setIvOutcome({
-          recommendation: sc?.recommendation,
-          summary: sc?.summary,
-          ratings: sc?.ratings,
-          hasTranscript: Array.isArray(s.transcript) && s.transcript.length > 0,
-        });
-      })
-      .catch(() => undefined);
-    return () => {
-      alive = false;
-    };
-  }, [entry.id]);
-
-  // Load any human scorecard saved against this entry's prep artifact (PREP1).
-  // Best-effort; absent for candidates no one has hand-scored.
-  useEffect(() => {
-    let alive = true;
-    fetch(`/api/interview-prep?entry=${encodeURIComponent(entry.id)}`)
-      .then((r) => r.json())
-      .then((d) => {
-        const sc = (d.prep?.payload as { humanScorecard?: Scorecard } | undefined)?.humanScorecard ?? null;
-        if (alive) setHumanSc(sc && (sc.ratings?.length || sc.summary) ? sc : null);
-      })
-      .catch(() => undefined);
-    return () => {
-      alive = false;
-    };
-  }, [entry.id]);
-
   // W6-4 — outcome note for the revoke-links action.
   const [revokeNote, setRevokeNote] = useState<string | null>(null);
 
@@ -188,39 +151,36 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
   const [comms, setComms] = useState<
     { id: string; kind: string | null; status: string; channel: string | null; subject: string | null; body: string | null; createdAt: string }[] | null
   >(null);
+
+  // One-call drawer load (perfect-board): the entry's WHOLE story in a SINGLE
+  // request to the enriched /timeline endpoint — pipeline events, the cross-store
+  // timeline items, the full comms letters, the latest interview outcome and the
+  // human scorecard. This replaces the FIVE independent fetches this drawer used
+  // to fire on open (interview by-entry, interview-prep, comms, events, timeline),
+  // cutting drawer-open to one round trip and one server pass. Best-effort: a
+  // failed load leaves the sections empty; the drawer's actions don't depend on it.
   useEffect(() => {
     let alive = true;
-    fetch(`/api/comms?entry=${encodeURIComponent(entry.id)}`)
+    fetch(`/api/pipeline/${encodeURIComponent(entry.id)}/timeline`)
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
-        if (alive && d) setComms((d.messages as typeof comms) ?? []);
-      })
-      .catch(() => undefined);
-    return () => {
-      alive = false;
-    };
-  }, [entry.id]);
-
-  // Load this candidate's event timeline (PIPE3). Best-effort: a failed/empty load
-  // just hides the section — the drawer's actions don't depend on it.
-  useEffect(() => {
-    let alive = true;
-    fetch(`/api/pipeline/events?entry=${encodeURIComponent(entry.id)}`)
-      .then((r) => r.json())
-      .then((d) => {
-        if (alive) setHistory((d.events as PipelineEvent[]) ?? []);
+        if (!alive) return;
+        if (!d) {
+          setHistory([]);
+          return;
+        }
+        setHistory((d.events as PipelineEvent[]) ?? []);
+        setExtraTimeline((d.items as CandidateTimelineItem[]) ?? []);
+        setComms((d.comms as typeof comms) ?? []);
+        setIvOutcome((d.interview as InterviewOutcome | null) ?? null);
+        // Same client-side gate the dedicated prep fetch used: keep a scorecard
+        // only when it carries ratings or a summary (an empty artifact is noise).
+        const sc = (d.humanScorecard as Scorecard | null) ?? null;
+        setHumanSc(sc && (sc.ratings?.length || sc.summary) ? sc : null);
       })
       .catch(() => {
         if (alive) setHistory([]);
       });
-    fetch(`/api/pipeline/${encodeURIComponent(entry.id)}/timeline`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => {
-        if (alive && d) {
-          setExtraTimeline(((d.items as CandidateTimelineItem[]) ?? []).filter((i) => i.kind !== "comm"));
-        }
-      })
-      .catch(() => undefined);
     return () => {
       alive = false;
     };
@@ -1055,6 +1015,18 @@ function TimelineItemRow({ item }: { item: CandidateTimelineItem }) {
         {disposition ? (
           <span className="ml-1.5 rounded-full bg-stone-100 px-1.5 py-0.5 text-meta font-semibold uppercase text-steel">
             {disposition}
+          </span>
+        ) : null}
+        {/* Reduced-confidence linkage: analyses have no entry/candidate FK, so an
+            analysis on a corpus-job entry (no JD slug to confirm identity) is
+            matched by NAME alone and may belong to a same-named stranger. Say so
+            honestly rather than presenting it as certainly this candidate's. */}
+        {item.kind === "analysis" && item.labelOnly ? (
+          <span
+            className="ml-1.5 rounded-full bg-amber-50 px-1.5 py-0.5 text-meta font-semibold uppercase text-amber-700"
+            title={t("byNameHint")}
+          >
+            {t("byName")}
           </span>
         ) : null}
         {item.kind === "analysis" && item.slug ? (

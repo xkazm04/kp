@@ -1414,6 +1414,8 @@
         "analysis": "Analyse du CV enregistrée — score {score}",
         "analysisNoScore": "Analyse du CV enregistrée",
         "openReport": "Ouvrir le rapport",
+        "byName": "par nom",
+        "byNameHint": "Associé à ce candidat uniquement par le nom — aucun enregistrement commun ne les relie, il peut donc s'agir d'une autre personne du même nom.",
         "interviewCreated": "Lien d'entretien vocal créé",
         "interviewCompleted": "Entretien vocal terminé",
         "inviteSent": "Invitation de planification envoyée",

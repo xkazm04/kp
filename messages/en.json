@@ -1388,6 +1388,8 @@
         "analysis": "CV analysis saved — score {score}",
         "analysisNoScore": "CV analysis saved",
         "openReport": "Open report",
+        "byName": "by name",
+        "byNameHint": "Matched to this candidate by name only — no shared record links them, so this may be a different person with the same name.",
         "interviewCreated": "Voice interview link created",
         "interviewCompleted": "Voice interview completed",
         "inviteSent": "Scheduling invite sent",

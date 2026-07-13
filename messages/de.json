@@ -1414,6 +1414,8 @@
         "analysis": "CV-Analyse gespeichert — Score {score}",
         "analysisNoScore": "CV-Analyse gespeichert",
         "openReport": "Bericht öffnen",
+        "byName": "per Name",
+        "byNameHint": "Diesem Kandidaten nur über den Namen zugeordnet — kein gemeinsamer Datensatz verknüpft beide, es könnte also eine andere Person gleichen Namens sein.",
         "interviewCreated": "Voice-Interview-Link erstellt",
         "interviewCompleted": "Voice-Interview abgeschlossen",
         "inviteSent": "Planungseinladung gesendet",
