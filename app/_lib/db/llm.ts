@@ -164,6 +164,10 @@ export type LlmUsageAggregateRow = {
   provider: string;
   model: string | null;
   calls: number;
+  // bug-ui-scan-2026-07-09 (model-api-key-management #3): how many of `calls` had
+  // NULL cost_usd (Azure / unknown-model spend). cost_usd sums them as 0, so the
+  // usage panel needs this to distinguish "cost $0" from "cost unknown".
+  unpricedCalls: number;
   inputTokens: number;
   outputTokens: number;
   cachedTokens: number;
@@ -173,7 +177,8 @@ export type LlmUsageAggregateRow = {
 /**
  * Per (day × use_case × provider × model) rollup of the ledger — the shape the
  * Models usage panel and the pricing meters read. `sinceDays` bounds the scan to
- * recent rows (default 30). Costs sum only the rows that carry a cost_usd.
+ * recent rows (default 30). Costs sum only the rows that carry a cost_usd;
+ * `unpricedCalls` counts the rows that don't (see the type note above).
  */
 export function aggregateLlmUsage(sinceDays = 30): LlmUsageAggregateRow[] {
   const db = ensureDb();
@@ -182,6 +187,7 @@ export function aggregateLlmUsage(sinceDays = 30): LlmUsageAggregateRow[] {
     .prepare(
       `SELECT substr(ts, 1, 10) AS day, use_case, provider, model,
               COUNT(*) AS calls,
+              SUM(CASE WHEN cost_usd IS NULL THEN 1 ELSE 0 END) AS unpriced_calls,
               COALESCE(SUM(input_tokens), 0) AS input_tokens,
               COALESCE(SUM(output_tokens), 0) AS output_tokens,
               COALESCE(SUM(cached_tokens), 0) AS cached_tokens,
@@ -198,6 +204,7 @@ export function aggregateLlmUsage(sinceDays = 30): LlmUsageAggregateRow[] {
     provider: r.provider as string,
     model: (r.model as string) ?? null,
     calls: Number(r.calls ?? 0),
+    unpricedCalls: Number(r.unpriced_calls ?? 0),
     inputTokens: Number(r.input_tokens ?? 0),
     outputTokens: Number(r.output_tokens ?? 0),
     cachedTokens: Number(r.cached_tokens ?? 0),

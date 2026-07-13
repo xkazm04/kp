@@ -90,7 +90,15 @@ function endpointHostAllowlist(): string[] {
 
 export async function saveProviderKey(input: ProviderKeyInput): Promise<void> {
   const meta: Record<string, unknown> = {};
-  if (input.endpoint) {
+  // bug-ui-scan-2026-07-09 (model-api-key-management #2): endpoint/apiVersion are
+  // Azure-only metadata (only the azure_openai adapter consumes them). DROP them
+  // for any other provider so a stale client-side Azure endpoint — the field keeps
+  // its state when the provider Select flips away from azure_openai — can never be
+  // persisted onto, or later forwarded with, a non-Azure key. The client also omits
+  // them from the request body; this is the server-side backstop.
+  const endpoint = input.provider === "azure_openai" ? input.endpoint : undefined;
+  const apiVersion = input.provider === "azure_openai" ? input.apiVersion : undefined;
+  if (endpoint) {
     // SSRF guard: this endpoint is later handed to the provider SDK *with the
     // decrypted key*, so validate the host before it ever reaches the DB — reject
     // non-https, bare IPs (169.254.169.254 metadata, loopback, LAN) and internal
@@ -100,17 +108,15 @@ export async function saveProviderKey(input: ProviderKeyInput): Promise<void> {
     // metadata — closing the DNS-rebinding pivot where a public-looking name
     // (`https://rebind.attacker.com`) answers 169.254.169.254 at fetch time and the
     // bearer key is exfiltrated. Same server-only guard the ATS webhook boundary uses.
-    await assertPublicHttpsEndpointResolved(input.endpoint, `${input.provider} endpoint`);
-    if (input.provider === "azure_openai") {
-      const host = new URL(input.endpoint).hostname.toLowerCase();
-      const allowed = host.endsWith(AZURE_ENDPOINT_SUFFIX) || endpointHostAllowlist().includes(host);
-      if (!allowed) {
-        throw new Error(`Azure endpoint must be a *.openai.azure.com resource (got ${host}).`);
-      }
+    await assertPublicHttpsEndpointResolved(endpoint, `${input.provider} endpoint`);
+    const host = new URL(endpoint).hostname.toLowerCase();
+    const allowed = host.endsWith(AZURE_ENDPOINT_SUFFIX) || endpointHostAllowlist().includes(host);
+    if (!allowed) {
+      throw new Error(`Azure endpoint must be a *.openai.azure.com resource (got ${host}).`);
     }
-    meta.endpoint = input.endpoint;
+    meta.endpoint = endpoint;
   }
-  if (input.apiVersion) meta.apiVersion = input.apiVersion;
+  if (apiVersion) meta.apiVersion = apiVersion;
   upsertProviderKey({
     provider: input.provider,
     scope: input.scope ?? "byom",

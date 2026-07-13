@@ -7,50 +7,21 @@ import { Skeleton } from "@/app/_components/Skeleton";
 import { BTN_SECONDARY, PANEL, PANEL_SUNKEN } from "@/app/_components/ui/recipes";
 import { labelize } from "@/app/_lib/format";
 import type { LlmUsageAggregateRow } from "@/app/_lib/db";
+import { foldByUseCase, sumTotals } from "./usage-panel-logic";
 
 // Usage & cost panel — the Models tab's read surface over the llm_usage ledger
 // (GET /api/llm/usage). The route returns per (day × use_case × provider ×
 // model) rollups; this panel folds them per use case (calls, tokens in/out,
 // cached, est. cost USD) and shows the prompt-cache hit stats underneath.
 // Read-only telemetry: no actions, so an empty ledger is a quiet sunken note,
-// not an error.
+// not an error. The fold (incl. the deterministic-vs-LLM split #5 and the
+// unpriced-cost signal #3) lives in usage-panel-logic.ts so it's unit-testable.
 
 type UsagePayload = {
   days: number;
   rows: LlmUsageAggregateRow[];
   promptCache: { rows: number; expiredBacklog: number };
 };
-
-type UseCaseTotals = {
-  useCase: string;
-  calls: number;
-  inputTokens: number;
-  outputTokens: number;
-  cachedTokens: number;
-  costUsd: number;
-};
-
-/** Fold the day-level rollups into one row per use case, spendiest first. */
-function foldByUseCase(rows: LlmUsageAggregateRow[]): UseCaseTotals[] {
-  const byUseCase = new Map<string, UseCaseTotals>();
-  for (const row of rows) {
-    const acc = byUseCase.get(row.useCase) ?? {
-      useCase: row.useCase,
-      calls: 0,
-      inputTokens: 0,
-      outputTokens: 0,
-      cachedTokens: 0,
-      costUsd: 0,
-    };
-    acc.calls += row.calls;
-    acc.inputTokens += row.inputTokens;
-    acc.outputTokens += row.outputTokens;
-    acc.cachedTokens += row.cachedTokens;
-    acc.costUsd += row.costUsd;
-    byUseCase.set(row.useCase, acc);
-  }
-  return [...byUseCase.values()].sort((a, b) => b.costUsd - a.costUsd || b.calls - a.calls);
-}
 
 export function UsagePanel() {
   const t = useTranslations("models.usage");
@@ -86,16 +57,10 @@ export function UsagePanel() {
     format.number(value, { style: "currency", currency: "USD", maximumFractionDigits: 4 });
 
   const totals = data ? foldByUseCase(data.rows) : [];
-  const sum = totals.reduce(
-    (acc, r) => ({
-      calls: acc.calls + r.calls,
-      inputTokens: acc.inputTokens + r.inputTokens,
-      outputTokens: acc.outputTokens + r.outputTokens,
-      cachedTokens: acc.cachedTokens + r.cachedTokens,
-      costUsd: acc.costUsd + r.costUsd,
-    }),
-    { calls: 0, inputTokens: 0, outputTokens: 0, cachedTokens: 0, costUsd: 0 }
-  );
+  const sum = sumTotals(totals);
+  // #3: any unpriced (Azure / unknown-model) spend anywhere means the cost column
+  // undercounts — surface a footnote so $0.00 is never read as authoritative.
+  const anyUnpriced = sum.unpricedCalls > 0;
 
   return (
     <div className={`${PANEL} p-5`}>
@@ -148,25 +113,60 @@ export function UsagePanel() {
                   {totals.map((row) => (
                     <tr key={row.useCase} className="border-b border-stone-100">
                       <td className="py-2 pr-3 font-medium text-ink">{labelFor(row.useCase)}</td>
-                      <td className="nums py-2 pr-3 text-right text-steel">{format.number(row.calls)}</td>
+                      <td className="nums py-2 pr-3 text-right text-steel">
+                        {format.number(row.calls)}
+                        {/* #5: template fallbacks (provider="deterministic") never hit an
+                            LLM — call them out so the count isn't read as all real spend. */}
+                        {row.deterministicCalls > 0 ? (
+                          <span className="block text-meta text-dial-stone">
+                            {t("fallbackCalls", { count: row.deterministicCalls })}
+                          </span>
+                        ) : null}
+                      </td>
                       <td className="nums py-2 pr-3 text-right text-steel">{format.number(row.inputTokens)}</td>
                       <td className="nums py-2 pr-3 text-right text-steel">{format.number(row.outputTokens)}</td>
                       <td className="nums py-2 pr-3 text-right text-steel">{format.number(row.cachedTokens)}</td>
-                      <td className="nums py-2 text-right font-medium text-ink">{cost(row.costUsd)}</td>
+                      <td className="nums py-2 text-right font-medium text-ink">
+                        {cost(row.costUsd)}
+                        {/* #3: NULL-cost (Azure / unknown-model) rows summed to $0 — say so
+                            rather than presenting an authoritative-looking figure. */}
+                        {row.unpricedCalls > 0 ? (
+                          <span className="block text-meta font-normal text-dial-stone">
+                            {t("unpricedCalls", { count: row.unpricedCalls })}
+                          </span>
+                        ) : null}
+                      </td>
                     </tr>
                   ))}
                   <tr>
                     <td className="py-2 pr-3 font-semibold text-ink">{t("total")}</td>
-                    <td className="nums py-2 pr-3 text-right font-semibold text-ink">{format.number(sum.calls)}</td>
+                    <td className="nums py-2 pr-3 text-right font-semibold text-ink">
+                      {format.number(sum.calls)}
+                      {sum.deterministicCalls > 0 ? (
+                        <span className="block text-meta font-normal text-dial-stone">
+                          {t("fallbackCalls", { count: sum.deterministicCalls })}
+                        </span>
+                      ) : null}
+                    </td>
                     <td className="nums py-2 pr-3 text-right font-semibold text-ink">{format.number(sum.inputTokens)}</td>
                     <td className="nums py-2 pr-3 text-right font-semibold text-ink">{format.number(sum.outputTokens)}</td>
                     <td className="nums py-2 pr-3 text-right font-semibold text-ink">{format.number(sum.cachedTokens)}</td>
-                    <td className="nums py-2 text-right font-semibold text-ink">{cost(sum.costUsd)}</td>
+                    <td className="nums py-2 text-right font-semibold text-ink">
+                      {cost(sum.costUsd)}
+                      {sum.unpricedCalls > 0 ? (
+                        <span className="block text-meta font-normal text-dial-stone">
+                          {t("unpricedCalls", { count: sum.unpricedCalls })}
+                        </span>
+                      ) : null}
+                    </td>
                   </tr>
                 </tbody>
               </table>
             </div>
           )}
+          {anyUnpriced ? (
+            <p className="mt-3 text-sm text-dial-stone">{t("unpricedNote")}</p>
+          ) : null}
           <p className="mt-3 border-t border-stone-200 pt-3 text-sm text-steel">
             {t("cache", { rows: data.promptCache.rows, expired: data.promptCache.expiredBacklog })}
           </p>

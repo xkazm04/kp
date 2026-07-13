@@ -10,6 +10,7 @@ import { Select } from "@/app/_components/Select";
 import { TextInput } from "@/app/_components/TextInput";
 import { labelize } from "@/app/_lib/format";
 import type { ProviderKeyMeta } from "@/app/_lib/llm-config";
+import { buildKeyRequestBody, findExistingKey } from "./keys-panel-logic";
 import { useProviderName } from "./provider-names";
 
 // Provider key store panel. Secrets are write-only by contract: the GET surface
@@ -78,13 +79,10 @@ export function KeysPanel() {
       const r = await fetch("/api/llm/keys", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          provider,
-          scope,
-          apiKey: apiKey.trim(),
-          ...(endpoint.trim() ? { endpoint: endpoint.trim() } : {}),
-          ...(apiVersion.trim() ? { apiVersion: apiVersion.trim() } : {}),
-        }),
+        // bug-ui-scan-2026-07-09 (model-api-key-management #2): buildKeyRequestBody
+        // includes endpoint/apiVersion ONLY for azure_openai, so a stale (hidden but
+        // retained) Azure endpoint never rides along on a non-Azure key.
+        body: JSON.stringify(buildKeyRequestBody({ provider, scope, apiKey, endpoint, apiVersion })),
       });
       const p = (await r.json().catch(() => ({}))) as { keys?: ProviderKeyMeta[]; error?: string };
       if (!r.ok || !p.keys) throw new Error(p.error || t("saveFailed"));
@@ -122,6 +120,10 @@ export function KeysPanel() {
 
   const formProviders = data ? data.providers : [];
   const isAzure = provider === "azure_openai";
+  // bug-ui-scan-2026-07-09 (model-api-key-management #4): saving an upsert onto an
+  // existing (provider, scope) pair silently REPLACES a live, unrecoverable key.
+  // Surface it before the destructive overwrite — relabel the button + warn inline.
+  const existingKey = provider ? findExistingKey(data?.keys, provider, scope) : undefined;
 
   return (
     <div className={`${PANEL} p-5`}>
@@ -271,13 +273,21 @@ export function KeysPanel() {
                 </>
               ) : null}
             </div>
+            {existingKey ? (
+              <p
+                role="note"
+                className="mt-3 flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 p-2.5 text-sm text-amber-900"
+              >
+                {t("replaceWarning", { provider: providerName(provider), scope: scopeLabel(scope) })}
+              </p>
+            ) : null}
             <div className="mt-3 flex flex-wrap items-center gap-3">
               <button
                 type="submit"
                 disabled={saving || !provider || !apiKey.trim()}
                 className={`${BTN_PRIMARY} h-9 px-4 text-sm`}
               >
-                {saving ? t("saving") : t("save")}
+                {saving ? t("saving") : existingKey ? t("replace") : t("save")}
               </button>
               {note ? (
                 <span role={note.ok ? "status" : "alert"} className={`text-sm font-medium ${note.ok ? "text-moss" : "text-coral"}`}>
