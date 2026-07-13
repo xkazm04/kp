@@ -100,7 +100,43 @@ proven non-vacuous (each behavioral test fails against pre-fix code).
 sim cross-tenant DELETE) — fixed at root with non-vacuous tenant-survival tests. All Wave-14
 pure helpers proven non-vacuous.
 
+## Wave 15 — AI Matching & Extraction Engine (14 findings: 10 fixed, 4 deferred-with-cause, 5 contexts)
+
+6 commits (`39817f1` i18n + 5 fixes). tsc 0 · node unit 1695 → **1696** · python 878 → **907** · i18n 3298 → **3299** × 4 · **matching_eval golden 8/8 zero-delta** · `next build` ✓. Four agents were cut off by a session-limit mid-wave and **resumed from transcript** (SendMessage) after reset — partial edits preserved, no cold restart.
+
+- **cv-extraction-pipeline-services** (`7528a74`): #4 salary currency/period validation +
+  per-currency **annual** ceiling for ALL markets (CZK ceiling = old `SALARY_PLAUSIBILITY_CEILING`
+  ×12 so CZK/month is byte-identical); unrecognized code → manual review, closing the
+  "garbage currency sidesteps the CZK gate" hole. New `test_salary_currency_validation.py` (11).
+  (#5 was mislabeled STILL-OPEN — already fixed: `_reject_oversized` guards both upload paths.)
+- **matching-transformation-engine** (`070922d`): #4 `group_compare` "covers the most required
+  skills" now ranks by fewest **unmet must-haves** (was crowning the most nice-to-haves +
+  printing a fabricated mixed ratio); honest gap wording. New `CoverageMetricTest` (3).
+- **pipeline-clis-script-bridges** (`<clis>`): #2 draft route `maxDuration`+abort signal; #3
+  `python-runner` `stdin.end()` after spawn (was hanging to the 600s backstop); #4 winnability
+  CLI reports dropped candidates + `CoachPanel` amber "N not assessed" note; #5 `profile_draft_cli`
+  exit-code corrections. 4 Python + 1 TS test.
+- **pipeline-test-suite-python** (`<suite>`): test-only hardening — #2 prompt-version SHA-256
+  fingerprint (analysis edit → CI "bump PROMPT_VERSION"); #3 early-career **registry AST
+  discovery** (caught 3 consumers the static allow-list silently missed) + `{set}`/`frozenset`
+  regex; #4 diagram bijection (both orphan directions); #5 ts-const comment stripping. 16 tests.
+
+### Deferred-with-cause (4 — NEED SIGN-OFF / UNBLOCK)
+- **matching-transformation-engine #5** (product decision): forming a one-sided salary band for a
+  lone stated floor (`normalize_band(min,min)`) contradicts the deliberately-pinned
+  `test_jobs.py::test_half_stated_band_falls_back_to_the_anchor` and fabricates an unstated
+  **ceiling** — violates the recruiter-honesty invariant. Not a unilateral golden flip; the
+  "carry min/max independently" alternative is a `Job`-model change touching winnability/campaign/
+  matrix_cli. **Team call required.**
+- **evaluation-fairness-seed-data #3, #4, #5** (blocked on WIP): all three root-cause in
+  `pipeline/jobfit/eval/interview_eval.py` — the user's protected **voice-eval WIP** — so the agent
+  made ZERO edits. Precise fixes noted for a dedicated single-owner pass once the WIP lands:
+  #3 a `--strict` unscored-fraction floor in `_passes`; #4 N-repeat persistence or restrict
+  `--strict` regression-gating to the deterministic golden path; #5 fold `must_hold`-derived
+  ElevenLabs failures into `r.issues` (currently non-gating `r.quality_issues`).
+
 ## Status
-Med/Low: **58 of 155 closed**, 97 open (67 M + 30 L). Remaining topic waves: AI Matching engine,
+Med/Low: **68 of 155 closed**, 87 open (63 M + 24 L) — of the open, **4 are deferred-with-cause**
+(1 product decision + 3 blocked on the voice-eval WIP; see above). Remaining topic waves:
 Candidate Analysis, Dev Hiring, Interviews/Scheduling, Offers/Automation + Identity/Data/Privacy,
 Jobs/JD/Sourcing + LLM + Billing.
