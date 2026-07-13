@@ -2702,6 +2702,8 @@
       "completeness": "Completeness",
       "completenessAria": "Profile completeness {pct}%",
       "addNext": "Add next",
+      "goToField": "Jump to this field",
+      "matchNow": "Match now",
       "complete": "Profile looks complete for its archetype."
     },
     "fields": {

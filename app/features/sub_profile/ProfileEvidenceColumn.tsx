@@ -4,6 +4,7 @@ import type { SkillRow, EvidenceRow } from "./ProfileTypes";
 import { SKILL_LEVELS, PROVENANCE, EVIDENCE_KINDS } from "./ProfileTypes";
 import { Section, Input, Select, Textarea, AddBtn, RemoveBtn, upd } from "./ProfileFields";
 import { rowId } from "./ProfileForm";
+import { FIELD_DOM_ID } from "./completeness-fields";
 
 export function ProfileEvidenceColumn({
   skills,
@@ -19,7 +20,7 @@ export function ProfileEvidenceColumn({
   const t = useTranslations("profile.evidence");
   return (
     <div className="space-y-4">
-      <Section title={t("skillsTitle")}>
+      <Section title={t("skillsTitle")} id={FIELD_DOM_ID.skills}>
         <div className="space-y-1.5">
           {skills.map((s, i) => (
             <div key={s._id ?? i} className="flex gap-1.5">
@@ -48,7 +49,7 @@ export function ProfileEvidenceColumn({
         <AddBtn label={t("addSkill")} onClick={() => setSkills([...skills, { skill: "", level: "working", provenance: "self_declared", _id: rowId() }])} />
       </Section>
 
-      <Section title={t("evidenceTitle")}>
+      <Section title={t("evidenceTitle")} id={FIELD_DOM_ID.evidence}>
         <div className="space-y-2">
           {evidence.map((e, i) => (
             <div key={e._id ?? i} className="rounded-md border border-stone-200 p-2">

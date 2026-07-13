@@ -53,9 +53,9 @@ export function Textarea({ className = "", ...rest }: TextareaHTMLAttributes<HTM
   return <textarea {...rest} className={`${FIELD_CHROME} ${FIELD_BORDER} w-full text-base ${className}`} />;
 }
 
-export function Section({ title, children }: { title: string; children: React.ReactNode }) {
+export function Section({ title, children, id }: { title: string; children: React.ReactNode; id?: string }) {
   return (
-    <div className="rounded-lg border border-stone-200 p-3">
+    <div id={id} className="rounded-lg border border-stone-200 p-3 scroll-mt-4">
       <p className="text-sm font-semibold uppercase tracking-wide text-steel">{title}</p>
       <div className="mt-2">{children}</div>
     </div>
@@ -71,6 +71,7 @@ export function Text({
   placeholder,
   className = "",
   error,
+  id,
 }: {
   label: string;
   value: string;
@@ -78,10 +79,12 @@ export function Text({
   placeholder?: string;
   className?: string;
   error?: string;
+  /** Optional DOM id on the field wrapper — a scroll/focus anchor (completeness "Add next"). */
+  id?: string;
 }) {
   const errId = error ? `${label.replace(/\s+/g, "-").toLowerCase()}-err` : undefined;
   return (
-    <label className={`flex flex-col gap-1 ${className}`}>
+    <label id={id} className={`flex flex-col gap-1 scroll-mt-4 ${className}`}>
       <span className="text-sm uppercase tracking-wide text-steel">{label}</span>
       <Input
         value={value}
@@ -101,14 +104,17 @@ export function Pick({
   value,
   onChange,
   options,
+  id,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   options: { v: string; label: string }[];
+  /** Optional DOM id on the field wrapper — a scroll/focus anchor (completeness "Add next"). */
+  id?: string;
 }) {
   return (
-    <label className="flex flex-col gap-1">
+    <label id={id} className="flex flex-col gap-1 scroll-mt-4">
       <span className="text-sm uppercase tracking-wide text-steel">{label}</span>
       <Select
         value={value}

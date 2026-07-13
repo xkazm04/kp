@@ -2731,6 +2731,8 @@
       "completeness": "Complétude",
       "completenessAria": "Complétude du profil {pct} %",
       "addNext": "À ajouter ensuite",
+      "goToField": "Aller à ce champ",
+      "matchNow": "Matcher maintenant",
       "complete": "Le profil semble complet pour son archétype."
     },
     "fields": {

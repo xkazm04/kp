@@ -1,9 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Sparkles, Wand2 } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { buildUrl } from "@/app/features/tabs";
 import type { SkillRow, EvidenceRow, BuildResult, ProfilePayload, ArchetypeDef } from "./ProfileTypes";
+import { FIELD_DOM_ID, type ProfileFieldKey } from "./completeness-fields";
 import {
   ARCHETYPE_CHOICES,
   ROLE_FAMILIES,
@@ -26,7 +29,6 @@ export function ProfileEditor({
   editingId,
   initialPayload,
   archetypes,
-  onSaved,
   onCancel,
 }: {
   mode: EditorMode;
@@ -34,11 +36,30 @@ export function ProfileEditor({
   initialPayload: ProfilePayload | null;
   /** Live archetype registry (ProfileTab's /api/archetypes fetch) — drives the routing segments. */
   archetypes: ArchetypeDef[];
-  onSaved: (savedId: string) => void;
   onCancel: () => void;
 }) {
   const t = useTranslations("profile.editor");
   const enumLabel = useEnumLabel();
+  const router = useRouter();
+  const params = useSearchParams();
+
+  // Build→match handoff: navigate to the Match tab with THIS profile preselected —
+  // MatchTab's ?profile= deep link auto-runs the match (one click, no re-selection).
+  // Only reachable once a real saved id exists (the result panel gates the button).
+  const goMatch = (savedId: string) =>
+    router.push(buildUrl({ tab: "match", profile: savedId, edit: null }, params.toString()));
+
+  // Completeness "Add next" → scroll the matching input into view and focus it, so
+  // each gap is one click from being filled instead of inert prose.
+  const focusField = (key: ProfileFieldKey) => {
+    if (typeof document === "undefined") return;
+    const el = document.getElementById(FIELD_DOM_ID[key]);
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    el.querySelector<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | HTMLButtonElement>(
+      "input, select, textarea, button"
+    )?.focus({ preventScroll: true });
+  };
   // hydrate() maps a stored payload (edit/duplicate) — or null (blank create) —
   // into form state honestly: it never pre-fills education/languages/seniority the
   // candidate didn't declare, so a blank intake's completeness reflects real input
@@ -211,11 +232,11 @@ export function ProfileEditor({
       if (!r.ok) throw new Error(payload.error ?? t("buildFailedStatus", { status: r.status }));
       setResult(payload as BuildResult);
       if (persist) {
-        const savedId = (payload.saved as { id?: string } | null)?.id ?? editingId ?? "";
-        // onSaved navigates back to the profile list, which used to swallow the
-        // confirmation — the toast outlives this component (module-level store).
+        // Stay on the editor and surface the saved result panel — its "Match now"
+        // CTA is the one-click build→match loop. (Previously this navigated straight
+        // back to the list, so running a match meant 4 clicks across tabs.) The Back
+        // button (onCancel) returns to the roster, which refetches on remount.
         toast.success(t("savedToast"));
-        onSaved(savedId);
       }
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : t("buildFailed"));
@@ -318,12 +339,13 @@ export function ProfileEditor({
             <div className="grid gap-2 sm:grid-cols-2">
               <Text label={t("name")} value={displayName} onChange={setDisplayName} placeholder={t("namePlaceholder")} />
               <Pick label={t("targetField")} value={roleFamily} onChange={setRoleFamily} options={ROLE_FAMILIES.map((f) => ({ v: f.v, label: enumLabel("family", f.v) }))} />
-              <Pick label={t("eduLevel")} value={educationLevel} onChange={setEducationLevel} options={EDU_LEVELS.map((v) => ({ v, label: enumLabel("education", v) }))} />
-              <Text label={t("languages")} value={languages} onChange={setLanguages} placeholder={t("languagesPlaceholder")} />
+              <Pick id={FIELD_DOM_ID.educationLevel} label={t("eduLevel")} value={educationLevel} onChange={setEducationLevel} options={EDU_LEVELS.map((v) => ({ v, label: enumLabel("education", v) }))} />
+              <Text id={FIELD_DOM_ID.languages} label={t("languages")} value={languages} onChange={setLanguages} placeholder={t("languagesPlaceholder")} />
               <Text label={t("location")} value={location} onChange={setLocation} placeholder={t("locationPlaceholder")} />
               <Text label={t("availability")} value={availability} onChange={setAvailability} placeholder={t("availabilityPlaceholder")} />
             </div>
             <Text
+              id={FIELD_DOM_ID.educationDetail}
               className="mt-2"
               label={t("studyProgramme")}
               value={educationDetail}
@@ -333,6 +355,7 @@ export function ProfileEditor({
             {fieldVis.years ? (
               <div className="mt-2 grid gap-2 sm:grid-cols-2">
                 <Text
+                  id={FIELD_DOM_ID.years}
                   label={choice === "career_switcher" ? t("yearsExperienceSwitcher") : t("yearsExperience")}
                   value={yearsExperience}
                   onChange={setYearsExperience}
@@ -341,6 +364,7 @@ export function ProfileEditor({
                 />
                 {fieldVis.seniority ? (
                   <Pick
+                    id={FIELD_DOM_ID.seniority}
                     label={t("seniority")}
                     value={seniority}
                     onChange={setSeniority}
@@ -353,6 +377,7 @@ export function ProfileEditor({
               </div>
             ) : null}
             <Text
+              id={FIELD_DOM_ID.aspirations}
               className="mt-2"
               label={t("aspirations")}
               value={aspirations}
@@ -385,7 +410,13 @@ export function ProfileEditor({
       </div>
 
       {error ? <p className="mt-3 rounded-md bg-red-50 p-3 text-base text-red-700">{error}</p> : null}
-      {result ? <ResultPanel result={result} /> : null}
+      {result ? (
+        <ResultPanel
+          result={result}
+          onMatchNow={result.saved?.id ? () => goMatch(result.saved!.id) : undefined}
+          onGoToField={focusField}
+        />
+      ) : null}
     </section>
   );
 }

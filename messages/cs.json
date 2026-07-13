@@ -2702,6 +2702,8 @@
       "completeness": "Úplnost",
       "completenessAria": "Úplnost profilu {pct}%",
       "addNext": "Doplnit dále",
+      "goToField": "Přejít na toto pole",
+      "matchNow": "Spárovat nyní",
       "complete": "Profil vypadá pro svůj archetyp úplný."
     },
     "fields": {
