@@ -6,7 +6,7 @@ import { isEarlyCareer } from "./archetypes";
 import { candidateOutreachSuppression } from "./rediscovery-alert-store";
 import { extractDeliverableAddress, extractRecipientName } from "./comms-recipient";
 import { buildIcs } from "./export-utils";
-import { publicBaseUrl } from "./public-base-url";
+import { publicBaseUrl, publicOriginIsFallback } from "./public-base-url.ts";
 import { resolveCommsLocale } from "./comms-locale";
 
 // Direction #3 — real comms delivery for the hiring pipeline. Routes recruiter
@@ -107,9 +107,13 @@ async function candidateLinkBase(): Promise<string> {
     /* no ambient request (scheduler/heartbeat) — rely on the env override */
   }
   const base = publicBaseUrl(origin);
-  if (!base) {
+  // publicBaseUrl now always returns an absolute origin (it falls back to the canonical
+  // site default rather than the old ""), so a candidate link is never a dead relative
+  // path. But a fallback means nothing deployment-specific was configured — the link uses
+  // the DEFAULT origin, which may be wrong for this deploy — so still warn loudly.
+  if (publicOriginIsFallback(origin)) {
     console.warn(
-      "[comms] no public origin configured — a candidate link in this email will be a dead relative path. Set APP_BASE_URL (or NEXT_PUBLIC_APP_BASE_URL) for detached sends."
+      "[comms] no public origin configured — candidate links use the default site origin, which may be wrong for this deploy. Set APP_BASE_URL (or NEXT_PUBLIC_APP_BASE_URL) for detached sends."
     );
   }
   return base;

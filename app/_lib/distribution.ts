@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { createPosting, createSubmission, getPosting, listSubmissions, type DevCaseRecord, type DevSubmission, type Posting } from "./db";
+import { createPosting, createSubmission, getPosting, listOutboxFiltered, listSubmissions, type DevCaseRecord, type DevSubmission, type Posting } from "./db";
 import { sendComm } from "./comms";
 
 // Phase D4 — the distribution seam. Approved artifacts (role + case) leave the app
@@ -49,9 +49,31 @@ const ADAPTERS: Record<string, DistributionAdapter> = {
   local: new LocalDistributionAdapter(),
 };
 
-/** Resolve a distribution channel. Unknown channels fall back to the local stub. */
+/** Thrown when a caller asks for a distribution channel that isn't registered.
+ *  getAdapter used to silently fall back to the LOCAL stub for ANY unknown value,
+ *  so a typo'd or not-yet-implemented channel ("email", "ats", …) looked configured
+ *  but published only a local posting no external candidate ever saw — and the route
+ *  answered 200 as if the requested channel had succeeded. Surfacing it lets the
+ *  publish route reject the request instead of reporting a false success. */
+export class UnknownChannelError extends Error {
+  constructor(public readonly channel: string) {
+    super(`Unsupported distribution channel "${channel}". Registered channels: ${Object.keys(ADAPTERS).join(", ")}.`);
+    this.name = "UnknownChannelError";
+  }
+}
+
+/**
+ * Resolve a distribution channel to its adapter. The DEFAULT (no argument) is the
+ * local stub — the genuinely-local, always-implemented channel. An explicit but
+ * UNREGISTERED channel throws {@link UnknownChannelError} rather than silently
+ * degrading to local: conflating "channel not implemented" with "use local" hid a
+ * mis-typed/unavailable channel behind a successful-looking local publish. The
+ * fallback stays strictly for the omitted-argument case.
+ */
 export function getAdapter(channel = "local"): DistributionAdapter {
-  return ADAPTERS[channel] ?? ADAPTERS.local;
+  const adapter = ADAPTERS[channel];
+  if (!adapter) throw new UnknownChannelError(channel);
+  return adapter;
 }
 
 // Intake one submission (form OR inbound webhook): idempotent on (posting, candidate, repo),
@@ -86,15 +108,30 @@ export async function intakeSubmission(input: {
   // read-then-write TOCTOU window, so concurrent double-submits coalesce to one
   // row and only the genuine first arrival is treated as new.
   const { submission, created } = createSubmission(input);
-  if (!created) return { submission, isNew: false };
 
-  const role = posting.roleTitle ?? "the role";
-  await sendComm({
-    to: input.contact || input.candidateRef,
-    subject: `We received your submission — ${role}`,
-    body: `Hi ${input.candidateRef},\n\nThanks for submitting your work for ${role}. It's in our queue and will be reviewed shortly.\n\nBest,\nThe hiring team`,
-    kind: "acknowledgement",
-    ref: submission.id,
-  });
-  return { submission, isNew: true };
+  // Drive the acknowledgement off a DURABLE marker — whether an acknowledgement
+  // outbox row already exists for this submission — NOT the one-shot `created`
+  // flag. sendComm records that outbox row as its LAST step, so a row exists iff a
+  // prior ack actually completed; if the first attempt's sendComm threw (its
+  // recordOutbox write failed, or the webhook path's envelope build raised) the row
+  // is absent and the submission was persisted un-acknowledged. The old
+  // `if (!created) return` fired the ack ONLY on the first insert, so that retry —
+  // now `created === false` — returned before sendComm and dropped the ack forever.
+  // Gating on the outbox instead makes it "send if new-or-unacked": a retry that
+  // finds an existing-but-unacked row still fires the ack. (At-least-once for the
+  // candidate ack — a rare concurrent double-submit may send twice, a benign
+  // duplicate, unlike the silent permanent drop it replaces.)
+  const alreadyAcknowledged =
+    listOutboxFiltered({ ref: submission.id, kind: "acknowledgement", limit: 1 }).length > 0;
+  if (!alreadyAcknowledged) {
+    const role = posting.roleTitle ?? "the role";
+    await sendComm({
+      to: input.contact || input.candidateRef,
+      subject: `We received your submission — ${role}`,
+      body: `Hi ${input.candidateRef},\n\nThanks for submitting your work for ${role}. It's in our queue and will be reviewed shortly.\n\nBest,\nThe hiring team`,
+      kind: "acknowledgement",
+      ref: submission.id,
+    });
+  }
+  return { submission, isNew: created };
 }
