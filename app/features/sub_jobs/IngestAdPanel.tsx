@@ -79,6 +79,11 @@ export function IngestAdPanel({
     setBusy(true);
     setError(null);
     setNote(null);
+    // bug-ui-scan-2026-07-09 (job-postings-lifecycle #4): drop any prior bulk run's
+    // per-row table + progress so a single add doesn't render a stale results list
+    // beneath its own note.
+    setResults(null);
+    setProgress(null);
     const controller = new AbortController();
     abortRef.current = controller;
     try {
@@ -173,7 +178,19 @@ export function IngestAdPanel({
       </label>
       <p className="mt-1 text-sm text-steel">{t("pasteIntro")}</p>
       <label className="mt-2 flex items-center gap-1.5 text-sm font-medium text-steel">
-        <Checkbox checked={bulk} disabled={busy} onChange={(e) => setBulk(e.target.checked)} />
+        <Checkbox
+          checked={bulk}
+          disabled={busy}
+          onChange={(e) => {
+            setBulk(e.target.checked);
+            // #4: switching single⇄bulk makes the prior run's results/progress
+            // (and note/error) unrelated to the new mode — clear them.
+            setResults(null);
+            setProgress(null);
+            setNote(null);
+            setError(null);
+          }}
+        />
         {t("bulkToggle")}
         {bulk ? <span className="text-meta text-stone-400">· {t("bulkHint")}</span> : null}
       </label>
@@ -215,6 +232,10 @@ export function IngestAdPanel({
             setAdText("");
             setError(null);
             setNote(null);
+            // #4: reopening the panel must not show the previous run's rows or a
+            // frozen progress label — reset the transient run state on close too.
+            setResults(null);
+            setProgress(null);
           }}
           disabled={busy}
           className="focus-ring inline-flex h-9 items-center rounded-md border border-stone-300 bg-white px-3 text-sm font-semibold text-steel hover:text-ink disabled:opacity-50"

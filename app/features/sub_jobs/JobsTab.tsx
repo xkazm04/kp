@@ -24,6 +24,7 @@ import { DraftsPanel } from "./DraftsPanel";
 import { RediscoveryFeed } from "./RediscoveryFeed";
 import { IngestAdPanel } from "./IngestAdPanel";
 import { useJobsList } from "./useJobsList";
+import { resolveIngestLatch, ingestNeedsOpenFilterCleared, type IngestLatch } from "./job-ingest-latch";
 
 export function JobsTab() {
   const t = useTranslations("jobs.tab");
@@ -53,14 +54,20 @@ export function JobsTab() {
 
   const [openJob, setOpenJob] = useState<Job | null>(null);
 
-  // A just-ingested job to auto-open once the refreshed corpus contains it
-  // (mirrors the ?job= deep-link below). Applied during render, cleared on match.
-  const [pendingOpenId, setPendingOpenId] = useState<string | null>(null);
-  if (jobs && pendingOpenId) {
-    const match = jobs.find((j) => j.id === pendingOpenId);
-    if (match) {
-      setPendingOpenId(null);
-      setOpenJob(match);
+  // A just-ingested job to auto-open once the refreshed corpus contains it (mirrors
+  // the ?job= deep-link below). bug-ui-scan-2026-07-09 (job-postings-lifecycle #5):
+  // the latch now carries the jobs-array reference it was armed against so it is
+  // bounded to a SINGLE refresh — on the refreshed list it either opens the match or
+  // clears itself (a miss), instead of staying armed forever when the ingested draft
+  // is hidden (e.g. by the "open only" filter) and later auto-opening out of nowhere.
+  const [pendingOpen, setPendingOpen] = useState<IngestLatch | null>(null);
+  {
+    const resolved = resolveIngestLatch(jobs, pendingOpen);
+    if (resolved.kind === "open") {
+      setPendingOpen(null);
+      setOpenJob(resolved.job);
+    } else if (resolved.kind === "clear") {
+      setPendingOpen(null);
     }
   }
 
@@ -109,7 +116,12 @@ export function JobsTab() {
         onIngested={(result) => {
           // Single-ad path: refetch the corpus; the render-phase open above latches
           // onto the new (or existing, on a dedup hit) job id once it lands in the list.
-          setPendingOpenId(result.jobId);
+          // #5: the latch remembers the CURRENT jobs array so it resolves against the
+          // NEXT refresh only. Ingest always inserts a draft, which the "open only"
+          // filter hides — so clear that filter here or the draft could never surface
+          // and the modal would silently never open.
+          if (ingestNeedsOpenFilterCleared(openOnly)) setOpenOnly(false);
+          setPendingOpen({ id: result.jobId, sawJobs: jobs });
           reload();
         }}
         // Bulk path: one refetch after the whole import, and NO auto-open — the per-row
