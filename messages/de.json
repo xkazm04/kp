@@ -2356,6 +2356,7 @@
       "salaryBelow": "Das Gehalt <b>{job}</b> liegt unter dem Marktband <b>{market}</b> für diese Stelle — erhöhen Sie es, um konkurrenzfähig zu bleiben.",
       "salaryOk": "Das Gehalt entspricht dem Marktband <b>{market}</b> für diese Stelle.",
       "salaryUnset": "(kein Band festgelegt)",
+      "notAssessed": "{n, plural, one {# Kandidat/in konnte nicht bewertet werden} other {# Kandidat/innen konnten nicht bewertet werden}} und {n, plural, one {ist} other {sind}} oben nicht mitgezählt — prüfen Sie das Profil.",
       "footnote": "Die Prognosen lassen kps Live-Scoring-Engine erneut über Ihre gespeicherten Kandidat/innen laufen — sie entsprechen dem, was eine Veröffentlichung zutage fördern würde."
     },
     "campaign": {

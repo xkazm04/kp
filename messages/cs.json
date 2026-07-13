@@ -2327,6 +2327,7 @@
       "salaryBelow": "Mzda <b>{job}</b> je pod tržním pásmem <b>{market}</b> pro tuto roli — zvyšte ji, abyste byli konkurenceschopní.",
       "salaryOk": "Mzda odpovídá tržnímu pásmu <b>{market}</b> pro tuto roli.",
       "salaryUnset": "(pásmo neuvedeno)",
+      "notAssessed": "{n, plural, one {# kandidáta se nepodařilo ohodnotit} few {# kandidáty se nepodařilo ohodnotit} other {# kandidátů se nepodařilo ohodnotit}} a {n, plural, one {není} other {nejsou}} započítáni výše — zkontrolujte jejich profil.",
       "footnote": "Odhady znovu spouští živý skórovací engine kp proti vašim uloženým kandidátům — odpovídají tomu, co by ukázala publikace."
     },
     "campaign": {

@@ -2356,6 +2356,7 @@
       "salaryBelow": "Le salaire <b>{job}</b> est en dessous de la fourchette du marché <b>{market}</b> pour ce poste — augmentez-le pour rester compétitif.",
       "salaryOk": "Le salaire est aligné sur la fourchette du marché <b>{market}</b> pour ce poste.",
       "salaryUnset": "(aucune fourchette définie)",
+      "notAssessed": "{n, plural, one {# candidat n'a pas pu être évalué} other {# candidats n'ont pas pu être évalués}} et {n, plural, one {n'est} other {ne sont}} pas comptés ci-dessus — vérifiez leur profil.",
       "footnote": "Les projections réexécutent le moteur de scoring en direct de kp sur vos candidats enregistrés — elles reflètent ce que la publication ferait ressortir."
     },
     "campaign": {
