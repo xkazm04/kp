@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { Check } from "lucide-react";
 import { LayoutGroup, motion } from "framer-motion";
 import { useTranslations } from "next-intl";
 import { DAYS, styleFor, TIMES, type SchedEntry } from "./ScheduleTypes";
@@ -20,12 +21,17 @@ import { initials } from "@/app/_lib/initials";
 export function ScheduleCalendar({
   entries,
   picks,
+  bookedMarkers = [],
   selectedId,
   onSelect,
   onPickSlot,
 }: {
   entries: SchedEntry[];
   picks: Record<string, string>;
+  // Direction 3 — read-only confirmed bookings from the invite engine (self- or
+  // recruiter-booked), rendered as occupied cells so the grid reflects one source
+  // of truth and a taken time is visible before the recruiter double-books it.
+  bookedMarkers?: { id: string; gridSlot: string; candidateLabel: string }[];
   selectedId: string | null;
   onSelect: (id: string) => void;
   onPickSlot: (slot: string) => void;
@@ -52,6 +58,7 @@ export function ScheduleCalendar({
   }, []);
 
   const inSlot = (slot: string) => entries.filter((e) => (picks[e.id] ?? "") === slot);
+  const bookedInSlot = (slot: string) => bookedMarkers.filter((m) => m.gridSlot === slot);
 
   const fadeBase = `pointer-events-none absolute inset-y-px w-12 ${reduced ? "" : "transition-opacity duration-200"}`;
 
@@ -85,6 +92,7 @@ export function ScheduleCalendar({
                 {DAYS.map((d) => {
                   const slot = `${d} ${t}`;
                   const here = inSlot(slot);
+                  const booked = bookedInSlot(slot);
                   return (
                     // Cell is a plain container, not a button, so the chips below can be
                     // real buttons (no interactive-in-interactive nesting). A full-cell
@@ -133,6 +141,23 @@ export function ScheduleCalendar({
                               </motion.button>
                             );
                           })}
+                        </div>
+                      ) : null}
+                      {booked.length > 0 ? (
+                        // Read-only occupied markers (Direction 3). pointer-events-none so
+                        // a click still falls through to the slot picker — the collision
+                        // check on confirm is the real guard; this is the visible hint.
+                        <div className="pointer-events-none relative space-y-1 p-1.5">
+                          {booked.map((m) => (
+                            <span
+                              key={m.id}
+                              title={tCal("bookedTitle", { name: m.candidateLabel })}
+                              className="flex w-full items-center gap-1 rounded-md border border-dashed border-moss/50 bg-moss/10 px-1.5 py-1 text-sm font-medium text-moss"
+                            >
+                              <Check size={12} className="shrink-0" aria-hidden />
+                              <span className="truncate">{m.candidateLabel}</span>
+                            </span>
+                          ))}
                         </div>
                       ) : null}
                     </div>

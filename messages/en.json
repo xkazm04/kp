@@ -1984,7 +1984,8 @@
       "addToCalendar": "Add to calendar",
       "google": "Google Calendar",
       "outlook": "Outlook",
-      "downloadIcs": "Download .ics"
+      "downloadIcs": "Download .ics",
+      "bookedTitle": "{name} · already booked"
     },
     "scorecard": {
       "editScorecard": "Edit your scorecard",

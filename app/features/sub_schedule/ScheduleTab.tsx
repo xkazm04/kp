@@ -15,6 +15,9 @@ import { ChainEmptyState } from "@/app/_components/ChainEmptyState";
 import { ScoreBadge } from "@/app/_components/ScoreBadge";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { useReducedMotion } from "@/app/_lib/useReducedMotion";
+import { isoToGridSlot } from "@/app/_lib/schedule-slots";
+// Type-only — no better-sqlite3 pulled into this client bundle.
+import type { ScheduleInvite } from "@/app/_lib/schedule-store";
 
 type IvStatus = { sessionId: string; status: string; hasTranscript: boolean; endedAt: string | null };
 
@@ -58,6 +61,10 @@ export function ScheduleTab() {
   const [entries, setEntries] = useState<SchedEntry[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [picks, setPicks] = useState<Record<string, string>>({});
+  // Direction 3 — the grid renders from the ONE scheduling engine. Confirmed invites
+  // (recruiter- or candidate-self-booked) seed where each candidate sits and appear as
+  // read-only booked markers, so the grid and the invite store can't diverge.
+  const [invites, setInvites] = useState<ScheduleInvite[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [prepEntry, setPrepEntry] = useState<SchedEntry | null>(null);
@@ -77,9 +84,13 @@ export function ScheduleTab() {
   const reduced = useReducedMotion();
 
   const load = () =>
-    fetch("/api/pipeline")
-      .then((r) => r.json())
-      .then((p) => {
+    Promise.all([
+      fetch("/api/pipeline").then((r) => r.json()),
+      // The invite store — the engine the grid now renders from. Best-effort: if it
+      // fails, the grid still works off the legacy approvalDetail strings.
+      fetch("/api/schedule").then((r) => r.json()).catch(() => ({ invites: [] })),
+    ])
+      .then(([p, s]) => {
         if (p.error) throw new Error(p.error);
         const all = (p.entries as SchedEntry[]) ?? [];
         // Awaiting-slot candidates (the calendar) PLUS those already voice-interviewed
@@ -87,10 +98,23 @@ export function ScheduleTab() {
         const sched = all.filter(
           (e) => (e.approvalKind === "calendar" || e.approvalKind === "scorecard_review") && e.status === "active"
         );
+        const invs = (s.invites as ScheduleInvite[]) ?? [];
+        setInvites(invs);
         setEntries(sched);
+        // Seed each candidate's grid cell from the ENGINE first: an invite's canonical
+        // slot_at (converted to the grid's wall-clock cell) wins over the legacy
+        // free-text approvalDetail, which is the back-compat fallback for entries with
+        // no invite yet. So a self-booked or recruiter-booked time shows in the right cell.
+        const inviteByEntry = new Map(invs.filter((i) => i.entryId).map((i) => [i.entryId as string, i]));
         setPicks(
           Object.fromEntries(
-            sched.filter((e) => e.approvalKind === "calendar").map((e) => [e.id, e.approvalDetail || DEFAULT_SLOT])
+            sched
+              .filter((e) => e.approvalKind === "calendar")
+              .map((e) => {
+                const inv = inviteByEntry.get(e.id);
+                const fromInvite = inv?.slotAt ? isoToGridSlot(inv.slotAt) : null;
+                return [e.id, fromInvite || e.approvalDetail || DEFAULT_SLOT];
+              })
           )
         );
       })
@@ -102,6 +126,19 @@ export function ScheduleTab() {
   const pending = entries ?? [];
   const entryIds = pending.map((e) => e.id).join(",");
   const calendarEntries = pending.filter((e) => e.approvalKind === "calendar");
+  // Direction 3 — booked markers: confirmed invites shown as read-only occupied cells
+  // on the grid, so a candidate who self-booked via their token (and has since advanced
+  // out of the pending list) still occupies their slot and can't be double-booked.
+  // Entries already rendered as assignable chips are excluded to avoid a double render.
+  const calendarEntryIds = useMemo(() => new Set(calendarEntries.map((e) => e.id)), [calendarEntries]);
+  const bookedMarkers = useMemo(
+    () =>
+      invites
+        .filter((i) => i.status === "confirmed" && i.slotAt && (!i.entryId || !calendarEntryIds.has(i.entryId)))
+        .map((i) => ({ id: i.token, gridSlot: isoToGridSlot(i.slotAt), candidateLabel: i.candidateLabel ?? "—" }))
+        .filter((m): m is { id: string; gridSlot: string; candidateLabel: string } => m.gridSlot !== null),
+    [invites, calendarEntryIds]
+  );
   // Interviewed = moved past scheduling with either a saved voice transcript or a
   // recruiter-filled human scorecard — a human-led round has no transcript, but its
   // candidate must stay visible (and the prep modal reachable) after the verdict
@@ -175,10 +212,30 @@ export function ScheduleTab() {
   const act = async (e: SchedEntry, action: "approve_event" | "reject") => {
     setBusy(e.id);
     try {
+      let detail: string | undefined = action === "approve_event" ? picks[e.id] : undefined;
+      if (action === "approve_event") {
+        // Route the grid confirm through the ONE scheduling engine: produce/update a
+        // canonical, collision-checked, reminder-eligible invite for the picked cell.
+        // The server-authored dated label becomes the approve_event detail (no bare
+        // "Tue 14:00" write). A genuine collision blocks the advance — the recruiter
+        // picks another cell — instead of silently double-booking a time.
+        const bookRes = await fetch("/api/schedule", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "book", entryId: e.id, gridSlot: picks[e.id] }),
+        });
+        const bd = await bookRes.json().catch(() => ({}));
+        if (!bookRes.ok) {
+          setError(typeof bd.error === "string" ? bd.error : t("loadFailed"));
+          setBusy(null);
+          return;
+        }
+        if (typeof bd.slot === "string") detail = bd.slot;
+      }
       const r = await fetch(`/api/pipeline/${e.id}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action, detail: action === "approve_event" ? picks[e.id] : undefined }),
+        body: JSON.stringify({ action, detail }),
       });
       if (!r.ok) throw new Error();
       // Record the direction, then drop the card. AnimatePresence resolves the
@@ -236,6 +293,7 @@ export function ScheduleTab() {
           <ScheduleCalendar
             entries={calendarEntries}
             picks={picks}
+            bookedMarkers={bookedMarkers}
             selectedId={selectedId}
             onSelect={setSelectedId}
             onPickSlot={pickSlot}

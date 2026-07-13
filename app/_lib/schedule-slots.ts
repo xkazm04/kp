@@ -193,3 +193,56 @@ export function offeredSlotFor(slotAtIso: unknown, nowMs: number = Date.now(), t
   if (ms !== zonedInstant(p.year, p.month, p.day, hh, mm, tz)) return null;
   return { value: new Date(ms).toISOString(), label: slotLabel(ms, time, tz) };
 }
+
+// --- One scheduling engine: grid ⇄ canonical instant (Direction 3) --------------
+//
+// The manual week grid (ScheduleCalendar) speaks in timezone-less wall-clock strings
+// ("Tue 14:00"). These pure helpers bridge that abstraction to the invite engine's
+// canonical ISO instants so a grid confirm produces the SAME collision-checked,
+// reminder-eligible schedule_invites row a candidate self-booking does — one engine,
+// not two stores. Reckoned in the interview zone (never the server clock).
+
+const WD_INDEX: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+
+/** Resolve a recruiter grid pick ("Tue 14:00" — weekday + HH:MM in the interview
+ *  zone) to the next FUTURE canonical instant matching that weekday and time, with a
+ *  server-authored dated label. Unlike offeredSlotFor (the candidate trust boundary),
+ *  this accepts ANY business-day hour — the recruiter is trusted and the grid offers a
+ *  full working day. Returns null for a malformed pick or a weekend. Searches within
+ *  the scheduling horizon so the resolved instant always sits inside the offer window. */
+export function gridSlotToIso(gridSlot: string, nowMs: number = Date.now(), tz: string = INTERVIEW_TZ): { value: string; label: string } | null {
+  const m = /^([A-Za-z]{3})\s+([01]\d|2[0-3]):([0-5]\d)$/.exec(gridSlot.trim());
+  if (!m) return null;
+  const wd = WD_INDEX[m[1]];
+  if (wd === undefined || wd === 0 || wd === 6) return null; // unknown day or weekend
+  const hh = Number(m[2]);
+  const mm = Number(m[3]);
+  const time = `${m[2]}:${m[3]}`;
+  const today = zonedParts(nowMs, tz);
+  // Scan forward day-by-day; the first date whose interview-zone weekday matches AND
+  // whose instant is still in the future is the booking. A weekday recurs within 7
+  // days, so the loop always resolves for a valid weekday.
+  for (let day = 0; day <= SLOT_HORIZON_DAYS; day += 1) {
+    const d = new Date(Date.UTC(today.year, today.month - 1, today.day));
+    d.setUTCDate(d.getUTCDate() + day);
+    if (d.getUTCDay() !== wd) continue;
+    const ms = zonedInstant(d.getUTCFullYear(), d.getUTCMonth() + 1, d.getUTCDate(), hh, mm, tz);
+    if (ms <= nowMs) continue; // matched today but the time already passed → next week
+    return { value: new Date(ms).toISOString(), label: slotLabel(ms, time, tz) };
+  }
+  return null;
+}
+
+/** Place a canonical ISO instant back onto the week grid as its cell ("Tue 14:00"),
+ *  in the interview zone — so invite bookings (recruiter- or candidate-made) render on
+ *  the same grid. Returns null for an unparsable instant or a weekend. */
+export function isoToGridSlot(iso: string | null | undefined, tz: string = INTERVIEW_TZ): string | null {
+  if (!iso) return null;
+  const ms = Date.parse(iso);
+  if (Number.isNaN(ms)) return null;
+  const p = zonedParts(ms, tz);
+  if (p.weekday === 0 || p.weekday === 6) return null;
+  const hh = String(p.hour).padStart(2, "0");
+  const mm = String(p.minute).padStart(2, "0");
+  return `${DOW[p.weekday]} ${hh}:${mm}`;
+}

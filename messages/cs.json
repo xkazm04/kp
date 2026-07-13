@@ -1984,7 +1984,8 @@
       "addToCalendar": "Přidat do kalendáře",
       "google": "Google Kalendář",
       "outlook": "Outlook",
-      "downloadIcs": "Stáhnout .ics"
+      "downloadIcs": "Stáhnout .ics",
+      "bookedTitle": "{name} · již rezervováno"
     },
     "scorecard": {
       "editScorecard": "Upravit vaši hodnoticí kartu",

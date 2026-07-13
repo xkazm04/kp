@@ -53,7 +53,7 @@ const {
   isTerminalScheduleInviteStatus,
   MAX_RESCHEDULES,
 } = await import("./schedule-store.ts");
-const { INVITE_LINK_TTL_DAYS } = await import("./schedule-slots.ts");
+const { INVITE_LINK_TTL_DAYS, gridSlotToIso, isoToGridSlot } = await import("./schedule-slots.ts");
 
 // Mint a confirmed invite at a specific slot, returning its token. Each test uses
 // globally-unique slot_at times so confirmed rows from other tests can't collide.
@@ -306,4 +306,37 @@ test("resolveScheduleInviteReconcile clears the drift flag once (idempotent)", (
   assert.equal(after.needsReconcile, false);
   assert.equal(after.reconcileReason, null);
   assert.equal(resolveScheduleInviteReconcile(inv.token), false, "second resolve is a no-op");
+});
+
+// --- Direction 3: the grid confirm composes the ONE scheduling engine -----------
+// Mirrors the /api/schedule `book` action: resolve the grid pick to a canonical
+// instant, then produce/update a collision-checked confirmed invite. Pins the seam
+// at the store level (the route can't run under bare node --test in a worktree).
+test("grid book: resolve pick → confirm a canonical, collision-checked invite; re-book moves it", () => {
+  const entryId = "e-grid-book";
+  const resolved = gridSlotToIso("Tue 14:00");
+  assert.ok(resolved, "a valid grid cell resolves to an instant");
+  // First confirm (pending → confirmed) at the resolved instant.
+  const inv = createScheduleInvite({ entryId, candidateLabel: "Grid Cand", jobTitle: "Role" });
+  const booked = confirmScheduleInvite(inv.token, resolved!.label, resolved!.value);
+  assert.equal(booked.ok, true);
+  assert.equal(getScheduleInviteByToken(inv.token)!.slotAt, resolved!.value);
+  // The booking round-trips back onto the grid cell it came from.
+  assert.equal(isoToGridSlot(resolved!.value), "Tue 14:00");
+  // A different entry can't book the SAME instant (grid collision check).
+  const other = createScheduleInvite({ entryId: "e-grid-clash", candidateLabel: "Other", jobTitle: "Role" });
+  const clash = confirmScheduleInvite(other.token, resolved!.label, resolved!.value);
+  assert.equal(clash.ok, false);
+  if (!clash.ok) assert.equal(clash.reason, "taken");
+  // Re-booking the same entry onto another cell is a recruiter move (idempotent invite
+  // reuse + recruiter reschedule) — no candidate reschedule budget consumed.
+  const moved = gridSlotToIso("Wed 10:00");
+  const reInv = createScheduleInvite({ entryId, candidateLabel: "Grid Cand", jobTitle: "Role" });
+  assert.equal(reInv.token, inv.token, "book reuses the live invite for the entry");
+  const rebooked = rescheduleScheduleInvite(reInv.token, moved!.label, moved!.value, null, { recruiter: true });
+  assert.equal(rebooked.ok, true);
+  if (rebooked.ok) {
+    assert.equal(rebooked.invite.slotAt, moved!.value);
+    assert.equal(rebooked.invite.rescheduleCount, 0, "recruiter grid move doesn't spend the candidate budget");
+  }
 });

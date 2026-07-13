@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import {
   bookedSlots,
   cancelAttendance,
+  confirmScheduleInvite,
+  createScheduleInvite,
   getScheduleInviteByToken,
   listScheduleInvites,
   markScheduleInviteNoShow,
@@ -9,7 +11,9 @@ import {
   resolveScheduleInviteReconcile,
   setScheduleInviteMeetingUrl,
 } from "@/app/_lib/schedule-store";
-import { offeredSlotFor, proposeSlots } from "@/app/_lib/schedule-slots";
+import { getPipelineEntry } from "@/app/_lib/db";
+import { plannedInterviewMinutes } from "@/app/_lib/interview-run";
+import { gridSlotToIso, offeredSlotFor, proposeSlots } from "@/app/_lib/schedule-slots";
 import { sealDecisionSafe } from "@/app/_lib/decision-record-store";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { jsonOk, safeJsonError } from "@/app/_lib/api-response";
@@ -50,9 +54,63 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
     }
     const ws = await currentWorkspace();
-    const body = (await request.json().catch(() => ({}))) as { token?: string; action?: string; slotAt?: string };
-    if (!body.token || !body.action) {
-      return NextResponse.json({ error: "token and action are required" }, { status: 400 });
+    const body = (await request.json().catch(() => ({}))) as {
+      token?: string;
+      action?: string;
+      slotAt?: string;
+      entryId?: string;
+      gridSlot?: string;
+    };
+    if (!body.action) {
+      return NextResponse.json({ error: "action is required" }, { status: 400 });
+    }
+
+    // BOOK (Direction 3) — the manual week grid, routed through the ONE scheduling
+    // engine. Confirming a candidate on the grid used to write a timezone-less
+    // "Tue 14:00" free-text string straight onto the pipeline entry via approve_event,
+    // with no collision check and no reminder. Now the grid resolves its wall-clock
+    // pick to a canonical interview-zone instant (gridSlotToIso) and produces/updates
+    // a collision-checked, reminder-eligible schedule_invites row — the SAME record a
+    // candidate self-booking creates. Keyed by entryId (the grid has no token yet); the
+    // client then calls approve_event with the returned server-authored label so the
+    // decision chain still advances the stage.
+    if (body.action === "book") {
+      if (!body.entryId || !body.gridSlot) {
+        return NextResponse.json({ error: "entryId and gridSlot are required" }, { status: 400 });
+      }
+      const entry = getPipelineEntry(body.entryId, ws);
+      if (!entry) return NextResponse.json({ error: "pipeline entry not found" }, { status: 404 });
+      const resolved = gridSlotToIso(body.gridSlot);
+      if (!resolved) {
+        return NextResponse.json({ error: "That grid slot couldn't be resolved to a time." }, { status: 400 });
+      }
+      // Idempotent per entry: reuse the live invite (or mint one), then confirm/move it
+      // to the resolved instant with recruiter authority (no candidate reschedule cap),
+      // reusing the same collision-checked transactions the token flow uses.
+      const invite = createScheduleInvite({
+        entryId: entry.id,
+        candidateLabel: entry.candidateLabel,
+        jobTitle: entry.jobTitle,
+        durationMin: plannedInterviewMinutes(entry),
+      });
+      if (invite.status === "confirmed") {
+        const moved = rescheduleScheduleInvite(invite.token, resolved.label, resolved.value, null, { recruiter: true });
+        if (!moved.ok) {
+          if (moved.reason === "taken") return NextResponse.json({ error: "That time is already booked — pick another." }, { status: 409 });
+          return NextResponse.json({ error: "Could not update that booking." }, { status: 409 });
+        }
+        return jsonOk({ invite: moved.invite, slot: resolved.label, slotAt: resolved.value });
+      }
+      const booked = confirmScheduleInvite(invite.token, resolved.label, resolved.value);
+      if (!booked.ok) {
+        if (booked.reason === "taken") return NextResponse.json({ error: "That time is already booked — pick another." }, { status: 409 });
+        return NextResponse.json({ error: "Could not book that time." }, { status: 409 });
+      }
+      return jsonOk({ invite: booked.invite, slot: resolved.label, slotAt: resolved.value });
+    }
+
+    if (!body.token) {
+      return NextResponse.json({ error: "token is required" }, { status: 400 });
     }
     // Tenancy (P1): resolve the invite and refuse anything outside this team's
     // calendar — the token is a candidate capability, but the RECRUITER route is

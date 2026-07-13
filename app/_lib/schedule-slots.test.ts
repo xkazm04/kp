@@ -9,7 +9,7 @@
 //   npm run test:unit
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { offeredSlotFor, parseInterviewTimes, proposeSlots, SLOT_HORIZON_DAYS, isScheduleInviteExpired, INVITE_LINK_TTL_DAYS } from "./schedule-slots.ts";
+import { offeredSlotFor, parseInterviewTimes, proposeSlots, SLOT_HORIZON_DAYS, isScheduleInviteExpired, INVITE_LINK_TTL_DAYS, gridSlotToIso, isoToGridSlot } from "./schedule-slots.ts";
 
 test("parseInterviewTimes is config-driven, validated, deduped, and falls back safely", () => {
   assert.deepEqual(parseInterviewTimes(undefined), ["10:00", "14:00"]);
@@ -110,4 +110,34 @@ test("isScheduleInviteExpired: only a stale, still-pending link expires", () => 
   // Exactly at the boundary is not yet expired (strict <).
   const boundary = new Date(NOW - ttlMs).toISOString();
   assert.equal(isScheduleInviteExpired({ status: "pending", createdAt: boundary }, NOW), false);
+});
+
+// --- Direction 3: grid ⇄ canonical instant (one scheduling engine) --------------
+test("gridSlotToIso resolves a grid pick to the next future canonical instant", () => {
+  // NOW = Monday 2026-06-08 12:00 UTC (see top of file), interview zone pinned to UTC.
+  const tue = gridSlotToIso("Tue 14:00", NOW, TZ);
+  assert.ok(tue, "Tuesday 14:00 should resolve");
+  assert.equal(tue!.value, new Date(Date.UTC(2026, 5, 9, 14, 0)).toISOString());
+  assert.equal(tue!.label, "Tue 9 Jun · 14:00");
+  // Same-day, still-future time books today.
+  assert.equal(gridSlotToIso("Mon 14:00", NOW, TZ)!.value, new Date(Date.UTC(2026, 5, 8, 14, 0)).toISOString());
+  // Same weekday but the time already passed → rolls to next week.
+  assert.equal(gridSlotToIso("Mon 09:00", NOW, TZ)!.value, new Date(Date.UTC(2026, 5, 15, 9, 0)).toISOString());
+  // A recruiter hour outside the candidate offered set (09:00) is still allowed.
+  assert.ok(gridSlotToIso("Wed 09:00", NOW, TZ), "recruiter may pick any business-day hour");
+});
+
+test("gridSlotToIso refuses weekends and malformed picks", () => {
+  assert.equal(gridSlotToIso("Sat 10:00", NOW, TZ), null);
+  assert.equal(gridSlotToIso("Sun 10:00", NOW, TZ), null);
+  assert.equal(gridSlotToIso("Xyz 10:00", NOW, TZ), null);
+  assert.equal(gridSlotToIso("Tue 25:00", NOW, TZ), null);
+  assert.equal(gridSlotToIso("garbage", NOW, TZ), null);
+});
+
+test("isoToGridSlot places an instant back on the grid and round-trips with gridSlotToIso", () => {
+  assert.equal(isoToGridSlot(new Date(Date.UTC(2026, 5, 9, 14, 0)).toISOString(), TZ), "Tue 14:00");
+  assert.equal(isoToGridSlot(new Date(Date.UTC(2026, 5, 13, 10, 0)).toISOString(), TZ), null, "Saturday maps to no grid cell");
+  const resolved = gridSlotToIso("Thu 10:00", NOW, TZ);
+  assert.equal(isoToGridSlot(resolved!.value, TZ), "Thu 10:00", "grid → iso → grid is stable");
 });
