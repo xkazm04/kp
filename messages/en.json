@@ -788,11 +788,17 @@
     "rsvpPrompt": "Can you still make it?",
     "rsvpConfirm": "I'll be there",
     "rsvpCancel": "I can't make it",
+    "withdraw": "I need to withdraw from this interview",
     "attendanceConfirmed": "Attendance confirmed — thanks!",
     "slotsRefreshFailed": "Couldn't refresh the available times — reload the page to see the latest.",
     "rsvpCancelledNote": "Your time has been released. Pick a new one below and we'll let the team know.",
     "joinInterview": "Join interview",
-    "icsLocationOnline": "Online interview"
+    "icsLocationOnline": "Online interview",
+    "linkExpiredTitle": "This scheduling link has expired",
+    "linkExpiredBody": "This link was open for a while and has now expired without a time being booked.",
+    "linkClosedTitle": "This interview is no longer open",
+    "linkClosedBody": "This interview has been closed, so there's no time to book here.",
+    "linkClosedHelp": "If you still need to schedule, please reply to your latest email from the hiring team."
   },
   "data": {
     "eyebrow": "Your data",
@@ -1923,7 +1929,11 @@
       "linkPlaceholder": "Paste a meeting link (Meet, Teams, Zoom…)",
       "save": "Save",
       "cancel": "Cancel",
-      "linkError": "Enter a valid http(s) link."
+      "linkError": "Enter a valid http(s) link.",
+      "closed": "Closed · {count}",
+      "closedNoShow": "no-show",
+      "closedDeclined": "declined",
+      "closedExpired": "link expired"
     },
     "eyebrow": "Decisions · Schedule",
     "title": "Interview calendar",

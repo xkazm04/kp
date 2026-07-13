@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CalendarClock, Check, Video } from "lucide-react";
+import { CalendarClock, CalendarX, Check, Video } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { toast } from "@/app/_components/toast-store";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
@@ -43,6 +43,10 @@ export function SchedulePicker({ token }: { token: string }) {
   // distinct from "not loaded yet". When true the recruiter has been flagged and
   // the candidate gets a defined outcome instead of a dead-end.
   const [noSlots, setNoSlots] = useState(false);
+  // Direction 1 — a dead-capability link: expired (aged out unbooked) or closed by
+  // the state machine (declined / no_show). Renders a terminal card instead of a
+  // picker that can never book.
+  const [closedReason, setClosedReason] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [picking, setPicking] = useState<string | null>(null);
   const [confirmed, setConfirmed] = useState<string | null>(null);
@@ -74,6 +78,7 @@ export function SchedulePicker({ token }: { token: string }) {
         setSlots(d.slots ?? []);
         setNoSlots(Boolean(d.noSlots));
         setCanReschedule(Boolean(d.canReschedule));
+        if (d.closed) setClosedReason(typeof d.closedReason === "string" ? d.closedReason : "closed");
         if (d.invite?.status === "confirmed") setConfirmed(d.invite.slot ?? "");
       })
       .catch(() => {
@@ -126,6 +131,10 @@ export function SchedulePicker({ token }: { token: string }) {
               toast.error(t("slotsRefreshFailed"));
             });
         }
+      } else if (res.status === 410) {
+        // The link went dead between load and submit (aged out / closed) — swap the
+        // picker for the terminal card rather than leave a stale error over live slots.
+        setClosedReason("closed");
       } else {
         setError(errMsg(d, t("confirmFailed")));
         // Slot taken by someone else between load and submit — refresh the list.
@@ -217,6 +226,32 @@ export function SchedulePicker({ token }: { token: string }) {
     }
   };
 
+  // Direction 1 — the candidate withdraws from the interview entirely (terminal
+  // 'declined'). Distinct from the rsvp cancel that frees the slot for re-booking;
+  // this closes the invite, and the terminal card takes over.
+  const withdraw = async () => {
+    setRsvpPending("cancel");
+    setError(null);
+    setNotice(null);
+    try {
+      const res = await fetch(`/api/schedule/${token}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ withdraw: true }),
+      });
+      const d = await res.json();
+      if (!res.ok) {
+        setError(errMsg(d, t("confirmFailed")));
+        return;
+      }
+      setClosedReason("declined");
+    } catch {
+      setError(t("confirmFailed"));
+    } finally {
+      setRsvpPending(null);
+    }
+  };
+
   if (error)
     return (
       <p role="alert" className="rounded-md border border-stone-200 bg-paper p-4 text-base text-coral">
@@ -224,6 +259,22 @@ export function SchedulePicker({ token }: { token: string }) {
       </p>
     );
   if (!invite) return <p className="text-base text-steel">{tCommon("loading")}</p>;
+
+  // Direction 1 — dead-capability terminal card. `expired` (aged out unbooked) gets
+  // its own copy; a state-machine close (declined / no_show) shares the generic
+  // "no longer active" card. Mirrors the "all taken" terminal-card pattern.
+  if (closedReason) {
+    const isExpired = closedReason === "expired";
+    return (
+      <div role="status" className="rounded-lg border border-stone-200 bg-paper p-5">
+        <p className="flex items-center gap-2 font-serif text-h2 text-ink">
+          <CalendarX className="text-steel" aria-hidden /> {isExpired ? t("linkExpiredTitle") : t("linkClosedTitle")}
+        </p>
+        <p className="mt-2 text-body text-ink">{isExpired ? t("linkExpiredBody") : t("linkClosedBody")}</p>
+        <p className="mt-2 text-base text-steel">{t("linkClosedHelp")}</p>
+      </div>
+    );
+  }
 
   if (confirmed && !rescheduling) {
     return (
@@ -318,6 +369,16 @@ export function SchedulePicker({ token }: { token: string }) {
               </button>
             </div>
           )}
+          {/* Direction 1 — an honest terminal exit for a candidate who can't proceed
+              at all, so the interview closes instead of the link living on forever. */}
+          <button
+            type="button"
+            disabled={rsvpPending !== null}
+            onClick={withdraw}
+            className="focus-ring mt-2 inline-flex text-meta text-steel underline underline-offset-2 hover:text-coral disabled:opacity-50"
+          >
+            {t("withdraw")}
+          </button>
         </div>
       </div>
     );

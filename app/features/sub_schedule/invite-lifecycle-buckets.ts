@@ -15,6 +15,9 @@
 // Type-only: erased at runtime, so schedule-store's better-sqlite3 is NOT pulled
 // into this module (or into a bare `node --test` process).
 import type { ScheduleInvite } from "@/app/_lib/schedule-store";
+// Pure (no better-sqlite3) — safe in this client-bundled module. Derives the
+// "expired" fate of a stale, never-booked pending invite (Direction 1).
+import { isScheduleInviteExpired } from "@/app/_lib/schedule-slots";
 
 // How long a just-started confirmed slot stays in the "today" bucket after its
 // start — long enough to cover the interview itself plus immediate no-show /
@@ -27,7 +30,22 @@ export type InviteBuckets = {
   upcoming: ScheduleInvite[];
   today: ScheduleInvite[];
   awaiting: ScheduleInvite[];
+  // Direction 1 — the terminal fates that used to have no home: declined, no_show,
+  // and the derived `expired` (a pending link aged past the TTL). Kept as a
+  // collapsed, low-emphasis section so every interview has an honest end state
+  // instead of silently vanishing from the agenda.
+  closed: ScheduleInvite[];
 };
+
+/** The label for an invite's closed fate, or null when it isn't closed. Shared by
+ *  the panel so the rendered reason can't drift from the bucketing. `expired` is
+ *  derived from a pending row's age; `declined` / `no_show` are stored statuses. */
+export function closedReason(invite: ScheduleInvite, nowMs: number): "expired" | "declined" | "no_show" | null {
+  if (invite.status === "declined") return "declined";
+  if (invite.status === "no_show") return "no_show";
+  if (isScheduleInviteExpired(invite, nowMs)) return "expired";
+  return null;
+}
 
 /** Partition invites for the lifecycle panel. `nowMs` is captured at load time so
  *  the split is a pure function of state during render. */
@@ -36,8 +54,13 @@ export function bucketInvites(
   nowMs: number,
   recentWindowMs: number = RECENT_WINDOW_MS
 ): InviteBuckets {
-  const attention = invites.filter((i) => i.needsMoreSlots || i.needsReconcile);
-  const rest = invites.filter((i) => !attention.includes(i));
+  // Terminal fates first (Direction 1): a declined / no_show / expired invite is
+  // closed — it must not appear as an actionable attention/awaiting row even if a
+  // stale flag (needsReconcile) lingers on it.
+  const closed = invites.filter((i) => closedReason(i, nowMs) !== null);
+  const live = invites.filter((i) => !closed.includes(i));
+  const attention = live.filter((i) => i.needsMoreSlots || i.needsReconcile);
+  const rest = live.filter((i) => !attention.includes(i));
 
   const upcoming: ScheduleInvite[] = [];
   const today: ScheduleInvite[] = [];
@@ -68,8 +91,11 @@ export function bucketInvites(
   // Most-recent first: the in-progress / just-finished call the recruiter most
   // likely needs is at the top of the "today" list.
   today.sort((a, b) => Date.parse(b.slotAt as string) - Date.parse(a.slotAt as string));
+  // Closed rows newest-first (by confirm time, else creation) so the most recent
+  // terminal outcome leads the collapsed history.
+  closed.sort((a, b) => Date.parse(b.confirmedAt ?? b.createdAt) - Date.parse(a.confirmedAt ?? a.createdAt));
 
-  return { attention, upcoming, today, awaiting };
+  return { attention, upcoming, today, awaiting, closed };
 }
 
 /** Whether a confirmed slot is currently in progress at `nowMs` (started, not yet

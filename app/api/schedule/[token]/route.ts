@@ -8,14 +8,16 @@ import {
   cancelAttendance,
   confirmAttendance,
   confirmScheduleInvite,
+  declineScheduleInvite,
   flagScheduleInviteNeedsMoreSlots,
   getScheduleInviteByToken,
   markScheduleInviteNeedsReconcile,
   MAX_RESCHEDULES,
   rescheduleScheduleInvite,
+  isTerminalScheduleInviteStatus,
   type ScheduleInvite,
 } from "@/app/_lib/schedule-store";
-import { offeredSlotFor, proposeSlots } from "@/app/_lib/schedule-slots";
+import { offeredSlotFor, proposeSlots, isScheduleInviteExpired } from "@/app/_lib/schedule-slots";
 import { isValidTimeZone } from "@/app/_lib/timezone";
 import { logScheduleNoSlots, logScheduleReconcile } from "@/app/_lib/logger";
 import { jsonOk, safeJsonError } from "@/app/_lib/api-response";
@@ -57,6 +59,22 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ to
   const { token } = await context.params;
   const invite = getScheduleInviteByToken(token);
   if (!invite) return NextResponse.json({ error: "not found" }, { status: 404 });
+  // Dead-capability gate (Direction 1): a link that aged out unbooked ('expired',
+  // derived), or one the state machine closed ('declined' / 'no_show'), offers no
+  // slots. The candidate page renders a localized terminal card from `closed` — the
+  // same shape as the "all taken" card — instead of a live picker that can't book.
+  const expired = isScheduleInviteExpired(invite);
+  const closed = expired || isTerminalScheduleInviteStatus(invite.status);
+  if (closed) {
+    return jsonOk({
+      invite: publicInviteView(invite),
+      slots: [],
+      noSlots: false,
+      canReschedule: false,
+      closed: true,
+      closedReason: expired ? "expired" : invite.status,
+    });
+  }
   // A confirmed candidate may still self-reschedule (under the cap) — offer slots
   // in that case too, not just for a pending first booking. proposeSlots excludes
   // already-booked times, including this candidate's current one (they're moving
@@ -100,6 +118,9 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
       reschedule?: boolean;
       tz?: string;
       rsvp?: "confirm" | "cancel";
+      // Direction 1 — the candidate withdraws from the interview entirely (a terminal
+      // 'declined' fate), distinct from an rsvp cancel that frees the slot for re-booking.
+      withdraw?: boolean;
     };
     // The candidate's IANA timezone (idea-b51106df), captured so the recruiter
     // agenda can show a cross-border booking in the candidate's real local time.
@@ -108,6 +129,26 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
     const candidateTz = isValidTimeZone(body.tz) ? body.tz : null;
     const invite = getScheduleInviteByToken(token);
     if (!invite) return NextResponse.json({ error: "not found" }, { status: 404 });
+
+    // Dead-capability gate (Direction 1): a stale tab can still POST after the link
+    // aged out ('expired') or the state machine closed it ('declined' / 'no_show').
+    // Refuse every mutation (book / reschedule / RSVP) with 410 Gone rather than let
+    // a closed link book a slot. The GET already renders the terminal card, so this
+    // is the server-side safety net; the picker maps the 410 to localized copy.
+    if (isScheduleInviteExpired(invite) || isTerminalScheduleInviteStatus(invite.status)) {
+      return NextResponse.json({ error: "This scheduling link is no longer active." }, { status: 410 });
+    }
+
+    // WITHDRAW (Direction 1): the candidate declines the interview entirely — a
+    // terminal 'declined' fate, reachable from a pending or confirmed invite. Distinct
+    // from an rsvp cancel (which frees the slot and re-opens the invite for re-booking).
+    // The linked pipeline entry is intentionally left at its stage: a withdrawal is
+    // surfaced to the recruiter, not silently regressed.
+    if (body.withdraw === true) {
+      const declined = declineScheduleInvite(token);
+      if (!declined) return NextResponse.json({ error: "not found" }, { status: 404 });
+      return jsonOk({ ok: true, invite: publicInviteView(declined), withdrawn: true });
+    }
 
     // RSVP (idea-87af39c5): a confirmed candidate confirms attendance or cancels,
     // reusing this token. Handled BEFORE the idempotent re-confirm echo so it isn't

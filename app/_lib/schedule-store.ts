@@ -4,6 +4,7 @@ import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 import { randomId, randomToken } from "./random-id";
 import { isReminderDue, reminderRetryDelayMs, REMINDER_LEAD_MS, REMINDER_MAX_ATTEMPTS } from "./interview-reminder-policy";
 import { isEntryReminderEligible } from "./pipeline-status";
+import { isScheduleInviteExpired } from "./schedule-slots";
 
 // Self-scheduling: a candidate picks an interview slot from proposed times
 // (replacing the hardcoded "Tue 14:00"). Isolated-connection store (same
@@ -130,13 +131,33 @@ function db(): Database.Database {
   return d;
 }
 
+// The invite state machine (Direction 1). Every interview now has an honest terminal
+// fate instead of a stale link living forever:
+//   pending    — link minted, not yet booked. Expires (derived) past the TTL — see
+//                isScheduleInviteExpired (schedule-slots.ts); an expired pending
+//                invite is a dead capability the token route refuses.
+//   confirmed  — a slot is booked. The only reminder-eligible state.
+//   declined   — the candidate withdrew from the interview (terminal). Frees the slot.
+//   no_show    — the candidate didn't attend a confirmed interview; the recruiter
+//                marked it (terminal). Keeps slot_at as the record of the missed time.
+// declined/no_show are stored statuses; expired is derived from a pending row's age so
+// existing rows need no migration and the pending/confirmed behavior is unchanged.
+export const SCHEDULE_INVITE_STATUSES = ["pending", "confirmed", "declined", "no_show"] as const;
+export const TERMINAL_SCHEDULE_INVITE_STATUSES = ["declined", "no_show"] as const;
+
+/** Whether a stored status is a closed-out terminal state (declined / no_show). Note
+ *  `expired` is NOT here — it's derived from a pending row's age, not a stored value. */
+export function isTerminalScheduleInviteStatus(status: string): boolean {
+  return status === "declined" || status === "no_show";
+}
+
 export type ScheduleInvite = {
   id: string;
   token: string;
   entryId: string | null;
   candidateLabel: string | null;
   jobTitle: string | null;
-  status: string; // pending | confirmed
+  status: string; // pending | confirmed | declined | no_show
   slot: string | null; // human label, e.g. "Mon 1 Jun · 10:00"
   slotAt: string | null; // ISO datetime of the chosen slot
   reminderSentAt: string | null; // set only on successful delivery (terminal)
@@ -231,7 +252,11 @@ export function createScheduleInvite(input: {
         ORDER BY created_at DESC LIMIT 1`
     )
     .get(input.entryId, workspaceId) as Record<string, unknown> | undefined;
-  if (existing) return rowTo(existing);
+  // Reuse a live invite (idempotent re-invite), but NOT an EXPIRED pending one:
+  // a link aged past the TTL is a dead capability the token route refuses, so
+  // re-inviting must mint a fresh token rather than hand back the stale one
+  // (Direction 1). A confirmed invite (or a still-fresh pending one) is reused.
+  if (existing && !isScheduleInviteExpired(rowTo(existing))) return rowTo(existing);
   const now = new Date().toISOString();
   const id = randomId("sch");
   const token = randomToken("st");
@@ -409,6 +434,54 @@ export function cancelAttendance(token: string): ScheduleInvite | null {
     )
     .get(new Date().toISOString(), token) as Record<string, unknown> | undefined;
   return updated ? rowTo(updated) : null;
+}
+
+/** Terminal DECLINE (Direction 1): the candidate withdrew from the interview
+ *  entirely — distinct from cancelAttendance, which frees the slot but returns the
+ *  invite to 'pending' for re-booking. A decline is a closed fate: the slot is freed
+ *  (slot_at cleared → drops out of bookedSlots), the reminder cycle is reset (no
+ *  reminder for an interview that won't happen), and the status goes terminal so the
+ *  link can never book again. Reachable from a pending OR a confirmed invite (a
+ *  candidate can withdraw before or after booking). Transactional like the other
+ *  transitions. Returns the updated row, or null when the token doesn't exist or is
+ *  already terminal. The linked pipeline entry is intentionally left at its stage —
+ *  a withdrawal is surfaced, not silently regressed (the recruiter decides). */
+export function declineScheduleInvite(token: string): ScheduleInvite | null {
+  const d = db();
+  const tx = d.transaction((): ScheduleInvite | null => {
+    const updated = d
+      .prepare(
+        `UPDATE schedule_invites
+            SET status = 'declined', slot = NULL, slot_at = NULL, confirmed_at = NULL,
+                reminder_sent_at = NULL, reminder_attempts = 0, reminder_last_attempt_at = NULL
+          WHERE token = ? AND status IN ('pending','confirmed') RETURNING *`
+      )
+      .get(token) as Record<string, unknown> | undefined;
+    return updated ? rowTo(updated) : null;
+  });
+  return tx();
+}
+
+/** Terminal NO-SHOW (Direction 1): the recruiter marks a CONFIRMED interview whose
+ *  slot has passed as not-attended. Before this a real no-show just fell out of the
+ *  "today" bucket after the grace window and vanished with no record. Keeps slot_at
+ *  (the record of the missed time) but resets the reminder cycle and closes the
+ *  status so the link can't re-book. Only a confirmed invite can no-show; returns the
+ *  updated row or null. Transactional. The linked pipeline entry is left at its stage
+ *  — surfacing the fate, not regressing it. */
+export function markScheduleInviteNoShow(token: string): ScheduleInvite | null {
+  const d = db();
+  const tx = d.transaction((): ScheduleInvite | null => {
+    const updated = d
+      .prepare(
+        `UPDATE schedule_invites
+            SET status = 'no_show', reminder_sent_at = NULL, reminder_attempts = 0, reminder_last_attempt_at = NULL
+          WHERE token = ? AND status = 'confirmed' RETURNING *`
+      )
+      .get(token) as Record<string, unknown> | undefined;
+    return updated ? rowTo(updated) : null;
+  });
+  return tx();
 }
 
 /** Flag an invite as needing manual reconciliation: the candidate's slot was

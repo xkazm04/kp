@@ -5,7 +5,7 @@
 // the row). The `today` bucket keeps those visible.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { bucketInvites, isInProgress, RECENT_WINDOW_MS } from "./invite-lifecycle-buckets.ts";
+import { bucketInvites, closedReason, isInProgress, RECENT_WINDOW_MS } from "./invite-lifecycle-buckets.ts";
 import type { ScheduleInvite } from "@/app/_lib/schedule-store";
 
 const NOW = Date.parse("2026-06-01T10:00:00.000Z");
@@ -95,4 +95,30 @@ test("isInProgress is true only between start and planned end", () => {
   assert.equal(isInProgress("2026-06-01T09:00:00.000Z", 30, NOW), false, "finished 30m ago");
   assert.equal(isInProgress("2026-06-01T11:00:00.000Z", 30, NOW), false, "not started yet");
   assert.equal(isInProgress("2026-06-01T09:45:00.000Z", null, NOW), false, "unknown duration → no claim");
+});
+
+// --- Direction 1: terminal fates land in the `closed` bucket, not attention/awaiting
+test("declined / no_show / expired invites bucket as `closed` and out of the live buckets", () => {
+  const ttlDays = 7;
+  const declined = inv({ id: "d", status: "declined" });
+  const noShow = inv({ id: "n", status: "no_show", slotAt: "2026-05-30T10:00:00.000Z" });
+  // A stale, never-booked pending link (created > TTL ago) is derived-expired.
+  const expired = inv({ id: "e", status: "pending", createdAt: new Date(NOW - (ttlDays + 1) * 86_400_000).toISOString() });
+  const livePending = inv({ id: "p", status: "pending", createdAt: new Date(NOW - 60_000).toISOString() });
+  const { closed, awaiting, attention, upcoming, today } = bucketInvites([declined, noShow, expired, livePending], NOW);
+  assert.deepEqual(closed.map((i) => i.id).sort(), ["d", "e", "n"], "all three terminal fates are closed");
+  assert.deepEqual(awaiting.map((i) => i.id), ["p"], "only the live pending link still awaits a booking");
+  assert.equal(attention.length, 0);
+  assert.equal(upcoming.length + today.length, 0);
+});
+
+test("closedReason names the fate and a terminal row never appears in attention despite a stale flag", () => {
+  assert.equal(closedReason(inv({ status: "declined" }), NOW), "declined");
+  assert.equal(closedReason(inv({ status: "no_show" }), NOW), "no_show");
+  assert.equal(closedReason(inv({ status: "confirmed", slotAt: "2026-06-01T12:00:00.000Z" }), NOW), null);
+  // A no_show that still carries needsReconcile is closed, not surfaced as attention.
+  const flaggedNoShow = inv({ id: "fn", status: "no_show", needsReconcile: true, slotAt: "2026-05-30T10:00:00.000Z" });
+  const { closed, attention } = bucketInvites([flaggedNoShow], NOW);
+  assert.deepEqual(closed.map((i) => i.id), ["fn"]);
+  assert.equal(attention.length, 0, "a terminal row is not an actionable attention row");
 });

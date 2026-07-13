@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AlertTriangle, CalendarClock, Hourglass } from "lucide-react";
+import { AlertTriangle, CalendarClock, CalendarX, Hourglass } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useSlotLabel } from "@/app/_lib/use-slot-label";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
@@ -13,7 +13,7 @@ import { MeetingLinkCell } from "./MeetingLinkCell";
 // bug-ui-scan-2026-07-09 (interview-scheduling-prep-rubric #3) — the today /
 // upcoming / awaiting split lives in a pure, unit-tested module so a confirmed
 // interview no longer vanishes the instant its start passes.
-import { bucketInvites, isInProgress } from "./invite-lifecycle-buckets";
+import { bucketInvites, closedReason, isInProgress } from "./invite-lifecycle-buckets";
 // The full invite wire row is single-sourced from the store (GET /api/schedule
 // returns listScheduleInvites() unprojected). Type-only import, so schedule-store's
 // better-sqlite3 runtime is NOT pulled into this client bundle. Replaces a lossy
@@ -81,9 +81,16 @@ export function InviteLifecyclePanel() {
   // bug-ui-scan-2026-07-09 (interview-scheduling-prep-rubric #3) — pure bucketing:
   // adds a "today / in-progress / recent" bucket so a confirmed interview stays on
   // the panel through its start time and immediate aftermath instead of disappearing.
-  const { attention, upcoming, today, awaiting } = bucketInvites(invites, loadedAt);
+  const { attention, upcoming, today, awaiting, closed } = bucketInvites(invites, loadedAt);
 
-  if (attention.length === 0 && upcoming.length === 0 && today.length === 0 && awaiting.length === 0) return null;
+  if (
+    attention.length === 0 &&
+    upcoming.length === 0 &&
+    today.length === 0 &&
+    awaiting.length === 0 &&
+    closed.length === 0
+  )
+    return null;
 
   const slotLine = (i: ScheduleInvite) =>
     i.slotAt
@@ -189,6 +196,42 @@ export function InviteLifecyclePanel() {
                 </span>
               </li>
             ))}
+          </ul>
+        </details>
+      ) : null}
+
+      {/* Direction 1 — the terminal fates that used to vanish: an interview the
+          candidate declined, a no-show the recruiter marked, or a link that aged
+          out unbooked. Collapsed + low-emphasis (it's history, not an action
+          queue), but present so no interview silently disappears. */}
+      {closed.length > 0 ? (
+        <details className="mt-3">
+          <summary className="focus-ring flex cursor-pointer items-center gap-1.5 text-meta uppercase tracking-wide text-steel">
+            <CalendarX size={13} aria-hidden /> {t("closed", { count: closed.length })}
+          </summary>
+          <ul className="mt-1.5 space-y-1">
+            {closed.map((i) => {
+              const reason = closedReason(i, loadedAt) ?? "closed";
+              return (
+                <li key={i.id} className="flex flex-wrap items-baseline gap-x-2 rounded-md border border-stone-100 bg-paper/40 px-3 py-1.5 text-sm">
+                  <span className="font-semibold text-ink">{i.candidateLabel ?? "—"}</span>
+                  {i.jobTitle ? <span className="text-steel">· {i.jobTitle}</span> : null}
+                  {/* The booked time survives on a no_show so the recruiter sees which slot was missed. */}
+                  {reason === "no_show" && i.slotAt ? <span className="text-steel nums">· {slotLine(i)}</span> : null}
+                  <span
+                    className={`ml-auto rounded-full px-1.5 py-0.5 text-xs font-semibold ${
+                      reason === "no_show"
+                        ? "bg-red-100 text-red-700"
+                        : reason === "declined"
+                          ? "bg-amber-100 text-amber-800"
+                          : "bg-stone-100 text-steel"
+                    }`}
+                  >
+                    {t(reason === "no_show" ? "closedNoShow" : reason === "declined" ? "closedDeclined" : "closedExpired")}
+                  </span>
+                </li>
+              );
+            })}
           </ul>
         </details>
       ) : null}

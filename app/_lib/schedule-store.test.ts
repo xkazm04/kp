@@ -45,9 +45,13 @@ const {
   getScheduleInviteByToken,
   confirmAttendance,
   cancelAttendance,
+  declineScheduleInvite,
+  markScheduleInviteNoShow,
   bookedSlots,
+  isTerminalScheduleInviteStatus,
   MAX_RESCHEDULES,
 } = await import("./schedule-store.ts");
+const { INVITE_LINK_TTL_DAYS } = await import("./schedule-slots.ts");
 
 // Mint a confirmed invite at a specific slot, returning its token. Each test uses
 // globally-unique slot_at times so confirmed rows from other tests can't collide.
@@ -66,6 +70,50 @@ after(() => {
       /* locked / absent — disposable temp, process exits next */
     }
   }
+});
+
+// --- Direction 1: terminal state machine (decline / no_show / expired) ----------
+
+test("declineScheduleInvite closes a pending invite terminally", () => {
+  const inv = createScheduleInvite({ entryId: "e-decline-pending", candidateLabel: "P", jobTitle: "Role" });
+  const out = declineScheduleInvite(inv.token);
+  assert.equal(out?.status, "declined");
+  assert.equal(isTerminalScheduleInviteStatus(out!.status), true);
+  // Already terminal → not re-declinable.
+  assert.equal(declineScheduleInvite(inv.token), null);
+});
+
+test("declineScheduleInvite frees a confirmed slot and drops it from bookedSlots", () => {
+  const slotAt = "2030-06-01T10:00:00.000Z";
+  const token = makeConfirmed(slotAt, "Decline me");
+  assert.ok(bookedSlots().includes(slotAt), "slot booked before decline");
+  const out = declineScheduleInvite(token);
+  assert.equal(out?.status, "declined");
+  assert.equal(out?.slotAt, null, "slot freed on decline");
+  assert.ok(!bookedSlots().includes(slotAt), "declined slot no longer blocks the pool");
+});
+
+test("markScheduleInviteNoShow only closes a confirmed invite and keeps the missed slot", () => {
+  const slotAt = "2030-07-01T10:00:00.000Z";
+  const token = makeConfirmed(slotAt, "No show");
+  const out = markScheduleInviteNoShow(token);
+  assert.equal(out?.status, "no_show");
+  assert.equal(out?.slotAt, slotAt, "no_show retains the record of the missed time");
+  // A pending invite can't no-show.
+  const pending = createScheduleInvite({ entryId: "e-ns-pending", candidateLabel: "P", jobTitle: "Role" });
+  assert.equal(markScheduleInviteNoShow(pending.token), null);
+});
+
+test("an EXPIRED pending invite is not reused by re-invite — a fresh token is minted", () => {
+  const entryId = "e-expired-reuse";
+  const first = createScheduleInvite({ entryId, candidateLabel: "P", jobTitle: "Role" });
+  // Age the row past the TTL via a raw connection on the same DB file.
+  const raw = new Database(TMP);
+  const oldCreated = new Date(Date.now() - (INVITE_LINK_TTL_DAYS + 1) * 86_400_000).toISOString();
+  raw.prepare(`UPDATE schedule_invites SET created_at = ? WHERE token = ?`).run(oldCreated, first.token);
+  raw.close();
+  const second = createScheduleInvite({ entryId, candidateLabel: "P", jobTitle: "Role" });
+  assert.notEqual(second.token, first.token, "expired pending invite must not be handed back");
 });
 
 test("moves a confirmed booking to a new slot and frees the old one", () => {

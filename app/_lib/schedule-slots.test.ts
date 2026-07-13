@@ -9,7 +9,7 @@
 //   npm run test:unit
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { offeredSlotFor, parseInterviewTimes, proposeSlots, SLOT_HORIZON_DAYS } from "./schedule-slots.ts";
+import { offeredSlotFor, parseInterviewTimes, proposeSlots, SLOT_HORIZON_DAYS, isScheduleInviteExpired, INVITE_LINK_TTL_DAYS } from "./schedule-slots.ts";
 
 test("parseInterviewTimes is config-driven, validated, deduped, and falls back safely", () => {
   assert.deepEqual(parseInterviewTimes(undefined), ["10:00", "14:00"]);
@@ -90,4 +90,24 @@ test("the scheduling horizon is a single source of truth bounding every proposal
   for (const s of proposeSlots([], 10_000)) {
     assert.ok(Date.parse(s.value) <= horizonEndMs, `proposed slot ${s.value} stays within the horizon`);
   }
+});
+
+// --- Direction 1: invite link TTL / expiry (derived, pure) ----------------------
+test("isScheduleInviteExpired: only a stale, still-pending link expires", () => {
+  const NOW = Date.parse("2026-06-10T12:00:00.000Z");
+  const ttlMs = INVITE_LINK_TTL_DAYS * 86_400_000;
+  const stale = new Date(NOW - ttlMs - 60_000).toISOString();
+  const fresh = new Date(NOW - 60_000).toISOString();
+  // Pending + older than the TTL → expired.
+  assert.equal(isScheduleInviteExpired({ status: "pending", createdAt: stale }, NOW), true);
+  // Pending but fresh → live.
+  assert.equal(isScheduleInviteExpired({ status: "pending", createdAt: fresh }, NOW), false);
+  // A confirmed booking never ages out this way, however old the link.
+  assert.equal(isScheduleInviteExpired({ status: "confirmed", createdAt: stale }, NOW), false);
+  // Already-terminal statuses are not "expired" (they have their own fate).
+  assert.equal(isScheduleInviteExpired({ status: "declined", createdAt: stale }, NOW), false);
+  assert.equal(isScheduleInviteExpired({ status: "no_show", createdAt: stale }, NOW), false);
+  // Exactly at the boundary is not yet expired (strict <).
+  const boundary = new Date(NOW - ttlMs).toISOString();
+  assert.equal(isScheduleInviteExpired({ status: "pending", createdAt: boundary }, NOW), false);
 });

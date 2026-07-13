@@ -814,11 +814,17 @@
     "rsvpPrompt": "Serez-vous toujours présent(e) ?",
     "rsvpConfirm": "Je serai présent(e)",
     "rsvpCancel": "Je ne pourrai pas venir",
+    "withdraw": "Je dois me retirer de cet entretien",
     "attendanceConfirmed": "Présence confirmée — merci !",
     "slotsRefreshFailed": "Impossible d'actualiser les horaires disponibles — rechargez la page pour voir les derniers.",
     "rsvpCancelledNote": "Votre horaire a été libéré. Choisissez-en un nouveau ci-dessous et nous en informerons l'équipe.",
     "joinInterview": "Rejoindre l'entretien",
-    "icsLocationOnline": "Entretien en ligne"
+    "icsLocationOnline": "Entretien en ligne",
+    "linkExpiredTitle": "Ce lien de planification a expiré",
+    "linkExpiredBody": "Ce lien est resté ouvert un certain temps et a désormais expiré sans qu'un créneau ait été réservé.",
+    "linkClosedTitle": "Cet entretien n'est plus ouvert",
+    "linkClosedBody": "Cet entretien a été clôturé ; il n'y a donc aucun créneau à réserver ici.",
+    "linkClosedHelp": "Si vous avez encore besoin de planifier un créneau, répondez à votre dernier e-mail de l'équipe de recrutement."
   },
   "data": {
     "eyebrow": "Vos données",
@@ -1952,7 +1958,11 @@
       "linkPlaceholder": "Collez un lien de réunion (Meet, Teams, Zoom…)",
       "save": "Enregistrer",
       "cancel": "Annuler",
-      "linkError": "Saisissez un lien http(s) valide."
+      "linkError": "Saisissez un lien http(s) valide.",
+      "closed": "Clôturés · {count}",
+      "closedNoShow": "absence",
+      "closedDeclined": "décliné",
+      "closedExpired": "lien expiré"
     },
     "eyebrow": "Décisions · Planification",
     "title": "Calendrier des entretiens",

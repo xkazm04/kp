@@ -24,6 +24,37 @@
  *  sorted so the proposal order is stable and a slot's identity is one canonical instant.
  *  NOTE: collision is still global (host-blind) — per-interviewer/per-job availability
  *  and real-calendar conflict avoidance are the deferred Phase 2. */
+// --- Invite link lifecycle: TTL / expiry (Direction 1) -------------------------
+//
+// A self-scheduling link used to be immortal: a pending invite that was never
+// booked sat live forever, unlike a voice-interview link (INTERVIEW_LINK_TTL_DAYS,
+// db/interviews.ts). Mirror that pattern here so a stale, never-booked link has an
+// honest terminal fate ("expired") instead of accepting a booking weeks later.
+//
+// Expiry is DERIVED, not a stored status — like isInterviewLinkExpired — so it needs
+// no migration and no write on existing rows: only a still-'pending' invite older
+// than the TTL is expired. A confirmed booking is live; declined/no_show are already
+// terminal. Kept here (pure, no DB) so the token route, the store, and the recruiter
+// lifecycle panel share ONE derivation and can't drift.
+
+/** How long a minted-but-never-booked self-scheduling link stays valid. Mirrors the
+ *  voice-interview link TTL (INTERVIEW_LINK_TTL_DAYS = 7) so the two capability links
+ *  age out on the same clock. */
+export const INVITE_LINK_TTL_DAYS = 7;
+
+const INVITE_LINK_TTL_MS = INVITE_LINK_TTL_DAYS * 86_400_000;
+
+/** True when a self-scheduling invite is a dead capability: still 'pending' (never
+ *  booked) and minted more than INVITE_LINK_TTL_DAYS ago. Derived — a confirmed
+ *  booking never expires this way, and the explicit terminal states (declined /
+ *  no_show) are already closed. `nowMs` is injectable for tests. */
+export function isScheduleInviteExpired(invite: { status: string; createdAt: string }, nowMs: number = Date.now()): boolean {
+  if (invite.status !== "pending") return false;
+  const created = Date.parse(invite.createdAt);
+  if (Number.isNaN(created)) return false;
+  return created < nowMs - INVITE_LINK_TTL_MS;
+}
+
 export function parseInterviewTimes(raw: string | undefined): readonly string[] {
   const DEFAULT = ["10:00", "14:00"];
   if (!raw) return DEFAULT;

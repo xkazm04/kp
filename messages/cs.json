@@ -788,11 +788,17 @@
     "rsvpPrompt": "Můžete stále dorazit?",
     "rsvpConfirm": "Dorazím",
     "rsvpCancel": "Nemohu se zúčastnit",
+    "withdraw": "Potřebuji z tohoto pohovoru odstoupit",
     "attendanceConfirmed": "Účast potvrzena — děkujeme!",
     "slotsRefreshFailed": "Nepodařilo se obnovit dostupné termíny — načtěte stránku znovu, ať vidíte aktuální nabídku.",
     "rsvpCancelledNote": "Váš termín byl uvolněn. Vyberte si níže nový a dáme týmu vědět.",
     "joinInterview": "Připojit se k pohovoru",
-    "icsLocationOnline": "Online pohovor"
+    "icsLocationOnline": "Online pohovor",
+    "linkExpiredTitle": "Platnost tohoto odkazu pro plánování vypršela",
+    "linkExpiredBody": "Tento odkaz byl nějakou dobu otevřený a jeho platnost nyní vypršela, aniž by byl rezervován termín.",
+    "linkClosedTitle": "Tento pohovor už není otevřený",
+    "linkClosedBody": "Tento pohovor byl uzavřen, takže zde není možné rezervovat žádný termín.",
+    "linkClosedHelp": "Pokud stále potřebujete naplánovat termín, odpovězte prosím na svůj poslední e-mail od náborového týmu."
   },
   "data": {
     "eyebrow": "Vaše údaje",
@@ -1923,7 +1929,11 @@
       "linkPlaceholder": "Vložte odkaz na schůzku (Meet, Teams, Zoom…)",
       "save": "Uložit",
       "cancel": "Zrušit",
-      "linkError": "Zadejte platný http(s) odkaz."
+      "linkError": "Zadejte platný http(s) odkaz.",
+      "closed": "Uzavřené · {count}",
+      "closedNoShow": "nedostavil se",
+      "closedDeclined": "odmítnuto",
+      "closedExpired": "odkaz vypršel"
     },
     "eyebrow": "Rozhodnutí · Plánování",
     "title": "Kalendář pohovorů",
