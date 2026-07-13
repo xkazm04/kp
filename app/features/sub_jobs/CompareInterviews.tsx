@@ -8,6 +8,7 @@ import type { InterviewRecommendation } from "@/app/_lib/interview-recommendatio
 import type { Scorecard, ScorecardRating } from "@/app/_lib/interview-scorecard";
 import { EmptyState } from "./JobsShared";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
+import { buildCohorts, mergeRubricRows, isUnrecognizedCohort, type RubricComp } from "./compareCohorts";
 
 type Candidate = {
   entryId: string | null;
@@ -28,12 +29,6 @@ type Candidate = {
   // failed", and the chip below says so.
   humanOnly?: boolean;
 };
-type RubricComp = { competency: string; description: string; anchors?: Record<string, string> };
-
-// Candidates are comparable WITHIN a cohort, not across — an experienced hire's
-// track-record axes and a student's potential constructs are different rubrics.
-// Cohort display labels live in the catalog (jobs.compare.cohort.*).
-const COHORT_ORDER = ["experienced", "early_career"];
 
 // Keyed by the InterviewRecommendation union so every canonical verdict is
 // styled (a new verdict in the contract is a compile error here until handled).
@@ -61,8 +56,20 @@ function CohortTable({ rubric, candidates }: { rubric: RubricComp[]; candidates:
     return t.has(key) ? t(key) : lvl;
   };
 
+  // interview-simulation-comparison #1/#2 — render the union of the cohort's
+  // rubric axes and any competency a candidate was actually scored on that the
+  // current rubric doesn't contain (rubric-version drift / off-taxonomy model),
+  // flagged so a real score is never silently blanked to "—".
+  const rows = mergeRubricRows(rubric, candidates);
+  const unrecognized = isUnrecognizedCohort(rubric);
+
   return (
     <div className="mt-3 overflow-x-auto">
+      {/* interview-simulation-comparison #1 — an off-taxonomy scoringModel maps to
+          no rubric; say so instead of showing a header above an empty body. */}
+      {unrecognized ? (
+        <p className="mb-2 rounded-md bg-dial-amber/15 px-2.5 py-1.5 text-sm text-ink">{t("unrecognizedRubric")}</p>
+      ) : null}
       <table className="w-full border-collapse text-base">
         <thead>
           <tr>
@@ -122,11 +129,18 @@ function CohortTable({ rubric, candidates }: { rubric: RubricComp[]; candidates:
           </tr>
         </thead>
         <tbody>
-          {rubric.map((comp) => (
+          {rows.map((comp) => (
             <tr key={comp.competency} className="border-t border-stone-100">
               {/* PREP3 — localized display; the match on r.competency stays canonical. */}
               <td className="sticky left-0 bg-white p-2 text-ink" title={(locale === "cs" ? RUBRIC_CS[comp.competency]?.description : undefined) ?? comp.description}>
                 {rubricLabel(comp.competency, locale)}
+                {/* interview-simulation-comparison #2 — this axis isn't in the cohort's
+                    current rubric; the candidate was scored on a different/older axis set. */}
+                {comp.offRubric ? (
+                  <span className="ml-1.5 text-meta uppercase text-steel" title={t("offRubricTitle")}>
+                    · {t("offRubric")}
+                  </span>
+                ) : null}
               </td>
               {candidates.map((c, i) => {
                 const r = ratingOf(c, comp.competency);
@@ -180,17 +194,9 @@ export function CompareInterviews({ jobId }: { jobId: string }) {
   }
 
   // Group by the candidate's scoringModel; render a table per non-empty cohort
-  // against that cohort's rubric. Known cohorts come first, then any others.
-  const present = Array.from(new Set(data.candidates.map((c) => c.scoringModel || "experienced")));
-  const models = [
-    ...COHORT_ORDER.filter((m) => present.includes(m)),
-    ...present.filter((m) => !COHORT_ORDER.includes(m)),
-  ];
-  const cohorts = models.map((model) => ({
-    model,
-    rubric: data.rubrics[model] ?? [],
-    candidates: data.candidates.filter((c) => (c.scoringModel || "experienced") === model),
-  }));
+  // against that cohort's rubric (buildCohorts — known cohorts first, then any
+  // others; a cohort with no matching rubric surfaces as an unrecognized one).
+  const cohorts = buildCohorts(data.candidates, data.rubrics);
 
   return (
     <div>

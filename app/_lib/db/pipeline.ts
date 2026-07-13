@@ -732,6 +732,20 @@ export function recordSimTranscriptAttached(entryId: string, detail: string | nu
   const db = ensureDb();
   const row = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ? AND workspace_id = ?`).get(entryId, workspaceId) as PipelineRow | undefined;
   if (!row) return false;
+  // bug-ui-scan-2026-07-09 (interview-simulation-comparison #5) — idempotency: a
+  // retried/duplicated attach (a re-POST, or reopening the flow) must not spam the
+  // drawer with identical "practice interview attached" entries. No-op when a
+  // sim_attached annotation with the SAME detail already exists on this entry —
+  // `detail` (jobTitle · completed) is exactly the drawer line, so two attaches a
+  // recruiter couldn't tell apart collapse to one. (Keyed on detail, not the raw
+  // session token, so an interview-portal credential never leaks into an
+  // audit-event string a recruiter can read.) `detail IS ?` is SQLite's null-safe
+  // equality. Returns true either way — the annotation IS present, so the route
+  // still reports success on a duplicate.
+  const dup = db
+    .prepare(`SELECT 1 FROM pipeline_events WHERE workspace_id = ? AND entry_id = ? AND kind = 'sim_attached' AND detail IS ? LIMIT 1`)
+    .get(workspaceId, row.id, detail);
+  if (dup) return true;
   recordEvent(db, {
     entryId: row.id,
     candidateLabel: row.candidate_label,

@@ -37,11 +37,12 @@ export function interviewedForJob(jobId: string, workspaceId: string = DEFAULT_W
       // Include completed interviews even when the scorecard is missing (empty
       // transcript or a synthesis failure) — they render with blank ratings so a
       // finished interview is visible for manual review rather than silently gone.
-      `SELECT entry_id, candidate_label, scorecard_json, ended_at FROM interview_sessions
+      `SELECT id, entry_id, candidate_label, scorecard_json, ended_at FROM interview_sessions
        WHERE job_id = ? AND status = 'completed' AND workspace_id = ?
        ORDER BY ended_at DESC`
     )
     .all(jobId, workspaceId) as {
+    id: string;
     entry_id: string | null;
     candidate_label: string | null;
     scorecard_json: string | null;
@@ -51,7 +52,12 @@ export function interviewedForJob(jobId: string, workspaceId: string = DEFAULT_W
   const seen = new Set<string>();
   const out: InterviewedCandidate[] = [];
   for (const r of rows) {
-    const key = r.entry_id ?? r.candidate_label ?? String(out.length);
+    // bug-ui-scan-2026-07-09 (interview-simulation-comparison #4) — dedup "latest
+    // interview per candidate" on entry_id; fall back to the globally-unique
+    // session id (NOT candidate_label) when there's no entry. Two entry-less
+    // completed sessions sharing a label are DIFFERENT candidates whose real
+    // second interview used to collapse into the first and vanish from compare.
+    const key = r.entry_id ?? r.id;
     if (seen.has(key)) continue; // latest interview per candidate
     seen.add(key);
     const sc: {
