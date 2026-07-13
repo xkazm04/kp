@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ShieldCheck, ShieldAlert, ShieldX } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { verifySkillProfileToken } from "@/app/_lib/db";
+import { skillProfileFreshnessNow } from "@/app/_lib/skill-profile";
 
 
 // Durable Skill Profile (moonshot A) — the public, candidate-owned, shareable
@@ -33,7 +34,15 @@ export default async function SkillProfilePage({ params }: { params: Promise<{ t
   // is OUR configuration problem, not evidence the bearer forged anything. It renders a
   // NEUTRAL "cannot verify" badge — never the red fraud accusation — so a KP_SECRET rotation
   // or a missing KP_SKILL_PROFILE_KEY can't defame a genuine, non-revoked credential.
-  const state: "verified" | "revoked" | "tampered" | "incomplete" | "unverifiable" = verdict.revoked
+  //
+  // "stale" is the LAST downgrade (bug-ui-scan-2026-07-09 (skill-matrix-coverage #3)): a
+  // genuine, non-revoked, untampered, substantive credential that is nonetheless OLD (issued
+  // past the validity window) or signed under a superseded methodology. The green shield
+  // over-asserts freshness — a third party reads "Verified" as "current" — so a stale
+  // credential drops to a muted amber "issued a while ago" verdict with the numbers still
+  // shown, never a confident green. Integrity is unaffected; only currency is flagged.
+  const freshness = skillProfileFreshnessNow(p);
+  const state: "verified" | "revoked" | "tampered" | "incomplete" | "unverifiable" | "stale" = verdict.revoked
     ? "revoked"
     : !verdict.verifiable
       ? "unverifiable"
@@ -41,7 +50,9 @@ export default async function SkillProfilePage({ params }: { params: Promise<{ t
         ? "tampered"
         : !verdict.substantive
           ? "incomplete"
-          : "verified";
+          : freshness.stale
+            ? "stale"
+            : "verified";
 
   const badge =
     state === "verified"
@@ -52,7 +63,9 @@ export default async function SkillProfilePage({ params }: { params: Promise<{ t
           ? { Icon: ShieldAlert, cls: "border-stone-300 bg-stone-100 text-steel", label: t("incomplete") }
           : state === "unverifiable"
             ? { Icon: ShieldAlert, cls: "border-stone-300 bg-stone-100 text-steel", label: t("unverifiable") }
-            : { Icon: ShieldAlert, cls: "border-red-200 bg-red-50 text-red-800", label: t("tampered") };
+            : state === "stale"
+              ? { Icon: ShieldAlert, cls: "border-amber-200 bg-amber-50 text-amber-800", label: t("stale") }
+              : { Icon: ShieldAlert, cls: "border-red-200 bg-red-50 text-red-800", label: t("tampered") };
 
   return (
     <main className="mx-auto max-w-xl px-4 py-12">
@@ -64,6 +77,16 @@ export default async function SkillProfilePage({ params }: { params: Promise<{ t
         <badge.Icon className="h-4 w-4" aria-hidden />
         {badge.label}
       </div>
+
+      {/* A stale credential stays genuine — say so plainly and name why (old / superseded
+          methodology) so an employer reads "still real, just not current", not "fake". */}
+      {state === "stale" ? (
+        <p className="mt-2 max-w-xl text-sm text-amber-700">
+          {freshness.reason === "methodology"
+            ? t("staleMethodology", { issued, version: p.version })
+            : t("staleAge", { issued, version: p.version })}
+        </p>
+      ) : null}
 
       {verdict.substantive ? (
       <section className="mt-6 rounded-lg border border-stone-200 bg-white p-6 shadow-panel">

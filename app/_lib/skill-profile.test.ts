@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { buildDurableSkillProfile, isSubstantiveSkillProfile, signProfile, verifyProfile, DSP_VERSION } from "./skill-profile.ts";
+import { buildDurableSkillProfile, isSubstantiveSkillProfile, signProfile, verifyProfile, skillProfileFreshness, PROFILE_FRESHNESS_DAYS, DSP_VERSION } from "./skill-profile.ts";
 
 // Sign/verify need KP_SECRET (the operator master secret), same as llm-secret.test.
 process.env.KP_SECRET = process.env.KP_SECRET || "test-master-secret";
@@ -74,6 +74,59 @@ test("verify is false for garbage / empty signatures", () => {
   const dsp = sampleDsp();
   assert.equal(verifyProfile(dsp, ""), false);
   assert.equal(verifyProfile(dsp, "zz"), false);
+});
+
+// bug-ui-scan-2026-07-09 (skill-matrix-coverage #3): the "Verified" shield must not read
+// identically for a week-old and a five-year-old attestation, nor for a superseded
+// methodology. These prove the freshness dimension the old binary-integrity verdict lacked.
+const DAY = 86_400_000;
+
+test("a freshly-issued current-methodology profile is NOT stale", () => {
+  const now = Date.parse("2026-06-20T00:00:00.000Z");
+  const f = skillProfileFreshness({ issuedAt: "2026-06-14T00:00:00.000Z", methodologyVersion: DSP_VERSION }, now);
+  assert.equal(f.stale, false);
+  assert.equal(f.reason, null);
+  assert.equal(f.ageDays, 6);
+});
+
+test("a profile issued past the validity window is stale (reason: age)", () => {
+  const issued = "2026-01-01T00:00:00.000Z";
+  const now = Date.parse(issued) + (PROFILE_FRESHNESS_DAYS + 5) * DAY;
+  const f = skillProfileFreshness({ issuedAt: issued, methodologyVersion: DSP_VERSION }, now);
+  // Pre-fix the page showed a green "Verified" shield here — a years-old score reading as
+  // freshly current. The fix flags it stale so the badge downgrades to amber.
+  assert.equal(f.stale, true);
+  assert.equal(f.reason, "age");
+  assert.ok((f.ageYears ?? 0) >= 2);
+});
+
+test("the window boundary is exclusive — exactly windowDays old is still fresh", () => {
+  const issued = "2026-01-01T00:00:00.000Z";
+  const now = Date.parse(issued) + PROFILE_FRESHNESS_DAYS * DAY;
+  assert.equal(skillProfileFreshness({ issuedAt: issued, methodologyVersion: DSP_VERSION }, now).stale, false);
+});
+
+test("a superseded methodology marks an otherwise-fresh profile stale (reason: methodology)", () => {
+  const now = Date.parse("2026-06-20T00:00:00.000Z");
+  const f = skillProfileFreshness({ issuedAt: "2026-06-14T00:00:00.000Z", methodologyVersion: "dsp-v0" }, now);
+  assert.equal(f.stale, true);
+  assert.equal(f.reason, "methodology");
+});
+
+test("age takes reason priority when a profile is BOTH old and on a superseded methodology", () => {
+  const issued = "2020-01-01T00:00:00.000Z";
+  const now = Date.parse("2026-06-20T00:00:00.000Z");
+  const f = skillProfileFreshness({ issuedAt: issued, methodologyVersion: "dsp-v0" }, now);
+  assert.equal(f.stale, true);
+  assert.equal(f.reason, "age");
+});
+
+test("an unparseable issue date can't be aged, but a superseded methodology still marks stale", () => {
+  const now = Date.now();
+  assert.deepEqual(skillProfileFreshness({ issuedAt: "not-a-date", methodologyVersion: DSP_VERSION }, now), {
+    ageDays: null, ageYears: null, stale: false, reason: null,
+  });
+  assert.equal(skillProfileFreshness({ issuedAt: "not-a-date", methodologyVersion: "dsp-v0" }, now).stale, true);
 });
 
 test("sign throws when KP_SECRET is unset", () => {

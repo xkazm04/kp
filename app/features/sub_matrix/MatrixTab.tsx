@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { buildUrl } from "@/app/features/tabs";
@@ -16,6 +16,8 @@ import { ChainEmptyState } from "@/app/_components/ChainEmptyState";
 import { Skeleton } from "@/app/_components/Skeleton";
 import { CompletionCta } from "@/app/_components/CompletionCta";
 import { STRONG_THRESHOLD } from "./matrix-stats";
+import { orderMatrixRows } from "./matrix-rows";
+import { computePopoverPosition } from "./matrix-popover";
 
 type Candidate = { id: string; label: string; archetype: string | null };
 type Position = { id: string; title: string; seniority: string; roleFamily: string };
@@ -70,6 +72,19 @@ export function MatrixTab() {
   // cached verdict/strengths/gaps/probes inline — no tab switch to read the score.
   const [popover, setPopover] = useState<Popover | null>(null);
   const [reasoning, setReasoning] = useState<Record<string, ReasonState>>({});
+  // deec915c a11y (bug-ui-scan-2026-07-09 (skill-matrix-coverage #5)): the cell button
+  // that opened the popover (focus is restored here on close so a keyboard/AT user isn't
+  // stranded) and the dialog element (focus is moved into it on open + Tab is trapped).
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const dialogRef = useRef<HTMLDivElement | null>(null);
+  // Close the popover AND return focus to the cell that opened it — the missing half of
+  // the dialog contract (a bare setPopover(null) left focus nowhere).
+  const closePopover = useCallback(() => {
+    setPopover(null);
+    const el = triggerRef.current;
+    triggerRef.current = null;
+    if (el && typeof el.focus === "function") el.focus();
+  }, []);
   // MAT2 — name the hard gate(s) behind a blocked cell. "Blocked: language"
   // and "blocked: seniority" demand opposite recruiter actions (renegotiate vs
   // skip); the bare dash hid that. Localized by the stable KoReason.key; cells
@@ -130,15 +145,64 @@ export function MatrixTab() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Esc closes the reasoning popover (deec915c).
+  // deec915c popover a11y + layout tracking (bug-ui-scan-2026-07-09 (skill-matrix-coverage
+  // #5)). Runs once per OPENED cell (keyed by candId|posId, NOT the rect) so scroll/resize
+  // repositions never re-steal focus. On open: move focus into the dialog and trap Tab. On
+  // Esc: close + restore focus. On resize/scroll: recompute the position from the LIVE
+  // trigger rect so the popover tracks its cell instead of floating detached.
   useEffect(() => {
     if (!popover) return;
+    const dialog = dialogRef.current;
+    const focusables = (): HTMLElement[] =>
+      dialog
+        ? Array.from(dialog.querySelectorAll<HTMLElement>('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')).filter(
+            (el) => !el.hasAttribute("disabled"),
+          )
+        : [];
+    // Initial focus → the first control (the close button), so AT announces the dialog.
+    focusables()[0]?.focus();
+
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setPopover(null);
+      if (e.key === "Escape") {
+        closePopover();
+        return;
+      }
+      if (e.key !== "Tab" || !dialog) return;
+      const items = focusables();
+      if (items.length === 0) return;
+      const active = document.activeElement as HTMLElement | null;
+      const idx = active ? items.indexOf(active) : -1;
+      if (e.shiftKey) {
+        if (idx <= 0) {
+          e.preventDefault();
+          items[items.length - 1].focus();
+        }
+      } else if (idx === items.length - 1 || idx === -1) {
+        e.preventDefault();
+        items[0].focus();
+      }
     };
+
+    const reposition = () => {
+      const el = triggerRef.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      const rect = computePopoverPosition({ left: r.left, bottom: r.bottom }, { width: window.innerWidth, height: window.innerHeight });
+      setPopover((cur) => (cur ? { ...cur, rect } : cur));
+    };
+
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [popover]);
+    window.addEventListener("resize", reposition);
+    // Capture phase so the grid's OWN inner scroll container (overflow-auto) also fires it.
+    window.addEventListener("scroll", reposition, true);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("resize", reposition);
+      window.removeEventListener("scroll", reposition, true);
+    };
+    // Keyed by the opened cell identity, not the rect — a reposition must not re-run this.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [popover?.candId, popover?.posId, closePopover]);
 
   const families = useMemo(() => {
     if (!data) return [];
@@ -162,29 +226,25 @@ export function MatrixTab() {
   const staleJob = Boolean(jobParam) && Boolean(data) && !scopedPosition;
   const clearJob = () => router.push(buildUrl({ tab: "matrix", job: null }, search.toString()));
 
-  // rows: best-visible-fit sort by default, A–Z when toggled, or by a chosen
-  // column's score when a header is clicked (MAT6); filtered to the min-fit floor.
-  const rows = useMemo(() => {
-    if (!data) return [];
+  // rows: best-visible-fit sort by default, A–Z when toggled, or by a chosen column's
+  // score when a header is clicked (MAT6); filtered to the min-fit floor. The ordering +
+  // floor math lives in the pure, tested orderMatrixRows (skill-matrix-coverage #4): a row
+  // with NO assessed visible cell now yields best=null (not a floored 0), so it sorts into
+  // its own trailing group and the floor hides it as "unassessed", never as a real 0.
+  const rowOrder = useMemo(() => {
+    if (!data) return { order: [] as { cand: Candidate; ri: number }[], hiddenByFloor: 0, hiddenUnassessed: 0 };
     const colIdx = cols.map((c) => c.i);
-    const best = (ri: number) =>
-      Math.max(0, ...colIdx.map((ci) => data.cells[ri]?.[ci]?.score ?? -1));
-    let order = data.candidates.map((cand, ri) => ({ cand, ri }));
-    // Fit floor: keep only candidates whose best VISIBLE score clears it, so a
-    // family filter or scoped view applies the floor to what's actually shown.
-    if (minFit > 0) order = order.filter(({ ri }) => best(ri) >= minFit);
-    // Only honor a column sort while that column is visible (a family filter can
-    // hide the sorted column); otherwise fall back to the fit/A–Z toggle.
-    const byCol = sortCol != null && colIdx.includes(sortCol) ? (ri: number) => data.cells[ri]?.[sortCol]?.score ?? -1 : null;
-    order.sort((a, b) =>
-      byCol
-        ? byCol(b.ri) - byCol(a.ri)
-        : sortByFit
-        ? best(b.ri) - best(a.ri)
-        : a.cand.label.localeCompare(b.cand.label)
-    );
-    return order;
+    // Only honor a column sort while that column is visible (a family filter can hide it).
+    const sortByColumn = sortCol != null && colIdx.includes(sortCol);
+    const inputs = data.candidates.map((cand, ri) => ({
+      item: { cand, ri },
+      label: cand.label,
+      visibleScores: colIdx.map((ci) => data.cells[ri]?.[ci]?.score ?? null),
+      sortColScore: sortByColumn ? data.cells[ri]?.[sortCol]?.score ?? null : undefined,
+    }));
+    return orderMatrixRows(inputs, { sortByFit, sortByColumn, minFit });
   }, [data, cols, sortByFit, minFit, sortCol]);
+  const rows = rowOrder.order;
 
   // MAT2 row counterpart: how many VISIBLE roles each candidate is a strong fit
   // for (score >= STRONG_THRESHOLD) — a versatile-vs-niche read per candidate,
@@ -262,10 +322,14 @@ export function MatrixTab() {
   // reason instead — there's no fit rationale to fetch.
   const openCell = (cand: Candidate, pos: Position, cell: Cell, ev: React.MouseEvent<HTMLButtonElement>) => {
     const r = ev.currentTarget.getBoundingClientRect();
-    const W = 320;
-    const left = Math.min(Math.max(8, r.left), (typeof window !== "undefined" ? window.innerWidth : 1024) - W - 8);
-    const top = Math.min(r.bottom + 6, (typeof window !== "undefined" ? window.innerHeight : 768) - 340);
-    setPopover({ candId: cand.id, posId: pos.id, cand, pos, cell, rect: { top, left } });
+    // Remember the trigger so focus can be restored on close and the popover can be
+    // re-anchored to the LIVE cell rect on resize/scroll (skill-matrix-coverage #5).
+    triggerRef.current = ev.currentTarget;
+    const rect = computePopoverPosition(
+      { left: r.left, bottom: r.bottom },
+      { width: typeof window !== "undefined" ? window.innerWidth : 1024, height: typeof window !== "undefined" ? window.innerHeight : 768 },
+    );
+    setPopover({ candId: cand.id, posId: pos.id, cand, pos, cell, rect });
     if (!cell.blocked) fetchReasoning(cand.id, pos.id);
   };
 
@@ -433,6 +497,13 @@ export function MatrixTab() {
           </div>
         ) : null}
       </header>
+
+      {/* Distinguish "no scored role" from "below the fit floor" (skill-matrix-coverage
+          #4): a candidate blocked/unscored on every shown role is HIDDEN by a floor, but
+          for a different, actionable reason than a genuine weak fit — say so plainly. */}
+      {data && minFit > 0 && rowOrder.hiddenUnassessed > 0 ? (
+        <p className="text-meta text-steel">{t("unassessedHidden", { count: rowOrder.hiddenUnassessed })}</p>
+      ) : null}
 
       {/* Coverage gap — the headline talent-intelligence signal: open roles with no
           strong fit. Only meaningful across ≥2 columns (a single scoped role is trivial). */}
@@ -733,9 +804,11 @@ export function MatrixTab() {
           cell (viewport-fixed); a full-screen catcher closes it on outside click. */}
       {popover ? (
         <>
-          <div className="fixed inset-0 z-40" onClick={() => setPopover(null)} aria-hidden />
+          <div className="fixed inset-0 z-40" onClick={closePopover} aria-hidden />
           <div
+            ref={dialogRef}
             role="dialog"
+            aria-modal="true"
             aria-label={t("popoverAria", { cand: popover.cand.label, pos: popover.pos.title })}
             className="fixed z-50 max-h-[60vh] w-80 overflow-y-auto rounded-lg border border-stone-200 bg-white p-3 text-sm shadow-panel"
             style={{ top: popover.rect.top, left: popover.rect.left }}
@@ -752,7 +825,7 @@ export function MatrixTab() {
               </div>
               <button
                 type="button"
-                onClick={() => setPopover(null)}
+                onClick={closePopover}
                 aria-label={t("closePopover")}
                 className="focus-ring shrink-0 rounded p-0.5 text-steel hover:text-ink"
               >
@@ -815,7 +888,10 @@ export function MatrixTab() {
             <button
               type="button"
               onClick={() => {
+                // Navigating to the full Match view — don't restore focus to the now-hidden
+                // cell (that's what closePopover does); just clear the ref and close.
                 open(popover.candId, popover.posId);
+                triggerRef.current = null;
                 setPopover(null);
               }}
               className="focus-ring mt-3 inline-flex items-center gap-1 font-semibold text-coral hover:underline"

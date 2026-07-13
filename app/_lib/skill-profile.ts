@@ -70,6 +70,56 @@ export function isSubstantiveSkillProfile(dsp: { axes: Record<string, number>; t
   return Object.keys(dsp.axes).length > 0 || dsp.transferScore > 0;
 }
 
+// bug-ui-scan-2026-07-09 (skill-matrix-coverage #3): a "durable" credential has
+// revocation but no freshness dimension — the green "Verified" shield reads identically
+// for a week-old and a five-year-old attestation, and for a superseded methodology. The
+// HMAC only attests INTEGRITY (untampered bytes); it says nothing about whether the
+// assessment is still CURRENT. `skillProfileFreshness` adds that missing dimension so the
+// page can downgrade a stale credential to a muted, honest "issued a while ago" state
+// instead of over-asserting freshness. Freshness is derived from the already-signed
+// `issuedAt` + `methodologyVersion` — NO new signed field — so existing credentials keep
+// verifying and outstanding /skill links never break.
+export const PROFILE_FRESHNESS_DAYS = 730; // ~2 years before "Verified" is downgraded to "stale"
+
+export type SkillProfileFreshness = {
+  ageDays: number | null; // whole days since issue; null when issuedAt is unparseable
+  ageYears: number | null; // ageDays / 365 to one decimal; null when unknown
+  stale: boolean; // past the validity window OR signed under a superseded methodology
+  reason: "age" | "methodology" | null;
+};
+
+/** Freshness of an issued profile relative to `nowMs`. STALE when it was issued more than
+ *  `windowDays` ago, or when its methodologyVersion is not the current DSP_VERSION (a
+ *  superseded scoring standard). Integrity is orthogonal — a stale profile is still
+ *  untampered, just no longer *current* — so callers downgrade the badge to a neutral
+ *  "issued N years ago" rather than a confident green shield. Pure + testable. */
+export function skillProfileFreshness(
+  dsp: { issuedAt: string; methodologyVersion?: string },
+  nowMs: number,
+  windowDays: number = PROFILE_FRESHNESS_DAYS,
+): SkillProfileFreshness {
+  const methodologyStale = (dsp.methodologyVersion ?? DSP_VERSION) !== DSP_VERSION;
+  const issuedMs = Date.parse(dsp.issuedAt);
+  if (!Number.isFinite(issuedMs)) {
+    // Unparseable issue date — can't age it, so only a methodology bump can mark it stale.
+    return { ageDays: null, ageYears: null, stale: methodologyStale, reason: methodologyStale ? "methodology" : null };
+  }
+  const ageDays = Math.max(0, Math.floor((nowMs - issuedMs) / 86_400_000));
+  const ageYears = Math.round((ageDays / 365) * 10) / 10;
+  const ageStale = ageDays > windowDays;
+  // Age is the caption-driving reason when present; a methodology bump on an otherwise
+  // fresh profile still marks it stale (reason "methodology").
+  const reason: SkillProfileFreshness["reason"] = ageStale ? "age" : methodologyStale ? "methodology" : null;
+  return { ageDays, ageYears, stale: ageStale || methodologyStale, reason };
+}
+
+/** Freshness as of NOW. Thin wrapper that supplies the wall clock, so the impure
+ *  `Date.now()` read stays OUT of the server-component render body (the React purity
+ *  rule). The pure, injectable {@link skillProfileFreshness} is the tested core. */
+export function skillProfileFreshnessNow(dsp: { issuedAt: string; methodologyVersion?: string }): SkillProfileFreshness {
+  return skillProfileFreshness(dsp, Date.now());
+}
+
 function signingKey(): string {
   const secret = process.env.KP_SECRET;
   if (!secret) {
