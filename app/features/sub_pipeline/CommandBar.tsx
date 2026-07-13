@@ -15,6 +15,10 @@ type CommandResult =
       // advance_top targets already at Offer, HELD instead of silently hired —
       // the recruiter is pointed at the offer flow for them.
       heldAtOffer?: number;
+      // reject_below — previewed candidates that dropped out of the matching set
+      // between preview and confirm (advanced/rejected/no longer below the line),
+      // so were skipped rather than acted on (bug-ui pipeline #3).
+      droppedOut?: number;
       summary?: { advanced: number; rejected: number; held: number };
     };
 
@@ -31,16 +35,24 @@ export function CommandBar({ onExecuted }: { onExecuted: () => void }) {
   const post = async (confirm: boolean) => {
     setBusy(true);
     try {
+      // bug-ui pipeline #3 — a reject_below confirm carries the EXACT id set the
+      // recruiter just reviewed in the preview, so the server rejects only those
+      // (still-matching) candidates and can never email a rejection to someone who
+      // slipped below the line after the preview was shown.
+      const confirmIds =
+        confirm && result?.phase === "preview" && result.kind === "reject_below"
+          ? result.preview.map((row) => row.id)
+          : undefined;
       const r = await fetch("/api/pipeline/command", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text, confirm }),
+        body: JSON.stringify({ text, confirm, ...(confirmIds ? { confirmIds } : {}) }),
       });
       const p = await r.json();
       if (p.error) {
         setResult({ phase: "info", description: p.error });
       } else if (confirm || p.executed) {
-        setResult({ phase: "done", description: p.description, count: p.count, heldAtOffer: p.heldAtOffer, summary: p.summary });
+        setResult({ phase: "done", description: p.description, count: p.count, heldAtOffer: p.heldAtOffer, droppedOut: p.droppedOut, summary: p.summary });
         onExecuted();
       } else if (p.kind === "help" || p.kind === "unknown") {
         setResult({ phase: "info", description: p.description });
@@ -150,6 +162,9 @@ export function CommandBar({ onExecuted }: { onExecuted: () => void }) {
           {/* advance-top stops at Offer: say who was held and where the work continues,
               instead of silently swallowing part of the requested N. */}
           {result.heldAtOffer ? <p className="mt-1 text-meta text-steel">{t("doneHeldAtOffer", { count: result.heldAtOffer })}</p> : null}
+          {/* reject_below bound to the preview: name anyone shown who dropped out of
+              the matching set before confirm, so a smaller count isn't a mystery. */}
+          {result.droppedOut ? <p className="mt-1 text-meta text-steel">{t("doneDroppedOut", { count: result.droppedOut })}</p> : null}
         </div>
       ) : null}
     </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { needsHumanDecision } from "@/app/_lib/approval-kinds";
@@ -217,6 +217,56 @@ export function PipelineBoard({
     container.scrollBy({ left: dir * step, behavior: "smooth" });
   };
 
+  // bug-ui pipeline #4 — native HTML5 DnD does NOT auto-scroll the drop container,
+  // so on a board wide enough to overflow (240 + STAGES×280 = 1640px for 5 stages)
+  // a stage scrolled off-screen is an unreachable drop target: the recruiter must
+  // release, scroll, and re-drag. This edge auto-scroll glides the board left/right
+  // while a card is dragged near either edge. `dragover` bubbles up from the cells
+  // (they preventDefault but never stopPropagation), so ONE handler on the scroll
+  // region sees every move; an rAF loop keeps scrolling even when the pointer is
+  // held still inside the edge zone (dragover alone wouldn't fire when stationary).
+  const EDGE_ZONE = 72; // px band at each edge that triggers auto-scroll
+  const MAX_EDGE_SPEED = 20; // px/frame at the very edge (ramps with proximity)
+  const autoScroll = useRef<{ vx: number; raf: number | null }>({ vx: 0, raf: null });
+  const stopAutoScroll = () => {
+    const s = autoScroll.current;
+    s.vx = 0;
+    if (s.raf != null) {
+      cancelAnimationFrame(s.raf);
+      s.raf = null;
+    }
+  };
+  const stepAutoScroll = () => {
+    const s = autoScroll.current;
+    const el = scrollRef.current;
+    if (!el || s.vx === 0) {
+      s.raf = null;
+      return;
+    }
+    el.scrollLeft += s.vx;
+    s.raf = requestAnimationFrame(stepAutoScroll);
+  };
+  const onBoardDragOver = (ev: React.DragEvent) => {
+    if (!dragEnabled) return;
+    const el = scrollRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const x = ev.clientX;
+    let vx = 0;
+    // x <= 0 is the spurious final dragover some browsers fire as the drag ends —
+    // ignore it so the board doesn't lurch left on drop.
+    if (x > 0 && x < rect.left + EDGE_ZONE) {
+      vx = -Math.ceil(((rect.left + EDGE_ZONE - x) / EDGE_ZONE) * MAX_EDGE_SPEED);
+    } else if (x > rect.right - EDGE_ZONE) {
+      vx = Math.ceil(((x - (rect.right - EDGE_ZONE)) / EDGE_ZONE) * MAX_EDGE_SPEED);
+    }
+    const s = autoScroll.current;
+    s.vx = vx;
+    if (vx !== 0 && s.raf == null) s.raf = requestAnimationFrame(stepAutoScroll);
+  };
+  // Cancel any running loop on unmount so an rAF can't outlive the component.
+  useEffect(() => stopAutoScroll, []);
+
   return (
     <section className="space-y-3">
       {/* bug-ui pipeline #1 — polite live region narrating stage moves (keyboard or
@@ -254,6 +304,16 @@ export function PipelineBoard({
         tabIndex={0}
         role="region"
         aria-label={t("board.boardAria")}
+        // bug-ui pipeline #4 — edge auto-scroll during a card drag. The container
+        // itself is not a drop target (no preventDefault here); it only reads the
+        // pointer position from the bubbled dragover and stops the loop when the
+        // drag ends (drop / dragend) or the pointer truly leaves the board.
+        onDragOver={onBoardDragOver}
+        onDrop={stopAutoScroll}
+        onDragEnd={stopAutoScroll}
+        onDragLeave={(ev) => {
+          if (!ev.currentTarget.contains(ev.relatedTarget as Node | null)) stopAutoScroll();
+        }}
         className="focus-ring overflow-x-auto rounded-lg border border-stone-200 bg-white shadow-panel"
       >
         <div style={BOARD_MIN_WIDTH}>

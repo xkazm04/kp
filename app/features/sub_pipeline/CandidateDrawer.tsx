@@ -21,7 +21,8 @@ import { useTokenLink, TokenLinkPanel } from "./TokenLink";
 import { type Entry, type Result, type TaskId } from "./CandidateDrawerTypes";
 import { styleFor, type PipelineEvent } from "./PipelineTypes";
 import { EventDot, useEventVerb, useRelativeTime } from "./PipelineShared";
-import { PIPELINE_STAGES, SCREENING_STAGES } from "@/app/_lib/pipeline-stages";
+import { moveStageSelectValues } from "./pipeline-move-targets";
+import { SCREENING_STAGES } from "@/app/_lib/pipeline-stages";
 import { RUBRIC_ANCHOR_LINE } from "@/app/_lib/interview-rubric";
 import { RATING_MAX } from "@/app/_lib/format";
 import type { Scorecard, ScorecardRating } from "@/app/_lib/interview-scorecard";
@@ -299,8 +300,13 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
       if (!res.ok) throw new Error(data.error || `Move failed (${res.status})`);
       onChanged();
       onClose();
-    } catch {
-      setMoveErr(t("moveFailed"));
+    } catch (caught) {
+      // Surface the server's own explanation verbatim (the 422 "route through
+      // Offer → extend an offer" guidance, the 409 "changed since you opened it"
+      // hint) rather than the blanket moveFailed that hid the one sentence telling
+      // the recruiter what to do instead (bug-ui pipeline #2). A network throw with
+      // no message falls back to the generic copy.
+      setMoveErr(caught instanceof Error && caught.message ? caught.message : t("moveFailed"));
       setMovingStage(false);
     }
   };
@@ -428,19 +434,34 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
   const [candNote, setCandNote] = useState(entry.notes ?? "");
   const [noteStatus, setNoteStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const noteDirtyRef = useRef(false);
+  // True once a note save has SUCCEEDED this session (bug-ui pipeline #5). The
+  // board's copy of entry.notes is now stale, so the board is refreshed exactly
+  // ONCE on drawer close (below) — not on every debounced autosave, which used to
+  // refetch the whole board behind the still-open drawer and defeat the deliberate
+  // 30s-poll pause the open drawer is meant to hold.
+  const noteSavedRef = useRef(false);
   useEffect(() => {
     if (!noteDirtyRef.current) return;
+    const value = candNote; // the exact content this debounced save will persist
     const h = window.setTimeout(() => {
       void fetch(`/api/pipeline/${encodeURIComponent(entry.id)}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "set_notes", notes: candNote }),
+        body: JSON.stringify({ action: "set_notes", notes: value }),
       })
         .then((r) => {
-          setNoteStatus(r.ok ? "saved" : "error");
-          // The entry now carries the note — refresh the board's copy so
-          // reopening this candidate hydrates the scratchpad, not a stale blank.
-          if (r.ok) onChangedRef.current();
+          if (r.ok) {
+            noteSavedRef.current = true;
+            // Clear the dirty flag so the unmount flush only re-POSTs a GENUINELY
+            // unsaved trailing edit — previously it was never reset, so every close
+            // after any edit fired a redundant second save. Only clear it when
+            // nothing newer was typed while this save was in flight (else the newer
+            // keystroke's own debounce / the unmount flush must still persist it).
+            if (latestNoteRef.current === value) noteDirtyRef.current = false;
+            setNoteStatus("saved");
+          } else {
+            setNoteStatus("error");
+          }
         })
         .catch(() => setNoteStatus("error"));
     }, 600);
@@ -459,19 +480,29 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
   // the request survive the unmount/navigation.
   useEffect(() => {
     return () => {
-      if (!noteDirtyRef.current) return;
-      void fetch(`/api/pipeline/${encodeURIComponent(entry.id)}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "set_notes", notes: latestNoteRef.current }),
-        keepalive: true,
-      })
-        .then((r) => {
-          if (r.ok) onChangedRef.current();
+      if (noteDirtyRef.current) {
+        // A genuinely-unsaved trailing edit — the debounce timer was cancelled by
+        // this unmount. Flush it with keepalive, then refresh the board ONCE the
+        // write lands so reopening the candidate hydrates the note, not a stale blank.
+        void fetch(`/api/pipeline/${encodeURIComponent(entry.id)}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "set_notes", notes: latestNoteRef.current }),
+          keepalive: true,
         })
-        .catch(() => {
-          /* note save is best-effort — the debounced write already ran for all but the last pause */
-        });
+          .then((r) => {
+            if (r.ok) onChangedRef.current();
+          })
+          .catch(() => {
+            /* note save is best-effort — the debounced write already ran for all but the last pause */
+          });
+      } else if (noteSavedRef.current) {
+        // Nothing left to flush (the debounce already saved and cleared the dirty
+        // flag), but a save DID land this session, so the board's entry.notes is
+        // stale — do the single deferred board refresh now, on close, instead of on
+        // every autosave (bug-ui pipeline #5).
+        onChangedRef.current();
+      }
     };
   }, [entry.id]);
 
@@ -754,7 +785,7 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
                 onChange={(v) => moveStage(v)}
                 size="sm"
                 className="mt-2 w-full"
-                options={PIPELINE_STAGES.map((s) => ({
+                options={moveStageSelectValues(entry.stage).map((s) => ({
                   value: s,
                   label: `${enumLabel("stage", s)}${s === entry.stage ? t("current") : ""}`,
                 }))}

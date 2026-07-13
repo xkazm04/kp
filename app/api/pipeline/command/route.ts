@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { actOnPipelineEntry, listPipeline, recordAutomationEvent, type PipelineEntry } from "@/app/_lib/db";
 import { runAutomationPass } from "@/app/_lib/automation-pass";
 import { dispatchRejection } from "@/app/_lib/comms-dispatch";
-import { describeCommand, isMutating, parseCommand, type ParsedCommand } from "@/app/_lib/pipeline-command";
+import { describeCommand, isMutating, parseCommand, resolveRejectTargets, type ParsedCommand } from "@/app/_lib/pipeline-command";
 import { compareByMatchScoreDesc } from "@/app/_lib/match-score";
 import { safeJsonError } from "@/app/_lib/api-response";
 
@@ -52,7 +52,7 @@ const toRow = (e: PipelineEntry): PreviewRow => ({
 // privilege.
 export async function POST(request: NextRequest) {
   try {
-    const body = (await request.json().catch(() => ({}))) as { text?: string; confirm?: boolean };
+    const body = (await request.json().catch(() => ({}))) as { text?: string; confirm?: boolean; confirmIds?: unknown };
     const cmd = parseCommand(typeof body.text === "string" ? body.text : "");
 
     if (cmd.kind === "help" || cmd.kind === "unknown") {
@@ -74,7 +74,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ kind: cmd.kind, executed: true, description, summary: result.summary });
     }
 
-    const targets = affected(cmd);
+    // The live still-matching set at execute time.
+    const matching = affected(cmd);
+    // bug-ui pipeline #3 — a reject_below confirm binds to the PREVIEWED id set
+    // (carried on the confirm POST): execute only on ids that were shown to the
+    // recruiter AND still match, so a candidate scored below the line in the gap
+    // between preview and confirm can never be silently rejected + emailed. Any
+    // previewed id that dropped out (no longer matching) is reported, not acted
+    // on. An absent confirmIds (older client) keeps the prior act-on-current-set
+    // behavior. advance_top is non-destructive (no email), so it is unbound.
+    let droppedOut = 0;
+    let targets = matching;
+    if (cmd.kind === "reject_below" && Array.isArray(body.confirmIds)) {
+      const previewedIds = body.confirmIds.filter((x): x is string => typeof x === "string");
+      const { act, droppedOut: dropped } = resolveRejectTargets(previewedIds, matching.map((e) => e.id));
+      const actSet = new Set(act);
+      targets = matching.filter((e) => actSet.has(e.id));
+      droppedOut = dropped.length;
+    }
     let count = 0;
     let commsFailed = 0;
     // advance_top targets already AT Offer that were held instead of advanced —
@@ -130,6 +147,7 @@ export async function POST(request: NextRequest) {
       count,
       ...(commsFailed ? { commsFailed } : {}),
       ...(heldAtOffer ? { heldAtOffer } : {}),
+      ...(droppedOut ? { droppedOut } : {}),
     });
   } catch (error) {
     return safeJsonError(error, "api:pipeline:command", "COMMAND_FAILED");

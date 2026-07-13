@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { describeCommand, isMutating, parseCommand } from "./pipeline-command.ts";
+import { describeCommand, isMutating, parseCommand, resolveRejectTargets } from "./pipeline-command.ts";
 
 test("parses reject-below with and without a job scope, clamps the threshold", () => {
   assert.deepEqual(parseCommand("reject everyone below 60%"), {
@@ -49,4 +49,41 @@ test("describeCommand reads as an action sentence", () => {
   // candidate comm, so the preview copy must promise notification (UAT M3).
   assert.match(describeCommand(parseCommand("reject below 60%")), /Reject and notify active candidates scoring below 60%/);
   assert.match(describeCommand(parseCommand("advance top 1")), /Advance the top 1 active candidate\b/);
+});
+
+// bug-ui pipeline #3 — resolveRejectTargets binds a reject_below confirm to the
+// previewed cohort. Non-vacuity: resolveRejectTargets did NOT exist before the
+// fix — against pre-fix pipeline-command.ts the import above is a named-export
+// miss and the whole file errors out (RED). Beyond existence, the cases below
+// discriminate the actual contract, so a stub `() => ({ act: [], droppedOut: [] })`
+// or a naive `act = stillMatching` (the pre-fix route behavior — act on whoever
+// matches NOW) fails them.
+test("acts only on ids that were BOTH previewed AND still match (the TOCTOU fix)", () => {
+  // Preview showed a,b,c. By confirm time the live matching set is b,c,d:
+  //   - `a` advanced out of the below-threshold set → dropped out, must NOT be rejected.
+  //   - `d` newly slipped below the line but was NEVER shown → must NOT be rejected.
+  //   - `b`,`c` were shown and still match → the only ones acted on.
+  const { act, droppedOut } = resolveRejectTargets(["a", "b", "c"], ["b", "c", "d"]);
+  assert.deepEqual(act, ["b", "c"]); // never "d" — the unseen candidate the pre-fix code would email
+  assert.deepEqual(droppedOut, ["a"]);
+});
+
+test("a candidate newly matching but never previewed is NEVER acted on", () => {
+  // The core harm: confirm must be a subset of what was shown. Empty preview ⇒
+  // nothing rejected even though two candidates now match.
+  const { act, droppedOut } = resolveRejectTargets([], ["x", "y"]);
+  assert.deepEqual(act, []);
+  assert.deepEqual(droppedOut, []);
+});
+
+test("act preserves previewed order and is deduplicated", () => {
+  const { act, droppedOut } = resolveRejectTargets(["c", "a", "a", "b"], ["a", "b", "c"]);
+  assert.deepEqual(act, ["c", "a", "b"]); // previewed order, single `a`
+  assert.deepEqual(droppedOut, []);
+});
+
+test("every previewed id that no longer matches is reported as dropped out", () => {
+  const { act, droppedOut } = resolveRejectTargets(["a", "b"], []);
+  assert.deepEqual(act, []);
+  assert.deepEqual(droppedOut, ["a", "b"]);
 });

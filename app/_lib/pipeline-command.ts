@@ -86,3 +86,33 @@ export function describeCommand(cmd: ParsedCommand): string {
 export function isMutating(cmd: ParsedCommand): boolean {
   return cmd.kind === "reject_below" || cmd.kind === "advance_top" || cmd.kind === "run_policy";
 }
+
+/** Bind a `reject_below` confirm to the exact cohort the recruiter reviewed
+ *  (bug-ui pipeline #3). Preview and execute each independently query LIVE DB
+ *  state, so between the two POSTs a newly-scored applicant can slip below the
+ *  threshold and be rejected + emailed WITHOUT ever appearing in the preview the
+ *  operator vetted — a TOCTOU on the pipeline's most destructive, irreversible
+ *  action. The confirm therefore carries the previewed id set, and the execute
+ *  acts ONLY on ids that were BOTH previewed AND still match now:
+ *    - act:        previewed ∩ still-matching — reject exactly what was shown.
+ *    - droppedOut: previewed − still-matching — shown, but advanced/rejected/no
+ *                  longer below the line in the gap; skipped and reported.
+ *  Ids that newly match but were never previewed are silently excluded — that is
+ *  the whole contract: a confirm can only ever reject a SUBSET of what was shown,
+ *  never a candidate the recruiter never saw. `act` preserves previewed order and
+ *  is de-duplicated defensively. */
+export function resolveRejectTargets(
+  previewedIds: readonly string[],
+  stillMatchingIds: readonly string[]
+): { act: string[]; droppedOut: string[] } {
+  const matching = new Set(stillMatchingIds);
+  const seen = new Set<string>();
+  const act: string[] = [];
+  const droppedOut: string[] = [];
+  for (const id of previewedIds) {
+    if (seen.has(id)) continue;
+    seen.add(id);
+    (matching.has(id) ? act : droppedOut).push(id);
+  }
+  return { act, droppedOut };
+}
