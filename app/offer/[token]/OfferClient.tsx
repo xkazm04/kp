@@ -8,7 +8,6 @@ import { AiDisclosure } from "@/app/_components/AiDisclosure";
 import { Skeleton } from "@/app/_components/Skeleton";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { initials } from "@/app/_lib/initials";
-import { offerHoursRemaining } from "@/app/_lib/offer-policy";
 
 type OfferView = {
   token: string;
@@ -19,6 +18,10 @@ type OfferView = {
   salary: number | null;
   company: string | null;
   expiresAt: string | null;
+  // bug-ui-scan-2026-07-09 (offers-onboarding #5): whole-hours-left computed on the
+  // SERVER at GET time so the countdown can't disagree with server-enforced expiry on a
+  // skewed/back-dated client clock. Null when the offer carries no valid deadline.
+  hoursRemaining: number | null;
 };
 
 // Public, token-gated offer page. The candidate accepts or declines here; accept
@@ -48,12 +51,22 @@ export function OfferClient() {
   // misclick must not permanently close the offer.
   const [confirmingDecline, setConfirmingDecline] = useState(false);
   const goBackRef = useRef<HTMLButtonElement>(null);
+  const onboardingCtaRef = useRef<HTMLAnchorElement>(null);
 
   // When the confirm step appears, move focus to the safe option so a keyboard user
   // lands on 'Go back' rather than the destructive default.
   useEffect(() => {
     if (confirmingDecline) goBackRef.current?.focus();
   }, [confirmingDecline]);
+
+  // bug-ui-scan-2026-07-09 (offers-onboarding #4): on accept, move focus to the
+  // onboarding next-step CTA. Paired with role=status/aria-live on the success card,
+  // a screen-reader user hears the offer was accepted and lands on the concrete next
+  // step rather than silence after their most consequential action. Only when the
+  // accept happens in this session (a page loaded already-accepted keeps natural order).
+  useEffect(() => {
+    if (result === "accepted") onboardingCtaRef.current?.focus();
+  }, [result]);
 
   // State is only written in the fetch's async callbacks (never synchronously
   // when the mount effect fires); every terminal branch settles BOTH failure
@@ -231,7 +244,10 @@ export function OfferClient() {
             ) : null}
 
             {result === "accepted" ? (
-              <div className="mt-6 rounded-lg bg-moss/10 p-4 text-center">
+              // bug-ui-scan-2026-07-09 (offers-onboarding #4): announce the terminal
+              // outcome (role=status + aria-live) so the success of this irreversible
+              // action isn't silent to assistive tech; focus moves to the CTA below.
+              <div role="status" aria-live="polite" className="mt-6 rounded-lg bg-moss/10 p-4 text-center">
                 <p className="text-lg font-semibold text-moss">{t("acceptedTitle")}</p>
                 <p className="mt-1 text-sm text-steel">
                   {offer.company ? t("acceptedBodyCompany", { company: offer.company }) : t("acceptedBodyGeneric")}
@@ -240,6 +256,7 @@ export function OfferClient() {
                     (offer-finalize.ts) — surface it INLINE so accept lands on a
                     concrete next step on the page, not only via the welcome email. */}
                 <a
+                  ref={onboardingCtaRef}
                   href={`/onboarding/${offer.token}`}
                   data-sim-click="offer-onboarding-cta"
                   className="focus-ring mt-3 inline-flex h-11 items-center justify-center gap-2 rounded-md bg-moss px-5 text-base font-semibold text-white transition-opacity hover:opacity-90"
@@ -248,14 +265,17 @@ export function OfferClient() {
                 </a>
               </div>
             ) : result === "declined" ? (
-              <div className="mt-6 rounded-lg bg-stone-100 p-4 text-center">
+              // bug-ui-scan-2026-07-09 (offers-onboarding #4): the decline is also a
+              // terminal swap after a candidate action — announce it to assistive tech.
+              <div role="status" aria-live="polite" className="mt-6 rounded-lg bg-stone-100 p-4 text-center">
                 <p className="text-base font-semibold text-ink">{t("declinedTitle")}</p>
                 <p className="mt-1 text-sm text-steel">{t("declinedBody")}</p>
               </div>
             ) : result === "expired" ? (
               // The offer lapsed past its deadline (idea-29361408) — a definite
-              // dead-end state, not an error the candidate can retry past.
-              <div className="mt-6 rounded-lg bg-stone-100 p-4 text-center">
+              // dead-end state, not an error the candidate can retry past. Announced
+              // to assistive tech on the swap (bug-ui-scan-2026-07-09 offers-onboarding #4).
+              <div role="status" aria-live="polite" className="mt-6 rounded-lg bg-stone-100 p-4 text-center">
                 <p className="text-base font-semibold text-ink">{t("expiredTitle")}</p>
                 <p className="mt-1 text-sm text-steel">{t("expiredBody")}</p>
               </div>
@@ -265,9 +285,11 @@ export function OfferClient() {
                   {offer.company ? t("prompt", { company: offer.company }) : t("promptGeneric")}
                 </p>
                 {/* Deadline countdown (idea-29361408): the offer's lever to force a
-                    timely decision. Turns coral inside the final 48h. */}
+                    timely decision. Turns coral inside the final 48h. The hours-left
+                    figure is SERVER-computed (offers-onboarding #5) so it can't disagree
+                    with server-enforced expiry on a skewed client clock. */}
                 {(() => {
-                  const hrs = offerHoursRemaining(offer.expiresAt);
+                  const hrs = offer.hoursRemaining;
                   if (hrs === null || !offer.expiresAt) return null;
                   const date = new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short" }).format(
                     new Date(offer.expiresAt)

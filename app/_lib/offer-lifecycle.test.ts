@@ -163,6 +163,16 @@ test("sendDueOfferReminders dispatches each due offer once across sweeps", async
   assert.equal(await sendDueOfferReminders(), 0, "the claim persists — no duplicate nudge on the next tick");
 });
 
+test("offerView ships a SERVER-computed hoursRemaining so the countdown can't drift on a skewed client clock", () => {
+  // bug-ui-scan-2026-07-09 (offers-onboarding #5): the candidate page must render the
+  // hours-left from the server's clock, not Date.now() on an untrusted device.
+  const entry = entryAtOffer();
+  const offer = mintOffer(entry.id, 1); // 1-day TTL → ~24h out
+  const view = offerView(offer.token)!;
+  assert.equal(typeof view.hoursRemaining, "number", "the view must carry a server-side hours-left figure");
+  assert.ok(view.hoursRemaining! >= 23 && view.hoursRemaining! <= 24, `expected ~24h, got ${view.hoursRemaining}`);
+});
+
 test("getOrCreateOpenOffer reuses the one open offer per entry instead of minting a second live link", () => {
   const entry = entryAtOffer();
   const input = {

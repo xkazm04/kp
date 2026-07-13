@@ -4,6 +4,7 @@ import { dispatchOnboarding } from "./comms-dispatch";
 import { recordAudit } from "./dev-control";
 import { recordPipelineOutcome } from "./dev-outcomes";
 import { expireOfferIfDue, getOfferByToken, markEntryStatus, markOfferResponded, type OfferRow } from "./offers-store";
+import { offerHoursRemaining } from "./offer-policy";
 import { startRun } from "./onboarding-store";
 
 // Direction #4 — capture the candidate's offer response and run the terminal
@@ -169,6 +170,9 @@ export function offerView(token: string) {
     salary: offer.salary,
     company,
     expiresAt: offer.expiresAt,
+    // Countdown computed on the SERVER clock (offers-onboarding #5) so the candidate's
+    // "X hours left" copy can't drift from server-enforced expiry under client clock skew.
+    hoursRemaining: offerHoursRemaining(offer.expiresAt),
   };
 }
 

@@ -1,10 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { TextInput } from "@/app/_components/TextInput";
+import { Skeleton } from "@/app/_components/Skeleton";
+import { hasAnyIntakeAnswer } from "@/app/_lib/onboarding-intake";
 
 type OnboardingView = {
   role: string | null;
@@ -44,6 +46,18 @@ export function OnboardingClient() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  // bug-ui-scan-2026-07-09 (offers-onboarding #4): move focus to the "saved" heading
+  // after the terminal swap so a screen-reader user hears the confirmation instead of
+  // silence following their most consequential action.
+  const savedHeadingRef = useRef<HTMLParagraphElement>(null);
+  useEffect(() => {
+    if (saved) savedHeadingRef.current?.focus();
+  }, [saved]);
+
+  // bug-ui-scan-2026-07-09 (offers-onboarding #2): gate Submit on at least one non-blank
+  // answer. A blank submit would otherwise write an empty intake row that both fakes
+  // completion and kills the one-shot pre-boarding reminder (server enforces the same).
+  const canSubmit = hasAnyIntakeAnswer(answers);
 
   // State is only written in the fetch's async callbacks (never synchronously
   // when the mount effect fires); every terminal branch settles BOTH failure
@@ -133,7 +147,21 @@ export function OnboardingClient() {
               </button>
             </div>
           ) : !view ? (
-            <p className="text-center text-sm text-steel">{tCommon("loading")}</p>
+            // bug-ui-scan-2026-07-09 (offers-onboarding #3): shape-mirroring skeleton
+            // instead of a bare "Loading…" line, matching the sibling offer page so this
+            // high-trust first paint reserves its height rather than visibly reflowing (CLS).
+            <div className="space-y-4" aria-busy="true" aria-label={tCommon("loading")}>
+              <Skeleton className="h-3 w-24" />
+              <Skeleton className="h-7 w-2/3" />
+              <Skeleton className="h-4 w-1/2" />
+              <Skeleton className="h-4 w-full" />
+              <div className="space-y-3 pt-1">
+                <Skeleton className="h-10 w-full rounded-md" />
+                <Skeleton className="h-10 w-full rounded-md" />
+                <Skeleton className="h-10 w-full rounded-md" />
+              </div>
+              <Skeleton className="h-11 w-full rounded-md" />
+            </div>
           ) : (
             <>
               <p className="text-meta uppercase tracking-wide text-moss">{t("eyebrow")}</p>
@@ -149,8 +177,13 @@ export function OnboardingClient() {
               </p>
 
               {saved ? (
-                <div className="mt-6 rounded-lg bg-moss/10 p-4">
-                  <p className="text-base font-semibold text-moss">{t("savedTitle")}</p>
+                // bug-ui-scan-2026-07-09 (offers-onboarding #4): announce the terminal
+                // "saved" swap to assistive tech (role=status + aria-live) and move focus
+                // to the heading, so the outcome of the candidate's action isn't silent.
+                <div role="status" aria-live="polite" className="mt-6 rounded-lg bg-moss/10 p-4">
+                  <p ref={savedHeadingRef} tabIndex={-1} className="focus-ring rounded text-base font-semibold text-moss">
+                    {t("savedTitle")}
+                  </p>
                   <p className="mt-1 text-sm text-steel">{t("savedBody")}</p>
                   <button
                     type="button"
@@ -185,7 +218,7 @@ export function OnboardingClient() {
                   <button
                     type="button"
                     onClick={submit}
-                    disabled={submitting}
+                    disabled={submitting || !canSubmit}
                     aria-busy={submitting}
                     className="focus-ring mt-4 inline-flex h-11 w-full items-center justify-center gap-2 rounded-md bg-moss text-base font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-60"
                   >
