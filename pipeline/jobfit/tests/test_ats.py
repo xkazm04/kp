@@ -25,9 +25,13 @@ from pipeline.jobfit.ats import (
     MAX_KEYWORD_HITS,
     MAX_MISSING_KEYWORDS,
     _keyword_status,
+    _normalize,
+    _occurrences,
+    _skill_in_text,
     evaluate_keyword_coverage,
     verify_skills_in_cv,
 )
+from pipeline.jobfit import taxonomy
 from pipeline.jobfit.extractors import clean_text
 from pipeline.jobfit.profiling import build_profile
 
@@ -221,6 +225,43 @@ class MatchingSkillVerificationTest(unittest.TestCase):
 
     def test_empty_input_is_safe(self) -> None:
         self.assertEqual(verify_skills_in_cv([], _CV), ([], []))
+
+
+class NormalizationPrimitiveDedupTest(unittest.TestCase):
+    """Direction 3: ats.py now consumes the taxonomy's ONE normalization + word-
+    boundary implementation. These pin that the shared primitive gives the exact
+    verdicts the old ats-local regex did on the special-charactered skill edge
+    cases (C++/C#/.NET/Go), so the dedup can't silently shift a match."""
+
+    def test_normalize_delegates_to_taxonomy(self) -> None:
+        # Same NFC + casefold — accents and case fold identically to the taxonomy's.
+        for text in ("C++ Developer", "Registered NURSE", "Účetní", "React.JS"):
+            self.assertEqual(_normalize(text), taxonomy.normalize_text(text))
+
+    def test_special_char_skills_match_as_whole_tokens(self) -> None:
+        # Present as a standalone token -> matched; buried in a larger word -> not.
+        cases = [
+            ("c++", "worked in c++ for years", True),
+            ("c++", "c programming, not the plus", False),
+            ("c#", "built services in c# and .net", True),
+            ("c#", "the c language only", False),
+            (".net", "shipped on .net core", True),
+            (".net", "used asp.net mvc", False),  # boundary: 't' before '.' blocks it
+            ("go", "go microservices at scale", True),
+            ("go", "google cloud platform", False),  # never inside "google"
+        ]
+        for skill, cv, expected in cases:
+            with self.subTest(skill=skill, cv=cv):
+                self.assertEqual(_skill_in_text(_normalize(cv), _normalize(skill)), expected)
+
+    def test_occurrences_counts_whole_tokens_only(self) -> None:
+        self.assertEqual(_occurrences(_normalize("go go go, not google"), _normalize("go")), 3)
+        self.assertEqual(_occurrences(_normalize("c++ c++ c"), _normalize("c++")), 2)
+        self.assertEqual(_occurrences("", "go"), 0)
+        self.assertEqual(_occurrences("anything", ""), 0)
+
+    def test_empty_surface_never_matches(self) -> None:
+        self.assertFalse(_skill_in_text("some cv text", ""))
 
 
 if __name__ == "__main__":

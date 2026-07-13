@@ -4,6 +4,7 @@ import json
 import re
 import unicodedata
 from enum import Enum
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
@@ -146,12 +147,58 @@ SALARY_SIGNAL_RATIONALE: dict[str, str] = {
 }
 
 
-def _normalize(text: str) -> str:
+def normalize_text(text: str) -> str:
+    """NFC-normalize + casefold — the single accent/case-insensitive normalizer.
+
+    The canonical normalization primitive: taxonomy's own scans AND ats.py (which
+    used to reimplement a byte-identical copy) both fold surface text through this,
+    so "C++"/"C#"/".NET"/"Registered Nurse" normalize the same everywhere.
+    """
     return unicodedata.normalize("NFC", text).casefold()
+
+
+# Internal alias kept for the many existing call sites in this module.
+_normalize = normalize_text
 
 
 def _compact(text: str) -> str:
     return re.sub(r"\W+", "", text, flags=re.UNICODE)
+
+
+def _word_boundary_pattern(surface_norm: str, *, flexible_ws: bool) -> "re.Pattern[str] | None":
+    """Compile a whole-token matcher for an already-normalized surface form.
+
+    Non-word lookarounds (``(?<!\\w)…(?!\\w)``) so a short or special-charactered
+    skill ("R", "Go", "C++", "C#", ".NET") matches as a standalone token and never
+    inside an unrelated word. ``flexible_ws`` joins the surface's word-parts with
+    ``\\s+`` (a line-wrapped "machine learning" still matches); otherwise the
+    surface is matched with its literal spacing. Returns ``None`` for an empty
+    surface so callers treat it as "no match" rather than matching everything.
+    """
+    if flexible_ws:
+        parts = [re.escape(p) for p in surface_norm.split() if p]
+        if not parts:
+            return None
+        body = r"\s+".join(parts)
+    else:
+        if not surface_norm:
+            return None
+        body = re.escape(surface_norm)
+    return re.compile(rf"(?<!\w){body}(?!\w)", flags=re.UNICODE)
+
+
+def contains_whole_token(text_norm: str, surface_norm: str) -> bool:
+    """Whitespace-flexible whole-token presence of ``surface_norm`` in ``text_norm``
+    (both already :func:`normalize_text`-folded)."""
+    pattern = _word_boundary_pattern(surface_norm, flexible_ws=True)
+    return pattern is not None and pattern.search(text_norm) is not None
+
+
+def count_whole_token(text_norm: str, surface_norm: str) -> int:
+    """Whole-token occurrence count of ``surface_norm`` in ``text_norm`` (both
+    already :func:`normalize_text`-folded), literal spacing."""
+    pattern = _word_boundary_pattern(surface_norm, flexible_ws=False)
+    return len(pattern.findall(text_norm)) if pattern is not None else 0
 
 
 def _term_match_strings(term: dict[str, Any]) -> list[str]:
@@ -491,12 +538,18 @@ def has_seniority_junior_signal(text: str) -> bool:
 # --- Hierarchy + provenance API (taxonomy v3) ------------------------------
 
 
+@lru_cache(maxsize=8192)
 def resolve_term(surface: str) -> str | None:
     """Map a skill surface form (e.g. ``"k8s"``, ``"ReactJS"``) to its canonical term id.
 
     Returns ``None`` for surfaces not present in the taxonomy (e.g. a niche tool
     Gemini extracted that we don't model). Matching falls back to string equality
     for those — see :func:`skill_match_score`.
+
+    Memoized: the surface->term map (``_SURFACE_TO_TERM``) is built once at import and
+    never mutates, so resolution is a pure function of ``surface``. The O(n^2)
+    fairness/winnability paths resolve the same handful of skills thousands of times;
+    caching turns each into a single lookup.
     """
     if not surface:
         return None
@@ -519,6 +572,7 @@ def is_subset_of(child_term: str, parent_term: str) -> bool:
     return parent_term in _ANCESTORS.get(child_term, frozenset())
 
 
+@lru_cache(maxsize=16384)
 def term_match_score(candidate_term: str | None, required_term: str | None) -> float:
     """Base skill-overlap score in ``[0, 1]`` from the hierarchy, ignoring provenance.
 
@@ -548,6 +602,7 @@ def provenance_weight(provenance: str | None) -> float:
     return PROVENANCE_WEIGHTS.get(key, PROVENANCE_WEIGHTS["unknown"])
 
 
+@lru_cache(maxsize=16384)
 def skill_match_score(
     candidate_skill: str,
     required_skill: str,

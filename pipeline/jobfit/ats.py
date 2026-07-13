@@ -1,10 +1,14 @@
 from __future__ import annotations
 
-import re
-import unicodedata
-
 from .models import KeywordCoverage, KeywordHit, KeywordStatus
-from .taxonomy import detected_skills, resolve_term, skill_keyword_pool
+from .taxonomy import (
+    contains_whole_token,
+    count_whole_token,
+    detected_skills,
+    normalize_text,
+    resolve_term,
+    skill_keyword_pool,
+)
 
 
 # --- Display caps -----------------------------------------------------------
@@ -90,16 +94,14 @@ def evaluate_keyword_coverage(
 def _skill_in_text(cv_norm: str, skill_norm: str) -> bool:
     """Whole-token literal presence of a skill in already-normalized CV text.
 
-    Internal whitespace matches any run (``\\s+``) so a line-wrapped or
-    double-spaced "machine learning" still matches; boundaries are non-word so a
-    short or special-charactered skill ("R", "Go", "C++", ".NET") matches exactly
-    and never inside an unrelated word.
+    Delegates to the shared taxonomy word-boundary primitive
+    (:func:`taxonomy.contains_whole_token`): internal whitespace matches any run so
+    a line-wrapped "machine learning" still matches, and non-word boundaries keep a
+    short or special-charactered skill ("R", "Go", "C++", "C#", ".NET") matching as
+    a standalone token, never inside an unrelated word. One implementation, shared
+    with the taxonomy so verdicts can't drift.
     """
-    parts = [re.escape(part) for part in skill_norm.split() if part]
-    if not parts:
-        return False
-    body = r"\s+".join(parts)
-    return re.search(rf"(?<!\w){body}(?!\w)", cv_norm, flags=re.UNICODE) is not None
+    return contains_whole_token(cv_norm, skill_norm)
 
 
 def verify_skills_in_cv(
@@ -195,11 +197,12 @@ def _harvest_jd_keywords(jd_norm: str) -> list[str]:
 
 
 def _occurrences(haystack: str, needle: str) -> int:
-    if not needle:
-        return 0
-    pattern = re.compile(rf"(?<![\w]){re.escape(needle)}(?![\w])", flags=re.UNICODE)
-    return len(pattern.findall(haystack))
+    # Shared taxonomy word-boundary count (literal spacing) — same non-word
+    # boundaries as _skill_in_text, so "C++"/"C#"/".NET"/"Go" are counted as whole
+    # tokens and never as substrings of a larger word.
+    return count_whole_token(haystack, needle)
 
 
 def _normalize(text: str) -> str:
-    return unicodedata.normalize("NFC", text).casefold()
+    # The one normalization primitive, owned by the taxonomy (NFC + casefold).
+    return normalize_text(text)

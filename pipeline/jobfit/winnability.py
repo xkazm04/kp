@@ -52,7 +52,11 @@ def assess_winnability(
     """
     pool = len(candidates)
     base_elig = _eligible(candidates, job)
-    base_qual = _qualified(candidates, job, base_elig, fit_threshold)
+    # Score each eligible candidate against the base job ONCE and reuse the result
+    # for BOTH the qualified count and the missing-skill map below — the two used to
+    # each run their own full score_job pass over the same (candidate, job) pairs.
+    base_results = {i: score_job(candidates[i], job) for i in base_elig}
+    base_qual = {i for i in base_elig if base_results[i].total >= fit_threshold}
 
     # --- Hard-gate loosen counterfactuals: drop one gate, recount ELIGIBILITY.
     # A positive delta means the gate is the *sole* blocker for that many people
@@ -74,7 +78,7 @@ def assess_winnability(
     # recount the QUALIFIED pool. Skills aren't hard gates — they cap the score —
     # so the lever here is "qualified" (eligible AND scoring well), not eligibility.
     must_haves: list[dict] = []
-    base_missing = {i: set(score_job(candidates[i], job).missing_skills) for i in base_elig}
+    base_missing = {i: set(base_results[i].missing_skills) for i in base_elig}
     requirements = job.requirements
     for idx, req in enumerate(requirements):
         if req.kind != "must_have":

@@ -20,7 +20,7 @@ import math
 import re
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, NamedTuple
 
 from pydantic import Field, field_validator
 
@@ -632,13 +632,24 @@ def _confidence(candidate: MatchCandidate, total: int, missing_musts: list[str])
     )
 
 
-def score_job(
-    candidate: MatchCandidate,
-    job: Job,
-    *,
-    weights: dict[str, float] | None = None,
-    embedder: Any | None = None,
-) -> MatchResult:
+class _Dimensions(NamedTuple):
+    """The three scheme-INDEPENDENT dimension scores + the skill breakdown lists.
+
+    Extracted so the weight-independent work (score_skills/career/personal — the
+    expensive part) is computed once per (candidate, job) and reused across every
+    weight scheme, instead of being recomputed inside the fairness matrix's O(n^2)
+    cells. See :func:`_weighted_total` for the cheap weight combination step.
+    """
+
+    skills: float
+    career: float
+    personal: float
+    matched: list[str]
+    missing: list[str]
+    matched_strength: dict[str, float]
+
+
+def _score_dimensions(candidate: MatchCandidate, job: Job, *, embedder: Any | None = None) -> _Dimensions:
     skills, matched, missing, matched_strength = score_skills(candidate, job)
     if candidate.archetype in _EARLY_CAREER:
         # career slot carries POTENTIAL (readiness); personal carries motivation/domain fit.
@@ -652,14 +663,31 @@ def score_job(
     else:
         career = score_career(candidate, job)
         personal = score_personal(candidate, job, embedder=embedder)
-    # `weights` is an optional resolved dynamic vector; default = archetype static
-    # weights, so passing nothing reproduces the prior score exactly.
-    w = weights or weights_for(candidate.archetype)
+    return _Dimensions(skills, career, personal, matched, missing, matched_strength)
+
+
+def _weighted_total(skills: float, career: float, personal: float, weights: dict[str, float]) -> int:
     # Clamp the headline to the 0-100 contract every downstream surface (score dial,
     # fit-tier banding, matrix coloring) assumes. With dimensions already in [0,1]
     # this is a no-op; it's the belt-and-suspenders guard against a future
     # out-of-range dimension or a misbehaving readiness model.
-    total = max(0, min(100, round(100 * (w["skills"] * skills + w["career"] * career + w["personal"] * personal))))
+    return max(0, min(100, round(100 * (weights["skills"] * skills + weights["career"] * career + weights["personal"] * personal))))
+
+
+def score_job(
+    candidate: MatchCandidate,
+    job: Job,
+    *,
+    weights: dict[str, float] | None = None,
+    embedder: Any | None = None,
+) -> MatchResult:
+    dims = _score_dimensions(candidate, job, embedder=embedder)
+    skills, career, personal = dims.skills, dims.career, dims.personal
+    matched, missing, matched_strength = dims.matched, dims.missing, dims.matched_strength
+    # `weights` is an optional resolved dynamic vector; default = archetype static
+    # weights, so passing nothing reproduces the prior score exactly.
+    w = weights or weights_for(candidate.archetype)
+    total = _weighted_total(skills, career, personal, w)
     breakdown = build_score_breakdown(candidate.archetype, skills, career, personal, weights=w)
     tier = fit_tier_for(total)
     ep = job.entry_profile
@@ -702,7 +730,17 @@ def fairness_matrix(pairs: list[tuple[MatchCandidate, dict[str, float] | None]],
     resolve_weights, so callers may pass raw proposals."""
     schemes = [resolve_weights(c.archetype, w) for c, w in pairs]
     labels = [c.label for c, _w in pairs]
-    matrix = [[score_job(c, job, weights=scheme).total for scheme in schemes] for c, _w in pairs]
+    # Each candidate's dimension scores are scheme-INDEPENDENT, so compute them once
+    # per candidate (n calls) and combine with every scheme's weights (n^2 cheap
+    # multiply-adds) — instead of the old n^2 full score_job calls that recomputed
+    # the expensive skills/career/personal pass once per (candidate, scheme). The
+    # per-cell value is byte-identical: score_job derives .total via the same
+    # _score_dimensions + _weighted_total helpers.
+    dims = [_score_dimensions(c, job) for c, _w in pairs]
+    matrix = [
+        [_weighted_total(d.skills, d.career, d.personal, scheme) for scheme in schemes]
+        for d in dims
+    ]
     own = [matrix[i][i] for i in range(len(pairs))]
     mean = [round(sum(row) / len(row)) for row in matrix] if pairs else []
     order = sorted(range(len(pairs)), key=lambda i: mean[i], reverse=True)
