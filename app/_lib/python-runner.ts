@@ -132,6 +132,14 @@ export function spawnPython(
     },
     windowsHide: true,
   });
+  // bug-ui-scan-2026-07-09 (pipeline-clis-script-bridges #3): close the child's
+  // stdin immediately. The bridge never writes to it, but several CLIs fall back
+  // to `json.loads(sys.stdin.read() or "{}")` when their --input flag is absent
+  // (e.g. a refactor drops/renames the flag). With the default stdio the child's
+  // stdin is an open pipe that never gets EOF, so that fallback would block until
+  // the 600s timeout — a mysterious slow/hung endpoint. Ending it now makes an
+  // unfed stdin read EOF instantly, so a missing-flag regression fails fast.
+  child.stdin.end();
   // Keep streams in Buffer mode so the streaming route can attach its own
   // TextDecoder. Encoding is applied once at process close.
   const stdoutChunks: Buffer[] = [];

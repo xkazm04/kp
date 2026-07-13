@@ -23,6 +23,10 @@ type Winnability = {
   looseGates?: Gate[];
   looseMustHaves?: MustHave[];
   salary?: Salary;
+  // bug-ui-scan-2026-07-09 (pipeline-clis-script-bridges #4): candidates the CLI
+  // couldn't score (a malformed/partially-extracted profile). Surfaced so the
+  // recruiter sees the counts were computed over a reduced denominator.
+  skipped?: { id: string; label: string; reason: string }[];
   note?: string;
 };
 
@@ -61,6 +65,10 @@ export function CoachPanel({ jobId, jobTitle }: { jobId: string; jobTitle: strin
   // Only must-haves that actually cost candidates are worth surfacing as a lever.
   const musts = (data.looseMustHaves ?? []).filter((m) => m.qualifiedDelta > 0 || m.missingAmongEligible > 0);
   const salary = data.salary;
+  // bug-ui-scan-2026-07-09 (pipeline-clis-script-bridges #4): the stat tiles below
+  // count only the candidates the CLI could score. If it dropped any, say so — an
+  // "eligible 3 of 10" verdict is dishonest when 2 were never assessed.
+  const skippedCount = data.skipped?.length ?? 0;
 
   // Verdict: zero qualified is an unfillable JD; a thin pipeline (qualified is a
   // small slice of the pool) is a caution; otherwise it's healthy. Keep the t()
@@ -112,6 +120,13 @@ export function CoachPanel({ jobId, jobTitle }: { jobId: string; jobTitle: strin
           </div>
         ))}
       </div>
+
+      {skippedCount > 0 ? (
+        <div className="flex items-start gap-2 rounded-lg border border-dial-amber/40 bg-dial-amber/10 px-3 py-2 text-base text-ink">
+          <AlertTriangle size={16} className="mt-0.5 shrink-0 text-dial-amber" />
+          <p>{t("notAssessed", { n: skippedCount })}</p>
+        </div>
+      ) : null}
 
       {gates.length > 0 || musts.length > 0 ? (
         <div>

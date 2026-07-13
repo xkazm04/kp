@@ -1,7 +1,13 @@
 from __future__ import annotations
 
+import contextlib
+import io
+import json
+import tempfile
 import unittest
+from pathlib import Path
 
+from pipeline.jobfit import winnability_cli
 from pipeline.jobfit.jobs import Job, JobRequirement
 from pipeline.jobfit.matching import FIT_PROMISING_THRESHOLD, MatchCandidate, ko_filter, score_job
 from pipeline.jobfit.winnability import assess_winnability
@@ -110,6 +116,58 @@ class WinnabilityTest(unittest.TestCase):
         job = _job(languages=["English"], requirements=[JobRequirement(skill="python")])
         out = assess_winnability(pool, job)
         self.assertEqual([g for g in out["looseGates"] if g["value"] == "English"], [])
+
+
+class WinnabilityCliSkippedTest(unittest.TestCase):
+    """bug-ui-scan-2026-07-09 (pipeline-clis-script-bridges #4): a malformed candidate
+    must be RECORDED in `skipped` (not silently dropped), so the grade's denominator is
+    honest and the UI can flag "N not assessed"."""
+
+    def _run(self, payload: dict, job: dict) -> tuple[int, dict]:
+        with tempfile.TemporaryDirectory() as d:
+            inp = Path(d) / "in.json"
+            jobp = Path(d) / "job.json"
+            inp.write_text(json.dumps(payload), encoding="utf-8")
+            jobp.write_text(json.dumps(job), encoding="utf-8")
+            buf = io.StringIO()
+            # Redirect stdout to a StringIO (no .reconfigure) so main() skips its
+            # stdio reconfigure guard cleanly and we capture the JSON payload.
+            with contextlib.redirect_stdout(buf):
+                rc = winnability_cli.main(["--input-json", str(inp), "--job-json", str(jobp)])
+            return rc, json.loads(buf.getvalue().strip().splitlines()[-1])
+
+    def test_malformed_candidate_is_recorded_not_silently_dropped(self) -> None:
+        job = {"id": "job-1", "title": "Backend Engineer", "company": "Acme", "location": "Prague"}
+        payload = {
+            "jobId": "job-1",
+            "candidates": [
+                {"label": "Good", "candidate": {"label": "Good", "skills": ["python"], "role_family": "software_engineering"}},
+                # skillClaims must be a list — this profile fails CandidateProfileV2 validation.
+                {"id": "bad-1", "label": "Broken CV", "profile": {"skillClaims": "not-a-list"}},
+            ],
+        }
+        rc, out = self._run(payload, job)
+        self.assertEqual(rc, 0)
+        # The one valid candidate still scored — one bad row didn't poison the batch.
+        self.assertEqual(out["poolSize"], 1)
+        # The malformed entry is surfaced with id + label + reason (pre-fix: the key
+        # didn't exist at all — `out["skipped"]` raised KeyError).
+        self.assertEqual(len(out["skipped"]), 1)
+        self.assertEqual(out["skipped"][0]["id"], "bad-1")
+        self.assertEqual(out["skipped"][0]["label"], "Broken CV")
+        self.assertTrue(out["skipped"][0]["reason"])
+
+    def test_all_valid_pool_reports_empty_skipped(self) -> None:
+        job = {"id": "job-1", "title": "Backend Engineer", "company": "Acme", "location": "Prague"}
+        payload = {
+            "jobId": "job-1",
+            "candidates": [
+                {"label": "A", "candidate": {"label": "A", "skills": ["python"], "role_family": "software_engineering"}},
+            ],
+        }
+        rc, out = self._run(payload, job)
+        self.assertEqual(rc, 0)
+        self.assertEqual(out["skipped"], [])
 
 
 if __name__ == "__main__":

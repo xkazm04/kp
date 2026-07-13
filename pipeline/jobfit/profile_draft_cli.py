@@ -11,6 +11,11 @@ The recruiter reviews/edits the draft before saving — this fills the form, it
 does not persist. Invoked by /api/profile/draft. The LLM call is isolated from
 the pure ``build_draft`` assembly so the mapping/routing is unit-tested without a
 network or API key (see tests/test_profile_draft.py).
+
+On failure an {"error","status","code"} envelope goes to stderr with an HONEST
+status — 400/invalid_input for malformed input JSON or a draft that fails
+validation (exit 2, the editor can show a field-level hint), 500/engine_error for
+an AI/engine fault (exit 1, retry/escalate) — mirroring profile_cli.py.
 """
 
 from __future__ import annotations
@@ -24,6 +29,14 @@ from typing import Any
 from .archetype import detect_archetype
 from .profile import EVIDENCE_KINDS, SKILL_LEVELS
 from .taxonomy import PROVENANCE_WEIGHTS, ROLE_FAMILIES
+
+# --- Honest error taxonomy (mirrors profile_cli.py) --------------------------
+#   400 / invalid_input — malformed input JSON (json.JSONDecodeError) or a draft
+#                         that fails validation (pydantic ValidationError); both
+#                         ValueError subclasses and user-correctable
+#   500 / engine_error  — an unexpected fault / AI outage (retry/escalate)
+ERR_INVALID_INPUT = "invalid_input"
+ERR_ENGINE = "engine_error"
 
 # Sanitization vocabularies — sourced from the single source of truth (profile.py
 # / taxonomy.py) so a kind/level/provenance added there is accepted here too,
@@ -255,12 +268,25 @@ def main(argv: list[str] | None = None) -> int:
         )
         text = _clean_str(raw.get("text"))
         if not text:
-            print(json.dumps({"error": "No notes supplied.", "status": 400}, ensure_ascii=False), file=sys.stderr)
-            return 1
+            # bug-ui-scan-2026-07-09 (pipeline-clis-script-bridges #5): empty notes are
+            # user-correctable, so emit the same 400/invalid_input + exit 2 as the
+            # ValueError branch below — the prior exit-1/status-400 mismatch made the TS
+            # seam (parseStderrError) read exit 1 as a 500.
+            print(json.dumps({"error": "No notes supplied.", "status": 400, "code": ERR_INVALID_INPUT}, ensure_ascii=False), file=sys.stderr)
+            return 2
         payload = _extract(text, lang=args.lang)
         draft = build_draft(payload)
+    except ValueError as exc:
+        # bug-ui-scan-2026-07-09 (pipeline-clis-script-bridges #5): a malformed input
+        # JSON (json.JSONDecodeError) or a draft that fails validation (pydantic
+        # ValidationError) — both ValueError subclasses — is user-correctable, so map it
+        # to 400/invalid_input (exit 2) as profile_cli does, instead of collapsing every
+        # failure into a scary engine_error 500 the recruiter can't act on.
+        print(json.dumps({"error": str(exc), "status": 400, "code": ERR_INVALID_INPUT}, ensure_ascii=False), file=sys.stderr)
+        return 2
     except Exception as exc:
-        print(json.dumps({"error": str(exc), "status": 500}, ensure_ascii=False), file=sys.stderr)
+        # Genuine engine/AI fault (Gemini outage, empty structured draft) — retry/escalate.
+        print(json.dumps({"error": str(exc), "status": 500, "code": ERR_ENGINE}, ensure_ascii=False), file=sys.stderr)
         return 1
 
     print(json.dumps(draft, ensure_ascii=False))
