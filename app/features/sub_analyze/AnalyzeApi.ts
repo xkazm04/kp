@@ -38,10 +38,19 @@ export async function submitAnalysis(
 
 // Poll a running analyze task to completion, animating the stage strip on a
 // soft timeline (the pipeline emits one final result, not per-token stages).
+//
+// bug-ui-scan-2026-07-09 (cv-analysis-workspace #5): each poll ALSO carries the
+// server's genuine per-variant progress (task.progressDone/progressTotal, written
+// by runAnalyze via setTaskProgress). It used to be discarded; now it's forwarded
+// through `onVariantProgress` so a multi-CV comparison shows real completion
+// instead of one faked track.
+export type VariantProgress = { done: number; total: number; msg: string | null };
+
 export async function watchAnalysis(
   taskId: string,
   onProgress: ProgressEmitter,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  onVariantProgress?: (p: VariantProgress) => void
 ): Promise<Analysis> {
   const stages: StageId[] = ["extract", "gemini", "profile", "scoring", "salary", "insights"];
   let active = true;
@@ -101,6 +110,15 @@ export async function watchAnalysis(
         continue;
       }
       consecutiveErrors = 0;
+      // Forward the server's real per-variant counter (0 while it warms up). The
+      // component only surfaces it for a genuine multi-variant comparison.
+      if (onVariantProgress && typeof task.progressTotal === "number") {
+        onVariantProgress({
+          done: typeof task.progressDone === "number" ? task.progressDone : 0,
+          total: task.progressTotal,
+          msg: typeof task.progressMsg === "string" ? task.progressMsg : null,
+        });
+      }
       if (task.status === "succeeded") {
         const parsed = analysisSchema.safeParse(task.result);
         if (parsed.success) return parsed.data;

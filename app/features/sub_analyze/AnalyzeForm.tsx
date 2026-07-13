@@ -20,6 +20,7 @@ import { AnalyzePasteRow } from "./AnalyzePasteRow";
 import { AnalyzeProfileInput } from "./AnalyzeProfileInput";
 import { AnalyzeSavedJdPicker } from "./AnalyzeSavedJdPicker";
 import { MAX_CV_VARIANTS } from "./AnalyzeTypes";
+import { shouldNoteBlindGithubSuppressed } from "./githubRunPolicy";
 import type { AnalyzeFormState } from "./useAnalyzeForm";
 
 const REPORT_LANGS = LOCALES;
@@ -167,6 +168,15 @@ export function AnalyzeForm({ state }: { state: AnalyzeFormState }) {
                 />
               </div>
               <p className="text-sm text-steel">{t("githubHelper")}</p>
+              {/* bug-ui-scan-2026-07-09 (cv-analysis-workspace #3): blind mode
+                  suppresses the GitHub deep-dive (it would reveal the identity
+                  blind screening just redacted). Say so up front rather than
+                  silently dropping the column. */}
+              {shouldNoteBlindGithubSuppressed({ hasGithub: flags.hasGithub, blind: inputs.blind ?? false }) ? (
+                <p role="status" className="rounded-md border border-amber-200 bg-amber-50/60 px-2.5 py-1.5 text-sm text-amber-800">
+                  {t("blindGithubSuppressed")}
+                </p>
+              ) : null}
             </div>
           </AnalyzeColumn>
         </div>

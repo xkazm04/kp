@@ -17,6 +17,8 @@ import {
 } from "./AnalyzeTypes";
 import { useAnalyzeJdLibrary } from "./useAnalyzeJdLibrary";
 import { executeAnalysis, executeGithubAnalysis, finalizeStages, resumeAnalysis } from "./runAnalysis";
+import type { VariantProgress } from "./AnalyzeApi";
+import { shouldRunGithubDeepDive } from "./githubRunPolicy";
 
 export type AnalyzeFormState = ReturnType<typeof useAnalyzeForm>;
 
@@ -70,6 +72,9 @@ export function useAnalyzeForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [isCompleting, setIsCompleting] = useState(false);
   const [stageState, setStageState] = useState<StageState>(initialStageState);
+  // #5 — the server's REAL per-variant completion for a multi-CV comparison
+  // (null until the poll reports it); drives the honest progress bar.
+  const [variantProgress, setVariantProgress] = useState<VariantProgress | null>(null);
 
   const { jdLibrary, selectedJdSlug, setSelectedJdSlug, pickJd, jdLoading, jdLoadFailed } =
     useAnalyzeJdLibrary(setJobDescriptionText);
@@ -181,6 +186,7 @@ export function useAnalyzeForm() {
     setGithubWarning(null);
     setError(null);
     setStageState(initialStageState());
+    setVariantProgress(null);
   }
 
   const clearStoredTask = () => {
@@ -212,6 +218,11 @@ export function useAnalyzeForm() {
       onProgress: (stage: Parameters<typeof applyStageEvent>[1], status: Parameters<typeof applyStageEvent>[2]) => {
         if (!current()) return;
         setStageState((prev) => applyStageEvent(prev, stage, status));
+      },
+      // #5 — record the server's genuine per-variant progress for the bar.
+      onVariantProgress: (p: VariantProgress) => {
+        if (!current()) return;
+        setVariantProgress(p);
       },
       onFinalize: () => {
         if (!current()) return;
@@ -341,7 +352,11 @@ export function useAnalyzeForm() {
   // (superseding any in-flight deep-dive) and clears the result state; the
   // guarded callbacks ignore anything a superseded run still emits.
   function launchGithubRun() {
-    if (!hasGithub) return;
+    // #3 — in blind mode the deep-dive is suppressed: it would render the
+    // candidate's real GitHub identity beside the blind-scored CV, defeating the
+    // anti-bias promise. The rule lives in one pure predicate (githubRunPolicy),
+    // enforced at this single launch site (submit AND retry both route here).
+    if (!shouldRunGithubDeepDive({ hasGithub, blind })) return;
     const githubRunId = ++githubRunIdRef.current;
     const isCurrentGithubRun = () => githubRunId === githubRunIdRef.current;
     setGithubAnalysis(null);
@@ -381,6 +396,14 @@ export function useAnalyzeForm() {
       setError(t("selectCvFirst"));
       return;
     }
+    // #3 — blind mode suppresses the GitHub deep-dive (it would reveal the
+    // identity blind screening redacts). A blind submit carrying only a GitHub
+    // handle and no CV therefore has nothing to run — say so instead of a silent
+    // no-op. (bug-ui-scan-2026-07-09 cv-analysis-workspace #3)
+    if (githubOnly && blind) {
+      setError(t("blindGithubOnly"));
+      return;
+    }
     // Belt-and-suspenders for the saved-JD pick: a recorded slug with no JD body
     // means the body fetch failed (the hook normally detaches the slug on failure,
     // but a regression here would persist a JD-blind score tagged as a
@@ -411,6 +434,7 @@ export function useAnalyzeForm() {
     setIsLoading(true);
     setIsCompleting(false);
     setStageState(initialStageState());
+    setVariantProgress(null);
 
     const controller = new AbortController();
     abortRef.current = controller;
@@ -444,6 +468,7 @@ export function useAnalyzeForm() {
     setGithubStatus("idle");
     stopActiveRun();
     setStageState(initialStageState());
+    setVariantProgress(null);
   }
 
   return {
@@ -485,6 +510,6 @@ export function useAnalyzeForm() {
     flags: { hasJobDescription, hasCompany, hasGithub, isLoading, isCompleting, githubLoading: githubStatus === "loading", jdLoading },
     statuses: { cvStatus, jobStatus, companyStatus, githubStatusLabel },
     library: { jdLibrary, selectedJdSlug, setSelectedJdSlug, pickJd, jdLoadFailed },
-    result: { analysis, githubAnalysis, githubStatus, githubError, githubWarning, error, stageState },
+    result: { analysis, githubAnalysis, githubStatus, githubError, githubWarning, error, stageState, variantProgress },
   };
 }

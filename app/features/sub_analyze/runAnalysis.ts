@@ -10,7 +10,7 @@ import {
   type Analysis,
   type GithubAnalysis,
 } from "@/app/_lib/schemas";
-import { extractFileText, submitAnalysis, watchAnalysis } from "./AnalyzeApi";
+import { extractFileText, submitAnalysis, watchAnalysis, type VariantProgress } from "./AnalyzeApi";
 
 type ProgressStage = Parameters<typeof applyStageEvent>[1];
 type ProgressStatus = Parameters<typeof applyStageEvent>[2];
@@ -37,6 +37,12 @@ export type AnalysisCallbacks = {
   onError: (message: string) => void;
   /** Fired with the background task id once it starts (used to survive refresh). */
   onTaskStarted?: (taskId: string) => void;
+  /**
+   * bug-ui-scan-2026-07-09 (cv-analysis-workspace #5): the server's REAL
+   * per-variant completion (done/total). Surfaced so a multi-variant comparison
+   * shows genuine progress instead of the invented single stage track.
+   */
+  onVariantProgress?: (p: VariantProgress) => void;
 };
 
 // An intentional abort (reset / cancel / tab unmount) is not a failure — the
@@ -52,7 +58,7 @@ function isAbort(signal: AbortSignal | undefined, caught: unknown): boolean {
 // through to watchAnalysis and the isAbort check — do not weaken it.
 async function settleAnalysis(taskId: string, callbacks: AnalysisCallbacks, signal?: AbortSignal): Promise<void> {
   try {
-    const parsed = await watchAnalysis(taskId, callbacks.onProgress, signal);
+    const parsed = await watchAnalysis(taskId, callbacks.onProgress, signal, callbacks.onVariantProgress);
     callbacks.onFinalize();
     window.setTimeout(() => callbacks.onResult(parsed), 320);
   } catch (caught) {

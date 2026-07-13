@@ -52,6 +52,10 @@ export function AnalyzeTab() {
           complete={flags.isCompleting}
           fileName={inputs.cvFiles.length === 1 ? inputs.cvFiles[0].name : undefined}
           variantCount={inputs.cvFiles.length}
+          // #5 — the server's REAL per-variant completion drives the bar for a
+          // multi-CV comparison instead of the faked stage timeline.
+          variantsDone={result.variantProgress?.done}
+          variantsTotal={result.variantProgress?.total}
           onCancel={handlers.cancel}
         />
       ) : null}
