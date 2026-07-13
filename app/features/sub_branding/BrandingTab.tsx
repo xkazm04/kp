@@ -7,19 +7,29 @@ import { BTN_PRIMARY, BTN_SECONDARY, EYEBROW, FIELD, INTRO, META_LABEL, PANEL, P
 import { SectionTitle } from "@/app/_components/ui/SectionTitle";
 import { Skeleton } from "@/app/_components/Skeleton";
 import { CORAL } from "@/app/_lib/brand";
-import { accentIsLegible, type BrandConfig } from "@/app/_lib/brand-config";
+import {
+  accentIsLegible,
+  EXTERNAL_LOGO_IMG_ATTRS,
+  isBrandFormDirty,
+  normalizeHex6,
+  shouldRenderLogo,
+  type BrandConfig,
+  type BrandFormValues,
+} from "@/app/_lib/brand-config";
 
 // Branding tab (E3 white-label) — edit the workspace's display name, primary accent
 // color, and logo. The accent re-skins the whole app (and the candidate-facing
 // pages) via the CSS-variable override in app/_components/BrandStyle.tsx; here we
 // also apply it LIVE on save so the change is visible without a reload.
 
-/** Set/clear the --color-coral custom property on <html> so a saved accent takes
- *  effect immediately (the server-injected <style> applies on the next full load). */
+/** Drive the --color-coral custom property on <html> from the FULL live accent so a
+ *  save takes effect immediately. Always SETS an inline value (never removeProperty):
+ *  on first load the active override lives in the server-injected <style>'s :root
+ *  rule, which removeProperty can't undo — so *clearing* must set the product default
+ *  (CORAL) inline, which outranks that rule, rather than remove an absent inline
+ *  property and fall the cascade back onto the stale server color. */
 function applyLiveAccent(accent: string | null): void {
-  const root = document.documentElement;
-  if (accent) root.style.setProperty("--color-coral", accent);
-  else root.style.removeProperty("--color-coral");
+  document.documentElement.style.setProperty("--color-coral", accent || CORAL);
 }
 
 export function BrandingTab() {
@@ -31,6 +41,11 @@ export function BrandingTab() {
   const [logo, setLogo] = useState("");
   const [status, setStatus] = useState<{ kind: "saved" | "error"; text: string } | null>(null);
   const [saving, setSaving] = useState(false);
+  // The last loaded/saved values — Reset restores to THESE (not empty), and both the
+  // Save button and the unsaved-change guard compare the live form against them.
+  const [baseline, setBaseline] = useState<BrandFormValues>({ name: "", accent: "", logo: "" });
+  // Preview logo failed to load (→ show the default mark instead of a broken image).
+  const [logoError, setLogoError] = useState(false);
 
   useEffect(() => {
     fetch("/api/brand")
@@ -42,20 +57,43 @@ export function BrandingTab() {
         setName(b.displayName ?? "");
         setAccent(b.accentColor ?? "");
         setLogo(b.logoUrl ?? "");
+        setBaseline({ name: b.displayName ?? "", accent: b.accentColor ?? "", logo: b.logoUrl ?? "" });
         setLoaded(true);
       })
       .catch(() => setLoadFailed(true));
   }, []);
 
-  // The color the preview + <input type=color> show — the typed accent when it's a
-  // valid hex, else the product default coral (so the swatch is never broken).
-  const effectiveAccent = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(accent.trim()) ? accent.trim() : CORAL;
+  // Retry the preview logo whenever the URL changes (clears a prior load error).
+  useEffect(() => {
+    setLogoError(false);
+  }, [logo]);
+
+  // The color the preview + <input type=color> show — the typed accent normalized to
+  // 6-digit hex (so `${accent}1a` alpha suffixes and the color input never break),
+  // else the product default coral (so the swatch is never blank).
+  const effectiveAccent = normalizeHex6(accent.trim()) ?? CORAL;
 
   // A valid-hex accent that fails WCAG contrast (invisible white button text /
   // focus rings). Drives both a live inline warning and a hard block on save, so
   // the operator can't ship an unreadable accent app-wide + on candidate pages.
   const accentIllegible =
     /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(accent.trim()) && !accentIsLegible(accent.trim());
+
+  // Whether the form diverges from the last loaded/saved state (Save-enabled + guard).
+  const dirty = isBrandFormDirty({ name, accent, logo }, baseline);
+
+  // Unsaved-change guard: warn before a full page unload/close/reload while dirty.
+  // (In-app soft navigation isn't intercepted here — that would require the app-shell
+  // router, which this tab doesn't own and is out of scope for this component.)
+  useEffect(() => {
+    if (!dirty) return;
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [dirty]);
 
   const save = useCallback(async () => {
     if (accent.trim() && !accentIsLegible(accent.trim())) {
@@ -72,10 +110,12 @@ export function BrandingTab() {
       });
       if (!r.ok) throw new Error();
       const saved = (await r.json()) as BrandConfig;
-      // Reflect what the server actually stored (a bad color/URL comes back null).
+      // Reflect what the server actually stored (a bad color/URL comes back null),
+      // and re-baseline so the form is now clean and Reset reverts to the saved value.
       setName(saved.displayName ?? "");
       setAccent(saved.accentColor ?? "");
       setLogo(saved.logoUrl ?? "");
+      setBaseline({ name: saved.displayName ?? "", accent: saved.accentColor ?? "", logo: saved.logoUrl ?? "" });
       applyLiveAccent(saved.accentColor);
       setStatus({ kind: "saved", text: t("saved") });
     } catch {
@@ -85,12 +125,15 @@ export function BrandingTab() {
     }
   }, [name, accent, logo, t]);
 
+  // Revert the form to the last loaded/saved values (NOT empty) — this is the
+  // "discard my edits" affordance. To wipe the brand entirely, clear the fields and
+  // Save. Disabled when nothing has changed, so it can't read as "clear".
   const reset = useCallback(() => {
-    setName("");
-    setAccent("");
-    setLogo("");
+    setName(baseline.name);
+    setAccent(baseline.accent);
+    setLogo(baseline.logo);
     setStatus(null);
-  }, []);
+  }, [baseline]);
 
   return (
     <section className="space-y-6">
@@ -178,10 +221,10 @@ export function BrandingTab() {
             </div>
 
             <div className="flex flex-wrap items-center gap-3 border-t border-stone-200 pt-4">
-              <button type="button" onClick={save} disabled={saving} className={`${BTN_PRIMARY} h-9 px-4 text-sm`}>
+              <button type="button" onClick={save} disabled={saving || !dirty} className={`${BTN_PRIMARY} h-9 px-4 text-sm`}>
                 {saving ? t("saving") : t("save")}
               </button>
-              <button type="button" onClick={reset} disabled={saving} className={`${BTN_SECONDARY} h-9 px-3 text-sm`}>
+              <button type="button" onClick={reset} disabled={saving || !dirty} className={`${BTN_SECONDARY} h-9 px-3 text-sm`}>
                 <RotateCcw size={14} aria-hidden /> {t("reset")}
               </button>
               {status ? (
@@ -201,9 +244,15 @@ export function BrandingTab() {
           <div className={`${PANEL} p-5`}>
             <p className={META_LABEL}>{t("previewTitle")}</p>
             <div className="mt-4 flex items-center gap-3">
-              {logo.trim() ? (
+              {shouldRenderLogo(logo, logoError) ? (
                 // eslint-disable-next-line @next/next/no-img-element -- external logo URL, not a bundled asset
-                <img src={logo} alt="" className="h-8 w-8 rounded-md object-contain" />
+                <img
+                  src={logo.trim()}
+                  alt={name.trim() || t("previewName")}
+                  onError={() => setLogoError(true)}
+                  {...EXTERNAL_LOGO_IMG_ATTRS}
+                  className="h-8 w-8 rounded-md object-contain"
+                />
               ) : (
                 <span
                   className="grid h-8 w-8 place-items-center rounded-md text-sm font-bold text-white"

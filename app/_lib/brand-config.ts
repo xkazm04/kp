@@ -97,6 +97,52 @@ export function accentIsLegible(hex: string | null | undefined): boolean {
   );
 }
 
+// ── Live-preview / render helpers ────────────────────────────────────────────
+// Pure bits the editor + sidebar need. They live here (not in the .tsx) because
+// `node --test` can't load a .tsx, so the fiddly rules stay unit-testable.
+
+/** Expand a valid #rgb or #rrggbb to a canonical 6-digit `#rrggbb` (lowercased);
+ *  null when it isn't a valid hex. The live preview fakes a translucent swatch by
+ *  concatenating a two-char alpha suffix (`${hex}1a`) — on a 3-digit accent that
+ *  yields an invalid 5-digit `#abc1a`, so normalize to 6 digits first. Also gives
+ *  `<input type="color">` the 6-digit value it requires. */
+export function normalizeHex6(value: string): string | null {
+  const rgb = hexToRgb(value);
+  if (!rgb) return null;
+  return "#" + rgb.map((c) => c.toString(16).padStart(2, "0")).join("");
+}
+
+/** Whether to render an operator's external logo <img> at all (vs. the bundled
+ *  default mark): only when a URL is set AND it hasn't errored at load. Shared by
+ *  the sidebar header and the editor preview so their fallback rule can't drift. */
+export function shouldRenderLogo(logoUrl: string | null | undefined, hasErrored: boolean): boolean {
+  return Boolean(logoUrl && logoUrl.trim()) && !hasErrored;
+}
+
+/** Attributes every external-logo <img> must carry. The logo is arbitrary
+ *  operator-supplied content on a third-party host, not a bundled asset:
+ *  `referrerPolicy="no-referrer"` stops each viewer's browser leaking the current
+ *  URL (Referer) to that host on every load. Deliberately NOT `crossOrigin` —
+ *  forcing a CORS fetch would break display of logos on hosts that send no CORS
+ *  headers; the IP/User-Agent reaching the host is inherent to browser-loading a
+ *  remote image and can only be removed by proxying, out of scope here. */
+export const EXTERNAL_LOGO_IMG_ATTRS = { referrerPolicy: "no-referrer" } as const;
+
+/** The three editable brand fields, as raw editor strings. */
+export type BrandFormValues = { name: string; accent: string; logo: string };
+
+/** Whether the editor diverges from the last loaded/saved baseline — the single
+ *  source of truth behind BOTH the Save-enabled state and the unsaved-changes
+ *  navigation guard (so the two can't disagree). Trimmed, so a pure-whitespace edit
+ *  isn't "dirty" (the store would trim it away anyway). */
+export function isBrandFormDirty(current: BrandFormValues, baseline: BrandFormValues): boolean {
+  return (
+    current.name.trim() !== baseline.name.trim() ||
+    current.accent.trim() !== baseline.accent.trim() ||
+    current.logo.trim() !== baseline.logo.trim()
+  );
+}
+
 /** Collapse whitespace, clamp, empty → null. */
 export function sanitizeBrandName(value: unknown): string | null {
   if (typeof value !== "string") return null;
