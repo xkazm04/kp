@@ -93,14 +93,19 @@ export function CompareTab({ analysis }: { analysis: Analysis }) {
         <div className="relative mt-4">
           <div ref={scrollRef} className="overflow-x-auto">
             <table className="w-full min-w-[640px] border-separate border-spacing-0 text-base">
+              {/* bug-ui-scan-2026-07-09 (analysis-result-panels #5): sr-only caption
+                  names the table (WCAG 1.3.1); scope attrs + <th scope="row"> below
+                  associate every cell with its header for screen readers. */}
+              <caption className="sr-only">{t("compare.tableCaption")}</caption>
               <thead>
                 <tr>
-                  <th className="sticky left-0 z-10 w-44 bg-white px-3 py-2 text-left text-sm font-semibold uppercase tracking-wide text-steel">
+                  <th scope="col" className="sticky left-0 z-10 w-44 bg-white px-3 py-2 text-left text-sm font-semibold uppercase tracking-wide text-steel">
                     {t("compare.componentHeader")}
                   </th>
                   {comparison.variants.map((variant, index) => (
                     <th
                       key={index}
+                      scope="col"
                       className={`px-3 py-2 text-left text-sm font-semibold uppercase tracking-wide ${
                         index === winnerIndex ? "text-coral" : "text-steel"
                       }`}
@@ -110,6 +115,9 @@ export function CompareTab({ analysis }: { analysis: Analysis }) {
                         <span className="truncate" title={variant.label}>
                           {variant.label}
                         </span>
+                        {/* #5: convey "winner" beyond color-only (text-coral +
+                            bg) — WCAG 1.4.1 — so SR/color-blind users get it too. */}
+                        {index === winnerIndex ? <span className="sr-only">{t("compare.winnerLabel")}</span> : null}
                       </div>
                     </th>
                   ))}
@@ -247,7 +255,9 @@ function DeltaRow({
   const baseline = values[0];
   return (
     <tr className="even:bg-paper/40">
-      <td className="sticky left-0 bg-white px-3 py-2 text-left font-medium text-ink">{label}</td>
+      {/* bug-ui-scan-2026-07-09 (analysis-result-panels #5): each metric row's
+          label is its row header (scope="row"), not a plain cell. */}
+      <th scope="row" className="sticky left-0 bg-white px-3 py-2 text-left font-medium text-ink">{label}</th>
       {values.map((value, index) => {
         const delta = value != null && baseline != null ? value - baseline : null;
         return (

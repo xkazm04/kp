@@ -2,8 +2,10 @@
 
 import { motion } from "framer-motion";
 import { useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { clampPercent, formatCzk } from "@/app/_lib/format";
 import { useReducedMotion } from "@/app/_lib/useReducedMotion";
+import { growthMarkerPercent } from "./salaryGauge.logic";
 
 interface SalaryGaugeProps {
   minimum: number;
@@ -25,7 +27,13 @@ const CONFIDENCE_OPACITY: Record<string, number> = {
 };
 
 export function SalaryGauge({ minimum, maximum, midpoint, confidence, target: targetProp, currency = "CZK" }: SalaryGaugeProps) {
+  const t = useTranslations("report");
   const target = targetProp ?? midpoint * 1.3;
+  // bug-ui-scan-2026-07-09 (analysis-result-panels #4): derive the growth caption
+  // from the ACTUAL (rounded) target instead of a fixed "+30%", so the label agrees
+  // with the marker's position. null when undefined → fall back to a plain "Target".
+  const growthPct = growthMarkerPercent(midpoint, target);
+  const growthLabel = growthPct != null ? t("salary.growthPct", { pct: growthPct }) : t("salary.target");
   const gaugeMin = minimum * 0.9;
   const gaugeMax = Math.max(maximum, target) * 1.08;
   const range = gaugeMax - gaugeMin;
@@ -69,7 +77,14 @@ export function SalaryGauge({ minimum, maximum, midpoint, confidence, target: ta
       <div
         ref={barRef}
         role="img"
-        aria-label={`Salary range ${formatCzk(minimum)} to ${formatCzk(maximum)} ${currency}, midpoint ${formatCzk(midpoint)}, +30% target ${formatCzk(target)}`}
+        aria-label={t("salary.gaugeAria", {
+          min: formatCzk(minimum),
+          max: formatCzk(maximum),
+          currency,
+          midpoint: formatCzk(midpoint),
+          growth: growthLabel,
+          target: formatCzk(target),
+        })}
         className={`relative h-3 w-full rounded-full bg-stone-200 ${degenerate ? "cursor-default" : "cursor-crosshair"}`}
         onMouseMove={handleMove}
         onMouseLeave={() => setHover(null)}
@@ -104,13 +119,13 @@ export function SalaryGauge({ minimum, maximum, midpoint, confidence, target: ta
           className="absolute -translate-x-1/2 text-ink"
           style={{ left: `${midPct}%` }}
         >
-          Mid
+          {t("salary.mid")}
         </span>
         <span
           className="absolute -translate-x-1/2 text-coral"
           style={{ left: `${targetPct}%` }}
         >
-          +30%
+          {growthLabel}
         </span>
       </div>
     </div>

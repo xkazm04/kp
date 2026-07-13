@@ -7,6 +7,7 @@ import { ARCHETYPE_LABEL } from "@/app/_lib/archetypes";
 import { GAP_FIELDS, mergeGapAnswers, type CompletenessGap } from "@/app/_lib/completeness-followup";
 import { TextInput } from "@/app/_components/TextInput";
 import { TextArea } from "@/app/_components/TextArea";
+import { formatOptionalFraction } from "./archetypeBannerView";
 
 // Reads the archetype-relevant fields off the analysis's best-effort v2Profile
 // (a normalized CandidateProfileV2 dump, by_alias camelCase). The pipeline
@@ -40,8 +41,11 @@ export function ArchetypeBanner({ v2Profile }: { v2Profile: Record<string, unkno
   if (!v2.archetype) return null;
 
   const label = ARCHETYPE_LABEL[v2.archetype] ?? v2.archetype;
-  const confidence = Math.round((v2.archetypeConfidence ?? 0) * 100);
-  const completeness = Math.round((v2.completeness ?? 0) * 100);
+  // bug-ui-scan-2026-07-09 (analysis-result-panels #2): absent confidence/completeness
+  // must read as "unknown" (chip omitted), not a definite "0%". formatOptionalFraction
+  // returns null for absent/non-finite and a range-guarded "NN%" otherwise.
+  const confidence = formatOptionalFraction(v2.archetypeConfidence, "archetypeConfidence");
+  const completeness = formatOptionalFraction(v2.completeness, "completeness");
   const reasons = v2.archetypeReasons ?? [];
   // Only gaps the form knows how to collect for (an unknown/new check id has no
   // field and must not render as a label with no input).
@@ -73,8 +77,12 @@ export function ArchetypeBanner({ v2Profile }: { v2Profile: Record<string, unkno
         <Sparkles size={16} className="text-coral" aria-hidden />
         <span className="text-meta uppercase tracking-wide text-coral">Detected archetype</span>
         <span className="rounded-full bg-ink px-2.5 py-0.5 text-sm font-semibold text-white">{label}</span>
-        <span className="text-sm text-steel">confidence {confidence}%</span>
-        <span className="text-sm text-steel">· completeness {completeness}%</span>
+        {confidence != null ? <span className="text-sm text-steel">confidence {confidence}</span> : null}
+        {completeness != null ? (
+          <span className="text-sm text-steel">
+            {confidence != null ? "· " : ""}completeness {completeness}
+          </span>
+        ) : null}
 
         <span className="ml-auto">
           {save.kind === "saved" ? (
