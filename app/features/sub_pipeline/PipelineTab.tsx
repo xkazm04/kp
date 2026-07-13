@@ -76,10 +76,28 @@ function groupPositions(entries: Entry[]): Position[] {
 const QUICK_FILTERS = ["interview", "aging", "awaiting", "intake"] as const;
 type QuickFilter = (typeof QUICK_FILTERS)[number];
 
-// A saved board view (PIPE5): a named snapshot of the search + quick-filter.
-type SavedView = { id: string; name: string; query: string; quick: QuickFilter | null };
+// A saved board view (PIPE5): a named snapshot of the search + quick-filter +
+// stage filter. `stage` was added later — it's optional so views persisted
+// before it hydrate as "no stage filter" (undefined ⇒ null everywhere below).
+type SavedView = { id: string; name: string; query: string; quick: QuickFilter | null; stage?: string | null };
 const PIPELINE_VIEWS_KEY = "kp.pipelineViews";
 const PIPELINE_SLA_KEY = "kp.pipelineStageSla"; // per-stage aging overrides (PIPE4)
+
+// Read the server's OWN explanation from a failed pipeline action response — the
+// 409 "changed since you opened it" (a concurrent actor moved them) vs the 422
+// "route through Offer → extend an offer" (a forbidden transition) guidance the
+// recruiter actually needs, distinguished because the route returns a different
+// message per status. Surfaced verbatim, the same way the drawer's moveStage
+// does (CandidateDrawer.tsx). Returns null when the body carries no reason (a
+// network throw / opaque error), so the caller falls back to its localized copy.
+async function pipelineActionReason(r: Response): Promise<string | null> {
+  try {
+    const d = (await r.json()) as { error?: unknown };
+    return typeof d?.error === "string" && d.error.trim() ? d.error : null;
+  } catch {
+    return null;
+  }
+}
 
 export function PipelineTab() {
   const router = useRouter();
@@ -125,7 +143,10 @@ export function PipelineTab() {
   const [bulkBusy, setBulkBusy] = useState(false);
   // `verb` selects the result label so the same status line reads correctly for a
   // stage move vs. a bulk accept/reject (bdc7fc01).
-  const [bulkResult, setBulkResult] = useState<{ ok: number; failed: number; verb: "moved" | "accepted" | "rejected" | "invited" } | null>(null);
+  // `reason` carries the server's verbatim failure explanation (the 409 vs 422
+  // guidance) for a bulk action whose entries were refused, so a batch failure is
+  // no longer a bare count — the recruiter sees WHY, like the drag + drawer do.
+  const [bulkResult, setBulkResult] = useState<{ ok: number; failed: number; verb: "moved" | "accepted" | "rejected" | "invited"; reason?: string | null } | null>(null);
   // Transient feedback when a drag-to-move fails (optimistic move rolled back).
   const [moveError, setMoveError] = useState<string | null>(null);
   // Two-step confirm for bulk reject (it emails N candidates — irreversible).
@@ -385,24 +406,35 @@ export function PipelineTab() {
   // (not the current one) so the share never drags along unrelated params.
   const [copiedViewId, setCopiedViewId] = useState<string | null>(null);
   const copyViewLink = async (v: SavedView) => {
-    const href = `${window.location.origin}${buildUrl({ tab: "pipeline", q: v.query.trim() || null, quick: v.quick }, "")}`;
+    // Encode the view's stage filter too — a view saved with an active funnel
+    // stage used to share a link that silently dropped it, so the recipient
+    // opened a broader board than the sharer meant (?stage= round-trips via the
+    // mount hydration that reads it).
+    const href = `${window.location.origin}${buildUrl({ tab: "pipeline", q: v.query.trim() || null, quick: v.quick, stage: v.stage ?? null }, "")}`;
     if (await copyText(href)) {
       setCopiedViewId(v.id);
       window.setTimeout(() => setCopiedViewId((cur) => (cur === v.id ? null : cur)), 2000);
     }
   };
   // PIPE5 — save the current filter combo as a named view, apply one, or drop it.
-  const activeViewId = views.find((v) => v.query === query && v.quick === quick)?.id ?? null;
+  // The active-view match includes the stage filter (?? null so a legacy view
+  // saved without one still matches when no stage is active), so a view isn't
+  // falsely marked active just because its query + quick chip happen to agree.
+  const activeViewId =
+    views.find((v) => v.query === query && v.quick === quick && (v.stage ?? null) === stageFilter)?.id ?? null;
   const saveView = () => {
     const suggested = query.trim() || (quick ? quick : "view");
     const name = window.prompt(t("saveViewPrompt"), suggested)?.trim();
     if (!name) return;
-    persistViews([...views.filter((v) => v.name !== name), { id: name, name, query, quick }]);
+    // Capture the ACTIVE stage filter in the view — it's part of the cohort the
+    // recruiter is looking at, so a view that omits it reopens a different board.
+    persistViews([...views.filter((v) => v.name !== name), { id: name, name, query, quick, stage: stageFilter }]);
   };
   const applyView = (v: SavedView) => {
     setQuery(v.query);
     setQuick(v.quick);
-    writeFiltersToUrl({ q: v.query, quick: v.quick, stage: stageFilter });
+    setStageFilter(v.stage ?? null);
+    writeFiltersToUrl({ q: v.query, quick: v.quick, stage: v.stage ?? null });
   };
   const deleteView = (id: string) => persistViews(views.filter((v) => v.id !== id));
 
@@ -437,6 +469,10 @@ export function PipelineTab() {
     setBulkResult(null);
     let moved = 0;
     const failures = new Set<string>();
+    // Distinct server reasons across the refused entries (a batch can mix a 409
+    // concurrency loss with a 422 forbidden transition) — deduped so the status
+    // line names WHY, not just how many.
+    const reasons = new Set<string>();
     for (const id of selectedIds) {
       const entry = (entries ?? []).find((x) => x.id === id);
       if (!entry) continue; // vanished since selection — nothing left to move
@@ -447,13 +483,17 @@ export function PipelineTab() {
       try {
         const r = await postPipelineAction(id, { action: "set_stage", toStage: bulkStage, expectedStage: entry.stage });
         if (r.ok) moved += 1;
-        else failures.add(id);
+        else {
+          failures.add(id);
+          const reason = await pipelineActionReason(r);
+          if (reason) reasons.add(reason);
+        }
       } catch {
         failures.add(id);
       }
     }
     setSelectedIds(failures);
-    setBulkResult({ ok: moved, failed: failures.size, verb: "moved" });
+    setBulkResult({ ok: moved, failed: failures.size, verb: "moved", reason: reasons.size ? [...reasons].join(" · ") : null });
     setBulkBusy(false);
     await load();
   };
@@ -473,11 +513,18 @@ export function PipelineTab() {
     setConfirmingBulkReject(false);
     let ok = 0;
     const failed = new Set<string>();
+    // Same as bulkMove: surface the server's distinct reasons for refused decides
+    // (e.g. a 409 stage change that lost the CAS in the gap) rather than a count.
+    const reasons = new Set<string>();
     for (const e of awaiting) {
       try {
         const r = await postPipelineAction(e.id, { action, expectedStage: e.stage });
         if (r.ok) ok += 1;
-        else failed.add(e.id);
+        else {
+          failed.add(e.id);
+          const reason = await pipelineActionReason(r);
+          if (reason) reasons.add(reason);
+        }
       } catch {
         failed.add(e.id);
       }
@@ -485,7 +532,12 @@ export function PipelineTab() {
     // Successes deselect; failures + any selected non-awaiting entries stay selected.
     const untouched = [...selectedIds].filter((id) => !awaiting.some((e) => e.id === id));
     setSelectedIds(new Set([...failed, ...untouched]));
-    setBulkResult({ ok, failed: failed.size, verb: action === "accept" ? "accepted" : "rejected" });
+    setBulkResult({
+      ok,
+      failed: failed.size,
+      verb: action === "accept" ? "accepted" : "rejected",
+      reason: reasons.size ? [...reasons].join(" · ") : null,
+    });
     setBulkBusy(false);
     await load();
   };
@@ -537,11 +589,15 @@ export function PipelineTab() {
     setMoveError(null);
     try {
       const r = await postPipelineAction(entry.id, { action: "set_stage", toStage, expectedStage: prevStage });
-      // On any failure roll back AND tell the recruiter — a silent revert read as "the
-      // drag didn't take" with no reason (a 409 means a concurrent actor moved them).
+      // On any failure roll back AND tell the recruiter the SERVER's reason — the
+      // 409 "changed since you opened it" (a concurrent actor moved them) vs the
+      // 422 "route through Offer → extend an offer" guidance, distinguished and
+      // verbatim, exactly like the drawer's moveStage. The blanket moveFailed hid
+      // the one sentence telling the recruiter what to do instead. A body with no
+      // reason (a network-level failure) falls back to the generic copy.
       if (!r.ok) {
         restage(entry.id, prevStage);
-        setMoveError(t("moveFailed"));
+        setMoveError((await pipelineActionReason(r)) ?? t("moveFailed"));
       }
     } catch {
       restage(entry.id, prevStage);
@@ -879,6 +935,10 @@ export function PipelineTab() {
                   {bulkResult.failed > 0 ? (
                     <span className="font-semibold text-coral"> · {t("bulkFailed", { count: bulkResult.failed })}</span>
                   ) : null}
+                  {/* The server's own reason for the refusals (409 concurrency vs
+                      422 forbidden transition), verbatim — so a bulk failure says
+                      WHY and what to do, not just a count. */}
+                  {bulkResult.reason ? <span className="block text-steel">{bulkResult.reason}</span> : null}
                 </span>
               ) : null}
               {/* bdc7fc01 — accept/reject the awaiting cohort in one pass. Only the
