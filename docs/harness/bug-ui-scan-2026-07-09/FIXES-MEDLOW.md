@@ -165,8 +165,37 @@ react/next.js resolve only to the `react` concept (previously also counted as ty
 javascript). Improves match/gap honesty; worth a glance if any downstream report expected the
 triple-count.
 
+## Wave 17 — Dev Hiring Extension (13 findings, all resolved, 4 contexts)
+
+7 commits (`549d249` i18n + 5 fixes; `db/devcase.ts` is shared across two contexts). tsc 0 · node unit 1725 → **1755** · python 892 → **914** · i18n 3315 → **3316** × 4 · **matching_eval 8/8 + fairness 4/4** · `next build` ✓.
+
+- **dev-case-pipeline-python** (`7c47e8a`): #4 corpus-cache extent stamping (a narrow
+  `--fetch-limit` cache no longer satisfies a broader/unlimited build); #5 `_num()` in
+  `evaluate.deterministic` distinguishes a **measured** 0.0 fluency from **missing** (was
+  upgrading the strongest negative signal to neutral). +7 Python tests.
+- **dev-lifecycle-cohort-outcomes** (`8872af7`): #2 skill-profile score card gated on the FULL
+  trust state (tampered/revoked/unverifiable → "summary unavailable", not just `substantive`);
+  #3 refless outcomes with a differing predictedScore insert vs blind-overwrite; #4
+  `issueSkillProfile` fingerprints the evaluation and revoke+remints on change; #5 axis meters
+  `role="meter"`+aria. +7 tests.
+- **dev-submissions-live-work-surface** (`<submissions>`): #2 closed-posting 410 + per-token/day
+  session cap (429) + per-session event ceiling; #3 SubmissionRow pending/error states + retry
+  (pure `evalTaskState`); #4 header split; #5 EvalPanel real `<ul>/<li>`. +12 tests.
+- **dev-case-authoring-publishing** (`<authoring>`): #3 publish confirm gate (`role="alertdialog"`
+  + degraded-case "publish anyway" ack); #4 **idempotent posting creation** per
+  (workspace,case,channel)-while-OPEN backed by a new partial `UNIQUE INDEX uq_dev_postings_open`;
+  #5 collapsed seed-file preview. +11 tests.
+
+**Shared-file note:** `app/_lib/db/devcase.ts` carries hunks from BOTH dev-submissions (#2 event
+ceiling) and dev-case-authoring (#4 posting idempotency) — committed together in the authoring
+commit with the co-mingling documented (both agents' full `test:unit` = 1755 confirmed coexist).
+
+### Deploy note (Wave 17)
+- New partial `UNIQUE INDEX uq_dev_postings_open` is created idempotently at boot (`IF NOT
+  EXISTS`) but **will fail to create on an existing DB that already holds duplicate OPEN postings
+  for the same (workspace,case,channel)** — dedup such rows before deploy.
+
 ## Status
-Med/Low: **81 of 155 closed**, 74 open (50 M + 24 L) — of the open, **4 are deferred-with-cause**
+Med/Low: **94 of 155 closed**, 61 open (37 M + 24 L) — of the open, **4 are deferred-with-cause**
 (1 product decision + 3 blocked on the voice-eval WIP; see Wave 15). Remaining topic waves:
-Dev Hiring, Interviews/Scheduling, Offers/Automation + Identity/Data/Privacy,
-Jobs/JD/Sourcing + LLM + Billing.
+Interviews/Scheduling, Offers/Automation + Identity/Data/Privacy, Jobs/JD/Sourcing + LLM + Billing.
