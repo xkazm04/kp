@@ -34,7 +34,41 @@
 **Flake note:** the billing-webhook test flaked once (the known pid-keyed temp-DB issue,
 data-store #4); 3 clean full runs confirmed it, not a regression.
 
+## Wave 13 — Pipeline, Decisions & Channels (21 findings, 6 contexts)
+
+7 commits (`558707e` i18n + 6 fixes). tsc 0 · node unit 1610 → **1658** · i18n 3252 → **3269** × 4 · python 878 OK · `next build` ✓.
+
+- **communications-inbound-channels** (`3a3d307`, 5 findings): receiver-revoke `Modal`
+  confirm (+ red live-receiver warning); pure `pickBounceTarget` binds a bounce to the single
+  newest send at-or-before it (was fanning out over every same-`(ref,kind)` send); bounced rows
+  get a `BouncedResend` control and the resend route stops treating a bounced receipt as
+  "already recovered"; pure `callback-auth.ts` — `secretsMatch` (SHA-256 → `timingSafeEqual`,
+  constant-time), timestamp freshness, replay guard; route reads secret header-only (dropped
+  `?secret=`); `resolveCommsLocale` threads an optional `workspaceId`.
+- **application-intake-apply-flows** (`f051144`): pure `classifyStatusError` (not-found /
+  expired / transient) so the status page shows the right copy; `ConversationalApply` polish.
+- **pipeline-board-candidate-drawer** (`97eac70`): pure `pipeline-move-targets.ts`
+  (`moveStageSelectValues` / `resolveRejectTargets`) so move/reject menus only offer legal
+  destinations; `pipeline-command` parsing hardened; drawer/board/command-bar fixes.
+- **screening-decisions-records** (`825ea03`): SD-5 two-step confirm before the irreversible
+  screen-wave commit + accessible preview button; SD-3 posture block no longer asserts a
+  framing the candidate-facing `/api/compliance` disclosure never received.
+- **group-evaluation-fairness** (`6d075e2`): **min-cohort floor** — `computeDifferentiators`
+  returns `[]` with no rivals (an empty field trivially crowns every requirement skill
+  "unique"), `GROUP_EVAL_MIN_COHORT=2` gates cohort stats; pure group-eval dedupe;
+  `parseGroupCounts` hardened; `task-dedupe` keyed by role + governance-mode + candidate-set;
+  FairnessPanel typing. **Two pre-existing differentiator tests** that used `[]` rivals as a
+  shortcut were updated to pass a present non-matching rival (new contract, not a regression).
+- **ats-integration-egress** (`cf966a1`): pure `ats-candidate-audit.ts` records what candidate
+  fields egress on an ATS push; `resolveClientIp` honours **`KP_TRUSTED_PROXY`** (trust XFF only
+  behind a declared proxy, else socket IP — spoof-resistant limiting). New optional env var
+  documented in `docs/SELF_HOSTING.md`.
+
+**New deploy env var:** `KP_TRUSTED_PROXY` (optional) — comma-separated trusted proxy CIDRs/IPs;
+unset ⇒ XFF is ignored and the socket IP is used for rate limiting. All Wave-13 pure helpers
+proven non-vacuous (each behavioral test fails against pre-fix code).
+
 ## Status
-Med/Low: **22 of 155 closed**, 133 open (103 M + 30 L). Remaining topic waves: Pipeline/Decisions/
-Channels, Insights/Analytics/Sim, AI Matching engine, Candidate Analysis, Dev Hiring, Interviews/
-Scheduling, Offers/Automation + Identity/Data/Privacy, Jobs/JD/Sourcing + LLM + Billing.
+Med/Low: **43 of 155 closed**, 112 open (82 M + 30 L). Remaining topic waves: Insights/Analytics/Sim,
+AI Matching engine, Candidate Analysis, Dev Hiring, Interviews/Scheduling, Offers/Automation +
+Identity/Data/Privacy, Jobs/JD/Sourcing + LLM + Billing.
