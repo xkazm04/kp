@@ -2064,7 +2064,17 @@
       "citedTitle": "Cité par la scorecard",
       "cited": "· cité",
       "loadFailed": "Impossible de charger l'entretien.",
-      "scorecardLoadFailed": "Impossible de charger la scorecard."
+      "scorecardLoadFailed": "Impossible de charger la scorecard.",
+      "telemetryHeading": "Signaux de conversation",
+      "telemetryNote": "Signaux descriptifs de l'entretien — pas des notes.",
+      "telemetryTalkShare": "Part de parole du candidat",
+      "telemetryTalkShareValue": "{pct} %",
+      "telemetryLongestPause": "Plus longue pause après une question",
+      "telemetryDuration": "Durée de parole",
+      "telemetryHint": "Réaction à l'indice",
+      "hintIntegrated": "intégré à la réponse",
+      "hintAcknowledged": "brièvement évoqué",
+      "hintMissed": "non repris"
     }
   },
   "library": {
@@ -2521,7 +2531,13 @@
       "humanScorecardHeading": "Scorecard humaine",
       "unrecognizedRubric": "Noté sur une grille non reconnue — ces notes ne sont pas directement comparables aux cohortes standard.",
       "offRubric": "hors barème",
-      "offRubricTitle": "Ce candidat a été noté sur cet axe, mais il ne figure pas dans le barème actuel de la cohorte — probablement une compétence renommée ou révisée, affichée à part plutôt que supprimée."
+      "offRubricTitle": "Ce candidat a été noté sur cet axe, mais il ne figure pas dans le barème actuel de la cohorte — probablement une compétence renommée ou révisée, affichée à part plutôt que supprimée.",
+      "telemetryTitle": "Signaux descriptifs de conversation issus de l'entretien — part de parole et plus longue pause après une question. Pas des notes.",
+      "telemetryTalk": "parole {pct} %",
+      "telemetryPause": "pause {dur}",
+      "telemetryHintIntegrated": "indice intégré",
+      "telemetryHintAcknowledged": "indice évoqué",
+      "telemetryHintMissed": "indice non repris"
     },
     "candidates": {
       "failedStatus": "Échec ({status}).",

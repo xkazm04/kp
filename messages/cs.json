@@ -2035,7 +2035,17 @@
       "citedTitle": "Citováno hodnoticí kartou",
       "cited": "· citováno",
       "loadFailed": "Pohovor se nepodařilo načíst.",
-      "scorecardLoadFailed": "Hodnoticí kartu se nepodařilo načíst."
+      "scorecardLoadFailed": "Hodnoticí kartu se nepodařilo načíst.",
+      "telemetryHeading": "Signály konverzace",
+      "telemetryNote": "Popisné signály z hovoru — nejde o hodnocení.",
+      "telemetryTalkShare": "Podíl mluvení kandidáta",
+      "telemetryTalkShareValue": "{pct} %",
+      "telemetryLongestPause": "Nejdelší pauza po otázce",
+      "telemetryDuration": "Délka hovoru",
+      "telemetryHint": "Reakce na nápovědu",
+      "hintIntegrated": "zapracována do odpovědi",
+      "hintAcknowledged": "krátce zmíněna",
+      "hintMissed": "nevyužita"
     }
   },
   "library": {
@@ -2492,7 +2502,13 @@
       "humanScorecardHeading": "Lidská hodnoticí karta",
       "unrecognizedRubric": "Hodnoceno podle neznámé rubriky — tato hodnocení nelze přímo porovnat se standardními kohortami.",
       "offRubric": "mimo rubriku",
-      "offRubricTitle": "Tento kandidát byl na této ose hodnocen, ale není v aktuální rubrice kohorty — pravděpodobně přejmenovaná nebo upravená kompetence, proto se zobrazuje zvlášť, místo aby byla vynechána."
+      "offRubricTitle": "Tento kandidát byl na této ose hodnocen, ale není v aktuální rubrice kohorty — pravděpodobně přejmenovaná nebo upravená kompetence, proto se zobrazuje zvlášť, místo aby byla vynechána.",
+      "telemetryTitle": "Popisné signály konverzace z hovoru — podíl mluvení a nejdelší pauza po otázce. Nejde o hodnocení.",
+      "telemetryTalk": "mluvení {pct} %",
+      "telemetryPause": "pauza {dur}",
+      "telemetryHintIntegrated": "nápověda zapracována",
+      "telemetryHintAcknowledged": "nápověda zmíněna",
+      "telemetryHintMissed": "nápověda nevyužita"
     },
     "candidates": {
       "failedStatus": "Selhalo ({status}).",

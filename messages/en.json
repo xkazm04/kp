@@ -2035,7 +2035,17 @@
       "citedTitle": "Cited by the scorecard",
       "cited": "· cited",
       "loadFailed": "Couldn't load the interview.",
-      "scorecardLoadFailed": "Couldn't load the scorecard."
+      "scorecardLoadFailed": "Couldn't load the scorecard.",
+      "telemetryHeading": "Conversation signals",
+      "telemetryNote": "Descriptive signals from the call — not scores.",
+      "telemetryTalkShare": "Candidate talk share",
+      "telemetryTalkShareValue": "{pct}%",
+      "telemetryLongestPause": "Longest pause after a question",
+      "telemetryDuration": "Spoken duration",
+      "telemetryHint": "Hint response",
+      "hintIntegrated": "integrated into the answer",
+      "hintAcknowledged": "acknowledged briefly",
+      "hintMissed": "not taken up"
     }
   },
   "library": {
@@ -2492,7 +2502,13 @@
       "humanScorecardHeading": "Human scorecard",
       "unrecognizedRubric": "Scored on an unrecognized rubric — these ratings aren't directly comparable to the standard cohorts.",
       "offRubric": "off-rubric",
-      "offRubricTitle": "This candidate was scored on this axis, but it isn't in the cohort's current rubric — likely a renamed or revised competency, so it's shown separately rather than dropped."
+      "offRubricTitle": "This candidate was scored on this axis, but it isn't in the cohort's current rubric — likely a renamed or revised competency, so it's shown separately rather than dropped.",
+      "telemetryTitle": "Descriptive conversation signals from the call — talk share and the longest pause after a question. Not scores.",
+      "telemetryTalk": "talk {pct}%",
+      "telemetryPause": "pause {dur}",
+      "telemetryHintIntegrated": "hint integrated",
+      "telemetryHintAcknowledged": "hint acknowledged",
+      "telemetryHintMissed": "hint not taken up"
     },
     "candidates": {
       "failedStatus": "Failed ({status}).",

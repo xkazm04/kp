@@ -10,6 +10,8 @@ import { Meter } from "@/app/_components/Meter";
 import { RATING_MAX, ratingToPercent, ratingTone } from "@/app/_lib/format";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
 import type { Scorecard, ScorecardRating } from "@/app/_lib/interview-scorecard";
+import type { InterviewTelemetry } from "@/app/_lib/interview-telemetry";
+import { talkSharePercent, formatSpokenDuration } from "@/app/_lib/voice/telemetry-format";
 import type { VoiceTurn } from "@/app/_lib/voice/types";
 import type { SchedEntry } from "./ScheduleTypes";
 
@@ -104,6 +106,56 @@ function ScorecardRatingRow({
   );
 }
 
+// Compact strip of the per-interview telemetry the engine attaches to the AI
+// scorecard (talk share, longest pause, spoken duration, scripted-hint response).
+// These are DESCRIPTIVE conversation signals, not scores: neutral tokens only, no
+// verdict coloring. Renders nothing when telemetry is absent (old sessions) or
+// every field is null — no empty chrome.
+const HINT_LABEL_KEY = {
+  integrated: "hintIntegrated",
+  acknowledged: "hintAcknowledged",
+  missed: "hintMissed",
+} as const;
+
+function InterviewTelemetryStrip({
+  telemetry,
+  t,
+}: {
+  telemetry: InterviewTelemetry;
+  t: ReturnType<typeof useTranslations<"scheduleTab.transcript">>;
+}) {
+  const talk = talkSharePercent(telemetry);
+  const pause = formatSpokenDuration(telemetry.longestResponseGapSec);
+  const duration = formatSpokenDuration(telemetry.durationSec);
+  const hintKey =
+    telemetry.hint.offered && telemetry.hint.uptake !== "not_offered"
+      ? HINT_LABEL_KEY[telemetry.hint.uptake]
+      : null;
+
+  const items: { label: string; value: string }[] = [];
+  if (talk !== null) items.push({ label: t("telemetryTalkShare"), value: t("telemetryTalkShareValue", { pct: talk }) });
+  if (pause) items.push({ label: t("telemetryLongestPause"), value: pause });
+  if (duration) items.push({ label: t("telemetryDuration"), value: duration });
+  if (hintKey) items.push({ label: t("telemetryHint"), value: t(hintKey) });
+
+  if (items.length === 0) return null;
+
+  return (
+    <div className="mt-3 rounded-md border border-stone-200 bg-stone-50 p-2.5">
+      <p className="text-meta uppercase tracking-wide text-steel">{t("telemetryHeading")}</p>
+      <dl className="mt-1.5 flex flex-wrap gap-x-5 gap-y-1.5">
+        {items.map((it, i) => (
+          <div key={i} className="flex items-baseline gap-1.5">
+            <dt className="text-meta text-steel">{it.label}</dt>
+            <dd className="text-sm font-semibold text-ink nums">{it.value}</dd>
+          </div>
+        ))}
+      </dl>
+      <p className="mt-1.5 text-meta text-steel">{t("telemetryNote")}</p>
+    </div>
+  );
+}
+
 // A recruiter's human scorecard (PREP1), styled to read as the human counterpart
 // to the AI one — same rubric layout (rating meters + evidence), coral-tinted so
 // the two are never confused. Used both alongside an AI screen and on its own.
@@ -154,6 +206,10 @@ export function InterviewTranscriptModal({ entry, onClose }: { entry: SchedEntry
 
   const sc = session?.scorecard ?? null;
   const transcript = session?.transcript ?? [];
+  // Telemetry rides the AI scorecard object at runtime (see interview-run.ts) but
+  // isn't in the pure Scorecard type — read it through a narrow guard so absence
+  // degrades to nothing rather than empty chrome.
+  const telemetry = (sc as { telemetry?: InterviewTelemetry } | null)?.telemetry ?? null;
 
   // The transcript turn each rating's evidence quote came from (VOX3) + which turn
   // is currently highlighted by a click. Memoized on the loaded session so the
@@ -240,6 +296,7 @@ export function InterviewTranscriptModal({ entry, onClose }: { entry: SchedEntry
                   ))}
                 </ul>
               ) : null}
+              {telemetry ? <InterviewTelemetryStrip telemetry={telemetry} t={t} /> : null}
               <p className="mt-2 text-meta text-steel">{t("feedsReview")}</p>
             </section>
           ) : null}

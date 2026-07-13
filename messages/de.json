@@ -2064,7 +2064,17 @@
       "citedTitle": "Von der Scorecard zitiert",
       "cited": "· zitiert",
       "loadFailed": "Interview konnte nicht geladen werden.",
-      "scorecardLoadFailed": "Scorecard konnte nicht geladen werden."
+      "scorecardLoadFailed": "Scorecard konnte nicht geladen werden.",
+      "telemetryHeading": "Gesprächssignale",
+      "telemetryNote": "Beschreibende Signale aus dem Gespräch — keine Bewertung.",
+      "telemetryTalkShare": "Redeanteil der kandidierenden Person",
+      "telemetryTalkShareValue": "{pct} %",
+      "telemetryLongestPause": "Längste Pause nach einer Frage",
+      "telemetryDuration": "Sprechdauer",
+      "telemetryHint": "Reaktion auf den Hinweis",
+      "hintIntegrated": "in die Antwort eingebaut",
+      "hintAcknowledged": "kurz aufgegriffen",
+      "hintMissed": "nicht aufgegriffen"
     }
   },
   "library": {
@@ -2521,7 +2531,13 @@
       "humanScorecardHeading": "Menschliche Scorecard",
       "unrecognizedRubric": "Nach einer unbekannten Rubrik bewertet — diese Bewertungen sind nicht direkt mit den Standard-Kohorten vergleichbar.",
       "offRubric": "außerhalb der Rubrik",
-      "offRubricTitle": "Diese Kandidatin/dieser Kandidat wurde auf dieser Achse bewertet, sie ist aber nicht in der aktuellen Rubrik der Kohorte — vermutlich eine umbenannte oder überarbeitete Kompetenz, daher wird sie separat gezeigt statt weggelassen."
+      "offRubricTitle": "Diese Kandidatin/dieser Kandidat wurde auf dieser Achse bewertet, sie ist aber nicht in der aktuellen Rubrik der Kohorte — vermutlich eine umbenannte oder überarbeitete Kompetenz, daher wird sie separat gezeigt statt weggelassen.",
+      "telemetryTitle": "Beschreibende Gesprächssignale aus dem Gespräch — Redeanteil und die längste Pause nach einer Frage. Keine Bewertung.",
+      "telemetryTalk": "Redeanteil {pct} %",
+      "telemetryPause": "Pause {dur}",
+      "telemetryHintIntegrated": "Hinweis eingebaut",
+      "telemetryHintAcknowledged": "Hinweis aufgegriffen",
+      "telemetryHintMissed": "Hinweis nicht aufgegriffen"
     },
     "candidates": {
       "failedStatus": "Fehlgeschlagen ({status}).",

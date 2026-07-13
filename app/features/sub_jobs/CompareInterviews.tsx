@@ -6,6 +6,8 @@ import { useJsonFetch } from "@/app/_lib/useJsonFetch";
 import { rubricLabel, RUBRIC_CS } from "@/app/_lib/interview-rubric";
 import type { InterviewRecommendation } from "@/app/_lib/interview-recommendation";
 import type { Scorecard, ScorecardRating } from "@/app/_lib/interview-scorecard";
+import type { InterviewTelemetry } from "@/app/_lib/interview-telemetry";
+import { talkSharePercent, formatSpokenDuration } from "@/app/_lib/voice/telemetry-format";
 import { EmptyState } from "./JobsShared";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { buildCohorts, mergeRubricRows, isUnrecognizedCohort, type RubricComp } from "./compareCohorts";
@@ -28,6 +30,10 @@ type Candidate = {
   // session) — their blank AI ratings mean "not AI-interviewed", not "synthesis
   // failed", and the chip below says so.
   humanOnly?: boolean;
+  // Deterministic call telemetry (talk share, longest pause, hint uptake) attached
+  // to the AI scorecard — DESCRIPTIVE conversational-dynamics signals, rendered
+  // neutrally below the verdict badges. Null for a human-led / legacy round.
+  telemetry?: InterviewTelemetry | null;
 };
 
 // Keyed by the InterviewRecommendation union so every canonical verdict is
@@ -44,6 +50,40 @@ const CONF_STYLE: Record<string, string> = {
 };
 const ratingColor = (r: number) =>
   r >= 4 ? "bg-moss/15 text-moss" : r <= 2 ? "bg-coral/10 text-coral" : "bg-stone-100 text-ink";
+
+// One candidate's call telemetry as a compact, neutral signal line under the
+// verdict badges — talk share, longest pause, and (when scripted) hint response.
+// DESCRIPTIVE only: steel text, no red/green judgment coloring. Renders nothing
+// when telemetry is absent or every field is null (a human-led / legacy round).
+function TelemetrySignals({
+  telemetry,
+  t,
+}: {
+  telemetry: InterviewTelemetry | null;
+  t: ReturnType<typeof useTranslations<"jobs.compare">>;
+}) {
+  if (!telemetry) return null;
+  const talk = talkSharePercent(telemetry);
+  const pause = formatSpokenDuration(telemetry.longestResponseGapSec);
+  const hintKey =
+    telemetry.hint.offered && telemetry.hint.uptake !== "not_offered"
+      ? (
+          { integrated: "telemetryHintIntegrated", acknowledged: "telemetryHintAcknowledged", missed: "telemetryHintMissed" } as const
+        )[telemetry.hint.uptake]
+      : null;
+
+  const parts: string[] = [];
+  if (talk !== null) parts.push(t("telemetryTalk", { pct: talk }));
+  if (pause) parts.push(t("telemetryPause", { dur: pause }));
+  if (hintKey) parts.push(t(hintKey));
+  if (parts.length === 0) return null;
+
+  return (
+    <span className="mt-1 block text-meta text-steel nums" title={t("telemetryTitle")}>
+      {parts.join(" · ")}
+    </span>
+  );
+}
 
 function CohortTable({ rubric, candidates }: { rubric: RubricComp[]; candidates: Candidate[] }) {
   const t = useTranslations("jobs.compare");
@@ -124,6 +164,9 @@ function CohortTable({ rubric, candidates }: { rubric: RubricComp[]; candidates:
                     </span>
                   ) : null}
                 </span>
+                {/* Descriptive conversational-dynamics signals (not scores): neutral,
+                    scannable, no verdict coloring. Hidden when telemetry is absent. */}
+                <TelemetrySignals telemetry={c.telemetry ?? null} t={t} />
               </th>
             ))}
           </tr>
