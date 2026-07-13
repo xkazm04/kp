@@ -18,7 +18,7 @@
 // run ALSO sweeps stale dirs left by previous runs (mtime-gated so concurrently
 // running test files can't sweep each other).
 
-import { mkdirSync, mkdtempSync, readdirSync, rmSync, statSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -55,14 +55,52 @@ for (const key of [
 const ROOT = path.join(tmpdir(), "kp-unit-db");
 mkdirSync(ROOT, { recursive: true });
 
-// Sweep leftovers from PREVIOUS runs. Only dirs untouched for >15 minutes are
-// removed: a sibling test file running right now has a fresh mtime, and on POSIX
-// an unguarded rm would happily unlink its open SQLite file mid-test.
+// Sweep leftovers from PREVIOUS runs. Only dirs untouched for >15 minutes AND whose
+// owning process is dead are removed (see isSweepable): on POSIX an unguarded rm would
+// unlink a live sibling's open SQLite file mid-test.
 const STALE_MS = 15 * 60 * 1000;
+
+/** Whether the process that created `dir` is still alive, read from the `pid` marker this
+ *  module writes into every run dir. A missing/malformed marker → treated as dead so
+ *  legacy leftovers still get reclaimed via the mtime path. Exported for the sweep test. */
+export function ownerAlive(dir: string): boolean {
+  let pid: number;
+  try {
+    pid = Number.parseInt(readFileSync(path.join(dir, "pid"), "utf8").trim(), 10);
+  } catch {
+    return false; // no marker → can't prove liveness → let mtime decide
+  }
+  if (!Number.isInteger(pid) || pid <= 0) return false;
+  if (pid === process.pid) return true; // our own dir
+  try {
+    process.kill(pid, 0); // signal 0 = existence probe; sends nothing
+    return true;
+  } catch (e) {
+    return (e as NodeJS.ErrnoException).code === "EPERM"; // exists but not ours → alive
+  }
+}
+
+/** bug-ui-scan-2026-07-09 (data-store-persistence #5): the old sweep gated on the run
+ *  DIRECTORY's mtime alone. Directory mtime bumps on entry add/remove — NOT on writes to an
+ *  existing file — so a long test that created its kp.sqlite early then only wrote to it had
+ *  a stale dir mtime while very much alive, and a concurrent sweep could rmSync its DB dir
+ *  out from under it (corruption/flake). Require BOTH staleness AND a dead owner: a live
+ *  process's run dir is never reclaimed regardless of its mtime. */
+export function isSweepable(dir: string, now: number = Date.now()): boolean {
+  let mtimeMs: number;
+  try {
+    mtimeMs = statSync(dir).mtimeMs;
+  } catch {
+    return false; // vanished between readdir and stat
+  }
+  if (now - mtimeMs <= STALE_MS) return false; // recently active — leave it
+  return !ownerAlive(dir); // stale AND its creator is gone → safe to reclaim
+}
+
 for (const name of readdirSync(ROOT)) {
   const dir = path.join(ROOT, name);
   try {
-    if (Date.now() - statSync(dir).mtimeMs > STALE_MS) rmSync(dir, { recursive: true, force: true });
+    if (isSweepable(dir)) rmSync(dir, { recursive: true, force: true });
   } catch {
     /* in use or already gone — leave it for a later sweep */
   }
@@ -70,6 +108,10 @@ for (const name of readdirSync(ROOT)) {
 
 /** This process's throwaway DB directory (one SQLite file + WAL sidecars). */
 export const UNIT_DB_DIR = mkdtempSync(path.join(ROOT, "run-"));
+
+// Stamp the owning pid so a concurrent sweep can tell a LIVE run dir from an abandoned
+// one — the fix for the write-only-activity blind spot above (data-store-persistence #5).
+writeFileSync(path.join(UNIT_DB_DIR, "pid"), String(process.pid));
 
 process.env.KP_DB_PATH = path.join(UNIT_DB_DIR, "kp.sqlite");
 
