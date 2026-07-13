@@ -3,7 +3,13 @@
 // is the SimBar "phases" idea (constants.ts SIM_PHASES) retargeted from a demo
 // chronology to a user-completes-it setup journey.
 
-import type { AppLanguage, MemberRole } from "@/app/features/sub_organization/mock";
+// bug-ui-scan-2026-07-09 (organizations-members-invites #4): source the role +
+// language vocabularies from the REAL identity model (auth/roles) and the shared
+// Organization presenter (member-ui), not the retired sub_organization/mock
+// prototype fixture. Onboarding now speaks the server enum natively — no parallel
+// capitalized-label enum and no lossy label→slug translation seam.
+import type { AppLanguage } from "@/app/features/sub_organization/member-ui";
+import type { MemberRole } from "@/app/_lib/auth/roles";
 
 export type SetupStepId = "organization" | "language" | "team" | "jobDescription" | "done";
 

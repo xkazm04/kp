@@ -5,7 +5,9 @@ import { ArrowLeft, ArrowRight, Check, Rocket, X } from "lucide-react";
 import KandidateMark from "@/app/landing/_components/KandidateMark";
 import { SegmentedControl } from "@/app/_components/SegmentedControl";
 import { useReducedMotion } from "@/app/_lib/useReducedMotion";
-import { APP_LANGUAGES, type AppLanguage } from "@/app/features/sub_organization/mock";
+// bug-ui-scan-2026-07-09 (organizations-members-invites #4): languages come from the
+// real Organization presenter (member-ui), not the retired mock prototype fixture.
+import { APP_LANGUAGES, type AppLanguage } from "@/app/features/sub_organization/member-ui";
 import { BTN_GHOST, BTN_PRIMARY, EYEBROW, FIELD, INTRO } from "@/app/_components/ui/recipes";
 import { InviteEditor } from "./InviteEditor";
 import { JobDescriptionStep } from "./JobDescriptionStep";

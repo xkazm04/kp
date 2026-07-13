@@ -21,7 +21,7 @@ import {
   TOGGLE_GROUP,
   toggleBtn,
 } from "@/app/_components/ui/recipes";
-import { APP_LANGUAGES, ASSIGNABLE_ROLES, roleLabel, roleTone, statusBadge, type AppLanguage } from "./member-ui";
+import { APP_LANGUAGES, ASSIGNABLE_ROLES, countActiveMembers, roleLabel, roleTone, statusBadge, type AppLanguage } from "./member-ui";
 import { MemberPermissionsModal } from "./MemberPermissionsModal";
 import { useOrgMembers, type MemberTeam, type OrgMemberDto } from "./useOrgMembers";
 
@@ -67,12 +67,19 @@ export function OrganizationConsole({
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<MemberRole>("recruiter");
   const [editing, setEditing] = useState<{ member: OrgMemberDto; team: MemberTeam } | null>(null);
+  // bug-ui-scan-2026-07-09 (organizations-members-invites #5): in-flight lock so a
+  // second click / Enter-repeat during the invite POST can't mint a duplicate
+  // pending invite (each is an independently redeemable token).
+  const [submitting, setSubmitting] = useState(false);
 
-  const activeCount = members.filter((m) => m.user.status !== "disabled").length;
+  // bug-ui-scan-2026-07-09 (organizations-members-invites #5): count only truly
+  // `active` seats — the old `!== "disabled"` test counted pending `invited` seats.
+  const activeCount = countActiveMembers(members);
 
   async function submitInvite() {
     const trimmed = email.trim();
-    if (!trimmed) return;
+    if (!trimmed || submitting) return;
+    setSubmitting(true);
     const r = await fetch("/api/org/invites", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -86,6 +93,7 @@ export function OrganizationConsole({
     } else {
       toast.error((await readError(r)) ?? "Couldn't create the invite");
     }
+    setSubmitting(false);
   }
 
   async function patchMember(userId: string, body: Record<string, unknown>) {
@@ -218,6 +226,7 @@ export function OrganizationConsole({
                 sizeVariant="sm"
                 className="min-w-0 flex-1"
                 aria-label="Invite email"
+                disabled={submitting}
               />
               <Select
                 value={role}
@@ -226,8 +235,16 @@ export function OrganizationConsole({
                 ariaLabel="Role for the invite"
                 options={ASSIGNABLE_ROLES.map((r) => ({ value: r, label: roleLabel(r) }))}
               />
-              <button type="button" onClick={submitInvite} disabled={!email.trim()} className={`${BTN_PRIMARY} h-9 px-3.5`}>
-                <UserPlus size={15} aria-hidden /> Invite
+              {/* bug-ui-scan-2026-07-09 (organizations-members-invites #5): disabled while the
+                  POST is in flight (aria-busy) so a rapid second click can't double-submit. */}
+              <button
+                type="button"
+                onClick={submitInvite}
+                disabled={!email.trim() || submitting}
+                aria-busy={submitting}
+                className={`${BTN_PRIMARY} h-9 px-3.5`}
+              >
+                <UserPlus size={15} aria-hidden /> {submitting ? "Inviting…" : "Invite"}
               </button>
             </div>
           ) : null}

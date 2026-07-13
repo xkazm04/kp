@@ -6,7 +6,12 @@ import { initials } from "@/app/_lib/initials";
 import { BTN_SECONDARY } from "@/app/_components/ui/recipes";
 import { TextInput } from "@/app/_components/TextInput";
 import { Select } from "@/app/_components/Select";
-import { MEMBER_ROLES, roleTone, type MemberRole } from "@/app/features/sub_organization/mock";
+// bug-ui-scan-2026-07-09 (organizations-members-invites #4): the invite step now uses
+// the REAL role slugs (auth/roles) + the shared Organization presenter (member-ui) —
+// the same ASSIGNABLE_ROLES the console offers — instead of the retired mock enum, so
+// the wizard emits server-valid slugs with no label→slug translation.
+import { ASSIGNABLE_ROLES, roleLabel, roleTone } from "@/app/features/sub_organization/member-ui";
+import type { MemberRole } from "@/app/_lib/auth/roles";
 import type { OnboardingCtrl } from "./steps";
 
 // Shared invite step body — used by BOTH onboarding variants (hoisted per the
@@ -14,14 +19,14 @@ import type { OnboardingCtrl } from "./steps";
 // `dense` tightens it for the footer bar; the default is the roomy wizard layout.
 export function InviteEditor({ ctrl, dense = false }: { ctrl: OnboardingCtrl; dense?: boolean }) {
   const [email, setEmail] = useState("");
-  const [role, setRole] = useState<MemberRole>("Recruiter");
+  const [role, setRole] = useState<MemberRole>("recruiter");
 
   function add() {
     const trimmed = email.trim();
     if (!trimmed) return;
     ctrl.addInvite({ email: trimmed, role });
     setEmail("");
-    setRole("Recruiter");
+    setRole("recruiter");
   }
 
   return (
@@ -41,7 +46,7 @@ export function InviteEditor({ ctrl, dense = false }: { ctrl: OnboardingCtrl; de
           onChange={(v) => setRole(v as MemberRole)}
           size="sm"
           ariaLabel="Role for the invite"
-          options={MEMBER_ROLES.filter((r) => r !== "Owner").map((r) => ({ value: r, label: r }))}
+          options={ASSIGNABLE_ROLES.map((r) => ({ value: r, label: roleLabel(r) }))}
         />
         <button type="button" onClick={add} disabled={!email.trim()} className={`${BTN_SECONDARY} h-9 px-3`}>
           <Plus size={15} aria-hidden /> Add
@@ -59,7 +64,7 @@ export function InviteEditor({ ctrl, dense = false }: { ctrl: OnboardingCtrl; de
                 {initials(inv.email)}
               </span>
               <span className="max-w-[12rem] truncate text-ink">{inv.email}</span>
-              <span className="text-steel">· {inv.role}</span>
+              <span className="text-steel">· {roleLabel(inv.role)}</span>
               <button
                 type="button"
                 onClick={() => ctrl.removeInvite(i)}

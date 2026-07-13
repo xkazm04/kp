@@ -48,6 +48,13 @@ export function roleTone(role: MemberRole): string {
 
 export type MemberStatus = "active" | "invited" | "disabled";
 
+// bug-ui-scan-2026-07-09 (organizations-members-invites #5): the "Active" stat must
+// count only truly-active seats. The console previously counted `status !== "disabled"`,
+// which folded still-`invited` (pending) seats into Active and inflated the number.
+export function countActiveMembers(members: { user: { status: MemberStatus } }[]): number {
+  return members.filter((m) => m.user.status === "active").length;
+}
+
 /** Member status → semantic Badge props. Active pulses a live dot; a pending invite
  *  reads as info; a disabled seat recedes (muted) so it never competes. */
 export function statusBadge(status: MemberStatus): BadgeContent & { dot?: boolean; muted?: boolean } {

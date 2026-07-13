@@ -7,15 +7,10 @@ import { toast } from "@/app/_components/toast-store";
 import { OnboardingWizard } from "./OnboardingWizard";
 import { INITIAL_SETUP, SETUP_STEPS, type OnboardingCtrl, type SetupInvite, type SetupState } from "./steps";
 
-// The wizard's invite roles are the mock display labels; map them to the real
-// membership slugs the invite API expects. Unknown → recruiter (a safe default).
-const ROLE_SLUG: Record<string, string> = {
-  Owner: "owner",
-  Admin: "admin",
-  Recruiter: "recruiter",
-  "Hiring manager": "hiring_manager",
-  Viewer: "viewer",
-};
+// bug-ui-scan-2026-07-09 (organizations-members-invites #4): the wizard's invite
+// roles are now the REAL membership slugs (auth/roles) end-to-end, so the invite
+// POST sends inv.role verbatim — the hand-maintained label→slug ROLE_SLUG map (and
+// its `?? "recruiter"` silent-downgrade fallback) is gone.
 
 // First-run onboarding host. Owns the setup state + step index and hands one
 // controller to the Spotlight Wizard. Rendered as a fixed overlay over the
@@ -53,7 +48,7 @@ export function OnboardingExperience({ onClose }: { onClose: () => void }) {
           fetch("/api/org/invites", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email: inv.email, role: ROLE_SLUG[inv.role] ?? "recruiter" }),
+            body: JSON.stringify({ email: inv.email, role: inv.role }),
           })
         )
       );
