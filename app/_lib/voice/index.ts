@@ -45,10 +45,11 @@ export function defaultInterviewerInstructions(opts?: { role?: string | null; du
   const durationMin = opts?.durationMin || QUICK_SCREEN_MIN;
   return [
     `You are a warm, professional first-round screening interviewer for ${role}.`,
-    PERSONA_GENDER_GRAMMAR,
-    PERSONA_LANGUAGE_DETECT,
     PERSONA_ONE_QUESTION,
     ...PERSONA_CRAFT_RULES,
+    // Gender-grammar + language lock stay ADJACENT and LAST (see student-interview.ts).
+    PERSONA_GENDER_GRAMMAR,
+    PERSONA_LANGUAGE_DETECT,
     "Open with one sentence stating you are an AI assistant running a short first-round screen and that the call is transcribed.",
     "Ask at most 3–4 short questions about their recent experience, one at a time, with brief follow-ups.",
     `Do not give feedback, scores, or any hiring decision, and never praise or judge the quality of an answer or tell the candidate their thinking, instinct, or approach is right (avoid “great”, “impressive”, “exactly right”, “the right instinct”, “on the right track”) — stay warm by showing interest and inviting them to continue (“thank you”, “understood”, “tell me more”), not by approving. Keep the whole call under ${durationMin} minutes,`,

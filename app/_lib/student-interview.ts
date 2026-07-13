@@ -145,57 +145,51 @@ export function studentPrepRunOfShow(
 export const PERSONA_GENDER_GRAMMAR =
   "You are male — when you speak Czech, use masculine grammatical forms for yourself (e.g. „rád bych“, „zeptal bych se“, „řekl jsem“).";
 export const PERSONA_LANGUAGE_DETECT =
-  "Do not assume the candidate's language: open by greeting briefly in both Czech and English, then LOCK onto the one language the candidate replies in and use ONLY that language for every remaining turn — greetings, acknowledgements, and closing included. Do not mix the two languages after your opening, and never switch to the other language unless the candidate does first (then follow them).";
+  "Do not assume the candidate's language: open by greeting briefly in both Czech and English, then LOCK onto the one language the candidate replies in and use ONLY that language for every remaining turn — greetings, acknowledgements, and closing included. Do not mix the two languages after your opening, and never switch to the other language unless the candidate does first (then follow them). Before EVERY turn you produce, check which language the candidate's last message was in and answer in that language — this rule outranks every other instruction in this brief.";
 // One-question-at-a-time (P3): the model tends to bundle two asks per turn, worst for nervous/
 // terse candidates. Shared across every builder like the two lines above.
 export const PERSONA_ONE_QUESTION =
   "Ask exactly ONE question per turn and wait for the answer before asking the next — never bundle a second question or a follow-up into the same turn. This matters most with nervous, terse, or quiet candidates: keep each prompt short and single, and give them room to answer.";
 
-// The interviewer-craft rules (P4–P7 from docs/INTERVIEW_IMPROVEMENT_INPUTS.md §1, ranked from a
-// judged eval sweep). Like the persona lines above they are byte-identical across EVERY brief
-// builder — they change HOW the agent conducts any interview (drawing-out, depth-probing, floor
-// control, composure), so they belong in the shared contract, not per-script prose.
-
-// P4 — draw out terse/quiet candidates; re-asks NARROW rather than repeat verbatim.
-export const PERSONA_DRAW_OUT =
-  "When an answer is one line or dismissive, do not move on — ask a single concrete follow-up (a specific detail, a concrete example, or “what would you have done if…”). When re-asking, NARROW to one smaller, more concrete sub-question — never repeat the same question verbatim.";
-// P5 — probe strong/quantitative claims; let coverage (not a fixed count) decide length; never telegraph.
-export const PERSONA_VERIFY_CLAIMS =
-  "When a candidate makes a strong or quantitative claim, ask how they achieved or verified it before you move on. Let coverage — not a fixed number of questions — decide the length: go deeper where depth is evident, and never announce how many questions remain (no “one last question”).";
-// P6 — assert AND MAINTAIN control of a monologuing/off-topic candidate every time, not once.
-export const PERSONA_HOLD_FLOOR =
-  "With a rambling or monologuing candidate, set a concrete expectation up front and cut in politely at the first natural pause EVERY time it recurs — not just the first time. If the candidate asks an off-topic question, close it off briefly in one line, then return to your question.";
+// The interviewer-craft rules (P4–P6 + the ASR read-back from
+// docs/INTERVIEW_IMPROVEMENT_INPUTS.md §1/§2/§5), SHIPPED AS ONE CONDENSED PARAGRAPH.
+// Harness-validated form (2026-07-13, runs/perfect-p4p7 + targeted re-runs): the initial
+// one-constant-per-rule form made hostile English candidates drift the agent into Czech on the
+// acknowledge-and-redirect turns the rules themselves create (language-consistency is a hard
+// reliability gate; the pre-rules baseline passes 4/4). The form that held (hostile 4/4) was
+// (a) condensing to one paragraph and (b) requiring the P4 follow-up to be asked PLAINLY, with no
+// acknowledgement or preamble — the Czech-politeness attractor („Rozumím, …“) has no landing token
+// when the turn must start with the question. The read-back clause makes the candidate the
+// authority on the tech nouns ASR routinely corrupts (React→Rust, PostgreSQL→"později SQL");
+// the scorecard synthesis prefers that confirmation turn over earlier transcript mentions.
+export const PERSONA_CRAFT_CONDENSED =
+  "Interviewing craft: when an answer is one line or dismissive, ask one concrete follow-up, and when re-asking, narrow to a smaller concrete sub-question — never repeat the question verbatim — and ask that follow-up plainly and directly, with no acknowledgement or preamble before it. When a candidate makes a strong or quantitative claim, ask how they achieved or verified it. Let coverage — not a fixed question count — decide length, and never announce how many questions remain. With a rambling candidate, set a concrete expectation up front and politely cut in at natural pauses every time it recurs; close off an off-topic question in one line, then return to yours. Just before closing, if the candidate mentioned specific technologies or tools, read back the key ones in one short turn and let them confirm or correct you; if none came up, skip that.";
 // P7 — acknowledge hostility briefly and neutrally, then redirect; never over-apologise or negotiate.
+// ⚠ NOT SHIPPED (not in PERSONA_CRAFT_RULES): harness ablation (2026-07-13) showed any
+// hostility-specific rule — five wording variants, including this one with explicit bilingual
+// examples — makes the agent drift to Czech on a hostile ENGLISH candidate most runs, breaking the
+// language-consistency reliability gate (baseline without the rule passes consistently). Kept
+// defined + Python-synced so a future wording can be re-tested without re-deriving the history.
 export const PERSONA_HOSTILITY =
-  "If a candidate is hostile or challenges the premise of the interview, acknowledge it briefly and neutrally, then redirect to your question — do not over-apologise, and do not negotiate the premise of the interview.";
+  "When a candidate is hostile or challenges the premise of the interview: one brief, neutral acknowledgement, then redirect to your question — an English message gets an English acknowledgement (“Understood — let's use your time well.”), a Czech one gets a Czech one („Rozumím — pojďme na to.“). Do not over-apologise, and do not negotiate the premise of the interview.";
 
-// Skill read-back (docs/INTERVIEW_IMPROVEMENT_INPUTS.md §2/§5): voice transcription corrupts
-// technology names on real calls (React→Rust, PostgreSQL→"později SQL", Docker→.NET), and the
-// scorecard then rates a fabricated skill set. One confirmation turn before the close makes the
-// candidate the authority on what they actually said; the scorecard synthesis is instructed to
-// prefer that turn over earlier transcript mentions. Gated: skipped when no technologies came up.
-export const PERSONA_TECH_READBACK =
-  "Just before you close: IF the candidate mentioned specific technologies, tools, or product names during the conversation, spend ONE short turn reading back the key ones you noted and asking whether you heard them right (for example “Before we wrap — I noted PostgreSQL, Docker and React; did I get those right?”), and accept their confirmation or correction as the final word on what they use. Keep it to a single quick turn. If no specific technologies or tools came up, skip this step entirely — never invent a list.";
+/** The shipped interviewer-craft rules (currently the single condensed paragraph; P7 is
+ *  deliberately excluded — see its warning above) — appended to every brief builder so a wording
+ *  change lands once. Kept as an array so each builder joins it into its own surrounding prose
+ *  with the same single-space separator. */
+export const PERSONA_CRAFT_RULES: string[] = [PERSONA_CRAFT_CONDENSED];
 
-/** The P4–P7 interviewer-craft rules in canonical order, plus the closing tech read-back —
- *  appended to every brief builder so a wording change lands once. Kept as an array (not a
- *  pre-joined string) so each builder joins it into its own surrounding prose with the same
- *  single-space separator. */
-export const PERSONA_CRAFT_RULES: string[] = [
-  PERSONA_DRAW_OUT,
-  PERSONA_VERIFY_CLAIMS,
-  PERSONA_HOLD_FLOOR,
-  PERSONA_HOSTILITY,
-  PERSONA_TECH_READBACK,
-];
-
+// NOTE ON ORDER: gender-grammar (which carries Czech example tokens) and the language lock stay
+// ADJACENT and LAST in the shared persona block of every builder — the harness showed language
+// drift precisely on the turns the craft rules create when prose separated the lock from the end
+// of the block.
 function personaLines(company: string, role: string, name: string): string[] {
   return [
     `You are a warm, professional first-round interviewer at ${company} for ${role}, speaking with an EARLY-CAREER candidate — a student with little or no formal work history.${name}`,
-    PERSONA_GENDER_GRAMMAR,
-    PERSONA_LANGUAGE_DETECT,
     PERSONA_ONE_QUESTION,
     ...PERSONA_CRAFT_RULES,
+    PERSONA_GENDER_GRAMMAR,
+    PERSONA_LANGUAGE_DETECT,
     "Begin by briefly introducing yourself as an AI assistant and the purpose of the conversation in two sentences, and mention that the call is transcribed for a human recruiter.",
   ];
 }

@@ -124,17 +124,31 @@ over-apologise or negotiate the premise of the interview."*
 > guardrail rules — `interview_optimize`'s `--ablate`/rule format, or a direct edit to
 > `student-interview.ts`. I can apply + re-sweep to confirm no regressions on request.
 
-> **P4–P7 — ✅ Applied (2026-07-13).** All four landed as shared constants in
-> `app/_lib/student-interview.ts` (`PERSONA_DRAW_OUT` / `PERSONA_VERIFY_CLAIMS` /
-> `PERSONA_HOLD_FLOOR` / `PERSONA_HOSTILITY`, grouped as `PERSONA_CRAFT_RULES`), reaching every
-> brief builder — `defaultInterviewerInstructions`, `composeBrief`, `composeDebriefBrief`, and the
-> student/case-grounded `personaLines` — plus the Python port in `interview_eval.py` (the
-> drift-guard parity test was extended to cover the four new constants and is green; the TS↔Python
-> brief bridge confirms the rendered briefs stay byte-identical). A judged validation sweep
-> (`--bank core --sample 12 --seed 1 --judge --dump runs/perfect-p4p7`) was launched with the rules
-> in place and is pending at the time of writing — record its reliability / language-drift /
-> quality numbers here when it completes. As with P3, the style metrics (`double_barreled`,
-> `evaluative_praise`) are single-run noisy — read any one sweep directionally, not decisively.
+> **P4–P6 — ✅ Applied; P7 — ❌ dropped after harness ablation (2026-07-13).** The craft rules
+> landed as ONE condensed shared constant (`PERSONA_CRAFT_CONDENSED` → `PERSONA_CRAFT_RULES` in
+> `app/_lib/student-interview.ts`), reaching every brief builder — `defaultInterviewerInstructions`,
+> `composeBrief`, `composeDebriefBrief`, the student/case-grounded `personaLines`, and the new
+> candidate-safe EL brief — plus the Python port in `interview_eval.py` (drift-guard parity +
+> TS↔Python bridge byte-equality green). **The judged validation sweep caught a real regression:**
+> the initial one-constant-per-rule form scored quality 4.16 but reliability **84%** — 4/25
+> language-consistency failures (`runs/perfect-p4p7`), all on the acknowledge-and-redirect turns
+> the new rules themselves create (hostile/injection/minimal candidates got Czech „Rozumím, …“
+> replies to English messages; pre-rules baseline passes 4/4). Ablation isolated two causes and one
+> fix: (a) **P7 in ANY wording** — five variants, including explicit per-language conditionals and
+> bilingual examples — made the hostile drift near-deterministic, so P7 is NOT shipped (the
+> constant stays defined + Python-synced for a future retry); (b) the remaining rules still drifted
+> ~50% on hostile until the P4 follow-up was required to be asked **plainly, with no
+> acknowledgement or preamble** — removing the acknowledgement token removes the Czech-politeness
+> landing spot. Final form re-validated: `adversarial_hostile` 4/4 pass, and the sweep's other
+> three failures (`adversarial_injection`, `adversarial_silent`, `gen_customer_support_medior_
+> hostile_en`) plus `adversarial_czech_switch`/`pm_senior_terse` pass; one later `adversarial_silent`
+> re-run drifted once, so treat hostile/minimal language-consistency as a **watch item** for the
+> next full sweep rather than proven-stable. Also shipped alongside: `PERSONA_LANGUAGE_DETECT`
+> gained a per-turn re-check sentence, and every builder now keeps gender-grammar + the language
+> lock adjacent and LAST in the persona block. Style metrics remain single-run noisy — directional
+> only. Meta-lesson for the next pass: **rules that create new "meta" turns (acknowledge, redirect,
+> read back) are language-drift hazards on this engine; prefer rule forms whose output must start
+> with content.**
 
 ---
 

@@ -15,14 +15,11 @@ from pipeline.jobfit.eval import interview_eval as ie
 from pipeline.jobfit.eval.interview_eval import (
     CLOSING,
     NON_NEGOTIABLES,
-    PERSONA_DRAW_OUT,
+    PERSONA_CRAFT_CONDENSED,
     PERSONA_GENDER_GRAMMAR,
-    PERSONA_HOLD_FLOOR,
     PERSONA_HOSTILITY,
     PERSONA_LANGUAGE_DETECT,
     PERSONA_ONE_QUESTION,
-    PERSONA_TECH_READBACK,
-    PERSONA_VERIFY_CLAIMS,
     Row,
     Scenario,
     _aggregate,
@@ -589,11 +586,10 @@ class TestBriefDriftGuard(unittest.TestCase):
             ("PERSONA_GENDER_GRAMMAR", PERSONA_GENDER_GRAMMAR),
             ("PERSONA_LANGUAGE_DETECT", PERSONA_LANGUAGE_DETECT),
             ("PERSONA_ONE_QUESTION", PERSONA_ONE_QUESTION),
-            ("PERSONA_DRAW_OUT", PERSONA_DRAW_OUT),
-            ("PERSONA_VERIFY_CLAIMS", PERSONA_VERIFY_CLAIMS),
-            ("PERSONA_HOLD_FLOOR", PERSONA_HOLD_FLOOR),
+            ("PERSONA_CRAFT_CONDENSED", PERSONA_CRAFT_CONDENSED),
+            # P7 is not shipped (language-drift regression), but the constant stays synced so a
+            # future retry starts from the last-tested wording.
             ("PERSONA_HOSTILITY", PERSONA_HOSTILITY),
-            ("PERSONA_TECH_READBACK", PERSONA_TECH_READBACK),
             ("NON_NEGOTIABLES", NON_NEGOTIABLES),
             ("CLOSING", CLOSING),
         ]:
