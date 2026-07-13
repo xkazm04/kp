@@ -20,6 +20,12 @@ export type CandidateInput = {
   aspirations?: string[];
   learningSignals?: string[];
   transferableSkills?: string[];
+  // Career-switcher bridge grade ("adjacent" | "moderate" | "far"). The reasoning
+  // prompt consumes it for switchers (match_reasoning.reasoning_context /
+  // build_prompt / deterministic_reasoning: it seeds the bridge narrative and the
+  // ramp-up estimate), so it MUST ride the cache key — two switchers differing only
+  // in domainDistance otherwise collide and the first verdict is served to the second.
+  domainDistance?: string | null;
   potentialScore?: number | null;
   skillProvenance?: Record<string, string>;
 };
@@ -63,6 +69,9 @@ export function resolveCandidate(body: {
         // student/switcher. The Python ko_filter fails closed on "unknown"
         // (no seniority auto-KO) and weights_for falls back to neutral BAU weights.
         archetype: payload?.v2Profile?.archetype ?? "unknown",
+        // Carry a career-switcher's bridge grade through when the analysis captured
+        // one, so both the reasoning prompt and its cache key see it.
+        domainDistance: (c.domainDistance as string | undefined) ?? null,
         label: loaded.row.candidate_label ?? (c.name as string) ?? "Candidate",
       },
     };
@@ -93,6 +102,10 @@ export function candidateSignature(c: CandidateInput): string {
     aspirations: [...(c.aspirations ?? [])].sort(),
     learningSignals: [...(c.learningSignals ?? [])].sort(),
     transferableSkills: [...(c.transferableSkills ?? [])].sort(),
+    // Career-switcher bridge grade — consumed by the reasoning prompt (see the
+    // CandidateInput field note), so a switcher's cached verdict must not survive a
+    // change from "far" to "adjacent".
+    domainDistance: c.domainDistance ?? null,
     potentialScore: c.potentialScore ?? null,
     // Object key order is not guaranteed, so sort entries for a stable hash.
     skillProvenance: Object.entries(c.skillProvenance ?? {}).sort(([a], [b]) => a.localeCompare(b)),

@@ -1091,7 +1091,8 @@
     "archetype": {
       "bau": "Experienced",
       "student": "Student",
-      "career_switcher": "Switcher"
+      "career_switcher": "Switcher",
+      "unrouted": "Unrouted"
     },
     "seniority": {
       "junior": "Junior",

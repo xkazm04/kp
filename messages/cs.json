@@ -1091,7 +1091,8 @@
     "archetype": {
       "bau": "Zkušený",
       "student": "Student",
-      "career_switcher": "Změna oboru"
+      "career_switcher": "Změna oboru",
+      "unrouted": "Nezařazeno"
     },
     "seniority": {
       "junior": "Junior",

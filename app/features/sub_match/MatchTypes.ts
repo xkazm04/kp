@@ -142,7 +142,17 @@ export type ReasoningState = { loading?: boolean; error?: string; source?: strin
 
 // Archetype labels + the early-career fairness predicate live in one canonical
 // module (app/_lib/archetypes) so the protected set is never hand-copied.
-export { ARCHETYPE_LABEL, isEarlyCareer } from "@/app/_lib/archetypes";
+export { ARCHETYPE_LABEL, isEarlyCareer, archetypeDisplayKey } from "@/app/_lib/archetypes";
+
+// The match total to write back to the pipeline snapshot when a fresh match run
+// files a candidate. A fresh /api/match `m.total` (producer C in match-score.ts)
+// is the freshest measurement we have, so persisting it closes the divergence with
+// the never-updated snapshot — but only when it is a real, finite number. A
+// non-finite/absent total is stored as null (the null-score policy in
+// match-score.ts), never coerced to a decision-feeding 0.
+export function matchScoreForPipeline(total: number | null | undefined): number | null {
+  return typeof total === "number" && Number.isFinite(total) ? total : null;
+}
 
 // Provenance bucket key (matches the `enums.provenance.*` catalog) + its badge tone.
 // The display text is resolved via `useEnumLabel("provenance", key)` at the render

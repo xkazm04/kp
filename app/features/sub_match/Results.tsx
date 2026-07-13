@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import type { MatchRef, MatchResponse, MatchResult } from "./MatchTypes";
-import { isEarlyCareer } from "./MatchTypes";
+import { archetypeDisplayKey, isEarlyCareer, matchScoreForPipeline } from "./MatchTypes";
 import { Chip, KoReasonsNote, NoMatchesExplainer } from "./MatchShared";
 import { MatchCard } from "./MatchCard";
 import { WeightsPanel } from "./WeightsPanel";
@@ -38,7 +38,12 @@ export function Results({
   const t = useTranslations("match.results");
   const enumLabel = useEnumLabel();
   const { candidate, meta, matches } = result;
-  const archetype = candidate.archetype ?? "bau";
+  // The routing value we CARRY (posted to the pipeline, passed to MatchCard, fed to
+  // isEarlyCareer): honour the matcher's fail-closed "unknown" sentinel instead of
+  // fabricating "bau" — "bau" would strip the fairness shield off an unrouted
+  // (student/switcher/unclassified) candidate downstream. The chip below shows this
+  // honestly as "Unrouted", never "Experienced".
+  const archetype = candidate.archetype ?? "unknown";
   const early = isEarlyCareer(archetype);
 
   const candidateId = matchRef.profileId ?? matchRef.analysisSlug ?? "";
@@ -74,7 +79,11 @@ export function Results({
           roleFamily: m.roleFamily,
           jobId: m.jobId,
           jobTitle: m.title,
-          matchScore: m.total,
+          // Write the FRESH match recompute back as the entry's snapshot so it stops
+          // diverging from the never-updated stored score; null-honest (a non-finite
+          // total is stored absent, never as a fabricated 0). source:"match" stamps
+          // where it came from.
+          matchScore: matchScoreForPipeline(m.total),
           stage: "Screened",
           source: "match",
         }),
@@ -159,7 +168,7 @@ export function Results({
       ) : null}
       <div className="flex flex-wrap items-center gap-2">
         <Chip label={t("chipCandidate")} value={candidate.label ?? "—"} />
-        <Chip label={t("chipArchetype")} value={enumLabel("archetype", archetype)} tone={early ? "green" : "neutral"} />
+        <Chip label={t("chipArchetype")} value={enumLabel("archetype", archetypeDisplayKey(archetype))} tone={early ? "green" : "neutral"} />
         <Chip label={t("chipProfile")} value={`${candidate.roleFamily ? enumLabel("family", candidate.roleFamily) : "—"} / ${candidate.seniority ?? "—"}`} />
         <Chip label={t("chipEvaluated")} value={meta.evaluated ?? 0} />
         <Chip label={t("chipKoFiltered")} value={meta.koFiltered ?? 0} tone="amber" />

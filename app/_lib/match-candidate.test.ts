@@ -51,7 +51,7 @@ const TMP = path.join(TMP_DIR, "kp.sqlite");
 process.env.KP_DB_PATH = TMP;
 
 const { saveAnalysis } = await import("./db.ts");
-const { resolveCandidate } = await import("./match-candidate.ts");
+const { resolveCandidate, candidateSignature } = await import("./match-candidate.ts");
 const { DEFAULT_ROLE_FAMILY } = await import("./role-families.ts");
 
 after(() => {
@@ -120,4 +120,20 @@ test("a stated role family / seniority is preserved (defaults only fill the gaps
   assert.equal(resolved.candidate.roleFamily, "healthcare_clinical");
   assert.equal(resolved.candidate.seniority, "senior");
   assert.equal(resolved.candidate.archetype, "bau");
+});
+
+// candidate-profile-job-matching #3(c): domainDistance feeds the career-switcher
+// reasoning prompt (match_reasoning.py), so it MUST ride the cache signature —
+// otherwise two switchers differing only in bridge distance collide on the hash and
+// the first verdict is served to the second.
+test("candidateSignature separates two career-switchers that differ ONLY in domainDistance", () => {
+  const base = { skills: ["Python"], archetype: "career_switcher", transferableSkills: ["Delivery"] };
+  const near = candidateSignature({ ...base, domainDistance: "adjacent" });
+  const far = candidateSignature({ ...base, domainDistance: "far" });
+  assert.notEqual(near, far, "a change in domainDistance must change the cache signature");
+  // And the field is actually reflected in the signature payload (not silently dropped).
+  assert.ok(near.includes("adjacent"));
+  assert.ok(far.includes("far"));
+  // Absent domainDistance is stable/normalized (null), so a repeat call collides by design.
+  assert.equal(candidateSignature(base), candidateSignature({ ...base }));
 });

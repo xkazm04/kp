@@ -59,6 +59,18 @@ export function isKnownArchetype(archetype: string | null | undefined): boolean 
   return normalizeArchetype(archetype) in ARCHETYPE_LABEL;
 }
 
+/** The archetype key to DISPLAY for a candidate. Any value the registry doesn't
+ *  recognize — a missing archetype, or the "unknown" fail-closed sentinel the
+ *  matcher stamps when routing couldn't classify a candidate — renders as the
+ *  honest "unrouted" label, NEVER collapsed to a concrete class like "bau"
+ *  ("Experienced"). Mislabeling an unrouted (fairness-protected) candidate as
+ *  "bau" both misinforms the recruiter AND, if that "bau" is persisted, strips the
+ *  fail-closed shield downstream (isFairnessProtected("bau") is false). The wire
+ *  value stays canonical; only the shown label changes. */
+export function archetypeDisplayKey(archetype: string | null | undefined): string {
+  return isKnownArchetype(archetype) ? normalizeArchetype(archetype) : "unrouted";
+}
+
 /** The fairness gate. True when a candidate must be shielded from AUTOMATED
  *  rejection: either an explicit early-career archetype, OR an unknown one
  *  (fail closed — we never auto-reject a class we cannot classify). Use this at

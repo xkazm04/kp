@@ -17,7 +17,11 @@ export async function GET() {
         role: row.role_family,
         seniority: row.seniority,
         score: row.score,
-        archetype: v2?.archetype ?? "bau",
+        // Honest fail-closed sentinel when the analysis carried no v2 routing —
+        // NOT "bau". Collapsing an unrouted candidate to "bau" ("Experienced")
+        // mislabels a fairness-protected class; the matrix renders "unknown" as the
+        // "Unrouted" column/chip (archetypeDisplayKey), matching the scorer.
+        archetype: v2?.archetype ?? "unknown",
       };
     });
     return NextResponse.json({ candidates });

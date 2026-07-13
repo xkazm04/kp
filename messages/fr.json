@@ -1117,7 +1117,8 @@
     "archetype": {
       "bau": "Expérimenté",
       "student": "Étudiant",
-      "career_switcher": "Reconverti"
+      "career_switcher": "Reconverti",
+      "unrouted": "Non orienté"
     },
     "seniority": {
       "junior": "Junior",
