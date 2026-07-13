@@ -1,13 +1,14 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { needsHumanDecision } from "@/app/_lib/approval-kinds";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { CandidateRow, Legend } from "./PipelineShared";
+import { bucketLaneEntries } from "./pipeline-board-layout";
 import { moveTargetStages } from "./pipeline-move-targets";
-import { entryLaneKey, STAGE_HELP, STAGES, type Entry, type Position } from "./PipelineTypes";
+import { STAGE_HELP, STAGES, type Entry, type Position } from "./PipelineTypes";
 
 const CELL_LIMIT = 6;
 const EMPTY_SELECTION: ReadonlySet<string> = new Set();
@@ -75,6 +76,21 @@ function StageCell({
 }) {
   const t = useTranslations("pipeline");
   const [expanded, setExpanded] = useState(false);
+  // Reset the "+N more" expansion when THIS cell's population actually changes —
+  // WITHOUT remounting. The cell used to fold its entry ids into its React key, so
+  // every 30s poll that touched any card remounted the cell, collapsing an expanded
+  // overflow mid-read and churning the DOM. The key is now stage-only (stable), and
+  // the expansion resets via React's official "adjust state during render on a prop
+  // change" pattern: compare a stable id signature to the previous render's. An
+  // unrelated lane/cell update leaves an expanded overflow intact; a real change to
+  // THIS cell's card set collapses it (the user would otherwise be reading a set
+  // they never expanded, with the collapse toggle silently shifted underneath).
+  const idSignature = entries.map((e) => e.id).join(",");
+  const [prevSignature, setPrevSignature] = useState(idSignature);
+  if (idSignature !== prevSignature) {
+    setPrevSignature(idSignature);
+    if (expanded) setExpanded(false);
+  }
   // Highlight the column the candidate would land in while a drag hovers it.
   const [dropActive, setDropActive] = useState(false);
   const overflow = entries.length - CELL_LIMIT;
@@ -167,6 +183,10 @@ export function PipelineBoard({
 }) {
   const t = useTranslations("pipeline");
   const enumLabel = useEnumLabel();
+  // Bucket every entry into its [lane][stage] cell in ONE memoized pass — replaces
+  // the per-position × per-stage `lane.filter(...)` that re-scanned the whole entry
+  // list for every cell each render.
+  const cellsByLane = useMemo(() => bucketLaneEntries(positions, entries), [positions, entries]);
   // The candidate currently being dragged (pointer DnD). Lifted here so any cell's
   // drop can resolve the source row regardless of which column started the drag.
   const [dragging, setDragging] = useState<Entry | null>(null);
@@ -333,11 +353,12 @@ export function PipelineBoard({
             ))}
           </div>
           {positions.map((pos) => {
-            // Keyed by the shared entryLaneKey so lane membership here is provably
-            // the same derivation as the lane COUNT in PipelineTab.groupPositions —
-            // a 2-way vs 3-way fallback mismatch once counted an entry under "?" but
-            // placed it in no lane.
-            const lane = entries.filter((e) => entryLaneKey(e) === pos.id);
+            // The lane's per-stage cells, precomputed by bucketLaneEntries (keyed by
+            // the shared entryLaneKey so lane membership is provably the same
+            // derivation as the lane COUNT in PipelineTab.groupPositions — a 2-way vs
+            // 3-way fallback mismatch once counted an entry under "?" but placed it in
+            // no lane). Empty per-stage arrays fall back if the lane somehow vanished.
+            const laneCells = cellsByLane.get(pos.id) ?? STAGES.map(() => [] as Entry[]);
             return (
               <div key={pos.id} className="grid border-b border-stone-200 last:border-0" style={BOARD_GRID}>
                 <div className="sticky left-0 z-10 border-r border-stone-200 bg-white px-3 py-3">
@@ -359,20 +380,17 @@ export function PipelineBoard({
                   </button>
                 </div>
                 {STAGES.map((stage, i) => {
-                  // An entry whose stage isn't a known column (a legacy / unmapped
-                  // stage) would otherwise match no cell and vanish while still
-                  // counted — fold it into the first column so it stays visible and
-                  // actionable rather than becoming an invisible, unreachable row.
-                  const cellEntries = lane.filter(
-                    (e) => e.stage === stage || (i === 0 && !(STAGES as readonly string[]).includes(e.stage))
-                  );
-                  // Fold the cell's contents into the key so the cell REMOUNTS (resetting its
-                  // local "+N more" expansion) when search/filter/live-refresh swaps this lane's
-                  // population — otherwise an expanded cell shows a different set than the user
-                  // expanded and the collapse toggle can silently vanish mid-interaction.
+                  // Precomputed by bucketLaneEntries: the entry whose stage isn't a
+                  // known column is already folded into the first column (index 0) so
+                  // it stays visible + actionable rather than vanishing while counted.
+                  const cellEntries = laneCells[i];
+                  // Key by stage ONLY (stable across polls) — the "+N more" expansion
+                  // is now reset by a render-phase population-change check inside
+                  // StageCell, so an unrelated live-refresh no longer remounts the cell
+                  // (which collapsed the overflow mid-read and churned the DOM).
                   return (
                     <StageCell
-                      key={`${stage}:${cellEntries.map((e) => e.id).join(",")}`}
+                      key={stage}
                       stage={stage}
                       entries={cellEntries}
                       isStale={isStale}
