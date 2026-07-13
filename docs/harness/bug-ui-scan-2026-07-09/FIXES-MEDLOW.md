@@ -223,7 +223,28 @@ defense-in-depth correction (never reconcile a new invite against another tenant
 run the FULL `test:unit`, not just the touched files' tests — the source-guard tenancy tests only
 fire against the whole store.**
 
+## Wave 19 — Offers & Automation (11 findings, all resolved, 3 contexts)
+
+3 commits (no i18n — no new UI strings). tsc 0 · node unit 1784 → **1799** · python 914 → **918** · i18n 3326 × 4 · **matching_eval 8/8 + fairness 4/4** · `next build` ✓.
+
+- **candidate-onboarding-hand-off** (`<onboarding>`): #3 atomic get-or-create `startRun`
+  (`INSERT … ON CONFLICT(entry_id) DO NOTHING` + re-SELECT — race→500 fixed); #4 `markSigned`
+  scoped `WHERE id=? AND run_id=?` (a stray signatureId can't sign another candidate's doc);
+  #5 transient-SQLite-lock retry on the candidate-engaged mirror. +7 tests.
+- **hiring-automation-scheduler** (`<automation>`): #2 `tickScheduler` refuses a forced "Run now"
+  on a DISABLED schedule (off means off — a kill-switched clock can't mutate the board); #5
+  `automation_eval` fails closed when `--judge` was requested but quality is unavailable (no
+  "N/A → PASS" theater); #3/#4 verified already-fixed + pinned. +5 tests.
+- **offers-onboarding** (`<offers>`): #2 empty-intake guard (empty submit 400s, no phantom intake
+  row suppressing reminders; pure `onboarding-intake.ts`); #3 skeleton loading; #4 `role=status`
+  +focus-move on terminal cards; #5 server-computed offer `hoursRemaining` (removed client-clock).
+  +6 tests.
+
+**Shared file** `app/_lib/onboarding-candidate.ts` carries BOTH candidate-onboarding #5 (retry
+wiring, committed with that context since it imports `retry-sync.ts`) and offers #2 (empty-intake
+guard) — verified both coexist (retry ×3, empty-guard ×6, full suite 1799 green).
+
 ## Status
-Med/Low: **107 of 155 closed**, 48 open (24 M + 24 L) — of the open, **4 are deferred-with-cause**
+Med/Low: **118 of 155 closed**, 37 open (13 M + 24 L) — of the open, **4 are deferred-with-cause**
 (1 product decision + 3 blocked on the voice-eval WIP; see Wave 15). Remaining topic waves:
-Offers/Automation + Identity/Data/Privacy, Jobs/JD/Sourcing + LLM + Billing.
+Identity/Data/Privacy, Jobs/JD/Sourcing, LLM + Billing.
