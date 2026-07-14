@@ -54,8 +54,8 @@ export function saveProfile(
   const stmt = db.prepare(
     `INSERT INTO profiles
        (id, label, archetype, role_family, completeness, payload_json, created_at, workspace_id,
-        source_analysis_slug, source_cv_hash, source_analyzed_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        source_analysis_slug, source_cv_hash, source_analyzed_at, updated_at, lineage_stamped_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   );
   const id = insertWithUniqueSlug((s) =>
     stmt.run(
@@ -69,7 +69,12 @@ export function saveProfile(
       workspaceId,
       lineage?.sourceAnalysisSlug ?? null,
       lineage?.sourceCvHash ?? null,
-      lineage?.sourceAnalyzedAt ?? null
+      lineage?.sourceAnalyzedAt ?? null,
+      // updated_at seeds equal to created_at (no edit yet). lineage_stamped_at is set
+      // only when this is a build-from-analysis — so updated_at == lineage_stamped_at
+      // at birth (never diverged) and stays NULL/uncompared for a hand-built profile.
+      createdAt,
+      lineage ? createdAt : null
     )
   );
   invalidateProfileRecordsCache();
@@ -152,14 +157,37 @@ export function getProfileRecord(id: string, workspaceId: string = DEFAULT_WORKS
 // profile_cli). Returns false when no row matched the id.
 export function updateProfile(id: string, input: SaveProfileInput, workspaceId: string = DEFAULT_WORKSPACE_ID): boolean {
   const db = ensureDb();
+  // Stamp updated_at on every content write. lineage_stamped_at is left untouched
+  // (only setProfileLineage moves it) — so an edit AFTER a build/rebuild pushes
+  // updated_at past lineage_stamped_at, which is exactly the divergence signal a
+  // rebuild reads before it clobbers the recruiter's edits.
   const info = db
     .prepare(
-      `UPDATE profiles SET label = ?, archetype = ?, role_family = ?, completeness = ?, payload_json = ?
+      `UPDATE profiles SET label = ?, archetype = ?, role_family = ?, completeness = ?, payload_json = ?, updated_at = ?
        WHERE id = ? AND workspace_id = ?`
     )
-    .run(input.label, input.archetype, input.roleFamily, input.completeness, JSON.stringify(input.payload), id, workspaceId);
+    .run(input.label, input.archetype, input.roleFamily, input.completeness, JSON.stringify(input.payload), new Date().toISOString(), id, workspaceId);
   invalidateProfileRecordsCache();
   return Number(info.changes) > 0;
+}
+
+// A profile's divergence from its source analysis: has it been hand-edited SINCE it
+// was built/rebuilt from that analysis? Compares the content-write stamp (updated_at)
+// against the lineage stamp (lineage_stamped_at). `diverged` is true only when BOTH
+// are present and the edit is strictly newer — a legacy row (NULL stamps) or an
+// un-edited build reports `diverged:false`, so rebuild behaves exactly as before.
+// `editedAt` is the updated_at the warning names. Returns null when the id is unknown.
+export type ProfileDivergence = { diverged: boolean; editedAt: string | null };
+export function profileDivergence(id: string, workspaceId: string = DEFAULT_WORKSPACE_ID): ProfileDivergence | null {
+  const db = ensureDb();
+  const row = db
+    .prepare(`SELECT updated_at, lineage_stamped_at FROM profiles WHERE id = ? AND workspace_id = ?`)
+    .get(id, workspaceId) as { updated_at: string | null; lineage_stamped_at: string | null } | undefined;
+  if (!row) return null;
+  // ISO-8601 timestamps compare lexicographically, so `>` is a chronological "is newer"
+  // — the same equivalence profileStaleness relies on.
+  const diverged = row.updated_at != null && row.lineage_stamped_at != null && row.updated_at > row.lineage_stamped_at;
+  return { diverged, editedAt: row.updated_at };
 }
 
 // Stamp (or refresh) a profile's source lineage in place — the rebuild-from-latest
@@ -169,12 +197,16 @@ export function updateProfile(id: string, input: SaveProfileInput, workspaceId: 
 // rebuild touches these columns. Returns false when no row matched the id.
 export function setProfileLineage(id: string, lineage: ProfileLineage, workspaceId: string = DEFAULT_WORKSPACE_ID): boolean {
   const db = ensureDb();
+  // Also move lineage_stamped_at to now: this rebuild re-anchors the profile to its
+  // (newer) analysis, so any prior edit no longer counts as divergence. On the rebuild
+  // path updateProfile has just run (updated_at ≤ now), so post-rebuild
+  // updated_at ≤ lineage_stamped_at ⇒ not diverged — the rebuilt profile is clean.
   const info = db
     .prepare(
-      `UPDATE profiles SET source_analysis_slug = ?, source_cv_hash = ?, source_analyzed_at = ?
+      `UPDATE profiles SET source_analysis_slug = ?, source_cv_hash = ?, source_analyzed_at = ?, lineage_stamped_at = ?
        WHERE id = ? AND workspace_id = ?`
     )
-    .run(lineage.sourceAnalysisSlug, lineage.sourceCvHash, lineage.sourceAnalyzedAt, id, workspaceId);
+    .run(lineage.sourceAnalysisSlug, lineage.sourceCvHash, lineage.sourceAnalyzedAt, new Date().toISOString(), id, workspaceId);
   invalidateProfileRecordsCache();
   return Number(info.changes) > 0;
 }

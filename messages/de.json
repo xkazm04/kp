@@ -2897,7 +2897,12 @@
   },
   "profile": {
     "tab": {
-      "deepLinkError": "Das Profil dieses Kandidaten konnte nicht geöffnet werden — möglicherweise ist es noch nicht als Profil gespeichert."
+      "deepLinkError": "Das Profil dieses Kandidaten konnte nicht geöffnet werden — möglicherweise ist es noch nicht als Profil gespeichert.",
+      "rebuildWarnTitle": "Neu erstellen überschreibt Ihre Änderungen",
+      "rebuildWarnBody": "Sie haben dieses Profil am {date} manuell bearbeitet, nachdem es aus der Lebenslauf-Analyse erstellt wurde. Beim Neuerstellen wird das Formular durch die neueste Analyse ersetzt, sodass diese Änderungen überschrieben werden. Vor dem Speichern können Sie alles noch einmal prüfen.",
+      "rebuildWarnBodyNoDate": "Sie haben dieses Profil manuell bearbeitet, nachdem es aus der Lebenslauf-Analyse erstellt wurde. Beim Neuerstellen wird das Formular durch die neueste Analyse ersetzt, sodass diese Änderungen überschrieben werden. Vor dem Speichern können Sie alles noch einmal prüfen.",
+      "rebuildWarnProceed": "Aus Analyse neu erstellen",
+      "rebuildWarnKeep": "Meine Änderungen behalten"
     },
     "matrix": {
       "eyebrow": "Kandidaten",

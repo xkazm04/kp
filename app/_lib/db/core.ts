@@ -344,7 +344,15 @@ export function ensureDb(): Database.Database {
       -- on a hand-built profile (never fabricated) ⇒ no staleness, no badge.
       source_analysis_slug TEXT,
       source_cv_hash TEXT,
-      source_analyzed_at TEXT
+      source_analyzed_at TEXT,
+      -- Divergence tracking (profile "rebuild that respects hand edits"): updated_at
+      -- is stamped on every CONTENT write (create/edit); lineage_stamped_at on every
+      -- time source lineage is (re)stamped (build-from-analysis / rebuild). A profile
+      -- has DIVERGED from its analysis when updated_at > lineage_stamped_at — it was
+      -- hand-edited after it was built — so a rebuild can warn before clobbering the
+      -- recruiter's edits. NULL on legacy rows ⇒ divergence unprovable ⇒ no warning.
+      updated_at TEXT,
+      lineage_stamped_at TEXT
     );
 
     CREATE INDEX IF NOT EXISTS idx_profiles_created_at ON profiles (created_at DESC);
@@ -883,6 +891,13 @@ export function ensureDb(): Database.Database {
     "ALTER TABLE profiles ADD COLUMN source_analysis_slug TEXT",
     "ALTER TABLE profiles ADD COLUMN source_cv_hash TEXT",
     "ALTER TABLE profiles ADD COLUMN source_analyzed_at TEXT",
+    // Divergence tracking ("rebuild that respects hand edits"): updated_at is stamped
+    // on every content write, lineage_stamped_at whenever source lineage is (re)stamped.
+    // updated_at > lineage_stamped_at ⇒ the profile was hand-edited after it was built
+    // from its analysis, so a rebuild warns before overwriting. NULL on legacy rows ⇒
+    // divergence unprovable ⇒ rebuild behaves exactly as before (no warning).
+    "ALTER TABLE profiles ADD COLUMN updated_at TEXT",
+    "ALTER TABLE profiles ADD COLUMN lineage_stamped_at TEXT",
     // Tenant scope (P1): the Library JD tables — a team's private drafts/openings +
     // their edit history. Backfilled to the default workspace below.
     "ALTER TABLE jds ADD COLUMN workspace_id TEXT",

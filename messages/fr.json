@@ -2897,7 +2897,12 @@
   },
   "profile": {
     "tab": {
-      "deepLinkError": "Impossible d’ouvrir le profil de ce candidat — il n’est peut-être pas encore enregistré comme profil."
+      "deepLinkError": "Impossible d’ouvrir le profil de ce candidat — il n’est peut-être pas encore enregistré comme profil.",
+      "rebuildWarnTitle": "La reconstruction écrasera vos modifications",
+      "rebuildWarnBody": "Vous avez modifié ce profil à la main le {date}, après sa création à partir de l’analyse du CV. La reconstruction remplace le formulaire par l’analyse la plus récente : ces modifications seront donc écrasées. Vous pourrez tout revoir avant d’enregistrer.",
+      "rebuildWarnBodyNoDate": "Vous avez modifié ce profil à la main après sa création à partir de l’analyse du CV. La reconstruction remplace le formulaire par l’analyse la plus récente : ces modifications seront donc écrasées. Vous pourrez tout revoir avant d’enregistrer.",
+      "rebuildWarnProceed": "Reconstruire depuis l’analyse",
+      "rebuildWarnKeep": "Conserver mes modifications"
     },
     "matrix": {
       "eyebrow": "Candidats",

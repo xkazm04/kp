@@ -6,6 +6,7 @@ import {
   cachedProfileRecords,
   deleteProfile,
   getProfileRecord,
+  profileDivergence,
   profileStaleness,
   saveProfile,
   setProfileLineage,
@@ -109,7 +110,10 @@ export async function GET(request: NextRequest) {
     if (id) {
       const rec = getProfileRecord(id, ws);
       if (!rec) return NextResponse.json({ error: "Profile not found." }, { status: 404 });
-      return NextResponse.json({ profile: { ...rec.row, payload: rec.payload } });
+      // `divergence` lets the rebuild flow (ProfileTab) detect a profile hand-edited
+      // AFTER it was built from its analysis and warn before re-hydrating from the
+      // analysis dump — so the recruiter's edits are never silently clobbered.
+      return NextResponse.json({ profile: { ...rec.row, payload: rec.payload }, divergence: profileDivergence(id, ws) });
     }
     // The list carries a `stale` map (profile id → newer analysis) alongside the
     // rows so the roster / Match candidate select can flag "a newer CV analysis

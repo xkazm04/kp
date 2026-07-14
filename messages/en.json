@@ -2868,7 +2868,12 @@
   },
   "profile": {
     "tab": {
-      "deepLinkError": "Couldn't open that candidate's profile — it may not be saved as a profile yet."
+      "deepLinkError": "Couldn't open that candidate's profile — it may not be saved as a profile yet.",
+      "rebuildWarnTitle": "Rebuild will overwrite your edits",
+      "rebuildWarnBody": "You edited this profile by hand on {date}, after it was built from the CV analysis. Rebuilding replaces the form with the latest analysis, so those edits will be overwritten. You'll still review before saving.",
+      "rebuildWarnBodyNoDate": "You edited this profile by hand after it was built from the CV analysis. Rebuilding replaces the form with the latest analysis, so those edits will be overwritten. You'll still review before saving.",
+      "rebuildWarnProceed": "Rebuild from analysis",
+      "rebuildWarnKeep": "Keep my edits"
     },
     "matrix": {
       "eyebrow": "Candidates",

@@ -3,7 +3,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { AlertTriangle } from "lucide-react";
 import { buildUrl } from "@/app/features/tabs";
+import { Modal } from "@/app/_components/Modal";
 import type { ArchetypeDef, ProfilePayload } from "./ProfileTypes";
 import { ArchetypeManager } from "./ArchetypeManager";
 import { CandidateMatrix } from "./CandidateMatrix";
@@ -32,6 +34,11 @@ export function ProfileTab() {
   const [archLoading, setArchLoading] = useState(true);
   const [editor, setEditor] = useState<EditorState | null>(null);
   const [note, setNote] = useState<string | null>(null);
+  // A rebuild whose target profile was hand-edited after it was built: hold the intent
+  // and warn (naming the edit date) BEFORE hydrating, so the recruiter chooses whether
+  // to overwrite their edits (proceed) or keep them (open as a plain edit). Never a
+  // silent clobber.
+  const [rebuildWarn, setRebuildWarn] = useState<{ slug: string; profileId: string; editedAt: string | null } | null>(null);
   // Bumped when the roster changes (a delete) so the matrix, a sibling that fetches
   // the same union, refetches instead of showing a just-deleted profile.
   const [dataRev, setDataRev] = useState(0);
@@ -72,6 +79,23 @@ export function ProfileTab() {
     [t]
   );
 
+  // Rebuild-from-latest entry: unlike a first build, this re-points an EXISTING
+  // profile — which may have been hand-edited since it was built. Check divergence
+  // first (GET /api/profile?id= carries it). If it diverged, raise the warning and let
+  // the recruiter decide; otherwise hydrate from the analysis exactly as before.
+  const openRebuild = useCallback(
+    (slug: string, profileId: string) =>
+      fetch(`/api/profile?id=${encodeURIComponent(profileId)}`)
+        .then((r) => (r.ok ? r.json() : Promise.reject(new Error("not found"))))
+        .then((p) => {
+          const div = p.divergence as { diverged: boolean; editedAt: string | null } | null;
+          if (div?.diverged) setRebuildWarn({ slug, profileId, editedAt: div.editedAt });
+          else void openFromAnalysis(slug, profileId);
+        })
+        .catch(() => setNote(t("deepLinkError"))),
+    [openFromAnalysis, t]
+  );
+
   const reloadArchetypes = useCallback(
     () =>
       fetch("/api/archetypes")
@@ -104,7 +128,10 @@ export function ProfileTab() {
     if (fromAnalysis) {
       const rebuild = params.get("rebuild");
       router.replace(buildUrl({ fromAnalysis: null, rebuild: null }, params.toString()), { scroll: false });
-      void openFromAnalysis(fromAnalysis, rebuild);
+      // A rebuild (?rebuild=<id>) goes through the divergence check so a hand-edited
+      // profile warns first; a first build-from-analysis hydrates straight away.
+      if (rebuild) void openRebuild(fromAnalysis, rebuild);
+      else void openFromAnalysis(fromAnalysis, null);
       return;
     }
     const editId = params.get("edit");
@@ -142,6 +169,51 @@ export function ProfileTab() {
         onEditProfile={(id) => void openEditor(id)}
         onNewProfile={() => setEditor({ mode: "create", editingId: null, initialPayload: null })}
       />
+
+      {rebuildWarn ? (
+        <Modal
+          size="md"
+          title={t("rebuildWarnTitle")}
+          onClose={() => setRebuildWarn(null)}
+          footer={
+            <div className="flex flex-wrap justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const { profileId } = rebuildWarn;
+                  setRebuildWarn(null);
+                  void openEditor(profileId);
+                }}
+                className="focus-ring h-9 rounded-md border border-stone-200 px-4 text-sm font-semibold text-ink hover:bg-paper"
+              >
+                {t("rebuildWarnKeep")}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const { slug, profileId } = rebuildWarn;
+                  setRebuildWarn(null);
+                  void openFromAnalysis(slug, profileId);
+                }}
+                className="focus-ring h-9 rounded-md bg-ink px-4 text-sm font-semibold text-white hover:bg-steel"
+              >
+                {t("rebuildWarnProceed")}
+              </button>
+            </div>
+          }
+        >
+          <div className="flex items-start gap-3">
+            <span className="mt-0.5 shrink-0 rounded-full bg-amber-50 p-1.5 text-amber-800" aria-hidden>
+              <AlertTriangle size={16} />
+            </span>
+            <p className="text-body text-steel">
+              {rebuildWarn.editedAt
+                ? t("rebuildWarnBody", { date: new Date(rebuildWarn.editedAt).toLocaleDateString() })
+                : t("rebuildWarnBodyNoDate")}
+            </p>
+          </div>
+        </Modal>
+      ) : null}
     </div>
   );
 }
