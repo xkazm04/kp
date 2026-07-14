@@ -2684,7 +2684,8 @@
       "whyNow": {
         "rejected": "Écarté pour un autre poste — mais atteint le niveau requis pour {jobTitle} à {score} %. Cela ressemble à une inadéquation de poste à l'époque, pas à un manque de compétences ; à réexaminer maintenant que ce poste est ouvert.",
         "closed": "Est allé jusqu'au bout d'un poste fermé en cours de route — un candidat éprouvé et disponible, avec {score} % de correspondance pour {jobTitle}.",
-        "elsewhere": "Déjà engagé sur un autre poste ; également {score} % de correspondance pour {jobTitle} — un redéploiement à envisager."
+        "elsewhere": "Déjà engagé sur un autre poste ; également {score} % de correspondance pour {jobTitle} — un redéploiement à envisager.",
+        "reached": "Est allé jusqu'à {stage} la dernière fois — classé avant les parcours antérieurs moins avancés."
       }
     },
     "rediscoveryFeed": {

@@ -2684,7 +2684,8 @@
       "whyNow": {
         "rejected": "Für eine andere Stelle abgelehnt — nimmt aber die Latte von {jobTitle} mit {score}%. Sieht damals nach einem Rollen-Mismatch aus, nicht nach einer Kompetenzlücke; ein frischer Blick lohnt sich, jetzt wo diese Stelle offen ist.",
         "closed": "Erreichte die Zielgerade einer Stelle, die dann geschlossen wurde — ein/e bewährte/r, verfügbare/r Kandidat/in mit {score}% Eignung für {jobTitle}.",
-        "elsewhere": "Bereits für eine andere Stelle im Prozess; zugleich {score}% Eignung für {jobTitle} — eine Umbesetzung, die eine Überlegung wert ist."
+        "elsewhere": "Bereits für eine andere Stelle im Prozess; zugleich {score}% Eignung für {jobTitle} — eine Umbesetzung, die eine Überlegung wert ist.",
+        "reached": "Kam letztes Mal bis {stage} — vor flacheren früheren Verläufen einsortiert."
       }
     },
     "rediscoveryFeed": {

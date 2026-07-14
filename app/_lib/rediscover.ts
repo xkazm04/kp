@@ -3,6 +3,7 @@ import { buildCandidatePool } from "./candidate-pool";
 import { listJobStatuses } from "./job-ingest";
 import { rankPoolForJob } from "./recruiter-run";
 import { recordRediscoveryAlerts } from "./rediscovery-alert-store";
+import { priorDepthBoost, byPriorAwareRank } from "./rediscovery-rank";
 
 // The pure relevance filter lives in an import-free sibling so it's testable under
 // bare node --test; re-exported here as the canonical import site.
@@ -22,7 +23,19 @@ export const SCORE_FLOOR = 55;
 // eligible were dropped so the cap never reads as "this is everyone".
 export const REDISCOVER_LIMIT = 20;
 
-export type PriorOutcome = { kind: "rejected" | "closed" | "elsewhere"; label: string };
+export type PriorOutcome = {
+  kind: "rejected" | "closed" | "elsewhere";
+  /** Legacy English chip label (kept for the persisted feed + back-compat). The
+   *  LOCALIZED disclosure is rebuilt on each surface from `kind`/`stage`/`depth`. */
+  label: string;
+  /** The prior entry's terminal PIPELINE_STAGES stage (e.g. "Interview") — the
+   *  disclosed depth. Canonical when `depth > 0`, so it maps cleanly to enums.stage. */
+  stage: string;
+  /** The band-limited ordering boost this prior contributed (priorDepthBoost).
+   *  0 for a shallow/day-one prior. `depth > 0` is the signal a surface uses to
+   *  DISCLOSE the depth in its why-now rationale — the boost that influenced order. */
+  depth: number;
+};
 
 export type Rediscovered = {
   candidateId: string;
@@ -40,16 +53,25 @@ export type RediscoverResult = {
 
 function pickPrior(hist: CandidateOutcome[], jobId: string): PriorOutcome | null {
   const role = (o: CandidateOutcome) => o.jobTitle ?? "another role";
+  // The prior's terminal stage is already on the fetched outcome row — read it for
+  // the transparent, band-limited depth boost (priorDepthBoost) + the disclosed
+  // depth, WITHOUT a second query. `depth` drives ordering; `stage` the rationale.
+  const make = (kind: PriorOutcome["kind"], label: string, o: CandidateOutcome): PriorOutcome => ({
+    kind,
+    label,
+    stage: o.stage,
+    depth: priorDepthBoost(o.stage),
+  });
   const rejected = hist.find((h) => h.status === "rejected");
-  if (rejected) return { kind: "rejected", label: `Rejected · ${role(rejected)}` };
+  if (rejected) return make("rejected", `Rejected · ${role(rejected)}`, rejected);
   // `role_closed` (the role was filled/closed under them, JOB2) and `declined` both make
   // strong re-engagement targets — they cleared the bar, so resurface them as "closed"
   // silver medalists. (Pre-JOB2 this read `status === "closed"`, a value the taxonomy
   // never produced, so role-closed candidates were silently never rediscovered.)
   const closed = hist.find((h) => h.status === "role_closed" || h.status === "declined");
-  if (closed) return { kind: "closed", label: `Closed · ${role(closed)}` };
+  if (closed) return make("closed", `Closed · ${role(closed)}`, closed);
   const elsewhere = hist.find((h) => h.jobId !== jobId && (h.status === "active" || h.stage === "Hired"));
-  if (elsewhere) return { kind: "elsewhere", label: `${elsewhere.stage} · ${role(elsewhere)}` };
+  if (elsewhere) return make("elsewhere", `${elsewhere.stage} · ${role(elsewhere)}`, elsewhere);
   return null;
 }
 
@@ -99,7 +121,18 @@ export async function rediscoverForJob(
       };
     })
     .filter((r): r is Rediscovered => r !== null)
-    .sort((a, b) => b.score - a.score);
+    // Prior-aware rank: honest base score is still the PRIMARY key, refined by a
+    // band-limited prior-depth boost (byPriorAwareRank) so a final-round near-miss
+    // floats above a day-one screen-out within the same score band — never across
+    // it. Admission (SCORE_FLOOR) already happened above on the HONEST score, so the
+    // boost only REORDERS the admitted set; the displayed `score` stays the honest
+    // base. At the REDISCOVER_LIMIT cut this means a deeper prior just below the cut
+    // may edge out a shallower one just above it — but only when their base scores
+    // are within the band, so the cut never admits anyone a real tier stronger got
+    // bumped for.
+    .sort((a, b) =>
+      byPriorAwareRank({ score: a.score, boost: a.prior.depth }, { score: b.score, boost: b.prior.depth })
+    );
 
   const shown = rediscovered.slice(0, REDISCOVER_LIMIT);
   return {

@@ -2655,7 +2655,8 @@
       "whyNow": {
         "rejected": "Passed for a different role — but clears {jobTitle}'s bar at {score}%. Looks like a role-fit mismatch then, not a capability gap; worth a fresh look now this seat is open.",
         "closed": "Reached the finish line on a role that closed under them — a proven, available candidate at a {score}% fit for {jobTitle}.",
-        "elsewhere": "Already in motion on another role; also a {score}% fit for {jobTitle} — a redeploy worth weighing."
+        "elsewhere": "Already in motion on another role; also a {score}% fit for {jobTitle} — a redeploy worth weighing.",
+        "reached": "Got as far as {stage} last time — surfaced ahead of shallower priors."
       }
     },
     "rediscoveryFeed": {

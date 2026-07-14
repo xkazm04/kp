@@ -2655,7 +2655,8 @@
       "whyNow": {
         "rejected": "Odmítnut na jinou roli — ale splňuje laťku pro {jobTitle} na {score} %. Spíš tehdejší nesoulad role než nedostatek schopností; teď, když je místo volné, stojí za nový pohled.",
         "closed": "Došel až do finále na roli, která se pod ním uzavřela — prověřený, dostupný kandidát s {score}% shodou pro {jobTitle}.",
-        "elsewhere": "Už je v procesu na jiné roli; zároveň {score}% shoda pro {jobTitle} — stojí za zvážení přesun."
+        "elsewhere": "Už je v procesu na jiné roli; zároveň {score}% shoda pro {jobTitle} — stojí za zvážení přesun.",
+        "reached": "Minule došel/došla až do fáze {stage} — řadí se před kandidáty s mělčím postupem."
       }
     },
     "rediscoveryFeed": {

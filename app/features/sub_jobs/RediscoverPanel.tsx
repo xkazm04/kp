@@ -4,6 +4,7 @@ import { Check, History, RotateCcw, Send, UserPlus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
 import { useAddToPipeline } from "@/app/_lib/useAddToPipeline";
+import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { useReachOut } from "@/app/_lib/useReachOut";
 import { ScoreBadge } from "@/app/_components/ScoreBadge";
 import { EmptyState, SkippedCandidatesNote, SkelBar } from "./JobsShared";
@@ -20,6 +21,9 @@ const PRIOR_STYLE: Record<string, string> = {
 
 export function RediscoverPanel({ jobId, jobTitle }: { jobId: string; jobTitle: string }) {
   const t = useTranslations("jobs.rediscover");
+  // Localized pipeline-stage name for the disclosed prior depth (canonical stage →
+  // enums.stage, with graceful fallback — the recruiter-side enum-label helper).
+  const enumLabel = useEnumLabel();
   const { data: body, error } = useJsonFetch<{ rediscovered?: Rediscovered[]; skipped?: SkippedCandidate[] }>(
     `/api/jobs/${encodeURIComponent(jobId)}/rediscover`,
     t("loadFailed")
@@ -85,6 +89,13 @@ export function RediscoverPanel({ jobId, jobTitle }: { jobId: string; jobTitle: 
                     open role; localized (unlike the legacy English prior.label). */}
                 <p className="mt-1 text-sm leading-snug text-steel">
                   {t(`whyNow.${c.prior.kind}`, { jobTitle, score: c.score })}
+                  {/* Disclose the prior depth when it influenced ordering — depth > 0
+                      means the band-limited boost lifted this candidate (prior reached
+                      Screened or deeper). `stage` is canonical there, so enums.stage
+                      resolves it. Honest base score stays the number shown by ScoreBadge. */}
+                  {c.prior.depth > 0
+                    ? " " + t("whyNow.reached", { stage: enumLabel("stage", c.prior.stage) })
+                    : ""}
                 </p>
               </div>
               {reached(c.candidateId) ? (
