@@ -693,13 +693,28 @@ def _score_from_payload(raw: Any, repairs: list[str] | None = None) -> ScoreBrea
 # plausible negotiation anchor with no reviewer warning. We validate against an
 # allow-list and give EVERY market a magnitude bound by annualizing the figure.
 
-# Per-currency ANNUAL gross plausibility ceilings (order-of-magnitude sanity bounds,
-# not precise market data). Each sits well above its market's real senior/exec comp,
-# so a genuine offer never trips it but a hallucinated/injected order-of-magnitude
-# error does. CZK is DERIVED from the CZK/month ceiling (x12) so CZK/month behaviour
-# is byte-for-byte unchanged. Covers the ISO codes the Gemini prompt can emit.
-_ANNUAL_CEILING_BY_CURRENCY: dict[str, int] = {
-    "CZK": SALARY_PLAUSIBILITY_CEILING * 12,  # 4,200,000/yr — mirror of the CZK/month cap
+# Multiplier that annualizes a figure so one per-currency yearly ceiling bounds every
+# market uniformly (2080 = 40h x 52wk). Defined before the ceiling lookup because the
+# active market's home-currency ceiling is derived by annualizing its MarketConfig
+# ceiling through this map.
+_PERIOD_TO_ANNUAL: dict[str, int] = {"hour": 2080, "month": 12, "year": 1}
+
+# NEUTRAL, market-INDEPENDENT per-currency ANNUAL gross plausibility ceilings
+# (order-of-magnitude sanity bounds, not precise market data). Each sits well above
+# its market's real senior/exec comp, so a genuine offer never trips it but a
+# hallucinated/injected order-of-magnitude error does. Covers the ISO codes the
+# Gemini prompt can emit.
+#
+# These are FIXED literals that do NOT move when ACTIVE_MARKET flips: a Czech salary
+# must stay bounded at 4.2M CZK/yr even when the pipeline is re-homed to a EUR market
+# (and a EUR salary stays bounded under the Czech default). The ACTIVE market's OWN
+# home currency is instead derived live from its MarketConfig ceiling — see
+# ``_annual_ceiling_for`` — so re-homing moves the home bound in lockstep while
+# leaving every foreign currency untouched. CZK's literal here (4,200,000 = the
+# documented 350k CZK/month x12) equals what the derivation yields under the Czech
+# default, so CZK/month behaviour is byte-for-byte unchanged.
+_NEUTRAL_ANNUAL_CEILING_BY_CURRENCY: dict[str, int] = {
+    "CZK": 4_200_000,  # 350k CZK/month x12 — the documented Czech bound as a fixed literal
     "EUR": 600_000,
     "USD": 700_000,
     "GBP": 600_000,
@@ -718,14 +733,35 @@ _ANNUAL_CEILING_BY_CURRENCY: dict[str, int] = {
     "INR": 60_000_000,
     "JPY": 100_000_000,
 }
-# The ISO-4217 allow-list is exactly the keys above (no drift between the two).
-_KNOWN_CURRENCIES = frozenset(_ANNUAL_CEILING_BY_CURRENCY)
-# Multiplier that annualizes a figure so one per-currency yearly ceiling bounds every
-# market uniformly (2080 = 40h x 52wk).
-_PERIOD_TO_ANNUAL: dict[str, int] = {"hour": 2080, "month": 12, "year": 1}
 # Permissive fallback for a recognized-but-unmapped currency (cannot occur while the
 # allow-list mirrors the map, but keeps the lookup total).
 _DEFAULT_ANNUAL_CEILING = 100_000_000
+
+
+def _annual_ceiling_for(currency: str, *, market: MarketConfig = ACTIVE_MARKET) -> int:
+    """The annual gross plausibility ceiling for ``currency``.
+
+    The active ``market`` OWNS its home currency's ceiling — derived live from
+    ``MarketConfig.plausibility_ceiling`` annualized by the market's period — so
+    re-homing the pipeline moves the home bound in lockstep with the declared
+    ceiling. Every OTHER currency comes from the neutral, market-independent table,
+    so flipping the market never disturbs a foreign currency's bound (a CZK figure
+    stays bounded at 4.2M/yr under a EUR market, and vice versa).
+    """
+    if currency == market.currency:
+        return market.plausibility_ceiling * _PERIOD_TO_ANNUAL[market.period]
+    return _NEUTRAL_ANNUAL_CEILING_BY_CURRENCY.get(currency, _DEFAULT_ANNUAL_CEILING)
+
+
+def _known_currencies(market: MarketConfig = ACTIVE_MARKET) -> frozenset[str]:
+    """The ISO-4217 allow-list: every neutral-table currency plus the active
+    market's home currency (always present in the table for both sample markets,
+    but unioned in defensively so a future home currency can't fall outside it)."""
+    return frozenset(_NEUTRAL_ANNUAL_CEILING_BY_CURRENCY) | {market.currency}
+
+
+# The allow-list for the product default market (read by the ingest/sanity paths).
+_KNOWN_CURRENCIES = _known_currencies()
 
 
 def _normalize_currency_period(
@@ -1229,7 +1265,7 @@ def _salary_sanity_checks(salary: SalaryEstimate) -> list[str]:
         checks.append("Salary currency/period unrecognized — needs manual review")
         return checks
     annual_max = salary.maximum * _PERIOD_TO_ANNUAL[period]
-    ceiling = _ANNUAL_CEILING_BY_CURRENCY.get(currency, _DEFAULT_ANNUAL_CEILING)
+    ceiling = _annual_ceiling_for(currency)
     plausible = annual_max <= ceiling
     checks.append("Salary range seems plausible" if plausible else "Salary range needs manual review")
     return checks

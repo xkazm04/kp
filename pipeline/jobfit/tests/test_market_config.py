@@ -24,9 +24,14 @@ import unittest
 from pathlib import Path
 
 from pipeline.jobfit import salary_band
-from pipeline.jobfit.jobs import DEFAULT_POLICY
-from pipeline.jobfit.market_config import ACTIVE_MARKET, BERLIN_MARKET, CZECH_MARKET
-from pipeline.jobfit.pipeline import _normalize_currency_period
+from pipeline.jobfit.jobs import DEFAULT_POLICY, _build_extraction_prompt
+from pipeline.jobfit.market_config import (
+    ACTIVE_MARKET,
+    BERLIN_MARKET,
+    CZECH_MARKET,
+    gross_period_phrase,
+)
+from pipeline.jobfit.pipeline import _annual_ceiling_for, _normalize_currency_period
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 FORMAT_TS = REPO_ROOT / "app" / "_lib" / "format.ts"
@@ -78,6 +83,56 @@ class SeamProvenBySecondMarketTest(unittest.TestCase):
         self.assertEqual(
             _normalize_currency_period(None, None, market=BERLIN_MARKET), ("EUR", "month")
         )
+
+
+class MultiCurrencyCeilingSeamTest(unittest.TestCase):
+    """The per-currency annual plausibility ceiling is MarketConfig-driven: the
+    active market OWNS its home currency's ceiling (derived from its declared
+    plausibility_ceiling), while every OTHER currency comes from a fixed neutral
+    table that does NOT move when the market flips. Pre-fix, the CZK row was
+    ``ACTIVE_MARKET.plausibility_ceiling x 12`` so flipping to a EUR market would
+    have collapsed the CZK bound to ~30k x 12 and flagged every real Czech salary.
+    """
+
+    def test_czech_default_is_byte_identical(self) -> None:
+        # Home currency under the Czech default: 350k/month x12 = 4.2M/yr.
+        self.assertEqual(_annual_ceiling_for("CZK"), 4_200_000)
+        self.assertEqual(_annual_ceiling_for("CZK", market=CZECH_MARKET), 4_200_000)
+        # A foreign currency comes from the neutral table.
+        self.assertEqual(_annual_ceiling_for("EUR"), 600_000)
+
+    def test_berlin_flip_leaves_czk_ceiling_correct(self) -> None:
+        # Re-homing to the EUR/Berlin market must NOT drag the CZK bound down to the
+        # Berlin ceiling x12 (~360k) — a foreign currency keeps its neutral bound.
+        self.assertEqual(_annual_ceiling_for("CZK", market=BERLIN_MARKET), 4_200_000)
+        # ...while the now-home EUR currency is derived from Berlin's ceiling:
+        # 30k/month x12 = 360k/yr (its declared sample ceiling), not the neutral 600k.
+        self.assertEqual(
+            _annual_ceiling_for("EUR", market=BERLIN_MARKET),
+            BERLIN_MARKET.plausibility_ceiling * 12,
+        )
+        self.assertEqual(_annual_ceiling_for("EUR", market=BERLIN_MARKET), 360_000)
+
+    def test_home_ceiling_tracks_the_declared_ceiling_in_lockstep(self) -> None:
+        # The home currency bound is always the market's own annualized ceiling.
+        for market in (CZECH_MARKET, BERLIN_MARKET):
+            self.assertEqual(
+                _annual_ceiling_for(market.currency, market=market),
+                market.plausibility_ceiling * 12,
+            )
+
+
+class ExtractionPromptPeriodFollowsMarketTest(unittest.TestCase):
+    """The JD-extraction prompt's salary-period assumption is MarketConfig-driven,
+    not a hardcoded 'gross monthly' literal."""
+
+    def test_czech_default_prompt_says_gross_monthly(self) -> None:
+        self.assertEqual(gross_period_phrase("month"), "gross monthly")
+        self.assertIn("gross monthly pay range", _build_extraction_prompt())
+
+    def test_phrase_follows_the_period(self) -> None:
+        self.assertEqual(gross_period_phrase("year"), "gross annual")
+        self.assertEqual(gross_period_phrase("hour"), "gross hourly")
 
 
 class CrossBoundarySyncTest(unittest.TestCase):

@@ -74,3 +74,21 @@ BERLIN_MARKET = MarketConfig(
 # The single switch point every consumer reads. Flip this to re-home the pipeline;
 # leaving it CZECH_MARKET keeps all outputs identical to before this seam existed.
 ACTIVE_MARKET: MarketConfig = CZECH_MARKET
+
+
+# Human phrasing for a pay period. The JD-extraction prompt used to hardcode
+# "gross monthly"; it now reads the active market's period through this map so the
+# period assumption re-homes with the market (a year-denominated market would ask
+# the parser for the "gross annual" range) instead of staying a stranded literal.
+# For the Czech default (period "month") this yields "gross monthly" byte-for-byte.
+_GROSS_PERIOD_PHRASE: dict[str, str] = {
+    "hour": "gross hourly",
+    "month": "gross monthly",
+    "year": "gross annual",
+}
+
+
+def gross_period_phrase(period: str) -> str:
+    """The 'gross monthly' / 'gross annual' / 'gross hourly' phrase for a pay
+    ``period``, defaulting to ``"gross <period>"`` for an unmapped value."""
+    return _GROSS_PERIOD_PHRASE.get(period, f"gross {period}")

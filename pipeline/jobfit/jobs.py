@@ -26,7 +26,7 @@ from typing import Any, Protocol
 
 from pydantic import Field
 
-from .market_config import ACTIVE_MARKET
+from .market_config import ACTIVE_MARKET, gross_period_phrase
 from .models import _Base
 from .salary_band import normalize_band
 from .taxonomy import (
@@ -436,7 +436,7 @@ role_family: pick the single best-fitting family for this role from the catalog
 below — choose the industry-appropriate family for any field, not a technology
 family by default:
 {_role_family_reference()}
-salary_min/salary_max: the gross monthly pay range the posting itself states, in
+salary_min/salary_max: the {gross_period_phrase(ACTIVE_MARKET.period)} pay range the posting itself states, in
 whatever currency it uses; null when the ad states no pay — NEVER estimate one.
 For each requirement decide kind (must vs nice) and hardness: "prerequisite" if a
 candidate truly cannot do the job without it, "learnable" if it can reasonably be
