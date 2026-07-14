@@ -63,7 +63,7 @@ class BankComplianceScoreSkillsTest(unittest.TestCase):
             role_family="finance_accounting",
             requirements=[{"skill": "anti-money laundering", "kind": "must_have", "hardness": "prerequisite"}],
         )
-        score, matched, missing, strength = score_skills(cand, job)
+        score, matched, missing, strength, _unproven = score_skills(cand, job)
         # Graduated: strictly between a miss (0) and an exact match (1).
         self.assertGreater(score, 0.0)
         self.assertLess(score, 1.0)
@@ -78,7 +78,7 @@ class BankComplianceScoreSkillsTest(unittest.TestCase):
             role_family="finance_accounting",
             requirements=[{"skill": "aml", "kind": "must_have", "hardness": "prerequisite"}],
         )
-        score, matched, missing, _ = score_skills(cand, job)
+        score, matched, missing, _, _unproven = score_skills(cand, job)
         self.assertEqual(score, 0.0)
         self.assertIn("aml", missing)
 
@@ -88,7 +88,7 @@ class BankComplianceScoreSkillsTest(unittest.TestCase):
             role_family="finance_accounting",
             requirements=[{"skill": "kyc", "kind": "must_have", "hardness": "prerequisite"}],
         )
-        score, matched, _, strength = score_skills(cand, job)
+        score, matched, _, strength, _unproven = score_skills(cand, job)
         self.assertAlmostEqual(score, 1.0)
         self.assertEqual(strength["kyc"], 1.0)
 
@@ -117,7 +117,7 @@ class LegalComplianceGraduatedCreditTest(unittest.TestCase):
             role_family="legal_compliance",
             requirements=[{"skill": "sanctions screening", "kind": "must_have", "hardness": "prerequisite"}],
         )
-        score, matched, missing, strength = score_skills(cand, job)
+        score, matched, missing, strength, _unproven = score_skills(cand, job)
         self.assertGreater(score, 0.0)
         self.assertLess(score, 1.0)
         self.assertIn("sanctions screening", matched)
@@ -157,7 +157,7 @@ class HrPeopleGraduatedCreditTest(unittest.TestCase):
             role_family="hr_people",
             requirements=[{"skill": "recruiting", "kind": "must_have", "hardness": "prerequisite"}],
         )
-        score, matched, missing, strength = score_skills(cand, job)
+        score, matched, missing, strength, _unproven = score_skills(cand, job)
         self.assertGreater(score, 0.0)
         self.assertLess(score, 1.0)
         self.assertIn("recruiting", matched)

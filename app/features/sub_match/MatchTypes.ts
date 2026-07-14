@@ -55,6 +55,13 @@ export type MatchResult = {
   // provenance-discounted partial hit (matching._MATCH_THRESHOLD).
   matchedSkillStrength?: Record<string, number>;
   missingSkills?: string[];
+  // Claimed-but-UNPROVEN required skills: named (or a relative named) but scored
+  // above 0 and below the match threshold — neither matched nor missing. Additive;
+  // absent means none. `unprovenSkillReason` tells a near-miss specialist
+  // ("adjacency") from an unsubstantiated claim ("provenance" | "both").
+  unprovenSkills?: string[];
+  unprovenSkillStrength?: Record<string, number>;
+  unprovenSkillReason?: Record<string, string>;
   isEntryEligible?: boolean;
   graduateFriendliness?: number;
 };

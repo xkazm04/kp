@@ -154,7 +154,7 @@ class ScoringTest(unittest.TestCase):
                 {"skill": "Kubernetes", "kind": "nice_to_have", "hardness": "learnable"},
             ]
         )
-        score, matched, missing, strength = score_skills(SENIOR_PY, job)
+        score, matched, missing, strength, _unproven = score_skills(SENIOR_PY, job)
         self.assertIn("Python", matched)
         self.assertIn("Django", matched)
         self.assertGreater(score, STRONG_SKILL_SCORE)
@@ -168,7 +168,7 @@ class ScoringTest(unittest.TestCase):
         # Candidate knows Next.js; role wants React -> specialization implies it.
         cand = MatchCandidate(skills=["Next.js"], seniority="medior", languages=["English"])
         job = mkjob(requirements=[{"skill": "React", "kind": "must_have", "hardness": "prerequisite"}])
-        score, matched, _, strength = score_skills(cand, job)
+        score, matched, _, strength, _unproven = score_skills(cand, job)
         self.assertIn("React", matched)
         self.assertGreater(score, PARTIAL_SKILL_SCORE)
         # A taxonomy/sibling hit is a PARTIAL match: strength below an exact 1.0.
@@ -177,7 +177,7 @@ class ScoringTest(unittest.TestCase):
     def test_missing_must_have_listed(self) -> None:
         cand = MatchCandidate(skills=["Python"], seniority="senior", languages=["English"])
         job = mkjob(requirements=[{"skill": "Go", "kind": "must_have", "hardness": "prerequisite"}])
-        _, _, missing, _ = score_skills(cand, job)
+        _, _, missing, _, _unproven = score_skills(cand, job)
         self.assertIn("Go", missing)
 
     def test_self_declared_exact_must_have_is_not_missing(self) -> None:
@@ -191,13 +191,13 @@ class ScoringTest(unittest.TestCase):
             skills=["Python"], seniority="junior", languages=["English"], provenance_default="self_declared"
         )
         job = mkjob(requirements=[{"skill": "Python", "kind": "must_have", "hardness": "prerequisite"}])
-        score, matched, missing, _strength = score_skills(cand, job)
+        score, matched, missing, _strength, _unproven = score_skills(cand, job)
         self.assertNotIn("Python", missing)  # named -> never "missing"
         self.assertNotIn("Python", matched)  # but below threshold -> not a matched partial either
         self.assertAlmostEqual(score, 0.4, places=4)  # the provenance discount still lowers the sub-score
         # A must-have the candidate makes NO claim to at all (best == 0.0) is still missing.
         absent = mkjob(requirements=[{"skill": "Go", "kind": "must_have", "hardness": "prerequisite"}])
-        _, _, absent_missing, _ = score_skills(cand, absent)
+        _, _, absent_missing, _, _unproven = score_skills(cand, absent)
         self.assertIn("Go", absent_missing)
 
     def test_career_same_family_beats_different(self) -> None:

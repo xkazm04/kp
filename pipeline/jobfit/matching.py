@@ -27,7 +27,15 @@ from pydantic import Field, field_validator
 from . import registry
 from .jobs import Job
 from .models import _Base
-from .taxonomy import DEFAULT_PROVENANCE, LANGUAGE_ALIASES, skill_match_score
+from .taxonomy import (
+    DEFAULT_PROVENANCE,
+    LANGUAGE_ALIASES,
+    normalize_text,
+    provenance_weight,
+    resolve_term,
+    skill_match_score,
+    term_match_score,
+)
 
 _SENIORITY_RANK = {"junior": 1, "medior": 2, "senior": 3, "lead": 4}
 _EDU_RANK = {"none": 0, "university": 1, "bachelor": 2, "master": 3, "phd": 4}
@@ -198,6 +206,16 @@ class MatchResult(_Base):
     # _MATCH_THRESHOLD). Lets the UI mark "matched" skills exact vs partial.
     matched_skill_strength: dict[str, float] = Field(default_factory=dict)
     missing_skills: list[str] = Field(default_factory=list)
+    # Claimed-but-UNPROVEN skills: required skills the candidate named (or named a
+    # relative of) that scored above 0 but below the match threshold — the honesty
+    # boundary between a near-miss specialist and an unsubstantiated claim. ADDITIVE
+    # and back-compatible: absent means none. ``unproven_skill_strength`` carries the
+    # sub-threshold score; ``unproven_skill_reason`` carries WHY it fell short
+    # ("adjacency" | "provenance" | "both"). These skills are, by construction,
+    # neither in ``matched_skills`` nor ``missing_skills``.
+    unproven_skills: list[str] = Field(default_factory=list)
+    unproven_skill_strength: dict[str, float] = Field(default_factory=dict)
+    unproven_skill_reason: dict[str, str] = Field(default_factory=dict)
     is_entry_eligible: bool = False
     graduate_friendliness: float = 0.0
 
@@ -300,39 +318,85 @@ def ko_filter(candidate: MatchCandidate, job: Job) -> tuple[bool, list[KoReason]
 # -- Layer B: multi-factor scorer -------------------------------------------
 
 
-def score_skills(candidate: MatchCandidate, job: Job) -> tuple[float, list[str], list[str], dict[str, float]]:
+# Why a claimed-but-unproven skill fell short of the match threshold. ``adjacency``
+# — the candidate offered a RELATED skill (taxonomy specialization / generalization
+# / sibling), so even at full provenance it caps below 1.0: a near-miss specialist.
+# ``provenance`` — the candidate named the EXACT skill, but its evidence source
+# (self-declared / coursework …) discounted it below the bar: an unsubstantiated
+# claim. ``both`` — a related skill AND weak evidence together sank it. The three
+# let a recruiter tell a near-miss specialist from an unsupported claim, which the
+# old single "unproven" limbo could not.
+UnprovenReason = Literal["adjacency", "provenance", "both"]
+
+
+def _classify_unproven(cand_skill: str, req_skill: str, provenance: str | None) -> UnprovenReason:
+    """Diagnose WHY a below-threshold claim fell short: taxonomy distance
+    (adjacency), a provenance discount, or both. Mirrors skill_match_score's own
+    resolve-then-hierarchy / string-equality-fallback so the verdict is consistent
+    with the score that produced it."""
+    ct = resolve_term(cand_skill)
+    rt = resolve_term(req_skill)
+    if ct and rt:
+        base = term_match_score(ct, rt)
+    else:
+        a = normalize_text(cand_skill or "").strip()
+        b = normalize_text(req_skill or "").strip()
+        base = 1.0 if a and a == b else 0.0
+    adjacency = base < 1.0  # a related, non-exact skill (base==0 can't reach here)
+    discounted = provenance_weight(provenance) < 1.0
+    if adjacency and discounted:
+        return "both"
+    return "adjacency" if adjacency else "provenance"
+
+
+def score_skills(
+    candidate: MatchCandidate, job: Job
+) -> tuple[float, list[str], list[str], dict[str, float], dict[str, dict[str, Any]]]:
     must_w, nice_w = 1.0, 0.4
     acc = 0.0
     total_w = 0.0
     matched: list[str] = []
     missing: list[str] = []
     strength: dict[str, float] = {}  # matched skill -> its best match score (1.0 exact, lower = partial)
+    # req.skill -> {"score": float, "reason": UnprovenReason} for claims that scored
+    # ABOVE zero but BELOW the match threshold (the honesty-boundary bucket).
+    unproven: dict[str, dict[str, Any]] = {}
     for req in job.requirements:
         weight = must_w if req.kind == "must_have" else nice_w
         best = 0.0
+        best_cs: str | None = None
         for cs in candidate.skills:
             prov = candidate.skill_provenance.get(cs, candidate.provenance_default)
-            best = max(best, skill_match_score(cs, req.skill, prov))
+            s = skill_match_score(cs, req.skill, prov)
+            if s > best:
+                best = s
+                best_cs = cs
         acc += best * weight
         total_w += weight
         if best >= _MATCH_THRESHOLD:
             matched.append(req.skill)
             strength[req.skill] = round(best, 2)
-        elif req.kind == "must_have" and best <= 0.0:
-            # ``missing`` means the candidate makes NO claim to this skill at all
-            # (best == 0.0). A must-have the candidate DID name but which only
-            # scored BELOW the partial-match threshold — e.g. a self-declared EXACT
-            # match discounted to 0.4 (1.0 * 0.4 provenance), or a low-provenance
-            # taxonomy/sibling hit — is "claimed but unproven", not absent. Filing
-            # such a skill as missing conflates two different states and overstates
-            # absence: it wrongly emits "missing must-have: Python" for a student
-            # who listed Python, and (via _confidence's "Misses N must-haves")
-            # widens the score band for the fairness-protected early-career cohort.
-            # The provenance discount already lowers the skills sub-score fairly;
-            # only a true zero — no claim whatsoever — belongs in ``missing``.
+        elif best > 0.0:
+            # Claimed but UNPROVEN: the candidate DID name (or name a relative of)
+            # this skill, but it scored below the partial-match threshold — a
+            # self-declared exact match discounted to 0.4, an adjacent taxonomy /
+            # sibling hit, or both. This is NOT absence, so it never belonged in
+            # ``missing`` (which would overstate the gap and, via _confidence's
+            # "Misses N must-haves", widen the band for the fairness-protected
+            # early-career cohort). Surface it in its own bucket, tagged with WHY it
+            # fell short, so a near-miss specialist reads differently from an
+            # unsubstantiated claim. It already contributed ``best * weight`` to the
+            # sub-score above, so exposing it changes no total.
+            prov = candidate.skill_provenance.get(best_cs, candidate.provenance_default) if best_cs else None
+            unproven[req.skill] = {
+                "score": round(best, 2),
+                "reason": _classify_unproven(best_cs or "", req.skill, prov),
+            }
+        elif req.kind == "must_have":
+            # best == 0.0: no claim whatsoever to a required skill — a true miss.
             missing.append(req.skill)
     score = (acc / total_w) if total_w else 0.0
-    return round(score, 4), matched, missing, strength
+    return round(score, 4), matched, missing, strength, unproven
 
 
 def score_career(candidate: MatchCandidate, job: Job) -> float:
@@ -646,10 +710,11 @@ class _Dimensions(NamedTuple):
     matched: list[str]
     missing: list[str]
     matched_strength: dict[str, float]
+    unproven: dict[str, dict[str, Any]]
 
 
 def _score_dimensions(candidate: MatchCandidate, job: Job, *, embedder: Any | None = None) -> _Dimensions:
-    skills, matched, missing, matched_strength = score_skills(candidate, job)
+    skills, matched, missing, matched_strength, unproven = score_skills(candidate, job)
     if candidate.archetype in _EARLY_CAREER:
         # career slot carries POTENTIAL (readiness); personal carries motivation/domain fit.
         career = candidate.potential_score if candidate.potential_score is not None else score_career(candidate, job)
@@ -662,7 +727,7 @@ def _score_dimensions(candidate: MatchCandidate, job: Job, *, embedder: Any | No
     else:
         career = score_career(candidate, job)
         personal = score_personal(candidate, job, embedder=embedder)
-    return _Dimensions(skills, career, personal, matched, missing, matched_strength)
+    return _Dimensions(skills, career, personal, matched, missing, matched_strength, unproven)
 
 
 def _weighted_total(skills: float, career: float, personal: float, weights: dict[str, float]) -> int:
@@ -683,6 +748,7 @@ def score_job(
     dims = _score_dimensions(candidate, job, embedder=embedder)
     skills, career, personal = dims.skills, dims.career, dims.personal
     matched, missing, matched_strength = dims.matched, dims.missing, dims.matched_strength
+    unproven = dims.unproven
     # `weights` is an optional resolved dynamic vector; default = archetype static
     # weights, so passing nothing reproduces the prior score exactly.
     w = weights or weights_for(candidate.archetype)
@@ -712,6 +778,9 @@ def score_job(
         },
         matched_skill_strength=matched_strength,
         missing_skills=missing,
+        unproven_skills=list(unproven.keys()),
+        unproven_skill_strength={k: v["score"] for k, v in unproven.items()},
+        unproven_skill_reason={k: v["reason"] for k, v in unproven.items()},
         is_entry_eligible=bool(ep and ep.is_entry_eligible),
         graduate_friendliness=ep.graduate_friendliness if ep else 0.0,
     )

@@ -72,7 +72,7 @@ class SiblingScoreSkillsBoundaryTest(unittest.TestCase):
             role_family="sales_marketing",
             requirements=[{"skill": "ppc", "kind": "must_have", "hardness": "prerequisite"}],
         )
-        score, matched, missing, strength = score_skills(cand, job)
+        score, matched, missing, strength, _unproven = score_skills(cand, job)
         # The sibling nudges the skills sub-score (adjacent evidence)...
         self.assertGreater(score, 0.0)
         self.assertAlmostEqual(score, 0.4)
@@ -90,7 +90,7 @@ class SiblingScoreSkillsBoundaryTest(unittest.TestCase):
             role_family="sales_marketing",
             requirements=[{"skill": "ppc", "kind": "must_have", "hardness": "prerequisite"}],
         )
-        score, matched, _missing, strength = score_skills(cand, job)
+        score, matched, _missing, strength, _unproven = score_skills(cand, job)
         self.assertAlmostEqual(score, 1.0)
         self.assertIn("ppc", matched)
         self.assertEqual(strength["ppc"], 1.0)
