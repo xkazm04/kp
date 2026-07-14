@@ -12,6 +12,7 @@ import {
   rescheduleScheduleInvite,
   resolveScheduleInviteReconcile,
   setScheduleInviteMeetingUrl,
+  type ScheduleInvite,
 } from "@/app/_lib/schedule-store";
 import { actOnPipelineEntry, getPipelineEntry } from "@/app/_lib/db";
 import { plannedInterviewMinutes } from "@/app/_lib/interview-run";
@@ -73,9 +74,15 @@ export async function POST(request: Request) {
     // with no collision check and no reminder. Now the grid resolves its wall-clock
     // pick to a canonical interview-zone instant (gridSlotToIso) and produces/updates
     // a collision-checked, reminder-eligible schedule_invites row — the SAME record a
-    // candidate self-booking creates. Keyed by entryId (the grid has no token yet); the
-    // client then calls approve_event with the returned server-authored label so the
-    // decision chain still advances the stage.
+    // candidate self-booking creates. Keyed by entryId (the grid has no token yet).
+    //
+    // The stage advance is done HERE, server-side, mirroring accept_proposal (:below):
+    // the grid used to confirm the invite, then rely on the CLIENT to separately call
+    // /api/pipeline approve_event. A failure of that second call left a confirmed
+    // booking whose entry never advanced, with NO reconcile flag and NO sealed
+    // decision — unlike the candidate token confirm and accept_proposal, both of which
+    // advance server-side and flag drift on failure. Folding the advance in closes that
+    // gap: one atomic recruiter action either advances or is flagged for reconcile.
     if (body.action === "book") {
       if (!body.entryId || !body.gridSlot) {
         return NextResponse.json({ error: "entryId and gridSlot are required" }, { status: 400 });
@@ -95,20 +102,41 @@ export async function POST(request: Request) {
         jobTitle: entry.jobTitle,
         durationMin: plannedInterviewMinutes(entry),
       });
+      let bookedInvite: ScheduleInvite;
       if (invite.status === "confirmed") {
         const moved = rescheduleScheduleInvite(invite.token, resolved.label, resolved.value, null, { recruiter: true });
         if (!moved.ok) {
           if (moved.reason === "taken") return NextResponse.json({ error: "That time is already booked — pick another." }, { status: 409 });
           return NextResponse.json({ error: "Could not update that booking." }, { status: 409 });
         }
-        return jsonOk({ invite: moved.invite, slot: resolved.label, slotAt: resolved.value });
+        bookedInvite = moved.invite;
+      } else {
+        const booked = confirmScheduleInvite(invite.token, resolved.label, resolved.value);
+        if (!booked.ok) {
+          if (booked.reason === "taken") return NextResponse.json({ error: "That time is already booked — pick another." }, { status: 409 });
+          return NextResponse.json({ error: "Could not book that time." }, { status: 409 });
+        }
+        bookedInvite = booked.invite;
       }
-      const booked = confirmScheduleInvite(invite.token, resolved.label, resolved.value);
-      if (!booked.ok) {
-        if (booked.reason === "taken") return NextResponse.json({ error: "That time is already booked — pick another." }, { status: 409 });
-        return NextResponse.json({ error: "Could not book that time." }, { status: 409 });
+      // Advance the linked entry server-side with the server-authored label (mirrors
+      // accept_proposal): flag needs_reconcile rather than swallow a stage-gate failure,
+      // and seal the outcome-bearing decision. approve_event records the slot without
+      // regressing an entry already past Interview, so a re-book is safe.
+      try {
+        actOnPipelineEntry(entry.id, "approve_event", resolved.label);
+      } catch (advanceError) {
+        markScheduleInviteNeedsReconcile(bookedInvite.token, advanceError instanceof Error ? advanceError.message : String(advanceError));
       }
-      return jsonOk({ invite: booked.invite, slot: resolved.label, slotAt: resolved.value });
+      sealDecisionSafe({
+        kind: "interview_scheduled",
+        actor: "human:recruiter",
+        policyVersion: "manual",
+        candidateRef: entry.id,
+        rationale: `Recruiter booked the interview on the week grid (${resolved.label}).`,
+        reasonCode: "interview_scheduled",
+        inputs: { slot: resolved.label, slotAt: resolved.value },
+      });
+      return jsonOk({ invite: bookedInvite, slot: resolved.label, slotAt: resolved.value });
     }
 
     if (!body.token) {

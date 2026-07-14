@@ -212,13 +212,14 @@ export function ScheduleTab() {
   const act = async (e: SchedEntry, action: "approve_event" | "reject") => {
     setBusy(e.id);
     try {
-      let detail: string | undefined = action === "approve_event" ? picks[e.id] : undefined;
       if (action === "approve_event") {
         // Route the grid confirm through the ONE scheduling engine: produce/update a
-        // canonical, collision-checked, reminder-eligible invite for the picked cell.
-        // The server-authored dated label becomes the approve_event detail (no bare
-        // "Tue 14:00" write). A genuine collision blocks the advance — the recruiter
-        // picks another cell — instead of silently double-booking a time.
+        // canonical, collision-checked, reminder-eligible invite for the picked cell
+        // AND advance the pipeline entry server-side (Direction: close the grid-book
+        // drift gap). `book` now performs approve_event itself and flags needs_reconcile
+        // on a stage-gate failure, so there is no separate client advance call to leave
+        // a confirmed booking whose entry never advanced. A genuine collision blocks the
+        // booking (409) — the recruiter picks another cell — instead of double-booking.
         const bookRes = await fetch("/api/schedule", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -230,14 +231,15 @@ export function ScheduleTab() {
           setBusy(null);
           return;
         }
-        if (typeof bd.slot === "string") detail = bd.slot;
+      } else {
+        // Decline → terminal reject on the pipeline entry (no booking involved).
+        const r = await fetch(`/api/pipeline/${e.id}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action, detail: undefined }),
+        });
+        if (!r.ok) throw new Error();
       }
-      const r = await fetch(`/api/pipeline/${e.id}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action, detail }),
-      });
-      if (!r.ok) throw new Error();
       // Record the direction, then drop the card. AnimatePresence resolves the
       // leaving card's exit variant from its `custom` (below) at removal time, so
       // confirm slides right and decline slides left.
