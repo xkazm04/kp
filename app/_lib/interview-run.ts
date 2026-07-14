@@ -70,8 +70,18 @@ export function importedQuestionsForBrief(importedQuestions: unknown, alreadyAsk
   const out: string[] = [];
   if (Array.isArray(importedQuestions)) {
     for (const raw of importedQuestions) {
-      if (typeof raw !== "string") continue;
-      const q = raw.trim();
+      // Entries are legacy plain strings OR { question, blockRef? } objects (the
+      // round-8 weave shape). Both must reach the brief — a woven question keeps
+      // its single home in importedQuestions, so skipping objects would silently
+      // drop exactly the questions the recruiter planned most deliberately.
+      const text =
+        typeof raw === "string"
+          ? raw
+          : raw && typeof raw === "object" && typeof (raw as { question?: unknown }).question === "string"
+            ? (raw as { question: string }).question
+            : null;
+      if (text === null) continue;
+      const q = text.trim();
       if (!q || seen.has(q)) continue;
       seen.add(q);
       out.push(q);
