@@ -397,6 +397,21 @@ export function completeInterviewSession(
   return { session: getInterviewSessionById(id), applied: res.changes > 0 };
 }
 
+/** Persist the provider that ACTUALLY served a session — written by /connect when
+ *  it fails over to the alternate provider (the preferred one's connect threw). The
+ *  ledger row (voiceUsageRow) and the completion path both read session.provider, so
+ *  updating it here keeps cost attribution + telemetry pointed at what served, not at
+ *  what was requested. Guarded to a live (non-completed) row so a raced /complete
+ *  can't be perturbed. */
+export function setInterviewSessionProvider(id: string, provider: VoiceProviderId): void {
+  const db = ensureDb();
+  db.prepare(`UPDATE interview_sessions SET provider=?, updated_at=? WHERE id=? AND status != 'completed'`).run(
+    provider,
+    new Date().toISOString(),
+    id
+  );
+}
+
 /** Attach the synthesized scorecard to an already-persisted session. Separate
  *  from completeInterviewSession so the transcript write can happen FIRST and
  *  scoring strictly after it (idea-55fd89f9) — a scoring step that sets the

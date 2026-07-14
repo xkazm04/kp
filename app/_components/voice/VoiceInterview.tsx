@@ -896,6 +896,14 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
       sessionIdRef.current = data.sessionId;
       sessionTokenRef.current = (typeof data.token === "string" ? data.token : null) ?? token ?? null;
       const c = data.connect;
+      // The server may have FAILED OVER to the other provider (the preferred one's
+      // connect threw and the alternate was available). connect.provider is
+      // authoritative: pin our path + teardown/finalize branching (providerRef) to
+      // what actually served, not what we requested, before starting the session.
+      if (c?.provider && c.provider !== providerRef.current) {
+        providerRef.current = c.provider;
+        setProvider(c.provider);
+      }
       if (c.provider === "openai") {
         await startOpenAi(c);
       } else {

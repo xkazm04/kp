@@ -7,6 +7,7 @@ import type { VoiceAdapter, VoiceAvailability, VoiceProviderId } from "./types.t
 
 export type { VoiceConnect, VoiceProviderId, VoiceAvailability, VoiceTurn, VoiceAdapter } from "./types.ts";
 export { coerceLanguage, coerceProviderId, missingVoiceEnv } from "./types.ts";
+export { connectWithFailover, otherProvider, type FailoverResult } from "./connect-failover.ts";
 
 const adapters: Record<VoiceProviderId, VoiceAdapter> = {
   openai: new OpenAiVoiceAdapter(),

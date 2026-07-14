@@ -6,11 +6,13 @@ import {
   isInterviewLinkExpired,
   markInterviewStarted,
   revokeInterviewSession,
+  setInterviewSessionProvider,
 } from "@/app/_lib/db";
 import { isTerminalEntryStatus } from "@/app/_lib/pipeline-status";
 import {
   coerceLanguage,
   coerceProviderId,
+  connectWithFailover,
   defaultInterviewerInstructions,
   getVoiceAdapter,
   missingVoiceEnv,
@@ -161,25 +163,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "This interview has already been completed." }, { status: 409 });
     }
 
-    const connect = await adapter.connect({ instructions, language: language ?? session.language });
     // THE INTERVIEWER BRIEF IS SERVER-SIDE ONLY (backlog #29 / TP-L2-VOICE-01).
     // `instructions` is the recruiter's PRIVATE brief — gap/provenance
     // annotations, "internal red flag — never say this aloud" notes — so it must
     // never ride the JSON back to the candidate's browser (a Network-tab away).
-    // OpenAI already receives it server-side in the client_secrets session
-    // config (adapter.connect above). ElevenLabs' signed-url flow has NO
-    // server-side session config — its prompt overrides are client-sent by
-    // design — so a candidate-mode ElevenLabs session gets a CANDIDATE-SAFE
-    // brief instead. Entry-backed sessions now get the GROUNDED candidate-safe
-    // brief (buildCandidateSafeBrief: run-of-show topics + the questions asked
-    // aloud + time-boxes + the opening-language hint, rebuilt through the
-    // ALLOW-LIST sanitizers in voice/candidate-brief.ts so listenFor/redFlag/
-    // goal-annotations structurally cannot survive) — previously EL candidate
-    // sessions ran a generic role-title prompt while OpenAI ran fully grounded.
-    // Sessions with no entry (or nothing grounded to say) keep the generic
-    // prompt built only from the public job title + booked length.
-    let agentPrompt: string | null = null;
-    if (connect.provider === "elevenlabs" && session.mode === "candidate") {
+    // OpenAI receives it server-side in the client_secrets session config
+    // (adapter.connect). ElevenLabs' signed-url flow has NO server-side session
+    // config — its prompt overrides are client-sent by design — so a
+    // candidate-mode ElevenLabs session gets a CANDIDATE-SAFE brief instead.
+    // Entry-backed sessions get the GROUNDED candidate-safe brief
+    // (buildCandidateSafeBrief: run-of-show topics + the questions asked aloud +
+    // time-boxes + the opening-language hint, rebuilt through the ALLOW-LIST
+    // sanitizers in voice/candidate-brief.ts so listenFor/redFlag/goal-annotations
+    // structurally cannot survive). Sessions with no entry (or nothing grounded to
+    // say) keep the generic prompt built only from the public job title + booked
+    // length. Reused as the failover closure below so the EL/OAI brief paths never
+    // fork between the primary attempt and a fallback.
+    const resolveAgentPrompt = (served: VoiceProviderId): string | null => {
+      if (served !== "elevenlabs" || session.mode !== "candidate") return null;
       let grounded: string | null = null;
       if (session.entryId) {
         try {
@@ -188,17 +189,50 @@ export async function POST(request: NextRequest) {
           /* grounding is enrichment — fall back to the generic candidate-safe prompt */
         }
       }
-      agentPrompt =
-        grounded ?? defaultInterviewerInstructions({ role: session.jobTitle, durationMin: session.durationMin });
+      return grounded ?? defaultInterviewerInstructions({ role: session.jobTitle, durationMin: session.durationMin });
+    };
+
+    // Provider failover (Direction 3): the session is already in_progress
+    // (markInterviewStarted above, a single CAS — no double-start on failover). If
+    // the preferred provider's connect throws and the OTHER provider is available,
+    // retry with it in THIS request, building its brief via its own path above.
+    // Single-provider deployments (or only the preferred configured) re-throw the
+    // original error unchanged, so today's INTERVIEW_CONNECT_FAILED is preserved.
+    const {
+      provider: served,
+      connect,
+      agentPrompt,
+      failedOver,
+    } = await connectWithFailover({
+      preferred: provider,
+      instructions,
+      language: language ?? session.language,
+      getAdapter: getVoiceAdapter,
+      availability: voiceAvailability(),
+      resolveAgentPrompt,
+    });
+
+    // Persist what ACTUALLY served so the completion ledger (voiceUsageRow reads
+    // session.provider) and telemetry attribute to the real provider, not the
+    // requested one — and leave a breadcrumb that a failover occurred.
+    if (failedOver) {
+      setInterviewSessionProvider(session.id, served);
+      console.warn(
+        `[interview:connect] provider failover ${provider} → ${served} for session ${session.id} ` +
+          `(preferred provider's connect failed; alternate served).`
+      );
     }
+
     // The session token rides back so /complete can demand it as the completion
     // capability (idea-5248c3e9). Candidate/sim callers already hold it (it is
     // how they got here); for a fresh lab session this is the creator receiving
-    // the capability for the session they just made — no new exposure.
+    // the capability for the session they just made — no new exposure. `provider`
+    // is the SERVED one — authoritative over the requested provider so the client
+    // branches on what actually connected (it already keys on connect.provider).
     return NextResponse.json({
       sessionId: session.id,
       token: session.token,
-      provider,
+      provider: served,
       agentPrompt,
       connect,
     });
