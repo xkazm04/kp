@@ -378,6 +378,15 @@ if _unweighted_ui_provenance:
 # Hierarchy match weights (base, before provenance).
 _SPECIALIZATION_MATCH = 0.9   # candidate knows a specialization of the requirement
 _GENERALIZATION_MATCH = 0.55  # candidate knows only the broader / foundational skill
+# Candidate knows a SIBLING of the requirement — a different child of the same
+# direct parent (has SEO, role wants PPC; both are digital_marketing). Domain
+# adjacency, but neither the requirement nor its foundation is shown, so it scores
+# BELOW a generalization (0.55). Critically it is set below matching._MATCH_THRESHOLD
+# (0.5) BY DESIGN: a bare sibling never counts as a "matched" skill — it only nudges
+# the skills sub-score as partial, adjacent evidence a recruiter must still verify.
+# Only a DIRECT shared parent qualifies; deeper cousins (shared grandparent only)
+# stay 0.0 — adjacency decays to noise beyond one hop.
+_SIBLING_MATCH = 0.4
 
 
 def skill_keyword_pool() -> list[str]:
@@ -621,6 +630,8 @@ def term_match_score(candidate_term: str | None, required_term: str | None) -> f
       wants Swift) -> ``0.9`` (the specific skill implies the general one)
     - candidate knows only a *generalization* / foundation (has Swift, role wants
       SwiftUI) -> ``0.55`` (foundation present, specific framework not shown)
+    - candidate knows a *sibling* — a different child of the requirement's direct
+      parent (has SEO, role wants PPC) -> ``0.4`` (domain-adjacent, sub-threshold)
     - otherwise -> ``0.0``
     """
     if not candidate_term or not required_term:
@@ -631,6 +642,13 @@ def term_match_score(candidate_term: str | None, required_term: str | None) -> f
         return _SPECIALIZATION_MATCH
     if candidate_term in _ANCESTORS.get(required_term, frozenset()):
         return _GENERALIZATION_MATCH
+    # Siblings: share at least one DIRECT parent (immediate, not transitive), so the
+    # two are peers under the same umbrella. Deeper cousins (only a shared ancestor
+    # further up) are intentionally excluded — _PARENTS is the direct-edge map.
+    cand_parents = _PARENTS.get(candidate_term)
+    req_parents = _PARENTS.get(required_term)
+    if cand_parents and req_parents and not set(cand_parents).isdisjoint(req_parents):
+        return _SIBLING_MATCH
     return 0.0
 
 
