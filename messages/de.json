@@ -1376,6 +1376,7 @@
       "bulkInvited": "{count} zur Planung eingeladen",
       "bulkInvitedQueued": "{count} Planungslinks erstellt (im Postausgang — nicht zugestellt)",
       "bulkDraftOutreach": "Ansprache entwerfen ({count})",
+      "bulkDraftOutreachConfirm": "Wird sofort gesendet (Relay aktiv) — Entwürfe für {count} bestätigen",
       "bulkDrafting": "Wird entworfen…",
       "bulkDrafted": "{count} Ansprachen gesendet",
       "bulkDraftedQueued": "{count} Ansprache-Entwürfe im Postausgang — prüfen & freigeben",

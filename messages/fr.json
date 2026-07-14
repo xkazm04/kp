@@ -1376,6 +1376,7 @@
       "bulkInvited": "{count} invité à planifier",
       "bulkInvitedQueued": "{count} liens de planification créés (dans la boîte d'envoi — non envoyés)",
       "bulkDraftOutreach": "Rédiger le message de contact ({count})",
+      "bulkDraftOutreachConfirm": "Envoi immédiat (relais actif) — confirmer les brouillons pour {count}",
       "bulkDrafting": "Rédaction…",
       "bulkDrafted": "{count} messages de contact envoyés",
       "bulkDraftedQueued": "{count} brouillons de contact dans la boîte d'envoi — à vérifier et envoyer",

@@ -1350,6 +1350,7 @@
       "bulkInvited": "{count} pozváno k objednání",
       "bulkInvitedQueued": "{count} odkazů na termín vytvořeno (v Outboxu — nedoručeno)",
       "bulkDraftOutreach": "Napsat oslovení ({count})",
+      "bulkDraftOutreachConfirm": "Odešle se okamžitě (relay zapnut) — potvrďte koncepty pro {count}",
       "bulkDrafting": "Připravuji…",
       "bulkDrafted": "{count} oslovení odesláno",
       "bulkDraftedQueued": "{count} konceptů oslovení v Outboxu — zkontrolujte a uvolněte",

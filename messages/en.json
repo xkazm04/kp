@@ -1350,6 +1350,7 @@
       "bulkInvited": "{count} invited to schedule",
       "bulkInvitedQueued": "{count} scheduling links created (in Outbox — not delivered)",
       "bulkDraftOutreach": "Draft outreach ({count})",
+      "bulkDraftOutreachConfirm": "Sends immediately (relay on) — confirm draft for {count}",
       "bulkDrafting": "Drafting…",
       "bulkDrafted": "{count} outreach letters sent",
       "bulkDraftedQueued": "{count} outreach drafts in Outbox — review & release",

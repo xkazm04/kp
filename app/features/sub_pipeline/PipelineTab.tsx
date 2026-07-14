@@ -158,6 +158,12 @@ export function PipelineTab() {
   const [moveError, setMoveError] = useState<string | null>(null);
   // Two-step confirm for bulk reject (it emails N candidates — irreversible).
   const [confirmingBulkReject, setConfirmingBulkReject] = useState(false);
+  // Two-step confirm for bulk outreach WHEN a relay is configured: in that
+  // deployment dispatchOutreach relays each drafted letter immediately, so
+  // "draft N" IS "send N" — arm a confirm rather than send a cohort on one
+  // click. Relay definitively off → drafts are terminal Outbox rows and one
+  // click is safe; unknown capability (null) fails safe like relay-on.
+  const [confirmingBulkOutreach, setConfirmingBulkOutreach] = useState(false);
   // Saved board views (PIPE5): named {search + quick-filter} presets a recruiter
   // returns to, persisted in localStorage (single board, client-only — no schema).
   const [views, setViews] = useState<SavedView[]>([]);
@@ -969,6 +975,7 @@ export function PipelineTab() {
                   onClick={() => {
                     setSelectedIds(new Set());
                     setConfirmingBulkReject(false);
+                    setConfirmingBulkOutreach(false);
                   }}
                   className="focus-ring rounded-full border border-stone-200 bg-white px-2.5 py-0.5 text-sm font-semibold text-steel hover:border-coral/40 hover:text-ink"
                 >
@@ -1007,16 +1014,34 @@ export function PipelineTab() {
               ) : null}
               {/* Draft tailored outreach for the whole active cohort at once — the same
                   per-candidate action the drawer offers, batched. Backgrounded: the
-                  drafts land in the Outbox to review + release; nothing auto-sends. */}
+                  drafts land in the Outbox to review + release. With NO relay that is
+                  terminal (nothing sends); with a relay configured dispatchOutreach
+                  relays each letter immediately, so "draft N" IS "send N" — the click
+                  arms a two-step confirm in that case (unknown capability fails safe). */}
               {selectedActive.length > 0 ? (
                 <button
                   type="button"
-                  onClick={() => void bulkOutreach()}
+                  onClick={() => {
+                    if (relayConfigured !== false && !confirmingBulkOutreach) {
+                      setConfirmingBulkOutreach(true);
+                      return;
+                    }
+                    setConfirmingBulkOutreach(false);
+                    void bulkOutreach();
+                  }}
                   disabled={bulkBusy || outreachTask.active}
-                  className="focus-ring inline-flex items-center gap-1.5 rounded-md border border-stone-200 bg-white px-3 py-1 text-sm font-semibold text-ink hover:border-coral/40 disabled:opacity-50"
+                  className={`focus-ring inline-flex items-center gap-1.5 rounded-md border px-3 py-1 text-sm font-semibold disabled:opacity-50 ${
+                    confirmingBulkOutreach
+                      ? "border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100"
+                      : "border-stone-200 bg-white text-ink hover:border-coral/40"
+                  }`}
                 >
                   <Mail size={13} aria-hidden />{" "}
-                  {outreachTask.active ? t("bulkDrafting") : t("bulkDraftOutreach", { count: selectedActive.length })}
+                  {outreachTask.active
+                    ? t("bulkDrafting")
+                    : confirmingBulkOutreach
+                      ? t("bulkDraftOutreachConfirm", { count: selectedActive.length })
+                      : t("bulkDraftOutreach", { count: selectedActive.length })}
                 </button>
               ) : null}
               {bulkResult ? (
