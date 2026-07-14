@@ -3528,7 +3528,9 @@
       "recApply": "Anwenden — Schwelle auf {suggested} setzen",
       "recApplying": "Wird angewendet…",
       "recApplied": "Schwelle für automatische Ablehnung auf {suggested} gesetzt. Über Entscheidungsregeln umkehrbar — war {previous}.",
-      "recError": "Empfehlung konnte nicht angewendet werden."
+      "recError": "Empfehlung konnte nicht angewendet werden.",
+      "recFamilyInfo": "Diese Empfehlung bezieht sich nur auf das ausgewählte Berufsfeld, aber die Schwelle für automatische Ablehnung ist eine einzige, globale Einstellung — wechseln Sie zu allen Berufsfeldern, um sie anzuwenden.",
+      "recViewAllFamilies": "Alle Berufsfelder anzeigen und anwenden"
     },
     "decisionRecords": {
       "title": "Entscheidungsprotokolle (versiegelt)",

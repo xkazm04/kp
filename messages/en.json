@@ -3464,7 +3464,9 @@
       "recApply": "Apply — set floor to {suggested}",
       "recApplying": "Applying…",
       "recApplied": "Auto-reject floor set to {suggested}. Reversible from Decision rules — was {previous}.",
-      "recError": "Couldn't apply the suggestion."
+      "recError": "Couldn't apply the suggestion.",
+      "recFamilyInfo": "This suggestion is scoped to the selected role family, but the auto-reject floor is a single, global setting — switch to all roles to apply it.",
+      "recViewAllFamilies": "View all roles to apply"
     },
     "decisionRecords": {
       "title": "Decision records (sealed)",

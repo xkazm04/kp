@@ -3528,7 +3528,9 @@
       "recApply": "Appliquer — fixer le seuil à {suggested}",
       "recApplying": "Application…",
       "recApplied": "Seuil de rejet automatique fixé à {suggested}. Réversible depuis les Règles de décision — était {previous}.",
-      "recError": "Impossible d'appliquer la suggestion."
+      "recError": "Impossible d'appliquer la suggestion.",
+      "recFamilyInfo": "Cette suggestion ne concerne que la famille de postes sélectionnée, mais le seuil de rejet automatique est un réglage global unique — revenez à tous les postes pour l'appliquer.",
+      "recViewAllFamilies": "Voir tous les postes pour appliquer"
     },
     "decisionRecords": {
       "title": "Registres de décision (scellés)",

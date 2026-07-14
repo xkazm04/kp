@@ -293,7 +293,26 @@ function ScoreBands({
 // Direction 3 — the recommendation. Deterministic, honesty-gated, display-only
 // until an explicit click routes the write through the existing decision-config
 // mechanism (and seals a reversible record). Never auto-applied.
-function ThresholdSuggestion({ rec, onApplied }: { rec: ThresholdRecommendation; onApplied: () => void }) {
+//
+// APPLIABILITY: maxMatchToReject is a single GLOBAL screening floor. The route
+// derives this recommendation from the CURRENTLY-SELECTED family's pairs, but the
+// /apply-threshold write re-derives from the UNFILTERED (all-families) pairs — so
+// a family-scoped number applied to the global knob is both semantically wrong AND
+// guaranteed to trip the write guard's 409 whenever the family suggestion differs.
+// So: appliable ONLY on the all-families view. Under a family filter the very same
+// recommendation is shown as INFORMATIONAL, with a one-click cue to switch to all
+// families (where an apply that can actually succeed lives).
+function ThresholdSuggestion({
+  rec,
+  appliable,
+  onApplied,
+  onViewAllFamilies,
+}: {
+  rec: ThresholdRecommendation;
+  appliable: boolean;
+  onApplied: () => void;
+  onViewAllFamilies: () => void;
+}) {
   const t = useTranslations("analytics.calibration");
   const [phase, setPhase] = useState<"idle" | "applying" | "done" | "error">("idle");
   const [applied, setApplied] = useState<{ previous: number; next: number } | null>(null);
@@ -317,10 +336,26 @@ function ThresholdSuggestion({ rec, onApplied }: { rec: ThresholdRecommendation;
   };
 
   const sentence = rec.direction === "lower" ? "recLower" : "recRaise";
+  // Family-filtered → informational (neutral) card, no live write. All-families →
+  // the actionable amber suggestion. Same recommendation text either way; only the
+  // affordance and the tone change, so the family view reads as insight, not a
+  // dead-end button that would 409.
   return (
-    <div className="mt-5 rounded-md border border-dial-amber/40 bg-dial-amber/10 p-3">
+    <div
+      className={
+        appliable
+          ? "mt-5 rounded-md border border-dial-amber/40 bg-dial-amber/10 p-3"
+          : "mt-5 rounded-md border border-stone-200 bg-paper/60 p-3"
+      }
+    >
       <div className="flex items-center gap-2">
-        <span className="rounded bg-dial-amber/20 px-1.5 py-0.5 text-meta font-semibold uppercase tracking-wide text-ink">
+        <span
+          className={
+            appliable
+              ? "rounded bg-dial-amber/20 px-1.5 py-0.5 text-meta font-semibold uppercase tracking-wide text-ink"
+              : "rounded bg-stone-100 px-1.5 py-0.5 text-meta font-semibold uppercase tracking-wide text-steel"
+          }
+        >
           {t("recTag")}
         </span>
       </div>
@@ -335,25 +370,41 @@ function ThresholdSuggestion({ rec, onApplied }: { rec: ThresholdRecommendation;
         })}
       </p>
       <p className="mt-1 text-sm text-steel">{t("recBasis", { total: rec.totalOutcomes })}</p>
-      {phase === "done" && applied ? (
-        <p className="mt-2 text-sm font-medium text-moss" role="status">
-          {t("recApplied", { suggested: applied.next, previous: applied.previous })}
-        </p>
+      {appliable ? (
+        phase === "done" && applied ? (
+          <p className="mt-2 text-sm font-medium text-moss" role="status">
+            {t("recApplied", { suggested: applied.next, previous: applied.previous })}
+          </p>
+        ) : (
+          <div className="mt-2 flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={apply}
+              disabled={phase === "applying"}
+              className="focus-ring inline-flex h-8 items-center rounded-md border border-stone-300 bg-white px-3 text-sm font-semibold text-ink hover:border-coral/40 disabled:opacity-50"
+            >
+              {phase === "applying" ? t("recApplying") : t("recApply", { suggested: rec.suggestedThreshold })}
+            </button>
+            {phase === "error" ? (
+              <span className="text-sm text-coral" role="alert">
+                {t("recError")}
+              </span>
+            ) : null}
+          </div>
+        )
       ) : (
+        // Informational under a family filter: the floor is global, so this
+        // family-scoped number isn't appliable here. Offer the one-click switch to
+        // the all-families view, where the apply lives.
         <div className="mt-2 flex flex-wrap items-center gap-3">
+          <p className="text-sm text-steel">{t("recFamilyInfo")}</p>
           <button
             type="button"
-            onClick={apply}
-            disabled={phase === "applying"}
-            className="focus-ring inline-flex h-8 items-center rounded-md border border-stone-300 bg-white px-3 text-sm font-semibold text-ink hover:border-coral/40 disabled:opacity-50"
+            onClick={onViewAllFamilies}
+            className="focus-ring inline-flex h-8 items-center rounded-md border border-stone-300 bg-white px-3 text-sm font-semibold text-ink hover:border-coral/40"
           >
-            {phase === "applying" ? t("recApplying") : t("recApply", { suggested: rec.suggestedThreshold })}
+            {t("recViewAllFamilies")}
           </button>
-          {phase === "error" ? (
-            <span className="text-sm text-coral" role="alert">
-              {t("recError")}
-            </span>
-          ) : null}
         </div>
       )}
     </div>
@@ -481,8 +532,19 @@ export function CalibrationPanel() {
             </div>
           </div>
 
-          {/* Direction 3 — the recommendation (pipeline source only; null → no UI). */}
-          {data.recommendation ? <ThresholdSuggestion rec={data.recommendation} onApplied={reload} /> : null}
+          {/* Direction 3 — the recommendation (pipeline source only; null → no UI).
+              Appliable ONLY on the all-families view: the /apply-threshold write
+              re-derives from unfiltered pairs against the single GLOBAL floor, so a
+              family-scoped apply is wrong and would 409. Under a family filter it's
+              informational, with a one-click switch back to all families. */}
+          {data.recommendation ? (
+            <ThresholdSuggestion
+              rec={data.recommendation}
+              appliable={family === ""}
+              onApplied={reload}
+              onViewAllFamilies={() => setFamily("")}
+            />
+          ) : null}
 
           {/* Direction 1 — drift cohorts. */}
           {data.cohorts && data.cohorts.length > 0 ? <DriftStrip cohorts={data.cohorts} /> : null}

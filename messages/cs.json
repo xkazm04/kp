@@ -3464,7 +3464,9 @@
       "recApply": "Použít — nastavit hranici na {suggested}",
       "recApplying": "Používání…",
       "recApplied": "Hranice automatického zamítnutí nastavena na {suggested}. Vratné v Pravidlech rozhodování — bylo {previous}.",
-      "recError": "Doporučení se nepodařilo použít."
+      "recError": "Doporučení se nepodařilo použít.",
+      "recFamilyInfo": "Toto doporučení se týká vybrané rodiny rolí, ale hranice pro automatické zamítnutí je jediné globální nastavení — pro použití přepněte na všechny role.",
+      "recViewAllFamilies": "Zobrazit všechny role a použít"
     },
     "decisionRecords": {
       "title": "Záznamy rozhodnutí (zapečetěné)",
