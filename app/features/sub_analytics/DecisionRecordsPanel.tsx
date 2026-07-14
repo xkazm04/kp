@@ -1,9 +1,12 @@
 "use client";
 
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { ShieldCheck, ShieldAlert, Download } from "lucide-react";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
 import { downloadFile } from "@/app/_lib/export-utils";
+import { buildUrl, clearedTabScopedParams } from "@/app/features/tabs";
 // `import type` only — decision-record-store has server imports; types are erased.
 import type { DecisionRecord, ChainVerdict } from "@/app/_lib/decision-record-store";
 
@@ -12,7 +15,10 @@ import type { DecisionRecord, ChainVerdict } from "@/app/_lib/decision-record-st
 // not just a log. "Export dossier" hands an auditor / right-to-explanation
 // request the whole chain + verdict in one click.
 
-type Payload = { records: DecisionRecord[]; chain: ChainVerdict };
+// `resolved` (Direction 2) maps a record's candidateRef → the live board entry it
+// still points at, so a record whose subject is on the board can be opened there;
+// a ref that no longer resolves (records outlive entries) stays plain text.
+type Payload = { records: DecisionRecord[]; chain: ChainVerdict; resolved?: Record<string, { label: string; live: boolean }> };
 
 function fmtTime(iso: string): string {
   // Deterministic, locale-free: YYYY-MM-DD HH:MM. Avoids a hydration mismatch from
@@ -23,7 +29,11 @@ function fmtTime(iso: string): string {
 export function DecisionRecordsPanel() {
   const t = useTranslations("analytics.decisionRecords");
   const tReasons = useTranslations("decisions.wave");
+  const search = useSearchParams();
   const { data, error, reload } = useJsonFetch<Payload>("/api/decisions/records");
+  // Direction 2 — reuse the board deep-link idiom (?q=<label>) to open a record's
+  // subject on the board when it still resolves to a live entry.
+  const boardHref = (q: string) => buildUrl({ ...clearedTabScopedParams(), tab: "pipeline", q }, search.toString());
 
   // Localized rationale (UAT E): the sealed `rationale` is byte-stable English (it's
   // hashed — never touch it), but a Czech auditor shouldn't have to read English.
@@ -99,14 +109,16 @@ export function DecisionRecordsPanel() {
         </p>
       ) : (
         <>
-          {/* Tamper-evidence verdict — the headline of this panel. */}
+          {/* Tamper-evidence verdict — the headline of this panel. Theme-mapped
+              tokens (moss = verified / coral = broken) so both themes read
+              correctly; the old raw emerald/red palette had no dark values. */}
           {data.chain.ok ? (
-            <div className="mt-4 flex items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+            <div className="mt-4 flex items-center gap-2 rounded-md border border-moss/30 bg-moss/10 px-3 py-2 text-sm text-moss">
               <ShieldCheck className="h-4 w-4" aria-hidden />
               {t("verified", { count: data.chain.count })}
             </div>
           ) : (
-            <div className="mt-4 flex items-center gap-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800" role="alert">
+            <div className="mt-4 flex items-center gap-2 rounded-md border border-coral/30 bg-coral/10 px-3 py-2 text-sm text-coral" role="alert">
               <ShieldAlert className="h-4 w-4" aria-hidden />
               {t("broken", { seq: data.chain.brokenAtSeq ?? 0 })}
             </div>
@@ -116,7 +128,9 @@ export function DecisionRecordsPanel() {
             <p className="mt-4 text-sm text-stone-400">{t("empty")}</p>
           ) : (
             <ul className="mt-4 divide-y divide-stone-100">
-              {data.records.map((r) => (
+              {data.records.map((r) => {
+                const subject = data.resolved?.[r.candidateRef];
+                return (
                 <li key={r.seq} className="py-2.5 text-sm">
                   <div className="flex items-center justify-between gap-3">
                     <span className="font-medium text-ink">{r.kind.replace(/_/g, " ")}</span>
@@ -125,7 +139,22 @@ export function DecisionRecordsPanel() {
                   <p className="mt-0.5 text-stone-600">{localizedRationale(r)}</p>
                   <div className="mt-1 flex items-center gap-3 text-xs text-stone-400">
                     <span className="font-mono">#{r.seq}</span>
-                    <span className="font-mono">{r.candidateRef}</span>
+                    {/* Direction 2 — open the subject on the board when the ref still
+                        resolves to a live entry; otherwise plain text (a record
+                        outlives its entry; policy records have no candidate). */}
+                    {subject?.live ? (
+                      <Link
+                        href={boardHref(subject.label)}
+                        title={t("viewCandidate")}
+                        className="focus-ring rounded font-mono text-steel underline-offset-2 hover:text-coral hover:underline"
+                      >
+                        {subject.label}
+                      </Link>
+                    ) : (
+                      <span className="font-mono" title={t("refUnresolved")}>
+                        {r.candidateRef}
+                      </span>
+                    )}
                     <span>{fmtTime(r.createdAt)}</span>
                     {/* truncated content hash — the visible fingerprint of the seal */}
                     <span className="font-mono" title={r.contentHash}>
@@ -133,7 +162,8 @@ export function DecisionRecordsPanel() {
                     </span>
                   </div>
                 </li>
-              ))}
+                );
+              })}
             </ul>
           )}
         </>

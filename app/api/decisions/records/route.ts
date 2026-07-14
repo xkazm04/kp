@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { listDecisionRecords, verifyDecisionChain } from "@/app/_lib/decision-record-store";
+import { listPipeline } from "@/app/_lib/db";
 import { jsonError } from "@/app/_lib/api-response";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 
@@ -25,7 +26,20 @@ export async function GET(request: Request) {
     const candidate = new URL(request.url).searchParams.get("candidate");
     const records = listDecisionRecords(candidate ? { candidateRef: candidate } : undefined);
     const chain = verifyDecisionChain();
-    return NextResponse.json({ records, chain });
+    // Direction 2 — resolve each record's candidateRef (a pipeline entry id) to a
+    // live board entry so the panel can deep-link it. A record OUTLIVES its entry
+    // (records are permanent, entries are archived/deleted) and some refs are
+    // policy-level, so a ref that no longer resolves stays plain text. The sealed
+    // record shape is untouched — this is a parallel view map only, so the
+    // hash-verified `records` are byte-for-byte what they were sealed as.
+    const live = new Map(listPipeline().map((e) => [e.id, e.candidateLabel]));
+    const resolved: Record<string, { label: string; live: boolean }> = {};
+    for (const r of records) {
+      if (resolved[r.candidateRef]) continue;
+      const label = live.get(r.candidateRef);
+      if (label != null) resolved[r.candidateRef] = { label, live: true };
+    }
+    return NextResponse.json({ records, chain, resolved });
   } catch (error) {
     return jsonError(error, "Failed to load decision records.");
   }

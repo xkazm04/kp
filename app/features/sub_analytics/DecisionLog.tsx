@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Download } from "lucide-react";
 import { useReducedMotion } from "@/app/_lib/useReducedMotion";
@@ -10,10 +12,15 @@ import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { toCsv, downloadFile } from "@/app/_lib/export-utils";
 import { DECISION_META, kindLabel } from "@/app/_lib/decision-attribution";
 import { useDeliveryCapability } from "@/app/features/useDeliveryCapability";
+import { buildUrl as buildTabUrl, clearedTabScopedParams } from "@/app/features/tabs";
 import { Select } from "@/app/_components/Select";
 
 type Decision = {
   id: number;
+  // The subject pipeline entry (ANA1 / Direction 2): present on entry-scoped
+  // events, null on board-level ones (e.g. a role close). When present, the row
+  // deep-links to the candidate on the board.
+  entryId: string | null;
   candidateLabel: string | null;
   jobTitle: string | null;
   kind: string;
@@ -71,7 +78,6 @@ function timeAgo(iso: string): string {
 // infinite-scroll engine accumulates per mount, so the inner list is KEYED on
 // the filter combo and pagination restarts from offset 0 on every change.
 export function DecisionLog() {
-  const t = useTranslations("analytics.log");
   const [attribution, setAttribution] = useState<"auto" | "human" | null>(null);
   const [kind, setKind] = useState("");
   return (
@@ -99,6 +105,11 @@ function DecisionLogList({
   const t = useTranslations("analytics.log");
   const enumLabel = useEnumLabel();
   const reduced = useReducedMotion();
+  const search = useSearchParams();
+  // Direction 2 — reuse the board deep-link idiom (buildUrl + cleared tab-scoped
+  // params, ?q=<label>) the funnel/by-role links use, so a log row opens the
+  // board filtered to that candidate. Only entry-scoped rows carry a subject.
+  const boardHref = (q: string) => buildTabUrl({ ...clearedTabScopedParams(), tab: "pipeline", q }, search.toString());
   // REC-10 — with no delivery relay, every "…sent" event is really a terminal
   // local-outbox row; the labels (rows, filter, CSV) must say so.
   const relayConfigured = useDeliveryCapability();
@@ -220,7 +231,22 @@ function DecisionLogList({
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-base text-ink">
                     <span className={`font-medium ${m.tone}`}>{label}</span>
-                    {d.candidateLabel ? <span className="text-steel">{` · ${d.candidateLabel}`}</span> : null}
+                    {d.candidateLabel ? (
+                      d.entryId ? (
+                        <>
+                          <span className="text-steel">{" · "}</span>
+                          <Link
+                            href={boardHref(d.candidateLabel)}
+                            title={t("viewCandidate")}
+                            className="focus-ring rounded text-steel underline-offset-2 hover:text-coral hover:underline"
+                          >
+                            {d.candidateLabel}
+                          </Link>
+                        </>
+                      ) : (
+                        <span className="text-steel">{` · ${d.candidateLabel}`}</span>
+                      )
+                    ) : null}
                     {d.fromStage && d.toStage && d.fromStage !== d.toStage ? (
                       <span className="text-steel">
                         {" "}
