@@ -1,4 +1,5 @@
 import type { VoiceTurn } from "./voice/types";
+import { detectLanguageLock, type LanguageLockResult } from "./voice/language-lock";
 
 // Deterministic call telemetry for the agentic interview — the instrumentation
 // half of "build the live case, instrument heavily, discover what predicts".
@@ -37,6 +38,13 @@ export type InterviewTelemetry = {
     /** Seconds from the hint to the candidate's next turn (null without timestamps). */
     responseSec: number | null;
   };
+  /** Deterministic language-consistency verdict over the transcript — did the
+   *  interviewer stay in the candidate's language (locked), switch away mid-call
+   *  (drifted), or was the candidate's language never confidently detectable
+   *  (indeterminate)? The runtime port of interview_eval's offline check. Optional:
+   *  absent on telemetry persisted before this field existed, so legacy sessions
+   *  render no chrome. */
+  language?: LanguageLockResult;
 };
 
 /** Tokens too generic to count as "referencing the hint". Tokens shorter than
@@ -155,5 +163,6 @@ export function extractTelemetry(
     durationSec,
     longestResponseGapSec: longestGapMs === null ? null : Math.round(longestGapMs / 1000),
     hint: { offered: hintIndex !== null, turnIndex: hintIndex, uptake, responseSec },
+    language: detectLanguageLock(transcript),
   };
 }

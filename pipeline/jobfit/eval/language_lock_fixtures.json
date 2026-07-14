@@ -1,0 +1,71 @@
+{
+  "_comment": "SHARED parity fixtures for the deterministic language-consistency check. Read by BOTH the TS runtime port (app/_lib/voice/language-lock.test.ts) and the Python offline harness (pipeline/jobfit/tests/test_interview_eval.py). `expect` is the TS trichotomy verdict; `driftTurnIndex` indexes the non-system turns. Python parity: the offline _check_language_consistency flags (returns non-None) exactly when expect == 'drifted'.",
+  "cases": [
+    {
+      "name": "locked_en",
+      "expect": "locked",
+      "driftTurnIndex": null,
+      "turns": [
+        { "role": "interviewer", "text": "Hi, welcome. I'm an AI assistant and this call is transcribed for a recruiter." },
+        { "role": "candidate", "text": "Thank you, I would love to tell you about my experience with backend systems." },
+        { "role": "interviewer", "text": "How did that project work for you and your team?" },
+        { "role": "candidate", "text": "It was a demanding role that I really enjoyed." }
+      ]
+    },
+    {
+      "name": "locked_cs",
+      "expect": "locked",
+      "driftTurnIndex": null,
+      "turns": [
+        { "role": "interviewer", "text": "Dobrý den, jsem AI asistent a hovor je přepisován." },
+        { "role": "candidate", "text": "Děkuji, můžeme prosím začít." },
+        { "role": "interviewer", "text": "Jak probíhal váš projekt a co pro vás byla největší výzva?" },
+        { "role": "candidate", "text": "Byla to velká zkušenost, kterou si vážím." }
+      ]
+    },
+    {
+      "name": "drifted_en_to_cs",
+      "expect": "drifted",
+      "driftTurnIndex": 2,
+      "turns": [
+        { "role": "interviewer", "text": "Hi, I'm an AI assistant, this call is transcribed for a recruiter." },
+        { "role": "candidate", "text": "Thank you, I can tell you about my experience and the projects I led." },
+        { "role": "interviewer", "text": "Dobře, děkuji. Řekněte mi prosím o vašem projektu." },
+        { "role": "candidate", "text": "Sure, it was a caching layer." }
+      ]
+    },
+    {
+      "name": "indeterminate_minimal",
+      "expect": "indeterminate",
+      "driftTurnIndex": null,
+      "turns": [
+        { "role": "interviewer", "text": "Hello there, welcome to the call." },
+        { "role": "candidate", "text": "Mmm." },
+        { "role": "interviewer", "text": "Could you say a little more?" },
+        { "role": "candidate", "text": "Yeah, ok." }
+      ]
+    },
+    {
+      "name": "bilingual_opener_exempt",
+      "expect": "locked",
+      "driftTurnIndex": null,
+      "turns": [
+        { "role": "interviewer", "text": "Dobrý den, hello — I'm an AI assistant, this call is transcribed." },
+        { "role": "candidate", "text": "Thank you, I'll tell you about the role and my experience." },
+        { "role": "interviewer", "text": "Great, what was that project about for you?" },
+        { "role": "candidate", "text": "It was about scaling the checkout." }
+      ]
+    },
+    {
+      "name": "drift_before_candidate_not_flagged",
+      "expect": "locked",
+      "driftTurnIndex": null,
+      "turns": [
+        { "role": "interviewer", "text": "Hi, welcome to the call, this session is transcribed." },
+        { "role": "interviewer", "text": "Můžeme začít? Dobře, prosím." },
+        { "role": "candidate", "text": "Yes, thank you, I can walk you through my experience." },
+        { "role": "interviewer", "text": "How was your work on that project?" }
+      ]
+    }
+  ]
+}

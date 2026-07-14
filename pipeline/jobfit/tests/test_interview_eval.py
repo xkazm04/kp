@@ -602,5 +602,31 @@ class TestBriefDriftGuard(unittest.TestCase):
             self.assertIn(PERSONA_LANGUAGE_DETECT, brief)
 
 
+class TestLanguageLockParity(unittest.TestCase):
+    """The runtime TS language-lock verdict (app/_lib/voice/language-lock.ts) is a port
+    of this file's offline _check_language_consistency. Both read the SAME shared fixtures
+    (pipeline/jobfit/eval/language_lock_fixtures.json); the port keeps the trichotomy
+    (locked/drifted/indeterminate) while the offline check is binary (flag or pass). Parity:
+    the offline check must flag (return non-None) EXACTLY the cases the TS side marks 'drifted'.
+    If either side's word lists drift, one of these suites goes red."""
+
+    @classmethod
+    def setUpClass(cls):
+        import json
+
+        path = Path(__file__).resolve().parents[1] / "eval" / "language_lock_fixtures.json"
+        cls.cases = json.loads(path.read_text(encoding="utf-8"))["cases"]
+
+    def test_offline_check_flags_exactly_the_drifted_cases(self):
+        for case in self.cases:
+            with self.subTest(case=case["name"]):
+                issue = ie._check_language_consistency(case["turns"], ended=True, errored=False)
+                self.assertEqual(
+                    issue is not None,
+                    case["expect"] == "drifted",
+                    f"{case['name']}: offline flag={issue!r} disagrees with expect={case['expect']!r}",
+                )
+
+
 if __name__ == "__main__":
     unittest.main()

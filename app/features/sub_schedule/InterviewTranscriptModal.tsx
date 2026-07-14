@@ -118,6 +118,12 @@ const HINT_LABEL_KEY = {
   missed: "hintMissed",
 } as const;
 
+const LANG_LABEL_KEY = {
+  locked: "langLocked",
+  drifted: "langDrifted",
+  indeterminate: "langIndeterminate",
+} as const;
+
 function InterviewTelemetryStrip({
   telemetry,
   t,
@@ -132,12 +138,16 @@ function InterviewTelemetryStrip({
     telemetry.hint.offered && telemetry.hint.uptake !== "not_offered"
       ? HINT_LABEL_KEY[telemetry.hint.uptake]
       : null;
+  // Language-lock verdict — absent on telemetry persisted before the field existed
+  // (legacy sessions render no chrome, same rule as every other field here).
+  const langKey = telemetry.language ? LANG_LABEL_KEY[telemetry.language.verdict] : null;
 
   const items: { label: string; value: string }[] = [];
   if (talk !== null) items.push({ label: t("telemetryTalkShare"), value: t("telemetryTalkShareValue", { pct: talk }) });
   if (pause) items.push({ label: t("telemetryLongestPause"), value: pause });
   if (duration) items.push({ label: t("telemetryDuration"), value: duration });
   if (hintKey) items.push({ label: t("telemetryHint"), value: t(hintKey) });
+  if (langKey) items.push({ label: t("telemetryLanguage"), value: t(langKey) });
 
   if (items.length === 0) return null;
 

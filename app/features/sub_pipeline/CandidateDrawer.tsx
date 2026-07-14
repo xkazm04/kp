@@ -101,6 +101,14 @@ const HINT_LABEL_KEY = {
   missed: "hintMissed",
 } as const;
 
+// The language-lock verdict → localized label key (same shared catalog / wording
+// as InterviewTranscriptModal).
+const LANG_LABEL_KEY = {
+  locked: "langLocked",
+  drifted: "langDrifted",
+  indeterminate: "langIndeterminate",
+} as const;
+
 export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; onClose: () => void; onChanged: () => void }) {
   const router = useRouter();
   const search = useSearchParams();
@@ -1083,12 +1091,14 @@ function InterviewTelemetryStrip({
   const duration = formatSpokenDuration(telemetry.durationSec);
   const hintKey =
     telemetry.hint.offered && telemetry.hint.uptake !== "not_offered" ? HINT_LABEL_KEY[telemetry.hint.uptake] : null;
+  const langKey = telemetry.language ? LANG_LABEL_KEY[telemetry.language.verdict] : null;
 
   const items: { label: string; value: string }[] = [];
   if (talk !== null) items.push({ label: t("telemetryTalkShare"), value: t("telemetryTalkShareValue", { pct: talk }) });
   if (pause) items.push({ label: t("telemetryLongestPause"), value: pause });
   if (duration) items.push({ label: t("telemetryDuration"), value: duration });
   if (hintKey) items.push({ label: t("telemetryHint"), value: t(hintKey) });
+  if (langKey) items.push({ label: t("telemetryLanguage"), value: t(langKey) });
 
   if (items.length === 0) return null;
 

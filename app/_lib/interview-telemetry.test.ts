@@ -38,6 +38,29 @@ test("null/blank probes yield null", () => {
 });
 
 // ---------------------------------------------------------------------------
+// language lock — extractTelemetry carries the runtime verdict (Direction 2).
+// The verdict logic itself is pinned by voice/language-lock.test.ts; here we
+// only confirm it is wired onto the telemetry object.
+// ---------------------------------------------------------------------------
+
+test("extractTelemetry attaches the language-lock verdict", () => {
+  const locked = extractTelemetry([
+    turn("interviewer", "Hi, this call is transcribed for a recruiter."),
+    turn("candidate", "Thank you, I can tell you about my experience."),
+    turn("interviewer", "How was that project for you?"),
+  ]);
+  assert.equal(locked.language?.verdict, "locked");
+
+  const drifted = extractTelemetry([
+    turn("interviewer", "Hi, this call is transcribed for a recruiter."),
+    turn("candidate", "Thank you, I can tell you about my experience."),
+    turn("interviewer", "Dobře, řekněte mi prosím o vašem projektu."),
+  ]);
+  assert.equal(drifted.language?.verdict, "drifted");
+  assert.equal(drifted.language?.driftTurnIndex, 2);
+});
+
+// ---------------------------------------------------------------------------
 // counters + timestamps
 // ---------------------------------------------------------------------------
 
