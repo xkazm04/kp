@@ -1,9 +1,11 @@
-// Create the ElevenLabs Conversational AI agent used by the voice interview MVP,
+// Manage the ElevenLabs Conversational AI agent used by the voice interview MVP,
 // straight from ELEVENLABS_API_KEY — no dashboard step needed.
 //
-//   node scripts/setup-eleven-agent.mjs
+//   node scripts/setup-eleven-agent.mjs --check    (default-safe: compare live vs intended)
+//   node scripts/setup-eleven-agent.mjs --deploy    (create/rotate the agent — a DEPLOY)
+//   node scripts/setup-eleven-agent.mjs             (prints this usage; changes nothing)
 //
-// It picks a voice from your account, uses the multilingual eleven_flash_v2_5
+// --deploy picks a voice from your account, uses the multilingual eleven_flash_v2_5
 // model, sets a bilingual interviewer prompt, biases the ASR toward common tech
 // terms (asr.keywords — "Fix 2" for the React→Rust / PostgreSQL→"později SQL"
 // entity-corruption class), and ENABLES prompt/first-message/language overrides
@@ -12,20 +14,32 @@
 // sends it as overrides.agent.prompt). On success it writes ELEVENLABS_AGENT_ID
 // back into .env.local.
 //
-// ── DEPLOY STEP — do not run casually ───────────────────────────────────────
+// ── --check — verify the live agent without touching it ─────────────────────
+// The deploy path only ever POSTs /v1/convai/agents/create, so once an agent is
+// live there was no in-repo way to know what config it actually runs — the
+// asr.keywords bias, the refreshed fallback prompt and the override enablement
+// are all inert until a deploy and drift silently thereafter. --check GETs the
+// current agent (ELEVENLABS_AGENT_ID, from the env or .env.local) and diffs it
+// field-by-field against this script's intended PROMPT, ASR_KEYWORDS and
+// override flags. It creates NOTHING and exits 0 on match, 1 on drift, 2 when it
+// cannot verify (no key / no agent id / the API would not return the config).
+//
+// ── --deploy — a DEPLOY, do not run casually ────────────────────────────────
 // Re-running creates a NEW agent (ElevenLabs has no upsert) and ROTATES
 // ELEVENLABS_AGENT_ID, so treat a run as a deploy:
-//   1. node scripts/setup-eleven-agent.mjs   (creates the agent, updates .env.local)
+//   1. node scripts/setup-eleven-agent.mjs --deploy   (creates the agent, updates .env.local)
 //   2. restart the server so the new id is picked up
 //   3. rotate ELEVENLABS_AGENT_ID in any other environment that pins it
 // In-flight sessions on the old agent keep working (their signed URLs pin it);
 // new sessions mint against the new agent. Delete the old agent in the dashboard
 // when convenient. The script is idempotent in effect: same inputs → an agent
-// with the same config, newest id wins.
+// with the same config, newest id wins. (Running with NO flag used to deploy —
+// an accidental-rotation footgun — so the bare invocation now just prints usage.)
 
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import path from "node:path";
 import { QUICK_SCREEN_MIN, PROVIDER_MAX_DURATION_SECONDS } from "../app/_lib/interview-duration.mjs";
+import { diffAgentConfig, formatDriftReport } from "../app/_lib/voice/eleven-agent-diff.mjs";
 
 const ENV_PATH = path.join(process.cwd(), ".env.local");
 const API = "https://api.elevenlabs.io";
@@ -82,7 +96,87 @@ const ASR_KEYWORDS = [
 const FIRST_MESSAGE =
   "Dobrý den! / Hello! I'm an AI assistant running a short first-round screen — the call is transcribed for a recruiter. Tell me a little about what you've been working on recently.";
 
-async function main() {
+// Which per-field runtime overrides the agent must ENABLE so the per-candidate
+// CANDIDATE-SAFE grounded brief + language pin take effect (VoiceInterview.tsx
+// sends prompt/language overrides; the server builds the prompt). Single source
+// for both the deploy body below and --check's intended config, so the two can't
+// drift.
+const OVERRIDE_INTENT = { prompt: true, first_message: true, language: true };
+
+// The config --deploy publishes and --check verifies against, in the shape the
+// pure diff (app/_lib/voice/eleven-agent-diff.mjs) consumes.
+function intendedConfig() {
+  return { prompt: PROMPT, asrKeywords: ASR_KEYWORDS, overrides: OVERRIDE_INTENT };
+}
+
+function usage() {
+  console.log(
+    [
+      "setup-eleven-agent — manage the ElevenLabs first-round screener agent.",
+      "",
+      "  node scripts/setup-eleven-agent.mjs --check    Compare the live agent (ELEVENLABS_AGENT_ID)",
+      "                                                 against the script's intended config. Creates",
+      "                                                 nothing. Exit 0 = match, 1 = drift, 2 = cannot verify.",
+      "  node scripts/setup-eleven-agent.mjs --deploy   Create a NEW agent and rotate ELEVENLABS_AGENT_ID",
+      "                                                 in .env.local. This is a DEPLOY — see the header.",
+      "  node scripts/setup-eleven-agent.mjs            Print this help. Changes nothing.",
+    ].join("\n"),
+  );
+}
+
+// Resolve a var from the real environment first, then .env.local — so --check
+// works in a shell that exports the keys and in a local dev checkout alike.
+function resolveEnv(name, fileEnv) {
+  return process.env[name] || fileEnv[name] || "";
+}
+
+// --check: read the live agent and print a field-level drift report. Never writes.
+// Exit 0 on match, 1 on drift, 2 when it cannot verify (missing key/id, or the
+// API would not return the agent config).
+async function runCheck() {
+  const fileEnv = existsSync(ENV_PATH) ? parseEnv(readFileSync(ENV_PATH, "utf8")) : {};
+  const key = resolveEnv("ELEVENLABS_API_KEY", fileEnv);
+  const agentId = resolveEnv("ELEVENLABS_AGENT_ID", fileEnv);
+  if (!key) {
+    console.error("Cannot verify: ELEVENLABS_API_KEY is not set (env or .env.local).");
+    process.exit(2);
+  }
+  if (!agentId) {
+    console.error("Cannot verify: ELEVENLABS_AGENT_ID is not set — no agent to check. Run --deploy first.");
+    process.exit(2);
+  }
+
+  let res;
+  try {
+    // GET the live agent's full config. ElevenLabs returns conversation_config +
+    // platform_settings — the same shape --deploy POSTs — so the diff is exact.
+    res = await fetch(`${API}/v1/convai/agents/${encodeURIComponent(agentId)}`, {
+      headers: { "xi-api-key": key },
+    });
+  } catch (e) {
+    console.error(`Cannot verify: network error reaching ElevenLabs — ${e instanceof Error ? e.message : e}`);
+    process.exit(2);
+  }
+  if (!res.ok) {
+    console.error(`Cannot verify: GET agent ${agentId} failed (${res.status}): ${(await res.text()).slice(0, 300)}`);
+    process.exit(2);
+  }
+
+  let agent;
+  try {
+    agent = await res.json();
+  } catch {
+    console.error("Cannot verify: ElevenLabs returned a non-JSON agent body.");
+    process.exit(2);
+  }
+
+  const report = diffAgentConfig(intendedConfig(), agent);
+  console.log(`Agent ${agentId} — drift report:\n`);
+  console.log(formatDriftReport(report));
+  process.exit(report.ok ? 0 : 1);
+}
+
+async function runDeploy() {
   if (!existsSync(ENV_PATH)) {
     console.error(".env.local not found in the project root.");
     process.exit(1);
@@ -136,7 +230,11 @@ async function main() {
     platform_settings: {
       overrides: {
         conversation_config_override: {
-          agent: { prompt: { prompt: true }, first_message: true, language: true },
+          agent: {
+            prompt: { prompt: OVERRIDE_INTENT.prompt },
+            first_message: OVERRIDE_INTENT.first_message,
+            language: OVERRIDE_INTENT.language,
+          },
         },
       },
     },
@@ -163,6 +261,16 @@ async function main() {
   console.log(`  voice: ${voiceName} (${voiceId}) · model: ${model} · language: ${language}`);
   console.log(`  prompt/first_message/language overrides: enabled`);
   console.log(`  → wrote ELEVENLABS_AGENT_ID to .env.local — restart the dev server.`);
+}
+
+async function main() {
+  const args = process.argv.slice(2);
+  if (args.includes("--check")) return runCheck();
+  if (args.includes("--deploy")) return runDeploy();
+  // Bare invocation used to deploy — an accidental id-rotation footgun. It now
+  // prints usage and changes nothing; --deploy is required to create an agent.
+  usage();
+  process.exit(0);
 }
 
 main().catch((e) => {
