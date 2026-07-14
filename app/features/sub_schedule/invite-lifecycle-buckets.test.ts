@@ -5,7 +5,8 @@
 // the row). The `today` bucket keeps those visible.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { bucketInvites, closedReason, hasPendingProposals, isInProgress, RECENT_WINDOW_MS } from "./invite-lifecycle-buckets.ts";
+import { bucketInvites, canReinvite, closedReason, hasPendingProposals, isInProgress, RECENT_WINDOW_MS } from "./invite-lifecycle-buckets.ts";
+import { INVITE_LINK_TTL_DAYS } from "@/app/_lib/schedule-slots";
 import type { ScheduleInvite } from "@/app/_lib/schedule-store";
 
 const NOW = Date.parse("2026-06-01T10:00:00.000Z");
@@ -37,6 +38,8 @@ function inv(over: Partial<ScheduleInvite>): ScheduleInvite {
     proposalsAt: null,
     proposalStatus: null,
     locale: null,
+    entryStatus: null,
+    entryStage: null,
     workspaceId: "workspace",
     createdAt: "2026-06-01T00:00:00.000Z",
     confirmedAt: null,
@@ -139,4 +142,35 @@ test("a pending-proposals invite is attention-worthy, even a confirmed one past 
   assert.deepEqual(upcoming.map((i) => i.id), ["dec"], "a declined-proposal confirmed invite is a normal upcoming row");
   assert.equal(hasPendingProposals(capped), true);
   assert.equal(hasPendingProposals(declined), false);
+});
+
+// --- Direction: re-invite from the Closed bucket -------------------------------
+test("canReinvite: only a CLOSED invite whose linked entry is still on-track can be re-invited", () => {
+  // A declined invite for an entry that's still active → re-invitable.
+  const declinedActive = inv({ id: "da", status: "declined", entryStatus: "active", entryStage: "Interview" });
+  assert.equal(canReinvite(declinedActive, NOW), true, "declined + active entry → re-invite");
+
+  // A no_show whose entry has since been rejected → NOT re-invitable (terminal entry).
+  const noShowRejected = inv({ id: "nr", status: "no_show", slotAt: "2026-05-30T10:00:00.000Z", entryStatus: "rejected", entryStage: "Interview" });
+  assert.equal(canReinvite(noShowRejected, NOW), false, "terminal entry → no re-invite");
+
+  // A no_show whose entry reached Hired (status stays active) → NOT re-invitable.
+  const hired = inv({ id: "hi", status: "no_show", slotAt: "2026-05-30T10:00:00.000Z", entryStatus: "active", entryStage: "Hired" });
+  assert.equal(canReinvite(hired, NOW), false, "hired entry → no re-invite");
+
+  // An EXPIRED pending link (derived from age) with an active entry → re-invitable.
+  const expired = inv({ id: "ex", status: "pending", entryStatus: "active", entryStage: "Interview", createdAt: new Date(NOW - (INVITE_LINK_TTL_DAYS + 1) * 86_400_000).toISOString() });
+  assert.equal(closedReason(expired, NOW), "expired", "the link has aged out");
+  assert.equal(canReinvite(expired, NOW), true, "expired + active entry → re-invite");
+
+  // A LIVE invite (not closed) is never a re-invite candidate.
+  const live = inv({ id: "lv", status: "confirmed", slotAt: "2026-06-05T10:00:00.000Z", entryStatus: "active", entryStage: "Interview" });
+  assert.equal(canReinvite(live, NOW), false, "a live invite is not re-invited from Closed");
+
+  // A closed invite whose entry wasn't joined (null) stays re-invitable (orphan-safe,
+  // mirrors the reminder rule) — but only when it still carries an entryId to key on.
+  const orphanJoin = inv({ id: "oj", status: "declined", entryStatus: null, entryStage: null });
+  assert.equal(canReinvite(orphanJoin, NOW), true, "unknown entry state → re-invitable (like reminder eligibility)");
+  const noEntry = inv({ id: "ne", status: "declined", entryId: null, entryStatus: null });
+  assert.equal(canReinvite(noEntry, NOW), false, "no linked entry → nothing to re-invite");
 });

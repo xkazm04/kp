@@ -190,6 +190,12 @@ export type ScheduleInvite = {
   proposalsAt: string | null; // ISO time the candidate submitted their proposed times
   proposalStatus: string | null; // null | 'pending' (awaiting recruiter) | 'declined' (recruiter couldn't accommodate)
   locale: string | null; // SIM3 — the linked entry's applicant locale, when joined (dueReminders); null otherwise
+  // The linked pipeline entry's status/stage, surfaced by the recruiter agenda read
+  // (listScheduleInvites' LEFT JOIN) so a surface can gate on the entry's fate — e.g.
+  // the Closed-bucket re-invite is withheld for a terminal (rejected/hired) entry. Null
+  // on every other read (no join) and for an orphan invite with no matching entry.
+  entryStatus: string | null;
+  entryStage: string | null;
   workspaceId: string; // P1 — the owning team (the linked entry's workspace)
   createdAt: string;
   confirmedAt: string | null;
@@ -239,6 +245,10 @@ function rowTo(r: Record<string, unknown>): ScheduleInvite {
     proposalStatus: (r.proposal_status as string) ?? null,
     // Only the dueReminders join selects entry_locale; every other read leaves it null.
     locale: (r.entry_locale as string) ?? null,
+    // Only the recruiter-agenda join (listScheduleInvites) and dueReminders select
+    // these; other reads leave them null (no join / orphan invite).
+    entryStatus: (r.entry_status as string) ?? null,
+    entryStage: (r.entry_stage as string) ?? null,
     workspaceId: (r.workspace_id as string) ?? "workspace",
     createdAt: r.created_at as string,
     confirmedAt: (r.confirmed_at as string) ?? null,
@@ -321,12 +331,19 @@ export function getScheduleInviteByToken(token: string): ScheduleInvite | null {
  *  (needs_more_slots, needs_reconcile) had zero readers. Confirmed bookings
  *  first by slot time, then pending newest-first. */
 export function listScheduleInvites(limit = 200, workspaceId: string = DEFAULT_WORKSPACE_ID): ScheduleInvite[] {
+  // LEFT JOIN the linked entry so the agenda can gate on the entry's fate — the
+  // Closed-bucket re-invite (Direction: re-invite from the Closed bucket) is withheld
+  // when the entry is terminal (rejected/hired). Same-file, separate connection: the
+  // join resolves against db.ts's pipeline_entries (as dueReminders does). Recruiter-
+  // facing, so still workspace-scoped on the invite side.
   const rows = db()
     .prepare(
-      `SELECT * FROM schedule_invites
-       WHERE workspace_id = ?
-       ORDER BY (slot_at IS NULL) ASC, slot_at ASC, created_at DESC
-       LIMIT ?`
+      `SELECT s.*, p.status AS entry_status, p.stage AS entry_stage
+         FROM schedule_invites s
+         LEFT JOIN pipeline_entries p ON p.id = s.entry_id
+        WHERE s.workspace_id = ?
+        ORDER BY (s.slot_at IS NULL) ASC, s.slot_at ASC, s.created_at DESC
+        LIMIT ?`
     )
     .all(workspaceId, Math.min(Math.max(limit, 1), 500)) as Record<string, unknown>[];
   return rows.map(rowTo);

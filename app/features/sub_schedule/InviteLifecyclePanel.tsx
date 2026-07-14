@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { AlertTriangle, Ban, CalendarClock, CalendarX, Hourglass, UserX, Wrench } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { toast } from "@/app/_components/toast-store";
@@ -14,7 +14,7 @@ import { MeetingLinkCell } from "./MeetingLinkCell";
 // bug-ui-scan-2026-07-09 (interview-scheduling-prep-rubric #3) — the today /
 // upcoming / awaiting split lives in a pure, unit-tested module so a confirmed
 // interview no longer vanishes the instant its start passes.
-import { bucketInvites, closedReason, hasPendingProposals, isInProgress } from "./invite-lifecycle-buckets";
+import { bucketInvites, canReinvite, closedReason, hasPendingProposals, isInProgress } from "./invite-lifecycle-buckets";
 // The full invite wire row is single-sourced from the store (GET /api/schedule
 // returns listScheduleInvites() unprojected). Type-only import, so schedule-store's
 // better-sqlite3 runtime is NOT pulled into this client bundle. Replaces a lossy
@@ -50,7 +50,7 @@ export function InviteLifecyclePanel() {
   // confirm latch (token+action) reused from the app's delete idiom; `busy` gates a
   // row while its action is in flight; the reschedule sub-flow loads this team's
   // offered slots lazily and lets the recruiter pick one.
-  const [armed, setArmed] = useState<{ token: string; action: "cancel" | "no_show" | "resolve_reconcile" | "decline_proposals" } | null>(null);
+  const [armed, setArmed] = useState<{ token: string; action: "cancel" | "no_show" | "resolve_reconcile" | "decline_proposals" | "reinvite" } | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [rescheduleToken, setRescheduleToken] = useState<string | null>(null);
   const [rescheduleSlots, setRescheduleSlots] = useState<{ value: string; label: string }[] | null>(null);
@@ -86,6 +86,37 @@ export function InviteLifecyclePanel() {
     }
   };
 
+  // Re-invite a candidate from a CLOSED row (declined / no_show / expired): mint a
+  // FRESH scheduling link via the EXISTING invite route (new token, existing dispatch).
+  // The store reconciles only against LIVE invites, so a terminal/expired row never
+  // reused — a genuinely new pending invite is created and lands in the awaiting bucket
+  // on the reload below. Honest delivery language keyed off the route's truthful claim.
+  const reinvite = async (token: string, entryId: string | null) => {
+    if (!entryId) return;
+    setBusy(token);
+    try {
+      const r = await fetch("/api/schedule/invite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ entryId }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        toast.error(typeof d.error === "string" ? d.error : t("actionFailed"));
+        return;
+      }
+      // The route returns the truthful delivery claim (sent only on a relayed 2xx,
+      // else queued in the Outbox) — mirror the panel's sent/queued language.
+      toast.success(d.delivery === "sent" ? t("reinviteSent") : t("reinviteQueued"));
+      await loadInvites();
+    } catch {
+      toast.error(t("actionFailed"));
+    } finally {
+      setBusy(null);
+      setArmed(null);
+    }
+  };
+
   // Open the reschedule sub-flow for a confirmed row: lazily load this team's offered
   // slots (the same collision-aware mechanism the candidate picker uses).
   const openReschedule = async (token: string) => {
@@ -100,6 +131,21 @@ export function InviteLifecyclePanel() {
       toast.error(t("actionFailed"));
     }
   };
+
+  // Reload the whole agenda from the ONE scheduling engine. Used after a re-invite (so
+  // the freshly-minted pending link appears in the awaiting bucket). useCallback keeps
+  // the Date.now() capture out of render scope (react-hooks/purity).
+  const loadInvites = useCallback(async () => {
+    try {
+      const r = await fetch("/api/schedule");
+      if (!r.ok) throw new Error();
+      const p = await r.json();
+      setInvites((p.invites as ScheduleInvite[]) ?? []);
+      setLoadedAt(Date.now());
+    } catch {
+      setFailed(true);
+    }
+  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -426,6 +472,29 @@ export function InviteLifecyclePanel() {
                   >
                     {t(reason === "no_show" ? "closedNoShow" : reason === "declined" ? "closedDeclined" : "closedExpired")}
                   </span>
+                  {/* Re-invite from Closed: mint a fresh link for a candidate whose
+                      interview fell through — but never for a terminal (rejected/hired)
+                      entry (canReinvite checks the linked entry like reminder eligibility
+                      does). Two-step armed confirm, consistent with the panel's idiom. */}
+                  {canReinvite(i, loadedAt) ? (
+                    <span className="mt-1 flex w-full items-center gap-1.5 border-t border-stone-100 pt-1.5">
+                      {armed?.token === i.token && armed.action === "reinvite" ? (
+                        <span className="inline-flex items-center gap-1.5" role="group" aria-label={t("reinvitePrompt")}>
+                          <span className="text-micro font-semibold text-ink">{t("reinvitePrompt")}</span>
+                          <button type="button" disabled={busy === i.token} onClick={() => reinvite(i.token, i.entryId)} className="focus-ring rounded-md border border-moss/40 bg-moss/10 px-2 py-1 text-micro font-semibold text-moss hover:bg-moss/20 disabled:opacity-50">
+                            {t("confirmAction")}
+                          </button>
+                          <button type="button" autoFocus onClick={() => setArmed(null)} className="focus-ring rounded-md px-2 py-1 text-micro font-semibold text-steel hover:bg-stone-100">
+                            {t("cancel")}
+                          </button>
+                        </span>
+                      ) : (
+                        <button type="button" disabled={busy === i.token} onClick={() => setArmed({ token: i.token, action: "reinvite" })} className="focus-ring inline-flex items-center gap-1 rounded-md border border-stone-200 px-2 py-1 text-micro font-semibold text-ink hover:border-coral/50 disabled:opacity-50">
+                          <CalendarClock size={12} aria-hidden /> {t("reinvite")}
+                        </button>
+                      )}
+                    </span>
+                  ) : null}
                 </li>
               );
             })}

@@ -18,6 +18,10 @@ import type { ScheduleInvite } from "@/app/_lib/schedule-store";
 // Pure (no better-sqlite3) — safe in this client-bundled module. Derives the
 // "expired" fate of a stale, never-booked pending invite (Direction 1).
 import { isScheduleInviteExpired } from "@/app/_lib/schedule-slots";
+// Pure, import-free contract — the SAME rule the reminder sweep uses to decide an
+// entry has left the interview track. Reused here so the Closed-bucket re-invite and
+// the reminder eligibility can't drift.
+import { isEntryReminderEligible } from "@/app/_lib/pipeline-status";
 
 // How long a just-started confirmed slot stays in the "today" bucket after its
 // start — long enough to cover the interview itself plus immediate no-show /
@@ -45,6 +49,22 @@ export function closedReason(invite: ScheduleInvite, nowMs: number): "expired" |
   if (invite.status === "no_show") return "no_show";
   if (isScheduleInviteExpired(invite, nowMs)) return "expired";
   return null;
+}
+
+/** Whether a CLOSED invite (declined / no_show / expired) can be re-invited — i.e. the
+ *  recruiter can mint a fresh scheduling link for its candidate. Offered only when the
+ *  linked pipeline entry is still on the interview track: a terminal entry (rejected/
+ *  declined) or a Hired one gets NO re-invite, checked with the same rule the reminder
+ *  sweep uses (isEntryReminderEligible), so the two can't drift. A closed invite with no
+ *  linked entry (orphan) or one the agenda read didn't join stays re-invitable (null →
+ *  eligible), mirroring the reminder rule. Requires an entryId — the invite route keys
+ *  the fresh link on it. `nowMs` decides the derived `expired` fate. */
+export function canReinvite(invite: ScheduleInvite, nowMs: number): boolean {
+  if (closedReason(invite, nowMs) === null) return false; // only a closed invite re-invites
+  if (!invite.entryId) return false; // no entry to key the fresh link on
+  return isEntryReminderEligible(
+    invite.entryStatus ? { status: invite.entryStatus, stage: invite.entryStage ?? "" } : null
+  );
 }
 
 /** Whether an invite carries a pending candidate "propose your own times" escalation
