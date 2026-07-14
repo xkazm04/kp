@@ -2,9 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Check, Copy, RotateCcw, SlidersHorizontal, Sparkles } from "lucide-react";
+import { Check, Copy, ListChecks, RotateCcw, SlidersHorizontal, Sparkles } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { buildTabSwitchUrl } from "@/app/features/tabs";
+import { postPipelineBatch, type PipelineBatchItem } from "@/app/_lib/useAddToPipeline";
 import { ChainEmptyState } from "@/app/_components/ChainEmptyState";
 import { CompletionCta } from "@/app/_components/CompletionCta";
 import { Select } from "@/app/_components/Select";
@@ -84,6 +85,19 @@ export function DecisionsTab() {
   const [reconsider, setReconsider] = useState<ReconsiderRow[]>([]);
   const [reinstating, setReinstating] = useState<ReadonlySet<string>>(new Set());
 
+  // Direction 1 — batch accept/reject for AI review cards. POST /api/pipeline/batch
+  // already offers per-id CAS + verbatim per-id failure reasons; this reuses the
+  // board's PipelineTab.bulkDecide grammar (successes clear, failures stay selected
+  // for retry, reject is confirm-gated because it emails candidates). offer_review
+  // is EXCLUDED from multi-select (see selectableReviews below): the batch response
+  // discards the extended offer's secure link + the per-offer deadline lever, so an
+  // offer accept stays a one-by-one ceremony.
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedReviewIds, setSelectedReviewIds] = useState<ReadonlySet<string>>(new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [bulkResult, setBulkResult] = useState<{ ok: number; failed: number; verb: "accepted" | "rejected"; reason: string | null } | null>(null);
+  const [confirmingBulkReject, setConfirmingBulkReject] = useState(false);
+
   const load = () =>
     fetch("/api/pipeline")
       .then((r) => r.json())
@@ -149,6 +163,85 @@ export function DecisionsTab() {
   const activeFilter = jobFilter && jobOptions.some((o) => o.key === jobFilter) ? jobFilter : null;
   const matchesFilter = (e: Entry) => !activeFilter || roleKeyOf(e) === activeFilter;
   const visibleAiReviews = aiReviews.filter(matchesFilter);
+  // Batchable AI reviews: offer_review is excluded (extendOffer's secure link + the
+  // per-offer deadline are dropped by the batch response — see the state comment).
+  const selectableReviews = visibleAiReviews.filter((e) => e.approvalKind !== "offer_review");
+  const hasOfferReviews = visibleAiReviews.some((e) => e.approvalKind === "offer_review");
+  const selectedReviews = selectableReviews.filter((e) => selectedReviewIds.has(e.id));
+
+  const toggleReviewSelect = (e: Entry) => {
+    setBulkResult(null);
+    setConfirmingBulkReject(false);
+    setSelectedReviewIds((cur) => {
+      const next = new Set(cur);
+      if (next.has(e.id)) next.delete(e.id);
+      else next.add(e.id);
+      return next;
+    });
+  };
+  const exitSelectMode = () => {
+    setSelectMode(false);
+    setSelectedReviewIds(new Set());
+    setBulkResult(null);
+    setConfirmingBulkReject(false);
+  };
+  const selectAllReviews = () => {
+    setBulkResult(null);
+    setConfirmingBulkReject(false);
+    setSelectedReviewIds(new Set(selectableReviews.map((e) => e.id)));
+  };
+
+  // ONE batch POST per action, each item carrying its OWN expectedStage CAS snapshot
+  // (the stage the card rendered from) — a concurrent move is a per-id 409 that STAYS
+  // selected for retry while successes clear. Mirrors PipelineTab.bulkDecide exactly;
+  // rejects route through the batch endpoint's runPipelineEntryAction → dispatchRejection
+  // (the same comms the one-by-one path fires — not duplicated here).
+  const bulkDecideReviews = async (action: "accept" | "reject") => {
+    const targets = selectedReviews;
+    if (targets.length === 0 || bulkBusy) return;
+    setBulkBusy(true);
+    setBulkResult(null);
+    setConfirmingBulkReject(false);
+    let ok = 0;
+    const failed = new Set<string>();
+    const reasons = new Set<string>();
+    const items: PipelineBatchItem[] = targets.map((e) => ({ id: e.id, action, expectedStage: e.stage }));
+    const res = await postPipelineBatch(items);
+    if (res.ok) {
+      for (const r of res.results) {
+        if (r.ok) ok += 1;
+        else {
+          failed.add(r.id);
+          if (r.reason) reasons.add(r.reason);
+        }
+      }
+      // Preserve the one-by-one accept's forward handoff: each accepted screening
+      // review flows to Schedule, so backfill its interview-prep artifact and name
+      // it in the queued banner — parity with act()'s screening_review branch.
+      if (action === "accept") {
+        const okIds = new Set(res.results.filter((r) => r.ok).map((r) => r.id));
+        const acceptedScreenings = targets.filter((e) => okIds.has(e.id) && e.approvalKind === "screening_review");
+        for (const e of acceptedScreenings) {
+          void startTask("interview_prep", { entryId: e.id, candidateLabel: e.candidateLabel, jobTitle: e.jobTitle, lang: locale });
+        }
+        if (acceptedScreenings.length > 0) setQueuedLabels((prev) => [...prev, ...acceptedScreenings.map((e) => e.candidateLabel)]);
+      }
+    } else {
+      // Transport-level failure — every attempted decision stays selected for retry.
+      for (const e of targets) failed.add(e.id);
+    }
+    // Successes clear; failures + any selected non-selectable strays stay selected.
+    const untouched = [...selectedReviewIds].filter((id) => !targets.some((e) => e.id === id));
+    setSelectedReviewIds(new Set([...failed, ...untouched]));
+    setBulkResult({
+      ok,
+      failed: failed.size,
+      verb: action === "accept" ? "accepted" : "rejected",
+      reason: reasons.size ? [...reasons].join(" · ") : null,
+    });
+    setBulkBusy(false);
+    await load();
+  };
 
   const groups = useMemo<Group[]>(() => {
     const map = new Map<string, Group>();
@@ -444,15 +537,130 @@ export function DecisionsTab() {
         <div className="space-y-6">
           {visibleAiReviews.length > 0 ? (
             <section>
-              <h3 className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-steel">
-                <Sparkles size={13} className="text-coral" /> {t("aiRecommendations")} <span className="text-coral">· {visibleAiReviews.length}</span>
-              </h3>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h3 className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-steel">
+                  <Sparkles size={13} className="text-coral" /> {t("aiRecommendations")} <span className="text-coral">· {visibleAiReviews.length}</span>
+                </h3>
+                {/* Direction 1 — batch accept/reject. Offered when 2+ cards are
+                    batchable (offer_review excluded); a single card is faster one-by-one.
+                    Once armed, the toggle stays so the recruiter can always exit. */}
+                {selectMode || selectableReviews.length > 1 ? (
+                  <button
+                    type="button"
+                    onClick={() => (selectMode ? exitSelectMode() : setSelectMode(true))}
+                    aria-pressed={selectMode}
+                    className={`focus-ring inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-sm font-semibold ${
+                      selectMode ? "border-coral bg-coral/10 text-coral" : "border-stone-200 bg-white text-steel hover:bg-stone-50"
+                    }`}
+                  >
+                    <ListChecks size={13} /> {selectMode ? t("batch.exit") : t("batch.select")}
+                  </button>
+                ) : null}
+              </div>
+
+              {selectMode ? (
+                <div className="mt-3 flex flex-wrap items-center gap-2 rounded-md border border-coral/30 bg-coral/5 px-3 py-2">
+                  <span className="text-sm font-semibold text-ink" aria-live="polite">
+                    {t("batch.selectedCount", { count: selectedReviews.length })}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={selectAllReviews}
+                    className="focus-ring rounded-full border border-stone-200 bg-white px-2.5 py-0.5 text-sm font-semibold text-steel hover:border-coral/40 hover:text-ink"
+                  >
+                    {t("batch.selectAll", { count: selectableReviews.length })}
+                  </button>
+                  {selectedReviews.length > 0 ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedReviewIds(new Set());
+                        setConfirmingBulkReject(false);
+                        setBulkResult(null);
+                      }}
+                      className="focus-ring rounded-full border border-stone-200 bg-white px-2.5 py-0.5 text-sm font-semibold text-steel hover:border-coral/40 hover:text-ink"
+                    >
+                      {t("batch.clear")}
+                    </button>
+                  ) : null}
+                  {hasOfferReviews ? (
+                    <span className="text-sm text-steel">{t("batch.offersExcluded")}</span>
+                  ) : null}
+                  {bulkResult ? (
+                    <span role="status" className="text-sm">
+                      <span className="font-semibold text-moss">
+                        {t(bulkResult.verb === "accepted" ? "batch.accepted" : "batch.rejected", { count: bulkResult.ok })}
+                      </span>
+                      {bulkResult.failed > 0 ? (
+                        <span className="font-semibold text-coral">
+                          {" · "}
+                          {t("batch.failed", { count: bulkResult.failed })}
+                        </span>
+                      ) : null}
+                      {bulkResult.reason ? <span className="block text-steel">{bulkResult.reason}</span> : null}
+                    </span>
+                  ) : null}
+                  {selectedReviews.length > 0 ? (
+                    <div className="ml-auto flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => void bulkDecideReviews("accept")}
+                        disabled={bulkBusy}
+                        className="focus-ring rounded-md bg-moss px-3 py-1 text-sm font-semibold text-white hover:bg-moss/90 disabled:opacity-50"
+                      >
+                        {t("batch.accept", { count: selectedReviews.length })}
+                      </button>
+                      {confirmingBulkReject ? (
+                        <>
+                          <span className="text-sm font-semibold text-coral">{t("batch.rejectConfirm", { count: selectedReviews.length })}</span>
+                          <button
+                            type="button"
+                            onClick={() => void bulkDecideReviews("reject")}
+                            disabled={bulkBusy}
+                            className="focus-ring rounded-md bg-coral px-3 py-1 text-sm font-semibold text-white hover:bg-coral/90 disabled:opacity-50"
+                          >
+                            {bulkBusy ? t("batch.rejecting") : t("batch.rejectConfirmYes")}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setConfirmingBulkReject(false)}
+                            disabled={bulkBusy}
+                            className="focus-ring rounded-md px-2 py-1 text-sm font-semibold text-steel hover:text-ink disabled:opacity-50"
+                          >
+                            {t("batch.rejectCancel")}
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setConfirmingBulkReject(true)}
+                          disabled={bulkBusy}
+                          className="focus-ring rounded-md border border-coral/40 bg-white px-3 py-1 text-sm font-semibold text-coral hover:bg-coral/5 disabled:opacity-50"
+                        >
+                          {t("batch.reject", { count: selectedReviews.length })}
+                        </button>
+                      )}
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+
               <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                {visibleAiReviews.map((e) => (
-                  <div key={e.id} data-sim-entry={e.id} className={leavingWrapClass(e)}>
-                    <AiReviewCard entry={e} onAccept={(ttlDays) => act(e, "accept", undefined, ttlDays)} onReject={() => act(e, "reject")} />
-                  </div>
-                ))}
+                {visibleAiReviews.map((e) => {
+                  const eligible = e.approvalKind !== "offer_review";
+                  return (
+                    <div key={e.id} data-sim-entry={e.id} className={leavingWrapClass(e)}>
+                      <AiReviewCard
+                        entry={e}
+                        onAccept={(ttlDays) => act(e, "accept", undefined, ttlDays)}
+                        onReject={() => act(e, "reject")}
+                        selectMode={selectMode}
+                        selected={selectedReviewIds.has(e.id)}
+                        onToggleSelect={eligible ? () => toggleReviewSelect(e) : undefined}
+                      />
+                    </div>
+                  );
+                })}
               </div>
             </section>
           ) : null}

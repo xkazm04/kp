@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Sparkles, X } from "lucide-react";
+import { Check, CheckSquare, Sparkles, Square, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { RATING_MAX } from "@/app/_lib/format";
 import { OFFER_TTL_DAYS_MIN, OFFER_TTL_DAYS_MAX, defaultOfferTtlDays } from "@/app/_lib/offer-policy";
@@ -13,8 +13,30 @@ import type { Entry, Offer, Scorecard, Screening } from "./DecisionsTypes";
 // the dots too (no second [1,2,3,4,5] to chase).
 const RATING_SCALE = Array.from({ length: RATING_MAX }, (_, i) => i + 1);
 
-export function AiReviewCard({ entry, onAccept, onReject }: { entry: Entry; onAccept: (ttlDays?: number) => void; onReject: () => void }) {
+export function AiReviewCard({
+  entry,
+  onAccept,
+  onReject,
+  // Batch multi-select (Direction 1): when the queue is in select mode AND this
+  // card is eligible (offer_review is excluded — see DecisionsTab), the card
+  // becomes a checkbox target and its per-card accept/reject buttons are
+  // suppressed; the batch bar in the section header decides the cohort. Mirrors
+  // the board's CandidateRow selectMode grammar (role=checkbox, glyph, coral wash).
+  selectMode = false,
+  selected = false,
+  onToggleSelect,
+}: {
+  entry: Entry;
+  onAccept: (ttlDays?: number) => void;
+  onReject: () => void;
+  selectMode?: boolean;
+  selected?: boolean;
+  onToggleSelect?: () => void;
+}) {
   const t = useTranslations("decisions.aiReview");
+  // Selectable exactly when the parent enabled select mode AND passed a toggle
+  // (offer_review cards get no toggle, so they stay one-by-one even in select mode).
+  const selecting = selectMode && Boolean(onToggleSelect);
   // The recruiter's deadline lever (offers-onboarding #3): a per-offer window in
   // whole days, defaulting to the deployment default. Sent with the accept that
   // extends the offer; the candidate's countdown then reflects it.
@@ -65,11 +87,33 @@ export function AiReviewCard({ entry, onAccept, onReject }: { entry: Entry; onAc
   const acceptLabel = isOffer ? t("acceptSendOffer") : isScorecard ? t("acceptToOffer") : t("acceptAdvance");
 
   return (
-    <article className="animate-fade-in rounded-lg border border-stone-200 bg-white p-3 shadow-panel">
+    <article
+      className={`animate-fade-in rounded-lg border bg-white p-3 shadow-panel ${
+        selecting && selected ? "border-coral ring-1 ring-coral/40" : "border-stone-200"
+      }`}
+    >
       <div className="mb-1 flex items-center justify-between">
-        <span className="inline-flex items-center gap-1 text-sm font-semibold uppercase tracking-wide text-coral">
-          <Sparkles size={11} /> {tag}
-        </span>
+        {selecting ? (
+          <button
+            type="button"
+            onClick={onToggleSelect}
+            role="checkbox"
+            aria-checked={selected}
+            title={t("select", { name: entry.candidateLabel })}
+            className="focus-ring inline-flex items-center gap-1 text-sm font-semibold uppercase tracking-wide text-coral"
+          >
+            {selected ? (
+              <CheckSquare size={13} className="text-coral" aria-hidden />
+            ) : (
+              <Square size={13} className="text-steel" aria-hidden />
+            )}{" "}
+            {tag}
+          </button>
+        ) : (
+          <span className="inline-flex items-center gap-1 text-sm font-semibold uppercase tracking-wide text-coral">
+            <Sparkles size={11} /> {tag}
+          </span>
+        )}
         {isOffer ? (
           <span className="font-serif text-base text-ink">
             {Number(parsed?.recommended ?? 0).toLocaleString()} {parsed?.currency ?? "CZK"}
@@ -168,23 +212,27 @@ export function AiReviewCard({ entry, onAccept, onReject }: { entry: Entry; onAc
         </div>
       ) : null}
 
-      <div className="mt-3 flex gap-2">
-        <button
-          type="button"
-          data-sim-click="accept"
-          onClick={() => onAccept(isOffer ? ttlDays : undefined)}
-          className="focus-ring inline-flex h-9 flex-1 items-center justify-center gap-1 rounded-md bg-moss text-base font-semibold text-white hover:opacity-90"
-        >
-          <Check size={16} /> {acceptLabel}
-        </button>
-        <button
-          type="button"
-          onClick={onReject}
-          className="focus-ring inline-flex h-9 items-center justify-center gap-1 rounded-md border border-stone-200 px-3 text-base font-semibold text-coral hover:bg-coral/5"
-        >
-          <X size={16} /> {t("reject")}
-        </button>
-      </div>
+      {/* In select mode the batch bar decides the cohort — the per-card buttons
+          would be a second, conflicting path, so they're suppressed here. */}
+      {selecting ? null : (
+        <div className="mt-3 flex gap-2">
+          <button
+            type="button"
+            data-sim-click="accept"
+            onClick={() => onAccept(isOffer ? ttlDays : undefined)}
+            className="focus-ring inline-flex h-9 flex-1 items-center justify-center gap-1 rounded-md bg-moss text-base font-semibold text-white hover:opacity-90"
+          >
+            <Check size={16} /> {acceptLabel}
+          </button>
+          <button
+            type="button"
+            onClick={onReject}
+            className="focus-ring inline-flex h-9 items-center justify-center gap-1 rounded-md border border-stone-200 px-3 text-base font-semibold text-coral hover:bg-coral/5"
+          >
+            <X size={16} /> {t("reject")}
+          </button>
+        </div>
+      )}
     </article>
   );
 }

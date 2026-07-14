@@ -1693,6 +1693,23 @@
       "dismiss": "Ignorer"
     },
     "aiRecommendations": "Recommandations AI",
+    "batch": {
+      "select": "Sélectionner",
+      "exit": "Terminé",
+      "selectedCount": "{count} sélectionné",
+      "selectAll": "Tout sélectionner ({count})",
+      "clear": "Effacer la sélection",
+      "offersExcluded": "Les offres se décident une par une — chacune a son propre délai et son lien sécurisé.",
+      "accept": "Accepter {count}",
+      "reject": "Rejeter {count}",
+      "accepted": "{count} accepté",
+      "rejected": "{count} rejeté",
+      "failed": "Décision impossible pour {count} — encore sélectionné, réessayez",
+      "rejectConfirm": "Rejeter {count} et les notifier ?",
+      "rejectConfirmYes": "Rejeter et notifier",
+      "rejectCancel": "Annuler",
+      "rejecting": "Rejet…"
+    },
     "keyDecisions": "Décisions clés",
     "keyDecisionsHelp": "Une ligne par poste — faites avancer ou rejetez depuis le résumé d'analyse d'un candidat.",
     "noKeyDecisions": "Aucune décision clé en attente.",
@@ -1736,7 +1753,8 @@
       "band": "fourchette {min}–{max} {currency}",
       "pricingBasis": "Tarifé par une nouvelle vérification de correspondance à la rédaction de l'offre : {score}/100 → ~{pct}% de la fourchette.",
       "strengths": "Points forts",
-      "redFlags": "Signaux d'alerte"
+      "redFlags": "Signaux d'alerte",
+      "select": "Sélectionner {name} pour une décision groupée"
     },
     "rules": {
       "title": "Règles de décision · Présélection",

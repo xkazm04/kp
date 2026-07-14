@@ -1664,6 +1664,23 @@
       "dismiss": "Skrýt"
     },
     "aiRecommendations": "Doporučení AI",
+    "batch": {
+      "select": "Vybrat",
+      "exit": "Hotovo",
+      "selectedCount": "{count} vybráno",
+      "selectAll": "Vybrat všech {count}",
+      "clear": "Zrušit výběr",
+      "offersExcluded": "Nabídky se rozhodují jednotlivě — každá má vlastní lhůtu a zabezpečený odkaz.",
+      "accept": "Přijmout {count}",
+      "reject": "Odmítnout {count}",
+      "accepted": "{count} přijato",
+      "rejected": "{count} odmítnuto",
+      "failed": "{count} se nepodařilo rozhodnout — zůstávají vybráni, zkuste znovu",
+      "rejectConfirm": "Odmítnout {count} a uvědomit je?",
+      "rejectConfirmYes": "Odmítnout a uvědomit",
+      "rejectCancel": "Zrušit",
+      "rejecting": "Odmítám…"
+    },
     "keyDecisions": "Klíčová rozhodnutí",
     "keyDecisionsHelp": "Jeden řádek na roli — postupte nebo zamítněte ze souhrnu analýzy kandidáta.",
     "noKeyDecisions": "Žádná klíčová rozhodnutí nečekají.",
@@ -1707,7 +1724,8 @@
       "band": "pásmo {min}–{max} {currency}",
       "pricingBasis": "Cena vychází z čerstvého fit-checku při návrhu nabídky: {score}/100 → ~{pct} % pásma.",
       "strengths": "Silné stránky",
-      "redFlags": "Varovné signály"
+      "redFlags": "Varovné signály",
+      "select": "Vybrat {name} pro hromadné rozhodnutí"
     },
     "rules": {
       "title": "Pravidla rozhodování · Screening",

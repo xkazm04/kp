@@ -1693,6 +1693,23 @@
       "dismiss": "Ausblenden"
     },
     "aiRecommendations": "AI-Empfehlungen",
+    "batch": {
+      "select": "Auswählen",
+      "exit": "Fertig",
+      "selectedCount": "{count} ausgewählt",
+      "selectAll": "Alle {count} auswählen",
+      "clear": "Auswahl aufheben",
+      "offersExcluded": "Angebote werden einzeln entschieden — jedes hat seine eigene Frist und seinen sicheren Link.",
+      "accept": "{count} annehmen",
+      "reject": "{count} ablehnen",
+      "accepted": "{count} angenommen",
+      "rejected": "{count} abgelehnt",
+      "failed": "{count} konnten nicht entschieden werden — weiterhin ausgewählt, erneut versuchen",
+      "rejectConfirm": "{count} ablehnen und benachrichtigen?",
+      "rejectConfirmYes": "Ablehnen & benachrichtigen",
+      "rejectCancel": "Abbrechen",
+      "rejecting": "Wird abgelehnt…"
+    },
     "keyDecisions": "Wichtige Entscheidungen",
     "keyDecisionsHelp": "Eine Zeile pro Stelle — weiterleiten oder ablehnen direkt aus der Analysezusammenfassung eines Kandidaten.",
     "noKeyDecisions": "Keine wichtigen Entscheidungen ausstehend.",
@@ -1736,7 +1753,8 @@
       "band": "Spanne {min}–{max} {currency}",
       "pricingBasis": "Preis aus einer frischen Eignungsprüfung beim Angebotsentwurf: {score}/100 → ~{pct}% der Spanne.",
       "strengths": "Stärken",
-      "redFlags": "Warnsignale"
+      "redFlags": "Warnsignale",
+      "select": "{name} für eine Sammelentscheidung auswählen"
     },
     "rules": {
       "title": "Entscheidungsregeln · Screening",

@@ -1664,6 +1664,23 @@
       "dismiss": "Dismiss"
     },
     "aiRecommendations": "AI recommendations",
+    "batch": {
+      "select": "Select",
+      "exit": "Done",
+      "selectedCount": "{count} selected",
+      "selectAll": "Select all {count}",
+      "clear": "Clear selection",
+      "offersExcluded": "Offer cards are decided one at a time — each sets its own deadline and secure link.",
+      "accept": "Accept {count}",
+      "reject": "Reject {count}",
+      "accepted": "{count} accepted",
+      "rejected": "{count} rejected",
+      "failed": "{count} couldn't be decided — still selected, retry",
+      "rejectConfirm": "Reject {count} and notify them?",
+      "rejectConfirmYes": "Reject & notify",
+      "rejectCancel": "Cancel",
+      "rejecting": "Rejecting…"
+    },
     "keyDecisions": "Key decisions",
     "keyDecisionsHelp": "One row per role — advance or reject from a candidate's analysis summary.",
     "noKeyDecisions": "No key decisions pending.",
@@ -1707,7 +1724,8 @@
       "band": "band {min}–{max} {currency}",
       "pricingBasis": "Priced by a fresh fit check at offer draft: {score}/100 → ~{pct}% of the band.",
       "strengths": "Strengths",
-      "redFlags": "Red flags"
+      "redFlags": "Red flags",
+      "select": "Select {name} for a batch decision"
     },
     "rules": {
       "title": "Decision rules · Screening",
