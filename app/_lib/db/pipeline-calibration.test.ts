@@ -86,9 +86,10 @@ test("the calibration route reads the acting producer by default and labels what
     path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../api/analytics/calibration/route.ts"),
     "utf8"
   );
-  assert.ok(
-    routeSrc.includes("pipelineCalibrationPairs()"),
-    "the route must read the pipeline (acting-score) producer"
+  assert.match(
+    routeSrc,
+    /pipelineCalibrationPairs\(\s*(ws|await currentWorkspace\(\))\s*\)/,
+    "the route must read the pipeline (acting-score) producer, workspace-scoped (P1)"
   );
   assert.match(
     routeSrc,
