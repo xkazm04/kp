@@ -28,6 +28,7 @@ import {
   Lock,
   type LucideIcon,
   Maximize2,
+  Pencil,
   RefreshCw,
   Search,
   Sparkles,
@@ -62,6 +63,7 @@ import {
   type StatusFilter,
 } from "./jd-library";
 import { JdCandidateList } from "./JdCandidateList";
+import { JdModalEditor } from "./JdModalEditor";
 import { LibraryGeneratePanel } from "./LibraryGeneratePanel";
 import { switchTab, duplicateToBuilder, nextMenuIndex, type LedgerNavState } from "./ledger-nav";
 
@@ -611,6 +613,8 @@ function LedgerDetailModal({
   const ing = useIngestJob(row.slug, (jobId) => onIngested(jobId));
   const [retrying, setRetrying] = useState(false);
   const [retryError, setRetryError] = useState<string | null>(null);
+  // Direction 1 — in-place edit inside the modal (title + body → the existing PATCH).
+  const [editing, setEditing] = useState(false);
 
   // While the build runs, poll the detail so it flips to the result in place.
   useEffect(() => {
@@ -622,6 +626,10 @@ function LedgerDetailModal({
   // Structured artifacts (salary / case) the build stored beside the markdown body.
   // Parsed inline (the modal renders infrequently and the blob is small).
   const artifacts = parseArtifacts(jd?.analysis_json);
+  // Edit is offered only for a settled JD (never mid-build / failed) once the body
+  // has loaded. A grounded market band feeds the lint's salary-suppression seam.
+  const canEdit = Boolean(jd) && !analyzing && !failed && status === "ready";
+  const marketResearch = Boolean(artifacts?.options?.marketResearch) || normalizeMarketSalary(artifacts?.salary).available;
 
   const retry = async () => {
     setRetrying(true);
@@ -664,6 +672,17 @@ function LedgerDetailModal({
             </div>
           </div>
           <div className="space-y-2 border-t border-stone-200 pt-4">
+            {canEdit ? (
+              <button
+                type="button"
+                onClick={() => setEditing((v) => !v)}
+                aria-pressed={editing}
+                aria-label={t("editJdAria")}
+                className={`focus-ring flex w-full items-center gap-2 rounded-md border px-3 py-2 text-sm font-semibold hover:border-coral/40 ${editing ? "border-coral/40 bg-coral/5 text-coral" : "border-stone-200 text-ink"}`}
+              >
+                <Pencil size={15} aria-hidden /> {editing ? t("editCancel") : t("editJd")}
+              </button>
+            ) : null}
             <button
               type="button"
               onClick={() => onDuplicate(row)}
@@ -699,7 +718,18 @@ function LedgerDetailModal({
 
         {/* Rendered posting — plus the in-progress / failed states of a backgrounded build. */}
         <section className="min-w-0">
-          {analyzing ? (
+          {editing && jd ? (
+            <JdModalEditor
+              slug={row.slug}
+              initialTitle={jd.title}
+              initialBody={jd.body}
+              marketResearch={marketResearch}
+              onDone={() => {
+                setEditing(false);
+                refresh();
+              }}
+            />
+          ) : analyzing ? (
             <BuildingPanel />
           ) : failed ? (
             <FailedPanel error={jd?.analysis_error ?? null} retrying={retrying} retryError={retryError} onRetry={retry} />
