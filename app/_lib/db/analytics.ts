@@ -344,6 +344,11 @@ export function pipelineAnalytics(
   // the pipeline (MIN(id) — insertion order — as the earliest-event proxy).
   // Same cohort window as the rest of the page. Entries with no events (legacy)
   // simply don't join — they have no derivable origin.
+  // The earliest-event subquery is scoped to THIS workspace (and sim-filtered, like
+  // the outer query): without it, `SELECT MIN(id) ... GROUP BY entry_id` scanned the
+  // entire cross-workspace events table on every request just to find first-events
+  // that the outer p.workspace_id join then discards. Scoping keeps the result
+  // identical (an entry's events share its workspace) while bounding the scan.
   const sourceRows = (
     cutoffIso
       ? db
@@ -351,21 +356,23 @@ export function pipelineAnalytics(
             `SELECT p.stage AS stage, fe.kind AS kind
                FROM pipeline_entries p
                JOIN (SELECT entry_id, kind FROM pipeline_events
-                      WHERE id IN (SELECT MIN(id) FROM pipeline_events WHERE entry_id IS NOT NULL GROUP BY entry_id)
+                      WHERE id IN (SELECT MIN(id) FROM pipeline_events
+                                    WHERE entry_id IS NOT NULL AND ${notSim()} AND workspace_id = ? GROUP BY entry_id)
                     ) fe ON fe.entry_id = p.id
               WHERE p.created_at >= ? AND ${notSim("p.job_title")} AND p.workspace_id = ?`
           )
-          .all(cutoffIso, SIM_TITLE_LIKE, workspaceId)
+          .all(SIM_TITLE_LIKE, workspaceId, cutoffIso, SIM_TITLE_LIKE, workspaceId)
       : db
           .prepare(
             `SELECT p.stage AS stage, fe.kind AS kind
                FROM pipeline_entries p
                JOIN (SELECT entry_id, kind FROM pipeline_events
-                      WHERE id IN (SELECT MIN(id) FROM pipeline_events WHERE entry_id IS NOT NULL GROUP BY entry_id)
+                      WHERE id IN (SELECT MIN(id) FROM pipeline_events
+                                    WHERE entry_id IS NOT NULL AND ${notSim()} AND workspace_id = ? GROUP BY entry_id)
                     ) fe ON fe.entry_id = p.id
               WHERE ${notSim("p.job_title")} AND p.workspace_id = ?`
           )
-          .all(SIM_TITLE_LIKE, workspaceId)
+          .all(SIM_TITLE_LIKE, workspaceId, SIM_TITLE_LIKE, workspaceId)
   ) as { stage: string; kind: string }[];
   const originOf = (kind: string): string =>
     kind === "applied" ? "applied" : kind === "matched" ? "matched" : kind === "added" || kind === "intake_degraded" ? "added" : "other";

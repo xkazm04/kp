@@ -4,11 +4,11 @@ import { useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { ArrowRight, Download, PauseCircle, Target } from "lucide-react";
-import { useFormatter, useTranslations } from "next-intl";
+import { useFormatter, useLocale, useTranslations } from "next-intl";
 import { downloadFile, toCsv } from "@/app/_lib/export-utils";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
 import { useEnumLabel, labelOr } from "@/app/_lib/use-enum-label";
-import type { MomentumWeek } from "@/app/_lib/analytics-momentum";
+import { momentumWeekLabel, type MomentumWeek } from "@/app/_lib/analytics-momentum";
 import { forecastHires } from "@/app/_lib/analytics-forecast";
 import type { Delta, PeriodDeltas } from "@/app/_lib/analytics-deltas";
 import { kindLabel, type AutomationImpact } from "@/app/_lib/decision-attribution";
@@ -1050,11 +1050,12 @@ const MOMENTUM_SERIES = [
 
 function MomentumPanel({ weeks }: { weeks: MomentumWeek[] }) {
   const t = useTranslations("analytics");
-  const format = useFormatter();
+  const locale = useLocale();
   const max = Math.max(1, ...weeks.flatMap((w) => MOMENTUM_SERIES.map((s) => w[s.key])));
   const quiet = weeks.every((w) => MOMENTUM_SERIES.every((s) => w[s.key] === 0));
-  const weekLabel = (iso: string) =>
-    format.dateTime(new Date(`${iso}T00:00:00`), { day: "numeric", month: "short" });
+  // weekStart is a UTC calendar date; render it pinned to UTC so the label shows the
+  // correct day in every client timezone (see momentumWeekLabel).
+  const weekLabel = (iso: string) => momentumWeekLabel(iso, locale);
   return (
     <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
       <div className="flex flex-wrap items-baseline justify-between gap-2">

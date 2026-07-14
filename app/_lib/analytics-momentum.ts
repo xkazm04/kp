@@ -33,6 +33,17 @@ export type MomentumWeek = { weekStart: string; added: number; advanced: number;
 
 const WEEK_MS = 7 * 86_400_000;
 
+/** Render a bucket's `weekStart` (a UTC calendar date, YYYY-MM-DD — see the note above)
+ *  as a short, locale-aware "D MMM" label. BOTH the parse (`…T00:00:00Z`) and the format
+ *  are pinned to UTC, so the rendered day equals the server's bucket date in EVERY client
+ *  timezone. The previous UI parsed the string as LOCAL midnight, shifting the label back a
+ *  day for users west of UTC (a Jul-14 bucket read as "13 Jul"). Pure → unit-testable. */
+export function momentumWeekLabel(weekStart: string, locale: string): string {
+  return new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", timeZone: "UTC" }).format(
+    new Date(`${weekStart}T00:00:00Z`)
+  );
+}
+
 export function weeklyMomentum(
   events: MomentumEvent[],
   opts?: { weeks?: number; now?: number }

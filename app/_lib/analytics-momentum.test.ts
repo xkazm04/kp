@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { MOMENTUM_EVENT_KINDS, MOMENTUM_WEEKS, weeklyMomentum } from "./analytics-momentum.ts";
+import { MOMENTUM_EVENT_KINDS, MOMENTUM_WEEKS, momentumWeekLabel, weeklyMomentum } from "./analytics-momentum.ts";
 
 const NOW = Date.parse("2026-06-10T12:00:00.000Z");
 const DAY = 86_400_000;
@@ -57,6 +57,17 @@ test("defaults: MOMENTUM_WEEKS buckets, ISO-date labels", () => {
   const out = weeklyMomentum([], { now: NOW });
   assert.equal(out.length, MOMENTUM_WEEKS);
   for (const w of out) assert.match(w.weekStart, /^\d{4}-\d{2}-\d{2}$/);
+});
+
+test("momentumWeekLabel renders the weekStart's UTC day, stable across timezones", () => {
+  // weekStart is a UTC calendar date. The label must show THAT day (14 Jul), not the
+  // day a LOCAL parse of "2026-07-14T00:00:00" would land on for a client west of UTC.
+  assert.equal(momentumWeekLabel("2026-07-14", "en"), "Jul 14");
+  // A date whose UTC midnight falls on the PREVIOUS local day for any west-of-UTC client
+  // (the exact off-by-one the fix targets): the day stays 1, never rolls back to prior month.
+  assert.equal(momentumWeekLabel("2026-07-01", "en"), "Jul 1");
+  // The pin to UTC is explicit and locale-aware (day + short month), never a full datetime.
+  assert.match(momentumWeekLabel("2026-01-05", "en"), /Jan 5/);
 });
 
 test("the exported kind list covers exactly what the mapping reads", () => {
