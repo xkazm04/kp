@@ -21,11 +21,13 @@ test("analysis_status takes precedence over jobStatus in statusCategory", () => 
 });
 
 test("jdStatusChip covers the analyzing + failed states", () => {
+  // The chip carries tone + icon + category; the label is localized in the
+  // component (StatusBadge) from `category`, not baked into the pure function.
   const analyzing = jdStatusChip(row({ analysis_status: "analyzing" }));
-  assert.equal(analyzing.label, "Analyzing");
+  assert.equal(analyzing.category, "analyzing");
   assert.equal(analyzing.tone, "info");
   const failed = jdStatusChip(row({ analysis_status: "failed" }));
-  assert.equal(failed.label, "Failed");
+  assert.equal(failed.category, "failed");
   assert.equal(failed.tone, "critical");
 });
 

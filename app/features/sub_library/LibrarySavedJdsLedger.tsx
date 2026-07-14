@@ -161,18 +161,37 @@ export function LibrarySavedJdsLedger() {
         ? facetCounts(rows, (r) => r.seniority)
             .map((o) => {
               const meta = seniorityMeta(o.value);
-              return { value: o.value.toLowerCase(), label: meta?.label ?? labelize(o.value), count: o.count, icon: meta?.icon };
+              // Localized via the shared enums.seniority catalog (enumLabel falls back
+              // to labelize for any value without an entry) — no per-file English.
+              return { value: o.value.toLowerCase(), label: enumLabel("seniority", o.value), count: o.count, icon: meta?.icon };
             })
             .sort((a, b) => a.label.localeCompare(b.label))
         : [],
-    [rows]
+    [rows, enumLabel]
   );
+  // Status-filter labels resolve to the SAME localized chip vocabulary the badges
+  // use, so a filter option and the chip it selects for can never disagree.
+  const statusFilterLabel = (value: StatusFilter): string => {
+    switch (value) {
+      case "analyzing":
+        return t("analyzingLabel");
+      case "live":
+        return t("chipLive");
+      case "draft":
+        return t("chipDraft");
+      case "unlinked":
+        return t("chipUnlinked");
+      default:
+        return t("filterAll");
+    }
+  };
   const statusOptions = useMemo<FilterOption[]>(
     () =>
       STATUS_FILTERS.filter((f) => f.value !== "all")
-        .map((f) => ({ value: f.value, label: f.label, count: counts ? counts[f.value] : undefined }))
+        .map((f) => ({ value: f.value, label: statusFilterLabel(f.value), count: counts ? counts[f.value] : undefined }))
         .sort((a, b) => a.label.localeCompare(b.label)),
-    [counts]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [counts, t]
   );
 
   return (
@@ -305,7 +324,6 @@ export function LibrarySavedJdsLedger() {
                       </tr>
                     ) : (
                       visible.map((row) => {
-                        const chip = jdStatusChip(row);
                         const analyzed = row.analysisCount ?? 0;
                         return (
                           <tr key={row.slug} className="group transition-colors hover:bg-paper">
@@ -329,7 +347,7 @@ export function LibrarySavedJdsLedger() {
                               {row.analysis_status === "analyzing" ? (
                                 <AnalyzingChip />
                               ) : (
-                                <Badge tone={chip.tone} icon={chip.icon} label={chip.label} ariaLabel={chip.ariaLabel} muted={isUnlinked(row)} />
+                                <StatusBadge row={row} muted={isUnlinked(row)} />
                               )}
                             </td>
                             <td className="px-4 py-2.5 align-middle">
@@ -408,16 +426,62 @@ function AnalyzingChip() {
   );
 }
 
+// The JD status chip, localized. jdStatusChip supplies the tone + icon (display-
+// neutral); the label + ariaLabel resolve HERE through the `library.tab.chip*`
+// keys, so the chip reads in the recruiter's locale instead of hardcoded English.
+// The "linked" case shows the linked job's own lifecycle string (labelize'd) —
+// a free value, not an enum with a catalog entry.
+function StatusBadge({ row, muted }: { row: JdRow; muted?: boolean }) {
+  const t = useTranslations("library.tab");
+  const chip = jdStatusChip(row);
+  let label: string;
+  let ariaLabel: string;
+  switch (chip.category) {
+    case "analyzing":
+      label = t("analyzingLabel");
+      ariaLabel = t("analyzingAria");
+      break;
+    case "failed":
+      label = t("chipFailed");
+      ariaLabel = t("chipFailedAria");
+      break;
+    case "live":
+      label = t("chipLive");
+      ariaLabel = t("chipLiveAria");
+      break;
+    case "draft":
+      label = t("chipDraft");
+      ariaLabel = t("chipDraftAria");
+      break;
+    case "closed":
+      label = t("chipClosed");
+      ariaLabel = t("chipClosedAria");
+      break;
+    case "linked":
+      label = labelize(row.jobStatus ?? "");
+      ariaLabel = t("chipLinkedAria", { status: row.jobStatus ?? "" });
+      break;
+    default:
+      label = t("chipUnlinked");
+      ariaLabel = t("chipUnlinkedAria");
+  }
+  return <Badge tone={chip.tone} icon={chip.icon} label={label} ariaLabel={ariaLabel} muted={muted} />;
+}
+
 // Seniority as a single lucide glyph (icon-only column). The word is the tooltip +
-// screen-reader name; an unknown/absent value degrades to an em dash.
+// screen-reader name — localized via the shared enums.seniority catalog (so it
+// doesn't drift from the rest of the app); an unknown/absent value degrades to an
+// em dash. seniorityMeta stays the single authority for the icon.
 function SeniorityCell({ value }: { value: string | null | undefined }) {
+  const enumLabel = useEnumLabel();
   const meta = seniorityMeta(value);
   if (!meta) return <span className="text-stone-400">—</span>;
   const Icon = meta.icon;
+  const label = enumLabel("seniority", value);
   return (
-    <span className="inline-flex items-center text-steel" title={meta.label}>
+    <span className="inline-flex items-center text-steel" title={label}>
       <Icon size={16} aria-hidden />
-      <span className="sr-only">{meta.label}</span>
+      <span className="sr-only">{label}</span>
     </span>
   );
 }
@@ -609,7 +673,6 @@ function LedgerDetailModal({
   const analyzing = analysisStatus === "analyzing";
   const failed = analysisStatus === "failed";
   const effRow = { ...row, analysis_status: analysisStatus };
-  const chip = jdStatusChip(effRow);
   const ing = useIngestJob(row.slug, (jobId) => onIngested(jobId));
   const [retrying, setRetrying] = useState(false);
   const [retryError, setRetryError] = useState<string | null>(null);
@@ -658,7 +721,7 @@ function LedgerDetailModal({
             {analyzing ? (
               <AnalyzingChip />
             ) : (
-              <Badge tone={chip.tone} icon={chip.icon} label={chip.label} ariaLabel={chip.ariaLabel} muted={isUnlinked(effRow)} />
+              <StatusBadge row={effRow} muted={isUnlinked(effRow)} />
             )}
           </div>
           <div className="grid grid-cols-2 gap-2">

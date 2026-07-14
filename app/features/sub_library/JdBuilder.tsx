@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Check, ChevronDown, Loader2, Save, Settings2, Sparkles } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
-import { isLocale, LOCALES } from "@/i18n/locales";
+import { LOCALES } from "@/i18n/locales";
 import { builderLintFindings, type GeneratePrefill } from "./jd-library";
 import { JdLintPanel } from "./JdLintPanel";
 import { JdTemplateManager } from "./JdTemplateManager";
@@ -20,6 +20,17 @@ import { TextInput } from "@/app/_components/TextInput";
 const SENIORITIES = ["junior", "medior", "senior", "lead"];
 // Role-family slugs (canonical; the display label comes from the enums catalog).
 const FAMILIES = ROLE_FAMILY_SLUGS;
+
+// The JD output languages that are honest end-to-end: the pipeline's design chain
+// + market-salary CLI localize narrative only for en + cs (pipeline/jobfit/i18n.py
+// normalize_lang), and runJdBuild's composeMarkdown scaffolding table has en/cs
+// only. de/fr would silently yield an English JD, so they are offered as
+// unavailable rather than selectable. Mirror this list if the pipeline gains a
+// language.
+const JD_OUTPUT_LANGS = ["en", "cs"] as const;
+function isOutputLang(value: unknown): value is (typeof JD_OUTPUT_LANGS)[number] {
+  return typeof value === "string" && (JD_OUTPUT_LANGS as readonly string[]).includes(value);
+}
 
 // AI job-description builder. "Generate" opens a checklist (description / market
 // research / interview case) and hands the work to the detached jd_build task via
@@ -45,8 +56,15 @@ export function JdBuilder({ onSaved, prefill }: { onSaved: () => void; prefill?:
   const [repoUrl, setRepoUrl] = useState("");
   // JDL5 — the generated JD's output language, defaulting to the active locale
   // (a Czech-market recruiter gets a Czech JD without hand-translating).
+  //
+  // HONESTY (Direction 2): only en/cs are true end-to-end output languages. The
+  // pipeline's normalize_lang (pipeline/jobfit/i18n.py) supports en + cs ONLY —
+  // a de/fr build would generate the ROLE CONTENT in English regardless, so
+  // offering de/fr as if selectable was a silent English fallback. The selector
+  // now marks de/fr unavailable and the default is clamped to a supported code,
+  // so a de/fr app locale doesn't silently produce an English JD.
   const appLocale = useLocale();
-  const [outputLang, setOutputLang] = useState(isLocale(appLocale) ? appLocale : "en");
+  const [outputLang, setOutputLang] = useState(isOutputLang(appLocale) ? appLocale : "en");
 
   // Template-first authoring: pick a company format, then let AI fill it. An empty
   // templateId means "use the AI's own default formatting". The build renders
@@ -247,15 +265,21 @@ export function JdBuilder({ onSaved, prefill }: { onSaved: () => void; prefill?:
             options={familyOptions}
           />
         </Field>
-        {/* JDL5 — generate the JD in this language (defaults to the app locale). */}
+        {/* JDL5 — generate the JD in this language (defaults to the app locale).
+            Only en/cs are honest end-to-end (see the outputLang note above); de/fr
+            render disabled so the recruiter never silently gets an English JD. */}
         <Field label={t("outputLanguage")}>
           <Select
             ariaLabel={t("outputLanguage")}
             value={outputLang}
-            onChange={(v) => setOutputLang(isLocale(v) ? v : "en")}
+            onChange={(v) => setOutputLang(isOutputLang(v) ? v : "en")}
             size="sm"
             className="w-full"
-            options={LOCALES.map((l) => ({ value: l, label: l.toUpperCase() }))}
+            options={LOCALES.map((l) =>
+              isOutputLang(l)
+                ? { value: l, label: l.toUpperCase() }
+                : { value: l, label: t("outputLangUnavailable", { lang: l.toUpperCase() }), disabled: true }
+            )}
           />
         </Field>
       </div>

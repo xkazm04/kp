@@ -5,7 +5,6 @@
 
 import type { LucideIcon } from "lucide-react";
 import { AlertTriangle, CircleDot, Crown, FileText, Loader2, Lock, PencilRuler, Radio, Sprout, Star, TrendingUp } from "lucide-react";
-import { labelize } from "@/app/_lib/format";
 import { lintJd, type JdLintFinding } from "@/app/_lib/jd-lint";
 import type { BadgeTone } from "@/app/_components/Badge";
 
@@ -107,28 +106,35 @@ export function statusCategory(row: JdRow): JdStatusCategory {
   return "linked";
 }
 
-export type StatusChip = { tone: BadgeTone; icon: LucideIcon; label: string; ariaLabel: string };
+// The tone + icon for a JD status — the display-neutral half of the chip. The
+// LABEL and ariaLabel are NOT baked in here: they're localized in the component
+// (LibrarySavedJdsLedger's StatusBadge) via the `library.tab.chip*` keys, keyed
+// on `category`, so the chip reads in the recruiter's locale instead of the old
+// hardcoded English. `category` is the same statusCategory the filters use, so
+// the chip and the filter can never disagree.
+export type StatusChip = { tone: BadgeTone; icon: LucideIcon; category: JdStatusCategory };
 
-// One tone/icon/label mapping for a JD's status, shared by every variant so a
-// "Live" role reads identically whether it's a ledger cell, a catalog byline,
-// or a sticker chip. Uses the Badge tone vocabulary (already dark-mapped).
+// One tone/icon mapping for a JD's status, shared by every variant so a "Live"
+// role reads identically whether it's a ledger cell, a catalog byline, or a
+// sticker chip. Uses the Badge tone vocabulary (already dark-mapped).
 export function jdStatusChip(row: JdRow): StatusChip {
-  switch (statusCategory(row)) {
+  const category = statusCategory(row);
+  switch (category) {
     case "analyzing":
       // Loader2 is the spinner icon; surfaces that can animate (the Ledger row) spin it.
-      return { tone: "info", icon: Loader2, label: "Analyzing", ariaLabel: "AI analysis in progress" };
+      return { tone: "info", icon: Loader2, category };
     case "failed":
-      return { tone: "critical", icon: AlertTriangle, label: "Failed", ariaLabel: "AI analysis failed — open to retry" };
+      return { tone: "critical", icon: AlertTriangle, category };
     case "live":
-      return { tone: "positive", icon: Radio, label: "Live", ariaLabel: "Live — sourced into the pipeline and matchable" };
+      return { tone: "positive", icon: Radio, category };
     case "draft":
-      return { tone: "caution", icon: PencilRuler, label: "Draft", ariaLabel: "Draft job — not yet sourced into the pipeline" };
+      return { tone: "caution", icon: PencilRuler, category };
     case "closed":
-      return { tone: "neutral", icon: Lock, label: "Closed", ariaLabel: "Closed role" };
+      return { tone: "neutral", icon: Lock, category };
     case "linked":
-      return { tone: "info", icon: CircleDot, label: labelize(row.jobStatus ?? "Linked"), ariaLabel: `Linked job — status ${row.jobStatus}` };
+      return { tone: "info", icon: CircleDot, category };
     default:
-      return { tone: "neutral", icon: FileText, label: "Analysis-only", ariaLabel: "Analysis-only — not yet ingested as a matchable job" };
+      return { tone: "neutral", icon: FileText, category };
   }
 }
 
