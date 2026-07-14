@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AlertTriangle, ArrowRight, Check, Copy, ListChecks, RotateCcw, SlidersHorizontal, Sparkles, X } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
-import { buildTabSwitchUrl } from "@/app/features/tabs";
+import { buildTabSwitchUrl, buildUrl, clearedTabScopedParams } from "@/app/features/tabs";
 import { postPipelineBatch, type PipelineBatchItem } from "@/app/_lib/useAddToPipeline";
 import { ChainEmptyState } from "@/app/_components/ChainEmptyState";
 import { CompletionCta } from "@/app/_components/CompletionCta";
@@ -545,9 +545,16 @@ export function DecisionsTab() {
             ) : null}
           </p>
           <span className="flex items-center gap-3">
+            {/* Direction 3 — land on Analytics with the Decision Log already
+                filtered to the audited rejection_comms_failed trail (the
+                deep-linkable ?kind= the log now hydrates from), not the bare tab. */}
             <button
               type="button"
-              onClick={() => router.push(buildTabSwitchUrl("analytics", search.toString()))}
+              onClick={() =>
+                router.push(
+                  buildUrl({ tab: "analytics", ...clearedTabScopedParams(), kind: "rejection_comms_failed" }, search.toString())
+                )
+              }
               className="focus-ring inline-flex items-center gap-1 text-sm font-semibold text-amber-800 hover:underline"
             >
               {t("waveComms.cta")} <ArrowRight size={13} aria-hidden />

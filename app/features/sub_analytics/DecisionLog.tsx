@@ -2,7 +2,7 @@
 
 import { useCallback, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Download } from "lucide-react";
 import { useReducedMotion } from "@/app/_lib/useReducedMotion";
@@ -77,9 +77,32 @@ function timeAgo(iso: string): string {
 // chunks. ANA5: the outer component owns the attribution/kind filters — the
 // infinite-scroll engine accumulates per mount, so the inner list is KEYED on
 // the filter combo and pagination restarts from offset 0 on every change.
+//
+// Direction 3 — the kind filter is deep-linkable: it hydrates from ?kind= at
+// mount and writes back on every change (the board's PIPE3 two-way URL-sync
+// idiom), so a filtered log is reload- and share-stable and a cross-tab CTA (the
+// Decisions comms-failure banner) can land here pre-filtered. Only the kind
+// filter syncs — a specific kind wins over the broader attribution bucket anyway,
+// and attribution stays local/ephemeral.
 export function DecisionLog() {
+  const search = useSearchParams();
+  const router = useRouter();
   const [attribution, setAttribution] = useState<"auto" | "human" | null>(null);
-  const [kind, setKind] = useState("");
+  // Hydrate ONCE from the URL (lazy initializer off the render-time params, like
+  // PipelineTab); an unknown kind falls back to unfiltered rather than a dead view.
+  const [kind, setKindState] = useState(() => {
+    const k = search.get("kind");
+    return k && k in DECISION_META ? k : "";
+  });
+  const setKind = useCallback(
+    (k: string) => {
+      setKindState(k);
+      // Write back to the same ?kind= param the mount reads. buildTabUrl preserves
+      // tab + every other param and clears the key when the filter is emptied.
+      router.replace(buildTabUrl({ kind: k || null }, search.toString()), { scroll: false });
+    },
+    [router, search]
+  );
   return (
     <DecisionLogList
       key={`${attribution ?? ""}|${kind}`}
