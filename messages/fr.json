@@ -1738,7 +1738,8 @@
     },
     "waveComms": {
       "banner": "{count, plural, one {1 notification de rejet n'a pas pu être mise en file — le candidat est hors du processus mais n'a pas été notifié. Relancez-le manuellement.} other {# notifications de rejet n'ont pas pu être mises en file — ces candidats sont hors du processus mais n'ont pas été notifiés. Relancez-les manuellement.}}",
-      "cta": "Ouvrir le journal des décisions"
+      "cta": "Ouvrir le journal des décisions",
+      "more": "+{count} de plus"
     },
     "aiRecommendations": "Recommandations AI",
     "batch": {
@@ -1746,6 +1747,7 @@
       "exit": "Terminé",
       "selectedCount": "{count} sélectionné",
       "selectAll": "Tout sélectionner ({count})",
+      "selectionDrift": "{count, plural, one {1 nouvelle carte est arrivée — tout sélectionner} other {# nouvelles cartes sont arrivées — tout sélectionner}}",
       "clear": "Effacer la sélection",
       "offersExcluded": "Les offres se décident une par une — chacune a son propre délai et son lien sécurisé.",
       "accept": "Accepter {count}",

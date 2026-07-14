@@ -22,6 +22,7 @@ import { Empty } from "./DecisionsShared";
 import { GroupEvalModal, type GroupEvalPayload } from "./GroupEvalModal";
 import { RoleDecisionRow } from "./RoleDecisionRow";
 import { isScoreStale, type Entry } from "./DecisionsTypes";
+import { capNames, pruneSelection, selectionDriftIds } from "./selection-hygiene";
 
 type Group = { roleKey: string; roleTitle: string; jobId: string | null; entries: Entry[] };
 
@@ -100,12 +101,20 @@ export function DecisionsTab() {
   // offer accept stays a one-by-one ceremony.
   const [selectMode, setSelectMode] = useState(false);
   const [selectedReviewIds, setSelectedReviewIds] = useState<ReadonlySet<string>>(new Set());
+  // Direction 3 — the selectable cohort captured at "select all" time. Cards that
+  // arrive AFTER (a live poll, an automation wave) aren't in it, so a non-empty
+  // selectionDrift means select-all is silently stale — surfaced as a re-select cue.
+  // Null when select-all wasn't used (or was reset), which reads as no drift.
+  const [selectAllSnapshot, setSelectAllSnapshot] = useState<string[] | null>(null);
   // Direction 2b — candidates whose rejection notification failed to queue during a
   // committed screening wave. Session-local (like queuedLabels): a "what just
   // happened" trail naming WHO needs a manual nudge, kept discoverable after the
   // wave modal closes. Each failure is ALSO an audited rejection_comms_failed event
   // (the Decision Log in Analytics) — no new store, this just re-surfaces it.
-  const [waveCommsFailed, setWaveCommsFailed] = useState<string[]>([]);
+  // Direction 3 — grouped PER committed wave (not a flat, ever-growing name list):
+  // each committed wave with comms failures pushes one { count, labels } group, so
+  // the banner can group + cap ("+N more") instead of appending names uncapped.
+  const [waveCommsFailed, setWaveCommsFailed] = useState<{ count: number; labels: string[] }[]>([]);
   const [bulkBusy, setBulkBusy] = useState(false);
   const [bulkResult, setBulkResult] = useState<{ ok: number; failed: number; verb: "accepted" | "rejected"; reason: string | null } | null>(null);
   const [confirmingBulkReject, setConfirmingBulkReject] = useState(false);
@@ -209,6 +218,21 @@ export function DecisionsTab() {
   const hasOfferReviews = visibleAiReviews.some((e) => e.approvalKind === "offer_review");
   const selectedReviews = selectableReviews.filter((e) => selectedReviewIds.has(e.id));
 
+  // Direction 3 — prune selected ids whose cards vanished (committed elsewhere,
+  // moved, filtered out) on every load/refresh, so the Set never leaks stale ids.
+  // pruneSelection returns the same reference when nothing changed, so a clean poll
+  // is a no-op that doesn't re-render.
+  const selectableIdKey = selectableReviews.map((e) => e.id).join(",");
+  useEffect(() => {
+    // Reconciling selection to the present cohort — the legitimate effect use, and
+    // a no-op (identity bail) when nothing was pruned.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setSelectedReviewIds((cur) => pruneSelection(cur, selectableReviews.map((e) => e.id)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectableIdKey]);
+  // How many selectable cards arrived since "select all" — drives the drift cue.
+  const selectionDrift = selectionDriftIds(selectAllSnapshot, selectableReviews.map((e) => e.id)).length;
+
   const toggleReviewSelect = (e: Entry) => {
     setBulkResult(null);
     setConfirmingBulkReject(false);
@@ -222,13 +246,17 @@ export function DecisionsTab() {
   const exitSelectMode = () => {
     setSelectMode(false);
     setSelectedReviewIds(new Set());
+    setSelectAllSnapshot(null);
     setBulkResult(null);
     setConfirmingBulkReject(false);
   };
   const selectAllReviews = () => {
     setBulkResult(null);
     setConfirmingBulkReject(false);
-    setSelectedReviewIds(new Set(selectableReviews.map((e) => e.id)));
+    const ids = selectableReviews.map((e) => e.id);
+    setSelectedReviewIds(new Set(ids));
+    // Snapshot the cohort we just selected across — drift is measured against this.
+    setSelectAllSnapshot(ids);
   };
 
   // ONE batch POST per action, each item carrying its OWN expectedStage CAS snapshot
@@ -273,6 +301,9 @@ export function DecisionsTab() {
     // Successes clear; failures + any selected non-selectable strays stay selected.
     const untouched = [...selectedReviewIds].filter((id) => !targets.some((e) => e.id === id));
     setSelectedReviewIds(new Set([...failed, ...untouched]));
+    // The cohort just changed under us — a stale select-all snapshot would read as
+    // permanent drift, so reset it (the recruiter re-selects if they want the rest).
+    setSelectAllSnapshot(null);
     setBulkResult({
       ok,
       failed: failed.size,
@@ -573,10 +604,19 @@ export function DecisionsTab() {
         >
           <p className="min-w-0 text-sm text-ink">
             <AlertTriangle size={14} className="-mt-0.5 mr-1 inline text-amber-700" aria-hidden />
-            {t("waveComms.banner", { count: waveCommsFailed.length })}
-            {waveCommsFailed.some(Boolean) ? (
-              <span className="block text-amber-800">{waveCommsFailed.filter(Boolean).join(", ")}</span>
-            ) : null}
+            {t("waveComms.banner", { count: waveCommsFailed.reduce((n, g) => n + g.count, 0) })}
+            {/* Grouped per committed wave; each wave's names capped with "+N more"
+                so the banner can't grow unbounded across successive waves. */}
+            {waveCommsFailed.map((g, i) => {
+              const { shown, more } = capNames(g.labels, 5);
+              if (shown.length === 0 && more === 0) return null;
+              return (
+                <span key={i} className="block text-amber-800">
+                  {shown.join(", ")}
+                  {more > 0 ? ` ${t("waveComms.more", { count: more })}` : ""}
+                </span>
+              );
+            })}
           </p>
           <span className="flex items-center gap-3">
             {/* Direction 3 — land on Analytics with the Decision Log already
@@ -672,12 +712,26 @@ export function DecisionsTab() {
                       type="button"
                       onClick={() => {
                         setSelectedReviewIds(new Set());
+                        setSelectAllSnapshot(null);
                         setConfirmingBulkReject(false);
                         setBulkResult(null);
                       }}
                       className="focus-ring rounded-full border border-stone-200 bg-white px-2.5 py-0.5 text-sm font-semibold text-steel hover:border-coral/40 hover:text-ink"
                     >
                       {t("batch.clear")}
+                    </button>
+                  ) : null}
+                  {/* Direction 3 — select-all drift cue: cards arrived since the
+                      recruiter selected all, so the current select-all is stale.
+                      Clicking re-selects (and re-snapshots) the current cohort. */}
+                  {selectionDrift > 0 ? (
+                    <button
+                      type="button"
+                      onClick={selectAllReviews}
+                      aria-live="polite"
+                      className="focus-ring inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-2.5 py-0.5 text-sm font-semibold text-amber-800 hover:bg-amber-100"
+                    >
+                      {t("batch.selectionDrift", { count: selectionDrift })}
                     </button>
                   ) : null}
                   {hasOfferReviews ? (
@@ -887,8 +941,10 @@ export function DecisionsTab() {
           onCommitted={(summary) => {
             load();
             if (summary && summary.commsFailures > 0) {
-              // Prefer the named rows; fall back to the count if labels are absent.
-              setWaveCommsFailed((prev) => [...prev, ...(summary.failedLabels.length ? summary.failedLabels : Array(summary.commsFailures).fill(""))]);
+              // One group PER committed wave — the banner groups + caps names rather
+              // than appending an ever-growing flat list. Named labels may be fewer
+              // than the count (some failures are anonymous); count carries the total.
+              setWaveCommsFailed((prev) => [...prev, { count: summary.commsFailures, labels: summary.failedLabels }]);
             }
           }}
         />

@@ -1709,7 +1709,8 @@
     },
     "waveComms": {
       "banner": "{count, plural, one {1 oznámení o zamítnutí se nepodařilo zařadit do fronty — kandidát je mimo výběrové řízení, ale nebyl uvědomen. Kontaktujte ho ručně.} few {# oznámení o zamítnutí se nepodařilo zařadit do fronty — tito kandidáti jsou mimo výběrové řízení, ale nebyli uvědomeni. Kontaktujte je ručně.} many {# oznámení o zamítnutí se nepodařilo zařadit do fronty — tito kandidáti jsou mimo výběrové řízení, ale nebyli uvědomeni. Kontaktujte je ručně.} other {# oznámení o zamítnutí se nepodařilo zařadit do fronty — tito kandidáti jsou mimo výběrové řízení, ale nebyli uvědomeni. Kontaktujte je ručně.}}",
-      "cta": "Otevřít protokol rozhodnutí"
+      "cta": "Otevřít protokol rozhodnutí",
+      "more": "+{count} dalších"
     },
     "aiRecommendations": "Doporučení AI",
     "batch": {
@@ -1717,6 +1718,7 @@
       "exit": "Hotovo",
       "selectedCount": "{count} vybráno",
       "selectAll": "Vybrat všech {count}",
+      "selectionDrift": "{count, plural, one {Přišla 1 nová karta — vybrat vše} few {Přišly # nové karty — vybrat vše} many {Přišlo # nových karet — vybrat vše} other {Přišlo # nových karet — vybrat vše}}",
       "clear": "Zrušit výběr",
       "offersExcluded": "Nabídky se rozhodují jednotlivě — každá má vlastní lhůtu a zabezpečený odkaz.",
       "accept": "Přijmout {count}",

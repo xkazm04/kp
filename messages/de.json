@@ -1738,7 +1738,8 @@
     },
     "waveComms": {
       "banner": "{count, plural, one {1 Ablehnungsbenachrichtigung konnte nicht eingereiht werden — der Kandidat ist aus dem Prozess, wurde aber nicht benachrichtigt. Bitte manuell anstupsen.} other {# Ablehnungsbenachrichtigungen konnten nicht eingereiht werden — diese Kandidaten sind aus dem Prozess, wurden aber nicht benachrichtigt. Bitte manuell anstupsen.}}",
-      "cta": "Entscheidungsprotokoll öffnen"
+      "cta": "Entscheidungsprotokoll öffnen",
+      "more": "+{count} weitere"
     },
     "aiRecommendations": "AI-Empfehlungen",
     "batch": {
@@ -1746,6 +1747,7 @@
       "exit": "Fertig",
       "selectedCount": "{count} ausgewählt",
       "selectAll": "Alle {count} auswählen",
+      "selectionDrift": "{count, plural, one {1 neue Karte hinzugekommen — alle auswählen} other {# neue Karten hinzugekommen — alle auswählen}}",
       "clear": "Auswahl aufheben",
       "offersExcluded": "Angebote werden einzeln entschieden — jedes hat seine eigene Frist und seinen sicheren Link.",
       "accept": "{count} annehmen",
