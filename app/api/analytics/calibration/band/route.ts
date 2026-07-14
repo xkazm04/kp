@@ -3,7 +3,14 @@ import { analysisCalibrationBandCandidates, pipelineCalibrationBandCandidates } 
 import { CALIBRATION_BIN_COUNT } from "@/app/_lib/calibration";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { jsonError } from "@/app/_lib/api-response";
+import { createTtlCache, calibrationBandCacheKey } from "@/app/_lib/analytics-cache";
 
+
+// Short-TTL per-(workspace, source, family, bin) memo. WITHOUT it every band click
+// re-scans the calibration producers. Module-scoped; keyed so no bin's candidate list
+// crosses tenants, sources, families, OR bins. Short TTL (see analytics-cache.ts) →
+// no write-path invalidation needed.
+const bandCache = createTtlCache<Record<string, unknown>>();
 
 // Direction 2 — "every number opens its candidates". The candidates that sit in
 // ONE calibration score band (bin), workspace-scoped, so a mis-calibrated bin can
@@ -30,16 +37,19 @@ export async function GET(request: Request) {
     const ws = await currentWorkspace();
     const family = roleFamily || null;
 
-    if (source === "analysis") {
-      const rows = analysisCalibrationBandCandidates(loPct, hiPct, inclusiveHi, family, ws);
-      // An analysis is not a board entry — link each by candidate label through the
-      // board's text filter (no live entry id), so the shape stays uniform.
-      const candidates = rows.map((r) => ({ label: r.label, score: r.score, outcome: r.outcome, entryId: null, live: false }));
-      return NextResponse.json({ bin, lo: loPct, hi: hiPct, source, candidates });
-    }
-    const rows = pipelineCalibrationBandCandidates(loPct, hiPct, inclusiveHi, family, ws);
-    const candidates = rows.map((r) => ({ label: r.label, score: r.score, outcome: r.outcome, entryId: r.entryId, live: r.live }));
-    return NextResponse.json({ bin, lo: loPct, hi: hiPct, source, candidates });
+    const payload = bandCache.get(calibrationBandCacheKey(ws, source, family, bin), () => {
+      if (source === "analysis") {
+        const rows = analysisCalibrationBandCandidates(loPct, hiPct, inclusiveHi, family, ws);
+        // An analysis is not a board entry — link each by candidate label through the
+        // board's text filter (no live entry id), so the shape stays uniform.
+        const candidates = rows.map((r) => ({ label: r.label, score: r.score, outcome: r.outcome, entryId: null, live: false }));
+        return { bin, lo: loPct, hi: hiPct, source, candidates };
+      }
+      const rows = pipelineCalibrationBandCandidates(loPct, hiPct, inclusiveHi, family, ws);
+      const candidates = rows.map((r) => ({ label: r.label, score: r.score, outcome: r.outcome, entryId: r.entryId, live: r.live }));
+      return { bin, lo: loPct, hi: hiPct, source, candidates };
+    });
+    return NextResponse.json(payload);
   } catch (error) {
     return jsonError(error, "Failed to load the score band.");
   }

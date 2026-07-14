@@ -1,6 +1,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { analyticsCacheKey, createAnalyticsCache } from "./analytics-cache.ts";
+import {
+  analyticsCacheKey,
+  createAnalyticsCache,
+  createTtlCache,
+  calibrationCacheKey,
+  calibrationBandCacheKey,
+  decisionRecordsCacheKey,
+} from "./analytics-cache.ts";
 
 test("analyticsCacheKey isolates workspaces and windows", () => {
   // Two workspaces, same window → distinct keys (no cross-tenant bleed).
@@ -59,4 +66,67 @@ test("an entry recomputes once the TTL lapses", () => {
   clock += 2; // now past expiresAt (1000 + 20000)
   assert.equal(cache.get("ws-a", 30, compute), 2);
   assert.equal(calls, 2);
+});
+
+// ── Generic keyed TTL core (calibration / band / records) ──────────────────
+
+test("createTtlCache: hit within TTL, miss after, no recompute on hit", () => {
+  let clock = 1_000;
+  const cache = createTtlCache<number>({ ttlMs: 20_000, now: () => clock });
+  let calls = 0;
+  const compute = () => {
+    calls += 1;
+    return calls;
+  };
+  assert.equal(cache.get("k", compute), 1);
+  clock += 19_999; // inside TTL → served from memo
+  assert.equal(cache.get("k", compute), 1);
+  assert.equal(calls, 1, "repeat read within the TTL did not recompute");
+  clock += 2; // past expiresAt (1000 + 20000)
+  assert.equal(cache.get("k", compute), 2);
+  assert.equal(calls, 2, "recomputed once the TTL lapsed");
+});
+
+test("createTtlCache: distinct keys never share an entry", () => {
+  const cache = createTtlCache<string>({ now: () => 0 });
+  let calls = 0;
+  const compute = (label: string) => () => {
+    calls += 1;
+    return label;
+  };
+  assert.equal(cache.get("k1", compute("A")), "A");
+  assert.equal(cache.get("k2", compute("B")), "B"); // different key → its own compute
+  assert.equal(calls, 2);
+  assert.equal(cache.get("k1", compute("A2")), "A"); // k1 still memoized
+  assert.equal(cache.get("k2", compute("B2")), "B"); // k2 still memoized
+  assert.equal(calls, 2, "repeat reads served from the memo, no cross-key bleed");
+});
+
+test("calibrationCacheKey isolates every axis (workspace, source, family)", () => {
+  // Workspace axis.
+  assert.notEqual(calibrationCacheKey("ws-a", "pipeline", null), calibrationCacheKey("ws-b", "pipeline", null));
+  // Source axis.
+  assert.notEqual(calibrationCacheKey("ws-a", "pipeline", null), calibrationCacheKey("ws-a", "analysis", null));
+  // Family axis.
+  assert.notEqual(calibrationCacheKey("ws-a", "pipeline", "eng"), calibrationCacheKey("ws-a", "pipeline", "sales"));
+  // Null/empty family collapse to the same "no filter" key.
+  assert.equal(calibrationCacheKey("ws-a", "pipeline", null), calibrationCacheKey("ws-a", "pipeline", ""));
+  // Identical inputs → identical key (a hit is possible at all).
+  assert.equal(calibrationCacheKey("ws-a", "pipeline", "eng"), calibrationCacheKey("ws-a", "pipeline", "eng"));
+});
+
+test("calibrationBandCacheKey isolates every axis including the bin", () => {
+  const base = calibrationBandCacheKey("ws-a", "pipeline", "eng", 3);
+  assert.notEqual(base, calibrationBandCacheKey("ws-b", "pipeline", "eng", 3)); // workspace
+  assert.notEqual(base, calibrationBandCacheKey("ws-a", "analysis", "eng", 3)); // source
+  assert.notEqual(base, calibrationBandCacheKey("ws-a", "pipeline", "sales", 3)); // family
+  assert.notEqual(base, calibrationBandCacheKey("ws-a", "pipeline", "eng", 7)); // bin
+  assert.equal(base, calibrationBandCacheKey("ws-a", "pipeline", "eng", 3)); // identical → hit
+});
+
+test("decisionRecordsCacheKey isolates workspace and candidate subject", () => {
+  assert.notEqual(decisionRecordsCacheKey("ws-a", null), decisionRecordsCacheKey("ws-b", null)); // tenant
+  assert.notEqual(decisionRecordsCacheKey("ws-a", null), decisionRecordsCacheKey("ws-a", "cand-1")); // full-list vs dossier
+  assert.notEqual(decisionRecordsCacheKey("ws-a", "cand-1"), decisionRecordsCacheKey("ws-a", "cand-2")); // two subjects
+  assert.equal(decisionRecordsCacheKey("ws-a", "cand-1"), decisionRecordsCacheKey("ws-a", "cand-1")); // identical → hit
 });
