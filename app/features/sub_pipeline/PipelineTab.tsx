@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AlertTriangle, BookmarkPlus, CalendarClock, CheckSquare, Link2, Mail, Play, Timer, X } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -18,6 +18,7 @@ import { CHIP_TOGGLE, EYEBROW, INTRO, PAGE_HEADER, SECTION, STAT, STAT_LABEL, ST
 import { CandidateDrawer } from "./CandidateDrawer";
 import { PipelineBoard } from "./PipelineBoard";
 import { boardSignature, eventsSignature } from "./pipeline-render-diet";
+import { bulkConfirmReducer } from "./pipeline-bulk-confirm";
 import { EventDot, useEventVerb, useRelativeTime } from "./PipelineShared";
 import { TodayRail } from "./TodayRail";
 import { recordRecent } from "@/app/features/recents";
@@ -156,14 +157,18 @@ export function PipelineTab() {
   const lastOutreachApplied = useRef<string | null>(null);
   // Transient feedback when a drag-to-move fails (optimistic move rolled back).
   const [moveError, setMoveError] = useState<string | null>(null);
-  // Two-step confirm for bulk reject (it emails N candidates — irreversible).
-  const [confirmingBulkReject, setConfirmingBulkReject] = useState(false);
-  // Two-step confirm for bulk outreach WHEN a relay is configured: in that
-  // deployment dispatchOutreach relays each drafted letter immediately, so
-  // "draft N" IS "send N" — arm a confirm rather than send a cohort on one
-  // click. Relay definitively off → drafts are terminal Outbox rows and one
-  // click is safe; unknown capability (null) fails safe like relay-on.
-  const [confirmingBulkOutreach, setConfirmingBulkOutreach] = useState(false);
+  // Two-step confirms for the two DESTRUCTIVE bulk actions, modelled as ONE
+  // single-slot state (pipeline-bulk-confirm.ts) so that "disarm on ANY selection
+  // change" is one un-forgettable transition — the round-5 defect was two separate
+  // booleans where only the reject flag got reset on a selection mutation, letting
+  // an armed outreach confirm fire against a grown cohort. Reject emails N
+  // candidates; outreach (WHEN a relay is configured) relays each drafted letter
+  // immediately, so "draft N" IS "send N". Relay definitively off → drafts are
+  // terminal Outbox rows and one click is safe; unknown capability (null) fails
+  // safe like relay-on.
+  const [bulkConfirm, dispatchBulkConfirm] = useReducer(bulkConfirmReducer, null);
+  const confirmingBulkReject = bulkConfirm === "reject";
+  const confirmingBulkOutreach = bulkConfirm === "outreach";
   // Saved board views (PIPE5): named {search + quick-filter} presets a recruiter
   // returns to, persisted in localStorage (single board, client-only — no schema).
   const [views, setViews] = useState<SavedView[]>([]);
@@ -485,11 +490,11 @@ export function PipelineTab() {
     setSelectMode((v) => !v);
     setSelectedIds(new Set());
     setBulkResult(null);
-    setConfirmingBulkReject(false);
+    dispatchBulkConfirm({ type: "selectionChanged" });
   };
   const toggleSelected = (e: Entry) => {
     setBulkResult(null);
-    setConfirmingBulkReject(false);
+    dispatchBulkConfirm({ type: "selectionChanged" });
     setSelectedIds((cur) => {
       const next = new Set(cur);
       if (next.has(e.id)) next.delete(e.id);
@@ -499,7 +504,7 @@ export function PipelineTab() {
   };
   const selectAllVisible = () => {
     setBulkResult(null);
-    setConfirmingBulkReject(false);
+    dispatchBulkConfirm({ type: "selectionChanged" });
     setSelectedIds(new Set(filteredEntries.map((e) => e.id)));
   };
   const bulkMove = async () => {
@@ -557,7 +562,7 @@ export function PipelineTab() {
     if (awaiting.length === 0 || bulkBusy) return;
     setBulkBusy(true);
     setBulkResult(null);
-    setConfirmingBulkReject(false);
+    dispatchBulkConfirm({ type: "fired" });
     let ok = 0;
     const failed = new Set<string>();
     // Same as bulkMove: surface the server's distinct reasons for refused decides
@@ -598,7 +603,7 @@ export function PipelineTab() {
     if (selectedActive.length === 0 || bulkBusy) return;
     setBulkBusy(true);
     setBulkResult(null);
-    setConfirmingBulkReject(false);
+    dispatchBulkConfirm({ type: "fired" });
     let ok = 0;
     const failed = new Set<string>();
     try {
@@ -633,7 +638,7 @@ export function PipelineTab() {
   const bulkOutreach = async () => {
     if (selectedActive.length === 0 || outreachTask.active) return;
     setBulkResult(null);
-    setConfirmingBulkReject(false);
+    dispatchBulkConfirm({ type: "fired" });
     const started = await startTask("batch_outreach", { entryIds: selectedActive.map((e) => e.id) });
     if (started) {
       lastOutreachApplied.current = null; // a fresh run — allow its completion to apply once
@@ -974,8 +979,7 @@ export function PipelineTab() {
                   type="button"
                   onClick={() => {
                     setSelectedIds(new Set());
-                    setConfirmingBulkReject(false);
-                    setConfirmingBulkOutreach(false);
+                    dispatchBulkConfirm({ type: "selectionChanged" });
                   }}
                   className="focus-ring rounded-full border border-stone-200 bg-white px-2.5 py-0.5 text-sm font-semibold text-steel hover:border-coral/40 hover:text-ink"
                 >
@@ -1019,30 +1023,44 @@ export function PipelineTab() {
                   relays each letter immediately, so "draft N" IS "send N" — the click
                   arms a two-step confirm in that case (unknown capability fails safe). */}
               {selectedActive.length > 0 ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (relayConfigured !== false && !confirmingBulkOutreach) {
-                      setConfirmingBulkOutreach(true);
-                      return;
-                    }
-                    setConfirmingBulkOutreach(false);
-                    void bulkOutreach();
-                  }}
-                  disabled={bulkBusy || outreachTask.active}
-                  className={`focus-ring inline-flex items-center gap-1.5 rounded-md border px-3 py-1 text-sm font-semibold disabled:opacity-50 ${
-                    confirmingBulkOutreach
-                      ? "border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100"
-                      : "border-stone-200 bg-white text-ink hover:border-coral/40"
-                  }`}
-                >
-                  <Mail size={13} aria-hidden />{" "}
-                  {outreachTask.active
-                    ? t("bulkDrafting")
-                    : confirmingBulkOutreach
-                      ? t("bulkDraftOutreachConfirm", { count: selectedActive.length })
-                      : t("bulkDraftOutreach", { count: selectedActive.length })}
-                </button>
+                <span className="inline-flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (relayConfigured !== false && !confirmingBulkOutreach) {
+                        dispatchBulkConfirm({ type: "arm", which: "outreach" });
+                        return;
+                      }
+                      void bulkOutreach();
+                    }}
+                    disabled={bulkBusy || outreachTask.active}
+                    className={`focus-ring inline-flex items-center gap-1.5 rounded-md border px-3 py-1 text-sm font-semibold disabled:opacity-50 ${
+                      confirmingBulkOutreach
+                        ? "border-dial-amber/50 bg-dial-amber/15 text-ink hover:bg-dial-amber/25"
+                        : "border-stone-200 bg-white text-ink hover:border-coral/40"
+                    }`}
+                  >
+                    <Mail size={13} aria-hidden />{" "}
+                    {outreachTask.active
+                      ? t("bulkDrafting")
+                      : confirmingBulkOutreach
+                        ? t("bulkDraftOutreachConfirm", { count: selectedActive.length })
+                        : t("bulkDraftOutreach", { count: selectedActive.length })}
+                  </button>
+                  {/* Explicit back-out for the armed confirm, mirroring the reject
+                      confirm's Yes/Cancel idiom (a lone toggling button gave the
+                      recruiter no way to disarm without changing the selection). */}
+                  {confirmingBulkOutreach ? (
+                    <button
+                      type="button"
+                      onClick={() => dispatchBulkConfirm({ type: "cancel" })}
+                      disabled={bulkBusy}
+                      className="focus-ring rounded-md px-2 py-1 text-sm font-semibold text-steel hover:text-ink disabled:opacity-50"
+                    >
+                      {t("bulkRejectCancel")}
+                    </button>
+                  ) : null}
+                </span>
               ) : null}
               {bulkResult ? (
                 <span role="status" className="text-sm">
@@ -1113,7 +1131,7 @@ export function PipelineTab() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => setConfirmingBulkReject(false)}
+                        onClick={() => dispatchBulkConfirm({ type: "cancel" })}
                         disabled={bulkBusy}
                         className="focus-ring rounded-md px-2 py-1 text-sm font-semibold text-steel hover:text-ink disabled:opacity-50"
                       >
@@ -1123,7 +1141,7 @@ export function PipelineTab() {
                   ) : (
                     <button
                       type="button"
-                      onClick={() => setConfirmingBulkReject(true)}
+                      onClick={() => dispatchBulkConfirm({ type: "arm", which: "reject" })}
                       disabled={bulkBusy}
                       className="focus-ring rounded-md border border-coral/40 bg-white px-3 py-1 text-sm font-semibold text-coral hover:bg-coral/5 disabled:opacity-50"
                     >
