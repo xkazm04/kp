@@ -50,6 +50,46 @@ export class AnalyzeError extends Error {
 
 type ProgressFn = (done: number, total: number, msg?: string) => void;
 
+// One variant's outcome. A failure is CAPTURED (never thrown) so a single bad CV
+// variant can't reject the whole batch (Direction 2 — "one bad CV never kills the
+// batch"): with settled semantics, N−1 good variants still produce a result.
+export type VariantOk = { label: string; ok: true; analysis: Analysis; cached: boolean };
+export type VariantFail = { label: string; ok: false; error: string; status: number };
+export type VariantResult = VariantOk | VariantFail;
+
+// The named failures that rode alongside a delivered (partial) result — surfaced
+// on the return payload so the UI can say WHICH variant failed and why, not just
+// the logs. Declared on the analyze schema (nullish) so it survives the client parse.
+export type VariantFailureNote = { label: string; error: string };
+
+// The settled delivery decision over a batch of variant outcomes (Direction 2).
+// Pure + exported so the winner-picking + failure-naming is unit-tested without
+// spawning Python: N−1 successes still DELIVER (the failed variant is named in
+// partialFailures); only a TOTAL wipeout THROWS with the first failure's error.
+export type SettleDecision =
+  | { kind: "throw"; error: string; status: number }
+  | { kind: "deliver"; successes: VariantOk[]; partialFailures: VariantFailureNote[]; allCached: boolean };
+
+export function settleVariants(results: VariantResult[]): SettleDecision {
+  const successes = results.filter((r): r is VariantOk => r.ok);
+  const failures = results.filter((r): r is VariantFail => !r.ok);
+  // Total wipeout is the only throw. A single-CV run lands here on its one
+  // variant's failure (behavior unchanged); a multi-CV run throws only when EVERY
+  // variant failed, surfacing the first failure's error + status.
+  if (successes.length === 0) {
+    const first = failures[0];
+    return { kind: "throw", error: first?.error ?? "Analysis failed.", status: first?.status ?? 500 };
+  }
+  return {
+    kind: "deliver",
+    successes,
+    partialFailures: failures.map((f) => ({ label: f.label, error: f.error })),
+    // Cache-hit accounting over the DELIVERED successes only: bill one unit unless
+    // every success was cached (no new work). A failed variant adds no second debit.
+    allCached: successes.every((r) => r.cached),
+  };
+}
+
 function cliArgs(cvPath: string, p: AnalyzeParams): string[] {
   const args = ["-m", "pipeline.jobfit.cli", cvPath];
   if (p.grounding) args.push("--grounding");
@@ -94,94 +134,115 @@ export async function runAnalyze(p: AnalyzeParams, onProgress?: ProgressFn, sign
     let done = 0;
     onProgress?.(0, total, "Starting…");
 
-    const results = await Promise.all(
-      p.variants.map(async ({ label, cvPath }) => {
-        const cvBytes = await readFile(cvPath);
-        const cacheKey = computeCacheKey({
-          cvBytes,
-          jobDescriptionText: p.jobDescriptionText ?? "",
-          jobDescriptionFileBytes: jdFileBytes,
-          companyText: p.companyText ?? "",
-          companyFileBytes: coFileBytes,
-          grounding: p.grounding,
-          lang: p.lang || "en",
-          blind: p.blind,
-        });
-
-        const cached = lookupCachedAnalysis(cacheKey);
-        if (cached) {
-          const parsed = analysisSchema.safeParse(cached);
-          if (parsed.success) {
-            onProgress?.(++done, total, `${label} (cached)`);
-            return { label, ok: true as const, analysis: parsed.data, cached: true };
-          }
-        }
-
-        // Forward the task's abort signal so canceling the task (DELETE
-        // /api/tasks/[id] → cancelTask → controller.abort()) actually SIGKILLs the
-        // Python child instead of leaving it to finish a billable LLM call whose
-        // result is thrown away. spawnPython wires abort → SIGKILL.
-        const { result } = spawnPython(cliArgs(cvPath, p), { signal });
-        const { stdout, stderr, exitCode } = await result;
-        if (exitCode !== 0) {
-          const err = parseStderrError(stderr, exitCode);
-          onProgress?.(++done, total, `${label} (failed)`);
-          return { label, ok: false as const, error: err.message, status: err.status };
-        }
-        let payload: unknown;
+    const results: VariantResult[] = await Promise.all(
+      p.variants.map(async ({ label, cvPath }): Promise<VariantResult> => {
         try {
-          // parsePythonJson, not raw JSON.parse: the analyze CLI invokes an LLM and
-          // the interpreter can print shutdown chatter (asyncio "Event loop is
-          // closed", ResourceWarning, "leaked semaphore") AFTER the JSON line — a raw
-          // parse then 502s an already-paid, successful analysis and never caches it.
-          // Sibling LLM runners (reasoning-run) already use this for the same reason.
-          payload = parsePythonJson<unknown>(stdout, stderr);
-        } catch (parseError) {
-          onProgress?.(++done, total, `${label} (bad output)`);
+          const cvBytes = await readFile(cvPath);
+          const cacheKey = computeCacheKey({
+            cvBytes,
+            jobDescriptionText: p.jobDescriptionText ?? "",
+            jobDescriptionFileBytes: jdFileBytes,
+            companyText: p.companyText ?? "",
+            companyFileBytes: coFileBytes,
+            grounding: p.grounding,
+            lang: p.lang || "en",
+            blind: p.blind,
+          });
+
+          const cached = lookupCachedAnalysis(cacheKey);
+          if (cached) {
+            const parsed = analysisSchema.safeParse(cached);
+            if (parsed.success) {
+              onProgress?.(++done, total, `${label} (cached)`);
+              return { label, ok: true, analysis: parsed.data, cached: true };
+            }
+          }
+
+          // Forward the task's abort signal so canceling the task (DELETE
+          // /api/tasks/[id] → cancelTask → controller.abort()) actually SIGKILLs the
+          // Python child instead of leaving it to finish a billable LLM call whose
+          // result is thrown away. spawnPython wires abort → SIGKILL.
+          const { result } = spawnPython(cliArgs(cvPath, p), { signal });
+          const { stdout, stderr, exitCode } = await result;
+          if (exitCode !== 0) {
+            const err = parseStderrError(stderr, exitCode);
+            onProgress?.(++done, total, `${label} (failed)`);
+            return { label, ok: false, error: err.message, status: err.status };
+          }
+          let payload: unknown;
+          try {
+            // parsePythonJson, not raw JSON.parse: the analyze CLI invokes an LLM and
+            // the interpreter can print shutdown chatter (asyncio "Event loop is
+            // closed", ResourceWarning, "leaked semaphore") AFTER the JSON line — a raw
+            // parse then 502s an already-paid, successful analysis and never caches it.
+            // Sibling LLM runners (reasoning-run) already use this for the same reason.
+            payload = parsePythonJson<unknown>(stdout, stderr);
+          } catch (parseError) {
+            onProgress?.(++done, total, `${label} (bad output)`);
+            return {
+              label,
+              ok: false,
+              error: parseError instanceof Error ? parseError.message : `Pipeline returned non-JSON output for "${label}".`,
+              status: 502,
+            };
+          }
+          const parsed = analysisSchema.safeParse(payload);
+          if (!parsed.success) {
+            onProgress?.(++done, total, `${label} (bad payload)`);
+            return { label, ok: false, error: `Pipeline returned an unexpected payload for "${label}".`, status: 502 };
+          }
+          storeCachedAnalysis(cacheKey, parsed.data);
+          onProgress?.(++done, total, label);
+          return { label, ok: true, analysis: parsed.data, cached: false };
+        } catch (caught) {
+          // A thrown variant (readFile IO error, spawn failure, an aborted child's
+          // "Python process aborted" reject) is CAPTURED here rather than rejecting
+          // the whole Promise.all — otherwise one bad variant discards its good
+          // siblings. A real cancellation is still honored below (signal.aborted).
+          onProgress?.(Math.min(done + 1, total), total, `${label} (failed)`);
           return {
             label,
-            ok: false as const,
-            error: parseError instanceof Error ? parseError.message : `Pipeline returned non-JSON output for "${label}".`,
-            status: 502,
+            ok: false,
+            error: caught instanceof Error ? caught.message : `Analysis failed for "${label}".`,
+            status: 500,
           };
         }
-        const parsed = analysisSchema.safeParse(payload);
-        if (!parsed.success) {
-          onProgress?.(++done, total, `${label} (bad payload)`);
-          return { label, ok: false as const, error: `Pipeline returned an unexpected payload for "${label}".`, status: 502 };
-        }
-        storeCachedAnalysis(cacheKey, parsed.data);
-        onProgress?.(++done, total, label);
-        return { label, ok: true as const, analysis: parsed.data, cached: false };
       })
     );
 
-    const failure = results.find((r) => !r.ok);
-    if (failure && !failure.ok) {
+    // Cancellation wins over partial delivery: if the run was aborted (Reset /
+    // Cancel / task DELETE → SIGKILL), don't hand back a half-batch — throw so
+    // runOne marks the task 'canceled', preserving the pre-change SIGKILL
+    // semantics. (The captured-failure catch above would otherwise turn an aborted
+    // child into a "failed variant" and let a stray success deliver.)
+    if (signal?.aborted) throw new AnalyzeError("Analysis canceled.", 499);
+
+    const settled = settleVariants(results);
+    if (settled.kind === "throw") {
       void logAnalyze({
         ...baseAnalyzeLog(p, startedAt),
         candidate_label: p.variants[0]?.label,
         variant_count: total,
         cache_hit: false,
         status: "error",
-        error: failure.error,
+        error: settled.error,
       });
-      throw new AnalyzeError(failure.error, failure.status);
+      throw new AnalyzeError(settled.error, settled.status);
     }
 
-    const analyses = results
-      .filter((r): r is { label: string; ok: true; analysis: Analysis; cached: boolean } => r.ok)
-      .map((r) => ({ label: r.label, analysis: r.analysis }));
-    const allCached = results.every((r) => r.ok && r.cached);
+    const { successes, partialFailures, allCached } = settled;
+    const analyses = successes.map((r) => ({ label: r.label, analysis: r.analysis }));
 
     // Bill ONE AI-candidate unit only for a DELIVERED, non-cached analysis (variants of
-    // the same person count once). A failure or cancel threw above and never reaches
-    // here; a fully-cached re-run (a duplicate / re-analyze of the same CV) did no new
-    // work — so the meter counts analyses actually PERFORMED, not submits. Moved here
-    // from the /api/analyze route, which debited unconditionally at queue time and
-    // over-charged on every failed, canceled, or duplicate run.
+    // the same person count once). A total wipeout or cancel threw above and never
+    // reaches here; a fully-cached re-run (a duplicate / re-analyze of the same CV) did
+    // no new work — so the meter counts analyses actually PERFORMED, not submits.
     if (!allCached) recordMeterUsage("ai_candidates");
 
+    // A comparison needs at least MIN_COMPARISON_VARIANTS surviving successes; a
+    // 3-variant run that lost one to a failure delivers a 2-way compare, and a
+    // 2-variant run that lost one delivers the lone survivor (no compare). Either
+    // way `partialFailures` names what didn't make it, surfaced by the client UI.
     if (analyses.length === 1) {
       const single = analyses[0];
       // Single analysis ⇒ exactly one variant, so its cvHash is the identity.
@@ -189,12 +250,12 @@ export async function runAnalyze(p: AnalyzeParams, onProgress?: ProgressFn, sign
       void logAnalyze({
         ...baseAnalyzeLog(p, startedAt),
         candidate_label: single.label,
-        variant_count: 1,
+        variant_count: total,
         cache_hit: allCached,
         status: "ok",
         saved_slug: persisted?.slug ?? null,
       });
-      return { ...single.analysis, persistence: persisted };
+      return { ...single.analysis, persistence: persisted, ...(partialFailures.length ? { partialFailures } : {}) };
     }
 
     const comparison = buildComparison(analyses);
@@ -212,7 +273,7 @@ export async function runAnalyze(p: AnalyzeParams, onProgress?: ProgressFn, sign
       status: "ok",
       saved_slug: persisted?.slug ?? null,
     });
-    return { ...merged, persistence: persisted };
+    return { ...merged, persistence: persisted, ...(partialFailures.length ? { partialFailures } : {}) };
   } finally {
     await cleanupWorkdir(p.baseDir);
   }

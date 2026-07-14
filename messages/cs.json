@@ -3747,6 +3747,8 @@
     "blindGithubOnly": "Anonymní režim přeskakuje hloubkový rozbor GitHubu, takže pro analýzu přidejte CV.",
     "addToPipelineJdless": "Sloupce nástěnky jsou vázané na pozici — chcete-li kandidáta přidat, spusťte analýzu proti uloženému popisu pozice.",
     "addToPipelineUnsaved": "Tuto analýzu se nepodařilo uložit, takže ji nelze přidat do pipeline.",
+    "partialFailureTitle": "Nepodařilo se analyzovat {count, plural, one {# variantu} few {# varianty} many {# varianty} other {# variant}} — výsledek níže zahrnuje zbytek.",
+    "partialFailureItem": "{label}: {error}",
     "attachCv": "Připojte CV pro spuštění analýzy.",
     "githubOnlyReady": "Hloubková analýza GitHubu připravena — pro plnou analýzu přiložte CV.",
     "ready": "Připraveno — Gemini trvá 15–25 sekund.",

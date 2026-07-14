@@ -3815,6 +3815,8 @@
     "blindGithubOnly": "Der Blind-Modus überspringt den GitHub-Deep-Dive — fügen Sie einen Lebenslauf hinzu, um eine Analyse auszuführen.",
     "addToPipelineJdless": "Die Board-Spalten sind an eine Stelle gebunden — analysieren Sie gegen eine gespeicherte Stellenbeschreibung, um diese Person hinzuzufügen.",
     "addToPipelineUnsaved": "Diese Analyse wurde nicht gespeichert und kann daher nicht zur Pipeline hinzugefügt werden.",
+    "partialFailureTitle": "{count, plural, one {# Variante konnte nicht analysiert werden} other {# Varianten konnten nicht analysiert werden}} — das Ergebnis unten deckt die übrigen ab.",
+    "partialFailureItem": "{label}: {error}",
     "attachCv": "Hängen Sie einen CV an, um die Analyse zu aktivieren.",
     "githubOnlyReady": "Reiner GitHub-Deep-Dive bereit — hängen Sie einen CV für die vollständige Analyse an.",
     "ready": "Bereit — Gemini braucht 15–25 Sekunden.",

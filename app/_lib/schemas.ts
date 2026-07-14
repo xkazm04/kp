@@ -85,7 +85,13 @@ export const analysisSchema = analysisResultSchema.extend({
       candidateLabel: z.string().nullish(),
       jdSlug: z.string().nullish(),
     })
-    .nullish()
+    .nullish(),
+  // Direction 2 — settled multi-CV semantics: when a comparison delivers with one
+  // or more variants having failed, the survivors still produce a result and the
+  // failed variant(s) are NAMED here (which file, what error) so the client can
+  // surface them in the result UI, not bury them in logs. Attached by analyze-run
+  // only on a partial run; absent on a clean or single-CV run.
+  partialFailures: z.array(z.object({ label: z.string(), error: z.string() })).nullish()
 });
 
 export type Analysis = z.infer<typeof analysisSchema>;

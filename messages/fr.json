@@ -3815,6 +3815,8 @@
     "blindGithubOnly": "Le mode aveugle ignore l’analyse GitHub approfondie ; ajoutez un CV pour lancer une analyse.",
     "addToPipelineJdless": "Les colonnes du tableau sont rattachées à un poste — analysez le CV avec une fiche de poste enregistrée pour ajouter ce candidat.",
     "addToPipelineUnsaved": "Cette analyse n’a pas été enregistrée ; elle ne peut donc pas être ajoutée au pipeline.",
+    "partialFailureTitle": "{count, plural, one {# variante n’a pas pu être analysée} other {# variantes n’ont pas pu être analysées}} — le résultat ci-dessous couvre les autres.",
+    "partialFailureItem": "{label} : {error}",
     "attachCv": "Joignez un CV pour activer l’analyse.",
     "githubOnlyReady": "Analyse GitHub approfondie prête — joignez un CV pour l’analyse complète.",
     "ready": "Prêt — Gemini prend 15–25 secondes.",

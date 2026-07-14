@@ -74,6 +74,22 @@ export function AnalyzeTab() {
         />
       ) : null}
 
+      {/* Direction 2 — a comparison that lost a variant still delivers; name the
+          failed variant(s) here so the recruiter sees which CV didn't make it and
+          why, rather than a silently smaller compare. */}
+      {result.analysis?.partialFailures && result.analysis.partialFailures.length > 0 ? (
+        <div role="status" className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-amber-900">
+          <p className="text-sm font-semibold">
+            {t("partialFailureTitle", { count: result.analysis.partialFailures.length })}
+          </p>
+          <ul className="mt-1 space-y-0.5 text-sm">
+            {result.analysis.partialFailures.map((f) => (
+              <li key={f.label}>{t("partialFailureItem", { label: f.label, error: f.error })}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
       {result.analysis ? (
         <ResultPanel
           analysis={result.analysis}

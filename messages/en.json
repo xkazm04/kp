@@ -3747,6 +3747,8 @@
     "blindGithubOnly": "Blind mode skips the GitHub deep-dive, so add a CV to run an analysis.",
     "addToPipelineJdless": "Board lanes are keyed by a job — analyze against a saved job description to add this candidate.",
     "addToPipelineUnsaved": "This analysis wasn't saved, so it can't be added to the pipeline.",
+    "partialFailureTitle": "{count, plural, one {# variant couldn't be analyzed} other {# variants couldn't be analyzed}} — the result below covers the rest.",
+    "partialFailureItem": "{label}: {error}",
     "attachCv": "Attach a CV to enable Analyze.",
     "githubOnlyReady": "GitHub-only deep-dive ready — attach a CV for the full analysis.",
     "ready": "Ready — Gemini takes 15–25 seconds.",
