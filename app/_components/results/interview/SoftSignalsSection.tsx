@@ -62,6 +62,11 @@ export function SoftSignalsSection({ panel }: { panel: Analysis["softSignals"] }
         ) : null}
       </div>
 
+      {/* The engine's one-line read across all signals (softSignals.summary) — dead
+          payload until now. Deterministic engine English, shown verbatim like the
+          signal text below it. */}
+      {panel.summary ? <p className="mt-3 text-base leading-6 text-ink">{panel.summary}</p> : null}
+
       {panel.antipatterns.length > 0 ? (
         <SignalGroup
           heading={t("antipatterns", { count: panel.antipatterns.length })}
@@ -116,6 +121,21 @@ function SignalGroup({ heading, signals, tone }: { heading: string; signals: Sig
               <p className="mt-1.5 text-sm text-ink">
                 <span className="font-semibold text-steel">{t("probe")}</span> {s.suggestedProbe}
               </p>
+            ) : null}
+            {/* Per-signal evidence (dead payload until now) behind a disclosure, so
+                the compact card stays scannable but the CV snippets that grounded
+                each hypothesis are one click away. */}
+            {s.evidence.length > 0 ? (
+              <details className="mt-1.5">
+                <summary className="focus-ring cursor-pointer text-xs font-semibold text-steel">{t("evidence")}</summary>
+                <ul className="mt-1 space-y-1">
+                  {s.evidence.map((e, i) => (
+                    <li key={`${e}-${i}`} className="text-sm leading-5 text-steel">
+                      {e}
+                    </li>
+                  ))}
+                </ul>
+              </details>
             ) : null}
           </li>
         ))}

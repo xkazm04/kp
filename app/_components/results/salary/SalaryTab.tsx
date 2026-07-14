@@ -126,6 +126,18 @@ export function SalaryTab({ analysis }: { analysis: Analysis }) {
                 ))}
               </ul>
             ) : null}
+            {/* marketEvidence.notes — the caveats/methodology the grounding produced,
+                dead payload until now. Guarded so no notes adds no chrome. */}
+            {analysis.marketEvidence.notes.length > 0 ? (
+              <div className="mt-3">
+                <p className="text-meta uppercase tracking-wide text-steel">{t("panel.marketNotes")}</p>
+                <BulletList
+                  items={analysis.marketEvidence.notes}
+                  listClassName="mt-2 space-y-1.5"
+                  itemClassName="text-sm leading-5 text-steel"
+                />
+              </div>
+            ) : null}
           </div>
         ) : null}
       </div>

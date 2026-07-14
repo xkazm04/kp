@@ -91,6 +91,12 @@ export function JobFitTab({ analysis }: { analysis: Analysis }) {
           emptyHeadline={t("panel.cvRewritesEmpty")}
           emptyHint={t("panel.cvRewritesHint")}
         />
+        {/* jobFit.recommendations was fully dead payload — the role-specific next
+            steps the engine already produced. Same copyable ListBlock idiom;
+            guarded so an empty list adds no chrome. */}
+        {analysis.jobFit.recommendations.length > 0 ? (
+          <ListBlock title={t("panel.recommendations")} items={analysis.jobFit.recommendations} />
+        ) : null}
       </div>
     </div>
   );
