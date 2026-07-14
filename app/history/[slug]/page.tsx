@@ -183,6 +183,11 @@ export default async function HistoryDetailPage({
         <ResultPanel
           analysis={parsed.data}
           analysisSlug={slug}
+          // When this candidate is live on the board, hand the Interview tab the
+          // real pipeline entry id so it can push its question kit into the actual
+          // interview-prep pack (Direction 2). Off-board → undefined → no import
+          // affordance. Same on-board lookup that drives the header chip above.
+          prepEntryId={onBoard[0]?.id}
           github={parseGithub(found.row.github_json, slug)}
           // Offer "Add to pipeline" only when the analysis was run against a saved
           // JD — that slug is the role the candidate is filed under (the board keys

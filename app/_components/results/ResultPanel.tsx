@@ -50,6 +50,12 @@ type ResultPanelProps = {
   // lineage (staleness detection). Absent on unsaved runs → lineage-less save,
   // exactly the old behavior.
   analysisSlug?: string;
+  // The live pipeline entry this candidate is ON (resolved by the report page from
+  // the on-board lookup). Present ONLY when the candidate is active on the board —
+  // it is the honest handle the Interview tab needs to push its question kit into
+  // the real interview-prep pack. Absent on off-pipeline reports → no import
+  // affordance (a fresh analyze run, or a candidate never added to the board).
+  prepEntryId?: string;
 };
 
 type ResultTab = "extraction" | "compare" | "jobFit" | "salary" | "interview" | "github";
@@ -99,7 +105,7 @@ function RunCostLine({
   );
 }
 
-export function ResultPanel({ analysis, github, onGithubRetry, pipelineRef, runCached, pipelineDisabledReason, analysisSlug }: ResultPanelProps) {
+export function ResultPanel({ analysis, github, onGithubRetry, pipelineRef, runCached, pipelineDisabledReason, analysisSlug, prepEntryId }: ResultPanelProps) {
   // RES2 — the report chrome (tab labels, aria) is bilingual; the tab CONTENT
   // is the LLM narrative, already generated in the recruiter's language.
   const t = useTranslations("report");
@@ -232,7 +238,7 @@ export function ResultPanel({ analysis, github, onGithubRetry, pipelineRef, runC
         {activeTab === "compare" ? <CompareTab analysis={analysis} /> : null}
         {activeTab === "jobFit" ? <JobFitTab analysis={analysis} /> : null}
         {activeTab === "salary" ? <SalaryTab analysis={analysis} /> : null}
-        {activeTab === "interview" ? <InterviewTab analysis={analysis} /> : null}
+        {activeTab === "interview" ? <InterviewTab analysis={analysis} prepEntryId={prepEntryId} /> : null}
         {activeTab === "github" && github ? (
           <GithubAnalysisPanel
             status={github.status}

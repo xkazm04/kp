@@ -29,6 +29,10 @@ type Prep = RunOfShow & {
   userProgress?: Omit<InterviewPrepProgress, "interviewer">;
   humanScorecard?: Scorecard;
   interviewer?: string;
+  // Questions imported from the candidate's analysis report (Direction 2). A
+  // dedicated key preserved across Regenerate; rendered read-only as reference
+  // material the interviewer can weave into the timed plan above.
+  importedQuestions?: string[];
 };
 
 export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onClose: () => void }) {
@@ -188,6 +192,11 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
     if (sig.length) {
       lines.push("", t("copySignals"));
       for (const s of sig) lines.push(`- ${s}`);
+    }
+    const imported = prep.importedQuestions ?? [];
+    if (imported.length) {
+      lines.push("", t("importedQuestions"));
+      for (const q of imported) lines.push(`- "${q}"`);
     }
     const ok = await copyText(lines.join("\n"));
     setCopied(ok);
@@ -383,6 +392,23 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
                     </li>
                   );
                 })}
+              </ul>
+            </section>
+          ) : null}
+
+          {/* Questions imported from the candidate's analysis report (Direction 2):
+              read-only reference the interviewer can pull into the timed plan. */}
+          {prep.importedQuestions?.length ? (
+            <section>
+              <p className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-steel">
+                <Sparkles size={13} /> {t("importedQuestions")}
+              </p>
+              <ul className="mt-1.5 space-y-1">
+                {prep.importedQuestions.map((q, i) => (
+                  <li key={`iq-${i}`} className="text-sm text-ink">
+                    “{q}”
+                  </li>
+                ))}
               </ul>
             </section>
           ) : null}

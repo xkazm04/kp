@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { MessagesSquare, Wrench, ShieldAlert, HelpCircle, Filter } from "lucide-react";
+import { MessagesSquare, Wrench, ShieldAlert, HelpCircle, Filter, Check, ClipboardCheck, Loader2 } from "lucide-react";
 import type { Analysis } from "@/app/_lib/schemas";
+import { dedupe } from "@/app/_lib/dedupe";
 import { SoftSignalsSection } from "./SoftSignalsSection";
 import {
   classifyBucket,
@@ -66,7 +67,7 @@ function tileGridCols(count: number): string {
   return "grid-cols-2 sm:grid-cols-4";
 }
 
-export function InterviewTab({ analysis }: { analysis: Analysis }) {
+export function InterviewTab({ analysis, prepEntryId }: { analysis: Analysis; prepEntryId?: string }) {
   const t = useTranslations("report");
   const bucketLabel = (group: GroupKey) => t(metaFor(group).labelKey as Parameters<typeof t>[0]);
   const [bucket, setBucket] = useState<FilterKey>("all");
@@ -119,6 +120,13 @@ export function InterviewTab({ analysis }: { analysis: Analysis }) {
             })}
           </div>
         </div>
+
+        {/* Direction 2 — when the candidate is live on the board, push this kit's
+            questions into their real interview-prep pack instead of leaving the
+            recruiter to re-type them. Absent off-pipeline (no entry handle). */}
+        {prepEntryId ? (
+          <ImportToPrepButton entryId={prepEntryId} questions={questions.map((q) => q.question)} />
+        ) : null}
 
         <div className="mt-4 flex flex-wrap items-center gap-2">
           <span className="inline-flex items-center gap-1 text-sm font-medium uppercase tracking-wide text-steel">
@@ -196,6 +204,68 @@ function ScaffoldRow({ label, title, body }: { label: string; title: string; bod
         <p className="text-sm font-semibold uppercase tracking-wide text-steel">{title}</p>
         <p className="mt-0.5 text-base leading-6 text-ink">{body}</p>
       </div>
+    </div>
+  );
+}
+
+// Pushes the report's interview-kit questions into the candidate's EXISTING prep
+// pack via POST /api/interview-prep. The server dedupes by content, so re-clicking
+// is idempotent (no stacked copies); a 404 means the pack hasn't been generated yet
+// and is surfaced as an honest hint rather than a silent failure.
+function ImportToPrepButton({ entryId, questions }: { entryId: string; questions: string[] }) {
+  const t = useTranslations("report");
+  const [state, setState] = useState<"idle" | "importing" | "imported" | "noprep" | "error">("idle");
+  const payload = dedupe(questions.map((q) => q.trim()).filter(Boolean));
+
+  const onClick = async () => {
+    if (state === "importing" || state === "imported" || payload.length === 0) return;
+    setState("importing");
+    try {
+      const res = await fetch(`/api/interview-prep?entry=${encodeURIComponent(entryId)}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ questions: payload }),
+      });
+      if (res.ok) setState("imported");
+      else if (res.status === 404) setState("noprep");
+      else setState("error");
+    } catch {
+      setState("error");
+    }
+  };
+
+  const done = state === "imported";
+  return (
+    <div className="mt-4 flex flex-wrap items-center gap-2">
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={state === "importing" || done || payload.length === 0}
+        className={`focus-ring inline-flex h-8 items-center gap-1.5 rounded-md border px-3 text-sm font-semibold transition-colors ${
+          done
+            ? "cursor-default border-moss/40 bg-moss/10 text-moss"
+            : "border-stone-200 text-steel hover:bg-paper hover:text-ink disabled:opacity-50"
+        }`}
+      >
+        {state === "importing" ? (
+          <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+        ) : done ? (
+          <Check className="h-3.5 w-3.5" aria-hidden />
+        ) : (
+          <ClipboardCheck className="h-3.5 w-3.5" aria-hidden />
+        )}
+        {done ? t("importToPrepDone") : state === "importing" ? t("importToPrepBusy") : t("importToPrep")}
+      </button>
+      {state === "noprep" ? (
+        <span role="status" className="text-sm text-steel">
+          {t("importToPrepNoPrep")}
+        </span>
+      ) : null}
+      {state === "error" ? (
+        <span role="status" className="text-sm text-red-700">
+          {t("importToPrepFailed")}
+        </span>
+      ) : null}
     </div>
   );
 }

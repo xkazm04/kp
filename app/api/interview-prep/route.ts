@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getInterviewPrep, listPreparedEntries, saveInterviewPrepProgress } from "@/app/_lib/interview-prep";
+import { getInterviewPrep, listPreparedEntries, saveInterviewPrep, saveInterviewPrepProgress } from "@/app/_lib/interview-prep";
 import { safeJsonError } from "@/app/_lib/api-response";
 import { MAX_ENTRY_ID_LEN, parseEntriesParam } from "@/app/_lib/entries-param";
+import { mergeImportedQuestions, normalizeIncoming, readImported } from "./importMerge.ts";
 
 
 // Caps for the interviewer-progress write (PREP2). Bounded so a crafted body can't
@@ -58,6 +59,43 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "No interview prep to update — generate it first." }, { status: 404 });
     }
     return NextResponse.json({ ok: true });
+  } catch (error) {
+    return safeJsonError(error, "api:interview-prep", "INTERVIEW_PREP_FAILED");
+  }
+}
+
+// POST ?entry=<id> → import a report's interview-kit questions into the entry's
+// EXISTING prep pack (Direction 2). The questions land under a dedicated
+// `importedQuestions` key that mergeRegeneratedPrep preserves across a Regenerate,
+// so an import survives re-generating the plan. Idempotent: deduped by content so
+// re-posting the same kit never stacks copies. 404 when no pack exists yet (the
+// plan must be generated before questions can attach — same contract as the PUT).
+export async function POST(request: NextRequest) {
+  try {
+    const entry = request.nextUrl.searchParams.get("entry");
+    if (!entry || !entry.trim() || entry.length > MAX_ENTRY_ID_LEN) {
+      return NextResponse.json({ error: "entry is required" }, { status: 400 });
+    }
+    const body = (await request.json().catch(() => ({}))) as { questions?: unknown };
+    const incoming = normalizeIncoming(body.questions);
+    if (incoming.length === 0) {
+      return NextResponse.json({ error: "questions is required" }, { status: 400 });
+    }
+
+    // Read-merge-write through the existing full-payload save path (getInterviewPrep +
+    // saveInterviewPrep) — no parallel store, no new persistence function. Preserve
+    // every other payload key (generated plan, userProgress, humanScorecard).
+    const existing = getInterviewPrep(entry);
+    if (!existing) {
+      return NextResponse.json({ error: "No interview prep to import into — generate it first." }, { status: 404 });
+    }
+    const prior = readImported(existing.payload);
+    const merged = mergeImportedQuestions(prior, incoming);
+    const added = merged.length - prior.length;
+    if (added > 0) {
+      saveInterviewPrep(entry, existing.candidateLabel, existing.jobTitle, { ...existing.payload, importedQuestions: merged });
+    }
+    return NextResponse.json({ ok: true, added, total: merged.length });
   } catch (error) {
     return safeJsonError(error, "api:interview-prep", "INTERVIEW_PREP_FAILED");
   }
