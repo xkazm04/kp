@@ -300,9 +300,27 @@ export function gridSlotToIso(gridSlot: string, nowMs: number = Date.now(), tz: 
   return null;
 }
 
+/** The absolute day+hour "bucket" of a canonical instant in the interview zone, e.g.
+ *  "2026-07-15T14" — the identity the recruiter WEEK GRID actually speaks in (its rows
+ *  are whole hours). Two bookings in the same interview-zone hour share a bucket even
+ *  when their minutes differ (a 14:00 grid pick and an accepted 14:30 proposal), so the
+ *  grid can treat the hour as occupied and the book handler can refuse to double-book it
+ *  — the store's collision authority is the exact INSTANT, which wouldn't catch this.
+ *  Absolute (dated), not weekday-based, so two different actual Wednesdays never
+ *  false-collide. Returns null for an unparsable instant. */
+export function hourBucketKey(iso: string | null | undefined, tz: string = INTERVIEW_TZ): string | null {
+  if (!iso) return null;
+  const ms = Date.parse(iso);
+  if (Number.isNaN(ms)) return null;
+  const p = zonedParts(ms, tz);
+  return `${p.year}-${pad2(p.month)}-${pad2(p.day)}T${pad2(p.hour)}`;
+}
+
 /** Place a canonical ISO instant back onto the week grid as its cell ("Tue 14:00"),
  *  in the interview zone — so invite bookings (recruiter- or candidate-made) render on
- *  the same grid. Returns null for an unparsable instant or a weekend. */
+ *  the same grid. Off-hour bookings keep their true minutes ("Tue 14:30"); the grid
+ *  buckets them into the hour cell for display (see ScheduleCalendar). Returns null for
+ *  an unparsable instant or a weekend. */
 export function isoToGridSlot(iso: string | null | undefined, tz: string = INTERVIEW_TZ): string | null {
   if (!iso) return null;
   const ms = Date.parse(iso);

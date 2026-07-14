@@ -9,7 +9,7 @@
 //   npm run test:unit
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { offeredSlotFor, parseInterviewTimes, proposeSlots, SLOT_HORIZON_DAYS, isScheduleInviteExpired, INVITE_LINK_TTL_DAYS, gridSlotToIso, isoToGridSlot, proposedSlotFor, validateProposedSlots, MAX_PROPOSALS } from "./schedule-slots.ts";
+import { offeredSlotFor, parseInterviewTimes, proposeSlots, SLOT_HORIZON_DAYS, isScheduleInviteExpired, INVITE_LINK_TTL_DAYS, gridSlotToIso, isoToGridSlot, hourBucketKey, proposedSlotFor, validateProposedSlots, MAX_PROPOSALS } from "./schedule-slots.ts";
 
 test("parseInterviewTimes is config-driven, validated, deduped, and falls back safely", () => {
   assert.deepEqual(parseInterviewTimes(undefined), ["10:00", "14:00"]);
@@ -178,4 +178,21 @@ test("isoToGridSlot places an instant back on the grid and round-trips with grid
   assert.equal(isoToGridSlot(new Date(Date.UTC(2026, 5, 13, 10, 0)).toISOString(), TZ), null, "Saturday maps to no grid cell");
   const resolved = gridSlotToIso("Thu 10:00", NOW, TZ);
   assert.equal(isoToGridSlot(resolved!.value, TZ), "Thu 10:00", "grid → iso → grid is stable");
+  // An OFF-HOUR booking keeps its true minutes (Direction 2) — the grid buckets it into
+  // the hour cell for display, but the stored instant/cell is honest about the minute.
+  assert.equal(isoToGridSlot(new Date(Date.UTC(2026, 5, 9, 14, 30)).toISOString(), TZ), "Tue 14:30");
+});
+
+// --- Direction 2: hour-bucketing so off-hour bookings don't vanish from the grid ---
+test("hourBucketKey buckets an instant by its interview-zone day+hour (off-hour shares the hour)", () => {
+  const onHour = new Date(Date.UTC(2026, 5, 9, 14, 0)).toISOString();
+  const offHour = new Date(Date.UTC(2026, 5, 9, 14, 30)).toISOString();
+  // 14:00 and 14:30 on the same day share one bucket — the grid's hour is occupied.
+  assert.equal(hourBucketKey(onHour, TZ), "2026-06-09T14");
+  assert.equal(hourBucketKey(offHour, TZ), hourBucketKey(onHour, TZ), "14:00 and 14:30 share the hour bucket");
+  // A different hour, or the same wall-clock hour on a different ACTUAL day, does not.
+  assert.notEqual(hourBucketKey(new Date(Date.UTC(2026, 5, 9, 15, 0)).toISOString(), TZ), hourBucketKey(onHour, TZ));
+  assert.notEqual(hourBucketKey(new Date(Date.UTC(2026, 5, 16, 14, 30)).toISOString(), TZ), hourBucketKey(onHour, TZ), "next Wednesday is a different bucket — no weekday false-collision");
+  assert.equal(hourBucketKey(null, TZ), null);
+  assert.equal(hourBucketKey("garbage", TZ), null);
 });

@@ -2042,7 +2042,8 @@
       "google": "Google Kalender",
       "outlook": "Outlook",
       "downloadIcs": ".ics herunterladen",
-      "bookedTitle": "{name} · bereits gebucht"
+      "bookedTitle": "{name} · bereits gebucht",
+      "bookedOffHourTitle": "{name} · bereits um {time} gebucht"
     },
     "scorecard": {
       "editScorecard": "Ihre Scorecard bearbeiten",

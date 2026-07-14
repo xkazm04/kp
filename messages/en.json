@@ -2013,7 +2013,8 @@
       "google": "Google Calendar",
       "outlook": "Outlook",
       "downloadIcs": "Download .ics",
-      "bookedTitle": "{name} · already booked"
+      "bookedTitle": "{name} · already booked",
+      "bookedOffHourTitle": "{name} · already booked at {time}"
     },
     "scorecard": {
       "editScorecard": "Edit your scorecard",

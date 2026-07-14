@@ -2013,7 +2013,8 @@
       "google": "Google Kalendář",
       "outlook": "Outlook",
       "downloadIcs": "Stáhnout .ics",
-      "bookedTitle": "{name} · již rezervováno"
+      "bookedTitle": "{name} · již rezervováno",
+      "bookedOffHourTitle": "{name} · již rezervováno v {time}"
     },
     "scorecard": {
       "editScorecard": "Upravit vaši hodnoticí kartu",

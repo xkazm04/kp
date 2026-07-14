@@ -58,7 +58,23 @@ export function ScheduleCalendar({
   }, []);
 
   const inSlot = (slot: string) => entries.filter((e) => (picks[e.id] ?? "") === slot);
-  const bookedInSlot = (slot: string) => bookedMarkers.filter((m) => m.gridSlot === slot);
+  // A booked marker occupies the grid cell for its HOUR (the rows are on the hour). An
+  // OFF-HOUR booking — e.g. an accepted 14:30 proposal, whose isoToGridSlot cell is
+  // "Wed 14:30" — used to match no on-the-hour row and vanish from the very grid it
+  // occupies; now it renders in the Wed 14:00 cell with its true minutes shown. Matching
+  // is hour-bucketed (day + "HH"); an on-the-hour marker ("Wed 14:00") is byte-identical.
+  const markerParts = (gridSlot: string) => {
+    const [day = "", time = ""] = gridSlot.split(" ");
+    return { day, hour: time.slice(0, 2), time, offHour: time.slice(3) !== "00" };
+  };
+  const bookedInSlot = (slot: string) => {
+    const [cellDay = "", cellTime = ""] = slot.split(" ");
+    const cellHour = cellTime.slice(0, 2);
+    return bookedMarkers.filter((m) => {
+      const p = markerParts(m.gridSlot);
+      return p.day === cellDay && p.hour === cellHour;
+    });
+  };
 
   const fadeBase = `pointer-events-none absolute inset-y-px w-12 ${reduced ? "" : "transition-opacity duration-200"}`;
 
@@ -148,16 +164,26 @@ export function ScheduleCalendar({
                         // a click still falls through to the slot picker — the collision
                         // check on confirm is the real guard; this is the visible hint.
                         <div className="pointer-events-none relative space-y-1 p-1.5">
-                          {booked.map((m) => (
-                            <span
-                              key={m.id}
-                              title={tCal("bookedTitle", { name: m.candidateLabel })}
-                              className="flex w-full items-center gap-1 rounded-md border border-dashed border-moss/50 bg-moss/10 px-1.5 py-1 text-sm font-medium text-moss"
-                            >
-                              <Check size={12} className="shrink-0" aria-hidden />
-                              <span className="truncate">{m.candidateLabel}</span>
-                            </span>
-                          ))}
+                          {booked.map((m) => {
+                            const mp = markerParts(m.gridSlot);
+                            return (
+                              <span
+                                key={m.id}
+                                // Off-hour bookings name their true minutes so the recruiter sees
+                                // the hour is taken AT 14:30, not the row's 14:00.
+                                title={
+                                  mp.offHour
+                                    ? tCal("bookedOffHourTitle", { name: m.candidateLabel, time: mp.time })
+                                    : tCal("bookedTitle", { name: m.candidateLabel })
+                                }
+                                className="flex w-full items-center gap-1 rounded-md border border-dashed border-moss/50 bg-moss/10 px-1.5 py-1 text-sm font-medium text-moss"
+                              >
+                                <Check size={12} className="shrink-0" aria-hidden />
+                                {mp.offHour ? <span className="shrink-0 tabular-nums font-semibold">{mp.time}</span> : null}
+                                <span className="truncate">{m.candidateLabel}</span>
+                              </span>
+                            );
+                          })}
                         </div>
                       ) : null}
                     </div>

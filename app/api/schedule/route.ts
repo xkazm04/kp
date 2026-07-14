@@ -16,7 +16,7 @@ import {
 } from "@/app/_lib/schedule-store";
 import { actOnPipelineEntry, getPipelineEntry } from "@/app/_lib/db";
 import { plannedInterviewMinutes } from "@/app/_lib/interview-run";
-import { gridSlotToIso, offeredSlotFor, proposedSlotFor, proposeSlots } from "@/app/_lib/schedule-slots";
+import { gridSlotToIso, hourBucketKey, offeredSlotFor, proposedSlotFor, proposeSlots } from "@/app/_lib/schedule-slots";
 import { sealDecisionSafe } from "@/app/_lib/decision-record-store";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { jsonOk, safeJsonError } from "@/app/_lib/api-response";
@@ -102,6 +102,20 @@ export async function POST(request: Request) {
         jobTitle: entry.jobTitle,
         durationMin: plannedInterviewMinutes(entry),
       });
+      // Hour-level occupancy (Direction 2): the store's collision authority is the exact
+      // INSTANT, so a grid pick at 14:00 wouldn't clash with an accepted 14:30 proposal
+      // sitting in the same hour — yet the week grid speaks in whole hours and shows that
+      // hour as taken. Refuse the hour so the recruiter can't SILENTLY double-book it
+      // (the off-hour booking keeps the hour). Same 409 + copy as an exact clash, since
+      // from the grid's point of view the hour is spoken for. The entry's own current
+      // booking is excluded so re-picking within its hour still moves it.
+      const targetBucket = hourBucketKey(resolved.value);
+      if (
+        targetBucket &&
+        bookedSlots(ws).some((iso) => iso !== invite.slotAt && hourBucketKey(iso) === targetBucket)
+      ) {
+        return NextResponse.json({ error: "That time is already booked — pick another." }, { status: 409 });
+      }
       let bookedInvite: ScheduleInvite;
       if (invite.status === "confirmed") {
         const moved = rescheduleScheduleInvite(invite.token, resolved.label, resolved.value, null, { recruiter: true });
