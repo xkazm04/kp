@@ -304,7 +304,22 @@ const TERMINAL_STATUS_SQL_LIST = `(${TERMINAL_ENTRY_STATUSES.map((s) => `'${s}'`
 //     Unscored entries never enter (no fabricated 0 — the REC-03 policy).
 //
 // Tenant scope (P1): the calibration curve is a per-team reliability metric.
-export type PipelineCalibrationPair = { score: number; outcome: 0 | 1; roleFamily: string | null };
+// `at` carries the entry's created_at so the calibration engine can bucket pairs
+// into drift cohorts (Direction 1). `entryId`/`label`/`live` ride the band-drill
+// producer (Direction 2) so a mis-calibrated bin can be opened to the exact
+// candidates behind it — never on the aggregate pair (it would bloat every curve).
+export type PipelineCalibrationPair = { score: number; outcome: 0 | 1; roleFamily: string | null; at: string };
+
+export type CalibrationBandCandidate = {
+  entryId: string;
+  label: string;
+  score: number;
+  outcome: 0 | 1;
+  roleFamily: string | null;
+  // Openable in the board when the entry is still active; a rejected (outcome 0)
+  // entry is terminal, so it's listed but not linked (records outlive the board).
+  live: boolean;
+};
 
 const CALIBRATION_ADVANCED_STAGES = new Set(["Interview", "Offer", "Hired"]);
 
@@ -312,20 +327,68 @@ export function pipelineCalibrationPairs(workspaceId: string = DEFAULT_WORKSPACE
   const db = ensureDb();
   const rows = db
     .prepare(
-      `SELECT match_score AS score, stage, status, role_family FROM pipeline_entries
+      `SELECT match_score AS score, stage, status, role_family, created_at FROM pipeline_entries
        WHERE match_score IS NOT NULL AND workspace_id = ?`
     )
-    .all(workspaceId) as { score: number; stage: string; status: string; role_family: string | null }[];
+    .all(workspaceId) as { score: number; stage: string; status: string; role_family: string | null; created_at: string }[];
   const pairs: PipelineCalibrationPair[] = [];
   for (const r of rows) {
     if (!Number.isFinite(r.score)) continue; // bad migration/manual edit — never NaN into the math
     if (CALIBRATION_ADVANCED_STAGES.has(r.stage)) {
-      pairs.push({ score: r.score, outcome: 1, roleFamily: r.role_family });
+      pairs.push({ score: r.score, outcome: 1, roleFamily: r.role_family, at: r.created_at });
     } else if (r.status === "rejected") {
-      pairs.push({ score: r.score, outcome: 0, roleFamily: r.role_family });
+      pairs.push({ score: r.score, outcome: 0, roleFamily: r.role_family, at: r.created_at });
     }
   }
   return pairs;
+}
+
+// Direction 2 — the candidates behind ONE calibration score band, workspace-scoped.
+// Applies the SAME inclusion rule as pipelineCalibrationPairs (advanced past the
+// screen gate = 1, rejected there = 0; pending/unscored/non-merit-terminal
+// excluded) so a bin's drilldown can never show a candidate the curve didn't
+// count. Score band is [loPct, hiPct); the top bin includes 100 (inclusiveHi).
+export function pipelineCalibrationBandCandidates(
+  loPct: number,
+  hiPct: number,
+  inclusiveHi: boolean,
+  roleFamily: string | null,
+  workspaceId: string = DEFAULT_WORKSPACE_ID
+): CalibrationBandCandidate[] {
+  const db = ensureDb();
+  const rows = db
+    .prepare(
+      `SELECT id, candidate_label, match_score AS score, stage, status, role_family FROM pipeline_entries
+       WHERE match_score IS NOT NULL AND workspace_id = ?
+         AND match_score >= ? AND (match_score < ? ${inclusiveHi ? "OR match_score = ?" : ""})
+       ORDER BY match_score DESC, candidate_label ASC`
+    )
+    .all(...(inclusiveHi ? [workspaceId, loPct, hiPct, hiPct] : [workspaceId, loPct, hiPct])) as {
+    id: string;
+    candidate_label: string;
+    score: number;
+    stage: string;
+    status: string;
+    role_family: string | null;
+  }[];
+  const out: CalibrationBandCandidate[] = [];
+  for (const r of rows) {
+    if (!Number.isFinite(r.score)) continue;
+    if (roleFamily && r.role_family !== roleFamily) continue;
+    let outcome: 0 | 1;
+    if (CALIBRATION_ADVANCED_STAGES.has(r.stage)) outcome = 1;
+    else if (r.status === "rejected") outcome = 0;
+    else continue; // pending / non-merit terminal — not part of the calibration set
+    out.push({
+      entryId: r.id,
+      label: r.candidate_label,
+      score: r.score,
+      outcome,
+      roleFamily: r.role_family,
+      live: !isTerminalEntryStatus(r.status),
+    });
+  }
+  return out;
 }
 
 export function listPipeline(workspaceId: string = DEFAULT_WORKSPACE_ID): PipelineEntry[] {

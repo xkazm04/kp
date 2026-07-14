@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { calibrationPairs, pipelineCalibrationPairs } from "@/app/_lib/db";
-import { computeCalibration } from "@/app/_lib/calibration";
+import { computeCalibration, computeCalibrationCohorts, recommendScreeningThreshold } from "@/app/_lib/calibration";
+import { getDecisionConfig, type ScreeningRule } from "@/app/_lib/decision-config-store";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { jsonError } from "@/app/_lib/api-response";
 
@@ -35,7 +36,21 @@ export async function GET(request: Request) {
     // regardless of which family is currently selected.
     const families = [...new Set(allPairs.map((p) => p.roleFamily).filter((f): f is string => Boolean(f)))].sort();
     const pairs = roleFamily ? allPairs.filter((p) => p.roleFamily === roleFamily) : allPairs;
-    return NextResponse.json({ ...computeCalibration(pairs), families, measures: source });
+    // Direction 1 — the same pairs bucketed into calendar-quarter drift cohorts,
+    // each honesty-gated exactly like the headline curve.
+    const cohorts = computeCalibrationCohorts(pairs);
+    // Direction 3 — a display-only threshold suggestion, ONLY for the pipeline
+    // (acting-score) source: the recommendation is about the screening auto-reject
+    // floor (maxMatchToReject), which acts on pipeline_entries.match_score. The
+    // CV-analysis score never gates pipeline decisions, so it carries no advice.
+    let recommendation = null;
+    let currentThreshold: number | null = null;
+    if (source === "pipeline") {
+      const screening = getDecisionConfig<ScreeningRule>("screening", ws);
+      currentThreshold = screening.maxMatchToReject;
+      recommendation = recommendScreeningThreshold(pairs, currentThreshold);
+    }
+    return NextResponse.json({ ...computeCalibration(pairs), families, measures: source, cohorts, recommendation, currentThreshold });
   } catch (error) {
     // Both pair producers read whole tables, so a transient DB fault (locked
     // mid-write, corrupt file, migration race) surfaces here. Match the sibling

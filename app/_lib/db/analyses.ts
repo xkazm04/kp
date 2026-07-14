@@ -194,17 +194,18 @@ export function setAnalysisDisposition(slug: string, disposition: string, note: 
 // `disposition` collapsed to a binary label (advance = 1, pass = 0). `hold` and
 // an absent disposition are AMBIGUOUS by design — excluded, not scored as either,
 // so the measured calibration isn't polluted by undecided rows. Read-only.
-export type CalibrationPair = { score: number; outcome: 0 | 1; roleFamily: string | null };
+// `at` carries created_at so calibration can bucket into drift cohorts (Direction 1).
+export type CalibrationPair = { score: number; outcome: 0 | 1; roleFamily: string | null; at: string };
 
 export function calibrationPairs(workspaceId: string = DEFAULT_WORKSPACE_ID): CalibrationPair[] {
   const db = ensureDb();
   const rows = db
     .prepare(
-      `SELECT score, disposition, role_family
+      `SELECT score, disposition, role_family, created_at
        FROM analyses
        WHERE score IS NOT NULL AND disposition IN ('advance', 'pass') AND workspace_id = ?`
     )
-    .all(workspaceId) as { score: number; disposition: string; role_family: string | null }[];
+    .all(workspaceId) as { score: number; disposition: string; role_family: string | null; created_at: string }[];
   return rows
     // Defensive: a NULL filter is in SQL, but guard a non-finite score (bad
     // migration / manual edit) so it never reaches the math as NaN.
@@ -212,6 +213,46 @@ export function calibrationPairs(workspaceId: string = DEFAULT_WORKSPACE_ID): Ca
     .map((r) => ({
       score: r.score,
       outcome: r.disposition === "advance" ? 1 : 0,
+      roleFamily: r.role_family,
+      at: r.created_at,
+    }));
+}
+
+// Direction 2 — the analyses behind ONE calibration score band, workspace-scoped.
+// Same inclusion rule as calibrationPairs (advance = 1, pass = 0; hold/undecided
+// excluded). An analysis isn't a board entry, so there's no live entry id — the
+// panel links each by candidate label through the board's existing text filter.
+export type CalibrationBandAnalysis = { slug: string; label: string; score: number; outcome: 0 | 1; roleFamily: string | null };
+
+export function analysisCalibrationBandCandidates(
+  loPct: number,
+  hiPct: number,
+  inclusiveHi: boolean,
+  roleFamily: string | null,
+  workspaceId: string = DEFAULT_WORKSPACE_ID
+): CalibrationBandAnalysis[] {
+  const db = ensureDb();
+  const rows = db
+    .prepare(
+      `SELECT slug, candidate_label, score, disposition, role_family FROM analyses
+       WHERE score IS NOT NULL AND disposition IN ('advance', 'pass') AND workspace_id = ?
+         AND score >= ? AND (score < ? ${inclusiveHi ? "OR score = ?" : ""})
+       ORDER BY score DESC, candidate_label ASC`
+    )
+    .all(...(inclusiveHi ? [workspaceId, loPct, hiPct, hiPct] : [workspaceId, loPct, hiPct])) as {
+    slug: string;
+    candidate_label: string;
+    score: number;
+    disposition: string;
+    role_family: string | null;
+  }[];
+  return rows
+    .filter((r) => Number.isFinite(r.score) && (!roleFamily || r.role_family === roleFamily))
+    .map((r) => ({
+      slug: r.slug,
+      label: r.candidate_label,
+      score: r.score,
+      outcome: (r.disposition === "advance" ? 1 : 0) as 0 | 1,
       roleFamily: r.role_family,
     }));
 }

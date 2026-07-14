@@ -2,9 +2,13 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   computeCalibration,
+  computeCalibrationCohorts,
+  recommendScreeningThreshold,
   MIN_CALIBRATION_OUTCOMES,
+  MIN_CALIBRATION_BAND_OUTCOMES,
   CALIBRATION_BIN_COUNT,
   type ScoreOutcome,
+  type ScoreOutcomeAt,
 } from "./calibration.ts";
 
 test("empty input: n=0, brier null, not calibrated, ten empty bins", () => {
@@ -95,4 +99,120 @@ test("outcome is coerced to 0/1 around 0.5", () => {
     1
   );
   assert.equal(r.positives, 1);
+});
+
+// ─── Drift cohorts (Direction 1) ──────────────────────────────────────────────
+
+test("cohorts bucket by calendar quarter (UTC), ascending", () => {
+  const pairs: ScoreOutcomeAt[] = [
+    { score: 80, outcome: 1, at: "2026-05-10T12:00:00.000Z" }, // Q2
+    { score: 40, outcome: 0, at: "2026-02-01T00:00:00.000Z" }, // Q1
+    { score: 60, outcome: 1, at: "2026-04-30T23:00:00.000Z" }, // Q2
+  ];
+  const cohorts = computeCalibrationCohorts(pairs, 1);
+  assert.deepEqual(cohorts.map((c) => c.key), ["2026-Q1", "2026-Q2"]);
+  assert.equal(cohorts[0].n, 1);
+  assert.equal(cohorts[1].n, 2);
+  assert.equal(cohorts[0].quarter, 1);
+  assert.equal(cohorts[1].quarter, 2);
+});
+
+test("a cohort below the gate reports n but NO brier (honest per cohort)", () => {
+  // Five decided candidates in one quarter, gate at 20 → not calibrated.
+  const pairs: ScoreOutcomeAt[] = Array.from({ length: 5 }, (_, i) => ({
+    score: 70,
+    outcome: i % 2,
+    at: "2026-07-05T00:00:00.000Z",
+  }));
+  const [c] = computeCalibrationCohorts(pairs); // default gate = 20
+  assert.equal(c.n, 5);
+  assert.equal(c.calibrated, false);
+  assert.equal(c.brier, null, "no Brier drawn on a handful of points");
+});
+
+test("a cohort at/above the gate reports its brier", () => {
+  const pairs: ScoreOutcomeAt[] = Array.from({ length: MIN_CALIBRATION_OUTCOMES }, () => ({
+    score: 100,
+    outcome: 1,
+    at: "2026-01-15T00:00:00.000Z",
+  }));
+  const [c] = computeCalibrationCohorts(pairs);
+  assert.equal(c.calibrated, true);
+  assert.equal(c.brier, 0);
+});
+
+test("malformed / empty timestamps are excluded from the time view, not misbucketed", () => {
+  const pairs: ScoreOutcomeAt[] = [
+    { score: 80, outcome: 1, at: "not-a-date" },
+    { score: 80, outcome: 1, at: "" },
+    { score: 80, outcome: 1, at: "2026-03-01T00:00:00.000Z" },
+  ];
+  const cohorts = computeCalibrationCohorts(pairs, 1);
+  assert.equal(cohorts.length, 1);
+  assert.equal(cohorts[0].n, 1);
+});
+
+// ─── Threshold recommendation (Direction 3) ───────────────────────────────────
+
+function bandPairs(score: number, positives: number, negatives: number): ScoreOutcome[] {
+  return [
+    ...Array.from({ length: positives }, () => ({ score, outcome: 1 })),
+    ...Array.from({ length: negatives }, () => ({ score, outcome: 0 })),
+  ];
+}
+
+test("recommendation is null below the overall outcome gate", () => {
+  const pairs = bandPairs(40, 5, 5); // n=10 < 20
+  assert.equal(recommendScreeningThreshold(pairs, 45), null);
+});
+
+test("recommendation is null when a threshold sits at the edges", () => {
+  const pairs = bandPairs(40, 12, 12);
+  assert.equal(recommendScreeningThreshold(pairs, 0), null);
+  assert.equal(recommendScreeningThreshold(pairs, 100), null);
+});
+
+test("suggests LOWERING when candidates just below the floor mostly advanced", () => {
+  // Floor 45; the [35,45) band advanced 9/10 (0.9 ≥ 0.6) with enough padding above.
+  const pairs: ScoreOutcome[] = [
+    ...bandPairs(40, 9, 1), // just below the floor — mostly advanced
+    ...bandPairs(80, 10, 0), // padding so overall n ≥ 20
+  ];
+  const rec = recommendScreeningThreshold(pairs, 45);
+  assert.ok(rec);
+  assert.equal(rec!.direction, "lower");
+  assert.equal(rec!.suggestedThreshold, 35);
+  assert.deepEqual(rec!.band, { lo: 35, hi: 45 });
+  assert.equal(rec!.n, 10);
+  assert.equal(rec!.advanceRatePct, 90);
+});
+
+test("suggests RAISING when candidates just above the floor mostly did not advance", () => {
+  // Floor 45; the [45,55) band advanced 1/10 (0.1 ≤ 0.4).
+  const pairs: ScoreOutcome[] = [
+    ...bandPairs(50, 1, 9), // just above the floor — mostly rejected
+    ...bandPairs(90, 10, 0), // padding for the overall gate
+  ];
+  const rec = recommendScreeningThreshold(pairs, 45);
+  assert.ok(rec);
+  assert.equal(rec!.direction, "raise");
+  assert.equal(rec!.suggestedThreshold, 55);
+});
+
+test("recommendation is null when the near-floor bands are too sparse to defend", () => {
+  // Overall n ≥ 20, but only 3 candidates sit in the below-floor band (< MIN_BAND).
+  const pairs: ScoreOutcome[] = [
+    ...bandPairs(40, 3, 0), // below floor, but only 3 < 8
+    ...bandPairs(80, 20, 0), // far from the floor — no adjacent signal
+  ];
+  assert.ok(MIN_CALIBRATION_BAND_OUTCOMES > 3);
+  assert.equal(recommendScreeningThreshold(pairs, 45), null);
+});
+
+test("recommendation is null when adjacent bands are unremarkable (~50/50)", () => {
+  const pairs: ScoreOutcome[] = [
+    ...bandPairs(40, 5, 5), // below floor — 0.5, neither high nor low
+    ...bandPairs(50, 5, 5), // above floor — 0.5
+  ];
+  assert.equal(recommendScreeningThreshold(pairs, 45), null);
 });
