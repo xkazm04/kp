@@ -7,9 +7,10 @@ import { rubricLabel } from "@/app/_lib/interview-rubric";
 import { Modal } from "@/app/_components/Modal";
 import { InterviewRecommendationBadge } from "@/app/_components/Badge";
 import { Meter } from "@/app/_components/Meter";
+import { ReadbackEntitiesStrip } from "@/app/_components/results/interview/ReadbackEntitiesStrip";
 import { RATING_MAX, ratingToPercent, ratingTone } from "@/app/_lib/format";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
-import { normalizeScorecardEntities, type Scorecard, type ScorecardEntities, type ScorecardRating } from "@/app/_lib/interview-scorecard";
+import { normalizeScorecardEntities, type Scorecard, type ScorecardRating } from "@/app/_lib/interview-scorecard";
 import type { InterviewTelemetry } from "@/app/_lib/interview-telemetry";
 import type { ScorecardCoverage } from "@/app/_lib/interview-transcript";
 import { talkSharePercent, formatSpokenDuration } from "@/app/_lib/voice/telemetry-format";
@@ -163,53 +164,6 @@ function InterviewTelemetryStrip({
         ))}
       </dl>
       <p className="mt-1.5 text-meta text-steel">{t("telemetryNote")}</p>
-    </div>
-  );
-}
-
-// The closing read-back turned into a cue (scorecard-v5): the technologies the
-// candidate confirmed (neutral), the ASR mishears they corrected ("heard → meant"),
-// and the ones only heard earlier and never confirmed (flagged as a possible
-// transcription error). Structural distinctions (arrow, struck heard text, an
-// explicit flag) carry meaning so it never rests on color alone; renders nothing
-// when there was no read-back — no empty chrome, exactly like the telemetry strip.
-function ReadbackEntitiesStrip({
-  entities,
-  t,
-}: {
-  entities: ScorecardEntities;
-  t: ReturnType<typeof useTranslations<"scheduleTab.transcript">>;
-}) {
-  const { confirmed, corrected, unconfirmed } = entities;
-  return (
-    <div className="mt-3 rounded-md border border-stone-200 bg-stone-50 p-2.5">
-      <p className="text-meta uppercase tracking-wide text-steel">{t("readbackHeading")}</p>
-      <div className="mt-1.5 flex flex-wrap gap-1.5">
-        {confirmed.map((tech, i) => (
-          <span key={`c${i}`} className="rounded-full bg-stone-100 px-2 py-0.5 text-meta font-semibold text-ink">
-            {tech}
-          </span>
-        ))}
-        {corrected.map((c, i) => (
-          <span
-            key={`x${i}`}
-            className="rounded-full bg-dial-amber/15 px-2 py-0.5 text-meta font-semibold text-ink"
-            title={t("readbackCorrectedHint")}
-          >
-            <span className="text-steel line-through">{c.heard}</span> → {c.meant}
-          </span>
-        ))}
-        {unconfirmed.map((tech, i) => (
-          <span
-            key={`u${i}`}
-            className="rounded-full bg-dial-amber/15 px-2 py-0.5 text-meta font-semibold text-ink"
-            title={t("readbackUnconfirmedHint")}
-          >
-            {tech} · {t("readbackUnconfirmedFlag")}
-          </span>
-        ))}
-      </div>
-      <p className="mt-1.5 text-meta text-steel">{t("readbackNote")}</p>
     </div>
   );
 }

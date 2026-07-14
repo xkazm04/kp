@@ -346,6 +346,26 @@ class ReadbackEntitiesTest(unittest.TestCase):
         self.assertEqual(ent["corrected"], [{"heard": "Rust", "meant": "React"}])  # half-empty pair dropped
         self.assertEqual(ent["unconfirmed"], ["Kubernetes"])  # non-strings/blanks dropped
 
+    def test_cross_bucket_dedupe_precedence(self):
+        # PARITY FIXTURE — kept byte-identical to the input/expected literals in
+        # app/_lib/interview-scorecard.test.ts ("cross-bucket dedupe ..."). A token in
+        # more than one bucket renders once, precedence corrected.meant > confirmed >
+        # unconfirmed. "React" is a corrected.meant (also redundantly confirmed +
+        # unconfirmed); "Docker" is confirmed AND unconfirmed.
+        cap = _CaptureProvider({
+            "ratings": [], "summary": "s", "recommendation": "advance",
+            "entities": {
+                "confirmed": ["React", "Docker", "PostgreSQL"],
+                "corrected": [{"heard": "Rust", "meant": "React"}],
+                "unconfirmed": ["Docker", "Kubernetes", "React"],
+            },
+        })
+        result, _ = automation.interview_scorecard(BAU, self.job, "notes", provider=cap)
+        ent = result["entities"]
+        self.assertEqual(ent["confirmed"], ["Docker", "PostgreSQL"])  # "React" dropped (corrected.meant)
+        self.assertEqual(ent["corrected"], [{"heard": "Rust", "meant": "React"}])
+        self.assertEqual(ent["unconfirmed"], ["Kubernetes"])  # "Docker" (confirmed) + "React" (meant) dropped
+
     def test_no_readback_omits_entities(self):
         # A transcript WITHOUT any read-back: entities null / absent → key omitted
         # entirely (never fabricated), so consumers render no chrome.

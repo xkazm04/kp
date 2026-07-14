@@ -637,8 +637,8 @@ def _coerce_entities(raw: Any) -> dict | None:
                 out.append(s)
         return out
 
-    confirmed = _strs(raw.get("confirmed"))
-    unconfirmed = _strs(raw.get("unconfirmed"))
+    confirmed_raw = _strs(raw.get("confirmed"))
+    unconfirmed_raw = _strs(raw.get("unconfirmed"))
     corrected: list[dict] = []
     for c in raw.get("corrected") or []:
         if not isinstance(c, dict):
@@ -647,6 +647,15 @@ def _coerce_entities(raw: Any) -> dict | None:
         meant = c.get("meant").strip() if isinstance(c.get("meant"), str) else ""
         if heard and meant:
             corrected.append({"heard": heard, "meant": meant})
+    # Cross-bucket dedupe with a documented precedence so a token the model emits in
+    # more than one bucket renders in exactly ONE list. Precedence (highest first):
+    #   corrected.meant ("what they actually meant") > confirmed > unconfirmed.
+    # A token present in a higher bucket is dropped from every lower one — exact,
+    # trimmed string match, order preserved. Mirrors normalizeScorecardEntities (TS).
+    meant_set = {c["meant"] for c in corrected}
+    confirmed = [t for t in confirmed_raw if t not in meant_set]
+    confirmed_set = set(confirmed)
+    unconfirmed = [t for t in unconfirmed_raw if t not in meant_set and t not in confirmed_set]
     if not confirmed and not corrected and not unconfirmed:
         return None
     return {"confirmed": confirmed, "corrected": corrected, "unconfirmed": unconfirmed}

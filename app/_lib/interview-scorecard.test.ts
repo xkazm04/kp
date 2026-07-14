@@ -31,6 +31,25 @@ test("a read-back with a correction survives coercion, trimming and dropping jun
   });
 });
 
+// PARITY FIXTURE — kept byte-identical to the input/expected literals in
+// pipeline/jobfit/tests/test_automation.py::test_cross_bucket_dedupe_precedence.
+// Both normalizers must dedupe a token appearing in more than one bucket with the
+// same precedence: corrected.meant > confirmed > unconfirmed.
+test("cross-bucket dedupe: corrected.meant > confirmed > unconfirmed", () => {
+  const out = normalizeScorecardEntities({
+    // "React" is what a mishear MEANT and is also (redundantly) confirmed + unconfirmed;
+    // "Docker" is confirmed AND unconfirmed.
+    confirmed: ["React", "Docker", "PostgreSQL"],
+    corrected: [{ heard: "Rust", meant: "React" }],
+    unconfirmed: ["Docker", "Kubernetes", "React"],
+  });
+  assert.deepEqual(out, {
+    confirmed: ["Docker", "PostgreSQL"], // "React" dropped — it is a corrected.meant
+    corrected: [{ heard: "Rust", meant: "React" }],
+    unconfirmed: ["Kubernetes"], // "Docker" dropped (confirmed), "React" dropped (meant)
+  });
+});
+
 test("no read-back normalizes to null (absent, empty, and non-object all yield null)", () => {
   for (const raw of [
     null,

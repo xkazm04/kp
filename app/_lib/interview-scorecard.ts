@@ -62,8 +62,8 @@ export function normalizeScorecardEntities(raw: unknown): ScorecardEntities | nu
   const r = raw as Record<string, unknown>;
   const strList = (v: unknown): string[] =>
     Array.isArray(v) ? v.map((x) => (typeof x === "string" ? x.trim() : "")).filter(Boolean) : [];
-  const confirmed = strList(r.confirmed);
-  const unconfirmed = strList(r.unconfirmed);
+  const confirmedRaw = strList(r.confirmed);
+  const unconfirmedRaw = strList(r.unconfirmed);
   const corrected = (Array.isArray(r.corrected) ? r.corrected : [])
     .map((c) => {
       if (!c || typeof c !== "object") return null;
@@ -73,6 +73,15 @@ export function normalizeScorecardEntities(raw: unknown): ScorecardEntities | nu
       return heard && meant ? { heard, meant } : null;
     })
     .filter((c): c is { heard: string; meant: string } => c !== null);
+  // Cross-bucket dedupe with a documented precedence so a token the model emits in
+  // more than one bucket renders in exactly ONE list. Precedence (highest first):
+  //   corrected.meant ("what they actually meant") > confirmed > unconfirmed.
+  // A token present in a higher bucket is dropped from every lower one — exact,
+  // trimmed string match, order preserved. Mirrors automation._coerce_entities.
+  const meantSet = new Set(corrected.map((c) => c.meant));
+  const confirmed = confirmedRaw.filter((t) => !meantSet.has(t));
+  const confirmedSet = new Set(confirmed);
+  const unconfirmed = unconfirmedRaw.filter((t) => !meantSet.has(t) && !confirmedSet.has(t));
   if (confirmed.length === 0 && corrected.length === 0 && unconfirmed.length === 0) return null;
   return { confirmed, corrected, unconfirmed };
 }

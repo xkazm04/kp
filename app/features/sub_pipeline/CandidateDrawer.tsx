@@ -35,6 +35,7 @@ import { SCREENING_STAGES } from "@/app/_lib/pipeline-stages";
 import { RUBRIC_ANCHOR_LINE } from "@/app/_lib/interview-rubric";
 import { RATING_MAX } from "@/app/_lib/format";
 import type { Scorecard, ScorecardEntities, ScorecardRating } from "@/app/_lib/interview-scorecard";
+import { ReadbackEntitiesStrip } from "@/app/_components/results/interview/ReadbackEntitiesStrip";
 import { buildGithubEvidenceSummary, type GithubEvidenceSummary } from "@/app/_lib/github-summary";
 import { githubAnalysisSchema } from "@/app/_lib/schemas";
 import { initials } from "@/app/_lib/initials";
@@ -610,7 +611,7 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
               {ivOutcome.ratings?.length ? (
                 <p className="mt-1 text-meta text-steel">{t("fixedRubric", { anchor: RUBRIC_ANCHOR_LINE })}</p>
               ) : null}
-              {ivOutcome.entities ? <ReadbackEntitiesStrip entities={ivOutcome.entities} t={tTranscript} /> : null}
+              {ivOutcome.entities ? <ReadbackEntitiesStrip entities={ivOutcome.entities} t={tTranscript} density="compact" /> : null}
               {ivOutcome.telemetry ? <InterviewTelemetryStrip telemetry={ivOutcome.telemetry} t={tTranscript} /> : null}
               {/* The full transcript was the interview chapter's only dead field —
                   computed server-side, typed here, rendered nowhere. Surface it as
@@ -1114,51 +1115,6 @@ function InterviewTelemetryStrip({
         ))}
       </dl>
       <p className="mt-1 text-meta text-steel">{t("telemetryNote")}</p>
-    </div>
-  );
-}
-
-// Structured read-back cue (scorecard-v5) — the SAME confirmed / corrected /
-// unconfirmed technologies the InterviewTranscriptModal shows, projected onto the
-// bundle. Structural (arrow, struck heard text, an explicit flag), never color-only;
-// renders nothing when there was no read-back, matching the telemetry-strip rule.
-function ReadbackEntitiesStrip({
-  entities,
-  t,
-}: {
-  entities: ScorecardEntities;
-  t: ReturnType<typeof useTranslations<"scheduleTab.transcript">>;
-}) {
-  const { confirmed, corrected, unconfirmed } = entities;
-  return (
-    <div className="mt-2 rounded-md border border-stone-200 bg-stone-50 p-2">
-      <p className="text-meta uppercase tracking-wide text-steel">{t("readbackHeading")}</p>
-      <div className="mt-1 flex flex-wrap gap-1.5">
-        {confirmed.map((tech, i) => (
-          <span key={`c${i}`} className="rounded-full bg-stone-100 px-2 py-0.5 text-meta font-semibold text-ink">
-            {tech}
-          </span>
-        ))}
-        {corrected.map((c, i) => (
-          <span
-            key={`x${i}`}
-            className="rounded-full bg-dial-amber/15 px-2 py-0.5 text-meta font-semibold text-ink"
-            title={t("readbackCorrectedHint")}
-          >
-            <span className="text-steel line-through">{c.heard}</span> → {c.meant}
-          </span>
-        ))}
-        {unconfirmed.map((tech, i) => (
-          <span
-            key={`u${i}`}
-            className="rounded-full bg-dial-amber/15 px-2 py-0.5 text-meta font-semibold text-ink"
-            title={t("readbackUnconfirmedHint")}
-          >
-            {tech} · {t("readbackUnconfirmedFlag")}
-          </span>
-        ))}
-      </div>
-      <p className="mt-1 text-meta text-steel">{t("readbackNote")}</p>
     </div>
   );
 }
