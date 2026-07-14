@@ -1663,6 +1663,10 @@
       "copy": "Copy link",
       "dismiss": "Dismiss"
     },
+    "waveComms": {
+      "banner": "{count, plural, =1 {1 rejection notification failed to queue — the candidate is out of the funnel but wasn't notified. Nudge them manually.} other {# rejection notifications failed to queue — those candidates are out of the funnel but weren't notified. Nudge them manually.}}",
+      "cta": "Open the Decision Log"
+    },
     "aiRecommendations": "AI recommendations",
     "batch": {
       "select": "Select",

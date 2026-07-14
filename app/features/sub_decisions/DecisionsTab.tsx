@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Check, Copy, ListChecks, RotateCcw, SlidersHorizontal, Sparkles } from "lucide-react";
+import { AlertTriangle, ArrowRight, Check, Copy, ListChecks, RotateCcw, SlidersHorizontal, Sparkles, X } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { buildTabSwitchUrl } from "@/app/features/tabs";
 import { postPipelineBatch, type PipelineBatchItem } from "@/app/_lib/useAddToPipeline";
@@ -94,6 +94,12 @@ export function DecisionsTab() {
   // offer accept stays a one-by-one ceremony.
   const [selectMode, setSelectMode] = useState(false);
   const [selectedReviewIds, setSelectedReviewIds] = useState<ReadonlySet<string>>(new Set());
+  // Direction 2b — candidates whose rejection notification failed to queue during a
+  // committed screening wave. Session-local (like queuedLabels): a "what just
+  // happened" trail naming WHO needs a manual nudge, kept discoverable after the
+  // wave modal closes. Each failure is ALSO an audited rejection_comms_failed event
+  // (the Decision Log in Analytics) — no new store, this just re-surfaces it.
+  const [waveCommsFailed, setWaveCommsFailed] = useState<string[]>([]);
   const [bulkBusy, setBulkBusy] = useState(false);
   const [bulkResult, setBulkResult] = useState<{ ok: number; failed: number; verb: "accepted" | "rejected"; reason: string | null } | null>(null);
   const [confirmingBulkReject, setConfirmingBulkReject] = useState(false);
@@ -279,8 +285,12 @@ export function DecisionsTab() {
   }
 
   const act = async (e: Entry, action: "accept" | "reject" | "approve_event", detail?: string, ttlDays?: number) => {
+    // Direction 2a — the row leaves ONLY when the server confirms. The old path
+    // scheduled a 260ms timer that dropped the row BEFORE the fetch resolved, so a
+    // slow network showed a vanish-then-reappear on an irreversible reject. Now the
+    // in-flight card shows a subtle pending state (leavingWrapClass) and is removed
+    // on the 200, or cleanly restored on failure — no optimistic disappearance.
     setResolving((s) => ({ ...s, [e.id]: action }));
-    window.setTimeout(() => setEntries((prev) => (prev ? prev.filter((x) => x.id !== e.id) : prev)), 260);
     try {
       const note = detail?.trim();
       const r = await fetch(`/api/pipeline/${e.id}`, {
@@ -318,13 +328,19 @@ export function DecisionsTab() {
         });
         setQueuedLabels((prev) => [...prev, e.candidateLabel]);
       }
+      // Server confirmed — NOW the row leaves. Before this point it was only
+      // dimmed (pending), never removed, so nothing can vanish-then-reappear.
+      setEntries((prev) => (prev ? prev.filter((x) => x.id !== e.id) : prev));
     } catch {
-      load();
+      // Roll back cleanly: clear the pending state so the card returns to normal.
+      // A stale-stage 409 carried the fresh entry, so reload to reconcile the queue
+      // to reality — the row never disappeared first, so this isn't a reappear.
       setResolving((s) => {
         const n = { ...s };
         delete n[e.id];
         return n;
       });
+      load();
     }
   };
 
@@ -367,9 +383,12 @@ export function DecisionsTab() {
     void act(e, action, detail);
   };
 
+  // Subtle in-flight pending state while a decision is on the wire — dimmed and
+  // non-interactive, but NOT translated/hidden. The row is removed outright once
+  // the server confirms (act()), so there's no pre-confirmation slide-away to undo.
   const leavingWrapClass = (e: Entry) =>
     resolving[e.id]
-      ? "transition-all duration-200 ease-in pointer-events-none -translate-x-2 scale-[0.98] opacity-0"
+      ? "transition-all duration-200 ease-in pointer-events-none animate-pulse opacity-50"
       : "transition-all duration-200 ease-in";
 
   const evalGroup = evalRole ? groups.find((g) => g.roleKey === evalRole.roleKey) ?? null : null;
@@ -505,6 +524,43 @@ export function DecisionsTab() {
               </li>
             ))}
           </ul>
+        </section>
+      ) : null}
+
+      {/* Direction 2b — a committed wave's comms failures stay named after the
+          modal closes. Amber (a warning, not the success band): these candidates
+          are out of the funnel but weren't notified, so they need a manual nudge.
+          Links to Analytics, where the Decision Log holds the audited
+          rejection_comms_failed trail. */}
+      {waveCommsFailed.length > 0 ? (
+        <section
+          aria-live="polite"
+          className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-300 bg-amber-50 px-4 py-2.5"
+        >
+          <p className="min-w-0 text-sm text-ink">
+            <AlertTriangle size={14} className="-mt-0.5 mr-1 inline text-amber-700" aria-hidden />
+            {t("waveComms.banner", { count: waveCommsFailed.length })}
+            {waveCommsFailed.some(Boolean) ? (
+              <span className="block text-amber-800">{waveCommsFailed.filter(Boolean).join(", ")}</span>
+            ) : null}
+          </p>
+          <span className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => router.push(buildTabSwitchUrl("analytics", search.toString()))}
+              className="focus-ring inline-flex items-center gap-1 text-sm font-semibold text-amber-800 hover:underline"
+            >
+              {t("waveComms.cta")} <ArrowRight size={13} aria-hidden />
+            </button>
+            <button
+              type="button"
+              onClick={() => setWaveCommsFailed([])}
+              aria-label={t("queuedDismiss")}
+              className="focus-ring rounded p-0.5 text-steel hover:text-ink"
+            >
+              <X size={14} aria-hidden />
+            </button>
+          </span>
         </section>
       ) : null}
 
@@ -785,7 +841,13 @@ export function DecisionsTab() {
           jobId={waveRole.jobId}
           roleTitle={waveRole.title}
           onClose={() => setWaveRole(null)}
-          onCommitted={load}
+          onCommitted={(summary) => {
+            load();
+            if (summary && summary.commsFailures > 0) {
+              // Prefer the named rows; fall back to the count if labels are absent.
+              setWaveCommsFailed((prev) => [...prev, ...(summary.failedLabels.length ? summary.failedLabels : Array(summary.commsFailures).fill(""))]);
+            }
+          }}
         />
       ) : null}
     </div>

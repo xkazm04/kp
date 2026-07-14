@@ -1692,6 +1692,10 @@
       "copy": "Link kopieren",
       "dismiss": "Ausblenden"
     },
+    "waveComms": {
+      "banner": "{count, plural, one {1 Ablehnungsbenachrichtigung konnte nicht eingereiht werden — der Kandidat ist aus dem Prozess, wurde aber nicht benachrichtigt. Bitte manuell anstupsen.} other {# Ablehnungsbenachrichtigungen konnten nicht eingereiht werden — diese Kandidaten sind aus dem Prozess, wurden aber nicht benachrichtigt. Bitte manuell anstupsen.}}",
+      "cta": "Entscheidungsprotokoll öffnen"
+    },
     "aiRecommendations": "AI-Empfehlungen",
     "batch": {
       "select": "Auswählen",

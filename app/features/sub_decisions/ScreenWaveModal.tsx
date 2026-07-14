@@ -41,7 +41,11 @@ export function ScreenWaveModal({
   jobId: string;
   roleTitle: string;
   onClose: () => void;
-  onCommitted: () => void;
+  // Direction 2b — the commit summary rides back so the tab can keep a partial
+  // commit's comms failures discoverable AFTER this modal closes (the per-row
+  // badges here are modal-only). `failedLabels` names WHO from the same committed
+  // result; each is also audited as a `rejection_comms_failed` event.
+  onCommitted: (summary?: { commsFailures: number; failedLabels: string[] }) => void;
 }) {
   const t = useTranslations("decisions.wave");
   const [enabled, setEnabled] = useState(true);
@@ -122,8 +126,14 @@ export function ScreenWaveModal({
         return;
       }
       if (!r.ok) throw new Error(d.error || `Wave failed (${r.status}).`);
-      setCommitted(d as WaveResult);
-      onCommitted(); // live-refresh the queue so rejected rows drop out
+      const result = d as WaveResult;
+      setCommitted(result);
+      // Live-refresh the queue so rejected rows drop out, AND hand up the comms
+      // failures so the tab can surface them past this modal (Direction 2b).
+      onCommitted({
+        commsFailures: result.commsFailures,
+        failedLabels: result.decisions.filter((x) => x.commsFailed).map((x) => x.label),
+      });
     } catch (e) {
       setError(e instanceof Error ? e.message : t("waveFailed"));
     } finally {

@@ -1692,6 +1692,10 @@
       "copy": "Copier le lien",
       "dismiss": "Ignorer"
     },
+    "waveComms": {
+      "banner": "{count, plural, one {1 notification de rejet n'a pas pu être mise en file — le candidat est hors du processus mais n'a pas été notifié. Relancez-le manuellement.} other {# notifications de rejet n'ont pas pu être mises en file — ces candidats sont hors du processus mais n'ont pas été notifiés. Relancez-les manuellement.}}",
+      "cta": "Ouvrir le journal des décisions"
+    },
     "aiRecommendations": "Recommandations AI",
     "batch": {
       "select": "Sélectionner",

@@ -1663,6 +1663,10 @@
       "copy": "Kopírovat odkaz",
       "dismiss": "Skrýt"
     },
+    "waveComms": {
+      "banner": "{count, plural, one {1 oznámení o zamítnutí se nepodařilo zařadit do fronty — kandidát je mimo výběrové řízení, ale nebyl uvědomen. Kontaktujte ho ručně.} few {# oznámení o zamítnutí se nepodařilo zařadit do fronty — tito kandidáti jsou mimo výběrové řízení, ale nebyli uvědomeni. Kontaktujte je ručně.} many {# oznámení o zamítnutí se nepodařilo zařadit do fronty — tito kandidáti jsou mimo výběrové řízení, ale nebyli uvědomeni. Kontaktujte je ručně.} other {# oznámení o zamítnutí se nepodařilo zařadit do fronty — tito kandidáti jsou mimo výběrové řízení, ale nebyli uvědomeni. Kontaktujte je ručně.}}",
+      "cta": "Otevřít protokol rozhodnutí"
+    },
     "aiRecommendations": "Doporučení AI",
     "batch": {
       "select": "Vybrat",

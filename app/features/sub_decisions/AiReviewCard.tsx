@@ -115,8 +115,13 @@ export function AiReviewCard({
           </span>
         )}
         {isOffer ? (
+          // P2-1 / Direction 2c — render only the unit the draft actually carries.
+          // The server path deliberately refuses to fabricate a currency
+          // (pipeline-entry-action.ts extendOffer), so the card must not invent
+          // "CZK" either: an absent currency shows the bare amount, not a wrong unit.
           <span className="font-serif text-base text-ink">
-            {Number(parsed?.recommended ?? 0).toLocaleString()} {parsed?.currency ?? "CZK"}
+            {Number(parsed?.recommended ?? 0).toLocaleString()}
+            {parsed?.currency ? ` ${parsed.currency}` : ""}
           </span>
         ) : (
           <RecBadge rec={parsed?.recommendation} confidence={isScorecard ? undefined : parsed?.confidence} />
