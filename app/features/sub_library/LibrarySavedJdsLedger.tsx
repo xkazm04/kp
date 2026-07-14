@@ -114,7 +114,7 @@ export function LibrarySavedJdsLedger() {
     setDuplicating(row.slug);
     let need = "";
     try {
-      const src = (await fetch(`/api/jds/${encodeURIComponent(row.slug)}`).then((r) => r.json())) as
+      const src = (await fetch(`/api/jds/${encodeURIComponent(row.slug)}?intent=1`).then((r) => r.json())) as
         | { body?: string; build_input_json?: string | null }
         | null;
       const prompt = readIntentPrompt(src?.build_input_json);
