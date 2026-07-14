@@ -3,6 +3,7 @@ import {
   finishTask,
   getActiveTaskByDedupe,
   getTask,
+  getPipelineEntry,
   interruptStaleTasks,
   lifecycleByPosting,
   listQueuedTaskIds,
@@ -89,6 +90,54 @@ async function batchScreen(ctx: TaskCtx): Promise<unknown> {
   return summary;
 }
 
+// Draft tailored OUTREACH for a board-selected cohort — one background job that
+// runs the SAME per-candidate `outreach` automation the drawer's "Draft outreach"
+// action runs (runAutomationTask → the LLM/deterministic letter → dispatchOutreach,
+// which QUEUES the draft to the Outbox by default and only relays it when a channel
+// is configured; nothing is auto-sent in the demo default). Reaching a filtered
+// cohort of 8 was 8 drawer trips; this is one action. Per-candidate ISOLATION: one
+// entry's failure (not found, no profile, consent-suppressed, LLM error) never
+// aborts the others, and each id's outcome is reported back so the board can keep
+// the failures selected for retry while successes deselect — the same batch grammar
+// the synchronous move/decide endpoint uses. Drafting N letters is N LLM calls, so
+// it runs here (backgrounded) instead of blocking the recruiter. Outreach is the
+// ONLY drafting action batched from the board: its output lands in the Outbox as a
+// reviewable, releasable row, whereas a rejection draft is a drawer-only result.
+// Guard a runaway cohort (mirrors the sync batch endpoint's BATCH_CAP): the board
+// rarely selects this many, and each id is an LLM call, so the wall-clock watchdog
+// would otherwise reap a huge run mid-flight.
+const OUTREACH_COHORT_CAP = 200;
+
+async function batchOutreach(ctx: TaskCtx): Promise<unknown> {
+  const ids = (
+    Array.isArray(ctx.params.entryIds)
+      ? (ctx.params.entryIds as unknown[]).filter((x): x is string => typeof x === "string")
+      : []
+  ).slice(0, OUTREACH_COHORT_CAP);
+  const results: { id: string; ok: boolean; reason?: string }[] = [];
+  ctx.progress(0, ids.length, ids.length ? "Starting…" : "Nothing to draft");
+  let done = 0;
+  for (const id of ids) {
+    if (ctx.signal.aborted) break;
+    // Resolve the label for a friendly progress line; the entry is scoped to the
+    // task's tenant, so an id from another workspace resolves null here AND makes
+    // runAutomationTask throw "entry not found" — counted as a per-candidate failure.
+    const entry = getPipelineEntry(id, ctx.workspaceId);
+    try {
+      // lang is undefined by design: outreach is a LETTER task, so runAutomationTask
+      // resolves the CANDIDATE'S comms locale itself — the caller's UI locale must not
+      // override it. Mirrors the single-entry `automation` handler above.
+      await runAutomationTask(id, "outreach", "", ctx.signal, undefined, ctx.workspaceId);
+      results.push({ id, ok: true });
+    } catch (e) {
+      results.push({ id, ok: false, reason: e instanceof Error ? e.message : "Unexpected error." });
+    }
+    ctx.progress(++done, ids.length, entry?.candidateLabel ?? id);
+  }
+  const ok = results.filter((r) => r.ok).length;
+  return { ok, total: results.length, results };
+}
+
 const HANDLERS: Record<string, Spec> = {
   automation: {
     run: (ctx) => runAutomationTask(String(ctx.params.entryId), String(ctx.params.task), String(ctx.params.notes ?? ""), ctx.signal, undefined, ctx.workspaceId),
@@ -101,6 +150,13 @@ const HANDLERS: Record<string, Spec> = {
   batch_screen: {
     run: batchScreen,
     label: () => "AI-screen all matched candidates",
+  },
+  batch_outreach: {
+    run: batchOutreach,
+    label: (p) => {
+      const n = Array.isArray(p.entryIds) ? (p.entryIds as unknown[]).length : 0;
+      return `Draft outreach · ${n} candidate${n === 1 ? "" : "s"}`;
+    },
   },
   analyze: {
     // The AI-candidate unit is debited INSIDE runAnalyze, only on a delivered non-cached

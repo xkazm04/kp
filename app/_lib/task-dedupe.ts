@@ -57,6 +57,15 @@ export const DEDUPE_BUILDERS: Record<string, (p: Record<string, unknown>) => str
   },
   reasoning: (p) => stableKey("reasoning", p.profileId ?? p.analysisSlug ?? identityJson(p.candidate), p.jobId),
   batch_screen: () => "batch_screen", // singleton: one batch-screen at a time, by design
+  // Keyed by the SORTED cohort fingerprint: a double-click (or retried fetch) on the
+  // same selection dedupes onto the in-flight run, while a different cohort starts its
+  // own. Empty/absent selection → null (no identity), so it never merges spuriously.
+  batch_outreach: (p) => {
+    const ids = Array.isArray(p.entryIds)
+      ? (p.entryIds as unknown[]).filter((x): x is string => typeof x === "string").sort()
+      : [];
+    return ids.length ? stableKey("batch_outreach", ids.join(",")) : null;
+  },
   analyze: (p) => stableKey("analyze", p.baseDir), // baseDir is unique per upload
   need_analysis: (p) => stableKey("need_analysis", identityJson(p.need)),
   design_artifacts: (p) => {

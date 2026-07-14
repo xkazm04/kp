@@ -2,11 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { AlertTriangle, BookmarkPlus, CalendarClock, CheckSquare, Link2, Play, Timer, X } from "lucide-react";
+import { AlertTriangle, BookmarkPlus, CalendarClock, CheckSquare, Link2, Mail, Play, Timer, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { buildUrl, clearedTabScopedParams } from "@/app/features/tabs";
 import { useSimulation } from "@/app/features/simulation/SimulationProvider";
-import { useTasks } from "@/app/features/tasks/TasksProvider";
+import { useTasks, useTaskResult } from "@/app/features/tasks/TasksProvider";
 import { useDeliveryCapability } from "@/app/features/useDeliveryCapability";
 import { useLiveRefresh } from "@/app/features/live-refresh";
 import { needsHumanDecision } from "@/app/_lib/approval-kinds";
@@ -147,7 +147,13 @@ export function PipelineTab() {
   // `reason` carries the server's verbatim failure explanation (the 409 vs 422
   // guidance) for a bulk action whose entries were refused, so a batch failure is
   // no longer a bare count — the recruiter sees WHY, like the drag + drawer do.
-  const [bulkResult, setBulkResult] = useState<{ ok: number; failed: number; verb: "moved" | "accepted" | "rejected" | "invited"; reason?: string | null } | null>(null);
+  const [bulkResult, setBulkResult] = useState<{ ok: number; failed: number; verb: "moved" | "accepted" | "rejected" | "invited" | "drafted"; reason?: string | null } | null>(null);
+  // Bulk outreach runs as a BACKGROUND task (N letters = N LLM calls), so unlike the
+  // synchronous move/decide it can't resolve inline — we track the task id and apply
+  // the failures-stay-selected grammar when it finishes. lastOutreachApplied guards
+  // the completion effect to fire exactly once per task.
+  const [outreachTaskId, setOutreachTaskId] = useState<string | null>(null);
+  const lastOutreachApplied = useRef<string | null>(null);
   // Transient feedback when a drag-to-move fails (optimistic move rolled back).
   const [moveError, setMoveError] = useState<string | null>(null);
   // Two-step confirm for bulk reject (it emails N candidates — irreversible).
@@ -201,7 +207,10 @@ export function PipelineTab() {
       /* storage unavailable — in-memory override still applies this session */
     }
   };
-  const { tasks } = useTasks();
+  const { tasks, startTask } = useTasks();
+  // Watch the in-flight bulk-outreach draft run: cheap status/progress from the poll,
+  // and its full per-candidate result once it finishes (see the completion effect).
+  const outreachTask = useTaskResult(outreachTaskId);
   // 5d2e0998 — the empty board offers the guided tour (simulation start).
   const sim = useSimulation();
   const lastBatchDone = useRef<string | null>(null);
@@ -608,6 +617,53 @@ export function PipelineTab() {
     await load();
   };
 
+  // Draft tailored OUTREACH for the selected ACTIVE cohort in one action — the same
+  // per-candidate "Draft outreach" the drawer runs, but for N candidates at once so a
+  // filtered cohort of 8 isn't 8 drawer trips. Backgrounded (N letters = N LLM calls),
+  // so this only STARTS the task; the drafts land in the Outbox as reviewable rows
+  // (nothing auto-sends in the demo default) and the completion effect below applies
+  // the failures-stay-selected grammar once the run finishes. Reuses the same task
+  // machinery the board already tracks for batch-screen.
+  const bulkOutreach = async () => {
+    if (selectedActive.length === 0 || outreachTask.active) return;
+    setBulkResult(null);
+    setConfirmingBulkReject(false);
+    const started = await startTask("batch_outreach", { entryIds: selectedActive.map((e) => e.id) });
+    if (started) {
+      lastOutreachApplied.current = null; // a fresh run — allow its completion to apply once
+      setOutreachTaskId(started.id);
+    }
+  };
+
+  // Apply the batch grammar when the background draft run finishes: successes
+  // deselect, per-candidate failures STAY selected for retry (plus any selected
+  // entry the run never attempted — e.g. a terminal one), and the honest
+  // queued-vs-sent count lands in the shared status line. A task-level failure
+  // (the whole run threw) keeps the whole cohort selected and surfaces the reason.
+  useEffect(() => {
+    if (!outreachTaskId) return;
+    if (outreachTask.status === "failed" || outreachTask.status === "interrupted" || outreachTask.status === "canceled") {
+      if (lastOutreachApplied.current === outreachTaskId) return;
+      lastOutreachApplied.current = outreachTaskId;
+      setBulkResult({ ok: 0, failed: selectedIds.size, verb: "drafted", reason: outreachTask.error });
+      setOutreachTaskId(null);
+      return;
+    }
+    const full = outreachTask.full;
+    if (!full || full.id !== outreachTaskId) return;
+    if (lastOutreachApplied.current === outreachTaskId) return;
+    lastOutreachApplied.current = outreachTaskId;
+    const res = (full.result as { ok?: number; total?: number; results?: { id: string; ok: boolean }[] } | null) ?? null;
+    const items = res?.results ?? [];
+    const attempted = new Set(items.map((r) => r.id));
+    const failed = new Set(items.filter((r) => !r.ok).map((r) => r.id));
+    // Keep a selected id iff it failed, or the run never touched it (untouched stays).
+    setSelectedIds((cur) => new Set([...cur].filter((id) => failed.has(id) || !attempted.has(id))));
+    setBulkResult({ ok: res?.ok ?? 0, failed: failed.size, verb: "drafted", reason: null });
+    setOutreachTaskId(null);
+    void load();
+  }, [outreachTaskId, outreachTask.status, outreachTask.full, outreachTask.error, selectedIds, load]);
+
   // cea12908 — drag a candidate to a new stage column. Optimistic: reflect the
   // move immediately, then POST set_stage with the card's PRIOR stage as
   // expectedStage (the same CAS guard the bulk move + AI actions use). On any
@@ -949,6 +1005,20 @@ export function PipelineTab() {
                   <CalendarClock size={13} aria-hidden /> {t("bulkInvite", { count: selectedActive.length })}
                 </button>
               ) : null}
+              {/* Draft tailored outreach for the whole active cohort at once — the same
+                  per-candidate action the drawer offers, batched. Backgrounded: the
+                  drafts land in the Outbox to review + release; nothing auto-sends. */}
+              {selectedActive.length > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => void bulkOutreach()}
+                  disabled={bulkBusy || outreachTask.active}
+                  className="focus-ring inline-flex items-center gap-1.5 rounded-md border border-stone-200 bg-white px-3 py-1 text-sm font-semibold text-ink hover:border-coral/40 disabled:opacity-50"
+                >
+                  <Mail size={13} aria-hidden />{" "}
+                  {outreachTask.active ? t("bulkDrafting") : t("bulkDraftOutreach", { count: selectedActive.length })}
+                </button>
+              ) : null}
               {bulkResult ? (
                 <span role="status" className="text-sm">
                   <span className="font-semibold text-moss">
@@ -961,12 +1031,19 @@ export function PipelineTab() {
                             ? relayConfigured === false
                               ? "bulkInvitedQueued"
                               : "bulkInvited"
-                            : "bulkRejected",
+                            : bulkResult.verb === "drafted"
+                              ? relayConfigured === false
+                                ? "bulkDraftedQueued"
+                                : "bulkDrafted"
+                              : "bulkRejected",
                       { count: bulkResult.ok }
                     )}
                   </span>
                   {bulkResult.failed > 0 ? (
-                    <span className="font-semibold text-coral"> · {t("bulkFailed", { count: bulkResult.failed })}</span>
+                    <span className="font-semibold text-coral">
+                      {" · "}
+                      {t(bulkResult.verb === "drafted" ? "bulkDraftFailed" : "bulkFailed", { count: bulkResult.failed })}
+                    </span>
                   ) : null}
                   {/* The server's own reason for the refusals (409 concurrency vs
                       422 forbidden transition), verbatim — so a bulk failure says

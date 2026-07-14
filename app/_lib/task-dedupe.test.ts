@@ -91,6 +91,24 @@ test("batch_screen is an intentional singleton constant", () => {
   assert.equal(buildDedupeKey("batch_screen", {}), "batch_screen");
 });
 
+test("batch_outreach keys by the sorted cohort, deduping a re-fire of the same selection", () => {
+  // Order-independent: the same set of ids in any order produces one key, so a
+  // double-click on the same cohort dedupes onto the in-flight draft run.
+  assert.equal(
+    buildDedupeKey("batch_outreach", { entryIds: ["b", "a", "c"] }),
+    buildDedupeKey("batch_outreach", { entryIds: ["a", "b", "c"] })
+  );
+  assert.equal(buildDedupeKey("batch_outreach", { entryIds: ["a", "b"] }), "batch_outreach:a,b");
+  // A different cohort is a different run.
+  assert.notEqual(
+    buildDedupeKey("batch_outreach", { entryIds: ["a", "b"] }),
+    buildDedupeKey("batch_outreach", { entryIds: ["a", "c"] })
+  );
+  // No selection → no stable identity (a unique key, never a merge).
+  assert.equal(buildDedupeKey("batch_outreach", { entryIds: [] }), null);
+  assert.equal(buildDedupeKey("batch_outreach", {}), null);
+});
+
 test("jd_build keys by jdSlug in the backgrounded flow, by input otherwise", () => {
   // Backgrounded generate: the placeholder JD's slug is the identity, so each
   // Generate is a distinct build and a retry (same slug) dedupes onto it.
