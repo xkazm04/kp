@@ -267,7 +267,14 @@ export async function runAnalyze(p: AnalyzeParams, onProgress?: ProgressFn, sign
         status: "ok",
         saved_slug: persisted?.slug ?? null,
       });
-      return { ...single.analysis, persistence: persisted, ...(partialFailures.length ? { partialFailures } : {}) };
+      return {
+        ...single.analysis,
+        persistence: persisted,
+        // Whether this delivery did NO new engine work (every success cached) — the
+        // live result surfaces a "served from cache, no new cost" note from it.
+        servedFromCache: allCached,
+        ...(partialFailures.length ? { partialFailures } : {}),
+      };
     }
 
     const comparison = buildComparison(analyses);
@@ -285,7 +292,12 @@ export async function runAnalyze(p: AnalyzeParams, onProgress?: ProgressFn, sign
       status: "ok",
       saved_slug: persisted?.slug ?? null,
     });
-    return { ...merged, persistence: persisted, ...(partialFailures.length ? { partialFailures } : {}) };
+    return {
+      ...merged,
+      persistence: persisted,
+      servedFromCache: allCached,
+      ...(partialFailures.length ? { partialFailures } : {}),
+    };
   } finally {
     await cleanupWorkdir(p.baseDir);
   }

@@ -91,7 +91,11 @@ export const analysisSchema = analysisResultSchema.extend({
   // failed variant(s) are NAMED here (which file, what error) so the client can
   // surface them in the result UI, not bury them in logs. Attached by analyze-run
   // only on a partial run; absent on a clean or single-CV run.
-  partialFailures: z.array(z.object({ label: z.string(), error: z.string() })).nullish()
+  partialFailures: z.array(z.object({ label: z.string(), error: z.string() })).nullish(),
+  // True when the delivered run did NO new engine work — every surviving variant
+  // was served from the analyze cache (a re-run / duplicate). The live Analyze
+  // result reads this to show a "served from cache, no new cost" note.
+  servedFromCache: z.boolean().nullish()
 });
 
 export type Analysis = z.infer<typeof analysisSchema>;

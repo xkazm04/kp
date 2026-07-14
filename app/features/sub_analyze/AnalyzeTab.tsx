@@ -95,6 +95,9 @@ export function AnalyzeTab() {
           analysis={result.analysis}
           pipelineRef={pipelineRef}
           pipelineDisabledReason={pipelineDisabledReason}
+          // Cross-worktree seam (director note): flag a fully-cached delivery so the
+          // engine builder's "served from cache — no new cost" note fires at merge.
+          runCached={result.analysis.servedFromCache ?? undefined}
           github={
             result.githubStatus === "idle"
               ? undefined
