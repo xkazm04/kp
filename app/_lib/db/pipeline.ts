@@ -521,6 +521,33 @@ export function candidateOutcomes(workspaceId: string = DEFAULT_WORKSPACE_ID): M
   return m;
 }
 
+/** The candidate's TERMINAL pipeline entries in OTHER roles — the qualifying priors
+ *  a manual rediscovery reach-out links to the freshly-minted target entry (the
+ *  `rematched` re-engagement case). Only merit/timing terminals qualify:
+ *  rejected (company passed), declined (candidate passed), role_closed (role filled
+ *  out from under them) — exactly the silver-medalist statuses pickPrior surfaces.
+ *  DELIBERATELY excludes any ACTIVE entry (a Hired candidate stays status='active',
+ *  so it's excluded here too) — a re-engagement must never close a live application —
+ *  and 'rematched' (already redirected; re-linking would just accrete duplicate
+ *  links). SCOPED to workspaceId (direction 1): priors are read in the same tenant
+ *  the reach-out runs in. Returns id + jobId so the caller can drive rematchSourceEntry. */
+export function terminalPriorEntriesForCandidate(
+  candidateId: string,
+  excludeJobId: string,
+  workspaceId: string = DEFAULT_WORKSPACE_ID
+): { id: string; jobId: string | null }[] {
+  const key = (candidateId ?? "").trim();
+  if (!key) return [];
+  const rows = ensureDb()
+    .prepare(
+      `SELECT id, job_id FROM pipeline_entries
+        WHERE candidate_id = ? AND workspace_id = ? AND (job_id IS NULL OR job_id != ?)
+          AND status IN ('rejected', 'declined', 'role_closed')`
+    )
+    .all(key, workspaceId, excludeJobId) as { id: string; job_id: string | null }[];
+  return rows.map((r) => ({ id: r.id, jobId: r.job_id }));
+}
+
 /** Which of these entries carry an event of `kind` (W8-5 — e.g. the durable
  *  outreach_sent markers backing the sourcing ranking's persisted state).
  *  Chunked IN query under the SQLite variable limit. */

@@ -4,6 +4,7 @@ import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { AutomationError, runAutomationTask } from "@/app/_lib/automation-run";
 import { inferProfileLocale } from "@/app/_lib/comms-locale";
 import { candidateOutreachSuppression } from "@/app/_lib/rediscovery-alert-store";
+import { linkTerminalPriorsToTarget } from "@/app/_lib/rediscovery-prior-link";
 import { safeJsonError } from "@/app/_lib/api-response";
 
 // The outreach draft spawns the Claude CLI (automation_cli) — comfortably exceed
@@ -92,6 +93,21 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       locale: inferProfileLocale(body.candidateId),
       workspaceId: ws,
     });
+
+    // Close-the-prior (direction 3): a reach-out re-engages a silver medalist under a
+    // NEW role — link their terminal priors (rejected/role_closed/declined elsewhere)
+    // to this fresh entry via the SAME rematchSourceEntry machinery the automation
+    // rematch uses, so one person is never left active in the new role with orphaned
+    // history. Gated on `created` — the reach-out idempotency contract — so a repeat
+    // click (created:false) never re-links. Best-effort: a linking hiccup must never
+    // fail the outreach the recruiter actually asked for.
+    if (created) {
+      try {
+        linkTerminalPriorsToTarget(body.candidateId, entry.id, job.id, ws);
+      } catch (linkErr) {
+        console.error("[outreach] prior-link failed (non-fatal):", linkErr);
+      }
+    }
 
     const result = await runAutomationTask(entry.id, "outreach", "", undefined, undefined, ws);
     return NextResponse.json({ entryId: entry.id, created, applied: result.applied });
