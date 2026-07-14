@@ -67,6 +67,11 @@ export const TENANCY_SCOPED_TABLES: ReadonlySet<string> = new Set([
   "channel_webhooks",
   "channel_spend",
   "dev_outbox",
+  // Phase 1 — recruiter-set analytics goals (analytics.ts: setAnalyticsTarget/
+  // listAnalyticsTargets). PK widened to (metric, workspace_id) so each team keeps its
+  // own funnel-conversion goals, time-to-hire goal, and recruiter_hourly_czk ROI rate;
+  // every read/write filters workspace_id (analytics-targets-tenancy.test.ts).
+  "analytics_targets",
   // Phase 1 — the Schedule surface (self-scheduling invites). The recruiter agenda +
   // invite creation + per-team slot-collision checks filter workspace_id (derived from
   // the linked entry). The candidate token flow, the reminder heartbeat's by-id ops,
@@ -177,7 +182,6 @@ export const TENANCY_EXEMPT_TABLES: ReadonlySet<string> = new Set([
   "ats_config", // the org's outbound ATS webhook integration (one endpoint)
   "ats_delivery", // the ATS webhook delivery ledger (sibling of ats_config; deployment/org-level, not per-tenant)
   "login_attempts", // brute-force throttle counters keyed by email/IP — deployment-global, no tenant dimension
-  "analytics_targets", // the org's hiring targets — "the org's recruiter hourly rate", time-to-hire goal
   "llm_usage", // deployment-level LLM metering ledger (sibling of billing_usage; written off-request from Python)
   "scheduler", // global background-job scheduler state
   "scheduler_runs",

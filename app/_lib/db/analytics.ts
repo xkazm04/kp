@@ -508,12 +508,12 @@ export function pipelineAnalytics(
     byVariant,
     byVariantTotal: variantStats.length,
     variantRecommendations,
-    targets: analyticsTargets(),
+    targets: analyticsTargets(workspaceId),
     costPerHireCzk,
     // b39992b1 — value of the automation over this window, at the stored (or
     // default) recruiter hourly rate, from the same kindCounts the rollup uses.
     // `hired` anchors the per-hire baseline framing (UAT M7).
-    automationRoi: automationRoi(kindCounts, listAnalyticsTargets().get(RECRUITER_HOURLY_TARGET_KEY), hired),
+    automationRoi: automationRoi(kindCounts, listAnalyticsTargets(workspaceId).get(RECRUITER_HOURLY_TARGET_KEY), hired),
   };
 }
 
@@ -522,22 +522,25 @@ export function pipelineAnalytics(
 // reserved TIME_TO_HIRE_TARGET_KEY; every other row is a funnel stage name →
 // conversion %% goal.
 
-/** Set (positive value) or clear (null / non-positive) one analytics goal. */
-export function setAnalyticsTarget(metric: string, value: number | null): void {
+/** Set (positive value) or clear (null / non-positive) one analytics goal. P1 — the
+ *  goal belongs to the caller's workspace (the PK is (metric, workspace_id)). */
+export function setAnalyticsTarget(metric: string, value: number | null, workspaceId: string = DEFAULT_WORKSPACE_ID): void {
   const db = ensureDb();
   if (value == null || !(value > 0)) {
-    db.prepare(`DELETE FROM analytics_targets WHERE metric = ?`).run(metric);
+    db.prepare(`DELETE FROM analytics_targets WHERE metric = ? AND workspace_id = ?`).run(metric, workspaceId);
     return;
   }
   db.prepare(
-    `INSERT INTO analytics_targets (metric, target_value, updated_at) VALUES (?, ?, ?)
-     ON CONFLICT(metric) DO UPDATE SET target_value = excluded.target_value, updated_at = excluded.updated_at`
-  ).run(metric, value, new Date().toISOString());
+    `INSERT INTO analytics_targets (metric, target_value, updated_at, workspace_id) VALUES (?, ?, ?, ?)
+     ON CONFLICT(metric, workspace_id) DO UPDATE SET target_value = excluded.target_value, updated_at = excluded.updated_at`
+  ).run(metric, value, new Date().toISOString(), workspaceId);
 }
 
-/** All set goals as a metric → value map (stage names + the TTH key). */
-export function listAnalyticsTargets(): Map<string, number> {
-  const rows = ensureDb().prepare(`SELECT metric, target_value FROM analytics_targets`).all() as {
+/** All set goals as a metric → value map (stage names + the TTH key), for one workspace. */
+export function listAnalyticsTargets(workspaceId: string = DEFAULT_WORKSPACE_ID): Map<string, number> {
+  const rows = ensureDb()
+    .prepare(`SELECT metric, target_value FROM analytics_targets WHERE workspace_id = ?`)
+    .all(workspaceId) as {
     metric: string;
     target_value: number;
   }[];
@@ -546,8 +549,8 @@ export function listAnalyticsTargets(): Map<string, number> {
 
 /** Split the flat goal map into the funnel-conversion targets and the lone
  *  time-to-hire target the analytics payload exposes. */
-function analyticsTargets(): { conversion: Record<string, number>; timeToHireDays: number | null } {
-  const all = listAnalyticsTargets();
+function analyticsTargets(workspaceId: string = DEFAULT_WORKSPACE_ID): { conversion: Record<string, number>; timeToHireDays: number | null } {
+  const all = listAnalyticsTargets(workspaceId);
   const timeToHireDays = all.get(TIME_TO_HIRE_TARGET_KEY) ?? null;
   const conversion: Record<string, number> = {};
   for (const [metric, value] of all) {

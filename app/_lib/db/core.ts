@@ -1076,6 +1076,28 @@ export function ensureDb(): Database.Database {
        ALTER TABLE channel_spend_new RENAME TO channel_spend;`
     );
   }
+  // analytics_targets: same additive migration as channel_spend — widen the single-column
+  // PK to (metric, workspace_id) so each team keeps its own hiring goals (funnel conversion
+  // targets, the time-to-hire goal, and the recruiter_hourly_czk rate that drives the
+  // automation-ROI figure). One-time rebuild (SQLite can't alter a PK); guarded by the
+  // absence of the workspace_id column so it runs exactly once. Existing rows keep working
+  // for the default workspace.
+  const targetCols = db.prepare(`PRAGMA table_info(analytics_targets)`).all() as { name: string }[];
+  if (!targetCols.some((c) => c.name === "workspace_id")) {
+    db.exec(
+      `CREATE TABLE analytics_targets_new (
+         metric TEXT NOT NULL,
+         target_value REAL NOT NULL,
+         updated_at TEXT NOT NULL,
+         workspace_id TEXT NOT NULL DEFAULT 'workspace',
+         PRIMARY KEY (metric, workspace_id)
+       );
+       INSERT INTO analytics_targets_new (metric, target_value, updated_at, workspace_id)
+         SELECT metric, target_value, updated_at, 'workspace' FROM analytics_targets;
+       DROP TABLE analytics_targets;
+       ALTER TABLE analytics_targets_new RENAME TO analytics_targets;`
+    );
+  }
   // Null-contract heal: `approval_detail` is nullable and "no detail" is NULL (its
   // sibling approval_kind clears to NULL), but earlier clear/insert paths wrote '',
   // so a "cleared" detail read back as "" on some rows and NULL on others. Now that

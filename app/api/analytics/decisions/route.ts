@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { countPipelineEvents, listPipelineEvents } from "@/app/_lib/db";
+import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { DECISION_META } from "@/app/_lib/decision-attribution";
 
 
@@ -39,8 +40,12 @@ export async function GET(request: Request) {
     const limit = clampInt(searchParams.get("limit"), DEFAULT_LIMIT, 1, MAX_LIMIT);
     const offset = clampInt(searchParams.get("offset"), 0, 0, Number.MAX_SAFE_INTEGER);
     const kinds = resolveKindFilter(searchParams.get("kind"), searchParams.get("attribution"));
-    const total = countPipelineEvents(kinds);
-    const decisions = listPipelineEvents(limit, offset, kinds);
+    // P1 — the decision log is a per-team audit trail; scope both the count and
+    // the page to the caller's workspace (previously unscoped → every team saw
+    // the default workspace's trail).
+    const ws = await currentWorkspace();
+    const total = countPipelineEvents(kinds, ws);
+    const decisions = listPipelineEvents(limit, offset, kinds, ws);
     const nextOffset = offset + decisions.length;
     return NextResponse.json({ decisions, total, hasMore: nextOffset < total, nextOffset });
   } catch (error) {

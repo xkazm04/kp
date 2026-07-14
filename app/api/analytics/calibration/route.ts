@@ -25,8 +25,11 @@ export async function GET(request: Request) {
     const params = new URL(request.url).searchParams;
     const roleFamily = params.get("roleFamily");
     const source = params.get("source") === "analysis" ? "analysis" : "pipeline";
-    const allPairs =
-      source === "analysis" ? calibrationPairs(await currentWorkspace()) : pipelineCalibrationPairs();
+    // P1 — both producers are per-team reliability metrics: scope BOTH to the
+    // caller's workspace (the pipeline branch previously defaulted, leaking the
+    // default workspace's calibration curve to every team).
+    const ws = await currentWorkspace();
+    const allPairs = source === "analysis" ? calibrationPairs(ws) : pipelineCalibrationPairs(ws);
     // The distinct families present (from the UNFILTERED set) so the UI can offer a
     // data-driven "how accurate are you for <family> roles?" selector — stable
     // regardless of which family is currently selected.
