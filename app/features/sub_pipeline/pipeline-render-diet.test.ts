@@ -10,9 +10,12 @@ import assert from "node:assert/strict";
 import {
   boardSignature,
   eventsSignature,
+  eventSignature,
   candidateRowEqual,
   entrySignature,
   stageCellSignature,
+  agingBucket,
+  relativeTimeBucketKey,
 } from "./pipeline-render-diet.ts";
 import type { Entry, PipelineEvent } from "./PipelineTypes.ts";
 
@@ -97,6 +100,59 @@ test("stageCellSignature folds stale + selected state, so an SLA/selection chang
   assert.equal(base, stageCellSignature([makeEntry(), makeEntry({ id: "e2" })], noneStale, noSel), "identical cell ⇒ identical signature");
   assert.notEqual(base, stageCellSignature(entries, e1Stale, noSel), "an SLA override that ages e1 re-renders the cell");
   assert.notEqual(base, stageCellSignature(entries, noneStale, e1Sel), "selecting e1 re-renders the cell");
+});
+
+// Direction 2 — aging that actually ages. The board signature folds the DERIVED
+// aging bucket, so a candidate crossing its SLA purely by the clock flips the
+// signature (→ setEntries → the amber dot + staleCount update) with NO data change.
+const DAY = 86_400_000;
+
+test("agingBucket: fresh below the SLA, aging at/after it; Hired and unparseable read fresh", () => {
+  const now = Date.parse("2026-06-01T00:00:00.000Z");
+  // Screened SLA is 7 days. 6 days in = fresh; 7 days in = aging.
+  const at = (days: number) => makeEntry({ stage: "Screened", stageChangedAt: new Date(now - days * DAY).toISOString() });
+  assert.equal(agingBucket(at(6), null, now), 0, "6 days in Screened (SLA 7) is fresh");
+  assert.equal(agingBucket(at(7), null, now), 1, "7 days in Screened (SLA 7) is aging");
+  assert.equal(agingBucket(makeEntry({ stage: "Hired", stageChangedAt: new Date(now - 99 * DAY).toISOString() }), null, now), 0, "Hired never ages");
+  assert.equal(agingBucket(makeEntry({ stageChangedAt: null }), null, now), 0, "no timestamp reads fresh");
+  // A per-board override tightens the threshold, so the same card ages sooner.
+  assert.equal(agingBucket(at(4), { Screened: 3 }, now), 1, "an override of 3d ages a 4-day-old card");
+});
+
+test("boardSignature flips on a pure clock crossing (no data change) and skips when no bucket moved", () => {
+  const now0 = Date.parse("2026-06-01T00:00:00.000Z");
+  // 6 days into Screened (SLA 7): fresh at now0.
+  const e = makeEntry({ stage: "Screened", stageChangedAt: new Date(now0 - 6 * DAY).toISOString() });
+
+  // A quiet poll one hour later: still 6 days in, bucket unchanged → identical
+  // signature → setEntries is skipped (no needless render).
+  assert.equal(
+    boardSignature([e], { now: now0 }),
+    boardSignature([e], { now: now0 + 3_600_000 }),
+    "a no-change poll where no bucket moved yields the SAME signature"
+  );
+
+  // Two days later the card is 8 days in — it crossed the SLA. Same entry object,
+  // no data change, yet the signature MUST differ so the aging dot flips.
+  assert.notEqual(
+    boardSignature([e], { now: now0 }),
+    boardSignature([e], { now: now0 + 2 * DAY }),
+    "crossing the SLA by the clock alone flips the board signature within one tick"
+  );
+});
+
+test("relativeTimeBucketKey: day-granular, so sub-day drift is quiet but a day boundary is not", () => {
+  const created = "2026-06-01T00:00:00.000Z";
+  const t0 = Date.parse(created);
+  assert.equal(relativeTimeBucketKey(created, t0 + 2 * DAY), relativeTimeBucketKey(created, t0 + 2 * DAY + 3_600_000), "same day ⇒ same bucket");
+  assert.notEqual(relativeTimeBucketKey(created, t0 + 2 * DAY), relativeTimeBucketKey(created, t0 + 3 * DAY), "2d → 3d changes the bucket");
+});
+
+test("eventSignature folds the relative-time bucket, so a quiet day boundary changes the feed signature", () => {
+  const ev = { id: 1, candidateLabel: "A. N.", jobTitle: "Role", kind: "advanced", toStage: "Interview", detail: null, createdAt: "2026-06-01T00:00:00.000Z" };
+  const t0 = Date.parse(ev.createdAt);
+  assert.equal(eventSignature(ev, t0 + 2 * DAY), eventSignature(ev, t0 + 2 * DAY + 3_600_000), "same day ⇒ same event signature");
+  assert.notEqual(eventSignature(ev, t0 + 2 * DAY), eventSignature(ev, t0 + 3 * DAY), "a day boundary changes the event signature with no new event");
 });
 
 test("eventsSignature: identical feed shares a signature; a new event breaks it", () => {

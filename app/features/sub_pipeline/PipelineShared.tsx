@@ -26,7 +26,7 @@ import { useScoreProvenanceText } from "@/app/_components/ScoreProvenanceLabel";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { canonicalScoreOf, provenanceOf } from "@/app/_lib/match-score";
 import { moveTargetStages } from "./pipeline-move-targets";
-import { candidateRowEqual } from "./pipeline-render-diet";
+import { candidateRowEqual, relativeTimeBucket } from "./pipeline-render-diet";
 import { ARCHETYPE_STYLE, daysSince, slaForStage, styleFor, type Entry, type PipelineEvent } from "./PipelineTypes";
 
 // The pipeline-lifecycle event taxonomy that the activity feed renders richly.
@@ -136,17 +136,28 @@ export function useEventVerb(): (ev: PipelineEvent) => string {
 
 // Localized "time ago" for the feed (today / yesterday / Nd / Nw / Nmo). A hook so
 // it reads the request locale; replaces the English-only relativeTime() at its
-// call sites (feed rows, the drawer history, the scheduler's last-run line).
+// call sites (feed rows, the drawer history, the scheduler's last-run line). The
+// day-bucket cut points are single-sourced from relativeTimeBucket (pipeline-render-
+// diet), the SAME classifier eventSignature folds — so the rendered label and the
+// feed's re-render signature can never disagree on when "2d" becomes "3d".
 export function useRelativeTime(): (iso: string) => string {
   const t = useTranslations("pipeline.relTime");
   return (iso) => {
-    const d = daysSince(iso);
-    if (d == null) return "";
-    if (d <= 0) return t("today");
-    if (d === 1) return t("yesterday");
-    if (d < 7) return t("daysAgo", { d });
-    if (d < 30) return t("weeksAgo", { w: Math.floor(d / 7) });
-    return t("monthsAgo", { mo: Math.floor(d / 30) });
+    const b = relativeTimeBucket(iso);
+    switch (b.unit) {
+      case "none":
+        return "";
+      case "today":
+        return t("today");
+      case "yesterday":
+        return t("yesterday");
+      case "day":
+        return t("daysAgo", { d: b.n });
+      case "week":
+        return t("weeksAgo", { w: b.n });
+      case "month":
+        return t("monthsAgo", { mo: b.n });
+    }
   };
 }
 

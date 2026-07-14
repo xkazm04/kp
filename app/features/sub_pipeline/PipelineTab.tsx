@@ -246,6 +246,15 @@ export function PipelineTab() {
   // load always writes).
   const lastEntriesSigRef = useRef<string | null>(null);
   const lastEventsSigRef = useRef<string | null>(null);
+  // The board signature folds each entry's DERIVED aging bucket, which depends on the
+  // recruiter's per-board SLA overrides — read via a ref so the (stable, [t]-only)
+  // load callback and its 30s poll see the current overrides without being recreated
+  // on every override keystroke. Override EDITS reflect immediately via re-render
+  // (isStale/staleCount recompute); the ref only keeps the poll gate consistent.
+  const slaOverridesRef = useRef<Record<string, number>>({});
+  useEffect(() => {
+    slaOverridesRef.current = slaOverrides;
+  }, [slaOverrides]);
   const load = useCallback(() => {
     abortRef.current?.abort();
     const controller = new AbortController();
@@ -260,7 +269,7 @@ export function PipelineTab() {
         // Content-equality short-circuit: only reset the entries array when the
         // rendered content actually changed. setError(null) below is a no-op
         // re-render when error is already null (React bails on an identical value).
-        const sig = boardSignature(next);
+        const sig = boardSignature(next, { overrides: slaOverridesRef.current });
         if (sig !== lastEntriesSigRef.current) {
           lastEntriesSigRef.current = sig;
           setEntries(next);
