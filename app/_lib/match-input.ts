@@ -2,6 +2,7 @@ import { writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import path from "node:path";
 import { getProfileRecord } from "./db";
+import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 import { candidateSignature, resolveCandidate, type CandidateInput } from "./match-candidate";
 
 // Body fields both /api/match and the reasoning runner read to resolve their
@@ -29,11 +30,18 @@ export type MatchInput =
  * profile-vs-candidate handling (which record to load, what file to write, which
  * --json flag to pass, how to key the cache) never diverges between the two routes.
  */
-export async function writeMatchInput(body: MatchInputBody, workdir: string): Promise<MatchInput> {
+export async function writeMatchInput(
+  body: MatchInputBody,
+  workdir: string,
+  // Tenancy: profile/analysis resolution is scoped to the caller's workspace so a
+  // cross-workspace id is not-found rather than mixing tenants (matches /api/match's
+  // workspace-scoped corpus). Defaults preserve behavior for single-workspace callers.
+  workspaceId: string = DEFAULT_WORKSPACE_ID
+): Promise<MatchInput> {
   if (body.profileId) {
     // v2 profile: hand the raw CandidateProfileV2 to Python, which transforms it
     // (skills+provenance, potential) into a MatchCandidate before matching.
-    const record = getProfileRecord(body.profileId);
+    const record = getProfileRecord(body.profileId, workspaceId);
     if (!record) return { error: "Profile not found.", status: 404 };
     // Mix a content hash of the profile payload into the key so an in-place edit
     // (same profileId, changed skills/aspirations/etc.) invalidates its cached
@@ -44,7 +52,7 @@ export async function writeMatchInput(body: MatchInputBody, workdir: string): Pr
     return { inputArgs: ["--profile-json", profilePath], keyPart: `profile:${body.profileId}:${contentHash}` };
   }
 
-  const resolved = resolveCandidate(body);
+  const resolved = resolveCandidate(body, workspaceId);
   if ("error" in resolved) return { error: resolved.error, status: resolved.status };
   const candidatePath = path.join(workdir, "candidate.json");
   await writeFile(candidatePath, JSON.stringify(resolved.candidate), "utf-8");

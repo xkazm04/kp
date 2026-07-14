@@ -19,7 +19,7 @@ export async function GET() {
   try {
     const ws = await currentWorkspace();
 
-    const analysisRows = listAnalysisRecords(200).map(({ row, payload }) => {
+    const analysisRows = listAnalysisRecords(200, ws).map(({ row, payload }) => {
       const v2 = (payload as { v2Profile?: { archetype?: string } } | null)?.v2Profile;
       return {
         key: `analysis:${row.slug}`,

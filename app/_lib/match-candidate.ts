@@ -1,4 +1,5 @@
 import { loadAnalysis } from "@/app/_lib/db";
+import { DEFAULT_WORKSPACE_ID } from "@/app/_lib/db/workspaces";
 import { DEFAULT_ROLE_FAMILY } from "./role-families.ts";
 
 // Shape passed to the Python matcher (camelCase; MatchCandidate accepts aliases).
@@ -36,12 +37,17 @@ export type ResolvedCandidate = { candidate: CandidateInput } | { error: string;
  * Build a CandidateInput from either a saved analysis slug or an inline candidate.
  * Shared by /api/match and /api/match/reasoning so the mapping stays in one place.
  */
-export function resolveCandidate(body: {
-  analysisSlug?: string;
-  candidate?: CandidateInput;
-}): ResolvedCandidate {
+export function resolveCandidate(
+  body: {
+    analysisSlug?: string;
+    candidate?: CandidateInput;
+  },
+  // Tenancy: an analysisSlug must resolve only within the caller's workspace, so a
+  // cross-workspace slug is not-found rather than leaking another tenant's candidate.
+  workspaceId: string = DEFAULT_WORKSPACE_ID
+): ResolvedCandidate {
   if (body.analysisSlug) {
-    const loaded = loadAnalysis(body.analysisSlug);
+    const loaded = loadAnalysis(body.analysisSlug, workspaceId);
     if (!loaded) return { error: "Analysis not found.", status: 404 };
     const payload = loaded.payload as { candidate?: Record<string, unknown>; v2Profile?: { archetype?: string } };
     const c = payload?.candidate ?? {};
@@ -96,7 +102,11 @@ export function candidateSignature(c: CandidateInput): string {
     // soft-signal traits collide and the first verdict is served to the second.
     yearsExperience: c.yearsExperience ?? 0,
     traits: [...(c.traits ?? [])].sort(),
-    archetype: c.archetype ?? "bau",
+    // Fail-closed sentinel, matching resolveCandidate's "unknown" default (af60167):
+    // defaulting to "bau" here disagreed with the resolved candidate's archetype, so
+    // an inline candidate with no archetype was keyed as "bau" while scored as
+    // "unknown". Now both agree — see the commit body for the cache-key impact.
+    archetype: c.archetype ?? "unknown",
     // Early-career / career-switcher prompt inputs — same collision hazard, and
     // these are exactly the carefully-handled candidates a wrong verdict hurts most.
     aspirations: [...(c.aspirations ?? [])].sort(),

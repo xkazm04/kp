@@ -33,8 +33,9 @@ export async function POST(request: NextRequest) {
     const body = (await request.json()) as MatchInputBody & { limit?: number; weights?: unknown };
     const limit = resolveMatchLimit(body.limit);
 
+    const workspaceId = await currentWorkspace();
     workdir = await createWorkdir();
-    const input = await writeMatchInput(body, workdir);
+    const input = await writeMatchInput(body, workdir, workspaceId);
     if ("error" in input) {
       return NextResponse.json({ error: input.error }, { status: input.status });
     }
@@ -44,7 +45,7 @@ export async function POST(request: NextRequest) {
     // at any rank. Hand the live DB corpus over as --jobs-json overrides (DB wins
     // on id collision) — mirrors /api/matrix's --jobs-json and rematch's
     // live-corpus hand-off in automation-run.ts.
-    const corpusJobs = listCorpusJobs(await currentWorkspace());
+    const corpusJobs = listCorpusJobs(workspaceId);
     if (corpusJobs.length > 0) {
       const jobsPath = path.join(workdir, "jobs.json");
       await writeFile(jobsPath, JSON.stringify(corpusJobs), "utf-8");

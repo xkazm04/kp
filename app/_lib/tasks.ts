@@ -95,7 +95,7 @@ const HANDLERS: Record<string, Spec> = {
     label: (p) => `${p.task} · ${p.entryLabel ?? p.entryId}`,
   },
   reasoning: {
-    run: (ctx) => runReasoning(ctx.params, ctx.signal),
+    run: (ctx) => runReasoning(ctx.params, ctx.signal, ctx.workspaceId),
     label: (p) => `Why this candidate · ${p.label ?? p.jobId}`,
   },
   batch_screen: {

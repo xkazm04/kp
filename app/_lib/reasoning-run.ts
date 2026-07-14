@@ -8,6 +8,7 @@ import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawn
 import { computeCorpusFingerprint } from "./automation-cache-key";
 import { reasoningCacheKey } from "./reasoning-cache-key";
 import { isCacheableReasoning } from "./reasoning-cache-policy";
+import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 
 // Must match pipeline/jobfit/match_reasoning.py::REASONING_PROMPT_VERSION — a
 // drift here leaves the reasoning cache silently stale. The pairing is enforced
@@ -29,13 +30,25 @@ export class ReasoningError extends Error {
 export type ReasoningInput = MatchInputBody & { jobId?: string; lang?: string };
 
 // Shared core for /api/match/reasoning AND the background-task runner.
-export async function runReasoning(body: ReasoningInput, signal?: AbortSignal): Promise<Record<string, unknown>> {
+//
+// Tenancy: `workspaceId` scopes BOTH the candidate/analysis resolution (writeMatchInput)
+// AND the live corpus (listCorpusJobs) to the caller's tenant — /api/match already
+// scoped its corpus; this closes the same divergence on the reasoning path. Request
+// callers pass currentWorkspace(); the background-task runner passes ctx.workspaceId
+// (the enqueuer's tenant). getJob(jobId) stays a by-id point read (globally-unique PK,
+// jobs-tenancy exempt): it only content-addresses the cache key, and the scoped corpus
+// is what decides which record --job-id actually resolves against.
+export async function runReasoning(
+  body: ReasoningInput,
+  signal?: AbortSignal,
+  workspaceId: string = DEFAULT_WORKSPACE_ID
+): Promise<Record<string, unknown>> {
   if (!body.jobId) throw new ReasoningError("jobId is required.", 400);
   const lang = body.lang === "cs" ? "cs" : "en";
   let workdir: string | null = null;
   try {
     workdir = await createWorkdir();
-    const input = await writeMatchInput(body, workdir);
+    const input = await writeMatchInput(body, workdir, workspaceId);
     if ("error" in input) throw new ReasoningError(input.error, input.status);
     const args = [
       "-m",
@@ -49,7 +62,7 @@ export async function runReasoning(body: ReasoningInput, signal?: AbortSignal): 
     // Same live-corpus hand-off as /api/match: a recruiter-ingested --job-id must
     // resolve here instead of raising "job not found" against the static seed.
     // The CLI augments the seed with these records (DB wins on id collision).
-    const corpusJobs = listCorpusJobs();
+    const corpusJobs = listCorpusJobs(workspaceId);
     if (corpusJobs.length > 0) {
       const jobsPath = path.join(workdir, "jobs.json");
       await writeFile(jobsPath, JSON.stringify(corpusJobs), "utf-8");
