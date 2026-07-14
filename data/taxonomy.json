@@ -56,6 +56,13 @@
     "customer_support": ["support", "podpora", "helpdesk", "customer", "zákaznick", "service", "servis", "success", "call center", "agent", "operátor", "klient", "client", "dispečink"],
     "general_professional": ["office", "kancelář", "administ", "admin", "coordinator", "koordinátor", "assistant", "asisten", "consultant", "konzultant", "manager", "manažer", "specialist", "specialista", "clerk", "referent", "back office"]
   },
+  "_doc_language_aliases": "language_aliases maps a canonical language key to the lowercased needle substrings that satisfy a requirement for it in the KO filter / language-coverage blend (pipeline/jobfit/matching.py::_has_language) — so a candidate listing 'Czech (native)' or 'čeština' still satisfies a 'Czech' requirement. Moved out of a hardcoded matching.py dict so a new required language is config, not code; matching.py's raw-matching fallback only fires for a required language with no bucket here. taxonomy.py loads + validates it (non-empty language -> non-empty string-needle list). Values preserve the original four hardcoded buckets exactly.",
+  "language_aliases": {
+    "english": ["english", "angli", "en "],
+    "czech": ["czech", "česk", "cesk", "čeština", "cestina"],
+    "german": ["german", "deutsch", "němč", "nemc"],
+    "slovak": ["slovak", "slovenš", "slovens"]
+  },
   "terms": [
     {
       "id": "python",

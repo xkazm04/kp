@@ -66,8 +66,15 @@ TAXONOMY_JSON = REPO_ROOT / "data" / "taxonomy.json"
 # served as-is (their divergent totals already display reconciled to the component
 # sum via reconcileScoreTotal). So no cached analysis OUTPUT is invalidated and
 # PROMPT_VERSION is intentionally NOT bumped.
+# NOTE (matching-engine round 2 — data-driven language aliases): the fingerprint was
+# re-recorded when data/taxonomy.json gained `language_aliases` (the four language
+# buckets moved out of a hardcoded matching.py dict). The whole-file taxonomy hash is
+# deliberately conservative, so it trips on ANY taxonomy edit — but language_aliases
+# is read ONLY by the KO filter / language-coverage blend (matching._has_language),
+# never by the Gemini analysis prompt or ANALYSIS_RESPONSE_SCHEMA, so no cached
+# analysis output changed. PROMPT_VERSION is therefore intentionally NOT bumped.
 EXPECTED_PROMPT_VERSION = "v5-2026-06-09-lang-cachekey"
-EXPECTED_ANALYSIS_FINGERPRINT = "c9a2f9817ea0f78ce8ba82938391ccf686a2ac7b258b5a2cf03d7430df2f4511"
+EXPECTED_ANALYSIS_FINGERPRINT = "0d345edbee7e32dfffc564166dd0a23562fba9a5457d4e9231e6e4a098bfb267"
 
 
 def _strip_ts_comments(text: str) -> str:

@@ -27,18 +27,17 @@ from pydantic import Field, field_validator
 from . import registry
 from .jobs import Job
 from .models import _Base
-from .taxonomy import DEFAULT_PROVENANCE, skill_match_score
+from .taxonomy import DEFAULT_PROVENANCE, LANGUAGE_ALIASES, skill_match_score
 
 _SENIORITY_RANK = {"junior": 1, "medior": 2, "senior": 3, "lead": 4}
 _EDU_RANK = {"none": 0, "university": 1, "bachelor": 2, "master": 3, "phd": 4}
 
-# Language alias buckets so "Czech (native)" satisfies a "Czech" requirement.
-_LANG_ALIASES = {
-    "english": ("english", "angli", "en "),
-    "czech": ("czech", "česk", "cesk", "čeština", "cestina"),
-    "german": ("german", "deutsch", "němč", "nemc"),
-    "slovak": ("slovak", "slovenš", "slovens"),
-}
+# Language alias buckets so "Czech (native)" satisfies a "Czech" requirement. Now
+# data-driven (data/taxonomy.json::language_aliases, loaded + validated in
+# taxonomy.py) so a new required language is config, not a code edit here; when a
+# required language has no bucket, _has_language falls back to raw matching on the
+# requirement string itself.
+_LANG_ALIASES = LANGUAGE_ALIASES
 
 # Archetype scoring weights (must sum to 1.0), display labels per slot, and the
 # early-career set — all sourced from the shared registry (archetypes.json) so a

@@ -139,6 +139,30 @@ for _map_name, _fam_map in (("family_degree_terms", FAMILY_DEGREE_TERMS), ("adja
             "covered so the early-career/switcher transform has surface heuristics for it."
         )
 
+# Canonical language -> lowercased needle substrings that satisfy a requirement for
+# that language in the KO filter / language-coverage blend (matching._has_language).
+# Lives in data (data/taxonomy.json::language_aliases) so a new required language is
+# config, not a hardcoded matching.py dict; matching's raw-matching fallback only
+# fires for a required language with NO bucket here.
+_raw_language_aliases = _TAXONOMY.get("language_aliases")
+if not isinstance(_raw_language_aliases, dict) or not _raw_language_aliases:
+    raise RuntimeError(
+        f"{_TAXONOMY_PATH}::language_aliases must be a non-empty object mapping a "
+        "language key to a list of lowercased needle strings."
+    )
+LANGUAGE_ALIASES: dict[str, tuple[str, ...]] = {}
+for _lang, _needles in _raw_language_aliases.items():
+    if (
+        not isinstance(_needles, list)
+        or not _needles
+        or not all(isinstance(_n, str) and _n for _n in _needles)
+    ):
+        raise RuntimeError(
+            f"{_TAXONOMY_PATH}::language_aliases[{_lang!r}] must be a non-empty list "
+            "of non-empty needle strings."
+        )
+    LANGUAGE_ALIASES[str(_lang)] = tuple(_needles)
+
 COMPANY_ADJUSTMENTS: dict[str, dict[str, Any]] = dict(_TAXONOMY.get("company_adjustments", {}))
 COMPANY_MODIFIER_EFFECTS: dict[str, dict[str, Any]] = dict(_TAXONOMY.get("company_modifier_effects", {}))
 SALARY_SIGNAL_RATIONALE: dict[str, str] = {
@@ -209,14 +233,20 @@ def _text_contains(text: str, compact_text: str, surface: str) -> bool:
     if not surface:
         return False
     normalized = _normalize(surface)
-    if normalized in text:
+    # Whole-token literal match (reuses contains_whole_token, the same primitive
+    # ats.py uses): the surface must appear as a standalone token, never as a raw
+    # substring inside an unrelated word. The old ``normalized in text`` had NO
+    # length guard, so a 2-char surface form (a language/skill alias like "go" or
+    # "hr") matched inside words like "goal"/"chráněný" and misrouted the role
+    # family / salary signal. ``text`` is already normalize_text-folded by callers.
+    if contains_whole_token(text, normalized):
         return True
     compact_form = _compact(normalized)
     # Only fall back to spaceless/compact matching for forms of length >= 3. A 1-2
     # char compact form (e.g. "c#" -> "c", "c++" -> "c", "go") is a substring of
     # countless unrelated words and would match almost any text — which silently
     # voted software_engineering on every CV via the "c#" term. Such short skills
-    # still match precisely through the literal branch above.
+    # still match precisely through the whole-token branch above.
     return len(compact_form) >= 3 and compact_form in compact_text
 
 
