@@ -314,6 +314,60 @@ class DraftsTest(unittest.TestCase):
         self.assertEqual(automation._scorecard_confidence("x" * 1000, full, n)["level"], "moderate")
 
 
+class ReadbackEntitiesTest(unittest.TestCase):
+    """scorecard-v5 — the closing read-back becomes STRUCTURED `entities`. Contract/
+    parse-level only (no live LLM): a canned provider payload proves the coercer keeps
+    a real exchange and drops an absent one, never inventing a read-back."""
+
+    def setUp(self):
+        self.job = mkjob()
+
+    def test_prompt_asks_for_structured_entities(self):
+        # The v5 prompt must instruct the model to emit the structured contract.
+        cap = _CaptureProvider({"ratings": [], "summary": "s", "recommendation": "hold"})
+        automation.interview_scorecard(BAU, self.job, "notes", provider=cap)
+        self.assertIn('"entities"', cap.prompt)
+        self.assertIn('"corrected"', cap.prompt)
+        self.assertIn("read-back", cap.prompt)
+
+    def test_readback_correction_survives_coercion(self):
+        # A transcript WITH a read-back correction: Rust heard, React meant.
+        cap = _CaptureProvider({
+            "ratings": [], "summary": "s", "recommendation": "advance",
+            "entities": {
+                "confirmed": ["PostgreSQL", " Docker "],
+                "corrected": [{"heard": "Rust", "meant": "React"}, {"heard": "", "meant": "x"}],
+                "unconfirmed": ["Kubernetes", 42, ""],
+            },
+        })
+        result, _ = automation.interview_scorecard(BAU, self.job, "notes", provider=cap)
+        ent = result["entities"]
+        self.assertEqual(ent["confirmed"], ["PostgreSQL", "Docker"])  # trimmed
+        self.assertEqual(ent["corrected"], [{"heard": "Rust", "meant": "React"}])  # half-empty pair dropped
+        self.assertEqual(ent["unconfirmed"], ["Kubernetes"])  # non-strings/blanks dropped
+
+    def test_no_readback_omits_entities(self):
+        # A transcript WITHOUT any read-back: entities null / absent → key omitted
+        # entirely (never fabricated), so consumers render no chrome.
+        for payload_entities in (None, {}, {"confirmed": [], "corrected": [], "unconfirmed": []}, "not-a-dict"):
+            cap = _CaptureProvider({
+                "ratings": [], "summary": "s", "recommendation": "hold", "entities": payload_entities,
+            })
+            result, _ = automation.interview_scorecard(BAU, self.job, "notes", provider=cap)
+            self.assertNotIn("entities", result, repr(payload_entities))
+
+    def test_entities_absent_when_key_missing(self):
+        # No `entities` key at all in the model payload → omitted.
+        cap = _CaptureProvider({"ratings": [], "summary": "s", "recommendation": "hold"})
+        result, _ = automation.interview_scorecard(BAU, self.job, "notes", provider=cap)
+        self.assertNotIn("entities", result)
+
+    def test_deterministic_has_no_entities(self):
+        # The keyless deterministic fallback never read anything back.
+        result, _ = automation.interview_scorecard(BAU, self.job, "notes", provider=None)
+        self.assertNotIn("entities", result)
+
+
 class RematchTest(unittest.TestCase):
     def test_finds_best_alternative_excluding_current(self):
         cur = mkjob(title="Cur Python", requirements=[{"skill": "Python", "kind": "must_have", "hardness": "prerequisite"}])

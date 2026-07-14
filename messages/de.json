@@ -2154,7 +2154,12 @@
       "hintIntegrated": "in die Antwort eingebaut",
       "hintAcknowledged": "kurz aufgegriffen",
       "hintMissed": "nicht aufgegriffen",
-      "coverageCaveat": "Auf einem Auszug des Transkripts bewertet — das Modell las {kept} von {total} Redebeiträgen; Anfang und Ende blieben erhalten, die Mitte wurde wegen des Bewertungsbudgets weggelassen. Das vollständige Transkript steht unten."
+      "coverageCaveat": "Auf einem Auszug des Transkripts bewertet — das Modell las {kept} von {total} Redebeiträgen; Anfang und Ende blieben erhalten, die Mitte wurde wegen des Bewertungsbudgets weggelassen. Das vollständige Transkript steht unten.",
+      "readbackHeading": "Zurückgelesene Technologien",
+      "readbackCorrectedHint": "Im Transkript gehört → was es laut Kandidat heißen sollte",
+      "readbackUnconfirmedFlag": "unbestätigt",
+      "readbackUnconfirmedHint": "Früher erwähnt, aber beim Zurücklesen nicht bestätigt — möglicherweise ein Transkriptionsfehler",
+      "readbackNote": "Aus dem abschließenden Zurücklesen: Die Kandidatin oder der Kandidat hat die vom Interviewer gehörten Technologien bestätigt oder korrigiert."
     }
   },
   "library": {

@@ -31,9 +31,11 @@ SCREENING_PROMPT_VERSION = "screening-v1"
 OUTREACH_PROMPT_VERSION = "outreach-v2"
 REJECTION_PROMPT_VERSION = "rejection-v2"
 PREP_PROMPT_VERSION = "interview-prep-v1"
-# scorecard-v4: the prompt carries the ASR read-back trust rule (prefer the candidate's closing
-# confirmation of technologies over earlier corrupted mentions; flag unconfirmed entities).
-SCORECARD_PROMPT_VERSION = "scorecard-v4"
+# scorecard-v5: the read-back exchange is now emitted as STRUCTURED `entities`
+# (confirmed / corrected heard→meant / unconfirmed) alongside the prose trust rule,
+# so a recruiter sees that "Rust" in the raw transcript actually meant React — not
+# just buried in the summary. Grounded ONLY in an actual read-back; null otherwise.
+SCORECARD_PROMPT_VERSION = "scorecard-v5"
 REMATCH_PROMPT_VERSION = "rematch-v1"
 # offer-v3: the result names its pricing basis — the draft-time fresh fit check
 # rides structured as `matchBasis` (rendered under its own label by the approval
@@ -587,6 +589,41 @@ def _scorecard_confidence(notes: str, ratings: list[dict], total: int) -> dict:
     return {"level": "moderate", "reason": "Partial evidence across the competencies."}
 
 
+def _coerce_entities(raw: Any) -> dict | None:
+    """Narrow the model's `entities` blob to the structured read-back record, or None
+    when there was no read-back to show. Grounded, defensive parsing (mirrors the
+    per-rating clamp): a non-dict, a missing field, or empty/malformed buckets never
+    fabricate an exchange. Returns None when EVERY bucket is empty so the key is
+    omitted and absence stays the honest "no read-back happened" signal — never an
+    invented one."""
+    if not isinstance(raw, dict):
+        return None
+
+    def _strs(v: Any) -> list[str]:
+        if not isinstance(v, list):
+            return []
+        out: list[str] = []
+        for x in v:
+            s = x.strip() if isinstance(x, str) else ""
+            if s:
+                out.append(s)
+        return out
+
+    confirmed = _strs(raw.get("confirmed"))
+    unconfirmed = _strs(raw.get("unconfirmed"))
+    corrected: list[dict] = []
+    for c in raw.get("corrected") or []:
+        if not isinstance(c, dict):
+            continue
+        heard = c.get("heard").strip() if isinstance(c.get("heard"), str) else ""
+        meant = c.get("meant").strip() if isinstance(c.get("meant"), str) else ""
+        if heard and meant:
+            corrected.append({"heard": heard, "meant": meant})
+    if not confirmed and not corrected and not unconfirmed:
+        return None
+    return {"confirmed": confirmed, "corrected": corrected, "unconfirmed": unconfirmed}
+
+
 def interview_scorecard(candidate: MatchCandidate, job: Job, notes: str, *, lang: str = "en", provider: Any | None = None, github: Any | None = None):
     from .i18n import language_directive
 
@@ -637,9 +674,17 @@ def interview_scorecard(candidate: MatchCandidate, job: Job, notes: str, *, lang
         "conflicts with an earlier mention, the confirmation wins. Do not credit a specific technology "
         "that appears only in earlier, unconfirmed turns as an established skill: note it in the summary "
         "as unconfirmed (possible transcription error) rather than asserting it.\n"
+        # scorecard-v5: emit that read-back as STRUCTURED data so the recruiter gets a cue, not just prose.
+        'If — and ONLY if — such a read-back exchange actually happened in the transcript, also return an '
+        '"entities" object capturing its outcome: "confirmed" = technologies the candidate confirmed as heard; '
+        '"corrected" = each mishearing the candidate fixed, as {"heard": what the transcript recorded, '
+        '"meant": what the candidate said it should be}; "unconfirmed" = technologies mentioned only in earlier, '
+        'unconfirmed turns and never reached in the read-back (possible transcription errors). If NO read-back '
+        'exchange occurred, set "entities" to null — never invent one.\n'
         'Return JSON: { "ratings": [ { "competency": str (exactly one of the above), "rating": int 1-5, '
         '"evidence": str (verbatim candidate quote, or "") } ], "summary": str, '
-        f'"recommendation": "{RECOMMENDATION_CHOICES}" }}. '
+        f'"recommendation": "{RECOMMENDATION_CHOICES}", '
+        '"entities": { "confirmed": [str], "corrected": [{"heard": str, "meant": str}], "unconfirmed": [str] } | null }. '
         "Include every competency, in the order listed. JSON only.\n"
         # summary + the recommendation rationale are recruiter-facing prose;
         # generate them in the requested language. The per-competency `evidence`
@@ -691,11 +736,19 @@ def interview_scorecard(candidate: MatchCandidate, job: Job, notes: str, *, lang
                 }
             )
         rec = coerce_recommendation(payload.get("recommendation"))
-        return {
+        out = {
             "ratings": ratings,
             "summary": str(payload.get("summary") or det["summary"]),
             "recommendation": rec,
         }
+        # scorecard-v5 — the structured read-back outcome. Attached ONLY when the model
+        # returned a well-formed, non-empty exchange; a null/absent/all-empty `entities`
+        # (no read-back happened) leaves the key off entirely, so consumers treat its
+        # absence as "no read-back" and render no chrome (mirrors the coverage rule).
+        entities = _coerce_entities(payload.get("entities"))
+        if entities is not None:
+            out["entities"] = entities
+        return out
 
     result, source = _generate(provider, prompt, deterministic, coerce)
     # Self-describe which rubric this was scored on (the compare grid renders the

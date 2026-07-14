@@ -6,7 +6,7 @@ import { jdSlugOfJobId } from "./jd-limits";
 import { deriveCommsView } from "./comms-view";
 import { consentStatus, consentWithholdsPii, redactTranscriptForConsent, type ConsentStatus } from "./consent";
 import { getInterviewPrep } from "./interview-prep";
-import type { Scorecard } from "./interview-scorecard";
+import { normalizeScorecardEntities, type Scorecard, type ScorecardEntities } from "./interview-scorecard";
 import type { InterviewTelemetry } from "./interview-telemetry";
 import type { ScorecardCoverage } from "./interview-transcript";
 
@@ -81,6 +81,12 @@ export type InterviewOutcome = {
   // sessions and on a complete-coverage score (no caveat needed).
   telemetry?: InterviewTelemetry;
   coverage?: ScorecardCoverage;
+  // The structured read-back outcome (scorecard-v5): confirmed / corrected
+  // (heard→meant) / unconfirmed technologies from the call's closing confirmation
+  // turn. Rides on the AI scorecard object, so a withheld-PII entry drops it with the
+  // verbatim synthesis. Absent when no read-back happened — same no-chrome rule as
+  // telemetry/coverage.
+  entities?: ScorecardEntities;
 };
 
 // The GDPR consent snapshot + audit trail for one entry — the SAME shape the
@@ -222,6 +228,9 @@ function candidateInterviewOutcome(
     hasTranscript: Array.isArray(session.transcript) && session.transcript.length > 0,
     telemetry: enriched?.telemetry,
     coverage: enriched?.coverage,
+    // Structured read-back — validated through the SAME narrow guard the modal uses so
+    // a malformed/legacy blob degrades to absence (undefined) rather than empty chrome.
+    entities: normalizeScorecardEntities(sc?.entities) ?? undefined,
   };
 }
 

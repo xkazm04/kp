@@ -2125,7 +2125,12 @@
       "hintIntegrated": "integrated into the answer",
       "hintAcknowledged": "acknowledged briefly",
       "hintMissed": "not taken up",
-      "coverageCaveat": "Scored on a sampled transcript — the scorer read {kept} of {total} turns; the opening and closing were kept and the middle was omitted to fit the scoring budget. The full transcript is below."
+      "coverageCaveat": "Scored on a sampled transcript — the scorer read {kept} of {total} turns; the opening and closing were kept and the middle was omitted to fit the scoring budget. The full transcript is below.",
+      "readbackHeading": "Technologies read back",
+      "readbackCorrectedHint": "Heard in the transcript → what the candidate said it should be",
+      "readbackUnconfirmedFlag": "unconfirmed",
+      "readbackUnconfirmedHint": "Mentioned earlier but not reached in the read-back — possibly a transcription error",
+      "readbackNote": "From the closing read-back: the candidate confirmed or corrected the technologies the interviewer heard."
     }
   },
   "library": {

@@ -35,6 +35,48 @@ export type ScorecardRating = {
   offRubric?: boolean;
 };
 
+/** The structured outcome of the closing READ-BACK exchange (scorecard-v5): the
+ *  voice agent reads back the technologies it heard and the candidate confirms or
+ *  corrects them, so a recruiter sees that "Rust" in the raw transcript actually
+ *  meant React — a cue, not just a line buried in the summary. Present ONLY when an
+ *  actual read-back happened; absent (null/undefined) when it didn't, never invented.
+ *  Rides on the AI scorecard object, so consent redaction drops it with the rest of
+ *  the verbatim synthesis. */
+export type ScorecardEntities = {
+  /** Technologies the candidate confirmed as heard — the authoritative stack. */
+  confirmed: string[];
+  /** ASR mishears the candidate fixed in the read-back: heard → what they meant. */
+  corrected: { heard: string; meant: string }[];
+  /** Mentioned only in earlier, unconfirmed turns and never reached in the read-back
+   *  — a possible transcription error, flagged rather than asserted as a skill. */
+  unconfirmed: string[];
+};
+
+/** Narrow a raw, stored `entities` blob (unvalidated JSON on a persisted scorecard)
+ *  to a clean ScorecardEntities, or null when there is no read-back to show.
+ *  Defensive at the trust boundary like the modal's cleanRating: a legacy row, a
+ *  partial synthesis, or a non-Python provider can carry any shape. Returns null when
+ *  every bucket is empty so absence renders no chrome (the "no read-back" signal). */
+export function normalizeScorecardEntities(raw: unknown): ScorecardEntities | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  const strList = (v: unknown): string[] =>
+    Array.isArray(v) ? v.map((x) => (typeof x === "string" ? x.trim() : "")).filter(Boolean) : [];
+  const confirmed = strList(r.confirmed);
+  const unconfirmed = strList(r.unconfirmed);
+  const corrected = (Array.isArray(r.corrected) ? r.corrected : [])
+    .map((c) => {
+      if (!c || typeof c !== "object") return null;
+      const o = c as Record<string, unknown>;
+      const heard = typeof o.heard === "string" ? o.heard.trim() : "";
+      const meant = typeof o.meant === "string" ? o.meant.trim() : "";
+      return heard && meant ? { heard, meant } : null;
+    })
+    .filter((c): c is { heard: string; meant: string } => c !== null);
+  if (confirmed.length === 0 && corrected.length === 0 && unconfirmed.length === 0) return null;
+  return { confirmed, corrected, unconfirmed };
+}
+
 /** The structured interview scorecard: per-competency ratings, a one-line
  *  summary, and the canonical advance|hold|reject verdict. Every field is
  *  optional because a legacy row or a partial/failed synthesis can omit any of
@@ -43,6 +85,9 @@ export type Scorecard = {
   ratings?: ScorecardRating[];
   summary?: string;
   recommendation?: InterviewRecommendation;
+  // The structured read-back outcome (scorecard-v5) — present only when the call
+  // actually closed with a technologies read-back; consumers guard it before render.
+  entities?: ScorecardEntities | null;
   // Who produced this scorecard. Omitted on the AI-synthesized one (treated as
   // "ai" by consumers, the historical default); set to "human" for one a recruiter
   // filled against the rubric (PREP1), so a surface showing both can label them.

@@ -41,11 +41,11 @@ export const AUTOMATION_VERSION: Record<string, string> = {
   outreach: "outreach-v2",
   rejection: "rejection-v2",
   prep: "interview-prep-v1",
-  // v4 — the scorecard prompt carries the ASR read-back trust rule (the candidate's
-  // closing confirmation of technologies beats earlier corrupted transcript mentions;
-  // unconfirmed entities are flagged, not asserted); bumped so cached v3 scorecards
-  // self-invalidate.
-  scorecard: "scorecard-v4",
+  // v5 — the read-back exchange is emitted as STRUCTURED `entities` (confirmed /
+  // corrected heard→meant / unconfirmed) beside the prose trust rule, so the recruiter
+  // gets a cue that "Rust" in the transcript meant React; bumped so cached v4
+  // scorecards self-invalidate and re-run with the structured field.
+  scorecard: "scorecard-v5",
   rematch: "rematch-v1",
   // v3 — the offer payload carries its structured pricing basis (matchBasis, the
   // draft-time fresh fit check) and a rationale that names that producer

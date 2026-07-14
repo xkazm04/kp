@@ -2125,7 +2125,12 @@
       "hintIntegrated": "zapracována do odpovědi",
       "hintAcknowledged": "krátce zmíněna",
       "hintMissed": "nevyužita",
-      "coverageCaveat": "Hodnoceno na vzorku přepisu — model přečetl {kept} z {total} replik; začátek a konec byly zachovány a prostřední část byla vynechána kvůli rozpočtu na hodnocení. Celý přepis je níže."
+      "coverageCaveat": "Hodnoceno na vzorku přepisu — model přečetl {kept} z {total} replik; začátek a konec byly zachovány a prostřední část byla vynechána kvůli rozpočtu na hodnocení. Celý přepis je níže.",
+      "readbackHeading": "Zopakované technologie",
+      "readbackCorrectedHint": "Zaznamenáno v přepisu → jak to podle kandidáta mělo znít",
+      "readbackUnconfirmedFlag": "nepotvrzeno",
+      "readbackUnconfirmedHint": "Zmíněno dříve, ale při zopakování nepotvrzeno — možná chyba přepisu",
+      "readbackNote": "Ze závěrečného zopakování: kandidát potvrdil nebo opravil technologie, které tazatel slyšel."
     }
   },
   "library": {
