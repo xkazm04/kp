@@ -75,7 +75,9 @@ const ROUTES: RouteSpec[] = [
     // 6/10min = one start + five legitimate reconnects after dropped calls.
     key: "`interview-connect:${token}`",
     limit: 6,
-    expensive: "adapter.connect(",
+    // The provider connect moved behind the failover helper (round 8) — the
+    // helper call IS the expensive work the limiter guards.
+    expensive: "connectWithFailover(",
     // Lifecycle guards keep their 404/409 semantics ahead of the throttle.
     servedBefore: 'session0.status === "completed"',
   },
