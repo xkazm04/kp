@@ -27,9 +27,14 @@ export const maxDuration = 180;
 // silver medalist even though its row persists (dismissed state is sticky).
 function relevantAlerts(workspaceId: string) {
   const statuses = listJobStatuses(workspaceId);
-  const outcomes = candidateOutcomes();
+  // Scope BOTH reads to the session workspace: an unscoped candidateOutcomes/
+  // listRediscoveryAlerts defaults to the single tenant, so in any other team the
+  // feed would read the default tenant's alerts + pipeline history regardless of who
+  // is signed in. The alert store persists per-workspace (recordRediscoveryAlerts),
+  // so listRediscoveryAlerts(workspaceId) returns only this team's standing alerts.
+  const outcomes = candidateOutcomes(workspaceId);
   return filterRelevantAlerts(
-    listRediscoveryAlerts(),
+    listRediscoveryAlerts(workspaceId),
     (jobId) => statuses[jobId] === "published",
     (jobId, candidateId) =>
       (outcomes.get(candidateId) ?? []).some((o) => o.jobId === jobId && o.status === "active")

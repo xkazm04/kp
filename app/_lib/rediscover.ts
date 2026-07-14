@@ -1,4 +1,4 @@
-import { candidateOutcomes, getJob, type CandidateOutcome } from "./db";
+import { candidateOutcomes, getJob, getJobWorkspace, type CandidateOutcome } from "./db";
 import { buildCandidatePool } from "./candidate-pool";
 import { listJobStatuses } from "./job-ingest";
 import { rankPoolForJob } from "./recruiter-run";
@@ -76,7 +76,11 @@ export async function rediscoverForJob(
     }[];
     skipped?: { id: string; label: string; reason: string }[];
   }>(job.id, pool, job, { signal: opts.signal });
-  const outcomes = candidateOutcomes();
+  // Prior-outcome labels (pickPrior) MUST read the SAME tenant the pool was built
+  // for — an unscoped read defaults to the single workspace, so in any other team
+  // the "silver medalist" priors would be mislabeled from (or missing against)
+  // another tenant's pipeline history. Mirrors buildCandidatePool(opts.workspaceId).
+  const outcomes = candidateOutcomes(opts.workspaceId);
 
   const rediscovered = ranked.candidates
     .filter((row) => row.koPassed && Math.round(row.result?.total ?? 0) >= SCORE_FLOOR)
@@ -114,9 +118,16 @@ export async function raiseRediscoveryAlertsForJob(
 ): Promise<number> {
   const job = getJob(jobId);
   if (!job) return 0;
+  // Thread the owning tenant so BOTH the outcome lookup (inside rediscoverForJob)
+  // and the persisted alert rows land in the job's workspace — never always the
+  // default. The on-demand route/publish pass their session workspace explicitly;
+  // the pool-change sweep leaves it undefined, so fall back to the job's OWN
+  // workspace (getJobWorkspace → DEFAULT for a seeded corpus job that has no single
+  // owner). A fully per-tenant background sweep is a separate feature (NON-GOAL).
+  const workspaceId = opts.workspaceId ?? getJobWorkspace(jobId);
   try {
-    const { rediscovered } = await rediscoverForJob(job, opts);
-    return recordRediscoveryAlerts(job.id, job.title, rediscovered);
+    const { rediscovered } = await rediscoverForJob(job, { ...opts, workspaceId });
+    return recordRediscoveryAlerts(job.id, job.title, rediscovered, workspaceId);
   } catch {
     return 0;
   }

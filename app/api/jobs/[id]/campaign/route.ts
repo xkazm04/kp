@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
 import { getCampaignPack, getJob, saveCampaignPack } from "@/app/_lib/db";
+import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "@/app/_lib/python-runner";
 import { DEFAULT_LOCALE, isLocale, type Locale } from "@/i18n/locales";
@@ -24,7 +25,10 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
   const job = getJob(id);
   if (!job) return NextResponse.json({ error: "Job not found." }, { status: 404 });
   const lang = resolveLang(new URL(request.url).searchParams.get("lang"));
-  return NextResponse.json({ pack: getCampaignPack(job.id, lang) });
+  // Scope the pack read to the session team: campaign_packs is workspace-stamped, so
+  // an unscoped read (defaulting to the single tenant) would serve/overwrite the
+  // wrong team's pack for a job in any other workspace.
+  return NextResponse.json({ pack: getCampaignPack(job.id, lang, await currentWorkspace()) });
 }
 
 export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
@@ -57,7 +61,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       return NextResponse.json({ error: err.message }, { status: err.status });
     }
     const payload = parsePythonJson<{ result: unknown; source?: string }>(stdout, stderr);
-    const pack = saveCampaignPack(job.id, lang, payload.result, String(payload.source ?? "deterministic"));
+    const pack = saveCampaignPack(job.id, lang, payload.result, String(payload.source ?? "deterministic"), await currentWorkspace());
     return NextResponse.json({ pack });
   } catch (error) {
     return NextResponse.json(
