@@ -6,6 +6,13 @@ export interface IntendedAgentConfig {
   prompt: string;
   asrKeywords: string[];
   overrides: { prompt: boolean; first_message: boolean; language: boolean };
+  firstMessage: string;
+  language: string;
+  llm: string;
+  temperature: number;
+  maxDurationSeconds: number;
+  ttsModel: string;
+  textOnly: boolean;
 }
 
 export interface PromptDiff {
@@ -33,16 +40,31 @@ export interface OverridesDiff {
   flags: OverrideFlagDiff[];
 }
 
+export interface ScalarFieldDiff {
+  key: string;
+  label: string;
+  intended: string | number | boolean;
+  live: unknown;
+  match: boolean;
+}
+
+export interface ScalarsDiff {
+  match: boolean;
+  flags: ScalarFieldDiff[];
+}
+
 export interface AgentConfigDiff {
   ok: boolean;
   prompt: PromptDiff;
   asrKeywords: KeywordDiff;
   overrides: OverridesDiff;
+  scalars: ScalarsDiff;
 }
 
 export function firstDifferenceIndex(a: string, b: string): number;
 export function extractLivePrompt(agent: unknown): string;
 export function extractLiveKeywords(agent: unknown): string[];
 export function extractLiveOverrides(agent: unknown): { prompt: boolean; first_message: boolean; language: boolean };
+export function extractLiveScalars(agent: unknown): Record<string, unknown>;
 export function diffAgentConfig(intended: IntendedAgentConfig, agent: unknown): AgentConfigDiff;
 export function formatDriftReport(report: AgentConfigDiff): string;

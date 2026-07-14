@@ -103,10 +103,35 @@ const FIRST_MESSAGE =
 // drift.
 const OVERRIDE_INTENT = { prompt: true, first_message: true, language: true };
 
+// LLM the agent runs its prompt on, and its sampling temperature. Literals in the
+// create body historically — lifted to named constants so the deploy body and
+// --check's intended config read the SAME value (the OVERRIDE_INTENT pattern).
+const LLM_MODEL = "gemini-2.5-flash";
+const LLM_TEMPERATURE = 0.3;
+
+// Env-configurable defaults the deploy body resolves; --check resolves the same
+// way so a checkout with these exported doesn't false-flag drift.
+const DEFAULT_LANGUAGE = "cs";
+const DEFAULT_TTS_MODEL = "eleven_flash_v2_5";
+
 // The config --deploy publishes and --check verifies against, in the shape the
-// pure diff (app/_lib/voice/eleven-agent-diff.mjs) consumes.
-function intendedConfig() {
-  return { prompt: PROMPT, asrKeywords: ASR_KEYWORDS, overrides: OVERRIDE_INTENT };
+// pure diff (app/_lib/voice/eleven-agent-diff.mjs) consumes. `getEnv(name)`
+// resolves the two env-configurable fields (language, TTS model) — passed the raw
+// file env by --deploy and the env-then-file resolver by --check — so the create
+// body and the verified intent are built from ONE source and cannot drift.
+function intendedConfig(getEnv) {
+  return {
+    prompt: PROMPT,
+    asrKeywords: ASR_KEYWORDS,
+    overrides: OVERRIDE_INTENT,
+    firstMessage: FIRST_MESSAGE,
+    language: getEnv("ELEVENLABS_AGENT_LANGUAGE") || DEFAULT_LANGUAGE,
+    llm: LLM_MODEL,
+    temperature: LLM_TEMPERATURE,
+    maxDurationSeconds: PROVIDER_MAX_DURATION_SECONDS,
+    ttsModel: getEnv("ELEVENLABS_TTS_MODEL") || DEFAULT_TTS_MODEL,
+    textOnly: false,
+  };
 }
 
 function usage() {
@@ -170,7 +195,7 @@ async function runCheck() {
     process.exit(2);
   }
 
-  const report = diffAgentConfig(intendedConfig(), agent);
+  const report = diffAgentConfig(intendedConfig((n) => resolveEnv(n, fileEnv)), agent);
   console.log(`Agent ${agentId} — drift report:\n`);
   console.log(formatDriftReport(report));
   process.exit(report.ok ? 0 : 1);
@@ -189,8 +214,10 @@ async function runDeploy() {
     process.exit(1);
   }
 
-  const language = env.ELEVENLABS_AGENT_LANGUAGE || "cs";
-  const model = env.ELEVENLABS_TTS_MODEL || "eleven_flash_v2_5";
+  // Single source: the exact config --check verifies, resolved from the file env.
+  const intended = intendedConfig((n) => env[n]);
+  const language = intended.language;
+  const model = intended.ttsModel;
 
   // Pick a voice: explicit env, else the first voice on the account.
   let voiceId = env.ELEVENLABS_VOICE_ID || "";
@@ -211,29 +238,33 @@ async function runDeploy() {
     voiceName = first.name || voiceId;
   }
 
+  // Every field here is drawn from `intended` (above) so --check verifies the WHOLE
+  // body field-by-field and nothing can silently diverge. voice_id is the one field
+  // with no fixed intended value — it is resolved per-account at deploy time and so
+  // is deliberately not part of the drift check.
   const body = {
     name: "kp — first-round screener",
     conversation_config: {
       agent: {
-        first_message: FIRST_MESSAGE,
-        language,
-        prompt: { prompt: PROMPT, llm: "gemini-2.5-flash", temperature: 0.3 },
+        first_message: intended.firstMessage,
+        language: intended.language,
+        prompt: { prompt: intended.prompt, llm: intended.llm, temperature: intended.temperature },
       },
-      tts: { model_id: model, voice_id: voiceId },
-      asr: { keywords: ASR_KEYWORDS },
+      tts: { model_id: intended.ttsModel, voice_id: voiceId },
+      asr: { keywords: intended.asrKeywords },
       // Cap sized for the GROUNDED screen, not the baseline prompt: this one agent
       // also serves per-candidate run-of-shows (15–30 min) pushed via override, so
       // the cap clears the grounded maximum to avoid cutting a real interview off
       // mid-answer (idea-0ecbe5a5 — single source of truth in interview-duration.mjs).
-      conversation: { text_only: false, max_duration_seconds: PROVIDER_MAX_DURATION_SECONDS },
+      conversation: { text_only: intended.textOnly, max_duration_seconds: intended.maxDurationSeconds },
     },
     platform_settings: {
       overrides: {
         conversation_config_override: {
           agent: {
-            prompt: { prompt: OVERRIDE_INTENT.prompt },
-            first_message: OVERRIDE_INTENT.first_message,
-            language: OVERRIDE_INTENT.language,
+            prompt: { prompt: intended.overrides.prompt },
+            first_message: intended.overrides.first_message,
+            language: intended.overrides.language,
           },
         },
       },
