@@ -1739,6 +1739,8 @@
     "reconsiderMatch": "match {score}",
     "reconsiderUnscored": "unscored — no match score",
     "reconsiderRejected": "rejected {date}",
+    "reconsiderChip": "{count} to reconsider",
+    "reconsiderReasonLabel": "Reason",
     "reinstate": "Reinstate",
     "reinstating": "Reinstating…",
     "loadFailed": "Failed to load.",

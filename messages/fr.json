@@ -1768,6 +1768,8 @@
     "reconsiderMatch": "correspondance {score}",
     "reconsiderUnscored": "non évalué — aucun score de correspondance",
     "reconsiderRejected": "rejeté {date}",
+    "reconsiderChip": "{count} à réexaminer",
+    "reconsiderReasonLabel": "Motif",
     "reinstate": "Réintégrer",
     "reinstating": "Réintégration…",
     "loadFailed": "Échec du chargement.",

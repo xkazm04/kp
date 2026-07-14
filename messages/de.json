@@ -1768,6 +1768,8 @@
     "reconsiderMatch": "Match {score}",
     "reconsiderUnscored": "nicht bewertet — kein Match-Score",
     "reconsiderRejected": "abgelehnt {date}",
+    "reconsiderChip": "{count} zu überdenken",
+    "reconsiderReasonLabel": "Grund",
     "reinstate": "Wieder aufnehmen",
     "reinstating": "Wird aufgenommen…",
     "loadFailed": "Laden fehlgeschlagen.",

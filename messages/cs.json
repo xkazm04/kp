@@ -1739,6 +1739,8 @@
     "reconsiderMatch": "shoda {score}",
     "reconsiderUnscored": "bez skóre — shoda nezměřena",
     "reconsiderRejected": "odmítnuto {date}",
+    "reconsiderChip": "{count} k novému zvážení",
+    "reconsiderReasonLabel": "Důvod",
     "reinstate": "Obnovit",
     "reinstating": "Obnovuji…",
     "loadFailed": "Načtení selhalo.",

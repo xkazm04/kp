@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AlertTriangle, ArrowRight, Check, Copy, ListChecks, RotateCcw, SlidersHorizontal, Sparkles, X } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
@@ -14,6 +14,8 @@ import { toast } from "@/app/_components/toast-store";
 import { useTasks, useTaskResult } from "@/app/features/tasks/TasksProvider";
 import { useDeliveryCapability } from "@/app/features/useDeliveryCapability";
 import { useLiveRefresh } from "@/app/features/live-refresh";
+import { ScoreProvenanceLabel } from "@/app/_components/ScoreProvenanceLabel";
+import type { MatchScoreProvenance } from "@/app/_lib/match-score";
 import { AiReviewCard } from "./AiReviewCard";
 import { DecisionRulesModal } from "./DecisionRulesModal";
 import { ScreenWaveModal } from "./ScreenWaveModal";
@@ -26,6 +28,11 @@ import { capNames, pruneSelection, selectionDriftIds } from "./selection-hygiene
 
 type Group = { roleKey: string; roleTitle: string; jobId: string | null; entries: Entry[] };
 
+// The sealed auto-reject reason the wave wrote, read back for display: a
+// structured code + its interpolation params, localized on the client through the
+// same decisions.wave.reasons.* catalog the screen-wave modal uses.
+type ReconsiderReason = { reasonCode: string; reasonParams: Record<string, string | number> };
+
 // idea-e43fa801 — an auto-rejected candidate a recruiter can put back for review.
 type ReconsiderRow = {
   id: string;
@@ -33,7 +40,13 @@ type ReconsiderRow = {
   jobTitle: string | null;
   archetype: string | null;
   matchScore: number | null;
+  // The canonical score's provenance, so the row can name where the number came
+  // from (CV analysis · date / snapshot) exactly like the rest of the decisions UI.
+  scoreProvenance: MatchScoreProvenance | null;
   rejectedAt: string | null;
+  // reconsider-earns-keep — the machine reject reason, read back from the sealed
+  // decision record. Null when no seal was found (best-effort).
+  reason: ReconsiderReason | null;
 };
 
 const roleKeyOf = (e: Entry) => e.jobId ?? e.jobTitle ?? "unassigned";
@@ -91,6 +104,16 @@ export function DecisionsTab() {
   // pending queue and refreshed on the same signals.
   const [reconsider, setReconsider] = useState<ReconsiderRow[]>([]);
   const [reinstating, setReinstating] = useState<ReadonlySet<string>>(new Set());
+  // reconsider-earns-keep — the queue is a collapsed <details> at the bottom, but a
+  // count chip in the header (below) surfaces it; clicking the chip opens the
+  // details and scrolls to it. Controlled so the chip can drive it.
+  const [reconsiderOpen, setReconsiderOpen] = useState(false);
+  const reconsiderRef = useRef<HTMLDetailsElement | null>(null);
+  const revealReconsider = () => {
+    setReconsiderOpen(true);
+    // Let the details expand, then bring it into view.
+    requestAnimationFrame(() => reconsiderRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
+  };
 
   // Direction 1 — batch accept/reject for AI review cards. POST /api/pipeline/batch
   // already offers per-id CAS + verbatim per-id failure reasons; this reuses the
@@ -162,6 +185,22 @@ export function DecisionsTab() {
     }
   };
   const fmtDate = (iso: string) => new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(new Date(iso));
+
+  // reconsider-earns-keep — localize the sealed reject reason through the SAME
+  // decisions.wave.reasons.* catalog the screen-wave modal renders (see
+  // ScreenWaveModal.reasonText), so the audit reads in the recruiter's language.
+  // A committed reject always used "did" phrasing; the tie-adjustment note is
+  // appended when the cutoff was shrunk. Unmapped codes → no line (never a raw code).
+  const reconsiderReasonText = (r: ReconsiderReason): string | null => {
+    const p = r.reasonParams;
+    if (r.reasonCode === "reject") {
+      const base = t("wave.reasons.rejectDid", p);
+      const tie = Number(p.tieAdjusted) > 0 ? ` ${t("wave.reasons.tieAdjustedNote", { from: Number(p.tieAdjusted) })}` : "";
+      return base + tie;
+    }
+    const key = `wave.reasons.${r.reasonCode}` as Parameters<typeof t>[0];
+    return t.has(key) ? t(key, p) : null;
+  };
 
   const pending = (entries ?? []).filter((e) => e.approvalKind && e.status === "active");
   const keyDecisions = pending.filter((e) => e.approvalKind === "decision");
@@ -522,6 +561,19 @@ export function DecisionsTab() {
                 : pending.length,
             })}
           </span>
+          {/* reconsider-earns-keep — a headline count chip for the auto-reject
+              safety valve, so an audit isn't buried in a collapsed section at the
+              bottom. Clicking opens + scrolls to the reconsider queue. Amber: a
+              standing "these need a second look", not a success signal. */}
+          {reconsider.length > 0 ? (
+            <button
+              type="button"
+              onClick={revealReconsider}
+              className="focus-ring inline-flex items-center gap-1.5 rounded-md border border-amber-300 bg-amber-50 px-2.5 py-1 text-sm font-semibold text-amber-800 hover:bg-amber-100"
+            >
+              <RotateCcw size={13} aria-hidden /> {t("reconsiderChip", { count: reconsider.length })}
+            </button>
+          ) : null}
           <button
             type="button"
             onClick={() => setRulesOpen(true)}
@@ -846,41 +898,64 @@ export function DecisionsTab() {
           available (even when caught up), collapsed by default so it doesn't
           compete with the live decision queue. */}
       {reconsider.length > 0 ? (
-        <details className="rounded-lg border border-stone-200 bg-paper/40">
+        <details
+          ref={reconsiderRef}
+          open={reconsiderOpen}
+          onToggle={(ev) => setReconsiderOpen(ev.currentTarget.open)}
+          className="rounded-lg border border-stone-200 bg-paper/40"
+        >
           <summary className="focus-ring flex cursor-pointer items-center gap-1.5 px-4 py-2.5 text-meta uppercase tracking-wide text-steel">
             <RotateCcw size={13} className="text-coral" /> {t("reconsiderTitle", { count: reconsider.length })}
           </summary>
           <div className="space-y-2 px-4 pb-3">
             <p className="text-sm text-steel">{t("reconsiderHelp")}</p>
             <ul className="space-y-1.5">
-              {reconsider.map((item) => (
-                <li
-                  key={item.id}
-                  className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-md border border-stone-100 bg-white px-3 py-2 text-sm"
-                >
-                  <span className="font-semibold text-ink">{item.candidateLabel}</span>
-                  {item.jobTitle ? <span className="text-steel">· {item.jobTitle}</span> : null}
-                  {/* SD-L2-001 — the safety valve must tell a never-measured candidate
-                      apart from a genuine low scorer: an absent score is flagged
-                      "unscored", never rendered blank (or worse, as 0). */}
-                  {item.matchScore != null ? (
-                    <span className="text-stone-400">· {t("reconsiderMatch", { score: item.matchScore })}</span>
-                  ) : (
-                    <span className="text-stone-400">· {t("reconsiderUnscored")}</span>
-                  )}
-                  {item.rejectedAt ? (
-                    <span className="text-stone-400">· {t("reconsiderRejected", { date: fmtDate(item.rejectedAt) })}</span>
-                  ) : null}
-                  <button
-                    type="button"
-                    onClick={() => void reinstate(item)}
-                    disabled={reinstating.has(item.id)}
-                    className="focus-ring ml-auto rounded-md border border-coral/40 bg-white px-2.5 py-1 text-sm font-semibold text-coral hover:bg-coral/5 disabled:opacity-50"
+              {reconsider.map((item) => {
+                const reasonText = item.reason ? reconsiderReasonText(item.reason) : null;
+                return (
+                  <li
+                    key={item.id}
+                    className="rounded-md border border-stone-100 bg-white px-3 py-2 text-sm"
                   >
-                    {reinstating.has(item.id) ? t("reinstating") : t("reinstate")}
-                  </button>
-                </li>
-              ))}
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                      <span className="font-semibold text-ink">{item.candidateLabel}</span>
+                      {item.jobTitle ? <span className="text-steel">· {item.jobTitle}</span> : null}
+                      {/* SD-L2-001 — the safety valve must tell a never-measured candidate
+                          apart from a genuine low scorer: an absent score is flagged
+                          "unscored", never rendered blank (or worse, as 0). */}
+                      {item.matchScore != null ? (
+                        <span className="inline-flex items-center gap-1 text-stone-400">
+                          · {t("reconsiderMatch", { score: item.matchScore })}
+                          {/* Score provenance strip (REC-01) — same label as the queue. */}
+                          <ScoreProvenanceLabel provenance={item.scoreProvenance} className="text-meta text-stone-400" />
+                        </span>
+                      ) : (
+                        <span className="text-stone-400">· {t("reconsiderUnscored")}</span>
+                      )}
+                      {item.rejectedAt ? (
+                        <span className="text-stone-400">· {t("reconsiderRejected", { date: fmtDate(item.rejectedAt) })}</span>
+                      ) : null}
+                      <button
+                        type="button"
+                        onClick={() => void reinstate(item)}
+                        disabled={reinstating.has(item.id)}
+                        className="focus-ring ml-auto rounded-md border border-coral/40 bg-white px-2.5 py-1 text-sm font-semibold text-coral hover:bg-coral/5 disabled:opacity-50"
+                      >
+                        {reinstating.has(item.id) ? t("reinstating") : t("reinstate")}
+                      </button>
+                    </div>
+                    {/* reconsider-earns-keep — the machine reject reason, read back
+                        from the sealed decision record. An auto-reject audit is no
+                        longer a bare list: the recruiter sees WHY it fell out. */}
+                    {reasonText ? (
+                      <p className="mt-1 text-meta text-steel">
+                        <span className="font-semibold uppercase tracking-wide text-stone-400">{t("reconsiderReasonLabel")}</span>{" "}
+                        {reasonText}
+                      </p>
+                    ) : null}
+                  </li>
+                );
+              })}
             </ul>
           </div>
         </details>
