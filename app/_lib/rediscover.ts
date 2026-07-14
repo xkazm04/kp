@@ -58,9 +58,12 @@ function pickPrior(hist: CandidateOutcome[], jobId: string): PriorOutcome | null
  *  route 500s, the best-effort publish/sweep triggers swallow it. */
 export async function rediscoverForJob(
   job: NonNullable<ReturnType<typeof getJob>>,
-  opts: { signal?: AbortSignal } = {}
+  opts: { signal?: AbortSignal; workspaceId?: string } = {}
 ): Promise<RediscoverResult> {
-  const pool = buildCandidatePool();
+  // Workspace-scoped pool: the on-demand route + publish thread their request's
+  // currentWorkspace(); the background sweep leaves it at the default tenant
+  // (its current behavior — a per-tenant sweep is a separate feature).
+  const { entries: pool } = buildCandidatePool(opts.workspaceId);
   if (pool.length === 0) return { rediscovered: [], skipped: [], more: 0 };
 
   const ranked = await rankPoolForJob<{
@@ -107,7 +110,7 @@ export async function rediscoverForJob(
  *  or sweep that calls it. */
 export async function raiseRediscoveryAlertsForJob(
   jobId: string,
-  opts: { signal?: AbortSignal } = {}
+  opts: { signal?: AbortSignal; workspaceId?: string } = {}
 ): Promise<number> {
   const job = getJob(jobId);
   if (!job) return 0;

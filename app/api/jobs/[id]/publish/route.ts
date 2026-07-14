@@ -117,7 +117,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // are excluded by rediscoverForJob (they're now active in this role).
     let silverMedalists = 0;
     if (!already) {
-      silverMedalists = await raiseRediscoveryAlertsForJob(id, { signal: request.signal });
+      silverMedalists = await raiseRediscoveryAlertsForJob(id, { signal: request.signal, workspaceId: ws });
     }
 
     // `skipped` = candidates whose payload failed to parse (not low matches), so an empty

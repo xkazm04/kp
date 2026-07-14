@@ -148,7 +148,9 @@ async function scoreUnscoredEntries(entries: AutomationEntry[], dryRun: boolean)
   for (const [jobId, group] of byJob) {
     try {
       const candidates = group
-        .map((e) => resolveCandidatePoolEntry(e.candidateId as string, e.candidateLabel))
+        // Each entry resolves within its OWN workspace — the global sweep spans
+        // tenants, so a candidate must never resolve against another team's store.
+        .map((e) => resolveCandidatePoolEntry(e.candidateId as string, e.candidateLabel, e.workspaceId))
         .filter((c): c is NonNullable<typeof c> => c !== null);
       if (candidates.length === 0) continue;
 
