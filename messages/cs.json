@@ -2057,7 +2057,8 @@
       "saved": "Uloženo",
       "gatedMoved": "Verdikt zaznamenán — přesunuto do fronty Rozhodnutí.",
       "saveFailed": "Hodnoticí kartu se nepodařilo uložit.",
-      "saveFailedStatus": "Uložení selhalo ({status})."
+      "saveFailedStatus": "Uložení selhalo ({status}).",
+      "genericRubricNote": "Obecná rubrika — tento kandidát nemá rodinu rolí, takže oborově specifické osy nejsou zahrnuty. Hodnotíte pouze základní rubriku."
     },
     "prep": {
       "title": "Příprava na pohovor · {name}",

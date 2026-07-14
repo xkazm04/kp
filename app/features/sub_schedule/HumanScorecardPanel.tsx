@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Check, ClipboardCheck, Loader2 } from "lucide-react";
+import { Check, ClipboardCheck, Info, Loader2 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { rubricForArchetype, localizedRubric, localizedRatingAnchors } from "@/app/_lib/interview-rubric";
 import { RATING_MAX } from "@/app/_lib/format";
@@ -44,6 +44,12 @@ export function HumanScorecardPanel({
   // it below), so localizing display can't corrupt the scoring contract.
   const rubric = localizedRubric(rubricForArchetype(archetype, roleFamily), locale);
   const ratingAnchors = localizedRatingAnchors(locale);
+  // Honest coverage cue: with no role-family the industry axes (clinical / trades /
+  // scientific …) can't be appended, so the recruiter is scoring a GENERIC rubric.
+  // Say so, rather than let it read as full coverage. Keyed on the family being
+  // genuinely ABSENT — a family that simply has no industry axes defined is a valid
+  // generic rubric, not an error, so it draws no note.
+  const familyMissing = !(roleFamily && roleFamily.trim());
   const seed = (): { ratings: Record<string, number>; evidence: Record<string, string> } => {
     const ratings: Record<string, number> = {};
     const evidence: Record<string, string> = {};
@@ -122,6 +128,12 @@ export function HumanScorecardPanel({
         </button>
       </div>
       <p className="mt-1 text-sm text-steel">{t("rateEach", { max: RATING_MAX })}</p>
+
+      {familyMissing ? (
+        <p className="mt-2 flex items-start gap-1.5 rounded-md border border-amber-200 bg-amber-50 p-2 text-meta text-amber-800">
+          <Info size={13} className="mt-0.5 shrink-0" aria-hidden /> {t("genericRubricNote")}
+        </p>
+      ) : null}
 
       <div className="mt-3 space-y-3">
         {rubric.map((c) => {

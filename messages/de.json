@@ -2086,7 +2086,8 @@
       "saved": "Gespeichert",
       "gatedMoved": "Urteil erfasst — in die Entscheidungs-Warteschlange verschoben.",
       "saveFailed": "Scorecard konnte nicht gespeichert werden.",
-      "saveFailedStatus": "Speichern fehlgeschlagen ({status})."
+      "saveFailedStatus": "Speichern fehlgeschlagen ({status}).",
+      "genericRubricNote": "Generische Rubrik — für diese Person ist keine Rollenfamilie hinterlegt, daher fehlen die branchenspezifischen Achsen. Sie bewerten nur die Basisrubrik."
     },
     "prep": {
       "title": "Interview-Vorbereitung · {name}",

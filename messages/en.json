@@ -2057,7 +2057,8 @@
       "saved": "Saved",
       "gatedMoved": "Verdict recorded — moved to the Decisions queue.",
       "saveFailed": "Couldn't save the scorecard.",
-      "saveFailedStatus": "Save failed ({status})."
+      "saveFailedStatus": "Save failed ({status}).",
+      "genericRubricNote": "Generic rubric — this candidate has no role family, so the industry-specific axes aren't included. You're scoring the base rubric only."
     },
     "prep": {
       "title": "Interview prep · {name}",

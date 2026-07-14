@@ -14,6 +14,7 @@
 
 import rubricData from "@/pipeline/jobfit/interview-rubrics.json";
 import { isEarlyCareer } from "@/app/_lib/archetypes";
+import type { ScorecardRating } from "@/app/_lib/interview-scorecard";
 
 export type RubricCompetency = {
   competency: string;
@@ -60,6 +61,26 @@ export function rubricForArchetype(
 ): RubricCompetency[] {
   const base = isEarlyCareer(archetype) ? INTERVIEW_RUBRICS.early_career : INTERVIEW_RUBRICS.experienced;
   return [...base, ...industryAxesFor(roleFamily)];
+}
+
+/** Case-insensitive set of the competency KEYS a rubric covers — the same match
+ *  the compare grid's ratingOf / mergeRubricRows use to join a stored rating to a
+ *  rubric axis (compareCohorts.ts). */
+export function rubricCompetencyKeys(rubric: RubricCompetency[]): Set<string> {
+  return new Set(rubric.map((c) => c.competency.toLowerCase()));
+}
+
+/** Flag every rating that falls OUTSIDE `rubric` as off-rubric — the same concept
+ *  CompareInterviews surfaces (compareCohorts' offRubric). Unknown competencies are
+ *  KEPT, never rejected: a scorecard outlives rubric revisions by design, so an
+ *  off-taxonomy or since-renamed axis is preserved and marked so a reader knows it
+ *  was scored on an axis the current rubric no longer contains. Matches
+ *  case-insensitively, like the compare grid's join. An on-rubric rating is
+ *  returned untouched (no `offRubric` key), so the flag only ever appears on a
+ *  genuine off-rubric row. */
+export function flagOffRubricRatings(ratings: ScorecardRating[], rubric: RubricCompetency[]): ScorecardRating[] {
+  const known = rubricCompetencyKeys(rubric);
+  return ratings.map((r) => (known.has(r.competency.toLowerCase()) ? r : { ...r, offRubric: true }));
 }
 
 export const RUBRIC_ANCHOR_LINE = Object.entries(RATING_ANCHORS)

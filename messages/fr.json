@@ -2086,7 +2086,8 @@
       "saved": "Enregistré",
       "gatedMoved": "Verdict enregistré — déplacé vers la file Décisions.",
       "saveFailed": "Impossible d'enregistrer la scorecard.",
-      "saveFailedStatus": "Échec de l'enregistrement ({status})."
+      "saveFailedStatus": "Échec de l'enregistrement ({status}).",
+      "genericRubricNote": "Barème générique — ce candidat n'a pas de famille de postes, les axes propres au métier ne sont donc pas inclus. Vous n'évaluez que le barème de base."
     },
     "prep": {
       "title": "Préparation d'entretien · {name}",

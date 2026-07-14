@@ -75,6 +75,8 @@ const {
   RATING_ANCHORS_CS,
   localizedRubric,
   rubricLabel,
+  flagOffRubricRatings,
+  rubricCompetencyKeys,
 } = await import("@/app/_lib/interview-rubric.ts");
 
 // All competency objects across base rubrics AND industry axes — the canonical
@@ -297,4 +299,49 @@ test("localizedRubric keeps the canonical key, swaps display, and falls back for
   }
   // rubricLabel degrades to the canonical key for an unmapped competency.
   assert.equal(rubricLabel("Some custom LLM competency", "cs"), "Some custom LLM competency");
+});
+
+// ---------------------------------------------------------------------------
+// Off-rubric flagging — the scorecard POST validates client competencies against
+// the entry's CURRENT rubric, KEEPING but flagging any that fall outside it (the
+// same concept CompareInterviews surfaces). Never rejects — records outlive
+// rubric revisions by design.
+// ---------------------------------------------------------------------------
+
+test("rubricCompetencyKeys: lowercased key set of a rubric's axes", () => {
+  const rubric = INTERVIEW_RUBRICS.experienced;
+  const keys = rubricCompetencyKeys(rubric);
+  assert.equal(keys.size, rubric.length);
+  for (const c of rubric) assert.ok(keys.has(c.competency.toLowerCase()));
+});
+
+test("flagOffRubricRatings: a competency outside the rubric is kept but flagged; on-rubric ones stay unflagged", () => {
+  const rubric = INTERVIEW_RUBRICS.experienced; // Technical depth, Problem-solving, …
+  const ratings = [
+    { competency: "Technical depth", rating: 4, evidence: "quote" },
+    { competency: "Legacy axis v1", rating: 5 }, // renamed/removed axis — off-rubric
+  ];
+  const out = flagOffRubricRatings(ratings, rubric);
+  assert.equal(out.length, 2, "no rating is dropped");
+  assert.equal(out[0].offRubric, undefined, "on-rubric rating carries no flag");
+  assert.equal(out[0].evidence, "quote", "on-rubric rating is returned untouched");
+  assert.equal(out[1].offRubric, true, "off-rubric rating is kept AND flagged");
+  assert.equal(out[1].rating, 5, "off-rubric rating value preserved");
+});
+
+test("flagOffRubricRatings: matching is case-insensitive, like the compare grid's join", () => {
+  const out = flagOffRubricRatings(
+    [{ competency: "TECHNICAL depth", rating: 3 }],
+    INTERVIEW_RUBRICS.experienced
+  );
+  assert.equal(out[0].offRubric, undefined, "a case-variant of a rubric axis is on-rubric");
+});
+
+test("flagOffRubricRatings: an industry axis is on-rubric when the role-family adds it", () => {
+  const clinical = rubricForArchetype("bau", "healthcare_clinical");
+  const axis = industryAxesFor("healthcare_clinical")[0].competency;
+  // Against the base-only rubric the clinical axis is off-rubric...
+  assert.equal(flagOffRubricRatings([{ competency: axis, rating: 4 }], rubricForArchetype("bau"))[0].offRubric, true);
+  // ...but on-rubric once the role-family appends it (the entry-specific rubric).
+  assert.equal(flagOffRubricRatings([{ competency: axis, rating: 4 }], clinical)[0].offRubric, undefined);
 });

@@ -26,6 +26,13 @@ export type ScorecardRating = {
   competency: string;
   rating: number;
   evidence?: string;
+  // Set on a rating whose competency isn't in the entry's CURRENT rubric — the
+  // same "off-rubric" concept CompareInterviews surfaces (compareCohorts.ts). The
+  // human-scorecard POST flags these at the trust boundary rather than rejecting
+  // them: a record outlives rubric revisions by design, so an off-taxonomy or
+  // since-renamed axis is KEPT and marked, never silently dropped. Absent (the
+  // common case) means on-rubric.
+  offRubric?: boolean;
 };
 
 /** The structured interview scorecard: per-competency ratings, a one-line
