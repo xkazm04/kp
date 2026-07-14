@@ -76,7 +76,9 @@ const {
   localizedRubric,
   rubricLabel,
   flagOffRubricRatings,
+  flagOffRubricRatingsWithKeys,
   rubricCompetencyKeys,
+  rubricVersionHash,
 } = await import("@/app/_lib/interview-rubric.ts");
 
 // All competency objects across base rubrics AND industry axes — the canonical
@@ -344,4 +346,51 @@ test("flagOffRubricRatings: an industry axis is on-rubric when the role-family a
   assert.equal(flagOffRubricRatings([{ competency: axis, rating: 4 }], rubricForArchetype("bau"))[0].offRubric, true);
   // ...but on-rubric once the role-family appends it (the entry-specific rubric).
   assert.equal(flagOffRubricRatings([{ competency: axis, rating: 4 }], clinical)[0].offRubric, undefined);
+});
+
+// ---------------------------------------------------------------------------
+// Direction 2 — scorecards remember their rubric. rubricVersionHash stamps a
+// stable content hash of the resolved slice at write time; flagOffRubricRatingsWithKeys
+// re-evaluates off-rubric against the STORED scale where present, so a rubric
+// revision can't retroactively re-flag a once-valid axis. The exact hex literals
+// below are the CROSS-SIDE PARITY ANCHOR: test_interview_rubrics.py asserts the same
+// values for the same rubric slices, so TS == Python is enforced in both CI lanes.
+// ---------------------------------------------------------------------------
+
+test("rubricVersionHash: stable, content-sensitive, and byte-identical to the Python stamp", () => {
+  // These literals MUST equal automation.rubric_version_hash(...) for the same slice
+  // (pinned in test_interview_rubrics.py). Changing the rubric JSON changes them —
+  // update both sides together.
+  assert.equal(rubricVersionHash(rubricForArchetype("bau")), "c5303546821999e1", "experienced rubric version");
+  assert.equal(rubricVersionHash(rubricForArchetype("student")), "981e0b005f004e88", "early_career rubric version");
+  assert.equal(
+    rubricVersionHash(rubricForArchetype("bau", "healthcare_clinical")),
+    "706059338ba7503e",
+    "experienced + clinical axes rubric version"
+  );
+  // Deterministic (a re-hash of the same slice is identical) and 16 lowercase hex.
+  assert.equal(rubricVersionHash(rubricForArchetype("bau")), rubricVersionHash(rubricForArchetype("bau")));
+  assert.match(rubricVersionHash(rubricForArchetype("bau")), /^[0-9a-f]{16}$/);
+  // A different scale hashes differently: appending industry axes MUST move it.
+  assert.notEqual(rubricVersionHash(rubricForArchetype("bau")), rubricVersionHash(rubricForArchetype("bau", "healthcare_clinical")));
+});
+
+test("flagOffRubricRatingsWithKeys: prefers the stored scale; legacy rows fall back unchanged", () => {
+  const current = rubricForArchetype("bau"); // Technical depth, Problem-solving, …
+  const rating = [{ competency: "Legacy axis v1", rating: 5 }];
+
+  // Stored keys INCLUDE the axis → on-rubric against the historical scale, even
+  // though the current rubric no longer has it.
+  const withStored = flagOffRubricRatingsWithKeys(rating, ["Legacy axis v1", "Technical depth"], current);
+  assert.equal(withStored[0].offRubric, undefined, "an axis present in the stored keys stays on-rubric");
+
+  // No stored keys (legacy row) → falls back to the CURRENT rubric, identical to
+  // flagOffRubricRatings — the axis is off-rubric.
+  const legacy = flagOffRubricRatingsWithKeys(rating, null, current);
+  assert.equal(legacy[0].offRubric, true, "a legacy unversioned row behaves exactly as today");
+  assert.deepEqual(legacy, flagOffRubricRatings(rating, current), "legacy path == the current-rubric flag");
+  assert.deepEqual(flagOffRubricRatingsWithKeys(rating, [], current), flagOffRubricRatings(rating, current), "empty stored keys == legacy");
+
+  // Case-insensitive match against the stored keys, like the compare grid's join.
+  assert.equal(flagOffRubricRatingsWithKeys([{ competency: "technical DEPTH", rating: 3 }], ["Technical depth"], current)[0].offRubric, undefined);
 });

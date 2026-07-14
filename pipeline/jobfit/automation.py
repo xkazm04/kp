@@ -570,6 +570,34 @@ def rubric_for_candidate(archetype: str | None, role_family: str | None) -> list
     return [*rubric_for_archetype(archetype), *industry_axes_for(role_family)]
 
 
+def rubric_version_hash(rubric: list[dict]) -> str:
+    """A stable content hash of a resolved rubric slice — the "rubric version" a
+    scorecard stamps at write time so it can be re-evaluated against the exact scale
+    it was scored on, even after interview-rubrics.json revises (Direction 2).
+
+    Byte-identical to the TS `rubricVersionHash` (interview-rubric.ts): a delimiter-
+    joined canonical string (NOT JSON, so no cross-language canonicalization risk)
+    hashed with 64-bit FNV-1a over its UTF-8 bytes. Covers competency + description +
+    BARS anchors, so a reworded anchor advances the version. A cross-side parity test
+    (test_interview_rubrics.py + interview-rubric.test.ts) pins both to one literal."""
+    US = "␟"  # unit separator (competency fields)
+    RS = "␞"  # record separator (between competencies)
+    parts = []
+    for c in rubric:
+        anchors = c.get("anchors")
+        anchors_canon = (
+            US.join(f"{k}={anchors[k]}" for k in sorted(anchors, key=int)) if anchors else ""
+        )
+        parts.append(US.join([c["competency"], c["description"], anchors_canon]))
+    canon = RS.join(parts)
+    mask = 0xFFFFFFFFFFFFFFFF
+    h = 0xCBF29CE484222325  # FNV-1a 64-bit offset basis
+    for b in canon.encode("utf-8"):
+        h ^= b
+        h = (h * 0x100000001B3) & mask
+    return format(h, "016x")
+
+
 def _scorecard_confidence(notes: str, ratings: list[dict], total: int) -> dict:
     """Deterministic confidence in the scorecard, driven by how much the transcript
     actually supports. A short or thinly-evidenced interview yields a WIDE band
@@ -756,6 +784,12 @@ def interview_scorecard(candidate: MatchCandidate, job: Job, notes: str, *, lang
     result["scoringModel"] = model
     result["confidence"] = _scorecard_confidence(notes, result.get("ratings") or [], len(rubric))
     result["promptVersion"] = SCORECARD_PROMPT_VERSION
+    # Direction 2 — stamp the rubric this scorecard was scored against (version hash +
+    # its competency keys) so it can be re-evaluated on the exact scale later, after
+    # interview-rubrics.json revises. Same shape the human scorecard POST stamps; the
+    # hash is byte-identical to the TS side (rubric_version_hash mirrors rubricVersionHash).
+    result["rubricVersion"] = rubric_version_hash(rubric)
+    result["rubricKeys"] = [c["competency"] for c in rubric]
     return result, source
 
 

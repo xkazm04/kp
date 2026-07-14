@@ -92,4 +92,15 @@ export type Scorecard = {
   // "ai" by consumers, the historical default); set to "human" for one a recruiter
   // filled against the rubric (PREP1), so a surface showing both can label them.
   source?: "ai" | "human";
+  // The rubric this scorecard was scored against, stamped at write time (Direction
+  // 2). `rubricVersion` is a stable content hash of the resolved rubric slice
+  // (rubricVersionHash / automation.rubric_version_hash — identical across TS+Python);
+  // `rubricKeys` is that slice's competency KEY list. Together they are the minimal
+  // shape to re-evaluate off-rubric against the EXACT scale it was scored on, so a
+  // later interview-rubrics.json revision can't retroactively mark a once-valid axis
+  // off-rubric (flagOffRubricRatingsWithKeys prefers them). BOTH are optional: a
+  // legacy row omits them and every consumer falls back to the current rubric,
+  // behaving exactly as before.
+  rubricVersion?: string;
+  rubricKeys?: string[];
 };

@@ -3,7 +3,7 @@ import { getPipelineEntry, recordAutomationEvent, setApproval } from "@/app/_lib
 import { saveHumanScorecard } from "@/app/_lib/interview-prep";
 import { sealDecisionSafe } from "@/app/_lib/decision-record-store";
 import { coerceInterviewRecommendation, isInterviewRecommendation } from "@/app/_lib/interview-recommendation";
-import { flagOffRubricRatings, rubricForArchetype } from "@/app/_lib/interview-rubric";
+import { flagOffRubricRatings, rubricForArchetype, rubricVersionHash } from "@/app/_lib/interview-rubric";
 import { RATING_MAX } from "@/app/_lib/format";
 import { MAX_ENTRY_ID_LEN } from "@/app/_lib/entries-param";
 import { safeJsonError } from "@/app/_lib/api-response";
@@ -60,11 +60,20 @@ export async function POST(request: NextRequest) {
     // CompareInterviews surfaces — rather than rejected, since a record must outlive
     // rubric revisions. Without a resolvable entry there's no rubric to judge against,
     // so the ratings pass through unflagged.
-    const ratings: ScorecardRating[] = pipelineEntry
-      ? flagOffRubricRatings(parsed, rubricForArchetype(pipelineEntry.archetype, pipelineEntry.roleFamily))
-      : parsed;
+    // Resolve the entry's CURRENT rubric ONCE: it both flags off-rubric ratings at
+    // write time AND is the snapshot we stamp so this record can be re-evaluated
+    // against the exact scale later, after the rubric revises (Direction 2).
+    const rubric = pipelineEntry ? rubricForArchetype(pipelineEntry.archetype, pipelineEntry.roleFamily) : null;
+    const ratings: ScorecardRating[] = rubric ? flagOffRubricRatings(parsed, rubric) : parsed;
 
     const scorecard: Scorecard = { ratings, source: "human" };
+    // Stamp the rubric version + its competency keys (Direction 2). Without a
+    // resolvable entry there's no rubric to stamp — a legacy-shaped record that
+    // consumers re-evaluate against the current rubric, exactly as before.
+    if (rubric) {
+      scorecard.rubricVersion = rubricVersionHash(rubric);
+      scorecard.rubricKeys = rubric.map((c) => c.competency);
+    }
     if (typeof body.summary === "string" && body.summary.trim()) {
       scorecard.summary = body.summary.slice(0, MAX_SUMMARY).trim();
     }

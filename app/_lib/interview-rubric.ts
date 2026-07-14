@@ -83,6 +83,68 @@ export function flagOffRubricRatings(ratings: ScorecardRating[], rubric: RubricC
   return ratings.map((r) => (known.has(r.competency.toLowerCase()) ? r : { ...r, offRubric: true }));
 }
 
+/** Flag off-rubric ratings PREFERRING a scorecard's STORED rubric snapshot
+ *  (Direction 2). When the scorecard carries `storedKeys` — the competency KEYS it
+ *  was scored against, stamped alongside its rubricVersion at write time — off-rubric
+ *  is judged against THAT historical scale, so a since-revised interview-rubrics.json
+ *  can't retroactively mark a once-valid axis off-rubric. A legacy row with no stored
+ *  keys (null/empty) falls back to `currentRubric`, behaving EXACTLY as
+ *  flagOffRubricRatings does today — the CompareInterviews semantics for unversioned
+ *  rows are unchanged. Case-insensitive, like the compare grid's join. The stored key
+ *  list is the minimal shape needed to re-evaluate; the version hash is the compact
+ *  identity that proves two scorecards were scored on the same scale. */
+export function flagOffRubricRatingsWithKeys(
+  ratings: ScorecardRating[],
+  storedKeys: string[] | null | undefined,
+  currentRubric: RubricCompetency[]
+): ScorecardRating[] {
+  const known =
+    storedKeys && storedKeys.length
+      ? new Set(storedKeys.map((k) => k.toLowerCase()))
+      : rubricCompetencyKeys(currentRubric);
+  return ratings.map((r) => (known.has(r.competency.toLowerCase()) ? r : { ...r, offRubric: true }));
+}
+
+/** A stable content hash of a RESOLVED rubric slice (rubricForArchetype output) —
+ *  the "rubric version" a scorecard stamps at write time so it can be re-evaluated
+ *  against the exact scale it was scored on, even after interview-rubrics.json
+ *  revises (Direction 2). Covers competency + description + BARS anchors, so a
+ *  reworded anchor advances the version, not just an added/removed axis.
+ *
+ *  The serialization is a delimiter-joined canonical string (NOT JSON) and the hash
+ *  is a 64-bit FNV-1a over its UTF-8 bytes — chosen so the TS and Python stamps are
+ *  byte-identical WITHOUT depending on cross-language JSON canonicalization or a
+ *  crypto lib (this module is client-bundled via HumanScorecardPanel, so it must
+ *  stay free of node:crypto). automation.rubric_version_hash mirrors this exactly;
+ *  interview-rubric.test.ts + test_interview_rubrics.py pin BOTH to the same literal,
+ *  so a drift on either side fails that language's CI lane. */
+export function rubricVersionHash(rubric: RubricCompetency[]): string {
+  const US = "␟"; // unit separator (competency fields)
+  const RS = "␞"; // record separator (between competencies)
+  const canon = rubric
+    .map((c) => {
+      const anchors = c.anchors
+        ? Object.keys(c.anchors)
+            .sort((a, b) => Number(a) - Number(b))
+            .map((k) => `${k}=${c.anchors![k]}`)
+            .join(US)
+        : "";
+      return [c.competency, c.description, anchors].join(US);
+    })
+    .join(RS);
+  const bytes = new TextEncoder().encode(canon);
+  // BigInt() constructors (not `n` literals) so this compiles at the repo's ES2017
+  // target while staying 64-bit exact at runtime (esnext lib provides the type).
+  const MASK = BigInt("0xffffffffffffffff");
+  const PRIME = BigInt("0x100000001b3");
+  let h = BigInt("0xcbf29ce484222325"); // FNV-1a 64-bit offset basis
+  for (const b of bytes) {
+    h ^= BigInt(b);
+    h = (h * PRIME) & MASK;
+  }
+  return h.toString(16).padStart(16, "0");
+}
+
 export const RUBRIC_ANCHOR_LINE = Object.entries(RATING_ANCHORS)
   .map(([k, v]) => `${k} = ${v}`)
   .join(" · ");
