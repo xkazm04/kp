@@ -9,6 +9,7 @@ from pathlib import Path
 
 from pipeline.jobfit import winnability_cli
 from pipeline.jobfit.jobs import Job, JobRequirement
+from pipeline.jobfit.market_config import BERLIN_MARKET, CZECH_MARKET
 from pipeline.jobfit.matching import FIT_PROMISING_THRESHOLD, MatchCandidate, ko_filter, score_job
 from pipeline.jobfit.winnability import assess_winnability
 
@@ -96,6 +97,32 @@ class WinnabilityTest(unittest.TestCase):
         out = assess_winnability([_cand("c", ["python"])], job)
         self.assertIsNotNone(out["salary"]["marketBand"])
         # A 10k-20k band for a senior engineer sits under any realistic market floor.
+        self.assertTrue(out["salary"]["belowMarket"])
+        self.assertLess(out["salary"]["topVsMarketFloorPct"], 0)
+
+    def test_salary_verdict_is_silenced_across_a_currency_mismatch(self) -> None:
+        # Same below-floor band as test_salary_below_market_is_flagged, but the job
+        # is authored for a EUR market while the taxonomy/benchmark bands are CZK.
+        # The app does no FX, so the numeric "below market" test is meaningless —
+        # the verdict must be honestly ABSENT (None), never a confident-but-wrong
+        # "below market" flag, mirroring the TS isSameCurrency guard.
+        job = _job(role_family="software_engineering", seniority="senior", salary_band=[10000, 20000])
+        out = assess_winnability([_cand("c", ["python"])], job, market=BERLIN_MARKET)
+        salary = out["salary"]
+        self.assertFalse(salary["currencyComparable"])
+        self.assertEqual(salary["jobCurrency"], "EUR")
+        self.assertEqual(salary["marketCurrency"], "CZK")
+        self.assertIsNone(salary["belowMarket"])
+        self.assertNotIn("topVsMarketFloorPct", salary)
+        # The market band itself is still reported — only the cross-FX VERDICT is silenced.
+        self.assertIsNotNone(salary["marketBand"])
+
+    def test_same_currency_market_still_produces_the_verdict(self) -> None:
+        # The default (CZK) market and an explicit CZK market both compare normally,
+        # so the guard silences ONLY genuine mismatches, never same-currency ones.
+        job = _job(role_family="software_engineering", seniority="senior", salary_band=[10000, 20000])
+        out = assess_winnability([_cand("c", ["python"])], job, market=CZECH_MARKET)
+        self.assertTrue(out["salary"]["currencyComparable"])
         self.assertTrue(out["salary"]["belowMarket"])
         self.assertLess(out["salary"]["topVsMarketFloorPct"], 0)
 

@@ -26,6 +26,17 @@ class MarketConfig:
     * ``market_id`` — stable slug (e.g. ``"cz"``).
     * ``currency`` — ISO-4217 code a bare pay figure defaults to (mirrors the TS
       ``APP_CURRENCY`` in ``app/_lib/format.ts``; a guard test keeps them equal).
+    * ``currency_symbol`` — the native glyph shown in the market's home language
+      (``"Kč"`` for CZK), with the ISO code used in every other language — so a
+      campaign salary line reads ``"Kč/měsíc"`` for a Czech reader and
+      ``"CZK/month"`` for everyone else. See :func:`currency_unit`.
+    * ``home_lang`` — the output language that reads as native for this market
+      (``"cs"`` for the Czech market): the language in which the native currency
+      symbol and native period word are used.
+    * ``market_descriptor`` — the human phrase naming this market in generated
+      copy, e.g. ``"Czech"`` in "a recruitment-marketing copywriter for the
+      Czech tech market". Drives the campaign system prompt so the LLM is told
+      the RIGHT market instead of a hardcoded "Czech" on every generation.
     * ``period`` — the pay period the ceiling and defaults are expressed in
       (``"hour" | "month" | "year"``).
     * ``plausibility_ceiling`` — the largest plausible SINGLE gross figure in
@@ -49,6 +60,12 @@ class MarketConfig:
     benchmark_source_id: str
     company_adjustment_max: float
     company_adjustment_min: float
+    # Candidate-/prompt-facing market identity. Defaulted so the eight positional
+    # fields above stay a stable construction contract; both shipped markets set
+    # them explicitly.
+    currency_symbol: str = ""
+    home_lang: str = "en"
+    market_descriptor: str = ""
 
 
 # The product default. These values reproduce the constants that were hardcoded in
@@ -67,6 +84,11 @@ CZECH_MARKET = MarketConfig(
     # local mid-market); 0.75 floors a stacked-discount company.
     company_adjustment_max=1.20,
     company_adjustment_min=0.75,
+    # "Kč" for a Czech reader, "CZK" for every other language (see currency_unit);
+    # "Czech" fills the campaign system prompt's market phrase byte-for-byte.
+    currency_symbol="Kč",
+    home_lang="cs",
+    market_descriptor="Czech",
 )
 
 # A second sample market that exercises the seam end-to-end (different currency,
@@ -84,6 +106,9 @@ BERLIN_MARKET = MarketConfig(
     # standing in for a real German multinational-premium calibration we don't hold.
     company_adjustment_max=1.15,
     company_adjustment_min=0.80,
+    currency_symbol="€",
+    home_lang="de",
+    market_descriptor="German",
 )
 
 
@@ -108,3 +133,29 @@ def gross_period_phrase(period: str) -> str:
     """The 'gross monthly' / 'gross annual' / 'gross hourly' phrase for a pay
     ``period``, defaulting to ``"gross <period>"`` for an unmapped value."""
     return _GROSS_PERIOD_PHRASE.get(period, f"gross {period}")
+
+
+# The candidate-facing period word per output language, for the salary-band unit
+# suffix (``Kč/měsíc``, ``CZK/month``). Covers the app LOCALES (en/cs/de/fr); an
+# unmapped language falls back to the bare period code so the unit is still honest.
+_PERIOD_WORD: dict[str, dict[str, str]] = {
+    "month": {"en": "month", "cs": "měsíc", "de": "Monat", "fr": "mois"},
+    "year": {"en": "year", "cs": "rok", "de": "Jahr", "fr": "an"},
+    "hour": {"en": "hour", "cs": "hodina", "de": "Stunde", "fr": "heure"},
+}
+
+
+def currency_unit(lang: str, *, market: MarketConfig = ACTIVE_MARKET) -> str:
+    """The salary-band unit suffix (e.g. ``"Kč/měsíc"``, ``"CZK/month"``) for the
+    ``market``'s currency and period, rendered in ``lang``.
+
+    The market's native currency SYMBOL is used only when writing in its home
+    language (``home_lang``); every other language uses the ISO currency CODE — so
+    a Czech reader sees ``"Kč/měsíc"`` and everyone else ``"CZK/month"``, exactly
+    the old hardcoded literal. A non-CZK market renders ITS own unit (``"€/Monat"``
+    for a EUR/German reader, ``"EUR/month"`` otherwise), which is the whole point:
+    the figure is never silently relabelled CZK.
+    """
+    period_word = _PERIOD_WORD.get(market.period, {}).get(lang) or market.period
+    code = market.currency_symbol if (lang == market.home_lang and market.currency_symbol) else market.currency
+    return f"{code}/{period_word}"

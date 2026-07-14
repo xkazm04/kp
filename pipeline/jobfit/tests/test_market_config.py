@@ -29,6 +29,7 @@ from pipeline.jobfit.market_config import (
     ACTIVE_MARKET,
     BERLIN_MARKET,
     CZECH_MARKET,
+    currency_unit,
     gross_period_phrase,
 )
 from pipeline.jobfit.pipeline import _annual_ceiling_for, _normalize_currency_period
@@ -148,6 +149,26 @@ class ExtractionPromptPeriodFollowsMarketTest(unittest.TestCase):
     def test_phrase_follows_the_period(self) -> None:
         self.assertEqual(gross_period_phrase("year"), "gross annual")
         self.assertEqual(gross_period_phrase("hour"), "gross hourly")
+
+
+class CurrencyUnitFollowsMarketTest(unittest.TestCase):
+    """The candidate-facing salary unit ('Kč/měsíc', 'CZK/month') is
+    MarketConfig-driven: the native symbol in the market's home language, the ISO
+    code everywhere else — never a hardcoded Czech literal."""
+
+    def test_czech_default_is_byte_identical(self) -> None:
+        # The exact strings the old hardcoded literal produced.
+        self.assertEqual(currency_unit("cs"), "Kč/měsíc")
+        self.assertEqual(currency_unit("en"), "CZK/month")
+        # Other app locales use the ISO code with a native period word.
+        self.assertEqual(currency_unit("de"), "CZK/Monat")
+        self.assertEqual(currency_unit("fr"), "CZK/mois")
+
+    def test_non_czk_market_renders_its_own_unit(self) -> None:
+        # Home language → native symbol; any other → ISO code. Never relabelled CZK.
+        self.assertEqual(currency_unit("de", market=BERLIN_MARKET), "€/Monat")
+        self.assertEqual(currency_unit("en", market=BERLIN_MARKET), "EUR/month")
+        self.assertNotIn("CZK", currency_unit("cs", market=BERLIN_MARKET))
 
 
 class CrossBoundarySyncTest(unittest.TestCase):

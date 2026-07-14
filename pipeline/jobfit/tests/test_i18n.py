@@ -20,8 +20,14 @@ class NormalizeLangTest(unittest.TestCase):
         self.assertEqual(normalize_lang("EN-US"), "en")
         self.assertEqual(normalize_lang("  CS  "), "cs")
 
+    def test_app_locales_pass_through(self) -> None:
+        # LANG_NAMES mirrors the app LOCALES (en/cs/de/fr); de/fr resolve to
+        # themselves now that the app ships them, rather than collapsing to English.
+        self.assertEqual(normalize_lang("de"), "de")
+        self.assertEqual(normalize_lang("fr-FR"), "fr")
+
     def test_unknown_or_nonstring_falls_back_to_default(self) -> None:
-        self.assertEqual(normalize_lang("de"), DEFAULT_LANG)
+        self.assertEqual(normalize_lang("xx"), DEFAULT_LANG)
         self.assertEqual(normalize_lang(""), DEFAULT_LANG)
         self.assertEqual(normalize_lang(None), DEFAULT_LANG)
         self.assertEqual(normalize_lang(123), DEFAULT_LANG)

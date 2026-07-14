@@ -26,7 +26,18 @@ are deterministic; ``winnability_cli`` wires it to the pool + a draft Job.
 from __future__ import annotations
 
 from .jobs import Job
+from .market_config import ACTIVE_MARKET, MarketConfig
 from .matching import FIT_PROMISING_THRESHOLD, MatchCandidate, ko_filter, score_job
+
+
+def _same_currency(a: str | None, b: str | None) -> bool:
+    """Whether two currency codes are directly comparable (the pipeline does no FX).
+
+    Mirrors the TS ``isSameCurrency`` contract (app/_lib/salary-band.ts):
+    case/whitespace-insensitive, an absent value normalizes to "". Gating the
+    salary verdict on this keeps the coach from comparing a EUR job band against a
+    CZK market band and reporting a confident-but-meaningless "30% under"."""
+    return (a or "").strip().upper() == (b or "").strip().upper()
 
 
 def _eligible(candidates: list[MatchCandidate], job: Job) -> set[int]:
@@ -44,6 +55,7 @@ def assess_winnability(
     job: Job,
     *,
     fit_threshold: int = FIT_PROMISING_THRESHOLD,
+    market: MarketConfig = ACTIVE_MARKET,
 ) -> dict:
     """Grade how fillable ``job`` is against the current candidate pool.
 
@@ -104,20 +116,39 @@ def assess_winnability(
     # this module's import surface stays inside the matching/jobs core.
     from .taxonomy import role_band
 
-    market = role_band(job.role_family, job.seniority)
+    market_band = role_band(job.role_family, job.seniority)
     job_band = list(job.salary_band[:2]) if len(job.salary_band) >= 2 else None
+    # Both bands are bare [lo, hi] with NO currency of their own: the market band
+    # (role_band) is denominated in the BENCHMARK market's currency
+    # (``ACTIVE_MARKET`` — a guard test keeps salary_benchmarks.json in step), and
+    # the JD's band in the currency of the market it was authored for (``market``).
+    # In the single-market pilot these are the same (CZK) and the verdict is
+    # byte-identical; the moment a non-CZK band is compared against the CZK
+    # benchmark the numeric "below market" test is meaningless (the app does no FX),
+    # so we SILENCE it rather than emit a confident-but-wrong verdict — the exact
+    # cross-currency trap the TS isSameCurrency guard was built to prevent.
+    market_currency = ACTIVE_MARKET.currency
+    job_currency = market.currency
+    comparable = _same_currency(job_currency, market_currency)
     salary: dict = {
         "family": job.role_family,
         "seniority": job.seniority,
         "jobBand": job_band,
-        "marketBand": list(market) if market else None,
+        "marketBand": list(market_band) if market_band else None,
+        "jobCurrency": job_currency,
+        "marketCurrency": market_currency,
+        "currencyComparable": comparable,
         # Below market when the JD's TOP sits under the market FLOOR — an
         # unambiguous "you're paying less than anyone else for this role" signal.
-        "belowMarket": bool(job_band and market and job_band[1] < market[0]),
+        # None (not False) when the currencies aren't comparable: honestly absent,
+        # never a wrong "not below market" claim across an unconverted FX gap.
+        "belowMarket": (
+            bool(job_band and market_band and job_band[1] < market_band[0]) if comparable else None
+        ),
     }
-    if job_band and market and market[0] > 0:
+    if comparable and job_band and market_band and market_band[0] > 0:
         # How far the JD's top sits relative to the market floor (negative = below).
-        salary["topVsMarketFloorPct"] = round(100 * (job_band[1] - market[0]) / market[0])
+        salary["topVsMarketFloorPct"] = round(100 * (job_band[1] - market_band[0]) / market_band[0])
 
     return {
         "poolSize": pool,
