@@ -103,18 +103,22 @@ export function LibrarySavedJdsLedger() {
   const [duplicating, setDuplicating] = useState<string | null>(null);
 
   // Duplicate: seed the Generate form with the source role's known fields (title,
-  // company, seniority, field) AND its full body as the "Describe the need"
-  // starting content, then switch to it — rather than silently cloning a draft.
-  // The body is fetched (the list only carries a truncated preview); on failure we
-  // fall back to that preview. Prefill is cleared on a manual tab switch (below),
-  // so it's one-shot.
+  // company, seniority, field) AND, as the "Describe the need" starting content,
+  // the recruiter's ORIGINAL prompt when the JD carries one (Generated roles now
+  // persist it) — so regeneration designs from the intent, not the rendered
+  // markdown. Legacy rows (draft saves / pre-migration builds) fall back to the
+  // full body, then the truncated preview. Fetched (the list carries only a
+  // preview). Prefill is cleared on a manual tab switch (below), so it's one-shot.
   const startDuplicate = async (row: JdRow) => {
     if (duplicating) return;
     setDuplicating(row.slug);
     let need = "";
     try {
-      const src = (await fetch(`/api/jds/${encodeURIComponent(row.slug)}`).then((r) => r.json())) as { body?: string } | null;
-      need = typeof src?.body === "string" ? src.body : row.preview ?? "";
+      const src = (await fetch(`/api/jds/${encodeURIComponent(row.slug)}`).then((r) => r.json())) as
+        | { body?: string; build_input_json?: string | null }
+        | null;
+      const prompt = readIntentPrompt(src?.build_input_json);
+      need = prompt || (typeof src?.body === "string" ? src.body : row.preview ?? "");
     } catch {
       need = row.preview ?? "";
     }
@@ -853,6 +857,19 @@ function caseTaskLabel(task: unknown): string {
     return String(o.title ?? o.prompt ?? o.name ?? o.description ?? "Task");
   }
   return "Task";
+}
+
+// The recruiter's original "describe the need" prompt out of a JD's persisted build
+// intent (build_input_json), or "" when absent/legacy/malformed — so Duplicate can
+// prefer intent over the rendered body without the caller re-parsing JSON.
+function readIntentPrompt(json: string | null | undefined): string {
+  if (!json) return "";
+  try {
+    const intent = JSON.parse(json) as { needText?: unknown };
+    return typeof intent.needText === "string" ? intent.needText.trim() : "";
+  } catch {
+    return "";
+  }
 }
 
 function LedgerSkeleton() {

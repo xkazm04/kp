@@ -914,6 +914,12 @@ export function ensureDb(): Database.Database {
     // salary band + sources + provenance, repo snapshot, interview case, and the
     // selected options) — JSON, read by the JD detail view. NULL until ready.
     "ALTER TABLE jds ADD COLUMN analysis_json TEXT",
+    // The recruiter's original build INTENT captured at Generate — the free-text
+    // "describe the need" prompt plus the checklist options / output lang / role
+    // facets / template selection the build actually took. JSON. Lets Duplicate
+    // re-seed from intent (not the rendered output) and Retry replay even after the
+    // task row is pruned. NULL on legacy rows (draft saves + pre-migration builds).
+    "ALTER TABLE jds ADD COLUMN build_input_json TEXT",
     // DEVP5 — the candidate-facing language for this role's case artifacts
     // (brief/tasks, seed README+DECISIONS, interview narration), captured at
     // need intake. NULL ⇒ "en" when threaded to the dev-case CLIs.

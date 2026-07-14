@@ -82,6 +82,10 @@ export type JdDetail = {
   analysis_task_id?: string | null;
   analysis_error?: string | null;
   analysis_json?: string | null;
+  // The recruiter's original build intent (prompt + options), when this JD was
+  // Generated — lets Duplicate re-seed the prompt rather than the rendered body.
+  // NULL on legacy rows + plain draft saves.
+  build_input_json?: string | null;
 };
 
 // The status categories the table filters on. "analyzing"/"failed" reflect a

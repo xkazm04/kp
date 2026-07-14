@@ -19,6 +19,24 @@ export type JdRow = {
   // JSON string: { role, salary, salarySources, salarySource, snapshot, case, options }
   // once ready; { options } while analyzing. Parsed by the JD detail view.
   analysis_json?: string | null;
+  // JSON string of the recruiter's original build intent (JdBuildIntent): the
+  // "describe the need" prompt + the checklist options / lang / role facets /
+  // templateId the Generate took. NULL on legacy rows + plain draft saves. Powers
+  // Duplicate's prompt re-seed and Retry's row-fallback replay.
+  build_input_json?: string | null;
+};
+
+// The recruiter's original build intent, persisted on the JD row at Generate so it
+// survives the build (the rendered markdown ≠ the intent) and the task's pruning.
+export type JdBuildIntent = {
+  needText?: string;
+  company?: string;
+  seniority?: string;
+  roleFamily?: string;
+  repoUrl?: string;
+  lang?: string;
+  templateId?: string;
+  options?: unknown;
 };
 
 // What the list endpoint exposes: identity + a short, server-truncated preview
@@ -62,19 +80,22 @@ export function saveJd(input: SaveJdInput, workspaceId: string = DEFAULT_WORKSPA
 
 /** Create the up-front placeholder for a backgrounded build. `options` (the ticked
  *  checklist) is stashed in analysis_json so the row knows what was requested even
- *  before the build finishes. Returns the minted slug. */
+ *  before the build finishes; `buildInput` (the recruiter's original prompt + all
+ *  the options the build took) is persisted in build_input_json so the intent
+ *  survives the build for Duplicate/Retry. Returns the minted slug. */
 export function insertAnalyzingJd(
-  input: { title: string; options: unknown },
+  input: { title: string; options: unknown; buildInput?: JdBuildIntent },
   workspaceId: string = DEFAULT_WORKSPACE_ID
 ): { slug: string; createdAt: string } {
   const db = ensureDb();
   const createdAt = new Date().toISOString();
   const stmt = db.prepare(
-    `INSERT INTO jds (slug, title, body, created_at, analysis_status, analysis_json, workspace_id)
-     VALUES (?, ?, '', ?, 'analyzing', ?, ?)`
+    `INSERT INTO jds (slug, title, body, created_at, analysis_status, analysis_json, build_input_json, workspace_id)
+     VALUES (?, ?, '', ?, 'analyzing', ?, ?, ?)`
   );
   const analysisJson = JSON.stringify({ options: input.options });
-  const slug = insertWithUniqueSlug((s) => stmt.run(s, input.title, createdAt, analysisJson, workspaceId));
+  const buildInputJson = input.buildInput ? JSON.stringify(input.buildInput) : null;
+  const slug = insertWithUniqueSlug((s) => stmt.run(s, input.title, createdAt, analysisJson, buildInputJson, workspaceId));
   return { slug, createdAt };
 }
 
@@ -146,7 +167,7 @@ export function loadJd(slug: string, workspaceId: string = DEFAULT_WORKSPACE_ID)
   const row = db
     .prepare(
       `SELECT slug, title, body, created_at, archived_at,
-              analysis_status, analysis_task_id, analysis_error, analysis_json
+              analysis_status, analysis_task_id, analysis_error, analysis_json, build_input_json
        FROM jds WHERE slug = ? AND workspace_id = ?`
     )
     .get(slug, workspaceId) as JdRow | undefined;

@@ -60,9 +60,23 @@ export async function POST(request: Request) {
   const templateId = typeof record.templateId === "string" ? record.templateId : "";
   const templateBody = templateId ? getTemplate(templateId)?.body : undefined;
 
+  // The recruiter's original intent, persisted on the JD row so Duplicate re-seeds
+  // the PROMPT (not the rendered markdown) and Retry can replay even after the task
+  // row is pruned. templateId (stable) is stored, not the resolved templateBody.
+  const buildInput = {
+    needText,
+    company: typeof record.company === "string" ? record.company : undefined,
+    seniority: typeof record.seniority === "string" ? record.seniority : undefined,
+    roleFamily: typeof record.roleFamily === "string" ? record.roleFamily : undefined,
+    repoUrl: typeof record.repoUrl === "string" ? record.repoUrl : undefined,
+    lang: typeof record.lang === "string" ? record.lang : undefined,
+    templateId,
+    options,
+  };
+
   try {
     // 1. Placeholder JD (appears in the Ledger as "Analyzing" right away).
-    const { slug } = insertAnalyzingJd({ title: cleanTitle, options }, await currentWorkspace());
+    const { slug } = insertAnalyzingJd({ title: cleanTitle, options, buildInput }, await currentWorkspace());
     // 2. Detached build that fills it in (survives navigation). jdSlug makes the
     //    task's dedupe identity the JD itself, so each Generate is its own run.
     const task = startTask("jd_build", {
