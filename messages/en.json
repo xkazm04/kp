@@ -82,6 +82,7 @@
       "mid": "Mid",
       "growthPct": "+{pct}%",
       "target": "Target",
+      "confidenceUnknownTitle": "Confidence unrecognized — shown at the lowest emphasis; treat this salary read as unverified.",
       "gaugeAria": "Salary range {min} to {max} {currency}, midpoint {midpoint}, {growth} target {target}"
     },
     "tabs": {
@@ -130,10 +131,12 @@
     "alsoAnalyzedFor": "Also analyzed for:",
     "labelCollision": "Heads up — another candidate in this workspace shares this file-derived name but has a different CV. Make sure you're looking at the right person.",
     "runCost": {
-      "line": "Est. cost ~{cost} · {model} · estimate",
+      "lineEstimate": "Est. cost ~{cost} · {model} · estimate",
+      "lineMetered": "Cost {cost} · {model} · metered",
       "unpriced": "Est. cost not metered · {model}",
       "cached": "Served from cache — no new cost",
-      "title": "Estimated from token usage at list prices — not a contractual figure."
+      "titleEstimate": "Estimated from token usage at list prices — not a contractual figure.",
+      "titleMetered": "Metered from the provider's reported usage."
     },
     "panel": {
       "candidate": "Candidate",
@@ -171,7 +174,8 @@
       "credentials": "Licenses & certifications",
       "publications": "Publications & patents",
       "links": "Portfolio & links",
-      "growthTarget": "+30% growth target: {amount} CZK / month",
+      "growthTarget": "+{pct}% growth target: {amount} {currency} {period}",
+      "growthTargetPlain": "Growth target: {amount} {currency} {period}",
       "companyCompContext": "Company Compensation Context",
       "salaryRationale": "Salary Rationale",
       "salaryEvidence": "Salary Evidence",

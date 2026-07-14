@@ -82,6 +82,7 @@
       "mid": "Mitte",
       "growthPct": "+{pct} %",
       "target": "Ziel",
+      "confidenceUnknownTitle": "Konfidenz nicht erkannt — mit der geringsten Betonung dargestellt; behandeln Sie diese Gehaltseinschätzung als ungeprüft.",
       "gaugeAria": "Gehaltsspanne {min} bis {max} {currency}, Mittelwert {midpoint}, Ziel {growth} bei {target}"
     },
     "tabs": {
@@ -130,10 +131,12 @@
     "alsoAnalyzedFor": "Ebenfalls analysiert für:",
     "labelCollision": "Hinweis — ein anderer Kandidat in diesem Arbeitsbereich trägt denselben aus dem Dateinamen abgeleiteten Namen, hat aber einen anderen Lebenslauf. Vergewissern Sie sich, dass Sie die richtige Person ansehen.",
     "runCost": {
-      "line": "Gesch. Kosten ~{cost} · {model} · Schätzung",
+      "lineEstimate": "Gesch. Kosten ~{cost} · {model} · Schätzung",
+      "lineMetered": "Kosten {cost} · {model} · gemessen",
       "unpriced": "Gesch. Kosten nicht erfasst · {model}",
       "cached": "Aus dem Cache geladen — keine neuen Kosten",
-      "title": "Geschätzt aus dem Token-Verbrauch zu Listenpreisen — kein vertraglicher Betrag."
+      "titleEstimate": "Geschätzt aus dem Token-Verbrauch zu Listenpreisen — kein vertraglicher Betrag.",
+      "titleMetered": "Aus der vom Anbieter gemeldeten Nutzung gemessen."
     },
     "panel": {
       "candidate": "Kandidat/in",
@@ -171,7 +174,8 @@
       "credentials": "Lizenzen & Zertifizierungen",
       "publications": "Publikationen & Patente",
       "links": "Portfolio & Links",
-      "growthTarget": "+30 % Wachstumsziel: {amount} CZK / Monat",
+      "growthTarget": "+{pct} % Wachstumsziel: {amount} {currency} {period}",
+      "growthTargetPlain": "Wachstumsziel: {amount} {currency} {period}",
       "companyCompContext": "Vergütungskontext des Unternehmens",
       "salaryRationale": "Gehaltsbegründung",
       "salaryEvidence": "Gehaltsnachweise",

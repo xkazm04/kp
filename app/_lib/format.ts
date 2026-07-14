@@ -20,10 +20,34 @@ const EN_DASH = "–";
 
 const integerFormat = new Intl.NumberFormat(LOCALE, { maximumFractionDigits: 0 });
 
-/** Grouped integer, no currency symbol (e.g. 45000 -> "45 000"). */
-export function formatCzk(value: number): string {
+/**
+ * Grouped integer, no currency symbol (e.g. 45000 -> "45 000"). Currency-neutral
+ * ON PURPOSE — this never emitted a currency, so a figure rendered with it alone
+ * carries no unit and a EUR/USD value reads as a bare number a viewer assumes is
+ * CZK. At a render boundary that shows a STANDALONE monetary figure, pair it with
+ * a currency via {@link formatMoney} instead.
+ */
+export function formatGrouped(value: number): string {
   const safe = Number.isFinite(value) ? value : 0;
   return integerFormat.format(safe);
+}
+
+/**
+ * @deprecated Misnamed: this is currency-neutral grouping, not a CZK formatter (it
+ * never emitted a "CZK"/"Kč"). Use {@link formatGrouped} for a bare grouped number
+ * or {@link formatMoney} for a number that names its currency. Kept as an alias so
+ * existing callers keep working while they migrate.
+ */
+export const formatCzk = formatGrouped;
+
+/**
+ * A grouped figure that carries its currency label, e.g. `formatMoney(45000, "EUR")`
+ * -> "45 000 EUR". Defaults to {@link APP_CURRENCY}. THE helper for a standalone
+ * monetary figure (a gauge tooltip, an aria readout) that must name its currency,
+ * so a EUR figure is never mistaken for a bare CZK number.
+ */
+export function formatMoney(value: number, currency: string = APP_CURRENCY): string {
+  return `${formatGrouped(value)} ${currency}`;
 }
 
 /**
@@ -48,8 +72,8 @@ export function formatSalaryRange(
   const high = Math.max(a, b);
   const range =
     low === high
-      ? `${formatCzk(low)} ${currency}`
-      : `${formatCzk(low)}${EN_DASH}${formatCzk(high)} ${currency}`;
+      ? `${formatGrouped(low)} ${currency}`
+      : `${formatGrouped(low)}${EN_DASH}${formatGrouped(high)} ${currency}`;
   return options.period ? `${range} / ${options.period}` : range;
 }
 

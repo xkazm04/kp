@@ -78,14 +78,23 @@ function RunCostLine({
   const model = runCost.model ?? "—";
   if (runCost.costUsd == null) {
     return (
-      <p className="text-xs text-steel" title={t("runCost.title")}>
+      <p className="text-xs text-steel" title={t("runCost.titleEstimate")}>
         {t("runCost.unpriced", { model })}
       </p>
     );
   }
+  // Direction 1 (#f): an ESTIMATED cost (priced from token counts × list prices) is
+  // marked as an estimate; a METERED cost (the provider's own reported figure) reads
+  // as an exact cost with no "estimate" tag — the two no longer render identically.
+  const cost = formatCostUsd(runCost.costUsd);
   return (
-    <p className="text-xs text-steel" title={t("runCost.title")}>
-      {t("runCost.line", { cost: formatCostUsd(runCost.costUsd), model })}
+    <p
+      className="text-xs text-steel"
+      title={runCost.estimated ? t("runCost.titleEstimate") : t("runCost.titleMetered")}
+    >
+      {runCost.estimated
+        ? t("runCost.lineEstimate", { cost, model })
+        : t("runCost.lineMetered", { cost, model })}
     </p>
   );
 }

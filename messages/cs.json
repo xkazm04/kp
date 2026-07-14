@@ -82,6 +82,7 @@
       "mid": "Střed",
       "growthPct": "+{pct} %",
       "target": "Cíl",
+      "confidenceUnknownTitle": "Spolehlivost nerozpoznána — zobrazeno s nejnižším důrazem; berte tento odhad mzdy jako neověřený.",
       "gaugeAria": "Mzdové rozpětí {min} až {max} {currency}, střed {midpoint}, cíl {growth} na {target}"
     },
     "tabs": {
@@ -130,10 +131,12 @@
     "alsoAnalyzedFor": "Také analyzováno pro:",
     "labelCollision": "Upozornění — jiný kandidát v tomto pracovním prostoru má stejné jméno odvozené od názvu souboru, ale jiné CV. Ověřte si prosím, že se díváte na správnou osobu.",
     "runCost": {
-      "line": "Odh. náklady ~{cost} · {model} · odhad",
+      "lineEstimate": "Odh. náklady ~{cost} · {model} · odhad",
+      "lineMetered": "Náklady {cost} · {model} · změřeno",
       "unpriced": "Odh. náklady nezměřeny · {model}",
       "cached": "Načteno z mezipaměti — bez dalších nákladů",
-      "title": "Odhadnuto z využití tokenů podle ceníku — nejde o smluvní částku."
+      "titleEstimate": "Odhadnuto z využití tokenů podle ceníku — nejde o smluvní částku.",
+      "titleMetered": "Změřeno z využití nahlášeného poskytovatelem."
     },
     "panel": {
       "candidate": "Kandidát",
@@ -171,7 +174,8 @@
       "credentials": "Licence a certifikace",
       "publications": "Publikace a patenty",
       "links": "Portfolio a odkazy",
-      "growthTarget": "Cíl růstu +30 %: {amount} Kč / měsíc",
+      "growthTarget": "Cíl růstu +{pct} %: {amount} {currency} {period}",
+      "growthTargetPlain": "Cíl růstu: {amount} {currency} {period}",
       "companyCompContext": "Kontext odměňování firmy",
       "salaryRationale": "Zdůvodnění mzdy",
       "salaryEvidence": "Důkazy ke mzdě",

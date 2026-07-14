@@ -3,9 +3,9 @@
 import { motion } from "framer-motion";
 import { useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { clampPercent, formatCzk } from "@/app/_lib/format";
+import { clampPercent, formatGrouped, formatMoney } from "@/app/_lib/format";
 import { useReducedMotion } from "@/app/_lib/useReducedMotion";
-import { growthMarkerPercent } from "./salaryGauge.logic";
+import { confidenceOpacity, growthMarkerPercent } from "./salaryGauge.logic";
 
 interface SalaryGaugeProps {
   minimum: number;
@@ -19,12 +19,6 @@ interface SalaryGaugeProps {
   // analysis is no longer CZK-only, so the screen-reader figure must name the real one.
   currency?: string;
 }
-
-const CONFIDENCE_OPACITY: Record<string, number> = {
-  low: 0.6,
-  medium: 0.8,
-  high: 1
-};
 
 export function SalaryGauge({ minimum, maximum, midpoint, confidence, target: targetProp, currency = "CZK" }: SalaryGaugeProps) {
   const t = useTranslations("report");
@@ -48,7 +42,11 @@ export function SalaryGauge({ minimum, maximum, midpoint, confidence, target: ta
   const midPct = pct(midpoint);
   const targetPct = pct(target);
 
-  const fillOpacity = CONFIDENCE_OPACITY[confidence.toLowerCase()] ?? 1;
+  // bug-ui-scan / Direction 1 (#e): an unrecognized confidence must NOT fall through
+  // to full opacity (the rendering of "high") — it maps to the lowest emphasis and
+  // is flagged so the bar carries an explicit "unknown" title instead of looking sure.
+  const emphasis = confidenceOpacity(confidence);
+  const fillOpacity = emphasis.opacity;
 
   const reducedMotion = useReducedMotion();
   const barRef = useRef<HTMLDivElement>(null);
@@ -70,7 +68,7 @@ export function SalaryGauge({ minimum, maximum, midpoint, confidence, target: ta
           className="pointer-events-none absolute -translate-x-1/2 rounded-md bg-ink px-2 py-1 text-sm font-medium text-paper shadow nums"
           style={{ left: hover.x, top: 0 }}
         >
-          {formatCzk(hover.value)}
+          {formatMoney(hover.value, currency)}
         </div>
       ) : null}
 
@@ -78,13 +76,14 @@ export function SalaryGauge({ minimum, maximum, midpoint, confidence, target: ta
         ref={barRef}
         role="img"
         aria-label={t("salary.gaugeAria", {
-          min: formatCzk(minimum),
-          max: formatCzk(maximum),
+          min: formatGrouped(minimum),
+          max: formatGrouped(maximum),
           currency,
-          midpoint: formatCzk(midpoint),
+          midpoint: formatGrouped(midpoint),
           growth: growthLabel,
-          target: formatCzk(target),
+          target: formatGrouped(target),
         })}
+        title={emphasis.known ? undefined : t("salary.confidenceUnknownTitle")}
         className={`relative h-3 w-full rounded-full bg-stone-200 ${degenerate ? "cursor-default" : "cursor-crosshair"}`}
         onMouseMove={handleMove}
         onMouseLeave={() => setHover(null)}
