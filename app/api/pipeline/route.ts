@@ -4,6 +4,7 @@ import { coerceGithubEvidenceSummary } from "@/app/_lib/github-summary";
 import { inferProfileLocale } from "@/app/_lib/comms-locale";
 import { withCanonicalScoresCached } from "@/app/_lib/pipeline-score-cache";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { linkTerminalPriorsToTarget } from "@/app/_lib/rediscovery-prior-link";
 import { safeJsonError } from "@/app/_lib/api-response";
 
 
@@ -67,6 +68,7 @@ export async function POST(request: NextRequest) {
     // never worth failing the add over.
     const source =
       typeof body.source === "string" && /^[a-z0-9_-]{1,40}$/.test(body.source) ? body.source : null;
+    const ws = await currentWorkspace();
     const result = createPipelineEntry({
       candidateId: body.candidateId,
       candidateLabel: body.candidateLabel || body.candidateId,
@@ -83,8 +85,21 @@ export async function POST(request: NextRequest) {
       // speak their language; no signal stays NULL and resolves to the workspace
       // default at dispatch (backlog #34 / pa-l2-null-locale).
       locale: inferProfileLocale(body.candidateId),
-      workspaceId: await currentWorkspace(),
+      workspaceId: ws,
     });
+    // Close-the-prior for SOURCING adds (mirrors the reach-out route): a
+    // rediscovery/sourcing add re-engages a silver medalist under a new role, so
+    // their terminal priors elsewhere get the same rematched link the automation
+    // path stamps. Gated on `created` (idempotent re-adds never re-link) and on
+    // the sourcing channels only — a board/manual add is not a re-engagement.
+    // Best-effort: a linking hiccup must never fail the add itself.
+    if (result.created && (source === "sourcing" || source === "rediscovery")) {
+      try {
+        linkTerminalPriorsToTarget(body.candidateId, result.entry.id, body.jobId, ws);
+      } catch (linkErr) {
+        console.error("[pipeline] prior-link failed (non-fatal):", linkErr);
+      }
+    }
     return NextResponse.json(result);
   } catch (error) {
     // Raw err.message surfaces better-sqlite3 internals (constraint names, the
