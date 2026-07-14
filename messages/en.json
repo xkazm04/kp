@@ -3497,7 +3497,8 @@
         "stale_alert": "Going stale in stage",
         "fairness_gate_blocked_reject": "Fairness gate: auto-reject blocked",
         "observed_minted": "Observer link minted",
-        "role_reopened": "Role reopened"
+        "role_reopened": "Role reopened",
+        "reinstated": "Reinstated for re-review"
       },
       "kindsQueued": {
         "outreach_sent": "Outreach queued in Outbox (not delivered)",

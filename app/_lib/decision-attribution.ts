@@ -78,6 +78,13 @@ export const DECISION_META: Record<string, DecisionMeta> = {
   // withdrew — a HUMAN-initiated, positive restoration. Without a mapping it
   // rendered UNKNOWN in the decision log and fell out of any attribution rollup.
   role_reopened: { auto: false, tone: "text-moss" },
+  // A recruiter reversing an auto-rejection (reconsider queue → reinstate): the
+  // HUMAN counterweight to the machine's `auto_rejected`, and sealed into the same
+  // tamper-evident chain (pipeline/[id] reinstate route). Attributed to the human
+  // who overturned it — NEVER the machine — and tone-positive like the restoration
+  // it is. Without this it rendered UNKNOWN and the reversal vanished from the
+  // audit rollups even though its inverse (auto_rejected) was counted.
+  reinstated: { auto: false, tone: "text-moss" },
 };
 
 // Policy-pass ALERT kinds — the aging/stale nudges evaluate_entry emits

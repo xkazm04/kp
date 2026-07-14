@@ -32,7 +32,7 @@ test("the kinds the writers produce are all mapped (the drift this module exists
     "acknowledgement_sent", "comm_resent", "offer_drafted", "offer_sent",
     "offer_accepted", "offer_declined", "offer_expired", "onboarding_started", "onboarding_failed",
     "rematched", "rematched_from", "fairness_gate_unknown_archetype", "observed_minted",
-    "ko_declined", "role_reopened",
+    "ko_declined", "role_reopened", "reinstated",
     // Policy-pass alert kinds — derived from the shared source the writer itself
     // consumes (not a hand-copied literal), so a NEW alert kind forces a
     // DECISION_META mapping instead of silently rendering UNKNOWN and falling out of

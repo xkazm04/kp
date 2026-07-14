@@ -3565,7 +3565,8 @@
         "stale_alert": "Stagne dans l'étape",
         "fairness_gate_blocked_reject": "Contrôle d'équité : rejet auto bloqué",
         "observed_minted": "Lien observateur généré",
-        "role_reopened": "Poste rouvert"
+        "role_reopened": "Poste rouvert",
+        "reinstated": "Réintégré pour réexamen"
       },
       "kindsQueued": {
         "outreach_sent": "Prise de contact en file d'attente dans la boîte d'envoi (non remise)",
