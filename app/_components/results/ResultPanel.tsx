@@ -45,10 +45,6 @@ type ResultPanelProps = {
   // reason instead of a hidden button, so the recruiter's dead-end is explained
   // rather than silent. Ignored when `pipelineRef` is present (the button wins).
   pipelineDisabledReason?: string;
-  // Cross-worktree seam (director note): the engine builder's ResultPanel renders a
-  // "served from cache — no new cost" note + cost line from this flag. Accepted here
-  // so the live Analyze tab can thread it now; the rendering lands at merge.
-  runCached?: boolean;
 };
 
 type ResultTab = "extraction" | "compare" | "jobFit" | "salary" | "interview" | "github";
