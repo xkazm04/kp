@@ -8,6 +8,7 @@ import { saveAnalysis } from "@/app/_lib/db";
 import { recordMeterUsage } from "@/app/_lib/billing";
 import { logAnalyze, type AnalyzeLog } from "@/app/_lib/logger";
 import { cleanupWorkdir, parsePythonJson, parseStderrError, spawnPython } from "@/app/_lib/python-runner";
+import { ANALYZE_PHASE } from "@/app/_lib/analyze-phases";
 
 // Shared core for CV analysis, lifted out of /api/analyze so it can run inside
 // the background-task runner (detached from the request → survives navigation
@@ -132,7 +133,11 @@ export async function runAnalyze(p: AnalyzeParams, onProgress?: ProgressFn, sign
     const coFileBytes = p.companyPath ? await readFile(p.companyPath) : null;
     const total = p.variants.length;
     let done = 0;
-    onProgress?.(0, total, "Starting…");
+    // Direction 3 — honest progress: emit the phases the TS side can actually
+    // OBSERVE through the task row (reading → analyzing → saving), replacing the
+    // client's fixed cosmetic timeline. The per-variant `done`/`total` counter
+    // rides along (real completion signal for a multi-CV comparison).
+    onProgress?.(0, total, ANALYZE_PHASE.reading);
 
     const results: VariantResult[] = await Promise.all(
       p.variants.map(async ({ label, cvPath }): Promise<VariantResult> => {
@@ -153,11 +158,14 @@ export async function runAnalyze(p: AnalyzeParams, onProgress?: ProgressFn, sign
           if (cached) {
             const parsed = analysisSchema.safeParse(cached);
             if (parsed.success) {
-              onProgress?.(++done, total, `${label} (cached)`);
+              onProgress?.(++done, total, ANALYZE_PHASE.analyzing);
               return { label, ok: true, analysis: parsed.data, cached: true };
             }
           }
 
+          // The engine is now running for this variant — the long, opaque LLM span.
+          // The client shows honest indeterminate progress + elapsed here.
+          onProgress?.(done, total, ANALYZE_PHASE.analyzing);
           // Forward the task's abort signal so canceling the task (DELETE
           // /api/tasks/[id] → cancelTask → controller.abort()) actually SIGKILLs the
           // Python child instead of leaving it to finish a billable LLM call whose
@@ -166,7 +174,7 @@ export async function runAnalyze(p: AnalyzeParams, onProgress?: ProgressFn, sign
           const { stdout, stderr, exitCode } = await result;
           if (exitCode !== 0) {
             const err = parseStderrError(stderr, exitCode);
-            onProgress?.(++done, total, `${label} (failed)`);
+            onProgress?.(++done, total, ANALYZE_PHASE.analyzing);
             return { label, ok: false, error: err.message, status: err.status };
           }
           let payload: unknown;
@@ -178,7 +186,7 @@ export async function runAnalyze(p: AnalyzeParams, onProgress?: ProgressFn, sign
             // Sibling LLM runners (reasoning-run) already use this for the same reason.
             payload = parsePythonJson<unknown>(stdout, stderr);
           } catch (parseError) {
-            onProgress?.(++done, total, `${label} (bad output)`);
+            onProgress?.(++done, total, ANALYZE_PHASE.analyzing);
             return {
               label,
               ok: false,
@@ -188,18 +196,18 @@ export async function runAnalyze(p: AnalyzeParams, onProgress?: ProgressFn, sign
           }
           const parsed = analysisSchema.safeParse(payload);
           if (!parsed.success) {
-            onProgress?.(++done, total, `${label} (bad payload)`);
+            onProgress?.(++done, total, ANALYZE_PHASE.analyzing);
             return { label, ok: false, error: `Pipeline returned an unexpected payload for "${label}".`, status: 502 };
           }
           storeCachedAnalysis(cacheKey, parsed.data);
-          onProgress?.(++done, total, label);
+          onProgress?.(++done, total, ANALYZE_PHASE.analyzing);
           return { label, ok: true, analysis: parsed.data, cached: false };
         } catch (caught) {
           // A thrown variant (readFile IO error, spawn failure, an aborted child's
           // "Python process aborted" reject) is CAPTURED here rather than rejecting
           // the whole Promise.all — otherwise one bad variant discards its good
           // siblings. A real cancellation is still honored below (signal.aborted).
-          onProgress?.(Math.min(done + 1, total), total, `${label} (failed)`);
+          onProgress?.(Math.min(done + 1, total), total, ANALYZE_PHASE.analyzing);
           return {
             label,
             ok: false,
@@ -232,6 +240,10 @@ export async function runAnalyze(p: AnalyzeParams, onProgress?: ProgressFn, sign
 
     const { successes, partialFailures, allCached } = settled;
     const analyses = successes.map((r) => ({ label: r.label, analysis: r.analysis }));
+
+    // Every variant is done — the remaining work is persisting the report. Emit the
+    // final honest phase so the strip advances to "saving" on a real signal.
+    onProgress?.(total, total, ANALYZE_PHASE.saving);
 
     // Bill ONE AI-candidate unit only for a DELIVERED, non-cached analysis (variants of
     // the same person count once). A total wipeout or cancel threw above and never

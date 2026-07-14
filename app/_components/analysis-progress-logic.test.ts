@@ -1,8 +1,9 @@
-// Pins the honest progress-bar logic (bug-ui-scan-2026-07-09 #5): the bar must
-// (a) surface the server's REAL per-variant progress for a multi-CV comparison
-// instead of the faked stage timeline, and (b) for a single run, flip to an
-// indeterminate state once the last (long, un-instrumented) stage is active
-// rather than freezing at a fabricated ~83%.
+// Pins the HONEST progress-strip logic (Direction 3): the strip reflects only the
+// phases the TS side can OBSERVE (reading → analyzing → saving), and
+//   (a) surfaces the server's REAL per-variant progress for a multi-CV comparison,
+//   (b) for a single run, flips to an INDETERMINATE state while the long, opaque
+//       "analyzing" (engine) span is active rather than showing a fabricated
+//       advancing percentage.
 //
 // Runner: Node's built-in test runner with type stripping.
 //   npm run test:unit
@@ -16,36 +17,29 @@ import {
   type StageState,
 } from "./analysis-progress-logic.ts";
 
-// The EXACT pre-fix formula the .tsx used: percent from stage-completion, always
-// determinate, variant progress ignored. Kept as the non-vacuity baseline.
-function naive(stages: StageState, complete: boolean): { percent: number; indeterminate: boolean } {
-  const completedCount = STAGE_ORDER.filter((id) => stages[id] === "done").length;
-  const percent = complete ? 100 : Math.round((completedCount / STAGE_ORDER.length) * 100);
-  return { percent, indeterminate: false };
-}
-
 // Build a stage state with `stage` active (earlier stages auto-marked done).
 function withActive(stage: (typeof STAGE_ORDER)[number]): StageState {
   return applyStageEvent(initialStageState(), stage, "active");
 }
 
-// ── #5a: the frozen-83% hang → indeterminate on the last stage ───────────────
-test("single run with the last stage active is indeterminate (not a frozen 83%)", () => {
-  const stages = withActive("insights"); // the final stage; earlier five -> done
-  const d = deriveProgressDisplay({ stages, complete: false });
-  assert.equal(d.indeterminate, true, "the long final Gemini call must read as in-progress, not stalled");
-  // Non-vacuity: pre-fix this same state was a static determinate 83%.
-  const pre = naive(stages, false);
-  assert.equal(pre.percent, 83, "pre-fix froze here at a fabricated 83%");
-  assert.equal(pre.indeterminate, false, "pre-fix had no indeterminate concept");
+// ── The honest phase set replaced the six cosmetic Python-internal stages ─────
+test("the strip has exactly the three observable phases", () => {
+  assert.deepEqual(STAGE_ORDER, ["reading", "analyzing", "saving"]);
 });
 
-// ── A mid-pipeline active stage stays determinate (honest partial fill) ───────
-test("single run mid-pipeline is a determinate partial bar", () => {
-  const stages = withActive("profile"); // extract+gemini done -> 2/6
+// ── The long engine span → indeterminate (not a frozen percentage) ────────────
+test("single run in the analyzing (engine) span is indeterminate", () => {
+  const stages = withActive("analyzing"); // reading -> done, analyzing active
   const d = deriveProgressDisplay({ stages, complete: false });
+  assert.equal(d.indeterminate, true, "the long engine call must read as in-progress, not a frozen fill");
+  assert.equal(d.percent, 33, "reading done → 1/3");
+});
+
+// ── The instant saving phase is a determinate near-complete bar ───────────────
+test("single run saving is a determinate 2/3 fill", () => {
+  const d = deriveProgressDisplay({ stages: withActive("saving"), complete: false });
   assert.equal(d.indeterminate, false);
-  assert.equal(d.percent, 33);
+  assert.equal(d.percent, 67);
 });
 
 // ── complete → 100%, determinate ─────────────────────────────────────────────
@@ -54,31 +48,37 @@ test("complete run shows a full determinate bar", () => {
   assert.deepEqual(d, { percent: 100, indeterminate: false });
 });
 
-// ── #5b: multi-variant drives the bar from REAL per-variant completion ────────
-test("multi-variant run reflects the server's real done/total, not the stage strip", () => {
-  // Stages say almost nothing has finished (only 'extract' active), but the server
-  // reports 2 of 3 variants genuinely complete — the real signal must win.
-  const stages = withActive("extract");
+// ── No stage regression: advancing only completes earlier phases ──────────────
+test("applyStageEvent never re-opens an earlier phase (no regression on a late signal)", () => {
+  let s = withActive("saving"); // reading+analyzing done, saving active
+  // A stray late "analyzing active" (e.g. a duplicated poll) must not rewind.
+  s = applyStageEvent(s, "analyzing", "active");
+  assert.equal(s.reading, "done");
+  assert.equal(s.saving, "active", "saving stays the furthest reached phase");
+});
+
+// ── multi-variant drives the bar from REAL per-variant completion ─────────────
+test("multi-variant run reflects the server's real done/total, not the phase strip", () => {
+  // The phase strip says almost nothing has finished (reading active), but the
+  // server reports 2 of 3 variants genuinely complete — the real signal wins.
+  const stages = withActive("reading");
   const d = deriveProgressDisplay({ stages, complete: false, variantsDone: 2, variantsTotal: 3 });
   assert.equal(d.percent, 67, "2 of 3 variants -> 67%");
   assert.equal(d.indeterminate, false, "a real determinate count is available");
-  // Non-vacuity: pre-fix ignored variantsDone/Total and read the stage strip.
-  assert.equal(naive(stages, false).percent, 0, "pre-fix showed 0% (only 'extract' active) — discarding the real 2/3");
 });
 
 // ── Multi-variant before the first variant lands → indeterminate motion ──────
 test("multi-variant with nothing finished yet is indeterminate", () => {
-  const d = deriveProgressDisplay({ stages: withActive("extract"), complete: false, variantsDone: 0, variantsTotal: 3 });
+  const d = deriveProgressDisplay({ stages: withActive("analyzing"), complete: false, variantsDone: 0, variantsTotal: 3 });
   assert.equal(d.percent, 0);
   assert.equal(d.indeterminate, true, "no honest determinate value yet → show motion, not a dead 0% bar");
 });
 
-// ── A single variant (total 1) keeps the stage-strip semantics ───────────────
-test("variantsTotal of 1 falls back to the stage strip (not real-progress mode)", () => {
-  const stages = withActive("scoring"); // 3/6 done
-  const d = deriveProgressDisplay({ stages, complete: false, variantsDone: 0, variantsTotal: 1 });
-  assert.equal(d.percent, 50, "a single variant uses the cosmetic stage percent");
-  assert.equal(d.indeterminate, false);
+// ── A single variant (total 1) keeps the phase-strip semantics ───────────────
+test("variantsTotal of 1 falls back to the phase strip (not real-progress mode)", () => {
+  const d = deriveProgressDisplay({ stages: withActive("analyzing"), complete: false, variantsDone: 0, variantsTotal: 1 });
+  assert.equal(d.indeterminate, true, "a single variant still shows the engine span as indeterminate");
+  assert.equal(d.percent, 33);
 });
 
 // ── Clamp: a done count over/under total never yields a nonsense percent ──────

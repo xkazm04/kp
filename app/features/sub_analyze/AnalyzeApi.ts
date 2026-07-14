@@ -1,5 +1,6 @@
 import { analysisSchema, type Analysis } from "@/app/_lib/schemas";
-import type { StageId, StageStatus } from "@/app/_components/AnalysisProgress";
+import type { StageStatus } from "@/app/_components/AnalysisProgress";
+import { asAnalyzePhase } from "@/app/_lib/analyze-phases";
 import type { ProgressEmitter } from "./AnalyzeTypes";
 
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -36,14 +37,22 @@ export async function submitAnalysis(
   return taskId;
 }
 
-// Poll a running analyze task to completion, animating the stage strip on a
-// soft timeline (the pipeline emits one final result, not per-token stages).
+// Poll a running analyze task to completion, advancing the stage strip on the
+// server's REAL phase transitions — NOT a cosmetic timer.
+//
+// Direction 3 — the old code animated a six-stage strip on a fixed 1800ms
+// interval unrelated to server state (a lie: it froze mid-strip for the whole
+// 30–60s engine call). analyze-run now emits observable phases (reading →
+// analyzing → saving) through the task row's progress `msg`; each poll maps that
+// phase to a stage event, so the strip only ever advances on a genuine signal and
+// a stalled engine visibly stalls (the phase stays "analyzing", elapsed keeps
+// ticking). Retries can't rewind the strip — applyStageEvent only completes
+// earlier stages, never re-opens them.
 //
 // bug-ui-scan-2026-07-09 (cv-analysis-workspace #5): each poll ALSO carries the
 // server's genuine per-variant progress (task.progressDone/progressTotal, written
-// by runAnalyze via setTaskProgress). It used to be discarded; now it's forwarded
-// through `onVariantProgress` so a multi-CV comparison shows real completion
-// instead of one faked track.
+// by runAnalyze via setTaskProgress), forwarded through `onVariantProgress` so a
+// multi-CV comparison shows real completion.
 export type VariantProgress = { done: number; total: number; msg: string | null };
 
 export async function watchAnalysis(
@@ -52,18 +61,9 @@ export async function watchAnalysis(
   signal?: AbortSignal,
   onVariantProgress?: (p: VariantProgress) => void
 ): Promise<Analysis> {
-  const stages: StageId[] = ["extract", "gemini", "profile", "scoring", "salary", "insights"];
-  let active = true;
-  let idx = 0;
-  onProgress(stages[0], "active");
-  const tick = window.setInterval(() => {
-    if (!active) return;
-    if (idx < stages.length - 1) {
-      onProgress(stages[idx], "done" as StageStatus);
-      idx += 1;
-      onProgress(stages[idx], "active" as StageStatus);
-    }
-  }, 1800);
+  // Seed the first observable phase immediately so the strip isn't blank for the
+  // ~1.5s until the first poll returns; the real phases from the server take over.
+  onProgress("reading", "active");
 
   // A permanently-failing poll (the task row was reaped after a `next dev`
   // hot-restart, or the in-memory runner was lost) must not spin forever with no
@@ -83,54 +83,54 @@ export async function watchAnalysis(
   };
   const aborted = () => signal?.aborted ?? false;
 
-  try {
-    while (true) {
-      if (aborted()) throw new DOMException("Analysis watch aborted", "AbortError");
-      await delay(1500);
-      if (aborted()) throw new DOMException("Analysis watch aborted", "AbortError");
-      let r: Response;
-      try {
-        r = await fetch(`/api/tasks/${taskId}`, { signal });
-      } catch (err) {
-        if (aborted()) throw err; // intentional cancel — surfaced as AbortError
-        softFail();
-        continue;
-      }
-      // 404 = the task is gone (reaped / lost to a restart); it will never reach a
-      // terminal success, so stop now rather than poll a vanished task forever.
-      if (r.status === 404) throw new Error("The analysis is no longer available — please retry.");
-      if (!r.ok) {
-        softFail();
-        continue;
-      }
-      const body = await r.json().catch(() => null);
-      const task = body?.task;
-      if (!task) {
-        softFail();
-        continue;
-      }
-      consecutiveErrors = 0;
-      // Forward the server's real per-variant counter (0 while it warms up). The
-      // component only surfaces it for a genuine multi-variant comparison.
-      if (onVariantProgress && typeof task.progressTotal === "number") {
-        onVariantProgress({
-          done: typeof task.progressDone === "number" ? task.progressDone : 0,
-          total: task.progressTotal,
-          msg: typeof task.progressMsg === "string" ? task.progressMsg : null,
-        });
-      }
-      if (task.status === "succeeded") {
-        const parsed = analysisSchema.safeParse(task.result);
-        if (parsed.success) return parsed.data;
-        throw new Error("Analysis returned an unexpected payload.");
-      }
-      if (task.status === "failed" || task.status === "canceled" || task.status === "interrupted") {
-        throw new Error(task.error ?? "Analysis did not complete.");
-      }
+  while (true) {
+    if (aborted()) throw new DOMException("Analysis watch aborted", "AbortError");
+    await delay(1500);
+    if (aborted()) throw new DOMException("Analysis watch aborted", "AbortError");
+    let r: Response;
+    try {
+      r = await fetch(`/api/tasks/${taskId}`, { signal });
+    } catch (err) {
+      if (aborted()) throw err; // intentional cancel — surfaced as AbortError
+      softFail();
+      continue;
     }
-  } finally {
-    active = false;
-    window.clearInterval(tick);
+    // 404 = the task is gone (reaped / lost to a restart); it will never reach a
+    // terminal success, so stop now rather than poll a vanished task forever.
+    if (r.status === 404) throw new Error("The analysis is no longer available — please retry.");
+    if (!r.ok) {
+      softFail();
+      continue;
+    }
+    const body = await r.json().catch(() => null);
+    const task = body?.task;
+    if (!task) {
+      softFail();
+      continue;
+    }
+    consecutiveErrors = 0;
+    // Direction 3 — advance the strip on the server's REAL phase. asAnalyzePhase
+    // narrows the progress msg to a known stage id; applyStageEvent (via the
+    // emitter) marks earlier phases done, so the strip only ever moves forward.
+    const phase = asAnalyzePhase(typeof task.progressMsg === "string" ? task.progressMsg : null);
+    if (phase) onProgress(phase, "active" as StageStatus);
+    // Forward the server's real per-variant counter (0 while it warms up). The
+    // component only surfaces it for a genuine multi-variant comparison.
+    if (onVariantProgress && typeof task.progressTotal === "number") {
+      onVariantProgress({
+        done: typeof task.progressDone === "number" ? task.progressDone : 0,
+        total: task.progressTotal,
+        msg: typeof task.progressMsg === "string" ? task.progressMsg : null,
+      });
+    }
+    if (task.status === "succeeded") {
+      const parsed = analysisSchema.safeParse(task.result);
+      if (parsed.success) return parsed.data;
+      throw new Error("Analysis returned an unexpected payload.");
+    }
+    if (task.status === "failed" || task.status === "canceled" || task.status === "interrupted") {
+      throw new Error(task.error ?? "Analysis did not complete.");
+    }
   }
 }
 

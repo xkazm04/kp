@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Check, Loader2 } from "lucide-react";
 import {
@@ -24,23 +25,32 @@ export {
 export type { StageId, StageStatus, StageState, ProgressDisplay } from "./analysis-progress-logic";
 
 // Literal-key maps (next-intl rejects template-literal keys, so we can't build
-// `stages.${id}Title` inline) → the catalog lives under analyze.stages.*.
+// `stages.${id}Title` inline) → the catalog lives under analyze.stages.*. Direction
+// 3 — three HONEST, observable phases replace the six cosmetic Python-internal ones.
 const STAGE_TITLE_KEY = {
-  extract: "stages.extractTitle",
-  gemini: "stages.geminiTitle",
-  profile: "stages.profileTitle",
-  scoring: "stages.scoringTitle",
-  salary: "stages.salaryTitle",
-  insights: "stages.insightsTitle",
+  reading: "stages.readingTitle",
+  analyzing: "stages.analyzingTitle",
+  saving: "stages.savingTitle",
 } as const;
 const STAGE_SUB_KEY = {
-  extract: "stages.extractSub",
-  gemini: "stages.geminiSub",
-  profile: "stages.profileSub",
-  scoring: "stages.scoringSub",
-  salary: "stages.salarySub",
-  insights: "stages.insightsSub",
+  reading: "stages.readingSub",
+  analyzing: "stages.analyzingSub",
+  saving: "stages.savingSub",
 } as const;
+
+// A once-per-second elapsed clock for the run (mounts with the panel, i.e. at the
+// run's start; the panel unmounts when the run ends). Shown beside the indeterminate
+// engine span so a slow/stalled model call reads as genuinely in-progress — the
+// number keeps climbing while the stage honestly stays "analyzing".
+function useElapsedSeconds(): number {
+  const [elapsed, setElapsed] = useState(0);
+  useEffect(() => {
+    const startedAt = Date.now();
+    const id = window.setInterval(() => setElapsed(Math.floor((Date.now() - startedAt) / 1000)), 1000);
+    return () => window.clearInterval(id);
+  }, []);
+  return elapsed;
+}
 
 export function AnalysisProgress({
   stages,
@@ -65,11 +75,15 @@ export function AnalysisProgress({
 }) {
   const t = useTranslations("analyze");
   // #5 — honest bar: real per-variant progress when available, else the stage
-  // strip but indeterminate (not a frozen 83%) once the last step is running.
+  // strip but indeterminate (not a frozen percent) while the engine span runs.
   const { percent, indeterminate } = deriveProgressDisplay({ stages, complete, variantsDone, variantsTotal });
   const headlineStage = headlineStageOf(stages, complete);
   // Show the genuine "X / N variants" count the server reports for a comparison.
   const showVariantCount = !complete && Boolean(variantsTotal && variantsTotal > 1);
+  // Direction 3 — a ticking elapsed clock for the run, shown while the bar is
+  // indeterminate so a slow/stalled engine call visibly keeps counting rather than
+  // sitting on a lie. The number below (progress readout) reads it out verbally.
+  const elapsedSeconds = useElapsedSeconds();
 
   return (
     <div
@@ -79,9 +93,9 @@ export function AnalysisProgress({
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         {/* bug-ui-scan-2026-07-09 (cv-analysis-workspace #4): scope the live
             region to just the headline + percent text so a screen reader
-            re-announces only the current step, not the whole card (incl. the
-            six stage rows) every ~1.8s tick — and so the interactive Cancel
-            button no longer sits inside a passive status container. */}
+            re-announces only the current phase, not the whole card (incl. the
+            stage rows) on every poll — and so the interactive Cancel button no
+            longer sits inside a passive status container. */}
         <div role="status" aria-live="polite">
           <p className="text-meta uppercase text-coral">
             {complete ? t("compilingResult") : t("livePipeline")}
@@ -112,6 +126,15 @@ export function AnalysisProgress({
             {/* When indeterminate we have no honest number to read out, so show a
                 verbal state rather than a fabricated percentage. */}
             <span className="font-serif text-h2 text-ink">{indeterminate ? t("progressWorking") : `${percent}%`}</span>
+            {/* Elapsed keeps ticking through the un-instrumented engine span so a
+                stall reads as "still working, N s", never a frozen bar. */}
+            {!complete ? (
+              // aria-hidden: the per-second tick must not spam a screen reader —
+              // the verbal "Working" / percent above is the announced state.
+              <span aria-hidden className="text-sm tabular-nums text-steel">
+                {t("elapsedSeconds", { seconds: elapsedSeconds })}
+              </span>
+            ) : null}
           </div>
           {onCancel && !complete && (
             <button
