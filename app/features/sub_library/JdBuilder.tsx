@@ -5,7 +5,8 @@ import { useSearchParams } from "next/navigation";
 import { Check, ChevronDown, Loader2, Save, Settings2, Sparkles } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { isLocale, LOCALES } from "@/i18n/locales";
-import type { GeneratePrefill } from "./jd-library";
+import { builderLintFindings, type GeneratePrefill } from "./jd-library";
+import { JdLintPanel } from "./JdLintPanel";
 import { JdTemplateManager } from "./JdTemplateManager";
 import { fetchTemplates, type Template } from "./render-template";
 import { validateJdBuildInput, validateJdFields } from "@/app/_lib/jd-limits";
@@ -78,6 +79,16 @@ export function JdBuilder({ onSaved, prefill }: { onSaved: () => void; prefill?:
 
   // ── Generate: the backgrounded, checklist-driven AI build ──────────────────
   const [options, setOptions] = useState({ description: true, marketResearch: true, caseDesign: false });
+
+  // ── Advisory specificity/inclusivity lint (jd-lint, live on the editor body) ──
+  // Debounced ~400ms so it recomputes off the keystroke path; ADVISORY only —
+  // never gates Generate or Save-as-draft. The panel below hides at zero findings.
+  const [lintFindings, setLintFindings] = useState<ReturnType<typeof builderLintFindings>>([]);
+  const marketResearch = options.marketResearch;
+  useEffect(() => {
+    const id = setTimeout(() => setLintFindings(builderLintFindings(needText, { marketResearch })), 400);
+    return () => clearTimeout(id);
+  }, [needText, marketResearch]);
   const [checklistOpen, setChecklistOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [queued, setQueued] = useState(false);
@@ -258,6 +269,10 @@ export function JdBuilder({ onSaved, prefill }: { onSaved: () => void; prefill?:
           minHeight="8rem"
         />
       </Field>
+      {/* Advisory lint over the editor body — surfaces boilerplate / missing pay·place /
+          non-inclusive wording as the recruiter drafts. Hidden at zero findings (no
+          empty chrome); never blocks Generate or Save-as-draft. */}
+      {lintFindings.length > 0 ? <JdLintPanel findings={lintFindings} /> : null}
       {/* Codebase enrichment is a dev-role feature — shown only when Field = Software. */}
       {isSoftware ? (
         <Field label={t("codebaseLabel")} className="mt-2">

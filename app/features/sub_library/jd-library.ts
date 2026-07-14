@@ -6,7 +6,28 @@
 import type { LucideIcon } from "lucide-react";
 import { AlertTriangle, CircleDot, Crown, FileText, Loader2, Lock, PencilRuler, Radio, Sprout, Star, TrendingUp } from "lucide-react";
 import { labelize } from "@/app/_lib/format";
+import { lintJd, type JdLintFinding } from "@/app/_lib/jd-lint";
 import type { BadgeTone } from "@/app/_components/Badge";
+
+// Below this many characters the "describe the need" body is too thin to lint
+// usefully — every short draft would trip missing-salary/place, which reads as
+// nagging rather than advice. So the builder holds the advisory panel until the
+// draft is substantive, then engages. Named here so the wiring test pins it.
+export const LINT_MIN_BODY_CHARS = 40;
+
+// The builder's advisory specificity/inclusivity lint over its rich-editor body —
+// the SAME finished jd-lint engine that already backs the public-page panel, wired
+// (finally) to the authoring surface. Findings are ADVISORY; the panel hides at
+// zero (below the threshold this returns none). `marketResearch` is the ticked
+// "market research" step: the published artifacts will then carry a grounded
+// salary figure even if the prose doesn't spell one out, so it feeds the engine's
+// `salaryAvailable` to suppress the missing-salary finding (its documented
+// contract). The engine itself is bilingual by content (EN+CS regexes) — no lang
+// argument to thread.
+export function builderLintFindings(body: string, opts: { marketResearch: boolean }): JdLintFinding[] {
+  if ((body ?? "").trim().length < LINT_MIN_BODY_CHARS) return [];
+  return lintJd({ body, salaryAvailable: opts.marketResearch });
+}
 
 // Mirrors the JdRow the /api/jds list endpoint returns (identity + a
 // server-truncated preview), enriched with the linked-job status and the
