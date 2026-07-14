@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { listAnalysisRecords, listProfileRecords } from "@/app/_lib/db";
+import { cachedProfileRecords, listAnalysisRecords } from "@/app/_lib/db";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import type { ProfilePayload } from "@/app/features/sub_profile/ProfileTypes";
 
@@ -37,7 +37,7 @@ export async function GET() {
       };
     });
 
-    const profileRows = listProfileRecords(200, ws).map(({ row, payload }) => {
+    const profileRows = cachedProfileRecords(ws).map(({ row, payload }) => {
       const p = (payload as ProfilePayload | null) ?? {};
       return {
         key: `profile:${row.id}`,

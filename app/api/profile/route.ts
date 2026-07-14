@@ -3,9 +3,9 @@ import { writeFile } from "node:fs/promises";
 import path from "node:path";
 import {
   analysisLineageSource,
+  cachedProfileRecords,
   deleteProfile,
   getProfileRecord,
-  listProfiles,
   profileStaleness,
   saveProfile,
   setProfileLineage,
@@ -114,8 +114,12 @@ export async function GET(request: NextRequest) {
     // The list carries a `stale` map (profile id → newer analysis) alongside the
     // rows so the roster / Match candidate select can flag "a newer CV analysis
     // exists since this profile was built" without a per-row round-trip. Empty for
-    // every hand-built profile (NULL lineage ⇒ never stale).
-    return NextResponse.json({ profiles: listProfiles(200, ws), stale: profileStaleness(ws) });
+    // every hand-built profile (NULL lineage ⇒ never stale). The rows come off the
+    // shared short-TTL memo (cachedProfileRecords) — projected to ProfileRow — so
+    // the matrix's sibling /api/profile/candidates read on the same tab load is
+    // free; the payload is byte-identical to the old listProfiles(200, ws).
+    const profiles = cachedProfileRecords(ws).map((r) => r.row);
+    return NextResponse.json({ profiles, stale: profileStaleness(ws) });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to list profiles.";
     return NextResponse.json({ error: message }, { status: 500 });

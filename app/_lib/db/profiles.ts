@@ -1,9 +1,14 @@
 import { ensureDb, insertWithUniqueSlug, safeRowParse } from "./core";
 import { DEFAULT_WORKSPACE_ID } from "./workspaces";
 import { maskCandidateName, scrubPiiFromPayload } from "../consent";
-import { listAnalysesByCvHash } from "./analyses";
+import { createTtlCache } from "../analytics-cache";
 
 // ---- Candidate profiles (v2 archetype-aware intake) -----------------------
+
+// Shared list ceiling for the Profile-tab reads — the roster (/api/profile) and
+// the matrix (/api/profile/candidates) both page the same 200, so centralize it
+// and the memo below keys on it implicitly (both routes read the same set).
+export const PROFILE_LIST_LIMIT = 200;
 
 export type ProfileRow = {
   id: string;
@@ -67,6 +72,7 @@ export function saveProfile(
       lineage?.sourceAnalyzedAt ?? null
     )
   );
+  invalidateProfileRecordsCache();
   return { id, createdAt };
 }
 
@@ -100,6 +106,32 @@ export function listProfileRecords(limit = 100, workspaceId: string = DEFAULT_WO
   return out;
 }
 
+// Short-TTL per-workspace memo for the profile-records read that BOTH Profile-tab
+// endpoints share: /api/profile (roster, projects to ProfileRow) and
+// /api/profile/candidates (matrix, needs the payload) each read the profiles table
+// on the SAME tab load — so within the TTL the second read is served from memory,
+// making the tab's double profile-fetch a single DB read. Same idiom + reasoning as
+// analytics-cache; keyed workspace-first, so no set ever crosses tenants.
+//
+// UNLIKE the analytics memo, this one IS write-invalidated: a create/edit/delete
+// must reflect on the very next read (the roster's optimistic prune + the matrix's
+// forced refetch would otherwise show a just-deleted row for up to the TTL). Every
+// profiles write below clears it — cheap, since writes are rare next to these reads.
+const profileRecordsCache = createTtlCache<{ row: ProfileRow; payload: unknown }[]>();
+
+/** The workspace's profile records, memoized for a short TTL. Both Profile-tab
+ *  routes call this so the second read on a tab load is free. Byte-identical to
+ *  listProfileRecords(PROFILE_LIST_LIMIT, ws) — the roster projects `.row` off it. */
+export function cachedProfileRecords(workspaceId: string = DEFAULT_WORKSPACE_ID): { row: ProfileRow; payload: unknown }[] {
+  return profileRecordsCache.get(workspaceId, () => listProfileRecords(PROFILE_LIST_LIMIT, workspaceId));
+}
+
+/** Drop the profile-records memo (all workspaces). Called by every profiles write so
+ *  the next read reflects it immediately. Exposed for tests that assert freshness. */
+export function invalidateProfileRecordsCache(): void {
+  profileRecordsCache.clear();
+}
+
 export function getProfileRecord(id: string, workspaceId: string = DEFAULT_WORKSPACE_ID): { row: ProfileRow; payload: unknown } | null {
   const db = ensureDb();
   const row = db
@@ -126,6 +158,7 @@ export function updateProfile(id: string, input: SaveProfileInput, workspaceId: 
        WHERE id = ? AND workspace_id = ?`
     )
     .run(input.label, input.archetype, input.roleFamily, input.completeness, JSON.stringify(input.payload), id, workspaceId);
+  invalidateProfileRecordsCache();
   return Number(info.changes) > 0;
 }
 
@@ -142,39 +175,54 @@ export function setProfileLineage(id: string, lineage: ProfileLineage, workspace
        WHERE id = ? AND workspace_id = ?`
     )
     .run(lineage.sourceAnalysisSlug, lineage.sourceCvHash, lineage.sourceAnalyzedAt, id, workspaceId);
+  invalidateProfileRecordsCache();
   return Number(info.changes) > 0;
 }
 
 // Profile ↔ CV staleness (workspace-scoped): for every profile that carries source
 // lineage, is there a NEWER analysis of the SAME CV content than the one it was
-// built from? Reuses the round-3 content-addressed read (listAnalysesByCvHash),
-// which already returns same-cv_hash analyses newest-first, excluding the source
-// slug. A profile with NULL lineage is skipped entirely (no false staleness on a
-// hand-built profile). Returns a map keyed by profile id, present ONLY for stale
-// profiles — the newer analysis's slug (the rebuild target) and its analyzed date.
+// built from? A profile with NULL lineage is skipped entirely (no false staleness
+// on a hand-built profile). Returns a map keyed by profile id, present ONLY for
+// stale profiles — the newer analysis's slug (the rebuild target) and its analyzed
+// date. Computed in a SINGLE join (see below) rather than a per-profile loop, so
+// the cost is one query regardless of how many lineage profiles exist.
 export function profileStaleness(workspaceId: string = DEFAULT_WORKSPACE_ID): Record<string, ProfileStaleness> {
   const db = ensureDb();
-  const lineageRows = db
+  // ONE query instead of the old N+1 (one listAnalysesByCvHash per lineage-bearing
+  // profile, run on EVERY GET /api/profile). Join each lineage profile to the
+  // NEWER same-CV analyses in its workspace and keep, per profile, the newest —
+  // the exact result the loop produced: listAnalysesByCvHash already took the
+  // MAX(created_at) analysis (≠ the source slug); if that max exceeds the source's
+  // analyzed-at it IS the max of the "strictly newer" subset, so filtering in the
+  // JOIN and taking the top row is equivalent. ISO-8601 timestamps compare
+  // lexicographically, so `>` is a chronological "is newer".
+  //
+  // COALESCE(source_analysis_slug, '') mirrors the old excludeSlug ?? "" — a NULL
+  // source slug excludes nothing (no analysis slug is ""), so a lineage profile
+  // whose source slug is somehow NULL still resolves its newer analyses.
+  // ROW_NUMBER's slug-DESC tiebreak makes an exact-timestamp tie deterministic
+  // (the old LIMIT-1 tiebreak was arbitrary; ties don't occur with distinct saves).
+  const rows = db
     .prepare(
-      `SELECT id, source_analysis_slug, source_cv_hash, source_analyzed_at
-       FROM profiles
-       WHERE workspace_id = ? AND source_cv_hash IS NOT NULL AND source_analyzed_at IS NOT NULL`
+      `SELECT id, newerSlug, newerAnalyzedAt FROM (
+         SELECT p.id AS id,
+                a.slug AS newerSlug,
+                a.created_at AS newerAnalyzedAt,
+                ROW_NUMBER() OVER (PARTITION BY p.id ORDER BY a.created_at DESC, a.slug DESC) AS rn
+         FROM profiles p
+         JOIN analyses a
+           ON a.workspace_id = p.workspace_id
+          AND a.cv_hash = p.source_cv_hash
+          AND a.slug <> COALESCE(p.source_analysis_slug, '')
+          AND a.created_at > p.source_analyzed_at
+         WHERE p.workspace_id = ?
+           AND p.source_cv_hash IS NOT NULL
+           AND p.source_analyzed_at IS NOT NULL
+       ) WHERE rn = 1`
     )
-    .all(workspaceId) as {
-    id: string;
-    source_analysis_slug: string | null;
-    source_cv_hash: string;
-    source_analyzed_at: string;
-  }[];
+    .all(workspaceId) as { id: string; newerSlug: string; newerAnalyzedAt: string }[];
   const out: Record<string, ProfileStaleness> = {};
-  for (const r of lineageRows) {
-    // Newest same-CV analysis other than the source. ISO-8601 timestamps compare
-    // lexicographically, so a string `>` is a chronological "is newer".
-    const newer = listAnalysesByCvHash(r.source_cv_hash, workspaceId, r.source_analysis_slug ?? undefined, 1).find(
-      (a) => a.created_at > r.source_analyzed_at
-    );
-    if (newer) out[r.id] = { newerSlug: newer.slug, newerAnalyzedAt: newer.created_at };
-  }
+  for (const r of rows) out[r.id] = { newerSlug: r.newerSlug, newerAnalyzedAt: r.newerAnalyzedAt };
   return out;
 }
 
@@ -209,6 +257,7 @@ export function anonymizeProfile(id: string, workspaceId: string = DEFAULT_WORKS
 export function deleteProfile(id: string, workspaceId: string = DEFAULT_WORKSPACE_ID): boolean {
   const db = ensureDb();
   const info = db.prepare(`DELETE FROM profiles WHERE id = ? AND workspace_id = ?`).run(id, workspaceId);
+  invalidateProfileRecordsCache();
   return Number(info.changes) > 0;
 }
 
