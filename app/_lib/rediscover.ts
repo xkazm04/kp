@@ -71,7 +71,11 @@ function pickPrior(hist: CandidateOutcome[], jobId: string): PriorOutcome | null
   const closed = hist.find((h) => h.status === "role_closed" || h.status === "declined");
   if (closed) return make("closed", `Closed · ${role(closed)}`, closed);
   const elsewhere = hist.find((h) => h.jobId !== jobId && (h.status === "active" || h.stage === "Hired"));
-  if (elsewhere) return make("elsewhere", `${elsewhere.stage} · ${role(elsewhere)}`, elsewhere);
+  // An `elsewhere` prior is a LIVE entry, not a terminal one — the depth boost (and
+  // its "got as far as X last time" disclosure) is about how far a silver medalist's
+  // FINISHED run advanced, so a currently-active candidate takes no boost: their
+  // stage would inflate ordering for someone who may not even be available.
+  if (elsewhere) return { ...make("elsewhere", `${elsewhere.stage} · ${role(elsewhere)}`, elsewhere), depth: 0 };
   return null;
 }
 
