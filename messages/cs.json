@@ -1773,7 +1773,11 @@
       "pricingBasis": "Cena vychází z čerstvého fit-checku při návrhu nabídky: {score}/100 → ~{pct} % pásma.",
       "strengths": "Silné stránky",
       "redFlags": "Varovné signály",
-      "select": "Vybrat {name} pro hromadné rozhodnutí"
+      "select": "Vybrat {name} pro hromadné rozhodnutí",
+      "confidenceLabel": "Jistota",
+      "confidencePct": "{pct} %",
+      "confidenceAria": "Jistota AI v tomto doporučení: {pct} %",
+      "viewAnalysis": "Celá analýza"
     },
     "rules": {
       "title": "Pravidla rozhodování · Screening",
@@ -1899,7 +1903,14 @@
       "summaryNote": "Souhrn odvozený ze získaných dat profilu kandidáta a deterministického rozkladu shody pro tuto roli.",
       "decisionNote": "Poznámka k rozhodnutí",
       "decisionNoteOptional": "· nepovinné, zaznamenáno v Protokolu rozhodnutí",
-      "notePlaceholder": "Proč postoupit nebo zamítnout? Např. silný signál v systémovém návrhu, ale slabý v povinném stacku."
+      "notePlaceholder": "Proč postoupit nebo zamítnout? Např. silný signál v systémovém návrhu, ale slabý v povinném stacku.",
+      "unprovenTitle": "Uvedeno, ale nedoloženo",
+      "unprovenHelp": "Požadované dovednosti pod prahem shody — podnět k prověření, nikoli shoda.",
+      "unprovenStrengthTitle": "částečná shoda {pct} %",
+      "unprovenAdjacency": "příbuzné",
+      "unprovenProvenance": "neověřeno",
+      "unprovenBoth": "příbuzné · neověřeno",
+      "unprovenClaimed": "uvedeno"
     },
     "groupEval": {
       "title": "Skupinové hodnocení · {role}",

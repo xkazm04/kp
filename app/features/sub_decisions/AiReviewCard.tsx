@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Check, CheckSquare, Sparkles, Square, X } from "lucide-react";
+import { Check, CheckSquare, Search, Sparkles, Square, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { RATING_MAX } from "@/app/_lib/format";
 import { OFFER_TTL_DAYS_MIN, OFFER_TTL_DAYS_MAX, defaultOfferTtlDays } from "@/app/_lib/offer-policy";
@@ -25,6 +25,11 @@ export function AiReviewCard({
   selectMode = false,
   selected = false,
   onToggleSelect,
+  // Direction 1 (signals-at-the-click): open the SAME AnalysisSummaryModal the key
+  // decisions use — the confidence band, weight-aware score breakdown and the
+  // claimed-but-unproven bucket live there and were unreachable from these cards.
+  // Absent (no candidate to inspect) → the affordance doesn't render.
+  onInspect,
 }: {
   entry: Entry;
   onAccept: (ttlDays?: number) => void;
@@ -32,6 +37,7 @@ export function AiReviewCard({
   selectMode?: boolean;
   selected?: boolean;
   onToggleSelect?: () => void;
+  onInspect?: () => void;
 }) {
   const t = useTranslations("decisions.aiReview");
   // Selectable exactly when the parent enabled select mode AND passed a toggle
@@ -86,6 +92,17 @@ export function AiReviewCard({
           : t("tagScreening");
   const acceptLabel = isOffer ? t("acceptSendOffer") : isScorecard ? t("acceptToOffer") : t("acceptAdvance");
 
+  // Direction 1 — the compact confidence band on the card itself. This is the
+  // AI's numeric confidence in ITS screening verdict (screening/queued-reject
+  // payloads carry a 0-100 scalar); a scorecard's confidence is a {level,reason}
+  // band shown elsewhere, and an offer has none — so both are excluded, and an
+  // absent value renders no band (no chrome). The fuller match confidence band +
+  // score breakdown live one click away in the analysis modal (onInspect).
+  const screeningConfidence = !isOffer && !isScorecard && typeof parsed?.confidence === "number" ? Math.max(0, Math.min(100, Math.round(parsed.confidence))) : null;
+  // Tone tracks how load-bearing the click is: a low-confidence advance/reject is
+  // the wrong-click risk this band exists to flag. Tokens only (both themes).
+  const confidenceTone = screeningConfidence == null ? "" : screeningConfidence >= 70 ? "bg-moss" : screeningConfidence >= 40 ? "bg-amber-400" : "bg-coral";
+
   return (
     <article
       className={`animate-fade-in rounded-lg border bg-white p-3 shadow-panel ${
@@ -128,6 +145,18 @@ export function AiReviewCard({
         )}
       </div>
       <CandidateHead entry={entry} />
+
+      {/* Direction 1 — compact confidence band. A thin meter + the number, colored
+          by how sure the AI is of the verdict this card is about to commit. */}
+      {screeningConfidence != null ? (
+        <div className="mt-2 flex items-center gap-2">
+          <span className="text-meta uppercase tracking-wide text-steel">{t("confidenceLabel")}</span>
+          <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-stone-200" role="img" aria-label={t("confidenceAria", { pct: screeningConfidence })}>
+            <span className={`block h-full rounded-full ${confidenceTone}`} style={{ width: `${screeningConfidence}%` }} />
+          </span>
+          <span className="nums text-sm font-semibold text-ink">{t("confidencePct", { pct: screeningConfidence })}</span>
+        </div>
+      ) : null}
 
       {parsed ? (
         <div className="mt-2 rounded-md border border-stone-200 bg-paper/50 p-2.5 text-sm text-ink">
@@ -215,6 +244,19 @@ export function AiReviewCard({
             </>
           )}
         </div>
+      ) : null}
+
+      {/* Direction 1 — reach the full analysis (confidence band, score breakdown,
+          claimed-but-unproven skills) before deciding. Available in select mode too,
+          so a recruiter can inspect a card before adding it to a batch. */}
+      {onInspect ? (
+        <button
+          type="button"
+          onClick={onInspect}
+          className="focus-ring mt-2 inline-flex items-center gap-1 text-sm font-semibold text-steel hover:text-coral"
+        >
+          <Search size={13} aria-hidden /> {t("viewAnalysis")}
+        </button>
       ) : null}
 
       {/* In select mode the batch bar decides the cohort — the per-card buttons

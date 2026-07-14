@@ -720,6 +720,7 @@ export function DecisionsTab() {
                         selectMode={selectMode}
                         selected={selectedReviewIds.has(e.id)}
                         onToggleSelect={eligible ? () => toggleReviewSelect(e) : undefined}
+                        onInspect={() => setSummaryEntry(e)}
                       />
                     </div>
                   );

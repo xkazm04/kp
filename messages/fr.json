@@ -1802,7 +1802,11 @@
       "pricingBasis": "Tarifé par une nouvelle vérification de correspondance à la rédaction de l'offre : {score}/100 → ~{pct}% de la fourchette.",
       "strengths": "Points forts",
       "redFlags": "Signaux d'alerte",
-      "select": "Sélectionner {name} pour une décision groupée"
+      "select": "Sélectionner {name} pour une décision groupée",
+      "confidenceLabel": "Confiance",
+      "confidencePct": "{pct} %",
+      "confidenceAria": "Confiance de l'IA dans cette recommandation : {pct} %",
+      "viewAnalysis": "Analyse complète"
     },
     "rules": {
       "title": "Règles de décision · Présélection",
@@ -1928,7 +1932,14 @@
       "summaryNote": "Résumé dérivé des données de profil recueillies sur le candidat et de la décomposition déterministe de la correspondance pour ce poste.",
       "decisionNote": "Note de décision",
       "decisionNoteOptional": "· facultatif, consigné dans le journal des décisions",
-      "notePlaceholder": "Pourquoi faire avancer ou rejeter ? Par ex. signal solide en conception de systèmes, mais faible sur la stack indispensable."
+      "notePlaceholder": "Pourquoi faire avancer ou rejeter ? Par ex. signal solide en conception de systèmes, mais faible sur la stack indispensable.",
+      "unprovenTitle": "Déclaré mais non prouvé",
+      "unprovenHelp": "Compétences requises sous le seuil de correspondance — à sonder, pas une correspondance.",
+      "unprovenStrengthTitle": "correspondance partielle {pct} %",
+      "unprovenAdjacency": "proche",
+      "unprovenProvenance": "non vérifié",
+      "unprovenBoth": "proche · non vérifié",
+      "unprovenClaimed": "déclaré"
     },
     "groupEval": {
       "title": "Évaluation de groupe · {role}",

@@ -82,6 +82,14 @@ export type MatchResultView = Pick<
   | "matchedSkillProvenance"
   | "matchedSkillStrength"
   | "missingSkills"
+  // The claimed-but-UNPROVEN bucket (round 7) rides the shared view so the single
+  // decision surface can tell a near-miss specialist (`unprovenSkillReason` =
+  // "adjacency") from an unsubstantiated claim ("provenance" | "both") — neither
+  // matched nor missing. Additive & optional: an older analysis without them
+  // renders exactly as before (absent = no chrome).
+  | "unprovenSkills"
+  | "unprovenSkillStrength"
+  | "unprovenSkillReason"
 >;
 // One aggregated KO blocker: how many roles tripped a given hard gate, with a
 // candidate-facing clause that reads after "{count} role(s)" (server-supplied so

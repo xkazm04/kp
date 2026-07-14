@@ -1773,7 +1773,11 @@
       "pricingBasis": "Priced by a fresh fit check at offer draft: {score}/100 → ~{pct}% of the band.",
       "strengths": "Strengths",
       "redFlags": "Red flags",
-      "select": "Select {name} for a batch decision"
+      "select": "Select {name} for a batch decision",
+      "confidenceLabel": "Confidence",
+      "confidencePct": "{pct}%",
+      "confidenceAria": "AI confidence in this recommendation: {pct}%",
+      "viewAnalysis": "Full analysis"
     },
     "rules": {
       "title": "Decision rules · Screening",
@@ -1899,7 +1903,14 @@
       "summaryNote": "Summary derived from the candidate's gathered profile data and the deterministic match breakdown for this role.",
       "decisionNote": "Decision note",
       "decisionNoteOptional": "· optional, recorded in the Decision Log",
-      "notePlaceholder": "Why advance or reject? e.g. strong systems-design signal, but thin on the must-have stack."
+      "notePlaceholder": "Why advance or reject? e.g. strong systems-design signal, but thin on the must-have stack.",
+      "unprovenTitle": "Claimed but unproven",
+      "unprovenHelp": "Required skills that scored below the match bar — a prompt to probe, not a match.",
+      "unprovenStrengthTitle": "partial match {pct}%",
+      "unprovenAdjacency": "adjacent",
+      "unprovenProvenance": "unverified",
+      "unprovenBoth": "adjacent · unverified",
+      "unprovenClaimed": "claimed"
     },
     "groupEval": {
       "title": "Group evaluation · {role}",

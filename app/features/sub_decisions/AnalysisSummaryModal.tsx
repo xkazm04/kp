@@ -92,6 +92,18 @@ export function AnalysisSummaryModal({
 
   const skills = (payload?.skillClaims ?? []).map((c) => c.skill).filter(Boolean).slice(0, 12) as string[];
   const matchProv = match?.matchedSkillProvenance ?? {};
+  // The claimed-but-unproven bucket (round 7) — named required skills scored above 0
+  // but below the match threshold, so neither matched nor missing. The reason axis
+  // draws the honest distinction the recruiter needs at the click: "adjacency" is a
+  // near-miss specialist (has a sibling skill), "provenance" is an unsubstantiated
+  // claim, "both" is both. Absent → the section doesn't render.
+  const unproven = match?.unprovenSkills ?? [];
+  const unprovenReason = match?.unprovenSkillReason ?? {};
+  const unprovenStrength = match?.unprovenSkillStrength ?? {};
+  // Map the reason code to its honest label key; an unknown/absent code degrades to
+  // the neutral "claimed" label rather than asserting a distinction we can't back.
+  const unprovenLabelKey = (reason: string | undefined): "unprovenAdjacency" | "unprovenProvenance" | "unprovenBoth" | "unprovenClaimed" =>
+    reason === "adjacency" ? "unprovenAdjacency" : reason === "provenance" ? "unprovenProvenance" : reason === "both" ? "unprovenBoth" : "unprovenClaimed";
 
   return (
     <Modal
@@ -173,6 +185,31 @@ export function AnalysisSummaryModal({
                 {`✗ ${s}`}
               </span>
             ))}
+          </div>
+        </div>
+      ) : null}
+
+      {/* Claimed but UNPROVEN — the near-miss / unsubstantiated bucket, kept
+          visually distinct from a clean match (amber, not green) with the reason
+          spelled out so a "close" candidate isn't mistaken for a proven one. */}
+      {unproven.length > 0 ? (
+        <div className="mt-4">
+          <p className="text-meta uppercase tracking-wide text-steel">{t("unprovenTitle")}</p>
+          <p className="mt-0.5 text-sm text-steel">{t("unprovenHelp")}</p>
+          <div className="mt-1.5 flex flex-wrap gap-1.5">
+            {unproven.map((s) => {
+              const strength = unprovenStrength[s];
+              return (
+                <span
+                  key={`u-${s}`}
+                  className="inline-flex items-center gap-1 rounded bg-amber-50 px-1.5 py-0.5 text-sm text-amber-800"
+                  title={strength != null ? t("unprovenStrengthTitle", { pct: Math.round(strength * 100) }) : undefined}
+                >
+                  {s}
+                  <span className="rounded bg-amber-100 px-1 text-[10px] uppercase text-amber-800">{t(unprovenLabelKey(unprovenReason[s]))}</span>
+                </span>
+              );
+            })}
           </div>
         </div>
       ) : null}

@@ -1802,7 +1802,11 @@
       "pricingBasis": "Preis aus einer frischen Eignungsprüfung beim Angebotsentwurf: {score}/100 → ~{pct}% der Spanne.",
       "strengths": "Stärken",
       "redFlags": "Warnsignale",
-      "select": "{name} für eine Sammelentscheidung auswählen"
+      "select": "{name} für eine Sammelentscheidung auswählen",
+      "confidenceLabel": "Konfidenz",
+      "confidencePct": "{pct} %",
+      "confidenceAria": "KI-Konfidenz für diese Empfehlung: {pct} %",
+      "viewAnalysis": "Vollständige Analyse"
     },
     "rules": {
       "title": "Entscheidungsregeln · Screening",
@@ -1928,7 +1932,14 @@
       "summaryNote": "Zusammenfassung aus den erfassten Profildaten des Kandidaten und der deterministischen Match-Aufschlüsselung für diese Stelle.",
       "decisionNote": "Entscheidungsnotiz",
       "decisionNoteOptional": "· optional, im Entscheidungsprotokoll erfasst",
-      "notePlaceholder": "Warum weiterleiten oder ablehnen? z. B. starkes Signal beim Systemdesign, aber dünn beim Must-have-Stack."
+      "notePlaceholder": "Warum weiterleiten oder ablehnen? z. B. starkes Signal beim Systemdesign, aber dünn beim Must-have-Stack.",
+      "unprovenTitle": "Angegeben, aber unbelegt",
+      "unprovenHelp": "Geforderte Skills unterhalb der Match-Schwelle — ein Anlass zum Nachfragen, kein Treffer.",
+      "unprovenStrengthTitle": "Teiltreffer {pct} %",
+      "unprovenAdjacency": "verwandt",
+      "unprovenProvenance": "unbelegt",
+      "unprovenBoth": "verwandt · unbelegt",
+      "unprovenClaimed": "angegeben"
     },
     "groupEval": {
       "title": "Gruppenbewertung · {role}",
