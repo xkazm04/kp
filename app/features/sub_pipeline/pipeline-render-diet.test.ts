@@ -155,6 +155,21 @@ test("eventSignature folds the relative-time bucket, so a quiet day boundary cha
   assert.notEqual(eventSignature(ev, t0 + 2 * DAY), eventSignature(ev, t0 + 3 * DAY), "a day boundary changes the event signature with no new event");
 });
 
+// Direction 3 — signature compute diet. The per-entry signature is identity-cached
+// (WeakMap) so keystroke re-renders do no JSON work for unchanged entries, while the
+// time-varying aging bucket lives OUTSIDE the cache so a clock flip is never masked.
+test("entrySignature is identity-stable, and the cache never masks a bucket flip", () => {
+  const e = makeEntry({ stage: "Screened", stageChangedAt: new Date(Date.parse("2026-06-01T00:00:00.000Z") - 6 * DAY).toISOString() });
+  // Same object → the cached static signature is byte-stable across calls.
+  assert.equal(entrySignature(e), entrySignature(e), "repeat calls on one object return the same cached string");
+  // The aging bucket is folded by boardSignature OUTSIDE the cache, so advancing the
+  // clock past the SLA changes the board signature for the SAME cached entry object.
+  const now0 = Date.parse("2026-06-01T00:00:00.000Z");
+  assert.notEqual(boardSignature([e], { now: now0 }), boardSignature([e], { now: now0 + 2 * DAY }), "a cached entry still ages when the clock crosses its SLA");
+  // Distinct objects with identical content still agree (cache doesn't cause drift).
+  assert.equal(entrySignature(makeEntry()), entrySignature(makeEntry()), "content-equal distinct objects share a signature");
+});
+
 test("eventsSignature: identical feed shares a signature; a new event breaks it", () => {
   const ev = (id: number, kind: string): PipelineEvent => ({ id, candidateLabel: "A. N.", jobTitle: "Role", kind, toStage: "Interview", detail: null, createdAt: "2026-01-01T00:00:00.000Z" });
   const a = [ev(2, "advanced"), ev(1, "added")];

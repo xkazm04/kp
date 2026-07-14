@@ -68,12 +68,32 @@ export function relativeTimeBucketKey(iso: string | null, now: number = Date.now
   return b.unit === "day" || b.unit === "week" || b.unit === "month" ? `${b.unit}:${b.n}` : b.unit;
 }
 
+// Identity cache for the per-entry TIME-INDEPENDENT signature (Direction 3). The
+// JSON.stringify of the 11-field tuple is the diet's hot bookkeeping: it was
+// recomputed for BOTH prev and next props on every parent render — including every
+// search keystroke — for every card in every cell. Here it is memoized on the entry
+// OBJECT: an entry is treated as IMMUTABLE (the load path parses fresh objects from
+// JSON, and every optimistic update spreads a new object — see PipelineTab's
+// setEntries(cur.map(e => e.id === id ? { ...e, stage } : e))), so object identity ⟺
+// rendered content and the cache can key on identity. New objects arrive ONLY when a
+// fetch produced new data (or an optimistic edit); BETWEEN those, the `entries` state
+// holds stable references, so a keystroke-driven re-render does ZERO JSON work for
+// unchanged entries — it just reads the cached string.
+//
+// The time-varying half (the aging bucket) is deliberately OUTSIDE this cache: it's
+// cheap arithmetic recomputed per call and concatenated on, so a bucket flip can't be
+// masked by a stale cache entry, while the expensive JSON stays memoized.
+const entrySigCache = new WeakMap<Entry, string>();
+
 /** The render-affecting fields of one board entry, as a compact string. Anything a
  *  CandidateRow can show — identity, label, archetype, stage, the CANONICAL score +
  *  its provenance (what the badge/tooltip render, not the raw snapshot), stage age,
- *  approval state, and the intake-degraded state — flips this; nothing else does. */
+ *  approval state, and the intake-degraded state — flips this; nothing else does.
+ *  Identity-cached: computed once per entry object (see entrySigCache). */
 export function entrySignature(e: Entry): string {
-  return JSON.stringify([
+  const cached = entrySigCache.get(e);
+  if (cached !== undefined) return cached;
+  const sig = JSON.stringify([
     e.id,
     e.candidateLabel,
     e.archetype,
@@ -86,24 +106,36 @@ export function entrySignature(e: Entry): string {
     e.intakeDegraded ? 1 : 0,
     e.intakeDegradedReason ?? null,
   ]);
+  entrySigCache.set(e, sig);
+  return sig;
 }
+
+// Field/record separators for the concat-joined signatures below. Both are control
+// chars (< 0x20); JSON.stringify ALWAYS escapes them (\t, \n) inside strings, so a
+// literal byte can never appear in an entrySignature — the join is unambiguous
+// without a second JSON.stringify pass over the array (Direction 3: cheap concat of
+// the cached per-entry strings, not a re-stringify on every render).
+const FIELD_SEP = "\t";
+const REC_SEP = "\n";
 
 /** Content signature of the whole board payload — order-sensitive, since the lane
  *  layout is order-derived. Two polls with byte-identical rendered content produce
  *  the SAME signature even though the arrays are distinct objects.
  *
- *  Each entry contributes its rendered content (entrySignature) PLUS its DERIVED
- *  aging bucket, so a candidate crossing its SLA purely by the clock — no data
- *  change — flips this signature on the next poll and re-renders the affected rows
- *  (the amber dot + staleCount). `now` is injectable for tests; `overrides` are the
- *  recruiter's per-board SLA overrides so the gate agrees with `isStale`. */
+ *  Each entry contributes its cached content signature PLUS its DERIVED aging bucket,
+ *  so a candidate crossing its SLA purely by the clock — no data change — flips this
+ *  signature on the next poll and re-renders the affected rows (the amber dot +
+ *  staleCount). `now` is injectable for tests; `overrides` are the recruiter's
+ *  per-board SLA overrides so the gate agrees with `isStale`. */
 export function boardSignature(
   entries: readonly Entry[],
   opts?: { overrides?: Record<string, number> | null; now?: number }
 ): string {
   const now = opts?.now ?? Date.now();
   const overrides = opts?.overrides ?? null;
-  return JSON.stringify(entries.map((e) => [entrySignature(e), agingBucket(e, overrides, now)]));
+  let s = "";
+  for (const e of entries) s += entrySignature(e) + FIELD_SEP + agingBucket(e, overrides, now) + REC_SEP;
+  return s;
 }
 
 /** The render-affecting fields of one activity-feed event, INCLUDING its rendered
@@ -168,5 +200,14 @@ export function stageCellSignature(
   isStale: (e: Entry) => boolean,
   selectedIds: ReadonlySet<string>
 ): string {
-  return JSON.stringify(entries.map((e) => [entrySignature(e), isStale(e) ? 1 : 0, selectedIds.has(e.id) ? 1 : 0]));
+  // Cheap concat of the CACHED per-entry strings (Direction 3) — no second
+  // JSON.stringify over the array. On a keystroke-driven parent render the entry
+  // objects are stable, so entrySignature is a WeakMap hit and this does zero JSON
+  // work; only the stale/selected flags are folded fresh (they live outside the
+  // entry object). Control-char separators keep the join collision-free.
+  let s = "";
+  for (const e of entries) {
+    s += entrySignature(e) + FIELD_SEP + (isStale(e) ? 1 : 0) + FIELD_SEP + (selectedIds.has(e.id) ? 1 : 0) + REC_SEP;
+  }
+  return s;
 }
