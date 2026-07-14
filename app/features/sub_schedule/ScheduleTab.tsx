@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion, type TargetAndTransition } from "framer-motion";
-import { ArrowRight, Calendar, Check, ClipboardList, FileText, Phone, UserRound, X } from "lucide-react";
+import { ArrowRight, Calendar, Check, ClipboardList, FileText, History, Phone, UserRound, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { buildUrl, clearedTabScopedParams } from "@/app/features/tabs";
 import { ScheduleCalendar } from "./ScheduleCalendar";
@@ -68,10 +68,11 @@ export function ScheduleTab() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [prepEntry, setPrepEntry] = useState<SchedEntry | null>(null);
-  // entry id → { createdAt, interviewer, hasHumanScorecard } for entries with a
-  // prep artifact (PREP5; the scorecard flag keeps human-led rounds visible below).
+  // entry id → { createdAt, interviewer, hasHumanScorecard, stale } for entries with
+  // a prep artifact (PREP5; the scorecard flag keeps human-led rounds visible below;
+  // `stale` is Direction 1's "JD edited since this prep" flag).
   const [prepared, setPrepared] = useState<
-    Record<string, { createdAt: string; interviewer: string | null; hasHumanScorecard: boolean }>
+    Record<string, { createdAt: string; interviewer: string | null; hasHumanScorecard: boolean; stale: boolean }>
   >({});
   const [interviews, setInterviews] = useState<Record<string, IvStatus>>({});
   const [creatingIv, setCreatingIv] = useState<string | null>(null);
@@ -333,6 +334,11 @@ export function ScheduleTab() {
                   {prepared[e.id]?.interviewer ? (
                     <p className="mt-1.5 flex items-center gap-1 truncate text-meta text-steel" title={t("interviewerTitle", { name: prepared[e.id]!.interviewer! })}>
                       <UserRound size={11} className="shrink-0 text-coral" /> {prepared[e.id]!.interviewer}
+                    </p>
+                  ) : null}
+                  {prepared[e.id]?.stale ? (
+                    <p className="mt-1.5 flex items-center gap-1 text-meta font-semibold text-amber-800" title={t("prepStaleTitle")}>
+                      <History size={11} className="shrink-0" aria-hidden /> {t("prepStale")}
                     </p>
                   ) : null}
                   <button

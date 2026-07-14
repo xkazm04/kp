@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getInterviewPrep, listPreparedEntries, saveInterviewPrep, saveInterviewPrepProgress } from "@/app/_lib/interview-prep";
+import { getInterviewPrep, listPreparedEntries, prepJdEditedAt, saveInterviewPrep, saveInterviewPrepProgress } from "@/app/_lib/interview-prep";
+import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { safeJsonError } from "@/app/_lib/api-response";
 import { MAX_ENTRY_ID_LEN, parseEntriesParam } from "@/app/_lib/entries-param";
 import { mergeImportedQuestions, normalizeIncoming, readImported } from "./importMerge.ts";
@@ -19,13 +20,17 @@ export async function GET(request: NextRequest) {
   try {
     const sp = request.nextUrl.searchParams;
     const entry = sp.get("entry");
+    const ws = await currentWorkspace();
     if (entry) {
-      return NextResponse.json({ prep: getInterviewPrep(entry) });
+      // Direction 1 — `jdEditedAt` is the linked JD's last content edit, so the modal
+      // can flag a pack built against since-changed JD text (it compares against the
+      // prep's createdAt). null when the entry has no JD-backed job — no chip.
+      return NextResponse.json({ prep: getInterviewPrep(entry), jdEditedAt: prepJdEditedAt(entry, ws) });
     }
     // Bounded + de-duped at the trust boundary so a crafted/huge `entries` list
     // can't blow the SQLite variable limit or amplify the IN query (idea-191ccc0c).
     const entries = parseEntriesParam(sp.get("entries"));
-    return NextResponse.json({ prepared: listPreparedEntries(entries) });
+    return NextResponse.json({ prepared: listPreparedEntries(entries, ws) });
   } catch (error) {
     return safeJsonError(error, "api:interview-prep", "INTERVIEW_PREP_FAILED");
   }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, Check, Clock, Copy, Loader2, ListChecks, NotebookPen, RefreshCw, Sparkles, UserRound } from "lucide-react";
+import { AlertTriangle, Check, Clock, Copy, History, Loader2, ListChecks, NotebookPen, RefreshCw, Sparkles, UserRound } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { copyText } from "@/app/_lib/export-utils";
 import { HumanScorecardPanel } from "./HumanScorecardPanel";
@@ -42,7 +42,7 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
   // Load any saved artifact via the shared hook (handles non-OK status, an {error}
   // body, and unmount). A load FAILURE now surfaces as a distinct error+retry state
   // (idea-bc78b8f5), never collapsed into the "none yet" empty state.
-  const { data, error, reload } = useJsonFetch<{ prep?: { payload?: Prep } }>(
+  const { data, error, reload } = useJsonFetch<{ prep?: { payload?: Prep; createdAt?: string }; jdEditedAt?: string | null }>(
     `/api/interview-prep?entry=${encodeURIComponent(entry.id)}`,
     t("loadFailed")
   );
@@ -71,6 +71,17 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
   // A deterministic template fallback (LLM unavailable) is generic, not tailored —
   // disclosed below with a prompt to regenerate (idea-0864adb5).
   const fallback = prep ? isPrepFallback(prep.source) : false;
+  // Direction 1 — the pack is STALE when the linked JD was edited after this prep was
+  // generated. String compare on ISO-8601 UTC, exactly like the analyses roster. Gated
+  // on `!generated`: a just-regenerated pack is current (its fresh createdAt isn't in
+  // client state, so trust the regeneration over the now-stale GET). Surfaced, never
+  // auto-acted — the interviewer chooses whether to regenerate.
+  const jdEditedAt = data?.jdEditedAt ?? null;
+  const savedCreatedAt = data?.prep?.createdAt ?? null;
+  const stale = !generated && !!prep && jdEditedAt != null && savedCreatedAt != null && savedCreatedAt < jdEditedAt;
+  const jdEditedLabel = jdEditedAt
+    ? new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", year: "numeric" }).format(new Date(jdEditedAt))
+    : "";
 
   // Restore the interviewer's saved progress once, from the loaded artifact (a completed
   // generation seeds its own carried-forward copy in the task-completion block below).
@@ -315,6 +326,22 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
                     className="font-semibold underline underline-offset-2 hover:text-amber-900 disabled:opacity-50"
                   >
                     {generating ? t("regenerating") : t("regenerateWithAi")}
+                  </button>
+                </span>
+              </div>
+            ) : null}
+            {stale ? (
+              <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 p-2.5 text-sm text-amber-800">
+                <History size={15} className="mt-0.5 shrink-0" />
+                <span>
+                  {t("jdEditedSince", { date: jdEditedLabel })}{" "}
+                  <button
+                    type="button"
+                    onClick={generate}
+                    disabled={generating}
+                    className="font-semibold underline underline-offset-2 hover:text-amber-900 disabled:opacity-50"
+                  >
+                    {generating ? t("regenerating") : t("regenerate")}
                   </button>
                 </span>
               </div>

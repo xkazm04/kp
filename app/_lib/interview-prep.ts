@@ -1,6 +1,9 @@
 import Database from "better-sqlite3";
 import { openStore } from "./db-path";
 import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
+import { getPipelineEntry } from "./db/pipeline";
+import { jdLastEditedAt } from "./db/jobs";
+import { jdSlugOfJobId } from "./jd-limits";
 import { chunk, SQL_IN_CHUNK } from "./entries-param";
 import type { Scorecard } from "./interview-scorecard";
 
@@ -141,6 +144,35 @@ export function getHumanScorecard(entryId: string): Scorecard | null {
   return sc ?? null;
 }
 
+// ── Direction 1: prep-pack staleness ────────────────────────────────────────
+// The prep artifact is generated ONCE (on accepted screening) and regenerated
+// only on an explicit click. If the linked JD's body is edited afterwards, the
+// pack silently describes the OLD role — the identical problem the analyses
+// roster solved with a "JD edited since" chip (jdLastEditedAt over jd_revisions).
+// We derive the same honest fact for a prep by joining the entry to its JD via
+// the load-bearing jd-<slug> identity, then comparing the prep's createdAt to the
+// JD's last content edit. Nothing here auto-regenerates: it only surfaces the fact.
+
+/** The linked JD's last CONTENT-edit time for a prep entry, or null when the entry
+ *  has no JD-backed job (a seeded/ingested corpus job, or no job at all — so no
+ *  chip). Read-only join: entry → jobId → jd-<slug> identity (jdSlugOfJobId) →
+ *  jdLastEditedAt, all workspace-scoped. Mirrors the analyses roster's jdEditedAt. */
+export function prepJdEditedAt(entryId: string, workspaceId: string = DEFAULT_WORKSPACE_ID): string | null {
+  const entry = getPipelineEntry(entryId, workspaceId);
+  const slug = jdSlugOfJobId(entry?.jobId);
+  return slug ? jdLastEditedAt(slug, workspaceId) : null;
+}
+
+/** Is a prep (re)generated at `createdAt` stale against its linked JD's last edit?
+ *  True ONLY when the JD was edited strictly AFTER the prep was generated — an
+ *  ISO-8601 UTC string compare, exactly like the analyses roster. A never-edited or
+ *  non-JD-backed job (jdEditedAt null) is never stale. Pure so the modal + the
+ *  schedule card can share the one rule; the modal inlines the same compare on the
+ *  client (this module carries a better-sqlite3 import and can't cross the boundary). */
+export function isPrepStale(createdAt: string, jdEditedAt: string | null): boolean {
+  return jdEditedAt != null && createdAt < jdEditedAt;
+}
+
 export function getInterviewPrep(entryId: string): InterviewPrep | null {
   const row = db()
     .prepare(`SELECT entry_id, candidate_label, job_title, payload_json, created_at FROM interview_preps WHERE entry_id = ?`)
@@ -161,10 +193,11 @@ export function getInterviewPrep(entryId: string): InterviewPrep | null {
  *  the SQLite variable limit so a wide board never trips SQLITE_MAX_VARIABLE_NUMBER
  *  (idea-191ccc0c). */
 export function listPreparedEntries(
-  entryIds: string[]
-): Record<string, { createdAt: string; interviewer: string | null; hasHumanScorecard: boolean }> {
+  entryIds: string[],
+  workspaceId: string = DEFAULT_WORKSPACE_ID
+): Record<string, { createdAt: string; interviewer: string | null; hasHumanScorecard: boolean; stale: boolean }> {
   if (entryIds.length === 0) return {};
-  const out: Record<string, { createdAt: string; interviewer: string | null; hasHumanScorecard: boolean }> = {};
+  const out: Record<string, { createdAt: string; interviewer: string | null; hasHumanScorecard: boolean; stale: boolean }> = {};
   for (const ids of chunk(entryIds, SQL_IN_CHUNK)) {
     const placeholders = ids.map(() => "?").join(",");
     const rows = db()
@@ -180,7 +213,10 @@ export function listPreparedEntries(
       } catch {
         /* corrupt payload — no interviewer/scorecard flag, createdAt still useful */
       }
-      out[r.entry_id] = { createdAt: r.created_at, interviewer, hasHumanScorecard };
+      // Direction 1 — flag the card when its JD changed after the pack was built, so
+      // the schedule tab carries the same honest "regenerate this" cue the modal does.
+      const stale = isPrepStale(r.created_at, prepJdEditedAt(r.entry_id, workspaceId));
+      out[r.entry_id] = { createdAt: r.created_at, interviewer, hasHumanScorecard, stale };
     }
   }
   return out;
