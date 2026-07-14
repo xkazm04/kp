@@ -2672,6 +2672,7 @@
       "sourceLlm": "LLM",
       "sourceRuleBased": "regelbasiert",
       "cachedSuffix": " · zwischengespeichert",
+      "narrativeInLanguage": "Diese Begründung wird auf {language} angezeigt — die KI verfasst sie nur auf Englisch und Tschechisch.",
       "strengths": "Stärken",
       "gaps": "Lücken",
       "interviewProbes": "Interview-Nachfragen",
@@ -2818,6 +2819,18 @@
       "completenessAria": "Profilvollständigkeit {pct} %",
       "addNext": "Als Nächstes ergänzen",
       "goToField": "Zu diesem Feld springen",
+      "checks": {
+        "education_known": "Bildungsniveau",
+        "has_languages": "Sprachen",
+        "min_3_skills": "mindestens 3 Fähigkeiten",
+        "has_seniority": "Senioritätsstufe",
+        "has_years": "Jahre an Berufserfahrung",
+        "has_job": "ein Eintrag zur Berufserfahrung",
+        "has_aspirations": "Zielrollen / Ambitionen",
+        "has_education_detail": "Studiengang & Spezialisierung",
+        "has_project_or_thesis": "ein Projekt oder eine Abschlussarbeit (Ihr stärkster Nachweis)",
+        "has_activity": "ein Praktikum, eine Aktivität oder Zertifizierung"
+      },
       "matchNow": "Jetzt matchen",
       "complete": "Das Profil wirkt vollständig für seinen Archetyp."
     },

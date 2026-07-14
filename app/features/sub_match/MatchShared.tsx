@@ -2,7 +2,7 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { SearchX } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { Meter } from "@/app/_components/Meter";
 import { Skeleton } from "@/app/_components/Skeleton";
 import { scoreTone, scoreToneColor } from "@/app/_lib/format";
@@ -45,7 +45,7 @@ export function ReasoningPanel({ state }: { state: ReasoningState }) {
       exit={{ opacity: 0 }}
       transition={{ duration: reduced ? 0.12 : 0.24, ease: "easeOut" }}
     >
-      <ResolvedReasoning r={state.data} source={state.source} cached={state.cached} />
+      <ResolvedReasoning r={state.data} source={state.source} cached={state.cached} narrativeLang={state.narrativeLang} />
     </motion.div>
   ) : null;
 
@@ -64,8 +64,17 @@ export function ReasoningPanel({ state }: { state: ReasoningState }) {
   );
 }
 
-function ResolvedReasoning({ r, source, cached }: { r: Reasoning; source?: string; cached?: boolean }) {
+function ResolvedReasoning({ r, source, cached, narrativeLang }: { r: Reasoning; source?: string; cached?: boolean; narrativeLang?: string }) {
   const t = useTranslations("match.shared");
+  const locale = useLocale();
+  // Honest fallback note: the engine writes the narrative only in en/cs, so a de/fr
+  // reader gets English (or Czech) text. When the actual narrative language differs
+  // from the reader's locale, say so plainly rather than passing the text off as
+  // localized. Intl.DisplayNames names the language IN the reader's own locale.
+  const showLangNote = Boolean(narrativeLang) && narrativeLang !== locale;
+  const narrativeLangName = showLangNote
+    ? new Intl.DisplayNames([locale], { type: "language" }).of(narrativeLang as string) ?? narrativeLang
+    : null;
   return (
     <div className="rounded-md border border-stone-200 bg-paper/50 p-3">
       <div className="flex items-center gap-2">
@@ -75,6 +84,9 @@ function ResolvedReasoning({ r, source, cached }: { r: Reasoning; source?: strin
           {cached ? t("cachedSuffix") : ""}
         </span>
       </div>
+      {showLangNote ? (
+        <p className="mt-1 text-sm text-steel italic">{t("narrativeInLanguage", { language: narrativeLangName as string })}</p>
+      ) : null}
       <p className="mt-1 text-base text-ink">{r.verdict}</p>
       <div className="mt-2 grid gap-3 sm:grid-cols-3">
         <ReasonList title={t("strengths")} items={r.strengths} tone="green" />

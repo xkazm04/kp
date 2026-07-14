@@ -9,6 +9,7 @@ import { computeCorpusFingerprint } from "./automation-cache-key";
 import { reasoningCacheKey } from "./reasoning-cache-key";
 import { isCacheableReasoning } from "./reasoning-cache-policy";
 import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
+import { isLocale } from "@/i18n/locales";
 
 // Must match pipeline/jobfit/match_reasoning.py::REASONING_PROMPT_VERSION — a
 // drift here leaves the reasoning cache silently stale. The pairing is enforced
@@ -45,7 +46,16 @@ export async function runReasoning(
   workspaceId: string = DEFAULT_WORKSPACE_ID
 ): Promise<Record<string, unknown>> {
   if (!body.jobId) throw new ReasoningError("jobId is required.", 400);
-  const lang = body.lang === "cs" ? "cs" : "en";
+  // The engine narrative supports only en/cs (pipeline/jobfit/i18n.py LANG_NAMES):
+  // de/fr collapse to en for GENERATION. But key the cache by the TRUE requested
+  // locale so a de/fr request gets its OWN cache slot rather than silently sharing
+  // — and being mislabeled as — the en verdict, and the UI can flag "shown in
+  // English". requestedLang == engineLang for en/cs, so their keys are unchanged;
+  // only de/fr keys move off the en slot (the honest fix). narrativeLang is the
+  // language the text was actually generated in, returned so the UI can compare it
+  // against the reader's locale and show an honest fallback note.
+  const requestedLang = isLocale(body.lang) ? body.lang : "en";
+  const engineLang = requestedLang === "cs" ? "cs" : "en";
 
   // Cache-first (Direction 2): resolve the candidate/profile and read the corpus
   // from the DB — but write NOTHING to disk and spawn NOTHING yet. The full 5-axis
@@ -72,11 +82,11 @@ export async function runReasoning(
     candidateKeyPart: input.keyPart,
     jobId: body.jobId,
     jobPayload: getJob(body.jobId),
-    lang,
+    lang: requestedLang,
     corpusFingerprint: computeCorpusFingerprint(corpusJobs.map((j) => j.id)),
   });
   const cached = lookupPromptCache(hash, REASONING_PROMPT_VERSION);
-  if (cached) return { ...(cached as object), cached: true };
+  if (cached) return { ...(cached as object), cached: true, narrativeLang: engineLang };
 
   let workdir: string | null = null;
   try {
@@ -89,7 +99,7 @@ export async function runReasoning(
       "--job-id",
       String(body.jobId),
       "--lang",
-      lang,
+      engineLang,
     ];
     // The CLI augments the seed with these records (DB wins on id collision).
     if (corpusJobs.length > 0) {
@@ -121,7 +131,7 @@ export async function runReasoning(
     if (isCacheableReasoning(data)) {
       storePromptCache(hash, data, REASONING_PROMPT_VERSION, CACHE_TTL_HOURS);
     }
-    return { ...data, cached: false };
+    return { ...data, cached: false, narrativeLang: engineLang };
   } finally {
     if (workdir) await cleanupWorkdir(workdir);
   }

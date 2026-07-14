@@ -79,6 +79,12 @@ export type ProfileCliOutput = {
   reasons: string[];
   completeness: number;
   missing: string[];
+  // Machine-readable twin of `missing` (profile_cli.completeness_gaps): each unmet
+  // checklist item keyed by its stable registry `check` id, biggest-gap-first.
+  // Optional so a result persisted before this field existed still types — the
+  // panel falls back to the raw `missing` labels then. The frontend localizes the
+  // label by `check` and routes the clickable gap by `check`.
+  missingGaps?: { check: string; label: string }[];
 };
 
 // BASELINE archetype choices for the editor's routing control: the ids with

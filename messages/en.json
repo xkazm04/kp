@@ -2643,6 +2643,7 @@
       "sourceLlm": "LLM",
       "sourceRuleBased": "rule-based",
       "cachedSuffix": " · cached",
+      "narrativeInLanguage": "This rationale is shown in {language} — the AI writes it only in English and Czech.",
       "strengths": "Strengths",
       "gaps": "Gaps",
       "interviewProbes": "Interview probes",
@@ -2789,6 +2790,18 @@
       "completenessAria": "Profile completeness {pct}%",
       "addNext": "Add next",
       "goToField": "Jump to this field",
+      "checks": {
+        "education_known": "education level",
+        "has_languages": "languages",
+        "min_3_skills": "at least 3 skills",
+        "has_seniority": "seniority",
+        "has_years": "years of experience",
+        "has_job": "a work-experience entry",
+        "has_aspirations": "target roles / aspirations",
+        "has_education_detail": "study programme & specialisation",
+        "has_project_or_thesis": "a project or thesis (your strongest evidence)",
+        "has_activity": "an internship, activity, or certification"
+      },
       "matchNow": "Match now",
       "complete": "Profile looks complete for its archetype."
     },

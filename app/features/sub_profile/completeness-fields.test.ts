@@ -39,7 +39,7 @@ const registry = (await import("@/pipeline/jobfit/archetypes.json")).default as 
   commonChecklist: { check: string; label: string }[];
   archetypes: { checklist: { check: string; label: string }[] }[];
 };
-const { fieldTargetForMissing, FIELD_DOM_ID } = await import("./completeness-fields.ts");
+const { fieldTargetForMissing, fieldTargetForCheck, FIELD_DOM_ID } = await import("./completeness-fields.ts");
 
 test("common-checklist labels route to the right field", () => {
   assert.equal(fieldTargetForMissing("languages"), "languages");
@@ -71,4 +71,24 @@ test("EVERY registry checklist label resolves to a known field id (no silent ine
 test("an unrecognized label stays null (rendered as plain text, not a broken jump)", () => {
   assert.equal(fieldTargetForMissing("something the registry never emits"), null);
   assert.equal(fieldTargetForMissing(""), null);
+});
+
+// The id-join (fieldTargetForCheck) is what makes the LOCALIZED "Add next" gaps
+// clickable — it keys off the stable registry `check` id profile_cli now emits in
+// `missingGaps`, so a translated (or reworded) label can never make a gap inert.
+test("EVERY registry check id routes to a known field via the id-join", () => {
+  const checks = [
+    ...registry.commonChecklist.map((c) => c.check),
+    ...registry.archetypes.flatMap((a) => a.checklist.map((c) => c.check)),
+  ];
+  for (const check of checks) {
+    const target = fieldTargetForCheck(check);
+    assert.ok(target, `registry check "${check}" must map to a field`);
+    assert.ok(target! in FIELD_DOM_ID, `field "${target}" must have a DOM anchor`);
+  }
+});
+
+test("an unmapped check id stays null (degrades to plain text)", () => {
+  assert.equal(fieldTargetForCheck("has_teleportation"), null);
+  assert.equal(fieldTargetForCheck(""), null);
 });

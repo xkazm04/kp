@@ -2672,6 +2672,7 @@
       "sourceLlm": "LLM",
       "sourceRuleBased": "basé sur des règles",
       "cachedSuffix": " · en cache",
+      "narrativeInLanguage": "Ce raisonnement est affiché en {language} — l'IA ne le rédige qu'en anglais et en tchèque.",
       "strengths": "Points forts",
       "gaps": "Lacunes",
       "interviewProbes": "Points à creuser en entretien",
@@ -2818,6 +2819,18 @@
       "completenessAria": "Complétude du profil {pct} %",
       "addNext": "À ajouter ensuite",
       "goToField": "Aller à ce champ",
+      "checks": {
+        "education_known": "niveau d'études",
+        "has_languages": "langues",
+        "min_3_skills": "au moins 3 compétences",
+        "has_seniority": "niveau de séniorité",
+        "has_years": "années d'expérience",
+        "has_job": "une expérience professionnelle",
+        "has_aspirations": "postes visés / aspirations",
+        "has_education_detail": "programme d'études et spécialisation",
+        "has_project_or_thesis": "un projet ou un mémoire (votre preuve la plus solide)",
+        "has_activity": "un stage, une activité ou une certification"
+      },
       "matchNow": "Matcher maintenant",
       "complete": "Le profil semble complet pour son archétype."
     },

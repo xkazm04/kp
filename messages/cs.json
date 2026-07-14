@@ -2643,6 +2643,7 @@
       "sourceLlm": "LLM",
       "sourceRuleBased": "pravidlové",
       "cachedSuffix": " · z mezipaměti",
+      "narrativeInLanguage": "Toto zdůvodnění se zobrazuje v jazyce {language} — AI ho píše pouze anglicky a česky.",
       "strengths": "Silné stránky",
       "gaps": "Mezery",
       "interviewProbes": "Otázky k pohovoru",
@@ -2789,6 +2790,18 @@
       "completenessAria": "Úplnost profilu {pct}%",
       "addNext": "Doplnit dále",
       "goToField": "Přejít na toto pole",
+      "checks": {
+        "education_known": "úroveň vzdělání",
+        "has_languages": "jazyky",
+        "min_3_skills": "alespoň 3 dovednosti",
+        "has_seniority": "seniorita",
+        "has_years": "počet let praxe",
+        "has_job": "záznam o pracovní zkušenosti",
+        "has_aspirations": "cílové role / aspirace",
+        "has_education_detail": "studijní obor a specializace",
+        "has_project_or_thesis": "projekt nebo závěrečná práce (váš nejsilnější doklad)",
+        "has_activity": "stáž, aktivita nebo certifikace"
+      },
       "matchNow": "Spárovat nyní",
       "complete": "Profil vypadá pro svůj archetyp úplný."
     },

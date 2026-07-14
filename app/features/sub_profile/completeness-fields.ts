@@ -64,8 +64,18 @@ function buildLabelToCheck(): Record<string, string> {
 const LABEL_TO_CHECK = buildLabelToCheck();
 
 /** The editor field that resolves a given missing-completeness label, or null when
- *  the label isn't one we can route to a single input (leave it as plain text). */
+ *  the label isn't one we can route to a single input (leave it as plain text).
+ *  LEGACY join — exact English label match; superseded by fieldTargetForCheck for
+ *  results that carry the stable check id, kept for pre-missingGaps results. */
 export function fieldTargetForMissing(missingLabel: string): ProfileFieldKey | null {
   const check = LABEL_TO_CHECK[missingLabel.trim()];
   return check ? CHECK_TO_FIELD[check] ?? null : null;
+}
+
+/** The editor field that resolves a gap identified by its stable registry `check`
+ *  id — the id-join that replaces the brittle exact-English-string match, so every
+ *  gap the registry emits routes to its input (no locale/wording dead-text). Null
+ *  only for a genuinely unmapped check id. */
+export function fieldTargetForCheck(check: string): ProfileFieldKey | null {
+  return CHECK_TO_FIELD[check] ?? null;
 }

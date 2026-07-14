@@ -72,8 +72,8 @@ export function MatchCard({
   // same pass, so this runs once per task) — the guarded render-phase pattern,
   // so the result paints in the same commit instead of one effect-frame later.
   if (taskId && reasoningStatus === "succeeded" && reasoningFull) {
-    const p = reasoningFull.result as { reasoning?: Reasoning; source?: string; cached?: boolean } | null;
-    setReasoning(p?.reasoning ? { data: p.reasoning, source: p.source, cached: p.cached } : { error: t("card.noReasoning") });
+    const p = reasoningFull.result as { reasoning?: Reasoning; source?: string; cached?: boolean; narrativeLang?: string } | null;
+    setReasoning(p?.reasoning ? { data: p.reasoning, source: p.source, cached: p.cached, narrativeLang: p.narrativeLang } : { error: t("card.noReasoning") });
     setTaskId(null);
   } else if (taskId && (reasoningStatus === "failed" || reasoningStatus === "canceled" || reasoningStatus === "interrupted")) {
     setReasoning({ error: reasoningError ?? t("card.reasoningFailed") });
