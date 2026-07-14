@@ -4656,5 +4656,1632 @@
     "completeness": 1.0,
     "id": "cand-049",
     "targetRole": "iOS Engineer – George"
+  },
+  {
+    "archetype": "bau",
+    "archetypeConfidence": 0.5,
+    "archetypeReasons": [],
+    "displayName": "Petra Blažeková",
+    "roleFamily": "finance_accounting",
+    "aspirations": [
+      "přejít z retailového underwritingu na pozici Credit Risk Analyst v centrále banky",
+      "prohloubit expertizu v IFRS 9 provisioning a modelování ECL",
+      "dlouhodobě vést menší tým kreditního rizika"
+    ],
+    "yearsExperience": 8.0,
+    "seniority": "senior",
+    "educationLevel": "master",
+    "educationDetail": "Ing., Vysoká škola ekonomická v Praze — Fakulta financí a účetnictví, obor Bankovnictví a pojišťovnictví",
+    "languages": [
+      "čeština (rodilý mluvčí)",
+      "angličtina (C1)",
+      "němčina (B1)"
+    ],
+    "location": "Praha",
+    "skillClaims": [
+      {
+        "skill": "credit analysis",
+        "level": "strong",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
+        "skill": "underwriting",
+        "level": "strong",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
+        "skill": "credit scoring",
+        "level": "working",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
+        "skill": "IFRS 9",
+        "level": "working",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
+        "skill": "financial analysis",
+        "level": "strong",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
+        "skill": "regulatorní reporting (ČNB)",
+        "level": "working",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
+        "skill": "stakeholder management",
+        "level": "working",
+        "provenance": "professional",
+        "confidence": 0.4
+      }
+    ],
+    "evidence": [
+      {
+        "kind": "job",
+        "title": "Senior úvěrový specialista — Komerční banka, a.s. (2019–dosud)",
+        "text": "Underwriting úvěrů pro SME segment do 50 mil. Kč — kompletní credit analysis žadatelů (finanční výkazy, cash flow, kolaterál), příprava úvěrových návrhů pro credit committee. Spolupráce s risk oddělením na kalibraci scoringových karet pro SME portfolio a na kvartální revizi rizikových parametrů (PD/LGD vstupy pro IFRS 9 ECL provisioning). Schvalovací pravomoc do 15 mil. Kč, delikvence portfolia dlouhodobě pod benchmarkem banky.",
+        "skills": [
+          "credit analysis",
+          "underwriting",
+          "credit scoring",
+          "IFRS 9",
+          "financial analysis"
+        ],
+        "provenance": "professional",
+        "confidence": 0.6
+      },
+      {
+        "kind": "job",
+        "title": "Úvěrový analytik — Moneta Money Bank, a.s. (2016–2019)",
+        "text": "Posuzování bonity retailových a živnostenských klientů, financial analysis účetních závěrek a daňových přiznání OSVČ. Podíl na měsíčním regulatorním reportingu úvěrového portfolia pro ČNB a na interních reportech kvality portfolia (vintage analýzy, roll rates).",
+        "skills": [
+          "credit analysis",
+          "financial analysis",
+          "regulatorní reporting (ČNB)"
+        ],
+        "provenance": "professional",
+        "confidence": 0.6
+      }
+    ],
+    "learningSignals": [],
+    "completeness": 1.0,
+    "id": "cand-050",
+    "targetRole": "Credit Risk Analyst"
+  },
+  {
+    "archetype": "bau",
+    "archetypeConfidence": 0.5,
+    "archetypeReasons": [],
+    "displayName": "Simona Blažeková",
+    "roleFamily": "finance_accounting",
+    "aspirations": [
+      "Přejít na pozici Účetní / senior účetní v bankovnictví s odpovědností za měsíční závěrku",
+      "Získat certifikaci ACCA (dokončené 4 zkoušky)",
+      "Dlouhodobě vést menší účetní tým v rámci finančního oddělení banky"
+    ],
+    "yearsExperience": 9.0,
+    "seniority": "senior",
+    "educationLevel": "master",
+    "educationDetail": "Ing. v oboru Účetnictví a finanční řízení podniku, Vysoká škola ekonomická v Praze (VŠE)",
+    "languages": [
+      "čeština (rodilý mluvčí)",
+      "angličtina (B2)",
+      "němčina (A2)"
+    ],
+    "location": "Praha",
+    "skillClaims": [
+      {
+        "skill": "účetnictví",
+        "level": "strong",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
+        "skill": "general ledger",
+        "level": "strong",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
+        "skill": "bank reconciliation",
+        "level": "strong",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
+        "skill": "accounts payable",
+        "level": "working",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
+        "skill": "financial reporting",
+        "level": "working",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
+        "skill": "měsíční závěrka",
+        "level": "strong",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
+        "skill": "DPH a daňová agenda",
+        "level": "working",
+        "provenance": "professional",
+        "confidence": 0.4
+      }
+    ],
+    "evidence": [
+      {
+        "kind": "job",
+        "title": "Samostatná účetní — Komerční banka, a.s., Praha (2019–dosud)",
+        "text": "Vedení general ledger pro dvě nákladová střediska centrály, denní bank reconciliation nostro a vnitřních účtů, příprava podkladů pro monthly close a financial reporting dle CAS s převodovým můstkem na IFRS. Spolupráce s controllingem na komentářích k odchylkám, podpora externího auditu (KPMG) — příprava auditních podkladů bez zjištěných nálezů 3 roky po sobě. Zaškolila dvě juniorní účetní.",
+        "skills": [
+          "general ledger",
+          "bank reconciliation",
+          "financial reporting",
+          "účetnictví",
+          "měsíční závěrka"
+        ],
+        "provenance": "professional",
+        "confidence": 0.6
+      },
+      {
+        "kind": "job",
+        "title": "Účetní — Moneta Money Bank, a.s., Praha (2017–2019)",
+        "text": "Zpracování accounts payable agendy (cca 600 dodavatelských faktur měsíčně), párování plateb, kontrola náležitostí daňových dokladů a příprava podkladů pro přiznání k DPH. Podílela se na migraci dodavatelských faktur do nového workflow systému — čistota dat a testování účetních zápisů.",
+        "skills": [
+          "accounts payable",
+          "DPH a daňová agenda",
+          "účetnictví"
+        ],
+        "provenance": "professional",
+        "confidence": 0.6
+      }
+    ],
+    "learningSignals": [],
+    "completeness": 1.0,
+    "id": "cand-051",
+    "targetRole": "Účetní (Accountant)"
+  },
+  {
+    "archetype": "bau",
+    "archetypeConfidence": 0.5,
+    "archetypeReasons": [],
+    "displayName": "Kristýna Jelíneková",
+    "roleFamily": "finance_accounting",
+    "aspirations": [
+      "AML / Compliance Analyst v bance s mezinárodním přesahem",
+      "vést menší tým transaction monitoringu",
+      "získat certifikaci CAMS (ACAMS)"
+    ],
+    "yearsExperience": 11.0,
+    "seniority": "senior",
+    "educationLevel": "master",
+    "educationDetail": "Ing. – Vysoká škola ekonomická v Praze, obor Bankovnictví a pojišťovnictví (2013)",
+    "languages": [
+      "čeština (rodilá)",
+      "angličtina (C1)",
+      "němčina (B1)"
+    ],
+    "location": "Praha",
+    "skillClaims": [
+      {
+        "skill": "AML",
+        "level": "strong",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
+        "skill": "KYC",
+        "level": "strong",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
+        "skill": "transaction monitoring",
+        "level": "strong",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
+        "skill": "sanctions screening",
+        "level": "working",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
+        "skill": "customer due diligence",
+        "level": "strong",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
+        "skill": "regulatorní reporting (ČNB, FAÚ)",
+        "level": "working",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
+        "skill": "školení první linie",
+        "level": "working",
+        "provenance": "professional",
+        "confidence": 0.4
+      }
+    ],
+    "evidence": [
+      {
+        "kind": "job",
+        "title": "Senior specialista AML – Komerční banka, a.s. (2019–dosud)",
+        "text": "Druhá linie obrany v týmu Financial Crime Compliance. Vyhodnocuji alerty z transaction monitoringu (cca 40–60 týdně), zpracovávám enhanced due diligence u vysoce rizikových klientů a připravuji oznámení o podezřelých obchodech pro FAÚ. Vedu měsíční kalibrace scénářů s dodavatelem monitorovacího systému a školím pobočkovou síť v KYC postupech. Podílela jsem se na remediaci klientského kmene po tematické kontrole ČNB (12 tis. klientských složek, dokončeno v termínu).",
+        "skills": [
+          "AML",
+          "transaction monitoring",
+          "customer due diligence",
+          "KYC",
+          "regulatorní reporting (ČNB, FAÚ)",
+          "školení první linie"
+        ],
+        "provenance": "professional",
+        "confidence": 0.6
+      },
+      {
+        "kind": "job",
+        "title": "Specialista KYC / onboarding – Raiffeisenbank a.s. (2014–2019)",
+        "text": "Onboarding korporátních klientů: identifikace a kontrola skutečných majitelů, sanctions screening proti seznamům EU/OFAC/UN, nastavování rizikových profilů klientů. Spoluautorka interní metodiky pro periodické KYC reviews, která zkrátila průměrnou dobu revize z 9 na 5 dní.",
+        "skills": [
+          "KYC",
+          "sanctions screening",
+          "customer due diligence",
+          "AML"
+        ],
+        "provenance": "professional",
+        "confidence": 0.6
+      }
+    ],
+    "learningSignals": [],
+    "completeness": 1.0,
+    "id": "cand-052",
+    "targetRole": "AML / Compliance Analyst"
+  },
+  {
+    "archetype": "student",
+    "archetypeConfidence": 0.5,
+    "archetypeReasons": [],
+    "displayName": "Lucie Navrátilová",
+    "roleFamily": "finance_accounting",
+    "aspirations": [
+      "Junior Controlling Specialist v bankovnictví",
+      "rozvíjet se ve finančním plánování a reportingu",
+      "dlouhodobě směřovat k pozici business controllera ve finanční instituci"
+    ],
+    "educationLevel": "master",
+    "educationDetail": "Ing. studium, obor Účetnictví a finanční řízení podniku, Vysoká škola ekonomická v Praze (VŠE), 5. ročník, předpokládané ukončení 2027",
+    "languages": [
+      "čeština (rodilý mluvčí)",
+      "angličtina (B2–C1)",
+      "němčina (A2)"
+    ],
+    "location": "Praha, Česká republika",
+    "skillClaims": [
+      {
+        "skill": "controlling",
+        "level": "working",
+        "provenance": "coursework",
+        "confidence": 0.4
+      },
+      {
+        "skill": "budgeting",
+        "level": "working",
+        "provenance": "academic_project",
+        "confidence": 0.4
+      },
+      {
+        "skill": "financial analysis",
+        "level": "working",
+        "provenance": "coursework",
+        "confidence": 0.4
+      },
+      {
+        "skill": "financial modeling",
+        "level": "foundational",
+        "provenance": "academic_project",
+        "confidence": 0.4
+      },
+      {
+        "skill": "Excel",
+        "level": "strong",
+        "provenance": "self_declared",
+        "confidence": 0.4
+      },
+      {
+        "skill": "reporting",
+        "level": "foundational",
+        "provenance": "coursework",
+        "confidence": 0.4
+      }
+    ],
+    "evidence": [
+      {
+        "kind": "thesis",
+        "title": "Diplomová práce (rozpracovaná): Nákladový controlling a odchylková analýza v obchodní bance",
+        "text": "V diplomové práci na VŠE zpracovávám návrh systému nákladového controllingu pro retailovou pobočkovou síť. Součástí je variance analysis plánu vs. skutečnosti a návrh manažerského reportu v Excelu (kontingenční tabulky, Power Query).",
+        "skills": [
+          "controlling",
+          "financial analysis",
+          "Excel",
+          "reporting"
+        ],
+        "provenance": "thesis",
+        "confidence": 0.6
+      },
+      {
+        "kind": "project",
+        "title": "Semestrální projekt: Roční budget fiktivní pobočkové sítě",
+        "text": "V předmětu Manažerské účetnictví jsme ve tříčlenném týmu sestavili kompletní roční rozpočet fiktivní sítě 12 bankovních poboček — personnel costs, provozní náklady, forecast výnosů z poplatků. Model postaven v Excelu s driver-based přístupem a scénáři (base/optimistic/pessimistic).",
+        "skills": [
+          "budgeting",
+          "financial modeling",
+          "Excel"
+        ],
+        "provenance": "personal_project",
+        "confidence": 0.6
+      },
+      {
+        "kind": "course",
+        "title": "Kurz: Finanční analýza podniku (VŠE) + Excel for Finance (online certifikát)",
+        "text": "Absolvovala jsem povinný kurz finanční analýzy (poměrové ukazatele, cash flow analýza, mezipodnikové srovnání) zakončený zkouškou za A. Doplňkově certifikát Excel for Finance — pokročilé vzorce, XLOOKUP, sensitivity tables. Při studiu brigáda jako pokladní v Albert ČR (částečný úvazek, mimo obor).",
+        "skills": [
+          "financial analysis",
+          "Excel"
+        ],
+        "provenance": "coursework",
+        "confidence": 0.6
+      }
+    ],
+    "learningSignals": [],
+    "completeness": 0.89,
+    "id": "cand-053",
+    "targetRole": "Junior Controlling Specialist"
+  },
+  {
+    "archetype": "bau",
+    "archetypeConfidence": 0.5,
+    "archetypeReasons": [],
+    "displayName": "Jakub Novák",
+    "roleFamily": "operations_logistics",
+    "aspirations": [
+      "Loan Administration Specialist v silné bance",
+      "dlouhodobě vést menší tým úvěrové administrativy",
+      "prohloubit znalost hypotečních produktů a firemních úvěrů"
+    ],
+    "yearsExperience": 9.0,
+    "seniority": "medior",
+    "educationLevel": "bachelor",
+    "educationDetail": "Bc. v oboru Finance a řízení, Vysoká škola polytechnická Jihlava (2013)",
+    "languages": [
+      "čeština (rodilý mluvčí)",
+      "angličtina (B2)"
+    ],
+    "location": "Brno, Česká republika",
+    "skillClaims": [
+      {
+        "skill": "document management",
+        "level": "strong",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
+        "skill": "records management",
+        "level": "strong",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
+        "skill": "standard operating procedures",
+        "level": "working",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
+        "skill": "data entry",
+        "level": "strong",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
+        "skill": "process improvement",
+        "level": "working",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
+        "skill": "úvěrová dokumentace",
+        "level": "strong",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
+        "skill": "komunikace s klienty",
+        "level": "working",
+        "provenance": "professional",
+        "confidence": 0.4
+      }
+    ],
+    "evidence": [
+      {
+        "kind": "job",
+        "title": "Specialistka úvěrové administrativy — MONETA Money Bank, Brno (2018–dosud)",
+        "text": "Kompletace a kontrola úvěrové dokumentace k hypotečním a spotřebitelským úvěrům před čerpáním. Vedení spisové agendy (records management) v souladu s interní směrnicí a skartačním řádem; data entry do core bankovního systému s chybovostí pod 0,5 %. Spoluautorka aktualizace SOP pro proces čerpání — zkrácení průměrné doby zpracování žádosti o 20 % (process improvement). Denní komunikace s pobočkovou sítí a katastrem nemovitostí.",
+        "skills": [
+          "document management",
+          "records management",
+          "standard operating procedures",
+          "data entry",
+          "process improvement",
+          "úvěrová dokumentace"
+        ],
+        "provenance": "professional",
+        "confidence": 0.6
+      },
+      {
+        "kind": "job",
+        "title": "Referentka back office — Komerční banka, a.s., Brno (2015–2018)",
+        "text": "Zpracování a archivace smluvní dokumentace k běžným účtům a úvěrům, správa elektronického archivu (document management). Pořizování a validace klientských dat (data entry), řešení nesrovnalostí ve spisech ve spolupráci s pobočkami. Zaškolování nových kolegů v back office postupech dle SOP.",
+        "skills": [
+          "document management",
+          "data entry",
+          "records management",
+          "komunikace s klienty"
+        ],
+        "provenance": "professional",
+        "confidence": 0.6
+      }
+    ],
+    "learningSignals": [],
+    "completeness": 1.0,
+    "id": "cand-054",
+    "targetRole": "Loan Administration Specialist"
+  },
+  {
+    "archetype": "bau",
+    "archetypeConfidence": 0.5,
+    "archetypeReasons": [],
+    "displayName": "Matěj Kučera",
+    "roleFamily": "operations_logistics",
+    "aspirations": [
+      "Vést end-to-end optimalizaci back-office procesů v retailovém bankovnictví",
+      "Získat certifikaci Lean Six Sigma Black Belt a mentorovat Green Belt projekty",
+      "Přejít do role Operational Excellence Specialist s dopadem na celobankovní procesní standardy"
+    ],
+    "yearsExperience": 11.0,
+    "seniority": "senior",
+    "educationLevel": "master",
+    "educationDetail": "Ing., Podniková ekonomika a management, Vysoká škola ekonomická v Praze (2013)",
+    "languages": [
+      "čeština (rodilý mluvčí)",
+      "angličtina (B2/C1)",
+      "němčina (A2)"
+    ],
+    "location": "Praha",
+    "skillClaims": [
+      {
+        "skill": "process improvement",
+        "level": "strong",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
+        "skill": "lean management",
+        "level": "strong",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
+        "skill": "six sigma",
+        "level": "working",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
+        "skill": "standard operating procedures",
+        "level": "strong",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
+        "skill": "kaizen",
+        "level": "working",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
+        "skill": "process mapping",
+        "level": "strong",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
+        "skill": "change management",
+        "level": "working",
+        "provenance": "professional",
+        "confidence": 0.4
+      }
+    ],
+    "evidence": [
+      {
+        "kind": "job",
+        "title": "Specialista procesního řízení — Komerční banka, a.s. (2018–dosud)",
+        "text": "Vedla jsem 14 process improvement iniciativ v back-office úvěrových operací (hypotéky, spotřebitelské úvěry). Zavedla jsem lean management principy do denního řízení týmu 25 FTE — daily huddles, vizuální řízení výkonu, kaizen board. Six Sigma Green Belt projekt na zkrácení doby zpracování hypoteční žádosti snížil průměrný lead time z 9,2 na 5,4 dne (DMAIC, měření na vzorku 1 800 případů). Odpovídám za katalog standard operating procedures pro 3 oddělení (60+ SOP, roční revizní cyklus) a za onboarding nových kolegů podle standardizovaných postupů.",
+        "skills": [
+          "process improvement",
+          "lean management",
+          "six sigma",
+          "standard operating procedures",
+          "kaizen",
+          "process mapping"
+        ],
+        "provenance": "professional",
+        "confidence": 0.6
+      },
+      {
+        "kind": "job",
+        "title": "Analytik bankovních procesů — Moneta Money Bank, a.s. (2014–2018)",
+        "text": "Mapovala jsem AS-IS/TO-BE procesy klientského servisu a reklamací (BPMN), připravila podklady pro centralizaci back-office činností ze 4 poboček do centrály. Podílela jsem se na change management komunikaci při migraci na nový core banking workflow — školení 40+ uživatelů, tvorba pracovních instrukcí a SOP. Kaizen workshopy s frontline týmy přinesly 23 implementovaných zlepšení ročně.",
+        "skills": [
+          "process mapping",
+          "change management",
+          "standard operating procedures",
+          "kaizen"
+        ],
+        "provenance": "professional",
+        "confidence": 0.6
+      }
+    ],
+    "learningSignals": [],
+    "completeness": 1.0,
+    "id": "cand-055",
+    "targetRole": "Operational Excellence Specialist"
+  },
+  {
+    "archetype": "career_switcher",
+    "archetypeConfidence": 0.5,
+    "archetypeReasons": [],
+    "displayName": "Tadeáš Svoboda",
+    "roleFamily": "operations_logistics",
+    "aspirations": [
+      "Payments Back-Office Specialist",
+      "specialista zpracování platebních transakcí v bance"
+    ],
+    "yearsExperience": 9.0,
+    "educationLevel": "bachelor",
+    "educationDetail": "Bc. Cestovní ruch, Vysoká škola obchodní v Praze",
+    "languages": [
+      "čeština (rodilý mluvčí)",
+      "angličtina (B2)",
+      "němčina (A2)"
+    ],
+    "location": "Praha",
+    "skillClaims": [
+      {
+        "skill": "order processing",
+        "level": "working",
+        "provenance": "Rekvalifikační kurz Bankovní operace a platební styk (ČBA EDUCA, 2025) + praxe se zpracováním rezervací a objednávek v cestovní kanceláři",
+        "confidence": 0.4
+      },
+      {
+        "skill": "data entry",
+        "level": "strong",
+        "provenance": "9 let denní práce s rezervačními systémy (Cesys, Amadeus) — přesné zadávání klientských a platebních dat",
+        "confidence": 0.4
+      },
+      {
+        "skill": "document management",
+        "level": "working",
+        "provenance": "Správa smluv o zájezdu, pojistných dokladů a reklamační dokumentace; modul Správa dokumentace v rekvalifikačním kurzu",
+        "confidence": 0.4
+      },
+      {
+        "skill": "process documentation",
+        "level": "foundational",
+        "provenance": "Autorka interních manuálů pro nové kolegy na pobočce; závěrečný projekt kurzu — popis procesu SEPA platby krok za krokem",
+        "confidence": 0.4
+      },
+      {
+        "skill": "quality control",
+        "level": "working",
+        "provenance": "Čtyřoční kontrola cestovních smluv a plateb před odesláním; kurz zaměřený na kontrolu čtyř očí v platebním styku",
+        "confidence": 0.4
+      },
+      {
+        "skill": "reklamace",
+        "level": "working",
+        "provenance": "Vyřizování reklamací zájezdů a vratek plateb klientům dle zákona č. 159/1999 Sb.",
+        "confidence": 0.4
+      }
+    ],
+    "evidence": [
+      {
+        "kind": "job",
+        "title": "Vedoucí pobočky / Senior referentka prodeje zájezdů — CK Blue Style, Praha",
+        "text": "2019–2025: Vedení pobočky se 3 zaměstnanci. Denní zpracování rezervací a plateb klientů (karty, převody, zálohy a doplatky), párování plateb s objednávkami, kontrola smluvní dokumentace před odesláním, vyřizování reklamací a vratek. Zavedla jsem checklist kontroly smluv, který snížil chybovost pobočky o 30 %.",
+        "skills": [
+          "order processing",
+          "data entry",
+          "quality control",
+          "reklamace"
+        ],
+        "provenance": "professional",
+        "confidence": 0.6
+      },
+      {
+        "kind": "job",
+        "title": "Referentka rezervací — CK Fischer, Praha",
+        "text": "2016–2019: Zadávání a správa rezervací v systému Amadeus, evidence plateb, archivace smluv o zájezdu a pojistných dokladů, komunikace s klienty v češtině a angličtině.",
+        "skills": [
+          "data entry",
+          "document management"
+        ],
+        "provenance": "professional",
+        "confidence": 0.6
+      },
+      {
+        "kind": "course",
+        "title": "Rekvalifikační kurz: Bankovní operace a platební styk (ČBA EDUCA)",
+        "text": "2025, 120 hodin. Moduly: tuzemský a zahraniční platební styk (SEPA, SWIFT), zpracování platebních příkazů, správa a archivace bankovní dokumentace, principy kontroly čtyř očí a quality control v back-office, základy AML. Závěrečná zkouška složena s vyznamenáním.",
+        "skills": [
+          "order processing",
+          "process documentation",
+          "quality control",
+          "document management"
+        ],
+        "provenance": "coursework",
+        "confidence": 0.6
+      },
+      {
+        "kind": "project",
+        "title": "Závěrečný projekt: Procesní dokumentace SEPA platby",
+        "text": "V rámci rekvalifikace jsem zpracovala kompletní process documentation průchodu SEPA platebního příkazu back-officem — od přijetí přes validaci a kontrolu po zaúčtování, včetně kontrolních bodů a řešení výjimek (nedostatečné krytí, chybný IBAN).",
+        "skills": [
+          "process documentation",
+          "quality control"
+        ],
+        "provenance": "personal_project",
+        "confidence": 0.6
+      }
+    ],
+    "learningSignals": [],
+    "completeness": 1.0,
+    "id": "cand-056",
+    "targetRole": "Payments Back-Office Specialist"
+  },
+  {
+    "archetype": "student",
+    "archetypeConfidence": 0.5,
+    "archetypeReasons": [],
+    "displayName": "Veronika Beráneková",
+    "roleFamily": "operations_logistics",
+    "aspirations": [
+      "Získat první plný úvazek jako Junior Procurement Specialist v bankovnictví",
+      "Naučit se end-to-end proces nákupu ve velké finanční instituci — od poptávky po fakturaci",
+      "Dlouhodobě se rozvíjet směrem k supplier relationship managementu a strategickému nákupu"
+    ],
+    "educationLevel": "bachelor",
+    "educationDetail": "Bc. Podniková ekonomika a management, Vysoká škola ekonomická v Praze (VŠE), Fakulta podnikohospodářská, absolvování 2026",
+    "languages": [
+      "čeština (rodilý mluvčí)",
+      "angličtina (B2)",
+      "němčina (A2)"
+    ],
+    "location": "Praha",
+    "skillClaims": [
+      {
+        "skill": "procurement",
+        "level": "working",
+        "provenance": "academic_project",
+        "confidence": 0.4
+      },
+      {
+        "skill": "purchasing",
+        "level": "working",
+        "provenance": "coursework",
+        "confidence": 0.4
+      },
+      {
+        "skill": "supplier management",
+        "level": "foundational",
+        "provenance": "academic_project",
+        "confidence": 0.4
+      },
+      {
+        "skill": "negotiation",
+        "level": "foundational",
+        "provenance": "coursework",
+        "confidence": 0.4
+      },
+      {
+        "skill": "invoicing",
+        "level": "foundational",
+        "provenance": "self_declared",
+        "confidence": 0.4
+      },
+      {
+        "skill": "controlling",
+        "level": "foundational",
+        "provenance": "coursework",
+        "confidence": 0.4
+      }
+    ],
+    "evidence": [
+      {
+        "kind": "thesis",
+        "title": "Optimalizace nákupního procesu ve středně velkém podniku: případová studie výběru dodavatelů kancelářských služeb",
+        "text": "Bakalářská práce na VŠE. Zmapovala jsem procure-to-pay proces ve firmě rodinného známého (velkoobchod), navrhla kritéria pro hodnocení dodavatelů (cena, dodací lhůty, platební podmínky) a modelový RFQ proces. Součástí byla analýza 3 dodavatelských nabídek a doporučení úspory cca 8 % ročních nákladů na kancelářské služby. Vedoucí práce hodnotil zejména praktickou použitelnost scoring modelu dodavatelů.",
+        "skills": [
+          "procurement",
+          "supplier management",
+          "purchasing"
+        ],
+        "provenance": "thesis",
+        "confidence": 0.6
+      },
+      {
+        "kind": "course",
+        "title": "Nákupní management a vyjednávání (VŠE, 5. semestr) + kurz Business Negotiation v angličtině",
+        "text": "Absolvovala jsem povinně volitelný předmět Nákupní management (známka A) zakončený týmovou simulací vyjednávání s dodavatelem — naše skupina vyjednala nejlepší kombinaci ceny a platebních podmínek v ročníku. Navazující kurz Business Negotiation probíhal v angličtině a pokrýval BATNA, přípravu na jednání a win-win strategie.",
+        "skills": [
+          "negotiation",
+          "purchasing",
+          "procurement"
+        ],
+        "provenance": "coursework",
+        "confidence": 0.6
+      },
+      {
+        "kind": "project",
+        "title": "Semestrální projekt: controlling a fakturační proces ve studentské firmě VŠE",
+        "text": "V rámci předmětu Manažerské účetnictví jsem ve čtyřčlenném týmu vedla evidenci objednávek a faktur fiktivní studentské firmy (cca 40 faktur za semestr v Excelu), hlídala splatnosti a připravovala měsíční přehled nákladů pro 'vedení'. Prakticky jsem si osahala párování objednávka–dodávka–faktura a základní controlling reporting. Mimo školu si přivydělávám jako víkendová obsluha v kavárně Kofárna s.r.o., kde přebírám dodávky zboží a kontroluji dodací listy.",
+        "skills": [
+          "invoicing",
+          "controlling",
+          "supplier management"
+        ],
+        "provenance": "personal_project",
+        "confidence": 0.6
+      }
+    ],
+    "learningSignals": [],
+    "completeness": 0.89,
+    "id": "cand-057",
+    "targetRole": "Junior Procurement Specialist"
+  },
+  {
+    "archetype": "bau",
+    "archetypeConfidence": 0.5,
+    "archetypeReasons": [],
+    "displayName": "Simona Benešová",
+    "roleFamily": "sales_marketing",
+    "aspirations": [
+      "Přejít na pozici Corporate Relationship Banker se správou portfolia firemních klientů nad 100 mil. Kč obratu",
+      "Rozšířit expertízu ve strukturovaném financování a syndikovaných úvěrech",
+      "Dlouhodobě vést regionální tým firemního bankovnictví"
+    ],
+    "yearsExperience": 9.0,
+    "seniority": "senior",
+    "educationLevel": "master",
+    "educationDetail": "Ing., Vysoká škola ekonomická v Praze — Fakulta financí a účetnictví, obor Bankovnictví a pojišťovnictví",
+    "languages": [
+      "čeština (rodilý mluvčí)",
+      "angličtina (C1)",
+      "němčina (B1)"
+    ],
+    "location": "Brno, Česká republika",
+    "skillClaims": [
+      {
+        "skill": "account management",
+        "level": "strong",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
+        "skill": "relationship building",
+        "level": "strong",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
+        "skill": "B2B sales",
+        "level": "strong",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
+        "skill": "cross-selling",
+        "level": "strong",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
+        "skill": "negotiation",
+        "level": "working",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
+        "skill": "credit analysis",
+        "level": "working",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
+        "skill": "KYC",
+        "level": "working",
+        "provenance": "professional",
+        "confidence": 0.4
+      }
+    ],
+    "evidence": [
+      {
+        "kind": "job",
+        "title": "Firemní bankéř — SME segment, Komerční banka, a.s. (2019–dosud)",
+        "text": "Správa portfolia cca 85 firemních klientů v segmentu SME (obrat 30–300 mil. Kč) v Jihomoravském kraji. Odpovědnost za account management napříč celým vztahem: provozní financování, investiční úvěry, treasury produkty a trade finance. Meziroční růst výnosů portfolia +14 % (2023) díky systematickému cross-sellingu — penetrace FX hedgingu v portfoliu zvýšena z 18 % na 31 %. Vedení úvěrových jednání s CFO a majiteli firem, příprava podkladů pro credit analysis a spolupráce s risk oddělením na strukturování transakcí do 150 mil. Kč. Plnění akvizičního plánu B2B sales na 112 % (nových 12 klientů v roce 2024).",
+        "skills": [
+          "account management",
+          "cross-selling",
+          "B2B sales",
+          "credit analysis",
+          "negotiation"
+        ],
+        "provenance": "professional",
+        "confidence": 0.6
+      },
+      {
+        "kind": "job",
+        "title": "Bankovní poradce pro podnikatele, MONETA Money Bank, a.s. (2016–2019)",
+        "text": "Poradenství pro podnikatele a malé firmy na pobočce Brno-střed: běžné a spořicí účty, kontokorenty, podnikatelské úvěry do 5 mil. Kč. Budování dlouhodobých vztahů s klienty (relationship building) — retence portfolia 94 %, nejvyšší v regionu 2018. Kompletní onboarding nových firemních klientů včetně KYC procesu a identifikace skutečných majitelů. Pravidelně vyhodnocován v top 10 % poradců dle NPS.",
+        "skills": [
+          "relationship building",
+          "KYC",
+          "account management"
+        ],
+        "provenance": "professional",
+        "confidence": 0.6
+      }
+    ],
+    "learningSignals": [],
+    "completeness": 1.0,
+    "id": "cand-058",
+    "targetRole": "Corporate Relationship Banker"
+  },
+  {
+    "archetype": "bau",
+    "archetypeConfidence": 0.5,
+    "archetypeReasons": [],
+    "displayName": "Tadeáš Vaněk",
+    "roleFamily": "sales_marketing",
+    "aspirations": [
+      "Přejít na pozici Personal Banker s vlastním portfoliem afluentních klientů",
+      "Dlouhodobě růst směrem k privátnímu bankovnictví",
+      "Rozvíjet poradenství v oblasti investičních produktů"
+    ],
+    "yearsExperience": 9.0,
+    "seniority": "senior",
+    "educationLevel": "master",
+    "educationDetail": "Ing., Podniková ekonomika a management, Vysoká škola ekonomická v Praze (2014)",
+    "languages": [
+      "Czech (native)",
+      "English (B2)",
+      "German (A2)"
+    ],
+    "location": "Brno, Česká republika",
+    "skillClaims": [
+      {
+        "skill": "customer acquisition",
+        "level": "strong",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
+        "skill": "upselling",
+        "level": "strong",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
+        "skill": "relationship building",
+        "level": "strong",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
+        "skill": "sales",
+        "level": "strong",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
+        "skill": "account management",
+        "level": "working",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
+        "skill": "investiční produkty",
+        "level": "working",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
+        "skill": "úvěrové poradenství",
+        "level": "working",
+        "provenance": "professional",
+        "confidence": 0.4
+      }
+    ],
+    "evidence": [
+      {
+        "kind": "job",
+        "title": "Bankovní poradce senior — Komerční banka, a.s., pobočka Brno-střed (2019–dosud)",
+        "text": "Správa portfolia cca 450 retailových klientů, plnění prodejních cílů dlouhodobě nad 110 %. Aktivní akvizice nových klientů (v průměru 12 nových běžných účtů měsíčně) a cross-sell/upsell spotřebitelských úvěrů, kreditních karet a podílových fondů. Budování dlouhodobých vztahů s klienty — retention rate portfolia 94 %. Mentoring dvou juniorních poradců na pobočce.",
+        "skills": [
+          "customer acquisition",
+          "upselling",
+          "relationship building",
+          "sales",
+          "account management",
+          "investiční produkty"
+        ],
+        "provenance": "professional",
+        "confidence": 0.6
+      },
+      {
+        "kind": "job",
+        "title": "Osobní bankéř — MONETA Money Bank, a.s., Brno (2015–2019)",
+        "text": "Obsluha klientů na přepážce a následně vlastní klientský kmen. Prodej běžných účtů, spotřebitelských úvěrů a pojištění; pravidelné plnění akvizičních kampaní. Zpracování žádostí o úvěr včetně základního úvěrového poradenství a follow-up schůzek s klienty.",
+        "skills": [
+          "sales",
+          "customer acquisition",
+          "úvěrové poradenství",
+          "relationship building"
+        ],
+        "provenance": "professional",
+        "confidence": 0.6
+      }
+    ],
+    "learningSignals": [],
+    "completeness": 1.0,
+    "id": "cand-059",
+    "targetRole": "Personal Banker"
+  },
+  {
+    "archetype": "career_switcher",
+    "archetypeConfidence": 0.5,
+    "archetypeReasons": [],
+    "displayName": "Adam Polák",
+    "roleFamily": "sales_marketing",
+    "aspirations": [
+      "Digital Marketing Specialist v bankovnictví"
+    ],
+    "yearsExperience": 7.0,
+    "educationLevel": "master",
+    "educationDetail": "Ing., Provozně ekonomická fakulta, Česká zemědělská univerzita v Praze — obor Provoz a ekonomika",
+    "languages": [
+      "čeština (rodilý mluvčí)",
+      "angličtina (B2)",
+      "němčina (A2)"
+    ],
+    "location": "Praha",
+    "skillClaims": [
+      {
+        "skill": "digital marketing",
+        "level": "working",
+        "provenance": "Rekvalifikační kurz Digitální marketing (Czechitas Digitální akademie, 2025) + vlastní projekty",
+        "confidence": 0.4
+      },
+      {
+        "skill": "SEO",
+        "level": "working",
+        "provenance": "Modul SEO v rámci Digitální akademie; optimalizace obsahu pro blog cestovní agentury (freelance projekt)",
+        "confidence": 0.4
+      },
+      {
+        "skill": "PPC",
+        "level": "foundational",
+        "provenance": "Certifikace Google Ads Search (2025); správa testovacích kampaní s rozpočtem 15 000 Kč/měsíc",
+        "confidence": 0.4
+      },
+      {
+        "skill": "social media marketing",
+        "level": "strong",
+        "provenance": "3 roky neformální správy firemních profilů (Facebook, Instagram, LinkedIn) v předchozím zaměstnání + kurz Social Media Management",
+        "confidence": 0.4
+      },
+      {
+        "skill": "content marketing",
+        "level": "working",
+        "provenance": "Tvorba newsletterů a blogových článků pro pobočkovou síť; závěrečný projekt Digitální akademie — content strategie pro fiktivní banku",
+        "confidence": 0.4
+      },
+      {
+        "skill": "klientská komunikace",
+        "level": "strong",
+        "provenance": "7 let práce s klienty v cestovním ruchu — prodej zájezdů, řešení reklamací, budování vztahů s firemními klienty",
+        "confidence": 0.4
+      }
+    ],
+    "evidence": [
+      {
+        "kind": "job",
+        "title": "Vedoucí pobočky — Čedok a.s., Praha (2021–2025)",
+        "text": "Vedení pobočky cestovní kanceláře se 4členným týmem. Zodpovědnost za plnění prodejních cílů (plnění 108 % v roce 2023), přímý prodej zájezdů firemním i retailovým klientům, řešení reklamací. Nad rámec role jsem převzala správu sociálních sítí pobočky — Facebook a Instagram profil vyrostl z 800 na 6 500 sledujících, kampaně na last-minute zájezdy generovaly měřitelný nárůst poptávek o ~20 %.",
+        "skills": [
+          "klientská komunikace",
+          "social media marketing",
+          "prodej"
+        ],
+        "provenance": "professional",
+        "confidence": 0.6
+      },
+      {
+        "kind": "job",
+        "title": "Prodejní referentka — Čedok a.s., Praha (2018–2021)",
+        "text": "Prodej a poradenství v oblasti zájezdů, příprava nabídek pro klienty, e-mailová komunikace a tvorba newsletteru pobočky (Mailchimp). První zkušenost s tvorbou obsahu — texty akčních nabídek a fotodokumentace pro web pobočky.",
+        "skills": [
+          "klientská komunikace",
+          "content marketing"
+        ],
+        "provenance": "professional",
+        "confidence": 0.6
+      },
+      {
+        "kind": "course",
+        "title": "Czechitas — Digitální akademie: Digitální marketing (leden–červen 2025)",
+        "text": "Intenzivní rekvalifikační program (300+ hodin): základy digital marketingu, SEO (on-page, keyword research přes Marketing Miner), PPC (Google Ads, Sklik), social media marketing, content marketing, e-mailing, základy webové analytiky (GA4). Certifikace Google Ads Search složena v květnu 2025.",
+        "skills": [
+          "digital marketing",
+          "SEO",
+          "PPC",
+          "social media marketing",
+          "content marketing"
+        ],
+        "provenance": "coursework",
+        "confidence": 0.6
+      },
+      {
+        "kind": "project",
+        "title": "Závěrečný projekt: Content a social media strategie pro fiktivní retailovou banku",
+        "text": "Týmový závěrečný projekt Digitální akademie — návrh 6měsíční content strategie pro fiktivní banku cílící na mladé klienty: redakční kalendář, SEO analýza klíčových slov pro téma 'první hypotéka', návrh PPC kampaně na spořicí účet a mockupy postů pro Instagram. Projekt hodnocen mentory z praxe jako jeden ze tří nejlepších v běhu.",
+        "skills": [
+          "content marketing",
+          "SEO",
+          "PPC",
+          "social media marketing"
+        ],
+        "provenance": "personal_project",
+        "confidence": 0.6
+      }
+    ],
+    "learningSignals": [],
+    "completeness": 1.0,
+    "id": "cand-060",
+    "targetRole": "Digital Marketing Specialist"
+  },
+  {
+    "archetype": "student",
+    "archetypeConfidence": 0.5,
+    "archetypeReasons": [],
+    "displayName": "Kristýna Němecová",
+    "roleFamily": "sales_marketing",
+    "aspirations": [
+      "Nastoupit jako Junior Business Development Specialist v bankovnictví a naučit se celý akviziční cyklus od prospectingu po podpis smlouvy",
+      "Do tří let vést vlastní portfolio SME klientů",
+      "Propojit zájem o market research s praktickým obchodem — rozhodovat se podle dat, ne podle pocitu"
+    ],
+    "educationLevel": "bachelor",
+    "educationDetail": "Bc. Podniková ekonomika a management, Vysoká škola ekonomická v Praze (VŠE), absolvování 2026 — bakalářská práce obhájena červen 2026",
+    "languages": [
+      "čeština (rodilý mluvčí)",
+      "angličtina (B2–C1)",
+      "němčina (A2)"
+    ],
+    "location": "Praha",
+    "skillClaims": [
+      {
+        "skill": "lead generation",
+        "level": "working",
+        "provenance": "academic_project",
+        "confidence": 0.4
+      },
+      {
+        "skill": "business development",
+        "level": "foundational",
+        "provenance": "coursework",
+        "confidence": 0.4
+      },
+      {
+        "skill": "cold calling",
+        "level": "foundational",
+        "provenance": "self_declared",
+        "confidence": 0.4
+      },
+      {
+        "skill": "market research",
+        "level": "strong",
+        "provenance": "academic_project",
+        "confidence": 0.4
+      },
+      {
+        "skill": "sales reporting",
+        "level": "foundational",
+        "provenance": "coursework",
+        "confidence": 0.4
+      },
+      {
+        "skill": "prezentační dovednosti",
+        "level": "working",
+        "provenance": "coursework",
+        "confidence": 0.4
+      }
+    ],
+    "evidence": [
+      {
+        "kind": "thesis",
+        "title": "Akviziční strategie bank na českém trhu SME: srovnávací analýza přístupů k oslovování malých a středních podniků",
+        "text": "Bakalářská práce na VŠE (vedoucí katedra marketingu). Provedla jsem market research mezi 42 malými firmami v Praze a Středočeském kraji — dotazníkové šetření + 8 hloubkových rozhovorů s jednateli o tom, jak vnímají oslovení bankou. Výstupem je segmentace leadů podle připravenosti ke změně banky a doporučený contact framework pro business development týmy. Obhájeno za výbornou.",
+        "skills": [
+          "market research",
+          "lead generation",
+          "business development"
+        ],
+        "provenance": "thesis",
+        "confidence": 0.6
+      },
+      {
+        "kind": "project",
+        "title": "Studentský projekt 'Rozjeď to!' — akvizice partnerů pro univerzitní kariérní veletrh",
+        "text": "V týmu pěti studentů jsem měla na starost oslovování firem-partnerů veletrhu Šance na VŠE. Sestavila jsem prospect list ~120 firem, telefonicky a e-mailem jsem oslovila 65 z nich (první zkušenost s cold callingem) a dotáhla 11 podepsaných partnerství vč. jedné banky. Průběžné výsledky jsem reportovala týmu v týdenním sales reportu (pipeline, conversion rate, follow-upy).",
+        "skills": [
+          "cold calling",
+          "lead generation",
+          "sales reporting"
+        ],
+        "provenance": "personal_project",
+        "confidence": 0.6
+      },
+      {
+        "kind": "course",
+        "title": "Kurz 'Obchodní dovednosti a vyjednávání' + volitelný blok 'Bankovnictví' (VŠE)",
+        "text": "Semestrální kurz zakončený simulovaným obchodním jednáním — vedla jsem roli obchodníka banky nabízejícího firemní účet, hodnocení A. V bloku Bankovnictví jsem zpracovala seminární práci o produktovém mixu pro začínající podnikatele. Mimo studium brigáda jako obsluha v kavárně Kavárna Slavia (2023–2025), kde jsem si osvojila práci s náročnými klienty.",
+        "skills": [
+          "business development",
+          "prezentační dovednosti"
+        ],
+        "provenance": "coursework",
+        "confidence": 0.6
+      }
+    ],
+    "learningSignals": [],
+    "completeness": 0.89,
+    "id": "cand-061",
+    "targetRole": "Junior Business Development"
+  },
+  {
+    "archetype": "bau",
+    "archetypeConfidence": 0.5,
+    "archetypeReasons": [],
+    "displayName": "Anna Benešová",
+    "roleFamily": "customer_support",
+    "aspirations": [
+      "Complaints Specialist v retailové bance",
+      "vést tým reklamačního oddělení do 3 let",
+      "prohloubit znalost regulatoriky ochrany spotřebitele (ČNB, finanční arbitr)"
+    ],
+    "yearsExperience": 9.0,
+    "seniority": "senior",
+    "educationLevel": "bachelor",
+    "educationDetail": "Bc. v oboru Finance a řízení, Vysoká škola polytechnická Jihlava",
+    "languages": [
+      "čeština (rodilý mluvčí)",
+      "angličtina (B2)",
+      "němčina (A2)"
+    ],
+    "location": "Brno, Česká republika",
+    "skillClaims": [
+      {
+        "skill": "reklamace",
+        "level": "strong",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
+        "skill": "complaint resolution",
+        "level": "strong",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
+        "skill": "escalation management",
+        "level": "strong",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
+        "skill": "conflict resolution",
+        "level": "working",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
+        "skill": "SLA management",
+        "level": "working",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
+        "skill": "komunikace s finančním arbitrem",
+        "level": "working",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
+        "skill": "root cause analysis",
+        "level": "foundational",
+        "provenance": "professional",
+        "confidence": 0.4
+      }
+    ],
+    "evidence": [
+      {
+        "kind": "job",
+        "title": "Specialistka reklamací — MONETA Money Bank, Brno (2019–dosud)",
+        "text": "Samostatné řešení klientských reklamací platebních transakcí a poplatků (cca 120 případů měsíčně) v souladu s interními SLA a zákonem o platebním styku. Vedení eskalovaných případů včetně podání k finančnímu arbitrovi, spolupráce s compliance a právním oddělením. Zavedla jsem měsíční reporting SLA plnění a root cause analýzu opakovaných reklamací, což snížilo re-opened cases o 18 %.",
+        "skills": [
+          "reklamace",
+          "complaint resolution",
+          "escalation management",
+          "SLA management",
+          "root cause analysis",
+          "komunikace s finančním arbitrem"
+        ],
+        "provenance": "professional",
+        "confidence": 0.6
+      },
+      {
+        "kind": "job",
+        "title": "Bankovní poradkyně — Komerční banka, pobočka Brno-střed (2015–2019)",
+        "text": "Obsluha retailových klientů, řešení stížností na pobočce v první linii a de-eskalace konfliktních situací. Předávání složitějších případů na centrální reklamační oddělení s kompletní dokumentací; opakovaně hodnocena jako top 3 poradce regionu v klientské spokojenosti (NPS).",
+        "skills": [
+          "conflict resolution",
+          "complaint resolution",
+          "klientský servis"
+        ],
+        "provenance": "professional",
+        "confidence": 0.6
+      }
+    ],
+    "learningSignals": [],
+    "completeness": 1.0,
+    "id": "cand-062",
+    "targetRole": "Complaints Specialist"
+  },
+  {
+    "archetype": "bau",
+    "archetypeConfidence": 0.5,
+    "archetypeReasons": [],
+    "displayName": "Monika Pokorná",
+    "roleFamily": "customer_support",
+    "aspirations": [
+      "Přejít na pozici Client Service Specialist v silné retailové bance",
+      "Rozvíjet expertízu v onboardingu korporátních klientů",
+      "Dlouhodobě vést menší tým klientského servisu"
+    ],
+    "yearsExperience": 8.0,
+    "seniority": "medior",
+    "educationLevel": "bachelor",
+    "educationDetail": "Bc. v oboru Finance a řízení, Vysoká škola polytechnická Jihlava (2014)",
+    "languages": [
+      "čeština (rodilý mluvčí)",
+      "angličtina (B2)",
+      "němčina (A2)"
+    ],
+    "location": "Brno, Česká republika",
+    "skillClaims": [
+      {
+        "skill": "account servicing",
+        "level": "strong",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
+        "skill": "customer onboarding",
+        "level": "strong",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
+        "skill": "back office support",
+        "level": "working",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
+        "skill": "email support",
+        "level": "strong",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
+        "skill": "knowledge base",
+        "level": "working",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
+        "skill": "reklamace",
+        "level": "working",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
+        "skill": "KYC",
+        "level": "foundational",
+        "provenance": "professional",
+        "confidence": 0.4
+      }
+    ],
+    "evidence": [
+      {
+        "kind": "job",
+        "title": "Specialista klientského servisu — Komerční banka, a.s., Brno (2019–současnost)",
+        "text": "Kompletní account servicing pro portfolio cca 1 200 retailových klientů — změny dispozičních práv, správa trvalých příkazů, servis platebních karet. Vedla jsem customer onboarding nových klientů včetně KYC kontrol při zakládání účtů. Denně vyřizuji 40–60 požadavků přes email support s SLA 24 hodin (plnění 96 %). Spoluautorka interní knowledge base pro pobočkovou síť — 30+ článků k produktovým procesům, které zkrátily průměrnou dobu řešení dotazu o 15 %. Zpracování reklamací platebních transakcí ve spolupráci s back office.",
+        "skills": [
+          "account servicing",
+          "customer onboarding",
+          "email support",
+          "knowledge base",
+          "KYC",
+          "reklamace"
+        ],
+        "provenance": "professional",
+        "confidence": 0.6
+      },
+      {
+        "kind": "job",
+        "title": "Referentka back office — MONETA Money Bank, a.s., Brno (2016–2019)",
+        "text": "Back office support pro retailové úvěrové produkty — kontrola smluvní dokumentace, zadávání dat do core systému, párování plateb. Podpora poboček při dotazech k rozpracovaným žádostem (telefonicky a přes email). Podílela jsem se na migraci procesní dokumentace do nové interní knowledge base po rebrandingu banky.",
+        "skills": [
+          "back office support",
+          "email support",
+          "knowledge base"
+        ],
+        "provenance": "professional",
+        "confidence": 0.6
+      }
+    ],
+    "learningSignals": [],
+    "completeness": 1.0,
+    "id": "cand-063",
+    "targetRole": "Client Service Specialist"
+  },
+  {
+    "archetype": "career_switcher",
+    "archetypeConfidence": 0.5,
+    "archetypeReasons": [],
+    "displayName": "Martin Šimek",
+    "roleFamily": "customer_support",
+    "aspirations": [
+      "Customer Retention Specialist v retailovém bankovnictví",
+      "dlouhodobě rozvíjet retention strategii a práci se zpětnou vazbou klientů"
+    ],
+    "yearsExperience": 9.0,
+    "educationLevel": "bachelor",
+    "educationDetail": "Bc. Cestovní ruch, Vysoká škola hotelová v Praze",
+    "languages": [
+      "čeština (rodilý mluvčí)",
+      "angličtina (B2)",
+      "němčina (A2)"
+    ],
+    "location": "Brno, Česká republika",
+    "skillClaims": [
+      {
+        "skill": "customer retention",
+        "level": "working",
+        "provenance": "Rekvalifikační kurz 'Řízení retence a loajality zákazníků' (Czechitas Business Academy, 2025) + záchranné nabídky pro klienty rušící zájezdy v CK",
+        "confidence": 0.4
+      },
+      {
+        "skill": "customer success",
+        "level": "foundational",
+        "provenance": "Online kurz Customer Success Fundamentals (Coursera, certifikát 2025)",
+        "confidence": 0.4
+      },
+      {
+        "skill": "CSAT",
+        "level": "working",
+        "provenance": "Vyhodnocování spokojenosti klientů po zájezdech v CK Fischer; prohloubeno v retention kurzu (metodika měření a interpretace CSAT)",
+        "confidence": 0.4
+      },
+      {
+        "skill": "NPS",
+        "level": "foundational",
+        "provenance": "Praktický projekt v kurzu: návrh NPS dotazníku a follow-up procesu pro fiktivní banku",
+        "confidence": 0.4
+      },
+      {
+        "skill": "customer feedback",
+        "level": "strong",
+        "provenance": "9 let denní práce se zpětnou vazbou a reklamacemi klientů v cestovním ruchu; strukturované reporty vedení",
+        "confidence": 0.4
+      },
+      {
+        "skill": "reklamace",
+        "level": "strong",
+        "provenance": "Vedení reklamační agendy pobočky CK Fischer, cca 40 případů měsíčně, dodržování zákonných lhůt",
+        "confidence": 0.4
+      }
+    ],
+    "evidence": [
+      {
+        "kind": "job",
+        "title": "Vedoucí pobočky / senior prodejce zájezdů — CK Fischer, Brno (2019–2025)",
+        "text": "Vedla pobočku se 4 prodejci. Odpovědná za retenci stálých klientů: záchranné nabídky při stornech (úspěšnost cca 35 %), věrnostní program pobočky, vyřizování reklamací a stížností v zákonných lhůtách. Pravidelné vyhodnocování spokojenosti klientů po návratu ze zájezdu a reporting vedení regionu.",
+        "skills": [
+          "customer retention",
+          "reklamace",
+          "customer feedback",
+          "CSAT"
+        ],
+        "provenance": "professional",
+        "confidence": 0.6
+      },
+      {
+        "kind": "job",
+        "title": "Prodejce zájezdů — Čedok, Brno (2016–2019)",
+        "text": "Prodej a servis zájezdů, péče o vracející se klientelu, řešení stížností na místě i písemně. Budování dlouhodobých vztahů — cca 60 % obratu od opakujících se klientů.",
+        "skills": [
+          "customer feedback",
+          "customer success"
+        ],
+        "provenance": "professional",
+        "confidence": 0.6
+      },
+      {
+        "kind": "course",
+        "title": "Řízení retence a loajality zákazníků — Czechitas Business Academy (2025)",
+        "text": "Tříměsíční rekvalifikační kurz: retention playbooky, churn signály, měření CSAT a NPS, návrh win-back kampaní. Závěrečná zkouška složena s vyznamenáním.",
+        "skills": [
+          "customer retention",
+          "CSAT",
+          "NPS"
+        ],
+        "provenance": "coursework",
+        "confidence": 0.6
+      },
+      {
+        "kind": "project",
+        "title": "Závěrečný projekt: Retention program pro retailovou banku",
+        "text": "V rámci kurzu navrhla kompletní retention flow pro fiktivní banku: segmentace ohrožených klientů, NPS follow-up proces, win-back nabídky a dashboard spokojenosti (CSAT/NPS). Projekt obhájen před panelem mentorů z bankovnictví.",
+        "skills": [
+          "customer retention",
+          "NPS",
+          "customer feedback",
+          "customer success"
+        ],
+        "provenance": "personal_project",
+        "confidence": 0.6
+      }
+    ],
+    "learningSignals": [],
+    "completeness": 1.0,
+    "id": "cand-064",
+    "targetRole": "Customer Retention Specialist"
+  },
+  {
+    "archetype": "student",
+    "archetypeConfidence": 0.5,
+    "archetypeReasons": [],
+    "displayName": "Monika Tichá",
+    "roleFamily": "customer_support",
+    "aspirations": [
+      "nastoupit jako Contact Center Specialist v české bance",
+      "postupně přejít na pozici bankovní poradce pro retailové klienty",
+      "rozvíjet se v oblasti klientské péče a řešení reklamací"
+    ],
+    "educationLevel": "bachelor",
+    "educationDetail": "Bc. Podniková ekonomika a management, Vysoká škola ekonomická v Praze (VŠE), absolvováno 2025",
+    "languages": [
+      "čeština (rodilý mluvčí)",
+      "angličtina (B2)",
+      "němčina (A2)"
+    ],
+    "location": "Praha, Česká republika",
+    "skillClaims": [
+      {
+        "skill": "customer service",
+        "level": "working",
+        "provenance": "coursework",
+        "confidence": 0.4
+      },
+      {
+        "skill": "inbound calls",
+        "level": "foundational",
+        "provenance": "self_declared",
+        "confidence": 0.4
+      },
+      {
+        "skill": "call handling",
+        "level": "foundational",
+        "provenance": "academic_project",
+        "confidence": 0.4
+      },
+      {
+        "skill": "complaint resolution",
+        "level": "working",
+        "provenance": "academic_project",
+        "confidence": 0.4
+      },
+      {
+        "skill": "ticketing",
+        "level": "foundational",
+        "provenance": "self_declared",
+        "confidence": 0.4
+      },
+      {
+        "skill": "základy retailového bankovnictví",
+        "level": "foundational",
+        "provenance": "coursework",
+        "confidence": 0.4
+      }
+    ],
+    "evidence": [
+      {
+        "kind": "thesis",
+        "title": "Kvalita klientské péče v kontaktních centrech českých retailových bank",
+        "text": "Bakalářská práce na VŠE (2025). Porovnala jsem procesy vyřizování příchozích hovorů a reklamací u tří českých bank, provedla mystery calling na 24 vzorových dotazech a navrhla metriku first-call resolution pro hodnocení operátorů. Práce obhájena s hodnocením výborně.",
+        "skills": [
+          "customer service",
+          "inbound calls",
+          "complaint resolution"
+        ],
+        "provenance": "thesis",
+        "confidence": 0.6
+      },
+      {
+        "kind": "project",
+        "title": "Semestrální projekt: návrh eskalačního procesu reklamací v ticketing systému",
+        "text": "V rámci předmětu Management služeb jsme v týmu navrhli end-to-end proces zpracování klientských reklamací — od zaevidování ticketu přes prioritizaci až po eskalaci na back-office. Zpracovala jsem SLA matici a skripty pro call handling u nejčastějších scénářů (blokace karty, sporná transakce).",
+        "skills": [
+          "ticketing",
+          "complaint resolution",
+          "call handling"
+        ],
+        "provenance": "personal_project",
+        "confidence": 0.6
+      },
+      {
+        "kind": "course",
+        "title": "Kurz komunikace se zákazníkem po telefonu (VŠE + externí lektor, 2024)",
+        "text": "Volitelný kurz zaměřený na vedení příchozích hovorů: aktivní naslouchání, zvládání námitek, práce s nespokojeným klientem. Součástí byl praktický trénink na nahrávaných modelových hovorech. Mimo studium brigáda jako hosteska na veletrzích (komunikace s návštěvníky v CZ/EN).",
+        "skills": [
+          "inbound calls",
+          "customer service"
+        ],
+        "provenance": "coursework",
+        "confidence": 0.6
+      }
+    ],
+    "learningSignals": [],
+    "completeness": 0.89,
+    "id": "cand-065",
+    "targetRole": "Contact Center Specialist"
   }
 ]

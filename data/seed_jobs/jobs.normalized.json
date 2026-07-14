@@ -71,8 +71,8 @@
       "CI/CD (GitLab CI, Jenkins)"
     ],
     "salaryBand": [
-      110000,
-      165000
+      103000,
+      154500
     ],
     "entryProfile": {
       "isEntryEligible": false,
@@ -90,6 +90,9 @@
       ],
       "rationale": "seniority=senior; min_years=6; 1/6 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -167,8 +170,8 @@
       "sql"
     ],
     "salaryBand": [
-      45000,
-      70000
+      42000,
+      65500
     ],
     "entryProfile": {
       "isEntryEligible": true,
@@ -190,6 +193,9 @@
       ],
       "rationale": "seniority=junior; min_years=0; ad uses early-career language; 5/6 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -259,8 +265,8 @@
       "XCTest"
     ],
     "salaryBand": [
-      45000,
-      70000
+      42000,
+      65500
     ],
     "entryProfile": {
       "isEntryEligible": true,
@@ -280,6 +286,9 @@
       ],
       "rationale": "seniority=junior; min_years=0; ad uses early-career language; 4/5 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -354,8 +363,8 @@
       "CI/CD (GitLab CI / Bitrise)"
     ],
     "salaryBand": [
-      70000,
-      110000
+      65500,
+      103000
     ],
     "entryProfile": {
       "isEntryEligible": false,
@@ -374,6 +383,9 @@
       ],
       "rationale": "seniority=medior; min_years=3; 2/6 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -436,8 +448,8 @@
       "REST API testing"
     ],
     "salaryBand": [
-      70000,
-      110000
+      65500,
+      103000
     ],
     "entryProfile": {
       "isEntryEligible": true,
@@ -455,6 +467,9 @@
       ],
       "rationale": "seniority=medior; min_years=1; ad uses early-career language; 3/4 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -524,8 +539,8 @@
       "Azure DevOps"
     ],
     "salaryBand": [
-      110000,
-      165000
+      103000,
+      154500
     ],
     "entryProfile": {
       "isEntryEligible": false,
@@ -542,6 +557,9 @@
       ],
       "rationale": "seniority=senior; min_years=5; 1/5 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -612,8 +630,8 @@
       "python"
     ],
     "salaryBand": [
-      150000,
-      220000
+      140500,
+      206000
     ],
     "entryProfile": {
       "isEntryEligible": true,
@@ -631,6 +649,9 @@
       ],
       "rationale": "seniority=lead; min_years=8; ad uses early-career language; 1/6 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -700,8 +721,8 @@
       "OpenShift"
     ],
     "salaryBand": [
-      110000,
-      165000
+      103000,
+      154500
     ],
     "entryProfile": {
       "isEntryEligible": true,
@@ -718,6 +739,9 @@
       ],
       "rationale": "seniority=senior; min_years=5; ad uses early-career language; 1/5 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -789,8 +813,8 @@
       "CI/CD (GitLab CI)"
     ],
     "salaryBand": [
-      70000,
-      110000
+      65500,
+      103000
     ],
     "entryProfile": {
       "isEntryEligible": false,
@@ -807,6 +831,9 @@
       ],
       "rationale": "seniority=medior; min_years=3; 1/5 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -868,8 +895,8 @@
       "Azure cloud security"
     ],
     "salaryBand": [
-      110000,
-      165000
+      103000,
+      154500
     ],
     "entryProfile": {
       "isEntryEligible": true,
@@ -886,6 +913,9 @@
       ],
       "rationale": "seniority=senior; min_years=5; ad uses early-career language; 1/5 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -948,8 +978,8 @@
       "ISO 20022"
     ],
     "salaryBand": [
-      45000,
-      70000
+      42000,
+      65500
     ],
     "entryProfile": {
       "isEntryEligible": true,
@@ -967,6 +997,9 @@
       ],
       "rationale": "seniority=junior; min_years=0; ad uses early-career language; 3/4 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -1035,8 +1068,8 @@
       "RxJS"
     ],
     "salaryBand": [
-      45000,
-      70000
+      42000,
+      65500
     ],
     "entryProfile": {
       "isEntryEligible": true,
@@ -1055,6 +1088,9 @@
       ],
       "rationale": "seniority=junior; min_years=0; ad uses early-career language; 3/5 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -1125,8 +1161,8 @@
       "kafka"
     ],
     "salaryBand": [
-      70000,
-      110000
+      65500,
+      103000
     ],
     "entryProfile": {
       "isEntryEligible": true,
@@ -1143,6 +1179,9 @@
       ],
       "rationale": "seniority=medior; min_years=4; ad uses early-career language; 1/5 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -1214,8 +1253,8 @@
       "azure"
     ],
     "salaryBand": [
-      125000,
-      190000
+      103000,
+      157000
     ],
     "entryProfile": {
       "isEntryEligible": false,
@@ -1232,6 +1271,9 @@
       ],
       "rationale": "seniority=senior; min_years=5; 1/5 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -1294,8 +1336,8 @@
       "python"
     ],
     "salaryBand": [
-      50000,
-      80000
+      41500,
+      66000
     ],
     "entryProfile": {
       "isEntryEligible": true,
@@ -1313,6 +1355,9 @@
       ],
       "rationale": "seniority=junior; min_years=0; ad uses early-career language; 3/4 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -1350,6 +1395,7 @@
       },
       {
         "skill": "credit risk",
+        "termId": "credit_risk",
         "kind": "nice_to_have",
         "hardness": "learnable"
       },
@@ -1370,13 +1416,13 @@
       "sql",
       "python",
       "statistics",
-      "credit risk",
+      "credit_risk",
       "spark",
       "power_bi"
     ],
     "salaryBand": [
-      80000,
-      130000
+      66000,
+      107500
     ],
     "entryProfile": {
       "isEntryEligible": true,
@@ -1392,6 +1438,9 @@
       ],
       "rationale": "seniority=medior; min_years=1; ad uses early-career language; 2/3 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -1462,8 +1511,8 @@
       "power_bi"
     ],
     "salaryBand": [
-      50000,
-      80000
+      41500,
+      66000
     ],
     "entryProfile": {
       "isEntryEligible": true,
@@ -1483,6 +1532,9 @@
       ],
       "rationale": "seniority=junior; min_years=0; ad uses early-career language; 4/5 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -1553,8 +1605,8 @@
       "kubernetes"
     ],
     "salaryBand": [
-      170000,
-      250000
+      140500,
+      206500
     ],
     "entryProfile": {
       "isEntryEligible": true,
@@ -1571,6 +1623,9 @@
       ],
       "rationale": "seniority=lead; min_years=7; ad uses early-career language; 1/5 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -1639,8 +1694,8 @@
       "docker"
     ],
     "salaryBand": [
-      80000,
-      130000
+      66000,
+      107500
     ],
     "entryProfile": {
       "isEntryEligible": true,
@@ -1660,6 +1715,9 @@
       ],
       "rationale": "seniority=medior; min_years=0; ad uses early-career language; 4/5 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -1723,8 +1781,8 @@
       "statistical analysis"
     ],
     "salaryBand": [
-      80000,
-      130000
+      66000,
+      107500
     ],
     "entryProfile": {
       "isEntryEligible": false,
@@ -1741,6 +1799,9 @@
       ],
       "rationale": "seniority=medior; min_years=3; 1/5 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -1803,8 +1864,8 @@
       "Azure (Synapse / Data Factory)"
     ],
     "salaryBand": [
-      50000,
-      80000
+      41500,
+      66000
     ],
     "entryProfile": {
       "isEntryEligible": true,
@@ -1822,6 +1883,9 @@
       ],
       "rationale": "seniority=junior; min_years=0; ad uses early-career language; 3/4 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -1890,8 +1954,8 @@
       "spark"
     ],
     "salaryBand": [
-      50000,
-      80000
+      41500,
+      66000
     ],
     "entryProfile": {
       "isEntryEligible": true,
@@ -1910,6 +1974,9 @@
       ],
       "rationale": "seniority=junior; min_years=0; ad uses early-career language; 3/5 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -1994,6 +2061,9 @@
       ],
       "rationale": "seniority=medior; min_years=3; 1/5 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -2078,6 +2148,9 @@
       ],
       "rationale": "seniority=medior; min_years=5; 1/5 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -2163,6 +2236,9 @@
       ],
       "rationale": "seniority=senior; min_years=6; 1/5 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -2245,6 +2321,9 @@
       ],
       "rationale": "seniority=junior; min_years=0; ad uses early-career language; 3/4 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -2277,6 +2356,7 @@
       },
       {
         "skill": "risk management",
+        "termId": "risk_management_fin",
         "kind": "must_have",
         "hardness": "prerequisite"
       },
@@ -2310,7 +2390,7 @@
     "detectedSkills": [
       "project management",
       "delivery",
-      "risk management",
+      "risk_management_fin",
       "stakeholder management",
       "jira",
       "SAFe / agile delivery",
@@ -2338,6 +2418,9 @@
       ],
       "rationale": "seniority=senior; min_years=7; 2/6 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -2420,6 +2503,9 @@
       "trainableGaps": [],
       "rationale": "seniority=lead; min_years=8; 0/5 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -2457,6 +2543,7 @@
       },
       {
         "skill": "budgeting",
+        "termId": "budgeting",
         "kind": "must_have",
         "hardness": "prerequisite"
       },
@@ -2505,6 +2592,9 @@
       ],
       "rationale": "seniority=senior; min_years=8; 1/6 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -2580,8 +2670,8 @@
       "kotlin"
     ],
     "salaryBand": [
-      110000,
-      165000
+      103000,
+      154500
     ],
     "entryProfile": {
       "isEntryEligible": true,
@@ -2599,6 +2689,9 @@
       ],
       "rationale": "seniority=senior; min_years=6; ad uses early-career language; 1/6 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -2673,8 +2766,8 @@
       "sql"
     ],
     "salaryBand": [
-      45000,
-      70000
+      42000,
+      65500
     ],
     "entryProfile": {
       "isEntryEligible": true,
@@ -2696,6 +2789,9 @@
       ],
       "rationale": "seniority=junior; min_years=0; ad uses early-career language; 5/6 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -2771,8 +2867,8 @@
       "CI/CD (Fastlane, GitLab CI)"
     ],
     "salaryBand": [
-      70000,
-      110000
+      65500,
+      103000
     ],
     "entryProfile": {
       "isEntryEligible": false,
@@ -2790,6 +2886,9 @@
       ],
       "rationale": "seniority=medior; min_years=3; 1/6 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -2851,8 +2950,8 @@
       "REST APIs"
     ],
     "salaryBand": [
-      45000,
-      70000
+      42000,
+      65500
     ],
     "entryProfile": {
       "isEntryEligible": true,
@@ -2870,6 +2969,9 @@
       ],
       "rationale": "seniority=junior; min_years=0; ad uses early-career language; 3/4 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -2939,8 +3041,8 @@
       "GitLab CI"
     ],
     "salaryBand": [
-      110000,
-      165000
+      103000,
+      154500
     ],
     "entryProfile": {
       "isEntryEligible": false,
@@ -2957,6 +3059,9 @@
       ],
       "rationale": "seniority=senior; min_years=5; 1/5 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -3027,8 +3132,8 @@
       "REST API testing"
     ],
     "salaryBand": [
-      45000,
-      70000
+      42000,
+      65500
     ],
     "entryProfile": {
       "isEntryEligible": true,
@@ -3048,6 +3153,9 @@
       ],
       "rationale": "seniority=junior; min_years=0; ad uses early-career language; 4/5 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -3118,8 +3226,8 @@
       "Prometheus/Grafana"
     ],
     "salaryBand": [
-      70000,
-      110000
+      65500,
+      103000
     ],
     "entryProfile": {
       "isEntryEligible": false,
@@ -3136,6 +3244,9 @@
       ],
       "rationale": "seniority=medior; min_years=3; 1/5 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -3206,8 +3317,8 @@
       "helm"
     ],
     "salaryBand": [
-      110000,
-      165000
+      103000,
+      154500
     ],
     "entryProfile": {
       "isEntryEligible": true,
@@ -3224,6 +3335,9 @@
       ],
       "rationale": "seniority=senior; min_years=5; ad uses early-career language; 1/5 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -3295,8 +3409,8 @@
       "terraform"
     ],
     "salaryBand": [
-      45000,
-      70000
+      42000,
+      65500
     ],
     "entryProfile": {
       "isEntryEligible": true,
@@ -3316,6 +3430,9 @@
       ],
       "rationale": "seniority=junior; min_years=0; ad uses early-career language; 4/5 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -3384,8 +3501,8 @@
       "Microsoft Sentinel"
     ],
     "salaryBand": [
-      45000,
-      70000
+      42000,
+      65500
     ],
     "entryProfile": {
       "isEntryEligible": true,
@@ -3405,6 +3522,9 @@
       ],
       "rationale": "seniority=junior; min_years=0; ad uses early-career language; 4/5 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -3474,8 +3594,8 @@
       "spring"
     ],
     "salaryBand": [
-      45000,
-      70000
+      42000,
+      65500
     ],
     "entryProfile": {
       "isEntryEligible": true,
@@ -3495,6 +3615,9 @@
       ],
       "rationale": "seniority=junior; min_years=0; ad uses early-career language; 4/5 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -3563,8 +3686,8 @@
       "REST API integration"
     ],
     "salaryBand": [
-      45000,
-      70000
+      42000,
+      65500
     ],
     "entryProfile": {
       "isEntryEligible": true,
@@ -3583,6 +3706,9 @@
       ],
       "rationale": "seniority=junior; min_years=0; ad uses early-career language; 3/5 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -3651,8 +3777,8 @@
       "Apache Kafka"
     ],
     "salaryBand": [
-      150000,
-      220000
+      140500,
+      206000
     ],
     "entryProfile": {
       "isEntryEligible": true,
@@ -3669,6 +3795,9 @@
       ],
       "rationale": "seniority=lead; min_years=8; ad uses early-career language; 1/5 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -3741,8 +3870,8 @@
       "azure"
     ],
     "salaryBand": [
-      125000,
-      190000
+      103000,
+      157000
     ],
     "entryProfile": {
       "isEntryEligible": false,
@@ -3757,6 +3886,9 @@
       "trainableGaps": [],
       "rationale": "seniority=senior; min_years=5; 0/5 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -3820,8 +3952,8 @@
       "python"
     ],
     "salaryBand": [
-      80000,
-      130000
+      66000,
+      107500
     ],
     "entryProfile": {
       "isEntryEligible": false,
@@ -3835,6 +3967,9 @@
       "trainableGaps": [],
       "rationale": "seniority=medior; min_years=3; 0/4 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -3874,6 +4009,7 @@
       },
       {
         "skill": "credit risk",
+        "termId": "credit_risk",
         "kind": "nice_to_have",
         "hardness": "learnable"
       },
@@ -3893,13 +4029,13 @@
       "sql",
       "python",
       "statistics",
-      "credit risk",
+      "credit_risk",
       "SAS",
       "power_bi"
     ],
     "salaryBand": [
-      50000,
-      80000
+      41500,
+      66000
     ],
     "entryProfile": {
       "isEntryEligible": true,
@@ -3915,6 +4051,9 @@
       ],
       "rationale": "seniority=junior; min_years=0; ad uses early-career language; 2/3 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -3954,6 +4093,7 @@
       },
       {
         "skill": "CRM",
+        "termId": "crm",
         "kind": "must_have",
         "hardness": "learnable"
       },
@@ -3979,14 +4119,14 @@
       "sql",
       "dbt",
       "snowflake",
-      "CRM",
+      "crm",
       "python",
       "Git",
       "power_bi"
     ],
     "salaryBand": [
-      50000,
-      80000
+      41500,
+      66000
     ],
     "entryProfile": {
       "isEntryEligible": true,
@@ -4004,6 +4144,9 @@
       ],
       "rationale": "seniority=junior; min_years=0; ad uses early-career language; 3/4 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -4073,8 +4216,8 @@
       "azure"
     ],
     "salaryBand": [
-      50000,
-      80000
+      41500,
+      66000
     ],
     "entryProfile": {
       "isEntryEligible": true,
@@ -4092,6 +4235,9 @@
       ],
       "rationale": "seniority=junior; min_years=0; ad uses early-career language; 3/4 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -4165,8 +4311,8 @@
       "German (B2)"
     ],
     "salaryBand": [
-      125000,
-      190000
+      103000,
+      157000
     ],
     "entryProfile": {
       "isEntryEligible": false,
@@ -4185,6 +4331,9 @@
       ],
       "rationale": "seniority=senior; min_years=5; 2/6 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -4246,8 +4395,8 @@
       "statistics & A/B testing"
     ],
     "salaryBand": [
-      125000,
-      190000
+      103000,
+      157000
     ],
     "entryProfile": {
       "isEntryEligible": false,
@@ -4264,6 +4413,9 @@
       ],
       "rationale": "seniority=senior; min_years=5; 1/5 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -4333,8 +4485,8 @@
       "python"
     ],
     "salaryBand": [
-      50000,
-      80000
+      41500,
+      66000
     ],
     "entryProfile": {
       "isEntryEligible": true,
@@ -4354,6 +4506,9 @@
       ],
       "rationale": "seniority=junior; min_years=0; ad uses early-career language; 4/5 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -4423,8 +4578,8 @@
       "spark"
     ],
     "salaryBand": [
-      50000,
-      80000
+      41500,
+      66000
     ],
     "entryProfile": {
       "isEntryEligible": true,
@@ -4443,6 +4598,9 @@
       ],
       "rationale": "seniority=junior; min_years=0; ad uses early-career language; 3/5 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -4527,6 +4685,9 @@
       ],
       "rationale": "seniority=senior; min_years=5; 1/5 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -4609,6 +4770,9 @@
       "trainableGaps": [],
       "rationale": "seniority=lead; min_years=8; 0/5 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -4687,6 +4851,9 @@
       ],
       "rationale": "seniority=medior; min_years=4; 1/4 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -4771,6 +4938,9 @@
       ],
       "rationale": "seniority=junior; min_years=1; ad uses early-career language; 4/5 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -4808,6 +4978,7 @@
       },
       {
         "skill": "risk management",
+        "termId": "risk_management_fin",
         "kind": "nice_to_have",
         "hardness": "learnable"
       },
@@ -4827,7 +4998,7 @@
       "project management",
       "delivery",
       "stakeholder management",
-      "risk management",
+      "risk_management_fin",
       "Agile/Scrum",
       "jira"
     ],
@@ -4851,6 +5022,9 @@
       ],
       "rationale": "seniority=junior; min_years=0; ad uses early-career language; 3/4 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -4935,6 +5109,9 @@
       ],
       "rationale": "seniority=medior; min_years=3; 1/5 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -4982,6 +5159,7 @@
       },
       {
         "skill": "budgeting",
+        "termId": "budgeting",
         "kind": "nice_to_have",
         "hardness": "learnable"
       },
@@ -5020,6 +5198,9 @@
       ],
       "rationale": "seniority=junior; min_years=1; ad uses early-career language; 3/4 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -5088,8 +5269,8 @@
       "CI/CD (Git, Jenkins)"
     ],
     "salaryBand": [
-      70000,
-      110000
+      65500,
+      103000
     ],
     "entryProfile": {
       "isEntryEligible": false,
@@ -5106,6 +5287,9 @@
       ],
       "rationale": "seniority=medior; min_years=3; 1/5 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -5182,8 +5366,8 @@
       "sql"
     ],
     "salaryBand": [
-      45000,
-      70000
+      42000,
+      65500
     ],
     "entryProfile": {
       "isEntryEligible": true,
@@ -5205,6 +5389,9 @@
       ],
       "rationale": "seniority=junior; min_years=0; ad uses early-career language; 5/6 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -5273,8 +5460,8 @@
       "CI/CD (GitLab CI / Fastlane)"
     ],
     "salaryBand": [
-      70000,
-      110000
+      65500,
+      103000
     ],
     "entryProfile": {
       "isEntryEligible": false,
@@ -5291,6 +5478,9 @@
       ],
       "rationale": "seniority=medior; min_years=3; 1/5 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -5359,8 +5549,8 @@
       "Kotlin Multiplatform"
     ],
     "salaryBand": [
-      150000,
-      220000
+      140500,
+      206000
     ],
     "entryProfile": {
       "isEntryEligible": false,
@@ -5378,6 +5568,9 @@
       ],
       "rationale": "seniority=lead; min_years=7; 1/6 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -5448,8 +5641,8 @@
       "Appium with TestNG/JUnit"
     ],
     "salaryBand": [
-      45000,
-      70000
+      42000,
+      65500
     ],
     "entryProfile": {
       "isEntryEligible": true,
@@ -5469,6 +5662,9 @@
       ],
       "rationale": "seniority=junior; min_years=0; ad uses early-career language; 4/5 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -5532,8 +5728,8 @@
       "typescript"
     ],
     "salaryBand": [
-      70000,
-      110000
+      65500,
+      103000
     ],
     "entryProfile": {
       "isEntryEligible": false,
@@ -5550,6 +5746,9 @@
       ],
       "rationale": "seniority=medior; min_years=3; 1/5 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -5618,8 +5817,8 @@
       "Banking regulatory & security compliance (DORA)"
     ],
     "salaryBand": [
-      150000,
-      220000
+      140500,
+      206000
     ],
     "entryProfile": {
       "isEntryEligible": true,
@@ -5634,6 +5833,9 @@
       "trainableGaps": [],
       "rationale": "seniority=lead; min_years=8; ad uses early-career language; 0/5 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -5698,8 +5900,8 @@
       "terraform"
     ],
     "salaryBand": [
-      70000,
-      110000
+      65500,
+      103000
     ],
     "entryProfile": {
       "isEntryEligible": true,
@@ -5717,6 +5919,9 @@
       ],
       "rationale": "seniority=medior; min_years=1; ad uses early-career language; 3/4 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -5788,8 +5993,8 @@
       "GitLab CI/CD"
     ],
     "salaryBand": [
-      45000,
-      70000
+      42000,
+      65500
     ],
     "entryProfile": {
       "isEntryEligible": true,
@@ -5809,6 +6014,9 @@
       ],
       "rationale": "seniority=junior; min_years=0; ad uses early-career language; 4/5 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -5876,8 +6084,8 @@
       "Kubernetes security"
     ],
     "salaryBand": [
-      110000,
-      165000
+      103000,
+      154500
     ],
     "entryProfile": {
       "isEntryEligible": false,
@@ -5894,6 +6102,9 @@
       ],
       "rationale": "seniority=senior; min_years=6; 1/5 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -5969,8 +6180,8 @@
       "SEPA Instant Payments"
     ],
     "salaryBand": [
-      70000,
-      110000
+      65500,
+      103000
     ],
     "entryProfile": {
       "isEntryEligible": false,
@@ -5988,6 +6199,9 @@
       ],
       "rationale": "seniority=medior; min_years=3; 1/6 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -6055,8 +6269,8 @@
       "RxJS"
     ],
     "salaryBand": [
-      45000,
-      70000
+      42000,
+      65500
     ],
     "entryProfile": {
       "isEntryEligible": true,
@@ -6074,6 +6288,9 @@
       ],
       "rationale": "seniority=junior; min_years=0; ad uses early-career language; 3/4 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -6144,8 +6361,8 @@
       "kafka"
     ],
     "salaryBand": [
-      110000,
-      165000
+      103000,
+      154500
     ],
     "entryProfile": {
       "isEntryEligible": true,
@@ -6164,6 +6381,9 @@
       ],
       "rationale": "seniority=senior; min_years=6; ad uses early-career language; 2/6 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -6236,8 +6456,8 @@
       "azure"
     ],
     "salaryBand": [
-      80000,
-      130000
+      66000,
+      107500
     ],
     "entryProfile": {
       "isEntryEligible": false,
@@ -6254,6 +6474,9 @@
       ],
       "rationale": "seniority=medior; min_years=3; 1/5 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -6329,8 +6552,8 @@
       "python"
     ],
     "salaryBand": [
-      170000,
-      250000
+      140500,
+      206500
     ],
     "entryProfile": {
       "isEntryEligible": false,
@@ -6348,6 +6571,9 @@
       ],
       "rationale": "seniority=lead; min_years=8; 1/6 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -6387,6 +6613,7 @@
       },
       {
         "skill": "credit risk",
+        "termId": "credit_risk",
         "kind": "must_have",
         "hardness": "learnable"
       },
@@ -6406,13 +6633,13 @@
       "sql",
       "python",
       "statistics",
-      "credit risk",
+      "credit_risk",
       "power_bi",
       "SAS"
     ],
     "salaryBand": [
-      50000,
-      80000
+      41500,
+      66000
     ],
     "entryProfile": {
       "isEntryEligible": true,
@@ -6430,6 +6657,9 @@
       ],
       "rationale": "seniority=junior; min_years=0; ad uses early-career language; 3/4 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -6499,8 +6729,8 @@
       "Salesforce Marketing Cloud"
     ],
     "salaryBand": [
-      125000,
-      190000
+      103000,
+      157000
     ],
     "entryProfile": {
       "isEntryEligible": false,
@@ -6515,6 +6745,9 @@
       "trainableGaps": [],
       "rationale": "seniority=senior; min_years=6; 0/5 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -6578,8 +6811,8 @@
       "Azure (Azure ML)"
     ],
     "salaryBand": [
-      50000,
-      80000
+      41500,
+      66000
     ],
     "entryProfile": {
       "isEntryEligible": true,
@@ -6597,6 +6830,9 @@
       ],
       "rationale": "seniority=junior; min_years=0; ad uses early-career language; 3/4 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -6666,8 +6902,8 @@
       "spark"
     ],
     "salaryBand": [
-      80000,
-      130000
+      66000,
+      107500
     ],
     "entryProfile": {
       "isEntryEligible": false,
@@ -6682,6 +6918,9 @@
       "trainableGaps": [],
       "rationale": "seniority=medior; min_years=3; 0/5 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -6751,8 +6990,8 @@
       "snowflake"
     ],
     "salaryBand": [
-      170000,
-      250000
+      140500,
+      206500
     ],
     "entryProfile": {
       "isEntryEligible": false,
@@ -6771,6 +7010,9 @@
       ],
       "rationale": "seniority=lead; min_years=7; 2/6 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -6838,8 +7080,8 @@
       "Azure Synapse / Databricks"
     ],
     "salaryBand": [
-      125000,
-      190000
+      103000,
+      157000
     ],
     "entryProfile": {
       "isEntryEligible": false,
@@ -6856,6 +7098,9 @@
       ],
       "rationale": "seniority=senior; min_years=5; 1/5 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -6924,8 +7169,8 @@
       "databricks"
     ],
     "salaryBand": [
-      125000,
-      190000
+      103000,
+      157000
     ],
     "entryProfile": {
       "isEntryEligible": false,
@@ -6942,6 +7187,9 @@
       ],
       "rationale": "seniority=senior; min_years=5; 1/5 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -7020,6 +7268,9 @@
       ],
       "rationale": "seniority=junior; min_years=0; ad uses early-career language; 3/4 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -7106,6 +7357,9 @@
       "trainableGaps": [],
       "rationale": "seniority=senior; min_years=7; 0/5 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -7195,6 +7449,9 @@
       ],
       "rationale": "seniority=junior; min_years=1; ad uses early-career language; 4/5 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -7284,6 +7541,9 @@
       ],
       "rationale": "seniority=medior; min_years=4; 2/6 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -7322,6 +7582,7 @@
       },
       {
         "skill": "risk management",
+        "termId": "risk_management_fin",
         "kind": "nice_to_have",
         "hardness": "learnable"
       },
@@ -7341,7 +7602,7 @@
       "project management",
       "delivery",
       "stakeholder management",
-      "risk management",
+      "risk_management_fin",
       "jira",
       "SAFe / Agile"
     ],
@@ -7365,6 +7626,9 @@
       ],
       "rationale": "seniority=medior; min_years=1; ad uses early-career language; 3/4 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -7449,6 +7713,9 @@
       ],
       "rationale": "seniority=lead; min_years=8; 1/5 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -7486,6 +7753,7 @@
       },
       {
         "skill": "budgeting",
+        "termId": "budgeting",
         "kind": "nice_to_have",
         "hardness": "learnable"
       },
@@ -7536,6 +7804,9 @@
       ],
       "rationale": "seniority=junior; min_years=1; ad uses early-career language; 4/5 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -7605,8 +7876,8 @@
       "CI/CD (GitLab CI)"
     ],
     "salaryBand": [
-      110000,
-      165000
+      103000,
+      154500
     ],
     "entryProfile": {
       "isEntryEligible": false,
@@ -7621,6 +7892,9 @@
       "trainableGaps": [],
       "rationale": "seniority=senior; min_years=5; 0/5 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -7697,8 +7971,8 @@
       "LLM / AI integration"
     ],
     "salaryBand": [
-      45000,
-      70000
+      42000,
+      65500
     ],
     "entryProfile": {
       "isEntryEligible": true,
@@ -7720,6 +7994,9 @@
       ],
       "rationale": "seniority=junior; min_years=0; ad uses early-career language; 5/6 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -7788,8 +8065,8 @@
       "Git"
     ],
     "salaryBand": [
-      70000,
-      110000
+      65500,
+      103000
     ],
     "entryProfile": {
       "isEntryEligible": false,
@@ -7807,6 +8084,9 @@
       ],
       "rationale": "seniority=medior; min_years=3; 1/6 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -7876,8 +8156,8 @@
       "Computer science fundamentals"
     ],
     "salaryBand": [
-      45000,
-      70000
+      42000,
+      65500
     ],
     "entryProfile": {
       "isEntryEligible": true,
@@ -7897,6 +8177,9 @@
       ],
       "rationale": "seniority=junior; min_years=0; ad uses early-career language; 4/5 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -7965,8 +8248,8 @@
       "BDD (Cucumber)"
     ],
     "salaryBand": [
-      110000,
-      165000
+      103000,
+      154500
     ],
     "entryProfile": {
       "isEntryEligible": false,
@@ -7981,6 +8264,9 @@
       "trainableGaps": [],
       "rationale": "seniority=senior; min_years=5; 0/5 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -8051,8 +8337,8 @@
       "docker"
     ],
     "salaryBand": [
-      70000,
-      110000
+      65500,
+      103000
     ],
     "entryProfile": {
       "isEntryEligible": false,
@@ -8069,6 +8355,9 @@
       ],
       "rationale": "seniority=medior; min_years=3; 1/5 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -8138,8 +8427,8 @@
       "Team leadership / mentoring"
     ],
     "salaryBand": [
-      150000,
-      220000
+      140500,
+      206000
     ],
     "entryProfile": {
       "isEntryEligible": true,
@@ -8157,6 +8446,9 @@
       ],
       "rationale": "seniority=lead; min_years=8; ad uses early-career language; 1/6 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -8227,8 +8519,8 @@
       "Bash"
     ],
     "salaryBand": [
-      70000,
-      110000
+      65500,
+      103000
     ],
     "entryProfile": {
       "isEntryEligible": false,
@@ -8246,6 +8538,9 @@
       ],
       "rationale": "seniority=medior; min_years=3; 1/6 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -8311,8 +8606,8 @@
       "terraform"
     ],
     "salaryBand": [
-      70000,
-      110000
+      65500,
+      103000
     ],
     "entryProfile": {
       "isEntryEligible": true,
@@ -8330,6 +8625,9 @@
       ],
       "rationale": "seniority=medior; min_years=1; ad uses early-career language; 3/4 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -8398,8 +8696,8 @@
       "základní znalost síťových protokolů a operačních systémů"
     ],
     "salaryBand": [
-      70000,
-      110000
+      65500,
+      103000
     ],
     "entryProfile": {
       "isEntryEligible": true,
@@ -8419,6 +8717,9 @@
       ],
       "rationale": "seniority=medior; min_years=1; ad uses early-career language; 4/5 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -8486,8 +8787,8 @@
       "OpenShift / Kubernetes"
     ],
     "salaryBand": [
-      70000,
-      110000
+      65500,
+      103000
     ],
     "entryProfile": {
       "isEntryEligible": false,
@@ -8504,6 +8805,9 @@
       ],
       "rationale": "seniority=medior; min_years=3; 1/5 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -8572,8 +8876,8 @@
       "Jest / Cypress testing"
     ],
     "salaryBand": [
-      110000,
-      165000
+      103000,
+      154500
     ],
     "entryProfile": {
       "isEntryEligible": false,
@@ -8587,6 +8891,9 @@
       "trainableGaps": [],
       "rationale": "seniority=senior; min_years=6; 0/4 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   },
   {
@@ -8656,8 +8963,8 @@
       "Git"
     ],
     "salaryBand": [
-      45000,
-      70000
+      42000,
+      65500
     ],
     "entryProfile": {
       "isEntryEligible": true,
@@ -8676,6 +8983,1865 @@
       ],
       "rationale": "seniority=junior; min_years=0; ad uses early-career language; 3/5 must-haves learnable"
     },
+    "defaultedFields": [
+      "salary_band"
+    ],
+    "source": "synthetic"
+  },
+  {
+    "id": "job-100",
+    "title": "Credit Risk Analyst / Rizikový analytik – retailové úvěry (medior)",
+    "company": "Česká spořitelna",
+    "location": "Remote (CZ)",
+    "workMode": "remote",
+    "employmentType": "full-time (HPP)",
+    "seniority": "medior",
+    "roleFamily": "finance_accounting",
+    "languages": [
+      "Czech",
+      "English"
+    ],
+    "minYearsExperience": 3.0,
+    "minEducation": "master",
+    "description": "Posílíte tým retailového kreditního rizika České spořitelny, který modeluje a monitoruje portfolia spotřebitelských úvěrů a hypoték pro největší retailovou banku v ČR (skupina Erste). Běžný den zahrnuje analýzu vývoje portfolia, kalibraci scoringových modelů, výpočty opravných položek podle IFRS 9 a diskuse nad underwritingovými pravidly s kolegy z risku i byznysu. Tým sedí formálně v Praze-Michli, ale funguje plně remote v rámci ČR; výstupy prezentujete risk managementu a reportujete i do Erste Group.",
+    "requirements": [
+      {
+        "skill": "credit analysis",
+        "termId": "credit_analysis",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "credit scoring",
+        "termId": "credit_scoring",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "IFRS 9",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "financial analysis",
+        "termId": "financial_analysis",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "underwriting",
+        "termId": "underwriting",
+        "kind": "must_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "portfolio reporting",
+        "kind": "nice_to_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "controlling",
+        "termId": "controlling",
+        "kind": "nice_to_have",
+        "hardness": "learnable"
+      }
+    ],
+    "detectedSkills": [
+      "credit_analysis",
+      "credit_scoring",
+      "IFRS 9",
+      "financial_analysis",
+      "underwriting",
+      "portfolio reporting",
+      "controlling"
+    ],
+    "salaryBand": [
+      46500,
+      78000
+    ],
+    "entryProfile": {
+      "isEntryEligible": false,
+      "graduateFriendliness": 0.15,
+      "reinterpretedMusts": [
+        "Demonstrated foundation in credit analysis",
+        "Demonstrated foundation in credit scoring",
+        "Demonstrated foundation in IFRS 9",
+        "Demonstrated foundation in financial analysis",
+        "Demonstrated foundation in underwriting"
+      ],
+      "trainableGaps": [
+        "underwriting"
+      ],
+      "rationale": "seniority=medior; min_years=3; 1/5 must-haves learnable"
+    },
+    "defaultedFields": [
+      "salary_band"
+    ],
+    "source": "synthetic"
+  },
+  {
+    "id": "job-101",
+    "title": "Účetní specialista / Accountant (Finance, GL)",
+    "company": "Česká spořitelna",
+    "location": "Remote (CZ)",
+    "workMode": "remote",
+    "employmentType": "full-time (HPP)",
+    "seniority": "medior",
+    "roleFamily": "finance_accounting",
+    "languages": [
+      "Czech",
+      "English"
+    ],
+    "minYearsExperience": 3.0,
+    "minEducation": "bachelor",
+    "description": "V týmu Finance České spořitelny budete pečovat o hlavní knihu a aktivně se podílet na měsíční závěrce — od kontroly zaúčtování a odsouhlasení bankovních účtů po přípravu podkladů pro reporting v rámci Erste Group. Běžný den zahrnuje zpracování dodavatelských faktur, rekonciliace, přiznání k DPH a spolupráci s controllingem i auditory. Jsme tým osmi účetních s HQ v Praze-Michli, pracujeme plně vzdáleně s občasným setkáním v Praze.",
+    "requirements": [
+      {
+        "skill": "účetnictví",
+        "termId": "accounting",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "general ledger",
+        "termId": "general_ledger",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "bank reconciliation",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "accounts payable",
+        "termId": "accounts_payable",
+        "kind": "must_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "VAT",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "financial reporting",
+        "termId": "financial_reporting",
+        "kind": "nice_to_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "IFRS",
+        "termId": "ifrs",
+        "kind": "nice_to_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "SAP",
+        "termId": "sap",
+        "kind": "nice_to_have",
+        "hardness": "learnable"
+      }
+    ],
+    "detectedSkills": [
+      "accounting",
+      "general_ledger",
+      "bank reconciliation",
+      "accounts_payable",
+      "VAT",
+      "financial_reporting",
+      "ifrs",
+      "sap"
+    ],
+    "salaryBand": [
+      46500,
+      78000
+    ],
+    "entryProfile": {
+      "isEntryEligible": false,
+      "graduateFriendliness": 0.15,
+      "reinterpretedMusts": [
+        "Demonstrated foundation in účetnictví",
+        "Demonstrated foundation in general ledger",
+        "Demonstrated foundation in bank reconciliation",
+        "Demonstrated foundation in accounts payable",
+        "Demonstrated foundation in VAT"
+      ],
+      "trainableGaps": [
+        "accounts payable"
+      ],
+      "rationale": "seniority=medior; min_years=3; 1/5 must-haves learnable"
+    },
+    "defaultedFields": [
+      "salary_band"
+    ],
+    "source": "synthetic"
+  },
+  {
+    "id": "job-102",
+    "title": "Senior Finanční Controller – Controlling & Planning (Retail Banking)",
+    "company": "Česká spořitelna",
+    "location": "Brno",
+    "workMode": "hybrid",
+    "employmentType": "full_time",
+    "seniority": "senior",
+    "roleFamily": "finance_accounting",
+    "languages": [
+      "Czech",
+      "English"
+    ],
+    "minYearsExperience": 5.0,
+    "minEducation": "master",
+    "description": "Do našeho controllingového týmu v Brně hledáme zkušeného finančního controllera, který převezme plánování a controlling pro retailovou obchodní linii České spořitelny. Běžný den zahrnuje přípravu měsíčního manažerského reportingu, analýzu odchylek proti budgetu a forecastu, a diskuse s business partnery nad výsledky a opatřeními. Budete součástí týmu 8 controllerů podporujících vedení divize a úzce spolupracovat s pražskou centrálou v Michli i s Erste Group. Nabízíme hybridní režim (2–3 dny v kanceláři) a reálný vliv na finanční řízení největší české retailové banky.",
+    "requirements": [
+      {
+        "skill": "controlling",
+        "termId": "controlling",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "budgeting",
+        "termId": "budgeting",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "financial forecasting",
+        "termId": "financial_forecasting",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "management reporting",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "financial modeling",
+        "termId": "financial_modeling",
+        "kind": "must_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "variance analysis",
+        "kind": "nice_to_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "business partnering",
+        "kind": "nice_to_have",
+        "hardness": "learnable"
+      }
+    ],
+    "detectedSkills": [
+      "controlling",
+      "budgeting",
+      "financial_forecasting",
+      "management reporting",
+      "financial_modeling",
+      "variance analysis",
+      "business partnering"
+    ],
+    "salaryBand": [
+      73500,
+      121000
+    ],
+    "entryProfile": {
+      "isEntryEligible": false,
+      "graduateFriendliness": 0.04,
+      "reinterpretedMusts": [
+        "Demonstrated foundation in controlling",
+        "Demonstrated foundation in budgeting",
+        "Demonstrated foundation in financial forecasting",
+        "Demonstrated foundation in management reporting",
+        "Demonstrated foundation in financial modeling"
+      ],
+      "trainableGaps": [
+        "financial modeling"
+      ],
+      "rationale": "seniority=senior; min_years=5; 1/5 must-haves learnable"
+    },
+    "defaultedFields": [
+      "salary_band"
+    ],
+    "source": "synthetic"
+  },
+  {
+    "id": "job-103",
+    "title": "AML / Compliance Analyst – Financial Crime Prevention",
+    "company": "Česká spořitelna",
+    "location": "Praha – Michle",
+    "workMode": "hybrid",
+    "employmentType": "full-time",
+    "seniority": "medior",
+    "roleFamily": "finance_accounting",
+    "languages": [
+      "Czech",
+      "English"
+    ],
+    "minYearsExperience": 3.0,
+    "minEducation": "bachelor",
+    "description": "Posílíme tým prevence finanční kriminality (AML unit) v centrále České spořitelny v Praze-Michli. Budete analyzovat alerty z transakčního monitoringu, prošetřovat podezřelé obchody, zpracovávat hlášení pro FAÚ a provádět prohloubenou kontrolu klientů (EDD) včetně sanction screeningu. Pracujeme v hybridním režimu a úzce spolupracujeme s pobočkovou sítí, právním oddělením a kolegy z Erste Group; denní chleba je kombinace case managementu, dat a zdravého úsudku.",
+    "requirements": [
+      {
+        "skill": "AML",
+        "termId": "aml",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "KYC",
+        "termId": "kyc",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "transaction monitoring",
+        "termId": "transaction_monitoring",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "customer due diligence",
+        "termId": "customer_due_diligence",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "sanctions screening",
+        "termId": "sanctions_screening",
+        "kind": "must_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "regulatory reporting",
+        "termId": "regulatory_reporting",
+        "kind": "nice_to_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "MS Excel",
+        "kind": "nice_to_have",
+        "hardness": "learnable"
+      }
+    ],
+    "detectedSkills": [
+      "aml",
+      "kyc",
+      "transaction_monitoring",
+      "customer_due_diligence",
+      "sanctions_screening",
+      "regulatory_reporting",
+      "MS Excel"
+    ],
+    "salaryBand": [
+      46500,
+      78000
+    ],
+    "entryProfile": {
+      "isEntryEligible": false,
+      "graduateFriendliness": 0.15,
+      "reinterpretedMusts": [
+        "Demonstrated foundation in AML",
+        "Demonstrated foundation in KYC",
+        "Demonstrated foundation in transaction monitoring",
+        "Demonstrated foundation in customer due diligence",
+        "Demonstrated foundation in sanctions screening"
+      ],
+      "trainableGaps": [
+        "sanctions screening"
+      ],
+      "rationale": "seniority=medior; min_years=3; 1/5 must-haves learnable"
+    },
+    "defaultedFields": [
+      "salary_band"
+    ],
+    "source": "synthetic"
+  },
+  {
+    "id": "job-104",
+    "title": "Junior specialista vymáhání pohledávek (Early Collections)",
+    "company": "Česká spořitelna",
+    "location": "Remote (CZ)",
+    "workMode": "remote",
+    "employmentType": "full_time",
+    "seniority": "junior",
+    "roleFamily": "finance_accounting",
+    "languages": [
+      "Czech"
+    ],
+    "minYearsExperience": 0.0,
+    "minEducation": "none",
+    "description": "Připoj se k týmu Early Collections České spořitelny, který pomáhá klientům zvládnout první dny po splatnosti — telefonicky a přes digitální kanály domlouváš splátkové kalendáře a hledáš řešení dřív, než se z drobného skluzu stane problém. Běžný den znamená kontakt s klienty, zápis dohod do systému a krátký reporting výsledků týmu. Pracujeme plně vzdáleně po celé ČR, nováčkům dáváme několikatýdenní zaškolení s mentorem, takže je role ideální i pro absolventy a studenty posledních ročníků.",
+    "requirements": [
+      {
+        "skill": "collections",
+        "termId": "collections",
+        "kind": "must_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "negotiation",
+        "termId": "negotiation",
+        "kind": "must_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "komunikace s klienty",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "reporting",
+        "kind": "must_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "credit analysis",
+        "termId": "credit_analysis",
+        "kind": "nice_to_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "customer due diligence",
+        "termId": "customer_due_diligence",
+        "kind": "nice_to_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "MS Excel",
+        "kind": "nice_to_have",
+        "hardness": "learnable"
+      }
+    ],
+    "detectedSkills": [
+      "collections",
+      "negotiation",
+      "komunikace s klienty",
+      "reporting",
+      "credit_analysis",
+      "customer_due_diligence",
+      "MS Excel"
+    ],
+    "salaryBand": [
+      31000,
+      48500
+    ],
+    "entryProfile": {
+      "isEntryEligible": true,
+      "graduateFriendliness": 1.0,
+      "reinterpretedMusts": [
+        "Demonstrated foundation in collections",
+        "Demonstrated foundation in negotiation",
+        "Demonstrated foundation in komunikace s klienty",
+        "Demonstrated foundation in reporting"
+      ],
+      "trainableGaps": [
+        "collections",
+        "negotiation",
+        "reporting"
+      ],
+      "rationale": "seniority=junior; min_years=0; ad uses early-career language; 3/4 must-haves learnable"
+    },
+    "defaultedFields": [
+      "salary_band"
+    ],
+    "source": "synthetic"
+  },
+  {
+    "id": "job-105",
+    "title": "Junior specialista back-office plateb",
+    "company": "Česká spořitelna",
+    "location": "Brno",
+    "workMode": "hybrid",
+    "employmentType": "full-time",
+    "seniority": "junior",
+    "roleFamily": "operations_logistics",
+    "languages": [
+      "Czech",
+      "English"
+    ],
+    "minYearsExperience": 0.0,
+    "minEducation": "none",
+    "description": "Přidej se do týmu zpracování plateb v brněnském back-office České spořitelny, kde denně řešíme výjimky ve vypořádání tuzemských i zahraničních plateb — nedoručené platby, chybné údaje příjemce a vratky. Běžný den zahrnuje zpracování platebních příkazů podle interních postupů, kontrolu dokumentace a komunikaci s kolegy z poboček i partnerských bank v rámci Erste Group. Jsme parta cca 15 lidí, nováčkům dáváme zkušeného mentora a kompletní zaškolení — vhodné i pro absolventy a studenty posledních ročníků.",
+    "requirements": [
+      {
+        "skill": "order processing",
+        "termId": "order_processing",
+        "kind": "must_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "data entry",
+        "termId": "data_entry",
+        "kind": "must_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "standard operating procedures",
+        "termId": "standard_operating_procedures",
+        "kind": "must_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "document management",
+        "termId": "document_management",
+        "kind": "must_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "attention to detail",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "MS Excel",
+        "kind": "nice_to_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "process documentation",
+        "termId": "process_documentation",
+        "kind": "nice_to_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "SWIFT payments",
+        "kind": "nice_to_have",
+        "hardness": "learnable"
+      }
+    ],
+    "detectedSkills": [
+      "order_processing",
+      "data_entry",
+      "standard_operating_procedures",
+      "document_management",
+      "attention to detail",
+      "MS Excel",
+      "process_documentation",
+      "SWIFT payments"
+    ],
+    "salaryBand": [
+      26000,
+      39000
+    ],
+    "entryProfile": {
+      "isEntryEligible": true,
+      "graduateFriendliness": 1.0,
+      "reinterpretedMusts": [
+        "Demonstrated foundation in order processing",
+        "Demonstrated foundation in data entry",
+        "Demonstrated foundation in standard operating procedures",
+        "Demonstrated foundation in document management",
+        "Demonstrated foundation in attention to detail"
+      ],
+      "trainableGaps": [
+        "order processing",
+        "data entry",
+        "standard operating procedures",
+        "document management"
+      ],
+      "rationale": "seniority=junior; min_years=0; ad uses early-career language; 4/5 must-haves learnable"
+    },
+    "defaultedFields": [
+      "salary_band"
+    ],
+    "source": "synthetic"
+  },
+  {
+    "id": "job-106",
+    "title": "Specialista úvěrové administrativy",
+    "company": "Česká spořitelna",
+    "location": "Remote (CZ)",
+    "workMode": "remote",
+    "employmentType": "full_time",
+    "seniority": "medior",
+    "roleFamily": "operations_logistics",
+    "languages": [
+      "Czech"
+    ],
+    "minYearsExperience": 3.0,
+    "minEducation": "bachelor",
+    "description": "Do týmu úvěrové administrativy v rámci provozu České spořitelny hledáme kolegu/kolegyni na plně vzdálenou pozici. Budete zajišťovat kompletní administraci úvěrových obchodů — kontrolu úvěrové dokumentace, zaevidování smluv do systémů banky a kontrolu splnění podmínek před čerpáním úvěru. Běžný den zahrnuje zpracování požadavků na čerpání, komunikaci s bankéři a firemními klienty ohledně chybějících podkladů a hlídání termínů dle interních postupů. Tým sedí formálně v Praze-Michli, funguje ale plně remote a spolupracuje napříč celou bankou.",
+    "requirements": [
+      {
+        "skill": "document management",
+        "termId": "document_management",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "data entry",
+        "termId": "data_entry",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "standard operating procedures",
+        "termId": "standard_operating_procedures",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "records management",
+        "termId": "records_management",
+        "kind": "must_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "úvěrová dokumentace",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "process improvement",
+        "termId": "process_improvement",
+        "kind": "nice_to_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "MS Excel",
+        "kind": "nice_to_have",
+        "hardness": "learnable"
+      }
+    ],
+    "detectedSkills": [
+      "document_management",
+      "data_entry",
+      "standard_operating_procedures",
+      "records_management",
+      "úvěrová dokumentace",
+      "process_improvement",
+      "MS Excel"
+    ],
+    "salaryBand": [
+      35500,
+      54000
+    ],
+    "entryProfile": {
+      "isEntryEligible": true,
+      "graduateFriendliness": 0.44,
+      "reinterpretedMusts": [
+        "Demonstrated foundation in document management",
+        "Demonstrated foundation in data entry",
+        "Demonstrated foundation in standard operating procedures",
+        "Demonstrated foundation in records management",
+        "Demonstrated foundation in úvěrová dokumentace"
+      ],
+      "trainableGaps": [
+        "records management"
+      ],
+      "rationale": "seniority=medior; min_years=3; ad uses early-career language; 1/5 must-haves learnable"
+    },
+    "defaultedFields": [
+      "salary_band"
+    ],
+    "source": "synthetic"
+  },
+  {
+    "id": "job-107",
+    "title": "Card Operations Specialist – vydávání karet a ATM",
+    "company": "Česká spořitelna",
+    "location": "Praha – Michle",
+    "workMode": "hybrid",
+    "employmentType": "full-time",
+    "seniority": "medior",
+    "roleFamily": "operations_logistics",
+    "languages": [
+      "Czech",
+      "English"
+    ],
+    "minYearsExperience": 3.0,
+    "minEducation": "bachelor",
+    "description": "Posílíte tým Card Operations v pražské centrále v Michli, který zajišťuje kompletní životní cyklus platebních karet klientů České spořitelny – od zpracování objednávek přes personalizaci a expedici až po blokace a výměny. Běžný den zahrnuje zpracování požadavků na vydání a obnovu karet, koordinaci doplňování a servisních oken bankomatů s externími dodavateli a kontrolu kvality zpracovaných transakcí. Spolupracovat budete s pobočkovou sítí, kartovým procesorem i týmem provozu ATM; tým má 12 lidí a funguje v hybridním režimu.",
+    "requirements": [
+      {
+        "skill": "order processing",
+        "termId": "order_processing",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "quality control",
+        "termId": "quality_control",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "records management",
+        "termId": "records_management",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "process documentation",
+        "termId": "process_documentation",
+        "kind": "must_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "scheduling",
+        "termId": "scheduling",
+        "kind": "must_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "reklamace",
+        "termId": "reklamace",
+        "kind": "nice_to_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "card issuing operations",
+        "kind": "nice_to_have",
+        "hardness": "learnable"
+      }
+    ],
+    "detectedSkills": [
+      "order_processing",
+      "quality_control",
+      "records_management",
+      "process_documentation",
+      "scheduling",
+      "reklamace",
+      "card issuing operations"
+    ],
+    "salaryBand": [
+      35500,
+      54000
+    ],
+    "entryProfile": {
+      "isEntryEligible": false,
+      "graduateFriendliness": 0.15,
+      "reinterpretedMusts": [
+        "Demonstrated foundation in order processing",
+        "Demonstrated foundation in quality control",
+        "Demonstrated foundation in records management",
+        "Demonstrated foundation in process documentation",
+        "Demonstrated foundation in scheduling"
+      ],
+      "trainableGaps": [
+        "process documentation",
+        "scheduling"
+      ],
+      "rationale": "seniority=medior; min_years=3; 2/5 must-haves learnable"
+    },
+    "defaultedFields": [
+      "salary_band"
+    ],
+    "source": "synthetic"
+  },
+  {
+    "id": "job-108",
+    "title": "Senior specialista provozní excelence (Operational Excellence)",
+    "company": "Česká spořitelna",
+    "location": "Praha – Krč",
+    "workMode": "hybrid",
+    "employmentType": "full_time",
+    "seniority": "senior",
+    "roleFamily": "operations_logistics",
+    "languages": [
+      "Czech"
+    ],
+    "minYearsExperience": 5.0,
+    "minEducation": "university",
+    "description": "Do týmu provozní excelence v centrále České spořitelny hledáme zkušeného kolegu či kolegyni, který povede optimalizaci back-office procesů — od zpracování plateb a reklamací až po servisní operace pro pobočkovou síť a klienty George. Běžný den zahrnuje mapování end-to-end procesů přímo s provozními týmy, facilitaci kaizen workshopů, vyhodnocování dopadů zlepšení na kapacitu a chybovost a prezentaci výsledků vedení provozu. Jsme tým osmi specialistů, spolupracujeme napříč celou bankou a měříme se na reálných úsporách a zkrácení průběžných dob.",
+    "requirements": [
+      {
+        "skill": "process improvement",
+        "termId": "process_improvement",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "lean management",
+        "termId": "lean_management",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "six sigma",
+        "termId": "six_sigma",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "standard operating procedures",
+        "termId": "standard_operating_procedures",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "kaizen",
+        "termId": "kaizen",
+        "kind": "nice_to_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "process mining",
+        "kind": "nice_to_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "stakeholder management",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      }
+    ],
+    "detectedSkills": [
+      "process_improvement",
+      "lean_management",
+      "six_sigma",
+      "standard_operating_procedures",
+      "kaizen",
+      "process mining",
+      "stakeholder management"
+    ],
+    "salaryBand": [
+      51000,
+      81500
+    ],
+    "entryProfile": {
+      "isEntryEligible": false,
+      "graduateFriendliness": 0.0,
+      "reinterpretedMusts": [
+        "Demonstrated foundation in process improvement",
+        "Demonstrated foundation in lean management",
+        "Demonstrated foundation in six sigma",
+        "Demonstrated foundation in standard operating procedures",
+        "Demonstrated foundation in stakeholder management"
+      ],
+      "trainableGaps": [],
+      "rationale": "seniority=senior; min_years=5; 0/5 must-haves learnable"
+    },
+    "defaultedFields": [
+      "salary_band"
+    ],
+    "source": "synthetic"
+  },
+  {
+    "id": "job-109",
+    "title": "Procurement Specialist / Nákupčí – nepřímý nákup",
+    "company": "Česká spořitelna",
+    "location": "Praha – Krč",
+    "workMode": "hybrid",
+    "employmentType": "full_time",
+    "seniority": "medior",
+    "roleFamily": "operations_logistics",
+    "languages": [
+      "Czech",
+      "English"
+    ],
+    "minYearsExperience": 3.0,
+    "minEducation": "bachelor",
+    "description": "Do týmu centrálního nákupu České spořitelny hledáme nákupčího se zaměřením na nepřímý nákup (facility, marketing, HR služby, poradenství). Budete řídit výběrová řízení od poptávky přes vyhodnocení nabídek až po podpis smlouvy, vyjednávat s dodavateli ceny a smluvní podmínky a spravovat vztahy s klíčovými dodavateli banky. Spolupracovat budete s interními zadavateli, právním oddělením a controllingem; tým sedí v kampusu v Praze-Krči a funguje v hybridním režimu.",
+    "requirements": [
+      {
+        "skill": "procurement",
+        "termId": "procurement",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "contract negotiation",
+        "termId": "contract_negotiation",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "supplier management",
+        "termId": "supplier_management",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "purchasing",
+        "termId": "purchasing",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "invoicing",
+        "termId": "invoicing",
+        "kind": "nice_to_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "controlling",
+        "termId": "controlling",
+        "kind": "nice_to_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "MS Excel",
+        "kind": "must_have",
+        "hardness": "learnable"
+      }
+    ],
+    "detectedSkills": [
+      "procurement",
+      "contract_negotiation",
+      "supplier_management",
+      "purchasing",
+      "invoicing",
+      "controlling",
+      "MS Excel"
+    ],
+    "salaryBand": [
+      35500,
+      54000
+    ],
+    "entryProfile": {
+      "isEntryEligible": true,
+      "graduateFriendliness": 0.44,
+      "reinterpretedMusts": [
+        "Demonstrated foundation in procurement",
+        "Demonstrated foundation in contract negotiation",
+        "Demonstrated foundation in supplier management",
+        "Demonstrated foundation in purchasing",
+        "Demonstrated foundation in MS Excel"
+      ],
+      "trainableGaps": [
+        "MS Excel"
+      ],
+      "rationale": "seniority=medior; min_years=3; ad uses early-career language; 1/5 must-haves learnable"
+    },
+    "defaultedFields": [
+      "salary_band"
+    ],
+    "source": "synthetic"
+  },
+  {
+    "id": "job-110",
+    "title": "Senior Firemní bankéř – Corporate & SME (Remote)",
+    "company": "Česká spořitelna",
+    "location": "Remote (CZ)",
+    "workMode": "remote",
+    "employmentType": "full_time",
+    "seniority": "senior",
+    "roleFamily": "sales_marketing",
+    "languages": [
+      "Czech",
+      "English"
+    ],
+    "minYearsExperience": 6.0,
+    "minEducation": "university",
+    "description": "Do týmu korporátního a SME bankovnictví České spořitelny hledáme zkušeného firemního bankéře, který převezme vlastní portfolio firemních klientů s obratem do 500 mil. Kč a bude ho dál rozvíjet. Běžný den znamená online i osobní jednání s majiteli a CFO firem, přípravu financování ve spolupráci s úvěrovými analytiky a produktovými specialisty a aktivní akvizici nových klientů v regionu. Pracujete převážně vzdáleně s pravidelnými výjezdy za klienty a občasnými týmovými dny v Praze-Michli; opíráte se o stabilní zázemí největší české banky ve skupině Erste.",
+    "requirements": [
+      {
+        "skill": "account management",
+        "termId": "account_management",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "relationship building",
+        "termId": "relationship_building",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "B2B sales",
+        "termId": "b2b_sales",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "negotiation",
+        "termId": "negotiation",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "cross-selling",
+        "termId": "cross_selling",
+        "kind": "must_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "credit analysis",
+        "termId": "credit_analysis",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "financial statement analysis",
+        "kind": "nice_to_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "KYC",
+        "termId": "kyc",
+        "kind": "nice_to_have",
+        "hardness": "learnable"
+      }
+    ],
+    "detectedSkills": [
+      "account_management",
+      "relationship_building",
+      "b2b_sales",
+      "negotiation",
+      "cross_selling",
+      "credit_analysis",
+      "financial statement analysis",
+      "kyc"
+    ],
+    "salaryBand": [
+      74500,
+      125500
+    ],
+    "entryProfile": {
+      "isEntryEligible": false,
+      "graduateFriendliness": 0.03,
+      "reinterpretedMusts": [
+        "Demonstrated foundation in account management",
+        "Demonstrated foundation in relationship building",
+        "Demonstrated foundation in B2B sales",
+        "Demonstrated foundation in negotiation",
+        "Demonstrated foundation in cross-selling",
+        "Demonstrated foundation in credit analysis"
+      ],
+      "trainableGaps": [
+        "cross-selling"
+      ],
+      "rationale": "seniority=senior; min_years=6; 1/6 must-haves learnable"
+    },
+    "defaultedFields": [
+      "salary_band"
+    ],
+    "source": "synthetic"
+  },
+  {
+    "id": "job-111",
+    "title": "Osobní bankéř – vzdálené poradenství (Remote Personal Banker)",
+    "company": "Česká spořitelna",
+    "location": "Remote (CZ)",
+    "workMode": "remote",
+    "employmentType": "full-time",
+    "seniority": "medior",
+    "roleFamily": "sales_marketing",
+    "languages": [
+      "Czech",
+      "English",
+      "German"
+    ],
+    "minYearsExperience": 3.0,
+    "minEducation": "bachelor",
+    "description": "Jako osobní bankéř v týmu vzdáleného poradenství budete péčovat o vlastní portfolio retailových klientů České spořitelny — po telefonu a videohovoru řešíte jejich každodenní finance a aktivně jim nabízíte produkty v aplikaci George, od spoření a investic po úvěry. Běžný den kombinuje domluvené konzultace, follow-up nabídky a akvizici nových klientů z doporučení. Budete součástí desetičlenného remote týmu napojeného na vlajkovou pobočku v Praze-Michli, s pravidelnými online poradami a měsíčním setkáním v centrále.",
+    "requirements": [
+      {
+        "skill": "sales",
+        "termId": "sales",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "relationship building",
+        "termId": "relationship_building",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "customer acquisition",
+        "termId": "customer_acquisition",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "upselling",
+        "termId": "upselling",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "account management",
+        "termId": "account_management",
+        "kind": "must_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "KYC",
+        "termId": "kyc",
+        "kind": "nice_to_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "investiční poradenství",
+        "kind": "nice_to_have",
+        "hardness": "learnable"
+      }
+    ],
+    "detectedSkills": [
+      "sales",
+      "relationship_building",
+      "customer_acquisition",
+      "upselling",
+      "account_management",
+      "kyc",
+      "investiční poradenství"
+    ],
+    "salaryBand": [
+      44500,
+      79000
+    ],
+    "entryProfile": {
+      "isEntryEligible": false,
+      "graduateFriendliness": 0.15,
+      "reinterpretedMusts": [
+        "Demonstrated foundation in sales",
+        "Demonstrated foundation in relationship building",
+        "Demonstrated foundation in customer acquisition",
+        "Demonstrated foundation in upselling",
+        "Demonstrated foundation in account management"
+      ],
+      "trainableGaps": [
+        "account management"
+      ],
+      "rationale": "seniority=medior; min_years=3; 1/5 must-haves learnable"
+    },
+    "defaultedFields": [
+      "salary_band"
+    ],
+    "source": "synthetic"
+  },
+  {
+    "id": "job-112",
+    "title": "Digital Marketing Specialist – George (Acquisition)",
+    "company": "Česká spořitelna",
+    "location": "Praha – Michle",
+    "workMode": "hybrid",
+    "employmentType": "full-time (HPP)",
+    "seniority": "medior",
+    "roleFamily": "sales_marketing",
+    "languages": [
+      "Czech"
+    ],
+    "minYearsExperience": 3.0,
+    "minEducation": "bachelor",
+    "description": "Posílíš náš akviziční marketingový tým v pražském Michli, který přivádí nové klienty do digitálního bankovnictví George. Běžný den u nás vypadá takhle: ráno projdeš výkon kampaní v PPC a na sociálních sítích, dopoledne laděním landing pages a SEO s obsahovým týmem, odpoledne plánuješ další vlnu akvizičních kampaní s agenturou a interním CRM týmem. Jsme parta osmi marketérů, spolupracujeme napřímo s produktovými týmy George a výsledky měříme na počty nově otevřených účtů, ne na dojmy.",
+    "requirements": [
+      {
+        "skill": "digital marketing",
+        "termId": "digital_marketing",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "PPC",
+        "termId": "ppc",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "SEO",
+        "termId": "seo",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "social media marketing",
+        "termId": "social_media_marketing",
+        "kind": "must_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "content marketing",
+        "termId": "role_marketing",
+        "kind": "nice_to_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "web analytics",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "campaign performance reporting",
+        "kind": "nice_to_have",
+        "hardness": "learnable"
+      }
+    ],
+    "detectedSkills": [
+      "digital_marketing",
+      "ppc",
+      "seo",
+      "social_media_marketing",
+      "role_marketing",
+      "web analytics",
+      "campaign performance reporting"
+    ],
+    "salaryBand": [
+      44500,
+      79000
+    ],
+    "entryProfile": {
+      "isEntryEligible": true,
+      "graduateFriendliness": 0.44,
+      "reinterpretedMusts": [
+        "Demonstrated foundation in digital marketing",
+        "Demonstrated foundation in PPC",
+        "Demonstrated foundation in SEO",
+        "Demonstrated foundation in social media marketing",
+        "Demonstrated foundation in web analytics"
+      ],
+      "trainableGaps": [
+        "social media marketing"
+      ],
+      "rationale": "seniority=medior; min_years=3; ad uses early-career language; 1/5 must-haves learnable"
+    },
+    "defaultedFields": [
+      "salary_band"
+    ],
+    "source": "synthetic"
+  },
+  {
+    "id": "job-113",
+    "title": "Product Marketing Specialist – retailové produkty",
+    "company": "Česká spořitelna",
+    "location": "Praha – Michle",
+    "workMode": "hybrid",
+    "employmentType": "full-time (HPP, permanent contract)",
+    "seniority": "medior",
+    "roleFamily": "sales_marketing",
+    "languages": [
+      "Czech"
+    ],
+    "minYearsExperience": 3.0,
+    "minEducation": "bachelor",
+    "description": "Do týmu produktového marketingu v centrále v Praze-Michli hledáme kolegyni/kolegu, který pomůže dostat naše retailové produkty – běžné účty, spotřebitelské úvěry a investiční produkty v George – k správným klientům. Budete připravovat go-to-market plány nových produktových kampaní, ladit messaging s produktovými manažery a pobočkovou sítí a vyhodnocovat výkon kampaní napříč kanály. Běžný den je mix práce s daty (reporting prodejů a kampaní), tvorby obsahu s interním studiem a koordinace s digitálním týmem George. Tým má 8 lidí, funguje hybridně (2–3 dny v kanceláři) a reportuje do útvaru Retail Marketing.",
+    "requirements": [
+      {
+        "skill": "marketing",
+        "termId": "marketing_skill",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "campaign management",
+        "termId": "campaign_management",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "market research",
+        "termId": "market_research",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "sales reporting",
+        "termId": "sales_reporting",
+        "kind": "must_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "content marketing",
+        "termId": "role_marketing",
+        "kind": "nice_to_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "stakeholder management",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "retail banking products",
+        "kind": "nice_to_have",
+        "hardness": "learnable"
+      }
+    ],
+    "detectedSkills": [
+      "marketing_skill",
+      "campaign_management",
+      "market_research",
+      "sales_reporting",
+      "role_marketing",
+      "stakeholder management",
+      "retail banking products"
+    ],
+    "salaryBand": [
+      44500,
+      79000
+    ],
+    "entryProfile": {
+      "isEntryEligible": true,
+      "graduateFriendliness": 0.44,
+      "reinterpretedMusts": [
+        "Demonstrated foundation in marketing",
+        "Demonstrated foundation in campaign management",
+        "Demonstrated foundation in market research",
+        "Demonstrated foundation in sales reporting",
+        "Demonstrated foundation in stakeholder management"
+      ],
+      "trainableGaps": [
+        "sales reporting"
+      ],
+      "rationale": "seniority=medior; min_years=3; ad uses early-career language; 1/5 must-haves learnable"
+    },
+    "defaultedFields": [
+      "salary_band"
+    ],
+    "source": "synthetic"
+  },
+  {
+    "id": "job-114",
+    "title": "Senior Business Development Manager – Partnerships",
+    "company": "Česká spořitelna",
+    "location": "Ostrava",
+    "workMode": "hybrid",
+    "employmentType": "full-time",
+    "seniority": "senior",
+    "roleFamily": "sales_marketing",
+    "languages": [
+      "Czech",
+      "English"
+    ],
+    "minYearsExperience": 6.0,
+    "minEducation": "university",
+    "description": "Do našeho ostravského týmu rozvoje partnerství hledáme zkušeného Business Development Managera, který bude vyhledávat a uzavírat nová strategická partnerství pro ekosystém České spořitelny – od realitních a energetických služeb až po benefitové programy navázané na platformu George. Běžný den zahrnuje mapování trhu na severní Moravě, schůzky s potenciálními partnery, přípravu obchodních případů pro interní schvalování a péči o vlastní pipeline od prvního kontaktu po podpis smlouvy. Budete součástí sedmičlenného celorepublikového týmu s dvěma dny home office týdně a reportingem do Prahy.",
+    "requirements": [
+      {
+        "skill": "business development",
+        "termId": "role_sales",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "partnership development",
+        "termId": "partnership_development",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "deal closing",
+        "termId": "deal_closing",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "pipeline management",
+        "termId": "pipeline_management",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "lead generation",
+        "termId": "lead_generation",
+        "kind": "must_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "stakeholder management",
+        "kind": "nice_to_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "financial services market knowledge",
+        "kind": "nice_to_have",
+        "hardness": "learnable"
+      }
+    ],
+    "detectedSkills": [
+      "role_sales",
+      "partnership_development",
+      "deal_closing",
+      "pipeline_management",
+      "lead_generation",
+      "stakeholder management",
+      "financial services market knowledge"
+    ],
+    "salaryBand": [
+      74500,
+      125500
+    ],
+    "entryProfile": {
+      "isEntryEligible": true,
+      "graduateFriendliness": 0.24,
+      "reinterpretedMusts": [
+        "Demonstrated foundation in business development",
+        "Demonstrated foundation in partnership development",
+        "Demonstrated foundation in deal closing",
+        "Demonstrated foundation in pipeline management",
+        "Demonstrated foundation in lead generation"
+      ],
+      "trainableGaps": [
+        "lead generation"
+      ],
+      "rationale": "seniority=senior; min_years=6; ad uses early-career language; 1/5 must-haves learnable"
+    },
+    "defaultedFields": [
+      "salary_band"
+    ],
+    "source": "synthetic"
+  },
+  {
+    "id": "job-115",
+    "title": "Junior specialista klientského centra (Contact Center)",
+    "company": "Česká spořitelna",
+    "location": "Remote (CZ)",
+    "workMode": "remote",
+    "employmentType": "full-time",
+    "seniority": "junior",
+    "roleFamily": "customer_support",
+    "languages": [
+      "Czech",
+      "English"
+    ],
+    "minYearsExperience": 0.0,
+    "minEducation": "none",
+    "description": "Staňte se hlasem České spořitelny v našem klientském centru — na dálku, odkudkoli z ČR. Budete vyřizovat příchozí hovory a písemné požadavky klientů George a retailového bankovnictví: od dotazů k platbám a kartám přes reklamace až po pomoc s digitálním bankovnictvím. Čeká vás plně placené vstupní školení, zkušený tým s buddym po ruce a jasná cesta k seniornějším rolím. Vhodné i pro absolventy a studenty posledních ročníků — bankovní znalosti vás naučíme.",
+    "requirements": [
+      {
+        "skill": "customer service",
+        "termId": "customer_service",
+        "kind": "must_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "inbound calls",
+        "termId": "inbound_calls",
+        "kind": "must_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "call handling",
+        "termId": "call_handling",
+        "kind": "must_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "ticketing",
+        "termId": "ticketing",
+        "kind": "must_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "complaint resolution",
+        "termId": "complaint_resolution",
+        "kind": "nice_to_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "Czech (native level)",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "PC literacy",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "banking products",
+        "kind": "nice_to_have",
+        "hardness": "learnable"
+      }
+    ],
+    "detectedSkills": [
+      "customer_service",
+      "inbound_calls",
+      "call_handling",
+      "ticketing",
+      "complaint_resolution",
+      "Czech (native level)",
+      "PC literacy",
+      "banking products"
+    ],
+    "salaryBand": [
+      24000,
+      36000
+    ],
+    "entryProfile": {
+      "isEntryEligible": true,
+      "graduateFriendliness": 1.0,
+      "reinterpretedMusts": [
+        "Demonstrated foundation in customer service",
+        "Demonstrated foundation in inbound calls",
+        "Demonstrated foundation in call handling",
+        "Demonstrated foundation in ticketing",
+        "Demonstrated foundation in Czech (native level)",
+        "Demonstrated foundation in PC literacy"
+      ],
+      "trainableGaps": [
+        "customer service",
+        "inbound calls",
+        "call handling",
+        "ticketing"
+      ],
+      "rationale": "seniority=junior; min_years=0; ad uses early-career language; 4/6 must-haves learnable"
+    },
+    "defaultedFields": [
+      "salary_band"
+    ],
+    "source": "synthetic"
+  },
+  {
+    "id": "job-116",
+    "title": "Specialista reklamací a stížností",
+    "company": "Česká spořitelna",
+    "location": "Ostrava",
+    "workMode": "hybrid",
+    "employmentType": "full-time",
+    "seniority": "medior",
+    "roleFamily": "customer_support",
+    "languages": [
+      "Czech",
+      "English"
+    ],
+    "minYearsExperience": 3.0,
+    "minEducation": "none",
+    "description": "Posílíme tým reklamací a sporů v našem ostravském centru služeb, kde řešíme reklamace klientů České spořitelny — od plateb a karet přes poplatky až po digitální bankovnictví George. Během běžného dne posuzujete přijaté reklamace, komunikujete s klienty i interními útvary (pobočky, karetní operace, compliance) a hlídáte, aby každý případ byl vyřešen v termínu dle SLA a v souladu s regulatorními lhůtami. Čeká vás tým zhruba patnácti kolegů, zkušený team leader a hybridní režim práce.",
+    "requirements": [
+      {
+        "skill": "reklamace",
+        "termId": "reklamace",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "complaint resolution",
+        "termId": "complaint_resolution",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "conflict resolution",
+        "termId": "conflict_resolution",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "SLA management",
+        "termId": "sla_management",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "escalation management",
+        "termId": "escalation_management",
+        "kind": "must_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "bankovní produkty",
+        "kind": "nice_to_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "ombudsman a regulatorní stížnosti",
+        "kind": "nice_to_have",
+        "hardness": "learnable"
+      }
+    ],
+    "detectedSkills": [
+      "reklamace",
+      "complaint_resolution",
+      "conflict_resolution",
+      "sla_management",
+      "escalation_management",
+      "bankovní produkty",
+      "ombudsman a regulatorní stížnosti"
+    ],
+    "salaryBand": [
+      32500,
+      49500
+    ],
+    "entryProfile": {
+      "isEntryEligible": true,
+      "graduateFriendliness": 0.44,
+      "reinterpretedMusts": [
+        "Demonstrated foundation in reklamace",
+        "Demonstrated foundation in complaint resolution",
+        "Demonstrated foundation in conflict resolution",
+        "Demonstrated foundation in SLA management",
+        "Demonstrated foundation in escalation management"
+      ],
+      "trainableGaps": [
+        "escalation management"
+      ],
+      "rationale": "seniority=medior; min_years=3; ad uses early-career language; 1/5 must-haves learnable"
+    },
+    "defaultedFields": [
+      "salary_band"
+    ],
+    "source": "synthetic"
+  },
+  {
+    "id": "job-117",
+    "title": "Specialista klientského servisu – George a retailové bankovnictví",
+    "company": "Česká spořitelna",
+    "location": "Brno",
+    "workMode": "hybrid",
+    "employmentType": "full-time",
+    "seniority": "medior",
+    "roleFamily": "customer_support",
+    "languages": [
+      "Czech",
+      "English"
+    ],
+    "minYearsExperience": 2.0,
+    "minEducation": "none",
+    "description": "Do našeho brněnského servisního centra hledáme zkušeného specialistu klientského servisu, který se postará o retailové klienty České spořitelny napříč kanály – e-mail, chat v aplikaci George i interní požadavky z poboček. Běžný den zahrnuje správu účtů a produktových požadavků, dokončování onboardingu nových klientů a řešení eskalací ve spolupráci s back office týmem v Praze-Michli. Jsme tým cca 15 lidí, pracujeme hybridně (3 dny v kanceláři u Vlněny) a průběžně spolu udržujeme interní znowledge base, aby první linie odpovídala rychle a konzistentně.",
+    "requirements": [
+      {
+        "skill": "account servicing",
+        "termId": "account_servicing",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "customer onboarding",
+        "termId": "customer_onboarding",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "email support",
+        "termId": "email_support",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "back office support",
+        "kind": "must_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "knowledge base",
+        "termId": "knowledge_base",
+        "kind": "nice_to_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "reklamace",
+        "termId": "reklamace",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "KYC",
+        "termId": "kyc",
+        "kind": "nice_to_have",
+        "hardness": "learnable"
+      }
+    ],
+    "detectedSkills": [
+      "account_servicing",
+      "customer_onboarding",
+      "email_support",
+      "back office support",
+      "knowledge_base",
+      "reklamace",
+      "kyc"
+    ],
+    "salaryBand": [
+      32500,
+      49500
+    ],
+    "entryProfile": {
+      "isEntryEligible": true,
+      "graduateFriendliness": 0.54,
+      "reinterpretedMusts": [
+        "Demonstrated foundation in account servicing",
+        "Demonstrated foundation in customer onboarding",
+        "Demonstrated foundation in email support",
+        "Demonstrated foundation in back office support",
+        "Demonstrated foundation in reklamace"
+      ],
+      "trainableGaps": [
+        "back office support"
+      ],
+      "rationale": "seniority=medior; min_years=2; ad uses early-career language; 1/5 must-haves learnable"
+    },
+    "defaultedFields": [
+      "salary_band"
+    ],
+    "source": "synthetic"
+  },
+  {
+    "id": "job-118",
+    "title": "Senior specialista retence klientů – George",
+    "company": "Česká spořitelna",
+    "location": "Brno",
+    "workMode": "hybrid",
+    "employmentType": "full-time",
+    "seniority": "senior",
+    "roleFamily": "customer_support",
+    "languages": [
+      "Czech",
+      "English"
+    ],
+    "minYearsExperience": 5.0,
+    "minEducation": "bachelor",
+    "description": "Do retenčního týmu České spořitelny v Brně hledáme zkušeného specialistu, který pomůže snižovat odchodovost klientů na platformě George. Běžný den zahrnuje analýzu signálů odchodu z NPS a CSAT dat, návrh retenčních kampaní a nabídek pro ohrožené segmenty a zpětnou vazbu produktovým týmům George. Budete pracovat v šestičlenném týmu pod vedením manažera Customer Experience a úzce spolupracovat s pobočkovou sítí i klientským centrem. Očekáváme samostatnost, mentoring juniorních kolegů a schopnost obhájit retenční iniciativy před stakeholdery.",
+    "requirements": [
+      {
+        "skill": "customer retention",
+        "termId": "customer_retention",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "customer success",
+        "termId": "customer_success",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "NPS",
+        "termId": "nps",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "CSAT",
+        "termId": "csat",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "customer feedback",
+        "termId": "customer_feedback",
+        "kind": "must_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "churn analysis",
+        "kind": "nice_to_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "CRM (Salesforce)",
+        "kind": "nice_to_have",
+        "hardness": "learnable"
+      }
+    ],
+    "detectedSkills": [
+      "customer_retention",
+      "customer_success",
+      "nps",
+      "csat",
+      "customer_feedback",
+      "churn analysis",
+      "CRM (Salesforce)"
+    ],
+    "salaryBand": [
+      44500,
+      70000
+    ],
+    "entryProfile": {
+      "isEntryEligible": true,
+      "graduateFriendliness": 0.24,
+      "reinterpretedMusts": [
+        "Demonstrated foundation in customer retention",
+        "Demonstrated foundation in customer success",
+        "Demonstrated foundation in NPS",
+        "Demonstrated foundation in CSAT",
+        "Demonstrated foundation in customer feedback"
+      ],
+      "trainableGaps": [
+        "customer feedback"
+      ],
+      "rationale": "seniority=senior; min_years=5; ad uses early-career language; 1/5 must-haves learnable"
+    },
+    "defaultedFields": [
+      "salary_band"
+    ],
+    "source": "synthetic"
+  },
+  {
+    "id": "job-119",
+    "title": "Digital Support Specialist – George (Medior)",
+    "company": "Česká spořitelna",
+    "location": "Praha – Michle",
+    "workMode": "hybrid",
+    "employmentType": "full-time",
+    "seniority": "medior",
+    "roleFamily": "customer_support",
+    "languages": [
+      "Czech",
+      "English"
+    ],
+    "minYearsExperience": 2.0,
+    "minEducation": "none",
+    "description": "Staňte se součástí týmu digitální podpory pro George – internetové a mobilní bankovnictví České spořitelny, které denně používají miliony klientů. Váš běžný den se točí kolem live chatu přímo v aplikaci: pomáháte klientům s přihlášením, platbami a nastavením, diagnostikujete technické potíže a složitější případy předáváte specialistům druhé úrovně. Sedíme v moderní centrále v Praze-Michli, pracujeme hybridně a s produktovými týmy George sdílíme zpětnou vazbu, která reálně mění aplikaci.",
+    "requirements": [
+      {
+        "skill": "live chat",
+        "termId": "live_chat",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "product support",
+        "termId": "product_support",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "troubleshooting",
+        "termId": "troubleshooting",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "omnichannel support",
+        "termId": "omnichannel_support",
+        "kind": "must_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "knowledge base",
+        "termId": "knowledge_base",
+        "kind": "nice_to_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "reklamace",
+        "termId": "reklamace",
+        "kind": "nice_to_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "digital banking products",
+        "kind": "must_have",
+        "hardness": "learnable"
+      }
+    ],
+    "detectedSkills": [
+      "live_chat",
+      "product_support",
+      "troubleshooting",
+      "omnichannel_support",
+      "knowledge_base",
+      "reklamace",
+      "digital banking products"
+    ],
+    "salaryBand": [
+      32500,
+      49500
+    ],
+    "entryProfile": {
+      "isEntryEligible": true,
+      "graduateFriendliness": 0.58,
+      "reinterpretedMusts": [
+        "Demonstrated foundation in live chat",
+        "Demonstrated foundation in product support",
+        "Demonstrated foundation in troubleshooting",
+        "Demonstrated foundation in omnichannel support",
+        "Demonstrated foundation in digital banking products"
+      ],
+      "trainableGaps": [
+        "omnichannel support",
+        "digital banking products"
+      ],
+      "rationale": "seniority=medior; min_years=2; ad uses early-career language; 2/5 must-haves learnable"
+    },
+    "defaultedFields": [
+      "salary_band"
+    ],
     "source": "synthetic"
   }
 ]
