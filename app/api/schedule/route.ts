@@ -16,7 +16,7 @@ import {
 } from "@/app/_lib/schedule-store";
 import { actOnPipelineEntry, getPipelineEntry } from "@/app/_lib/db";
 import { plannedInterviewMinutes } from "@/app/_lib/interview-run";
-import { gridSlotToIso, hourBucketKey, offeredSlotFor, proposedSlotFor, proposeSlots } from "@/app/_lib/schedule-slots";
+import { dateSlotToIso, gridSlotToIso, hourBucketKey, offeredSlotFor, proposedSlotFor, proposeSlots } from "@/app/_lib/schedule-slots";
 import { sealDecisionSafe } from "@/app/_lib/decision-record-store";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { jsonOk, safeJsonError } from "@/app/_lib/api-response";
@@ -63,6 +63,7 @@ export async function POST(request: Request) {
       slotAt?: string;
       entryId?: string;
       gridSlot?: string;
+      dateSlot?: string;
     };
     if (!body.action) {
       return NextResponse.json({ error: "action is required" }, { status: 400 });
@@ -84,12 +85,20 @@ export async function POST(request: Request) {
     // advance server-side and flag drift on failure. Folding the advance in closes that
     // gap: one atomic recruiter action either advances or is flagged for reconcile.
     if (body.action === "book") {
-      if (!body.entryId || !body.gridSlot) {
-        return NextResponse.json({ error: "entryId and gridSlot are required" }, { status: 400 });
+      if (!body.entryId || (!body.dateSlot && !body.gridSlot)) {
+        return NextResponse.json({ error: "entryId and dateSlot are required" }, { status: 400 });
       }
       const entry = getPipelineEntry(body.entryId, ws);
       if (!entry) return NextResponse.json({ error: "pipeline entry not found" }, { status: 404 });
-      const resolved = gridSlotToIso(body.gridSlot);
+      // Prefer the DATED pick ("YYYY-MM-DD HH:MM", the concrete cell the recruiter clicked)
+      // so a booking lands on the true calendar day, not the next matching weekday. The
+      // weekday-relative gridSlot stays a back-compat fallback (older clients / the sim).
+      const resolved = body.dateSlot
+        ? (() => {
+            const [date = "", time = ""] = body.dateSlot.split(/\s+/);
+            return dateSlotToIso(date, time);
+          })()
+        : gridSlotToIso(body.gridSlot!);
       if (!resolved) {
         return NextResponse.json({ error: "That grid slot couldn't be resolved to a time." }, { status: 400 });
       }

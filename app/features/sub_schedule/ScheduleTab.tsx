@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion, type TargetAndTransition } from "framer-motion";
 import { ArrowRight, Calendar, Check, ClipboardList, FileText, History, Phone, UserRound, X } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 import { buildUrl, clearedTabScopedParams } from "@/app/features/tabs";
 import { ScheduleCalendar } from "./ScheduleCalendar";
 import { InviteLifecyclePanel } from "./InviteLifecyclePanel";
@@ -15,7 +15,7 @@ import { ChainEmptyState } from "@/app/_components/ChainEmptyState";
 import { ScoreBadge } from "@/app/_components/ScoreBadge";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { useReducedMotion } from "@/app/_lib/useReducedMotion";
-import { isoToGridSlot } from "@/app/_lib/schedule-slots";
+import { gridSlotToIso, isoToDateSlot } from "@/app/_lib/schedule-slots";
 // Type-only — no better-sqlite3 pulled into this client bundle.
 import type { ScheduleInvite } from "@/app/_lib/schedule-store";
 
@@ -51,12 +51,29 @@ export function ScheduleTab() {
   const t = useTranslations("scheduleTab");
   const router = useRouter();
   const search = useSearchParams();
-  const enumLabel = useEnumLabel();
-  // Display a stored "Day HH:MM" slot with the localized day; the canonical value
-  // (sent to the server, kept in `picks`) stays English.
+  const format = useFormatter();
+  // Display a stored dated slot "YYYY-MM-DD HH:MM" as a localized "Tue 22 Jul · 14:00".
+  // The canonical value (kept in `picks`, sent to the server) stays the ISO date grammar.
+  // A legacy/unknown value (e.g. a weekday-relative "Tue 14:00") is shown as-is, so
+  // wall-clock display of older data is unaffected.
   const slotLabel = (slot: string): string => {
-    const [d, ...rest] = slot.split(" ");
-    return `${enumLabel("day", d)} ${rest.join(" ")}`.trim();
+    const [date = "", time = ""] = slot.split(" ");
+    const dm = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
+    if (!dm) return slot.trim();
+    const d = format.dateTime(new Date(Date.UTC(+dm[1], +dm[2] - 1, +dm[3], 12)), {
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+      timeZone: "UTC",
+    });
+    return time ? `${d} · ${time}` : d;
+  };
+  // A legacy weekday-relative slot ("Tue 14:00") → a concrete dated slot for the grid,
+  // by resolving it to the next matching future instant (gridSlotToIso) and placing that
+  // back on the dated grid. Used to seed entries that only have the old free-text detail.
+  const weekdayToDateSlot = (weekdaySlot: string): string | null => {
+    const r = gridSlotToIso(weekdaySlot);
+    return r ? isoToDateSlot(r.value) : null;
   };
   const [entries, setEntries] = useState<SchedEntry[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -113,8 +130,12 @@ export function ScheduleTab() {
               .filter((e) => e.approvalKind === "calendar")
               .map((e) => {
                 const inv = inviteByEntry.get(e.id);
-                const fromInvite = inv?.slotAt ? isoToGridSlot(inv.slotAt) : null;
-                return [e.id, fromInvite || e.approvalDetail || DEFAULT_SLOT];
+                const fromInvite = inv?.slotAt ? isoToDateSlot(inv.slotAt) : null;
+                // Legacy approvalDetail is a weekday-relative string; resolve it to a
+                // concrete upcoming date so it lands in a real grid cell. DEFAULT is the
+                // last resort for an entry with neither an invite nor a parseable detail.
+                const fromLegacy = e.approvalDetail ? weekdayToDateSlot(e.approvalDetail) : null;
+                return [e.id, fromInvite || fromLegacy || weekdayToDateSlot(DEFAULT_SLOT) || DEFAULT_SLOT];
               })
           )
         );
@@ -136,8 +157,8 @@ export function ScheduleTab() {
     () =>
       invites
         .filter((i) => i.status === "confirmed" && i.slotAt && (!i.entryId || !calendarEntryIds.has(i.entryId)))
-        .map((i) => ({ id: i.token, gridSlot: isoToGridSlot(i.slotAt), candidateLabel: i.candidateLabel ?? "—" }))
-        .filter((m): m is { id: string; gridSlot: string; candidateLabel: string } => m.gridSlot !== null),
+        .map((i) => ({ id: i.token, dateSlot: isoToDateSlot(i.slotAt), candidateLabel: i.candidateLabel ?? "—" }))
+        .filter((m): m is { id: string; dateSlot: string; candidateLabel: string } => m.dateSlot !== null),
     [invites, calendarEntryIds]
   );
   // Interviewed = moved past scheduling with either a saved voice transcript or a
@@ -224,7 +245,7 @@ export function ScheduleTab() {
         const bookRes = await fetch("/api/schedule", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "book", entryId: e.id, gridSlot: picks[e.id] }),
+          body: JSON.stringify({ action: "book", entryId: e.id, dateSlot: picks[e.id] }),
         });
         const bd = await bookRes.json().catch(() => ({}));
         if (!bookRes.ok) {

@@ -2086,7 +2086,11 @@
       "outlook": "Outlook",
       "downloadIcs": "Download .ics",
       "bookedTitle": "{name} · already booked",
-      "bookedOffHourTitle": "{name} · already booked at {time}"
+      "bookedOffHourTitle": "{name} · already booked at {time}",
+      "pagerPrev": "Previous week",
+      "pagerNext": "Next week",
+      "weekOf": "Week of {range}",
+      "pastDayTitle": "This day has already passed"
     },
     "scorecard": {
       "editScorecard": "Edit your scorecard",

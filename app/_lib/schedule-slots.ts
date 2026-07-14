@@ -331,3 +331,99 @@ export function isoToGridSlot(iso: string | null | undefined, tz: string = INTER
   const mm = String(p.minute).padStart(2, "0");
   return `${DOW[p.weekday]} ${hh}:${mm}`;
 }
+
+// --- Dated grid: a CONCRETE week, not a weekday column (Direction "grid gets real dates") ---
+//
+// gridSlotToIso resolves a weekday-relative pick ("Tue 14:00") to the NEXT future
+// Tuesday, so two different real Tuesdays collapse into one visual column and "book the
+// 22nd specifically" is inexpressible. These helpers anchor the grid to a DATED slot —
+// "YYYY-MM-DD HH:MM" in the interview zone — so a pick, a booked marker, and the
+// collision instant all name one true calendar day. gridSlotToIso/isoToGridSlot stay for
+// back-compat (the candidate flow + the route's legacy body.gridSlot branch + tests).
+
+/** Resolve a dated grid pick (interview-zone calendar date + wall time) to its canonical
+ *  ISO instant with a server-authored label — the DATED sibling of gridSlotToIso. The
+ *  recruiter is trusted, so any business-day hour is accepted; a weekend, a past instant,
+ *  or one beyond the scheduling horizon is refused (mirrors gridSlotToIso's future-only,
+ *  in-horizon guarantee). `nowMs`/`tz` injectable for tests. */
+export function dateSlotToIso(
+  date: string,
+  time: string,
+  nowMs: number = Date.now(),
+  tz: string = INTERVIEW_TZ
+): { value: string; label: string } | null {
+  const dm = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(date).trim());
+  const tm = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(String(time).trim());
+  if (!dm || !tm) return null;
+  const y = +dm[1];
+  const mo = +dm[2];
+  const dd = +dm[3];
+  if (mo < 1 || mo > 12 || dd < 1 || dd > 31) return null;
+  const hh = +tm[1];
+  const mm = +tm[2];
+  const ms = zonedInstant(y, mo, dd, hh, mm, tz);
+  if (Number.isNaN(ms)) return null;
+  if (ms <= nowMs || ms > nowMs + MAX_SLOT_AHEAD_MS) return null;
+  const p = zonedParts(ms, tz);
+  if (p.weekday === 0 || p.weekday === 6) return null; // weekend in the interview zone
+  return { value: new Date(ms).toISOString(), label: slotLabel(ms, `${tm[1]}:${tm[2]}`, tz) };
+}
+
+/** Place a canonical instant onto the DATED grid as "YYYY-MM-DD HH:MM" in the interview
+ *  zone — so a booking (recruiter- or candidate-made) seeds the exact calendar cell it
+ *  occupies, in its true week. Off-hour bookings keep their true minutes; the grid buckets
+ *  them into the hour row for display. Returns null for an unparsable instant or a weekend. */
+export function isoToDateSlot(iso: string | null | undefined, tz: string = INTERVIEW_TZ): string | null {
+  if (!iso) return null;
+  const ms = Date.parse(iso);
+  if (Number.isNaN(ms)) return null;
+  const p = zonedParts(ms, tz);
+  if (p.weekday === 0 || p.weekday === 6) return null;
+  return `${p.year}-${pad2(p.month)}-${pad2(p.day)} ${pad2(p.hour)}:${pad2(p.minute)}`;
+}
+
+/** One concrete weekday of the dated grid. `iso` is its interview-zone calendar date
+ *  ("YYYY-MM-DD"); `past` marks a day before today (rendered disabled). */
+export type GridDate = { iso: string; year: number; month: number; day: number; weekday: number; past: boolean };
+
+/** The concrete weeks (each Mon–Fri) the manual grid pages through: from the week
+ *  containing today to the week containing today + SLOT_HORIZON_DAYS, in the interview
+ *  zone — so the pager spans exactly the offer horizon and every booking falls in a
+ *  reachable week. Pure + zone-correct so the client grid and the server horizon agree.
+ *  `nowMs`/`tz` injectable for tests. */
+export function scheduleGridWeeks(nowMs: number = Date.now(), tz: string = INTERVIEW_TZ): GridDate[][] {
+  const today = zonedParts(nowMs, tz);
+  const todayNum = today.year * 10000 + today.month * 100 + today.day;
+  // Monday of today's week (UTC Y/M/D arithmetic — a calendar date's weekday is zone-stable).
+  const base = new Date(Date.UTC(today.year, today.month - 1, today.day));
+  const dow = base.getUTCDay(); // 0=Sun..6=Sat
+  const mondayOffset = dow === 0 ? -6 : 1 - dow;
+  const monday = new Date(base);
+  monday.setUTCDate(base.getUTCDate() + mondayOffset);
+  const horizonEnd = new Date(base);
+  horizonEnd.setUTCDate(base.getUTCDate() + SLOT_HORIZON_DAYS);
+  const weeks: GridDate[][] = [];
+  const cursor = new Date(monday);
+  while (cursor.getTime() <= horizonEnd.getTime()) {
+    const week: GridDate[] = [];
+    for (let i = 0; i < 5; i += 1) {
+      // Mon..Fri
+      const d = new Date(cursor);
+      d.setUTCDate(cursor.getUTCDate() + i);
+      const y = d.getUTCFullYear();
+      const mo = d.getUTCMonth() + 1;
+      const dd = d.getUTCDate();
+      week.push({
+        iso: `${y}-${pad2(mo)}-${pad2(dd)}`,
+        year: y,
+        month: mo,
+        day: dd,
+        weekday: d.getUTCDay(),
+        past: y * 10000 + mo * 100 + dd < todayNum,
+      });
+    }
+    weeks.push(week);
+    cursor.setUTCDate(cursor.getUTCDate() + 7);
+  }
+  return weeks;
+}

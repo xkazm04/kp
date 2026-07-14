@@ -2115,7 +2115,11 @@
       "outlook": "Outlook",
       "downloadIcs": "Télécharger .ics",
       "bookedTitle": "{name} · déjà réservé",
-      "bookedOffHourTitle": "{name} · déjà réservé à {time}"
+      "bookedOffHourTitle": "{name} · déjà réservé à {time}",
+      "pagerPrev": "Semaine précédente",
+      "pagerNext": "Semaine suivante",
+      "weekOf": "Semaine du {range}",
+      "pastDayTitle": "Ce jour est déjà passé"
     },
     "scorecard": {
       "editScorecard": "Modifier votre scorecard",

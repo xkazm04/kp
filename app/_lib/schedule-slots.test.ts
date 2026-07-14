@@ -9,7 +9,7 @@
 //   npm run test:unit
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { offeredSlotFor, parseInterviewTimes, proposeSlots, SLOT_HORIZON_DAYS, isScheduleInviteExpired, INVITE_LINK_TTL_DAYS, gridSlotToIso, isoToGridSlot, hourBucketKey, proposedSlotFor, validateProposedSlots, MAX_PROPOSALS } from "./schedule-slots.ts";
+import { offeredSlotFor, parseInterviewTimes, proposeSlots, SLOT_HORIZON_DAYS, isScheduleInviteExpired, INVITE_LINK_TTL_DAYS, gridSlotToIso, isoToGridSlot, hourBucketKey, proposedSlotFor, validateProposedSlots, MAX_PROPOSALS, dateSlotToIso, isoToDateSlot, scheduleGridWeeks } from "./schedule-slots.ts";
 
 test("parseInterviewTimes is config-driven, validated, deduped, and falls back safely", () => {
   assert.deepEqual(parseInterviewTimes(undefined), ["10:00", "14:00"]);
@@ -181,6 +181,71 @@ test("isoToGridSlot places an instant back on the grid and round-trips with grid
   // An OFF-HOUR booking keeps its true minutes (Direction 2) — the grid buckets it into
   // the hour cell for display, but the stored instant/cell is honest about the minute.
   assert.equal(isoToGridSlot(new Date(Date.UTC(2026, 5, 9, 14, 30)).toISOString(), TZ), "Tue 14:30");
+});
+
+// --- The grid gets real dates: dated resolution + the concrete week pager -----------
+test("dateSlotToIso resolves a DATED pick to the exact calendar instant (not the next weekday)", () => {
+  // NOW = Monday 2026-06-08 12:00 UTC. Two different real Tuesdays no longer collapse:
+  // the pick names the true day, so the 9th and the 16th are distinct instants.
+  const t9 = dateSlotToIso("2026-06-09", "14:00", NOW, TZ);
+  const t16 = dateSlotToIso("2026-06-16", "14:00", NOW, TZ);
+  assert.ok(t9 && t16, "both dated Tuesdays resolve");
+  assert.equal(t9!.value, new Date(Date.UTC(2026, 5, 9, 14, 0)).toISOString());
+  assert.equal(t16!.value, new Date(Date.UTC(2026, 5, 16, 14, 0)).toISOString());
+  assert.notEqual(t9!.value, t16!.value, "distinct calendar dates are distinct instants");
+  assert.equal(t9!.label, "Tue 9 Jun · 14:00", "server-authored dated label");
+  // Recruiter may pick any business-day hour (not just the offered 10:00/14:00).
+  assert.ok(dateSlotToIso("2026-06-10", "09:00", NOW, TZ), "any weekday business hour is allowed");
+});
+
+test("dateSlotToIso refuses past, weekend, off-horizon, and malformed dated picks", () => {
+  assert.equal(dateSlotToIso("2026-06-08", "10:00", NOW, TZ), null, "a past instant (this morning) is refused");
+  assert.equal(dateSlotToIso("2026-06-13", "10:00", NOW, TZ), null, "Saturday is refused");
+  assert.equal(dateSlotToIso("2026-06-14", "10:00", NOW, TZ), null, "Sunday is refused");
+  assert.equal(dateSlotToIso("2026-07-14", "10:00", NOW, TZ), null, "beyond the horizon is refused");
+  assert.equal(dateSlotToIso("garbage", "10:00", NOW, TZ), null);
+  assert.equal(dateSlotToIso("2026-06-09", "25:00", NOW, TZ), null);
+  assert.equal(dateSlotToIso("2026-06-09", "", NOW, TZ), null);
+});
+
+test("isoToDateSlot places an instant on the dated grid and round-trips with dateSlotToIso", () => {
+  const iso = new Date(Date.UTC(2026, 5, 9, 14, 0)).toISOString();
+  assert.equal(isoToDateSlot(iso, TZ), "2026-06-09 14:00");
+  const [date, time] = isoToDateSlot(iso, TZ)!.split(" ");
+  assert.equal(dateSlotToIso(date, time, NOW, TZ)!.value, iso, "dated → iso → dated is stable");
+  // Off-hour booking keeps its true minutes; the grid buckets it into the hour row.
+  assert.equal(isoToDateSlot(new Date(Date.UTC(2026, 5, 9, 14, 30)).toISOString(), TZ), "2026-06-09 14:30");
+  assert.equal(isoToDateSlot(new Date(Date.UTC(2026, 5, 13, 10, 0)).toISOString(), TZ), null, "Saturday maps to no cell");
+});
+
+test("scheduleGridWeeks spans the offer horizon in concrete weekday dates, marking past days", () => {
+  const weeks = scheduleGridWeeks(NOW, TZ); // NOW = Monday 2026-06-08
+  assert.ok(weeks.length >= 3, "the pager covers multiple weeks across the ~3-week horizon");
+  // Every inner week is Mon–Fri (5 weekdays), never a weekend.
+  for (const w of weeks) {
+    assert.equal(w.length, 5, "five weekdays per week");
+    for (const d of w) assert.ok(d.weekday >= 1 && d.weekday <= 5, "no weekend column");
+  }
+  // The first week contains today (Monday the 8th) and it is not past.
+  const first = weeks[0];
+  const monday = first.find((d) => d.iso === "2026-06-08");
+  assert.ok(monday, "today sits in the first week");
+  assert.equal(monday!.past, false, "today is not disabled");
+  // No date runs beyond the horizon end (today + SLOT_HORIZON_DAYS).
+  const last = weeks[weeks.length - 1];
+  const horizonEnd = Date.UTC(2026, 5, 8) + (SLOT_HORIZON_DAYS + 6) * 86_400_000; // + trailing Fri slack
+  assert.ok(Date.UTC(last[4].year, last[4].month - 1, last[4].day) <= horizonEnd, "no week extends unboundedly past the horizon");
+});
+
+test("scheduleGridWeeks marks days before today as past (disabled) in a mid-week start", () => {
+  // Start on Wednesday 2026-06-10: Mon/Tue of that week are past, Wed onward are live.
+  const wed = Date.UTC(2026, 5, 10, 12, 0, 0, 0);
+  const weeks = scheduleGridWeeks(wed, TZ);
+  const week0 = weeks[0];
+  assert.equal(week0.find((d) => d.iso === "2026-06-08")!.past, true, "Monday before today is past");
+  assert.equal(week0.find((d) => d.iso === "2026-06-09")!.past, true, "Tuesday before today is past");
+  assert.equal(week0.find((d) => d.iso === "2026-06-10")!.past, false, "today is live");
+  assert.equal(week0.find((d) => d.iso === "2026-06-11")!.past, false, "future day in the same week is live");
 });
 
 // --- Direction 2: hour-bucketing so off-hour bookings don't vanish from the grid ---
