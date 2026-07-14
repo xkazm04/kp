@@ -85,6 +85,19 @@
       "confidenceUnknownTitle": "Confidence unrecognized — shown at the lowest emphasis; treat this salary read as unverified.",
       "gaugeAria": "Salary range {min} to {max} {currency}, midpoint {midpoint}, {growth} target {target}"
     },
+    "archetype": {
+      "detected": "Detected archetype",
+      "confidence": "confidence {value}",
+      "completeness": "completeness {value}",
+      "save": "Save as profile",
+      "saving": "Saving…",
+      "saved": "Saved · open in Profile",
+      "routing": "Routing: {reasons}",
+      "explainer": "Early-career CVs are routed so potential replaces years of experience — saving promotes this candidate into the pool Match, Jobs, and the pipeline rank.",
+      "fillGaps": "Fill the gaps the CV left ({count}) — optional, raises completeness",
+      "saveFailedStatus": "Save failed ({status}).",
+      "saveFailed": "Save failed."
+    },
     "tabs": {
       "extraction": "Extraction",
       "compare": "Compare",

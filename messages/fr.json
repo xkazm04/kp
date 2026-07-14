@@ -85,6 +85,19 @@
       "confidenceUnknownTitle": "Confiance non reconnue — affichée avec la plus faible emphase ; considérez cette estimation salariale comme non vérifiée.",
       "gaugeAria": "Fourchette salariale {min} à {max} {currency}, médian {midpoint}, objectif {growth} à {target}"
     },
+    "archetype": {
+      "detected": "Archétype détecté",
+      "confidence": "confiance {value}",
+      "completeness": "complétude {value}",
+      "save": "Enregistrer comme profil",
+      "saving": "Enregistrement…",
+      "saved": "Enregistré · ouvrir dans Profil",
+      "routing": "Routage : {reasons}",
+      "explainer": "Les CV en début de carrière sont routés pour que le potentiel remplace les années d'expérience — l'enregistrement ajoute ce candidat au vivier que classent Correspondance, Postes et le pipeline.",
+      "fillGaps": "Comblez les lacunes laissées par le CV ({count}) — facultatif, augmente la complétude",
+      "saveFailedStatus": "Échec de l'enregistrement ({status}).",
+      "saveFailed": "Échec de l'enregistrement."
+    },
     "tabs": {
       "extraction": "Extraction",
       "compare": "Comparer",

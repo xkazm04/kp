@@ -85,6 +85,19 @@
       "confidenceUnknownTitle": "Konfidenz nicht erkannt — mit der geringsten Betonung dargestellt; behandeln Sie diese Gehaltseinschätzung als ungeprüft.",
       "gaugeAria": "Gehaltsspanne {min} bis {max} {currency}, Mittelwert {midpoint}, Ziel {growth} bei {target}"
     },
+    "archetype": {
+      "detected": "Erkannter Archetyp",
+      "confidence": "Konfidenz {value}",
+      "completeness": "Vollständigkeit {value}",
+      "save": "Als Profil speichern",
+      "saving": "Speichern…",
+      "saved": "Gespeichert · im Profil öffnen",
+      "routing": "Routing: {reasons}",
+      "explainer": "Lebensläufe am Karrierestart werden so geroutet, dass Potenzial die Berufsjahre ersetzt — durch Speichern nehmen Sie diese Kandidatin oder diesen Kandidaten in den Pool auf, den Match, Stellen und die Pipeline ranken.",
+      "fillGaps": "Füllen Sie die Lücken, die der Lebenslauf ließ ({count}) — optional, erhöht die Vollständigkeit",
+      "saveFailedStatus": "Speichern fehlgeschlagen ({status}).",
+      "saveFailed": "Speichern fehlgeschlagen."
+    },
     "tabs": {
       "extraction": "Extraktion",
       "compare": "Vergleich",

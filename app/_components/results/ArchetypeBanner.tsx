@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { ArrowRight, Check, Sparkles, UserPlus } from "lucide-react";
 import { ARCHETYPE_LABEL } from "@/app/_lib/archetypes";
@@ -42,6 +43,7 @@ export function ArchetypeBanner({
   // staleness detection. Absent (unsaved run) → lineage-less save, old behavior.
   sourceAnalysisSlug?: string;
 }) {
+  const t = useTranslations("report");
   const v2 = v2Profile as V2;
   const [save, setSave] = useState<SaveState>({ kind: "idle" });
   // Answers to the completeness follow-up, keyed by check id. Optional: saving
@@ -79,10 +81,10 @@ export function ArchetypeBanner({
         }),
       });
       const payload = await r.json();
-      if (!r.ok) throw new Error(payload.error ?? `Save failed (${r.status}).`);
+      if (!r.ok) throw new Error(payload.error ?? t("archetype.saveFailedStatus", { status: r.status }));
       setSave({ kind: "saved", id: (payload.saved as { id?: string } | null)?.id ?? "" });
     } catch (caught) {
-      setSave({ kind: "error", message: caught instanceof Error ? caught.message : "Save failed." });
+      setSave({ kind: "error", message: caught instanceof Error ? caught.message : t("archetype.saveFailed") });
     }
   };
 
@@ -90,12 +92,15 @@ export function ArchetypeBanner({
     <div className="rounded-lg border border-coral/30 bg-coral/5 p-4 shadow-panel">
       <div className="flex flex-wrap items-center gap-2">
         <Sparkles size={16} className="text-coral" aria-hidden />
-        <span className="text-meta uppercase tracking-wide text-coral">Detected archetype</span>
+        <span className="text-meta uppercase tracking-wide text-coral">{t("archetype.detected")}</span>
         <span className="rounded-full bg-ink px-2.5 py-0.5 text-sm font-semibold text-white">{label}</span>
-        {confidence != null ? <span className="text-sm text-steel">confidence {confidence}</span> : null}
+        {confidence != null ? (
+          <span className="text-sm text-steel">{t("archetype.confidence", { value: confidence })}</span>
+        ) : null}
         {completeness != null ? (
           <span className="text-sm text-steel">
-            {confidence != null ? "· " : ""}completeness {completeness}
+            {confidence != null ? "· " : ""}
+            {t("archetype.completeness", { value: completeness })}
           </span>
         ) : null}
 
@@ -105,7 +110,7 @@ export function ArchetypeBanner({
               href="/?tab=profile"
               className="focus-ring inline-flex items-center gap-1.5 rounded-md bg-moss/10 px-3 py-1.5 text-sm font-semibold text-moss hover:bg-moss/20"
             >
-              <Check size={14} /> Saved · open in Profile <ArrowRight size={13} />
+              <Check size={14} /> {t("archetype.saved")} <ArrowRight size={13} />
             </Link>
           ) : (
             <button
@@ -114,19 +119,16 @@ export function ArchetypeBanner({
               disabled={save.kind === "saving"}
               className="focus-ring inline-flex items-center gap-1.5 rounded-md bg-ink px-3 py-1.5 text-sm font-semibold text-white hover:bg-steel disabled:opacity-40"
             >
-              <UserPlus size={14} /> {save.kind === "saving" ? "Saving…" : "Save as profile"}
+              <UserPlus size={14} /> {save.kind === "saving" ? t("archetype.saving") : t("archetype.save")}
             </button>
           )}
         </span>
       </div>
 
       {reasons.length ? (
-        <p className="mt-1.5 text-sm text-steel">Routing: {reasons.join("; ")}</p>
+        <p className="mt-1.5 text-sm text-steel">{t("archetype.routing", { reasons: reasons.join("; ") })}</p>
       ) : null}
-      <p className="mt-1 text-sm text-steel">
-        Early-career CVs are routed so potential replaces years of experience — saving promotes this candidate into the
-        pool Match, Jobs, and the pipeline rank.
-      </p>
+      <p className="mt-1 text-sm text-steel">{t("archetype.explainer")}</p>
 
       {gaps.length > 0 && save.kind !== "saved" ? (
         // The completeness-driven follow-up: one targeted field per unmet
@@ -134,7 +136,7 @@ export function ArchetypeBanner({
         // Optional — saving with blanks is fine; answers merge into the profile.
         <div className="mt-3 border-t border-coral/20 pt-3">
           <p className="text-meta uppercase tracking-wide text-coral">
-            Fill the gaps the CV left ({gaps.length}) — optional, raises completeness
+            {t("archetype.fillGaps", { count: gaps.length })}
           </p>
           <div className="mt-2 grid gap-2 sm:grid-cols-2">
             {gaps.map((gap) => {

@@ -85,6 +85,19 @@
       "confidenceUnknownTitle": "Spolehlivost nerozpoznána — zobrazeno s nejnižším důrazem; berte tento odhad mzdy jako neověřený.",
       "gaugeAria": "Mzdové rozpětí {min} až {max} {currency}, střed {midpoint}, cíl {growth} na {target}"
     },
+    "archetype": {
+      "detected": "Rozpoznaný archetyp",
+      "confidence": "spolehlivost {value}",
+      "completeness": "úplnost {value}",
+      "save": "Uložit jako profil",
+      "saving": "Ukládání…",
+      "saved": "Uloženo · otevřít v Profilu",
+      "routing": "Směrování: {reasons}",
+      "explainer": "Životopisy na začátku kariéry jsou směrovány tak, aby potenciál nahradil roky praxe — uložením zařadíte tohoto kandidáta do poolu, který řadí Párování, Pozice a pipeline.",
+      "fillGaps": "Doplňte, co v životopisu chybí ({count}) — nepovinné, zvýší úplnost",
+      "saveFailedStatus": "Uložení selhalo ({status}).",
+      "saveFailed": "Uložení selhalo."
+    },
     "tabs": {
       "extraction": "Extrakce",
       "compare": "Porovnání",
