@@ -18,6 +18,7 @@ import {
   XCircle,
   type LucideIcon,
 } from "lucide-react";
+import { memo } from "react";
 import { useTranslations } from "next-intl";
 import { ScoreBadge } from "@/app/_components/ScoreBadge";
 import { Select } from "@/app/_components/Select";
@@ -25,6 +26,7 @@ import { useScoreProvenanceText } from "@/app/_components/ScoreProvenanceLabel";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { canonicalScoreOf, provenanceOf } from "@/app/_lib/match-score";
 import { moveTargetStages } from "./pipeline-move-targets";
+import { candidateRowEqual } from "./pipeline-render-diet";
 import { ARCHETYPE_STYLE, daysSince, slaForStage, styleFor, type Entry, type PipelineEvent } from "./PipelineTypes";
 
 // The pipeline-lifecycle event taxonomy that the activity feed renders richly.
@@ -159,7 +161,13 @@ export function EventDot({ kind }: { kind: string }) {
 // PIPE1: in select mode the row becomes a checkbox (role=checkbox on the name
 // button, glyph before the dot) and its navigation/actions are suppressed — the
 // MatrixTab selectMode interaction grammar.
-export function CandidateRow({
+//
+// Memoized (candidateRowEqual): the 30s board poll used to replace the entries
+// array wholesale, so every card reconciled even when nothing about it changed.
+// The row now re-renders only when its entry's RENDERED content or a presentational
+// flag actually changes; the handler closures (fresh per parent render) are
+// excluded from the equality since their behavior is fixed by `entry`.
+function CandidateRowImpl({
   entry,
   pending = false,
   stale = false,
@@ -313,6 +321,8 @@ export function CandidateRow({
     </div>
   );
 }
+
+export const CandidateRow = memo(CandidateRowImpl, candidateRowEqual);
 
 export function Legend() {
   const t = useTranslations("pipeline");

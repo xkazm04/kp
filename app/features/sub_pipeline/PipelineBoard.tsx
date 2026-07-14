@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { needsHumanDecision } from "@/app/_lib/approval-kinds";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { CandidateRow, Legend } from "./PipelineShared";
+import { stageCellSignature } from "./pipeline-render-diet";
 import { bucketLaneEntries } from "./pipeline-board-layout";
 import { moveTargetStages } from "./pipeline-move-targets";
 import { STAGE_HELP, STAGES, type Entry, type Position } from "./PipelineTypes";
@@ -38,7 +39,13 @@ if (process.env.NODE_ENV !== "production") {
 // One stage cell. The overflow control is a real focusable button (was a
 // title-only <p>) so keyboard/touch users can reveal the hidden candidates,
 // which then render as the same navigable CandidateRows.
-function StageCell({
+//
+// Memoized (stageCellEqual): a poll that changes ONE card in ONE cell must not
+// reconcile every other cell. The cell re-renders only when its own signature —
+// each entry's rendered content plus its stale verdict and selected state — or one
+// of its mode flags changes; the callback props (fresh per parent render) are
+// excluded, matching CandidateRow's memoization.
+function StageCellImpl({
   stage,
   entries,
   isStale,
@@ -152,6 +159,25 @@ function StageCell({
     </div>
   );
 }
+
+type StageCellProps = Parameters<typeof StageCellImpl>[0];
+
+// Re-render a cell only on a change it actually shows. isStale/selectedIds are
+// evaluated INTO the signature (not compared by identity), so an SLA override or a
+// selection toggle re-renders the affected cell even though its entry data is
+// unchanged; the handler props are deliberately not compared.
+function stageCellEqual(prev: StageCellProps, next: StageCellProps): boolean {
+  return (
+    prev.stage === next.stage &&
+    prev.selectMode === next.selectMode &&
+    prev.dragEnabled === next.dragEnabled &&
+    prev.isDragging === next.isDragging &&
+    stageCellSignature(prev.entries, prev.isStale, prev.selectedIds) ===
+      stageCellSignature(next.entries, next.isStale, next.selectedIds)
+  );
+}
+
+const StageCell = memo(StageCellImpl, stageCellEqual);
 
 export function PipelineBoard({
   positions,

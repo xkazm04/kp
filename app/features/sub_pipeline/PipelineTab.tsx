@@ -17,6 +17,7 @@ import { TextInput } from "@/app/_components/TextInput";
 import { CHIP_TOGGLE, EYEBROW, INTRO, PAGE_HEADER, SECTION, STAT, STAT_LABEL, STAT_VALUE, TITLE_DISPLAY } from "@/app/_components/ui/recipes";
 import { CandidateDrawer } from "./CandidateDrawer";
 import { PipelineBoard } from "./PipelineBoard";
+import { boardSignature, eventsSignature } from "./pipeline-render-diet";
 import { EventDot, useEventVerb, useRelativeTime } from "./PipelineShared";
 import { TodayRail } from "./TodayRail";
 import { recordRecent } from "@/app/features/recents";
@@ -218,6 +219,13 @@ export function PipelineTab() {
   // of automation activity can never scroll past a fixed-size window between
   // polls and vanish unseen. null = initial page not yet loaded.
   const eventsCursorRef = useRef<number | null>(null);
+  // Poll-tick render diet: the content signature of the LAST board/events payload
+  // we committed to state. A poll whose payload signature matches skips the state
+  // set entirely — no new array identity, so bucketLaneEntries doesn't recompute
+  // and no StageCell/CandidateRow reconciles. null = nothing committed yet (first
+  // load always writes).
+  const lastEntriesSigRef = useRef<string | null>(null);
+  const lastEventsSigRef = useRef<string | null>(null);
   const load = useCallback(() => {
     abortRef.current?.abort();
     const controller = new AbortController();
@@ -228,7 +236,15 @@ export function PipelineTab() {
       .then((p) => {
         if (signal.aborted) return; // a newer load superseded this one
         if (p.error) throw new Error(p.error);
-        setEntries((p.entries as Entry[]) ?? []);
+        const next = (p.entries as Entry[]) ?? [];
+        // Content-equality short-circuit: only reset the entries array when the
+        // rendered content actually changed. setError(null) below is a no-op
+        // re-render when error is already null (React bails on an identical value).
+        const sig = boardSignature(next);
+        if (sig !== lastEntriesSigRef.current) {
+          lastEntriesSigRef.current = sig;
+          setEntries(next);
+        }
         setError(null); // success clears any prior transient error
       })
       .catch((e) => {
@@ -246,7 +262,15 @@ export function PipelineTab() {
         if (p.error) throw new Error(p.error);
         const incoming = (p.events as PipelineEvent[]) ?? [];
         if (since == null) {
-          setEvents(incoming); // initial page, newest-first
+          // Initial page, newest-first. Same content-equality short-circuit as the
+          // board: a re-fetched identical first page doesn't reset the list. (Poll
+          // ticks use the delta branch below, which only sets on genuinely new
+          // events, so the feed already no-ops on a quiet poll.)
+          const sig = eventsSignature(incoming);
+          if (sig !== lastEventsSigRef.current) {
+            lastEventsSigRef.current = sig;
+            setEvents(incoming);
+          }
         } else if (incoming.length > 0) {
           // Delta mode returns oldest-first — newest belongs on top. Keep a
           // bounded in-memory tail; the list renders the top 12 anyway.

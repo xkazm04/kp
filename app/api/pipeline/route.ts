@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createPipelineEntry, listPipeline, PIPELINE_STAGES } from "@/app/_lib/db";
 import { coerceGithubEvidenceSummary } from "@/app/_lib/github-summary";
 import { inferProfileLocale } from "@/app/_lib/comms-locale";
-import { withCanonicalScores } from "@/app/_lib/match-score-resolve";
+import { withCanonicalScoresCached } from "@/app/_lib/pipeline-score-cache";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { safeJsonError } from "@/app/_lib/api-response";
 
@@ -13,7 +13,9 @@ export async function GET() {
     // out with `canonicalScore` + `scoreProvenance` so board/drawer/decisions
     // surfaces render ONE number and can label where it came from.
     const ws = await currentWorkspace();
-    const entries = withCanonicalScores(listPipeline(ws), ws);
+    // Canonical scores via the per-workspace, short-TTL fit-map memo (identical
+    // payload shape; only the analyses query is cached — see pipeline-score-cache.ts).
+    const entries = withCanonicalScoresCached(listPipeline(ws), ws);
     return NextResponse.json({ entries, stages: PIPELINE_STAGES });
   } catch (error) {
     return safeJsonError(error, "api:pipeline", "PIPELINE_LIST_FAILED");
