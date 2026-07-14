@@ -28,6 +28,7 @@ export function MatchTab() {
 
   const search = useSearchParams();
   const profileParam = search.get("profile");
+  const analysisParam = search.get("analysis");
   const [autoRan, setAutoRan] = useState(false);
 
   useEffect(() => {
@@ -78,6 +79,10 @@ export function MatchTab() {
         body: JSON.stringify({ ...ref, limit: 25, ...(weights ? { weights } : {}) }),
       });
       const payload = await r.json();
+      // An unknown deep-linked id resolves to 404 (Profile/Analysis not found) —
+      // surface an honest, localized message rather than leaking the raw server
+      // string or letting a doomed auto-run fail silently.
+      if (r.status === 404) throw new Error(t("candidateNotFound"));
       if (!r.ok) throw new Error(payload.error ?? t("matchFailedStatus", { status: r.status }));
       setResult(payload as MatchResponse);
       setMatchRef(ref);
@@ -91,20 +96,34 @@ export function MatchTab() {
   const runMatch = () =>
     runMatchFor(source === "profile" ? { profileId: selProfile } : { analysisSlug: selAnalysis });
 
-  // Deep link from the Pipeline (?tab=match&profile=<id>): preselect + auto-run
-  // once. Deferred kick-off (0 ms timer): the preselect setters and runMatchFor's
-  // loading flag would otherwise fire synchronously in the effect body and
-  // cascade a render before the first commit settles.
+  // Deep link into Match: ?tab=match&profile=<id> OR ?tab=match&analysis=<slug>
+  // — preselect the matching source and auto-run once. Analysis deep-links are
+  // supported symmetrically with profiles so a persisted CV analysis lands in
+  // Match exactly like a saved profile does. Deferred kick-off (0 ms timer): the
+  // preselect setters and runMatchFor's loading flag would otherwise fire
+  // synchronously in the effect body and cascade a render before the first
+  // commit settles. An unknown id surfaces the honest 404 message from runMatchFor.
   useEffect(() => {
-    if (!profileParam || autoRan) return;
+    if (autoRan) return;
+    const ref: MatchRef | null = profileParam
+      ? { profileId: profileParam }
+      : analysisParam
+        ? { analysisSlug: analysisParam }
+        : null;
+    if (!ref) return;
     const timer = window.setTimeout(() => {
-      setSource("profile");
-      setSelProfile(profileParam);
       setAutoRan(true);
-      void runMatchFor({ profileId: profileParam });
+      if (ref.profileId) {
+        setSource("profile");
+        setSelProfile(ref.profileId);
+      } else {
+        setSource("analysis");
+        setSelAnalysis(ref.analysisSlug ?? "");
+      }
+      void runMatchFor(ref);
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [profileParam, autoRan]);
+  }, [profileParam, analysisParam, autoRan]);
 
   // A prior ranking always wins over a transient error: selectMatchView keeps
   // <Results> mounted on a failed re-rank and demotes the error to a

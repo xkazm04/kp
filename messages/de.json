@@ -2651,6 +2651,7 @@
       "runMatching": "Matching starten",
       "matchFailedStatus": "Matching fehlgeschlagen ({status}).",
       "matchFailed": "Matching fehlgeschlagen.",
+      "candidateNotFound": "Dieser Kandidat wurde nicht gefunden — er wurde möglicherweise gelöscht oder gehört zu einem anderen Workspace.",
       "rerankFailed": "Neu-Ranking fehlgeschlagen — die vorherige Rangfolge wird weiter angezeigt. {error}",
       "emptyPrompt": "Wählen Sie einen Kandidaten und starten Sie das Matching, um gerankte, KO-gefilterte, bewertete Stellen zu sehen.",
       "emptyChainBody": "Kandidaten stammen aus gespeicherten Profilen oder gespeicherten CV-Analysen.",

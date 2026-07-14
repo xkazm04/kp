@@ -2622,6 +2622,7 @@
       "runMatching": "Spustit párování",
       "matchFailedStatus": "Párování selhalo ({status}).",
       "matchFailed": "Párování selhalo.",
+      "candidateNotFound": "Tento kandidát nebyl nalezen — mohl být smazán nebo patří do jiného pracovního prostoru.",
       "rerankFailed": "Přeřazení selhalo — zobrazuje se předchozí pořadí. {error}",
       "emptyPrompt": "Vyberte kandidáta a spusťte párování, abyste viděli seřazené, KO-filtrované a ohodnocené pozice.",
       "emptyChainBody": "Kandidáti pocházejí z uložených profilů nebo z uložených analýz CV.",

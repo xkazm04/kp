@@ -2622,6 +2622,7 @@
       "runMatching": "Run matching",
       "matchFailedStatus": "Match failed ({status}).",
       "matchFailed": "Match failed.",
+      "candidateNotFound": "That candidate could not be found — it may have been deleted or belongs to another workspace.",
       "rerankFailed": "Re-rank failed — showing the previous ranking. {error}",
       "emptyPrompt": "Pick a candidate and run matching to see ranked, KO-filtered, scored jobs.",
       "emptyChainBody": "Candidates come from saved profiles or persisted CV analyses.",

@@ -3,7 +3,7 @@ import path from "node:path";
 import { meterAllows } from "./billing";
 import { getJob, listCorpusJobs, lookupPromptCache, storePromptCache } from "./db";
 import { buildLlmConfigEnv } from "./llm-config";
-import { writeMatchInput, type MatchInputBody } from "./match-input";
+import { resolveMatchInput, materializeMatchInput, type MatchInputBody } from "./match-input";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "./python-runner";
 import { computeCorpusFingerprint } from "./automation-cache-key";
 import { reasoningCacheKey } from "./reasoning-cache-key";
@@ -13,7 +13,8 @@ import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 // Must match pipeline/jobfit/match_reasoning.py::REASONING_PROMPT_VERSION — a
 // drift here leaves the reasoning cache silently stale. The pairing is enforced
 // by pipeline/jobfit/tests/test_prompt_version_sync.py (CI fails on divergence).
-const REASONING_PROMPT_VERSION = "match-reasoning-v2";
+// Exported so the cache-first test can reconstruct the exact key runReasoning uses.
+export const REASONING_PROMPT_VERSION = "match-reasoning-v2";
 const CACHE_TTL_HOURS = 168;
 
 export class ReasoningError extends Error {
@@ -45,24 +46,52 @@ export async function runReasoning(
 ): Promise<Record<string, unknown>> {
   if (!body.jobId) throw new ReasoningError("jobId is required.", 400);
   const lang = body.lang === "cs" ? "cs" : "en";
+
+  // Cache-first (Direction 2): resolve the candidate/profile and read the corpus
+  // from the DB — but write NOTHING to disk and spawn NOTHING yet. The full 5-axis
+  // key is computable from these reads alone, so a cache HIT returns here having
+  // paid zero Python-spawn and zero corpus/candidate serialization. Only a MISS
+  // creates a workdir, serializes the inputs + corpus, and spawns the CLI.
+  const input = resolveMatchInput(body, workspaceId);
+  if ("error" in input) throw new ReasoningError(input.error, input.status);
+  // Same live-corpus hand-off as /api/match: a recruiter-ingested --job-id must
+  // resolve here instead of raising "job not found" against the static seed. Read
+  // now (a DB read, NOT a serialization) because its fingerprint is a cache axis.
+  const corpusJobs = listCorpusJobs(workspaceId);
+
+  // Content-address the job (not just its id) so an in-place edit to the job's
+  // requirements/title invalidates the cached verdict — symmetric with the
+  // profile content hash in input.keyPart. The locale is a fourth axis so a
+  // cached cs verdict never serves an en session. The corpus fingerprint is a
+  // fifth: the --jobs-json corpus decides WHICH record --job-id resolves to
+  // (DB override vs seed), so a verdict must not survive a corpus change —
+  // same self-invalidation contract as rematch's computeCorpusFingerprint.
+  // See reasoning-cache-key.ts.
+  const hash = reasoningCacheKey({
+    promptVersion: REASONING_PROMPT_VERSION,
+    candidateKeyPart: input.keyPart,
+    jobId: body.jobId,
+    jobPayload: getJob(body.jobId),
+    lang,
+    corpusFingerprint: computeCorpusFingerprint(corpusJobs.map((j) => j.id)),
+  });
+  const cached = lookupPromptCache(hash, REASONING_PROMPT_VERSION);
+  if (cached) return { ...(cached as object), cached: true };
+
   let workdir: string | null = null;
   try {
     workdir = await createWorkdir();
-    const input = await writeMatchInput(body, workdir, workspaceId);
-    if ("error" in input) throw new ReasoningError(input.error, input.status);
+    const inputArgs = await materializeMatchInput(input, workdir);
     const args = [
       "-m",
       "pipeline.jobfit.reasoning_cli",
-      ...input.inputArgs,
+      ...inputArgs,
       "--job-id",
       String(body.jobId),
       "--lang",
       lang,
     ];
-    // Same live-corpus hand-off as /api/match: a recruiter-ingested --job-id must
-    // resolve here instead of raising "job not found" against the static seed.
     // The CLI augments the seed with these records (DB wins on id collision).
-    const corpusJobs = listCorpusJobs(workspaceId);
     if (corpusJobs.length > 0) {
       const jobsPath = path.join(workdir, "jobs.json");
       await writeFile(jobsPath, JSON.stringify(corpusJobs), "utf-8");
@@ -74,25 +103,6 @@ export async function runReasoning(
     // "llm"), so it upgrades the moment allowance returns. No extra debit:
     // reasoning is part of the analyze-debited candidate bundle.
     if (!meterAllows("ai_candidates")) args.push("--no-llm");
-
-    // Content-address the job (not just its id) so an in-place edit to the job's
-    // requirements/title invalidates the cached verdict — symmetric with the
-    // profile content hash in input.keyPart. The locale is a fourth axis so a
-    // cached cs verdict never serves an en session. The corpus fingerprint is a
-    // fifth: the --jobs-json corpus decides WHICH record --job-id resolves to
-    // (DB override vs seed), so a verdict must not survive a corpus change —
-    // same self-invalidation contract as rematch's computeCorpusFingerprint.
-    // See reasoning-cache-key.ts.
-    const hash = reasoningCacheKey({
-      promptVersion: REASONING_PROMPT_VERSION,
-      candidateKeyPart: input.keyPart,
-      jobId: body.jobId,
-      jobPayload: getJob(body.jobId),
-      lang,
-      corpusFingerprint: computeCorpusFingerprint(corpusJobs.map((j) => j.id)),
-    });
-    const cached = lookupPromptCache(hash, REASONING_PROMPT_VERSION);
-    if (cached) return { ...(cached as object), cached: true };
 
     const { result } = spawnPython(args, { signal, env: buildLlmConfigEnv() });
     const { stdout, stderr, exitCode } = await result;

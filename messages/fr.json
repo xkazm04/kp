@@ -2651,6 +2651,7 @@
       "runMatching": "Lancer le matching",
       "matchFailedStatus": "Échec du matching ({status}).",
       "matchFailed": "Échec du matching.",
+      "candidateNotFound": "Ce candidat est introuvable — il a peut-être été supprimé ou appartient à un autre espace de travail.",
       "rerankFailed": "Échec du reclassement — le classement précédent reste affiché. {error}",
       "emptyPrompt": "Choisissez un candidat et lancez le matching pour voir des postes classés, filtrés KO et notés.",
       "emptyChainBody": "Les candidats proviennent de profils enregistrés ou d'analyses de CV sauvegardées.",
