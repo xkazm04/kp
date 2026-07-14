@@ -1,10 +1,12 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Pencil, Plus, Shield, ShieldOff } from "lucide-react";
+import { Archive, ArchiveRestore, Pencil, Plus, Shield, ShieldOff } from "lucide-react";
 import { useTranslations } from "next-intl";
-import type { ArchetypeDef } from "./ProfileTypes";
+import { BUILT_IN_ARCHETYPE_IDS, type ArchetypeDef } from "./ProfileTypes";
 import { Input, Select, Check, Field } from "./ProfileFields";
+
+const BUILT_IN = new Set<string>(BUILT_IN_ARCHETYPE_IDS);
 
 type Slot = "skills" | "career" | "personal";
 const SLOTS: Slot[] = ["skills", "career", "personal"];
@@ -63,12 +65,53 @@ export function ArchetypeManager({
   const [draft, setDraft] = useState<Draft>(BLANK_DRAFT);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // In-flight archive/unarchive (id) + whether the collapsed retired section is open.
+  const [busyArchiveId, setBusyArchiveId] = useState<string | null>(null);
+  const [showArchived, setShowArchived] = useState(false);
 
-  // Default-select the first archetype once loaded (view mode).
+  // Active vs retired: retired archetypes leave the pickers (this left list) and move to
+  // a collapsed section below; the entry stays in the registry so profiles routed to it
+  // still score. The main panel only ever inspects an ACTIVE archetype.
+  const active = useMemo(() => archetypes.filter((a) => !a.archived), [archetypes]);
+  const archived = useMemo(() => archetypes.filter((a) => a.archived), [archetypes]);
+
+  // Default-select the first ACTIVE archetype once loaded (view mode).
   const selected = useMemo(() => {
-    if (!archetypes.length) return null;
-    return archetypes.find((a) => a.id === selectedId) ?? archetypes[0];
-  }, [archetypes, selectedId]);
+    if (!active.length) return null;
+    return active.find((a) => a.id === selectedId) ?? active[0];
+  }, [active, selectedId]);
+
+  // Localize a structured registry error by its `code` (labelOr id→label pattern),
+  // falling back to the server's English `error` message then a generic status.
+  const validationLabel = (data: { code?: string; error?: string; params?: Record<string, string | number> }, status: number) => {
+    const key = data.code ? (`validation.${data.code}` as Parameters<typeof t>[0]) : null;
+    if (key && t.has(key)) return t(key, data.params);
+    return data.error ?? t("saveFailedStatus", { status });
+  };
+
+  const setArchived = async (id: string, next: boolean) => {
+    if (busyArchiveId) return;
+    setBusyArchiveId(id);
+    setError(null);
+    try {
+      const r = await fetch(`/api/archetypes/${encodeURIComponent(id)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ archived: next }),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(validationLabel(data, r.status));
+      // Retiring the inspected archetype: drop the selection so it falls back to the
+      // first remaining active one instead of showing a now-hidden panel.
+      if (next && selectedId === id) setSelectedId(null);
+      setMode("view");
+      onChanged();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : t("saveFailed"));
+    } finally {
+      setBusyArchiveId(null);
+    }
+  };
 
   const pctSum = SLOTS.reduce((n, s) => n + (Number(draft.pct[s]) || 0), 0);
   const sumError = pctSum !== 100 ? t("weightsSumError", { pct: pctSum }) : null;
@@ -118,7 +161,7 @@ export function ArchetypeManager({
         body: JSON.stringify(payload),
       });
       const data = await r.json();
-      if (!r.ok) throw new Error(data.error ?? t("saveFailedStatus", { status: r.status }));
+      if (!r.ok) throw new Error(validationLabel(data, r.status));
       setSelectedId(data.archetype?.id ?? null);
       setMode("view");
       onChanged();
@@ -150,36 +193,80 @@ export function ArchetypeManager({
         <div className="mt-4 h-40 animate-pulse rounded-lg bg-stone-100" aria-hidden />
       ) : (
         <div className="mt-4 grid gap-4 md:grid-cols-[14rem_1fr]">
-          {/* Left: archetype list */}
-          <ul className="space-y-1">
-            {archetypes.map((a) => {
-              const active = selected?.id === a.id && mode !== "create";
-              return (
-                <li key={a.id}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedId(a.id);
-                      setMode("view");
-                    }}
-                    aria-current={active ? "true" : undefined}
-                    className={`focus-ring flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-base font-medium transition-colors ${
-                      active ? "bg-coral/10 text-coral" : "text-ink hover:bg-stone-50"
-                    }`}
-                  >
-                    <span className={`h-1.5 w-1.5 rounded-full ${active ? "bg-coral" : "bg-stone-300"}`} aria-hidden />
-                    <span className="min-w-0 flex-1 truncate">{a.label}</span>
-                    {a.fairnessProtected ? <Shield size={13} className="shrink-0 text-moss" aria-label={t("fairnessProtectedAria")} /> : null}
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
+          {/* Left: archetype list (active) + collapsed retired section */}
+          <div className="space-y-3">
+            <ul className="space-y-1">
+              {active.map((a) => {
+                const isActive = selected?.id === a.id && mode !== "create";
+                return (
+                  <li key={a.id}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedId(a.id);
+                        setMode("view");
+                      }}
+                      aria-current={isActive ? "true" : undefined}
+                      className={`focus-ring flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-base font-medium transition-colors ${
+                        isActive ? "bg-coral/10 text-coral" : "text-ink hover:bg-stone-50"
+                      }`}
+                    >
+                      <span className={`h-1.5 w-1.5 rounded-full ${isActive ? "bg-coral" : "bg-stone-300"}`} aria-hidden />
+                      <span className="min-w-0 flex-1 truncate">{a.label}</span>
+                      {a.fairnessProtected ? <Shield size={13} className="shrink-0 text-moss" aria-label={t("fairnessProtectedAria")} /> : null}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+
+            {archived.length ? (
+              <div className="rounded-md border border-stone-200 bg-stone-50/60 p-2">
+                <button
+                  type="button"
+                  onClick={() => setShowArchived((v) => !v)}
+                  aria-expanded={showArchived}
+                  className="focus-ring flex w-full items-center gap-2 rounded px-1.5 py-1 text-left text-sm font-semibold text-steel"
+                >
+                  <Archive size={13} aria-hidden />
+                  {t("archivedSection", { count: archived.length })}
+                  <span className="ml-auto">{showArchived ? "−" : "+"}</span>
+                </button>
+                {showArchived ? (
+                  <ul className="mt-1 space-y-1">
+                    {archived.map((a) => (
+                      <li key={a.id} className="flex items-center gap-2 rounded-md px-1.5 py-1">
+                        <span className="min-w-0 flex-1 truncate text-sm text-steel">{a.label}</span>
+                        <span className="shrink-0 rounded-full bg-stone-200 px-1.5 py-0.5 text-micro font-semibold uppercase tracking-wide text-steel">
+                          {t("retiredMarker")}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => void setArchived(a.id, false)}
+                          disabled={busyArchiveId === a.id}
+                          className="focus-ring inline-flex h-7 shrink-0 items-center gap-1 rounded-md border border-stone-200 bg-white px-2 text-sm font-semibold text-ink hover:bg-paper disabled:opacity-50"
+                          title={t("unarchiveTitle", { label: a.label })}
+                        >
+                          <ArchiveRestore size={13} /> {busyArchiveId === a.id ? t("saving") : t("unarchive")}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
 
           {/* Right: detail / edit / create panel */}
           <div className="min-w-0 rounded-lg border border-stone-200 bg-paper/40 p-4">
             {mode === "view" && selected ? (
-              <ViewPanel archetype={selected} onEdit={startEdit} />
+              <ViewPanel
+                archetype={selected}
+                onEdit={startEdit}
+                canArchive={!BUILT_IN.has(selected.id)}
+                archiving={busyArchiveId === selected.id}
+                onArchive={() => void setArchived(selected.id, true)}
+              />
             ) : (
               <EditPanel
                 mode={mode === "create" ? "create" : "edit"}
@@ -200,7 +287,20 @@ export function ArchetypeManager({
   );
 }
 
-function ViewPanel({ archetype, onEdit }: { archetype: ArchetypeDef; onEdit: () => void }) {
+function ViewPanel({
+  archetype,
+  onEdit,
+  canArchive,
+  archiving,
+  onArchive,
+}: {
+  archetype: ArchetypeDef;
+  onEdit: () => void;
+  /** Custom archetypes can be retired; built-in ones are protected. */
+  canArchive: boolean;
+  archiving: boolean;
+  onArchive: () => void;
+}) {
   const t = useTranslations("profile.archetypes");
   return (
     <div>
@@ -212,13 +312,26 @@ function ViewPanel({ archetype, onEdit }: { archetype: ArchetypeDef; onEdit: () 
           {archetype.fairnessProtected ? <Shield size={12} /> : <ShieldOff size={12} />}
           {archetype.fairnessProtected ? t("fairnessProtected") : t("notProtected")}
         </span>
-        <button
-          type="button"
-          onClick={onEdit}
-          className="focus-ring ml-auto inline-flex h-8 items-center gap-1.5 rounded-md bg-ink px-3 text-sm font-semibold text-white hover:bg-steel"
-        >
-          <Pencil size={13} /> {t("edit")}
-        </button>
+        <div className="ml-auto flex items-center gap-2">
+          {canArchive ? (
+            <button
+              type="button"
+              onClick={onArchive}
+              disabled={archiving}
+              className="focus-ring inline-flex h-8 items-center gap-1.5 rounded-md border border-stone-200 px-3 text-sm font-semibold text-steel hover:bg-paper hover:text-ink disabled:opacity-50"
+              title={t("archiveTitle", { label: archetype.label })}
+            >
+              <Archive size={13} /> {archiving ? t("saving") : t("archive")}
+            </button>
+          ) : null}
+          <button
+            type="button"
+            onClick={onEdit}
+            className="focus-ring inline-flex h-8 items-center gap-1.5 rounded-md bg-ink px-3 text-sm font-semibold text-white hover:bg-steel"
+          >
+            <Pencil size={13} /> {t("edit")}
+          </button>
+        </div>
       </div>
 
       <p className="mt-1 text-sm text-steel">

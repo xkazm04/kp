@@ -76,6 +76,16 @@ def fairness_protected_archetypes() -> frozenset[str]:
     return frozenset(a["id"] for a in _ARCHETYPES if a.get("fairnessProtected"))
 
 
+def archived_ids() -> frozenset[str]:
+    """Ids of RETIRED (archived) archetypes. The recruiter UI adds an ``archived``
+    flag to a custom archetype to hide it from the pickers, but the entry STAYS in
+    the registry so a profile routed to it still routes and scores. This reader only
+    tolerates the additive flag (``.get`` — absent on active archetypes); nothing in
+    this module excludes archived archetypes from routing/scoring, which is exactly
+    the "retire, don't trap" contract — a retired archetype keeps working."""
+    return frozenset(a["id"] for a in _ARCHETYPES if a.get("archived"))
+
+
 def low_confidence_threshold() -> float:
     """Archetype-routing confidence below which the routing is an unsettled guess a
     human should verify, not a decision to trust. The unguided default

@@ -162,7 +162,11 @@ export function ProfileTab() {
         </p>
       ) : null}
       <ArchetypeManager archetypes={archetypes} loading={archLoading} onChanged={reloadArchetypes} />
-      <ProfileRoster onEdit={(id) => void openEditor(id)} onChanged={() => setDataRev((v) => v + 1)} />
+      <ProfileRoster
+        onEdit={(id) => void openEditor(id)}
+        onChanged={() => setDataRev((v) => v + 1)}
+        archivedArchetypeIds={archetypes.filter((a) => a.archived).map((a) => a.id)}
+      />
       <CandidateMatrix
         archetypes={archetypes}
         reloadKey={dataRev}

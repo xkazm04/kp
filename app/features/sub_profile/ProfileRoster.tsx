@@ -33,11 +33,14 @@ type StaleMap = Record<string, { newerSlug: string; newerAnalyzedAt: string }>;
 export function ProfileRoster({
   onEdit,
   onChanged,
+  archivedArchetypeIds,
 }: {
   /** Open the editor for this profile id (parent reuses the ?edit= flow). */
   onEdit: (id: string) => void;
   /** Fired after a delete so sibling views (the matrix) can refetch. */
   onChanged?: () => void;
+  /** Ids of retired archetypes — a profile routed to one still works but is flagged. */
+  archivedArchetypeIds?: readonly string[];
 }) {
   const t = useTranslations("profile.roster");
   const enumLabel = useEnumLabel();
@@ -47,6 +50,7 @@ export function ProfileRoster({
   const [error, setError] = useState<string | null>(null);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const archivedSet = new Set(archivedArchetypeIds ?? []);
 
   const load = useCallback(() => {
     let alive = true;
@@ -135,6 +139,14 @@ export function ProfileRoster({
                       <span className="rounded-full bg-stone-100 px-2 py-0.5 text-micro font-semibold uppercase tracking-wide text-steel">
                         {enumLabel("archetype", archetypeDisplayKey(p.archetype))}
                       </span>
+                      {p.archetype && archivedSet.has(p.archetype) ? (
+                        <span
+                          className="rounded-full bg-stone-200 px-2 py-0.5 text-micro font-semibold uppercase tracking-wide text-steel"
+                          title={t("retiredArchetypeTitle")}
+                        >
+                          {t("retiredArchetype")}
+                        </span>
+                      ) : null}
                       {p.role_family ? (
                         <span className="text-sm text-steel">{enumLabel("family", p.role_family)}</span>
                       ) : null}

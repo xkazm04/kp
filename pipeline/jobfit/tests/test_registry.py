@@ -111,6 +111,17 @@ class RegistryShapeTest(unittest.TestCase):
     def test_fairness_protected_is_a_subset_of_ids(self) -> None:
         self.assertLessEqual(registry.fairness_protected_archetypes(), self.ids)
 
+    def test_shipped_archetypes_are_not_archived(self) -> None:
+        # None of the committed archetypes are retired; archived_ids() reflects the flag.
+        self.assertEqual(registry.archived_ids(), frozenset())
+
+    def test_archived_flag_is_tolerated_and_still_scores(self) -> None:
+        # The additive `archived` flag must not break shape validation — a retired
+        # custom archetype keeps valid weights and still routes/scores ("retire, don't
+        # trap"). The reader only ignores the extra key; it never drops the entry.
+        retired = {"id": "legacy_custom", "archived": True, "weights": {"skills": 0.5, "career": 0.35, "personal": 0.15}}
+        registry._validate_archetype_weights([retired])  # must not raise
+
     def test_low_confidence_threshold_is_valid_and_flags_the_default(self) -> None:
         threshold = registry.low_confidence_threshold()
         self.assertGreaterEqual(threshold, 0.0)

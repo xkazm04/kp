@@ -17,7 +17,11 @@ export async function POST(request: NextRequest) {
   try {
     const body = (await request.json()) as Record<string, unknown>;
     const result = await createArchetype(body);
-    if ("error" in result) return NextResponse.json({ error: result.error }, { status: 400 });
+    // `error` is the English message (direct API callers); `code`/`params` let the
+    // client localize. All create errors are client-fixable input ⇒ 400.
+    if ("error" in result) {
+      return NextResponse.json({ error: result.error.message, code: result.error.code, params: result.error.params }, { status: 400 });
+    }
     return NextResponse.json(result);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to create archetype.";

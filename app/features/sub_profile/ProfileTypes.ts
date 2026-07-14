@@ -21,7 +21,17 @@ export type ArchetypeDef = {
   weights: { skills: number; career: number; personal: number };
   dimensionLabels: { skills: string; career: string; personal: string };
   checklist: ArchetypeChecklistItem[];
+  // Retired (archived) custom archetype: kept in the registry so profiles that route
+  // to it still score, but hidden from the pickers. Absent/false on active archetypes.
+  archived?: boolean;
 };
+
+// The baseline (shipped) archetypes: the ids with dedicated `choice.<id>` translations
+// and detection rules. They are PROTECTED from archival — retiring them would strip the
+// fairness shield / default routing the pipeline depends on. Single-sourced here (a
+// client-safe module) so both the archetype-registry write layer and the management UI
+// agree on which archetypes are built-in. Mirrors ARCHETYPE_CHOICES (minus "auto").
+export const BUILT_IN_ARCHETYPE_IDS = ["bau", "student", "career_switcher"] as const;
 
 // A candidate row for the archetype matrix (served by /api/profile/candidates) — a
 // UNION of BOTH stores tagged with `source`: a saved CV analysis (slug → /history)
