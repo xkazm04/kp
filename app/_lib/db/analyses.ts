@@ -151,6 +151,23 @@ export function listAnalysesByCvHash(
     .all(workspaceId, cvHash, excludeSlug ?? "", limit) as AnalysisSummary[];
 }
 
+// Profile ↔ CV lineage source: the content hash + analyzed-at timestamp of one
+// saved analysis, by slug, so a profile built FROM it can stamp authoritative
+// lineage (never client-supplied). Returns null when the slug doesn't resolve in
+// this workspace, or when the analysis predates cv_hash (a NULL hash can't anchor
+// staleness — the caller then leaves the profile's lineage NULL, never fabricated).
+export function analysisLineageSource(
+  slug: string,
+  workspaceId: string = DEFAULT_WORKSPACE_ID
+): { slug: string; cvHash: string; analyzedAt: string } | null {
+  const db = ensureDb();
+  const row = db
+    .prepare(`SELECT slug, cv_hash, created_at FROM analyses WHERE workspace_id = ? AND slug = ?`)
+    .get(workspaceId, slug) as { slug: string; cv_hash: string | null; created_at: string } | undefined;
+  if (!row || !row.cv_hash) return null;
+  return { slug: row.slug, cvHash: row.cv_hash, analyzedAt: row.created_at };
+}
+
 // Label-collision probe: does another saved analysis in this workspace carry the
 // SAME filename-derived candidate_label but a DIFFERENT CV content hash? That
 // means two different people share a label (e.g. both files were "CV.pdf") — the

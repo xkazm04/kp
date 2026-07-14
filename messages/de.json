@@ -2742,6 +2742,9 @@
       "chipRanked": "Gerankt",
       "addFailedStatus": "Konnte nicht zur Pipeline hinzugefügt werden ({status}).",
       "addFailedNetwork": "Konnte nicht zur Pipeline hinzugefügt werden — Netzwerkfehler. Erneut versuchen.",
+      "staleBanner": "Aus einem älteren CV erstellt.",
+      "staleBannerDetail": "Eine neuere Analyse des Lebenslaufs dieses Kandidaten wurde am {date} gespeichert.",
+      "staleRebuild": "Aus neuester neu erstellen",
       "exportCsv": "CSV exportieren",
       "earlyNote": "Scoring-Profil für Berufseinsteiger: Der <b>Potenzial</b>-Balken ist das Readiness-Modell (ersetzt Jahre an Erfahrung), und nur einstiegsfähige Stellen überstehen den KO-Filter. Die Scores sind nicht mit den Werten erfahrener Kandidaten vergleichbar.",
       "assumptions": "Annahmen:",
@@ -2794,7 +2797,9 @@
       "openAnalysisTitle": "Analyse von {name} öffnen",
       "openProfileTitle": "Profil von {name} bearbeiten",
       "sourceProfile": "Profil",
-      "sourceAnalysis": "Analyse"
+      "sourceAnalysis": "Analyse",
+      "buildFromAnalysis": "Profil erstellen",
+      "buildFromAnalysisTitle": "Ein gespeichertes Profil aus der Analyse von {name} erstellen"
     },
     "roster": {
       "eyebrow": "Gespeicherte Profile",
@@ -2805,6 +2810,10 @@
       "emptyBody": "Erstellen Sie unten ein Kandidatenprofil, und es erscheint hier, bereit zum Matchen.",
       "completenessAria": "Profilvollständigkeit {pct} %",
       "completenessPct": "{pct} % vollständig",
+      "staleBadge": "Neueres CV",
+      "staleTitle": "Eine neuere Analyse des Lebenslaufs dieses Kandidaten wurde am {date} gespeichert — erstellen Sie das Profil neu, um es zu aktualisieren.",
+      "rebuild": "Neu erstellen",
+      "rebuildTitle": "Profil von {name} aus der neuesten CV-Analyse neu erstellen",
       "match": "Matchen",
       "matchTitle": "{name} mit offenen Stellen abgleichen",
       "editTitle": "{name} bearbeiten",

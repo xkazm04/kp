@@ -16,6 +16,9 @@ export function MatchTab() {
   const enumLabel = useEnumLabel();
   const [source, setSource] = useState<"profile" | "analysis">("profile");
   const [profiles, setProfiles] = useState<ProfileRow[]>([]);
+  // profile id → newer same-CV analysis (GET /api/profile `stale`). Lets a matched
+  // profile-sourced candidate flag "a newer CV analysis exists since this was built".
+  const [stale, setStale] = useState<Record<string, { newerSlug: string; newerAnalyzedAt: string }>>({});
   const [analyses, setAnalyses] = useState<AnalysisRow[]>([]);
   const [optionsLoaded, setOptionsLoaded] = useState(false);
   const [selProfile, setSelProfile] = useState("");
@@ -43,6 +46,7 @@ export function MatchTab() {
           if (!alive) return;
           const rows = (p.profiles as ProfileRow[]) ?? [];
           setProfiles(rows);
+          setStale((p.stale as Record<string, { newerSlug: string; newerAnalyzedAt: string }>) ?? {});
           if (rows.length) setSelProfile(rows[0].id);
           else setSource("analysis");
         }),
@@ -217,6 +221,10 @@ export function MatchTab() {
             result={result}
             matchRef={matchRef}
             loading={loading}
+            // A profile-sourced candidate carries its staleness so the ranking flags
+            // "built from an older CV" and offers a rebuild. Null for analysis-sourced
+            // runs and hand-built profiles (never stale).
+            staleness={matchRef.profileId ? stale[matchRef.profileId] ?? null : null}
             // Keep the last good ranking on screen; a failed re-rank rides above it
             // as a non-destructive banner rather than replacing the whole panel.
             error={view.inlineError ? t("rerankFailed", { error: view.inlineError }) : null}

@@ -1,6 +1,7 @@
 import { ensureDb, insertWithUniqueSlug, safeRowParse } from "./core";
 import { DEFAULT_WORKSPACE_ID } from "./workspaces";
 import { maskCandidateName, scrubPiiFromPayload } from "../consent";
+import { listAnalysesByCvHash } from "./analyses";
 
 // ---- Candidate profiles (v2 archetype-aware intake) -----------------------
 
@@ -21,19 +22,50 @@ export type SaveProfileInput = {
   payload: unknown;
 };
 
+// Source lineage stamped on a profile built FROM a saved CV analysis. Resolved
+// server-side from the source analysis (analysisLineageSource) — never accepted
+// raw from the client. `analyzedAt` is that analysis's created_at, so staleness
+// survives even if the source analysis is later superseded/deleted.
+export type ProfileLineage = { sourceAnalysisSlug: string; sourceCvHash: string; sourceAnalyzedAt: string };
+
+// One profile flagged stale: a NEWER analysis of the SAME CV content exists in the
+// workspace than the one this profile was built from. Carries the newer analysis's
+// slug (the rebuild target) and its analyzed-at date (the badge's title).
+export type ProfileStaleness = { newerSlug: string; newerAnalyzedAt: string };
+
 // Tenant scope (P2): `workspaceId` defaults to the single workspace (behavior-
 // preserving; existing/candidate/task callers stay correct). INSERT stamps it;
 // SELECT/UPDATE/DELETE filter by it.
-export function saveProfile(input: SaveProfileInput, workspaceId: string = DEFAULT_WORKSPACE_ID): { id: string; createdAt: string } {
+export function saveProfile(
+  input: SaveProfileInput,
+  workspaceId: string = DEFAULT_WORKSPACE_ID,
+  // Source lineage when this profile is built FROM a saved analysis; omitted for a
+  // hand-built profile (all three columns stay NULL — never fabricated).
+  lineage?: ProfileLineage
+): { id: string; createdAt: string } {
   const db = ensureDb();
   const createdAt = new Date().toISOString();
   const payloadJson = JSON.stringify(input.payload);
   const stmt = db.prepare(
-    `INSERT INTO profiles (id, label, archetype, role_family, completeness, payload_json, created_at, workspace_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO profiles
+       (id, label, archetype, role_family, completeness, payload_json, created_at, workspace_id,
+        source_analysis_slug, source_cv_hash, source_analyzed_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   );
   const id = insertWithUniqueSlug((s) =>
-    stmt.run(s, input.label, input.archetype, input.roleFamily, input.completeness, payloadJson, createdAt, workspaceId)
+    stmt.run(
+      s,
+      input.label,
+      input.archetype,
+      input.roleFamily,
+      input.completeness,
+      payloadJson,
+      createdAt,
+      workspaceId,
+      lineage?.sourceAnalysisSlug ?? null,
+      lineage?.sourceCvHash ?? null,
+      lineage?.sourceAnalyzedAt ?? null
+    )
   );
   return { id, createdAt };
 }
@@ -95,6 +127,55 @@ export function updateProfile(id: string, input: SaveProfileInput, workspaceId: 
     )
     .run(input.label, input.archetype, input.roleFamily, input.completeness, JSON.stringify(input.payload), id, workspaceId);
   return Number(info.changes) > 0;
+}
+
+// Stamp (or refresh) a profile's source lineage in place — the rebuild-from-latest
+// flow re-points an existing profile at a NEWER same-CV analysis. Kept SEPARATE
+// from updateProfile so a plain edit (or the GDPR anonymize pass, which also calls
+// updateProfile) can NEVER accidentally wipe or forge lineage — only an explicit
+// rebuild touches these columns. Returns false when no row matched the id.
+export function setProfileLineage(id: string, lineage: ProfileLineage, workspaceId: string = DEFAULT_WORKSPACE_ID): boolean {
+  const db = ensureDb();
+  const info = db
+    .prepare(
+      `UPDATE profiles SET source_analysis_slug = ?, source_cv_hash = ?, source_analyzed_at = ?
+       WHERE id = ? AND workspace_id = ?`
+    )
+    .run(lineage.sourceAnalysisSlug, lineage.sourceCvHash, lineage.sourceAnalyzedAt, id, workspaceId);
+  return Number(info.changes) > 0;
+}
+
+// Profile ↔ CV staleness (workspace-scoped): for every profile that carries source
+// lineage, is there a NEWER analysis of the SAME CV content than the one it was
+// built from? Reuses the round-3 content-addressed read (listAnalysesByCvHash),
+// which already returns same-cv_hash analyses newest-first, excluding the source
+// slug. A profile with NULL lineage is skipped entirely (no false staleness on a
+// hand-built profile). Returns a map keyed by profile id, present ONLY for stale
+// profiles — the newer analysis's slug (the rebuild target) and its analyzed date.
+export function profileStaleness(workspaceId: string = DEFAULT_WORKSPACE_ID): Record<string, ProfileStaleness> {
+  const db = ensureDb();
+  const lineageRows = db
+    .prepare(
+      `SELECT id, source_analysis_slug, source_cv_hash, source_analyzed_at
+       FROM profiles
+       WHERE workspace_id = ? AND source_cv_hash IS NOT NULL AND source_analyzed_at IS NOT NULL`
+    )
+    .all(workspaceId) as {
+    id: string;
+    source_analysis_slug: string | null;
+    source_cv_hash: string;
+    source_analyzed_at: string;
+  }[];
+  const out: Record<string, ProfileStaleness> = {};
+  for (const r of lineageRows) {
+    // Newest same-CV analysis other than the source. ISO-8601 timestamps compare
+    // lexicographically, so a string `>` is a chronological "is newer".
+    const newer = listAnalysesByCvHash(r.source_cv_hash, workspaceId, r.source_analysis_slug ?? undefined, 1).find(
+      (a) => a.created_at > r.source_analyzed_at
+    );
+    if (newer) out[r.id] = { newerSlug: newer.slug, newerAnalyzedAt: newer.created_at };
+  }
+  return out;
 }
 
 // GDPR anonymization of a profile (consent expiry / erasure): mask the label and

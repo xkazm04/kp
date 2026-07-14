@@ -2713,6 +2713,9 @@
       "chipRanked": "Seřazeno",
       "addFailedStatus": "Nepodařilo se přidat do pipeline ({status}).",
       "addFailedNetwork": "Nepodařilo se přidat do pipeline — chyba sítě. Zkuste to znovu.",
+      "staleBanner": "Sestaveno ze staršího CV.",
+      "staleBannerDetail": "Novější analýza CV tohoto kandidáta byla uložena {date}.",
+      "staleRebuild": "Přestavět z nejnovější",
       "exportCsv": "Exportovat CSV",
       "earlyNote": "Profil hodnocení juniorů: lišta <b>Potenciál</b> je model připravenosti (nahrazuje roky zkušeností) a KO filtr přežijí jen pozice vhodné pro juniory. Skóre nejsou srovnatelná s čísly zkušených kandidátů.",
       "assumptions": "Předpoklady:",
@@ -2765,7 +2768,9 @@
       "openAnalysisTitle": "Otevřít analýzu — {name}",
       "openProfileTitle": "Upravit profil — {name}",
       "sourceProfile": "Profil",
-      "sourceAnalysis": "Analýza"
+      "sourceAnalysis": "Analýza",
+      "buildFromAnalysis": "Vytvořit profil",
+      "buildFromAnalysisTitle": "Vytvořit uložený profil z analýzy kandidáta {name}"
     },
     "roster": {
       "eyebrow": "Uložené profily",
@@ -2776,6 +2781,10 @@
       "emptyBody": "Vytvořte profil kandidáta níže a objeví se zde, připravený k párování.",
       "completenessAria": "Úplnost profilu {pct} %",
       "completenessPct": "{pct} % hotovo",
+      "staleBadge": "Novější CV",
+      "staleTitle": "Novější analýza CV tohoto kandidáta byla uložena {date} — přestavbou profil aktualizujete.",
+      "rebuild": "Přestavět",
+      "rebuildTitle": "Přestavět profil kandidáta {name} z nejnovější analýzy CV",
       "match": "Spárovat",
       "matchTitle": "Spárovat kandidáta {name} s otevřenými pozicemi",
       "editTitle": "Upravit {name}",

@@ -2713,6 +2713,9 @@
       "chipRanked": "Ranked",
       "addFailedStatus": "Couldn't add to pipeline ({status}).",
       "addFailedNetwork": "Couldn't add to pipeline — network error. Try again.",
+      "staleBanner": "Built from an older CV.",
+      "staleBannerDetail": "A newer analysis of this candidate's CV was saved on {date}.",
+      "staleRebuild": "Rebuild from latest",
       "exportCsv": "Export CSV",
       "earlyNote": "Early-career scoring profile: the <b>Potential</b> bar is the readiness model (replacing years of experience), and only entry-eligible roles survive the KO filter. Scores are not comparable to experienced candidates' numbers.",
       "assumptions": "Assumptions:",
@@ -2765,7 +2768,9 @@
       "openAnalysisTitle": "Open {name}'s analysis",
       "openProfileTitle": "Edit {name}'s profile",
       "sourceProfile": "Profile",
-      "sourceAnalysis": "Analysis"
+      "sourceAnalysis": "Analysis",
+      "buildFromAnalysis": "Build profile",
+      "buildFromAnalysisTitle": "Build a saved profile from {name}'s analysis"
     },
     "roster": {
       "eyebrow": "Saved profiles",
@@ -2776,6 +2781,10 @@
       "emptyBody": "Build a candidate profile below and it will appear here, ready to match.",
       "completenessAria": "Profile completeness {pct}%",
       "completenessPct": "{pct}% complete",
+      "staleBadge": "Newer CV",
+      "staleTitle": "A newer analysis of this candidate's CV was saved on {date} — rebuild to refresh this profile.",
+      "rebuild": "Rebuild",
+      "rebuildTitle": "Rebuild {name} from the latest CV analysis",
       "match": "Match",
       "matchTitle": "Match {name} against open roles",
       "editTitle": "Edit {name}",

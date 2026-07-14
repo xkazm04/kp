@@ -2,11 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
 import {
+  analysisLineageSource,
   deleteProfile,
   getProfileRecord,
   listProfiles,
+  profileStaleness,
   saveProfile,
+  setProfileLineage,
   updateProfile,
+  type ProfileLineage,
   type SaveProfileInput,
 } from "@/app/_lib/db";
 import {
@@ -84,6 +88,17 @@ function persistFieldsFrom(data: ProfileCliOutput): SaveProfileInput {
   };
 }
 
+// Resolve the source lineage a create/rebuild wants to stamp. The client passes
+// only the analysis SLUG it built from; the cv_hash + analyzed-at come from the DB
+// (analysisLineageSource), so lineage can never be forged and is left NULL when the
+// slug doesn't resolve or the analysis predates cv_hash — honest, never fabricated.
+function resolveLineage(sourceAnalysisSlug: unknown, workspaceId: string): ProfileLineage | undefined {
+  if (typeof sourceAnalysisSlug !== "string" || !sourceAnalysisSlug) return undefined;
+  const src = analysisLineageSource(sourceAnalysisSlug, workspaceId);
+  if (!src) return undefined;
+  return { sourceAnalysisSlug: src.slug, sourceCvHash: src.cvHash, sourceAnalyzedAt: src.analyzedAt };
+}
+
 export async function GET(request: NextRequest) {
   try {
     // ?id=<candidateId> → a single profile (label/archetype/completeness + payload),
@@ -96,7 +111,11 @@ export async function GET(request: NextRequest) {
       if (!rec) return NextResponse.json({ error: "Profile not found." }, { status: 404 });
       return NextResponse.json({ profile: { ...rec.row, payload: rec.payload } });
     }
-    return NextResponse.json({ profiles: listProfiles(200, ws) });
+    // The list carries a `stale` map (profile id → newer analysis) alongside the
+    // rows so the roster / Match candidate select can flag "a newer CV analysis
+    // exists since this profile was built" without a per-row round-trip. Empty for
+    // every hand-built profile (NULL lineage ⇒ never stale).
+    return NextResponse.json({ profiles: listProfiles(200, ws), stale: profileStaleness(ws) });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to list profiles.";
     return NextResponse.json({ error: message }, { status: 500 });
@@ -109,6 +128,11 @@ export async function POST(request: NextRequest) {
       profile?: Record<string, unknown>;
       signals?: Record<string, unknown>;
       persist?: boolean;
+      // When the profile is being built FROM a saved CV analysis (the matrix
+      // "build from analysis" entry, or a rebuild), the slug of that analysis. The
+      // route resolves the authoritative cv_hash + analyzed-at from it and stamps
+      // source lineage so staleness becomes detectable.
+      sourceAnalysisSlug?: string;
     };
 
     const invalid = validateProfileBody(body);
@@ -124,7 +148,8 @@ export async function POST(request: NextRequest) {
     if (body.persist === false) {
       return NextResponse.json({ ...data, saved: null });
     }
-    const saved = saveProfile(persistFieldsFrom(data), await currentWorkspace());
+    const ws = await currentWorkspace();
+    const saved = saveProfile(persistFieldsFrom(data), ws, resolveLineage(body.sourceAnalysisSlug, ws));
     return NextResponse.json({ ...data, saved });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Profile build failed.";
@@ -138,6 +163,10 @@ export async function PUT(request: NextRequest) {
       id?: string;
       profile?: Record<string, unknown>;
       signals?: Record<string, unknown>;
+      // Present on a "rebuild from latest": the newer analysis this profile is being
+      // re-pointed at. Refreshes the profile's lineage (clearing its staleness); a
+      // plain edit omits it and updateProfile leaves the existing lineage untouched.
+      sourceAnalysisSlug?: string;
     };
     if (!body.id) {
       return NextResponse.json({ error: "Profile id is required." }, { status: 400 });
@@ -160,6 +189,11 @@ export async function PUT(request: NextRequest) {
     if (!ok) {
       return NextResponse.json({ error: "Profile not found." }, { status: 404 });
     }
+    // A rebuild re-stamps lineage onto the SAME row (no duplicate profile), pointing
+    // it at the newer analysis so its staleness clears. updateProfile deliberately
+    // never touches lineage, so this explicit step is the only refresh path.
+    const lineage = resolveLineage(body.sourceAnalysisSlug, ws);
+    if (lineage) setProfileLineage(body.id, lineage, ws);
     return NextResponse.json({ ...data, saved: { id: body.id } });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Profile update failed.";

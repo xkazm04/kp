@@ -337,7 +337,14 @@ export function ensureDb(): Database.Database {
       role_family TEXT,
       completeness REAL DEFAULT 0,
       payload_json TEXT NOT NULL,
-      created_at TEXT NOT NULL
+      created_at TEXT NOT NULL,
+      -- Source lineage (profile ↔ CV): when a profile was built FROM a saved CV
+      -- analysis, these back-reference it so "a newer analysis of the same CV
+      -- exists since this profile was built" (staleness) is detectable. All NULL
+      -- on a hand-built profile (never fabricated) ⇒ no staleness, no badge.
+      source_analysis_slug TEXT,
+      source_cv_hash TEXT,
+      source_analyzed_at TEXT
     );
 
     CREATE INDEX IF NOT EXISTS idx_profiles_created_at ON profiles (created_at DESC);
@@ -868,6 +875,14 @@ export function ensureDb(): Database.Database {
     "ALTER TABLE analyses ADD COLUMN cv_hash TEXT",
     // Tenant scope (P2): the profiles domain (2nd scoped table). Same backfill below.
     "ALTER TABLE profiles ADD COLUMN workspace_id TEXT",
+    // Source lineage (profile ↔ CV): the saved analysis a profile was built from,
+    // its content hash (SHA-256 of the CV bytes), and that analysis's created_at.
+    // Stamped from the source analysis at save (never from the client), so a NEWER
+    // same-cv_hash analysis is detectable as "this profile was built from an older
+    // CV". All NULL on legacy/hand-built rows (never grouped, never stale).
+    "ALTER TABLE profiles ADD COLUMN source_analysis_slug TEXT",
+    "ALTER TABLE profiles ADD COLUMN source_cv_hash TEXT",
+    "ALTER TABLE profiles ADD COLUMN source_analyzed_at TEXT",
     // Tenant scope (P1): the Library JD tables — a team's private drafts/openings +
     // their edit history. Backfilled to the default workspace below.
     "ALTER TABLE jds ADD COLUMN workspace_id TEXT",
@@ -960,6 +975,10 @@ export function ensureDb(): Database.Database {
   // filter analyses by (workspace_id, cv_hash). Created AFTER the ALTER loop so a
   // legacy DB already holds the column.
   db.exec(`CREATE INDEX IF NOT EXISTS idx_analyses_cv_hash ON analyses (workspace_id, cv_hash)`);
+  // Profile ↔ CV staleness: profileStaleness joins profiles to analyses on
+  // (workspace_id, source_cv_hash) to find a newer same-CV analysis. Created AFTER
+  // the ALTER loop so a legacy DB already holds the column.
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_profiles_source_cv_hash ON profiles (workspace_id, source_cv_hash)`);
   // Atomic dedup: a (posting, candidate, repo) triple is unique, so two
   // concurrent submits can't both INSERT (double-click / webhook retry storm).
   // Guarded: a legacy DB may already hold duplicate triples that block the

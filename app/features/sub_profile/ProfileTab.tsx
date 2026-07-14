@@ -14,6 +14,9 @@ type EditorState = {
   mode: EditorMode;
   editingId: string | null;
   initialPayload: ProfilePayload | null;
+  // Set when the editor was opened FROM a saved CV analysis (build-from-analysis or
+  // rebuild-from-latest) — carried into the save so lineage is stamped.
+  sourceAnalysisSlug?: string | null;
 };
 
 // The Profile tab is, first, where the candidate-archetype taxonomy is MANAGED
@@ -46,6 +49,29 @@ export function ProfileTab() {
     [t]
   );
 
+  // Open the editor PREFILLED from a saved CV analysis. Build-from-analysis (the
+  // matrix) opens it in create mode; rebuild-from-latest (a stale profile's badge)
+  // passes the profile id so the same row is updated in place (no duplicate) — in
+  // both, `sourceAnalysisSlug` rides into the save so the route stamps lineage. The
+  // v2Profile is the analysis's normalized profile dump, hydrated exactly like an
+  // edit — reusing the one payload→form mapping, never a second one.
+  const openFromAnalysis = useCallback(
+    (slug: string, rebuildProfileId: string | null) =>
+      fetch(`/api/analyses/${encodeURIComponent(slug)}`)
+        .then((r) => (r.ok ? r.json() : Promise.reject(new Error("not found"))))
+        .then((p) => {
+          const v2 = (p.analysis?.v2Profile as ProfilePayload | undefined) ?? null;
+          setEditor({
+            mode: rebuildProfileId ? "edit" : "create",
+            editingId: rebuildProfileId,
+            initialPayload: v2,
+            sourceAnalysisSlug: slug,
+          });
+        })
+        .catch(() => setNote(t("deepLinkError"))),
+    [t]
+  );
+
   const reloadArchetypes = useCallback(
     () =>
       fetch("/api/archetypes")
@@ -70,6 +96,17 @@ export function ProfileTab() {
   // the param, which changes `params`, which re-ran the effect — firing the FIRST run's
   // cleanup (alive=false) before its in-flight fetch resolved, so the editor never opened.
   useEffect(() => {
+    // Build-from-analysis / rebuild-from-latest deep link (?fromAnalysis=<slug>
+    // [&rebuild=<profileId>]) takes precedence: it prefills the editor from a CV
+    // analysis and carries lineage. Clear both intent params up front so closing
+    // returns here and a refresh doesn't reopen it.
+    const fromAnalysis = params.get("fromAnalysis");
+    if (fromAnalysis) {
+      const rebuild = params.get("rebuild");
+      router.replace(buildUrl({ fromAnalysis: null, rebuild: null }, params.toString()), { scroll: false });
+      void openFromAnalysis(fromAnalysis, rebuild);
+      return;
+    }
     const editId = params.get("edit");
     if (!editId) return;
     router.replace(buildUrl({ edit: null }, params.toString()), { scroll: false });
@@ -83,6 +120,7 @@ export function ProfileTab() {
         mode={editor.mode}
         editingId={editor.editingId}
         initialPayload={editor.initialPayload}
+        sourceAnalysisSlug={editor.sourceAnalysisSlug}
         archetypes={archetypes}
         onCancel={() => setEditor(null)}
       />

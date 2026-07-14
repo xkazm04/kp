@@ -2742,6 +2742,9 @@
       "chipRanked": "Classés",
       "addFailedStatus": "Impossible d'ajouter au pipeline ({status}).",
       "addFailedNetwork": "Impossible d'ajouter au pipeline — erreur réseau. Réessayez.",
+      "staleBanner": "Créé à partir d'un CV plus ancien.",
+      "staleBannerDetail": "Une analyse plus récente du CV de ce candidat a été enregistrée le {date}.",
+      "staleRebuild": "Reconstruire depuis la plus récente",
       "exportCsv": "Exporter en CSV",
       "earlyNote": "Profil de notation débutant : la barre <b>Potentiel</b> représente le modèle de préparation (en remplacement des années d'expérience), et seuls les postes ouverts aux débutants passent le filtre KO. Les scores ne sont pas comparables à ceux des candidats expérimentés.",
       "assumptions": "Hypothèses :",
@@ -2794,7 +2797,9 @@
       "openAnalysisTitle": "Ouvrir l’analyse de {name}",
       "openProfileTitle": "Modifier le profil de {name}",
       "sourceProfile": "Profil",
-      "sourceAnalysis": "Analyse"
+      "sourceAnalysis": "Analyse",
+      "buildFromAnalysis": "Créer un profil",
+      "buildFromAnalysisTitle": "Créer un profil enregistré à partir de l'analyse de {name}"
     },
     "roster": {
       "eyebrow": "Profils enregistrés",
@@ -2805,6 +2810,10 @@
       "emptyBody": "Créez un profil candidat ci-dessous et il apparaîtra ici, prêt à être matché.",
       "completenessAria": "Complétude du profil {pct} %",
       "completenessPct": "{pct} % complété",
+      "staleBadge": "CV plus récent",
+      "staleTitle": "Une analyse plus récente du CV de ce candidat a été enregistrée le {date} — reconstruisez le profil pour l'actualiser.",
+      "rebuild": "Reconstruire",
+      "rebuildTitle": "Reconstruire le profil de {name} à partir de la dernière analyse de CV",
       "match": "Matcher",
       "matchTitle": "Confronter {name} aux postes ouverts",
       "editTitle": "Modifier {name}",

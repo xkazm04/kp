@@ -2,11 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Plus, Users } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Plus, UserPlus, Users } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { ScoreBadge } from "@/app/_components/ScoreBadge";
 import { archetypeDisplayKey } from "@/app/_lib/archetypes";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
+import { buildUrl } from "@/app/features/tabs";
 import type { ArchetypeDef, CandidateRow } from "./ProfileTypes";
 
 export function CandidateMatrix({
@@ -149,11 +151,17 @@ export function CandidateMatrix({
 
 function CandidateCell({ cand, onEditProfile }: { cand: CandidateRow; onEditProfile: (id: string) => void }) {
   const t = useTranslations("profile.matrix");
+  const router = useRouter();
   // Route by store: a profile opens the editor (the same ?edit= flow, invoked
   // directly since a same-tab query change wouldn't re-fire the mount effect); an
   // analysis opens its Analyze output at /history/<slug>. A cheap source chip marks
   // which store a cell came from — no per-source column explosion.
   const isProfile = cand.source === "profile";
+  // Build-from-analysis: promote an analyzed CV into a saved, matchable profile
+  // prefilled from the analysis and STAMPED with source lineage (?fromAnalysis=),
+  // so a later re-analysis of the same CV surfaces as staleness on the profile.
+  const buildFromAnalysis = () =>
+    cand.slug && router.push(buildUrl({ tab: "profile", fromAnalysis: cand.slug }, ""));
   const cellClass =
     "focus-ring group block w-full rounded-md border border-stone-200 bg-white px-2.5 py-1.5 text-left hover:border-coral/50 hover:bg-coral/5";
   const body = (
@@ -182,8 +190,18 @@ function CandidateCell({ cand, onEditProfile }: { cand: CandidateRow; onEditProf
       {body}
     </button>
   ) : (
-    <Link href={`/history/${cand.slug}`} className={cellClass} title={t("openAnalysisTitle", { name: cand.name })}>
-      {body}
-    </Link>
+    <div className="space-y-1">
+      <Link href={`/history/${cand.slug}`} className={cellClass} title={t("openAnalysisTitle", { name: cand.name })}>
+        {body}
+      </Link>
+      <button
+        type="button"
+        onClick={buildFromAnalysis}
+        className="focus-ring inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-micro font-semibold uppercase tracking-wide text-steel hover:text-coral"
+        title={t("buildFromAnalysisTitle", { name: cand.name })}
+      >
+        <UserPlus size={12} aria-hidden /> {t("buildFromAnalysis")}
+      </button>
+    </div>
   );
 }

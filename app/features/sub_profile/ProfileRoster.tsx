@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Pencil, Trash2, Users, Zap } from "lucide-react";
+import { Pencil, RefreshCw, Trash2, Users, Zap } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Meter } from "@/app/_components/Meter";
 import { scoreTone } from "@/app/_lib/format";
@@ -19,6 +19,11 @@ type RosterProfile = {
   role_family: string | null;
   completeness: number | null;
 };
+
+// profile id → the newer same-CV analysis that makes it stale (GET /api/profile
+// `stale`). Present ONLY for profiles with source lineage AND a newer analysis;
+// a hand-built profile never appears here (no badge, no chrome).
+type StaleMap = Record<string, { newerSlug: string; newerAnalyzedAt: string }>;
 
 // The roster of SAVED candidate profiles — previously listed nowhere, so a saved
 // profile could only be reached by a pipeline deep link. Each row carries the three
@@ -38,6 +43,7 @@ export function ProfileRoster({
   const enumLabel = useEnumLabel();
   const router = useRouter();
   const [profiles, setProfiles] = useState<RosterProfile[] | null>(null);
+  const [stale, setStale] = useState<StaleMap>({});
   const [error, setError] = useState<string | null>(null);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -49,7 +55,10 @@ export function ProfileRoster({
       .then((p) => {
         if (!alive) return;
         if (p.error) setError(p.error);
-        else setProfiles((p.profiles as RosterProfile[]) ?? []);
+        else {
+          setProfiles((p.profiles as RosterProfile[]) ?? []);
+          setStale((p.stale as StaleMap) ?? {});
+        }
       })
       .catch(() => {
         if (alive) setError(t("loadFailed"));
@@ -62,6 +71,13 @@ export function ProfileRoster({
   useEffect(() => load(), [load]);
 
   const runMatch = (id: string) => router.push(buildUrl({ tab: "match", profile: id }, ""));
+
+  // Rebuild-from-latest: open the editor prefilled from the NEWER same-CV analysis,
+  // re-pointing THIS profile (rebuild=<id> ⇒ an in-place update, not a duplicate).
+  // The recruiter reviews and saves; the saved profile carries the new lineage and
+  // its staleness clears.
+  const rebuild = (id: string, newerSlug: string) =>
+    router.push(buildUrl({ tab: "profile", fromAnalysis: newerSlug, rebuild: id }, ""));
 
   const remove = async (id: string) => {
     if (busyId) return;
@@ -110,6 +126,7 @@ export function ProfileRoster({
           <ul className="divide-y divide-stone-100">
             {profiles.map((p) => {
               const pct = Math.round((p.completeness ?? 0) * 100);
+              const staleInfo = stale[p.id];
               return (
                 <li key={p.id} className="flex flex-wrap items-center gap-3 py-2.5">
                   <div className="min-w-0 flex-1">
@@ -120,6 +137,16 @@ export function ProfileRoster({
                       </span>
                       {p.role_family ? (
                         <span className="text-sm text-steel">{enumLabel("family", p.role_family)}</span>
+                      ) : null}
+                      {staleInfo ? (
+                        // Neutral (amber, mapped in both themes) staleness flag: a newer
+                        // CV analysis exists than the one this profile was built from.
+                        <span
+                          className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-micro font-semibold uppercase tracking-wide text-amber-800"
+                          title={t("staleTitle", { date: new Date(staleInfo.newerAnalyzedAt).toLocaleDateString() })}
+                        >
+                          <RefreshCw size={11} aria-hidden /> {t("staleBadge")}
+                        </span>
                       ) : null}
                     </div>
                     <div className="mt-1 flex items-center gap-2">
@@ -150,6 +177,16 @@ export function ProfileRoster({
                     </span>
                   ) : (
                     <div className="flex items-center gap-1">
+                      {staleInfo ? (
+                        <button
+                          type="button"
+                          onClick={() => rebuild(p.id, staleInfo.newerSlug)}
+                          className="focus-ring inline-flex h-8 items-center gap-1.5 rounded-md border border-amber-300 bg-amber-50 px-2.5 text-sm font-semibold text-amber-800 hover:bg-amber-100"
+                          title={t("rebuildTitle", { name: p.label })}
+                        >
+                          <RefreshCw size={14} /> {t("rebuild")}
+                        </button>
+                      ) : null}
                       <button
                         type="button"
                         onClick={() => runMatch(p.id)}

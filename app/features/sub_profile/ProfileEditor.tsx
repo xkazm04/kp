@@ -28,12 +28,17 @@ export function ProfileEditor({
   mode,
   editingId,
   initialPayload,
+  sourceAnalysisSlug,
   archetypes,
   onCancel,
 }: {
   mode: EditorMode;
   editingId: string | null;
   initialPayload: ProfilePayload | null;
+  /** When the editor was opened FROM a saved CV analysis (build-from-analysis or a
+   *  rebuild-from-latest), the slug of that analysis. Carried into the save so the
+   *  route stamps source lineage; the recruiter still reviews before saving. */
+  sourceAnalysisSlug?: string | null;
   /** Live archetype registry (ProfileTab's /api/archetypes fetch) — drives the routing segments. */
   archetypes: ArchetypeDef[];
   onCancel: () => void;
@@ -223,10 +228,16 @@ export function ProfileEditor({
       };
 
       const isEdit = persist && mode === "edit" && editingId;
+      // Carry the source-analysis slug on any real save (never on a dry-run preview):
+      // the route resolves the CV hash + analyzed-at from it and stamps lineage, so a
+      // build-from-analysis (POST) or a rebuild-from-latest (PUT) becomes traceable.
+      const lineage = persist && sourceAnalysisSlug ? { sourceAnalysisSlug } : {};
       const r = await fetch("/api/profile", {
         method: isEdit ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(isEdit ? { id: editingId, profile, signals } : { profile, signals, persist }),
+        body: JSON.stringify(
+          isEdit ? { id: editingId, profile, signals, ...lineage } : { profile, signals, persist, ...lineage }
+        ),
       });
       const payload = await r.json();
       if (!r.ok) throw new Error(payload.error ?? t("buildFailedStatus", { status: r.status }));

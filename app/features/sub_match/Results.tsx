@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import type { MatchRef, MatchResponse, MatchResult } from "./MatchTypes";
 import { archetypeDisplayKey, isEarlyCareer, matchScoreForPipeline } from "./MatchTypes";
@@ -8,7 +9,8 @@ import { Chip, KoReasonsNote, NoMatchesExplainer } from "./MatchShared";
 import { MatchCard } from "./MatchCard";
 import { WeightsPanel } from "./WeightsPanel";
 import { JobCompare } from "./JobCompare";
-import { Download, Scale } from "lucide-react";
+import { buildUrl } from "@/app/features/tabs";
+import { Download, RefreshCw, Scale } from "lucide-react";
 import { PotentialBadge } from "@/app/_components/PotentialBadge";
 import { downloadFile, toCsv } from "@/app/_lib/export-utils";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
@@ -23,6 +25,7 @@ export function Results({
   matchRef,
   loading = false,
   error = null,
+  staleness = null,
   onReweight,
 }: {
   result: MatchResponse;
@@ -33,10 +36,15 @@ export function Results({
   // A re-rank/re-weight that failed while this (still-valid) ranking is on screen:
   // shown as a non-destructive banner ABOVE the results, never replacing them.
   error?: string | null;
+  // Profile ↔ CV staleness: set when this ranking is for a profile-sourced candidate
+  // whose source CV has a NEWER analysis. Null for analysis-sourced runs and
+  // hand-built profiles (never stale) ⇒ no badge, no chrome.
+  staleness?: { newerSlug: string; newerAnalyzedAt: string } | null;
   onReweight?: (weights?: WeightVector) => void;
 }) {
   const t = useTranslations("match.results");
   const enumLabel = useEnumLabel();
+  const router = useRouter();
   const { candidate, meta, matches } = result;
   // The routing value we CARRY (posted to the pipeline, passed to MatchCard, fed to
   // isEarlyCareer): honour the matcher's fail-closed "unknown" sentinel instead of
@@ -165,6 +173,27 @@ export function Results({
         <p role="alert" className="mb-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
           {error}
         </p>
+      ) : null}
+      {staleness && matchRef.profileId ? (
+        // Profile ↔ CV staleness: this ranking is off a profile built from an older
+        // CV than a newer analysis on file. Neutral (amber) banner + one-click
+        // rebuild-from-latest so the recruiter isn't ranking on a stale snapshot.
+        <div className="mb-3 flex flex-wrap items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+          <RefreshCw size={14} aria-hidden />
+          <span className="font-semibold">{t("staleBanner")}</span>
+          <span className="text-amber-700">
+            {t("staleBannerDetail", { date: new Date(staleness.newerAnalyzedAt).toLocaleDateString() })}
+          </span>
+          <button
+            type="button"
+            onClick={() =>
+              router.push(buildUrl({ tab: "profile", fromAnalysis: staleness.newerSlug, rebuild: matchRef.profileId! }, ""))
+            }
+            className="focus-ring ml-auto inline-flex h-8 items-center gap-1.5 rounded-md border border-amber-300 bg-white px-2.5 text-sm font-semibold text-amber-800 hover:bg-amber-100"
+          >
+            <RefreshCw size={13} /> {t("staleRebuild")}
+          </button>
+        </div>
       ) : null}
       <div className="flex flex-wrap items-center gap-2">
         <Chip label={t("chipCandidate")} value={candidate.label ?? "—"} />
