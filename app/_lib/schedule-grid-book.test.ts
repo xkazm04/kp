@@ -12,7 +12,7 @@ import { cleanupUnitDb } from "./testing/unit-db.ts";
 import { createPipelineEntry, getPipelineEntry, setApproval, actOnPipelineEntry } from "./db/pipeline.ts";
 import { createScheduleInvite, confirmScheduleInvite, rescheduleScheduleInvite, getScheduleInviteByToken } from "./schedule-store.ts";
 import { sealDecisionSafe, listDecisionRecords } from "./decision-record-store.ts";
-import { gridSlotToIso } from "./schedule-slots.ts";
+import { gridSlotToIso, scheduledSealOutcome } from "./schedule-slots.ts";
 
 after(() => cleanupUnitDb());
 
@@ -81,6 +81,35 @@ test("re-booking a confirmed grid invite moves it (recruiter authority) and stay
   const after = getPipelineEntry(entry.id);
   assert.equal(after?.approvalKind, null, "still advanced after the re-book (no stale calendar gate)");
   assert.equal(getScheduleInviteByToken(reused.token)?.slotAt, second.value, "moved to the new instant");
+});
+
+test("integrity fix: a grid book whose entry can't advance seals a QUALIFIED outcome, not a clean 'scheduled'", () => {
+  const entry = calendarEntry();
+  const resolved = gridSlotToIso("Tue 10:00")!;
+  const invite = createScheduleInvite({ entryId: entry.id, candidateLabel: entry.candidateLabel, jobTitle: entry.jobTitle });
+  assert.ok(confirmScheduleInvite(invite.token, resolved.label, resolved.value).ok, "setup booking confirms");
+  // Close the candidate AFTER booking, so approve_event no-ops (returns null → not advanced).
+  actOnPipelineEntry(entry.id, "reject");
+
+  // The EXACT sequence the route now runs: attempt the advance, derive the seal outcome
+  // from whether it landed, then seal. Previously the route sealed a clean "scheduled"
+  // UNCONDITIONALLY — a tamper-evident record asserting a state the pipeline never reached.
+  const advanced = actOnPipelineEntry(entry.id, "approve_event", resolved.label) != null;
+  assert.equal(advanced, false, "a terminal entry does not advance");
+  const outcome = scheduledSealOutcome(advanced);
+  sealDecisionSafe({
+    kind: "interview_scheduled",
+    actor: "human:recruiter",
+    policyVersion: "manual",
+    candidateRef: entry.id,
+    rationale: `Recruiter booked the interview on the week grid (${resolved.label}).${outcome.note}`,
+    reasonCode: outcome.reasonCode,
+    inputs: { slot: resolved.label, slotAt: resolved.value, advanced },
+  });
+
+  const sched = listDecisionRecords({ candidateRef: entry.id }).find((d) => d.kind === "interview_scheduled");
+  assert.ok(sched, "the decision is still recorded — the booking really happened");
+  assert.equal(sched!.reasonCode, "interview_scheduled_unconfirmed", "but the outcome is honestly qualified, not a clean 'scheduled'");
 });
 
 test("a grid book on a terminal entry does not resurrect it — approve_event is a no-op the route would flag", () => {

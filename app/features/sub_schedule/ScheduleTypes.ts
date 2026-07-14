@@ -14,11 +14,12 @@ export type SchedEntry = {
   approvalDetail: string | null;
 };
 
-export const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"];
-// Full working day, hourly (08:00–17:00). Covers the server-proposed slots
-// (schedule-store proposes within this window) so a proposed chip always lands
-// on a visible row.
-export const TIMES = ["08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00"];
+// The grid's day columns are now CONCRETE dates (scheduleGridWeeks) and its hour rows
+// are DERIVED from the configured interview hours + the proposal window + any real
+// booking's hour (interviewGridRows in schedule-slots) — never a hardcoded 08:00–17:00
+// band, which silently dropped a booking at a KP_INTERVIEW_TIMES hour outside it.
+// DEFAULT_SLOT stays as the weekday-relative seed for a legacy entry with no invite;
+// ScheduleTab resolves it to a concrete upcoming date for the dated grid.
 export const DEFAULT_SLOT = "Tue 14:00";
 
 export const ARCHETYPE = {

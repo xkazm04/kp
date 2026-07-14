@@ -16,7 +16,7 @@ import {
 } from "@/app/_lib/schedule-store";
 import { actOnPipelineEntry, getPipelineEntry } from "@/app/_lib/db";
 import { plannedInterviewMinutes } from "@/app/_lib/interview-run";
-import { dateSlotToIso, gridSlotToIso, hourBucketKey, offeredSlotFor, proposedSlotFor, proposeSlots } from "@/app/_lib/schedule-slots";
+import { dateSlotToIso, gridSlotToIso, hourBucketKey, offeredSlotFor, proposedSlotFor, proposeSlots, scheduledSealOutcome } from "@/app/_lib/schedule-slots";
 import { sealDecisionSafe } from "@/app/_lib/decision-record-store";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { jsonOk, safeJsonError } from "@/app/_lib/api-response";
@@ -142,22 +142,26 @@ export async function POST(request: Request) {
         bookedInvite = booked.invite;
       }
       // Advance the linked entry server-side with the server-authored label (mirrors
-      // accept_proposal): flag needs_reconcile rather than swallow a stage-gate failure,
-      // and seal the outcome-bearing decision. approve_event records the slot without
-      // regressing an entry already past Interview, so a re-book is safe.
+      // accept_proposal): flag needs_reconcile rather than swallow a stage-gate failure.
+      // approve_event records the slot without regressing an entry already past Interview,
+      // so a re-book is safe; a terminal entry no-ops (returns null → not advanced).
+      let advanced = false;
       try {
-        actOnPipelineEntry(entry.id, "approve_event", resolved.label);
+        advanced = actOnPipelineEntry(entry.id, "approve_event", resolved.label) != null;
       } catch (advanceError) {
         markScheduleInviteNeedsReconcile(bookedInvite.token, advanceError instanceof Error ? advanceError.message : String(advanceError));
       }
+      // The seal reflects REALITY: a booking whose entry didn't advance seals a qualified
+      // reasonCode, never a clean "scheduled" the pipeline never reached (integrity fix).
+      const outcome = scheduledSealOutcome(advanced);
       sealDecisionSafe({
         kind: "interview_scheduled",
         actor: "human:recruiter",
         policyVersion: "manual",
         candidateRef: entry.id,
-        rationale: `Recruiter booked the interview on the week grid (${resolved.label}).`,
-        reasonCode: "interview_scheduled",
-        inputs: { slot: resolved.label, slotAt: resolved.value },
+        rationale: `Recruiter booked the interview on the week grid (${resolved.label}).${outcome.note}`,
+        reasonCode: outcome.reasonCode,
+        inputs: { slot: resolved.label, slotAt: resolved.value, advanced },
       });
       return jsonOk({ invite: bookedInvite, slot: resolved.label, slotAt: resolved.value });
     }
@@ -257,19 +261,23 @@ export async function POST(request: Request) {
         // slot on the linked entry, flagging drift rather than swallowing a stage-gate
         // failure; seal the outcome-bearing decision.
         if (invite.entryId) {
+          let advanced = false;
           try {
-            actOnPipelineEntry(invite.entryId, "approve_event", offered.label);
+            advanced = actOnPipelineEntry(invite.entryId, "approve_event", offered.label) != null;
           } catch (advanceError) {
             markScheduleInviteNeedsReconcile(body.token, advanceError instanceof Error ? advanceError.message : String(advanceError));
           }
+          // Same integrity fix as the grid book: the seal reflects whether the entry
+          // actually advanced (qualified reasonCode when it didn't), consistently.
+          const outcome = scheduledSealOutcome(advanced);
           sealDecisionSafe({
             kind: "interview_scheduled",
             actor: "human:recruiter",
             policyVersion: "manual",
             candidateRef: invite.entryId,
-            rationale: `Recruiter accepted the candidate's proposed time (${offered.label}).`,
-            reasonCode: "interview_scheduled",
-            inputs: { slot: offered.label, slotAt: offered.value },
+            rationale: `Recruiter accepted the candidate's proposed time (${offered.label}).${outcome.note}`,
+            reasonCode: outcome.reasonCode,
+            inputs: { slot: offered.label, slotAt: offered.value, advanced },
           });
         }
         return jsonOk({ invite: getScheduleInviteByToken(body.token) });

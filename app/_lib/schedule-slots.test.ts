@@ -9,7 +9,7 @@
 //   npm run test:unit
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { offeredSlotFor, parseInterviewTimes, proposeSlots, SLOT_HORIZON_DAYS, isScheduleInviteExpired, INVITE_LINK_TTL_DAYS, gridSlotToIso, isoToGridSlot, hourBucketKey, proposedSlotFor, validateProposedSlots, MAX_PROPOSALS, dateSlotToIso, isoToDateSlot, scheduleGridWeeks } from "./schedule-slots.ts";
+import { offeredSlotFor, parseInterviewTimes, proposeSlots, SLOT_HORIZON_DAYS, isScheduleInviteExpired, INVITE_LINK_TTL_DAYS, gridSlotToIso, isoToGridSlot, hourBucketKey, proposedSlotFor, validateProposedSlots, MAX_PROPOSALS, dateSlotToIso, isoToDateSlot, scheduleGridWeeks, interviewGridRows, scheduledSealOutcome } from "./schedule-slots.ts";
 
 test("parseInterviewTimes is config-driven, validated, deduped, and falls back safely", () => {
   assert.deepEqual(parseInterviewTimes(undefined), ["10:00", "14:00"]);
@@ -246,6 +246,53 @@ test("scheduleGridWeeks marks days before today as past (disabled) in a mid-week
   assert.equal(week0.find((d) => d.iso === "2026-06-09")!.past, true, "Tuesday before today is past");
   assert.equal(week0.find((d) => d.iso === "2026-06-10")!.past, false, "today is live");
   assert.equal(week0.find((d) => d.iso === "2026-06-11")!.past, false, "future day in the same week is live");
+});
+
+// --- Grid-book integrity FIX (a): the seal reflects whether the entry advanced --------
+test("scheduledSealOutcome seals a clean outcome only when the entry actually advanced", () => {
+  const ok = scheduledSealOutcome(true);
+  assert.equal(ok.reasonCode, "interview_scheduled", "an advanced booking seals the clean outcome");
+  assert.equal(ok.note, "", "no qualifier when the pipeline reached the state");
+  const drift = scheduledSealOutcome(false);
+  assert.equal(drift.reasonCode, "interview_scheduled_unconfirmed", "a booking that didn't advance seals a qualified code");
+  assert.match(drift.note, /did not advance/, "the note is honest about the drift");
+  assert.notEqual(ok.reasonCode, drift.reasonCode, "the two outcomes are distinguishable in the tamper-evident record");
+});
+
+// --- Grid-book integrity FIX (b): grid rows derive from config, never a hardcoded band --
+test("interviewGridRows unions the proposal window with configured hours — no config yields an invisible row", () => {
+  const prev = process.env.KP_INTERVIEW_TIMES;
+  try {
+    // Default (no config): the proposal window 08:00–17:00 is covered (back-compat).
+    delete process.env.KP_INTERVIEW_TIMES;
+    const def = interviewGridRows();
+    assert.ok(def.includes("08:00") && def.includes("17:00"), "the full working day is present by default");
+    assert.deepEqual([...def].sort(), def, "rows are sorted");
+
+    // OUT-OF-BAND config: 06:00 and 20:00 sit outside the old hardcoded 08:00–17:00 band.
+    // A booking at either used to vanish; now each has its own row.
+    process.env.KP_INTERVIEW_TIMES = "06:00,20:00";
+    const rows = interviewGridRows();
+    assert.ok(rows.includes("06:00"), "an early configured hour gets a row");
+    assert.ok(rows.includes("20:00"), "a late configured hour gets a row");
+    assert.equal(new Set(rows).size, rows.length, "rows are deduped");
+    // Ascending, clamped to valid hours.
+    for (const r of rows) {
+      const h = Number(r.slice(0, 2));
+      assert.ok(h >= 0 && h <= 23, "every row is a valid hour");
+    }
+  } finally {
+    if (prev === undefined) delete process.env.KP_INTERVIEW_TIMES;
+    else process.env.KP_INTERVIEW_TIMES = prev;
+  }
+});
+
+test("interviewGridRows folds in a real booking's hour (data-driven safety net, client-side)", () => {
+  // Even with no env visible (the client can't read KP_INTERVIEW_TIMES), an actual
+  // booking at 21:00 must still get a row so it can't disappear from the grid.
+  const rows = interviewGridRows(["21:00", "21:30", "08:00"]);
+  assert.ok(rows.includes("21:00"), "the booking's hour gets a row from the extraHours net");
+  assert.equal(rows.filter((r) => r === "21:00").length, 1, "no duplicate row for the on/off-hour pair");
 });
 
 // --- Direction 2: hour-bucketing so off-hour bookings don't vanish from the grid ---

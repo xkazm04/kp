@@ -4,8 +4,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, ChevronLeft, ChevronRight } from "lucide-react";
 import { LayoutGroup, motion } from "framer-motion";
 import { useFormatter, useTranslations } from "next-intl";
-import { styleFor, TIMES, type SchedEntry } from "./ScheduleTypes";
-import { scheduleGridWeeks } from "@/app/_lib/schedule-slots";
+import { styleFor, type SchedEntry } from "./ScheduleTypes";
+import { interviewGridRows, scheduleGridWeeks } from "@/app/_lib/schedule-slots";
 import { useReducedMotion } from "@/app/_lib/useReducedMotion";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { initials } from "@/app/_lib/initials";
@@ -86,6 +86,23 @@ export function ScheduleCalendar({
     return () => window.removeEventListener("resize", measure);
   }, []);
 
+  // The hour rows: the configured interview hours + the proposal window, UNIONED with
+  // any hour a real booking/pick already occupies — so no booking can land on a row the
+  // grid doesn't render (the off-hour-vanish bug, re-openable by KP_INTERVIEW_TIMES).
+  const extraHours = useMemo(() => {
+    const hs = new Set<string>();
+    for (const v of Object.values(picks)) {
+      const t = v.split(" ")[1];
+      if (t) hs.add(t.slice(0, 2));
+    }
+    for (const m of bookedMarkers) {
+      const t = m.dateSlot.split(" ")[1];
+      if (t) hs.add(t.slice(0, 2));
+    }
+    return [...hs];
+  }, [picks, bookedMarkers]);
+  const rows = useMemo(() => interviewGridRows(extraHours), [extraHours]);
+
   // A dated slot ("YYYY-MM-DD HH:MM") split into its date + hour-bucket parts.
   const slotParts = (dateSlot: string) => {
     const [date = "", time = ""] = dateSlot.split(" ");
@@ -157,7 +174,7 @@ export function ScheduleCalendar({
                 </div>
               ))}
             </div>
-            {TIMES.map((t) => {
+            {rows.map((t) => {
               const rowHour = t.slice(0, 2);
               return (
                 <div key={t} role="row" className="grid grid-cols-[64px_repeat(5,1fr)] border-t border-stone-100">

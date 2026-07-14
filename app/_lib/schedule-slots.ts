@@ -427,3 +427,53 @@ export function scheduleGridWeeks(nowMs: number = Date.now(), tz: string = INTER
   }
   return weeks;
 }
+
+/** The hour rows the manual week grid renders — derived from the configured interview
+ *  hours (KP_INTERVIEW_TIMES via parseInterviewTimes) UNIONED with the candidate-proposal
+ *  business-hour window, PLUS any hour a real booking already occupies (`extraHours`, e.g.
+ *  from the grid's own markers/picks). Read from process.env at CALL time so an env change
+ *  is honored. This closes the off-hour-vanish bug re-openable by config: the old grid
+ *  hardcoded 08:00–17:00, so a booking at a KP_INTERVIEW_TIMES hour OUTSIDE that band
+ *  matched no row and silently disappeared. Deduped, sorted, clamped to [00,23]. */
+export function interviewGridRows(extraHours: readonly string[] = []): string[] {
+  const hours = new Set<number>();
+  // The candidate-proposal window [startHour, endHour) — the widest set of sane weekday
+  // working hours a booking can land on (kept so the grid always shows a full working day).
+  for (let h = PROPOSAL_HOURS.startHour; h < PROPOSAL_HOURS.endHour; h += 1) hours.add(h);
+  // The configured offered interview times' hours (may sit OUTSIDE the proposal window).
+  for (const t of parseInterviewTimes(process.env.KP_INTERVIEW_TIMES)) {
+    const h = Number(t.slice(0, 2));
+    if (Number.isInteger(h)) hours.add(h);
+  }
+  // Any hour a real booking already occupies — the data-driven safety net so no
+  // configuration (even one the client can't read from env) yields an invisible booking.
+  for (const t of extraHours) {
+    const h = Number(String(t).slice(0, 2));
+    if (Number.isInteger(h)) hours.add(h);
+  }
+  return [...hours]
+    .filter((h) => h >= 0 && h <= 23)
+    .sort((a, b) => a - b)
+    .map((h) => `${pad2(h)}:00`);
+}
+
+// --- Grid-book integrity: the seal must reflect whether the entry actually advanced ----
+//
+// The interview_scheduled decision used to seal a clean "scheduled" outcome
+// UNCONDITIONALLY after the advance try/catch — so a stage-gate failure produced BOTH a
+// needs_reconcile flag AND a tamper-evident record asserting an outcome the pipeline never
+// reached. This derives the seal's outcome fields from whether the advance actually landed,
+// so the record stays honest (a booking that didn't advance seals a qualified reasonCode).
+
+/** Outcome fields for an interview_scheduled seal, keyed on whether the linked pipeline
+ *  entry advanced. Not-advanced (a stage-gate throw that flags needs_reconcile, or a
+ *  terminal entry whose approve_event no-ops) seals a qualified reasonCode + note instead
+ *  of a clean "scheduled" — the record must not assert a pipeline state that isn't real. */
+export function scheduledSealOutcome(advanced: boolean): { reasonCode: string; note: string } {
+  return advanced
+    ? { reasonCode: "interview_scheduled", note: "" }
+    : {
+        reasonCode: "interview_scheduled_unconfirmed",
+        note: " (Booking stands, but the pipeline stage did not advance — reconcile required.)",
+      };
+}
