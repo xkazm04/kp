@@ -21,7 +21,7 @@ import { AnalysisSummaryModal } from "./AnalysisSummaryModal";
 import { Empty } from "./DecisionsShared";
 import { GroupEvalModal, type GroupEvalPayload } from "./GroupEvalModal";
 import { RoleDecisionRow } from "./RoleDecisionRow";
-import type { Entry } from "./DecisionsTypes";
+import { isScoreStale, type Entry } from "./DecisionsTypes";
 
 type Group = { roleKey: string; roleTitle: string; jobId: string | null; entries: Entry[] };
 
@@ -79,6 +79,12 @@ export function DecisionsTab() {
   // shows an honest "couldn't load — re-run" instead of the misleading "no evaluation yet".
   const [evalError, setEvalError] = useState<string | null>(null);
   const [evaluated, setEvaluated] = useState<Record<string, string>>({});
+
+  // Direction 2 (queue-staleness) — the JD content-edit time per role, fetched for
+  // the AI-review jobs so a card can flag a score computed before the JD changed.
+  // Server derives (jd-freshness route, workspace-scoped); the card applies the
+  // shared isScoreStale rule against each entry's canonical analysis timestamp.
+  const [jdEditedAt, setJdEditedAt] = useState<Record<string, string | null>>({});
 
   // idea-e43fa801 — the reconsider (auto-rejected) queue, loaded alongside the
   // pending queue and refreshed on the same signals.
@@ -157,6 +163,34 @@ export function DecisionsTab() {
       e.approvalKind === "rejection_review" ||
       e.approvalKind === "offer_review"
   );
+
+  // Direction 2 — the distinct JD-backed jobs among the AI reviews, fetched once
+  // (and on live refresh) for their last content-edit time. Keyed off entries so a
+  // poll that doesn't change the job set doesn't refetch.
+  const aiReviewJobKey = useMemo(
+    () => [...new Set(aiReviews.map((e) => e.jobId).filter((j): j is string => Boolean(j)))].sort().join(","),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [entries]
+  );
+  useEffect(() => {
+    // No AI-review jobs → nothing to fetch. Any previously-fetched entries are
+    // harmless (staleSinceOf only reads the jobId of a card that's still present).
+    if (!aiReviewJobKey) return;
+    let alive = true;
+    fetch(`/api/decisions/jd-freshness?jobs=${encodeURIComponent(aiReviewJobKey)}`)
+      .then((r) => r.json())
+      .then((p) => alive && setJdEditedAt((p.editedAt as Record<string, string | null>) ?? {}))
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [aiReviewJobKey]);
+  // The JD-edit date to show on a card when its score predates that edit (else null).
+  const staleSinceOf = (e: Entry): string | null => {
+    const scoredAt = e.scoreProvenance?.source === "analysis" ? e.scoreProvenance.at : null;
+    const edited = e.jobId ? jdEditedAt[e.jobId] ?? null : null;
+    return isScoreStale(scoredAt, edited) ? edited : null;
+  };
 
   // Distinct roles (opened JDs) with pending decisions, for the filter dropdown.
   const jobOptions = useMemo(() => {
@@ -721,6 +755,7 @@ export function DecisionsTab() {
                         selected={selectedReviewIds.has(e.id)}
                         onToggleSelect={eligible ? () => toggleReviewSelect(e) : undefined}
                         onInspect={() => setSummaryEntry(e)}
+                        staleSince={staleSinceOf(e)}
                       />
                     </div>
                   );

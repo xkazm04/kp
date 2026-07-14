@@ -1806,7 +1806,9 @@
       "confidenceLabel": "Confiance",
       "confidencePct": "{pct} %",
       "confidenceAria": "Confiance de l'IA dans cette recommandation : {pct} %",
-      "viewAnalysis": "Analyse complète"
+      "viewAnalysis": "Analyse complète",
+      "jdEditedBadge": "Offre modifiée le {date}",
+      "jdEditedTitle": "L'offre a été modifiée le {date}, après l'évaluation de ce candidat — le score reflète le texte antérieur. Relancez l'analyse pour l'actualiser."
     },
     "rules": {
       "title": "Règles de décision · Présélection",
@@ -1899,6 +1901,8 @@
       "wouldRejectHeading": "Rejetterait",
       "rejectedHeading": "{count, plural, one {Rejeté (#)} other {Rejetés (#)}}",
       "commsFailedBadge": "échec de la notification — relancer manuellement",
+      "jdEditedBadge": "Offre modifiée le {date}",
+      "jdEditedTitle": "L'offre a été modifiée le {date}, après l'évaluation — ce classement utilise un score basé sur le texte antérieur.",
       "matchSuffix": "· correspondance {score}",
       "keptHeading": "Conservés ({count})",
       "reasons": {

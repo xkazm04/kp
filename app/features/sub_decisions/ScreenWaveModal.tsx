@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AlertTriangle, Ban, Check, Loader2, ShieldCheck } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { AlertTriangle, Ban, Check, History, Loader2, ShieldCheck } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
 import { Modal } from "@/app/_components/Modal";
 import { Checkbox } from "@/app/_components/Checkbox";
 import { SCREENING_DEFAULT } from "@/app/_lib/decision-config-schema";
@@ -22,6 +22,11 @@ type Decision = {
   reasonCode?: string;
   reasonParams?: Record<string, string | number>;
   commsFailed?: boolean;
+  // Direction 2 (queue-staleness) — server-derived: this score predates the JD's
+  // last content edit (`staleSince`). Informs the reviewer that the ranking uses a
+  // score against stale text; it never blocks the wave. Absent → no stale chip.
+  stale?: boolean;
+  staleSince?: string;
 };
 type WaveResult = { decisions: Decision[]; rejected: number; kept: number; cohort: number; commsFailures: number; dryRun: boolean; approvalToken?: string };
 
@@ -48,6 +53,18 @@ export function ScreenWaveModal({
   onCommitted: (summary?: { commsFailures: number; failedLabels: string[] }) => void;
 }) {
   const t = useTranslations("decisions.wave");
+  const locale = useLocale();
+  const shortDate = (iso: string) => new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(new Date(iso));
+  // Direction 2 — the "JD edited since this score" chip, shared by both row lists.
+  const staleChip = (d: Decision) =>
+    d.stale && d.staleSince ? (
+      <span
+        className="ml-1.5 inline-flex items-center gap-1 rounded-full bg-amber-50 px-1.5 py-0.5 text-meta font-semibold text-amber-800"
+        title={t("jdEditedTitle", { date: shortDate(d.staleSince) })}
+      >
+        <History size={10} aria-hidden /> {t("jdEditedBadge", { date: shortDate(d.staleSince) })}
+      </span>
+    ) : null;
   const [enabled, setEnabled] = useState(true);
   const [bottomPercent, setBottomPercent] = useState(SCREENING_DEFAULT.rejectBottomPercent);
   const [maxMatch, setMaxMatch] = useState(SCREENING_DEFAULT.maxMatchToReject);
@@ -187,6 +204,7 @@ export function ScreenWaveModal({
                   <AlertTriangle size={10} aria-hidden /> {t("commsFailedBadge")}
                 </span>
               ) : null}
+              {staleChip(d)}
               <span className="mt-0.5 block text-meta text-steel">{reasonText(d)}</span>
             </li>
           ))}
@@ -205,6 +223,7 @@ export function ScreenWaveModal({
                 {/* An unscored keep shows a dash, not a number that reads as a
                     genuine 0 — the reason text beside it says why. */}
                 {d.label} <span className="nums text-steel">· {d.matchScore ?? "—"}</span>
+                {staleChip(d)}
               </span>
               <span className="shrink-0 text-meta text-steel">{reasonText(d)}</span>
             </li>

@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Check, CheckSquare, Search, Sparkles, Square, X } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { Check, CheckSquare, History, Search, Sparkles, Square, X } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
 import { RATING_MAX } from "@/app/_lib/format";
 import { OFFER_TTL_DAYS_MIN, OFFER_TTL_DAYS_MAX, defaultOfferTtlDays } from "@/app/_lib/offer-policy";
 import { CandidateHead, MiniList, RecBadge } from "./DecisionsShared";
@@ -30,6 +30,10 @@ export function AiReviewCard({
   // claimed-but-unproven bucket live there and were unreachable from these cards.
   // Absent (no candidate to inspect) → the affordance doesn't render.
   onInspect,
+  // Direction 2 (queue-staleness) — the JD's last content-edit date when this
+  // card's score predates it (server-derived in DecisionsTab via the shared
+  // isScoreStale rule). Informs, never blocks; null → no chip.
+  staleSince,
 }: {
   entry: Entry;
   onAccept: (ttlDays?: number) => void;
@@ -38,8 +42,10 @@ export function AiReviewCard({
   selected?: boolean;
   onToggleSelect?: () => void;
   onInspect?: () => void;
+  staleSince?: string | null;
 }) {
   const t = useTranslations("decisions.aiReview");
+  const locale = useLocale();
   // Selectable exactly when the parent enabled select mode AND passed a toggle
   // (offer_review cards get no toggle, so they stay one-by-one even in select mode).
   const selecting = selectMode && Boolean(onToggleSelect);
@@ -145,6 +151,17 @@ export function AiReviewCard({
         )}
       </div>
       <CandidateHead entry={entry} />
+
+      {/* Direction 2 — "JD edited since this score" cue. Same amber History chip as
+          the library roster + wave rows; informs, never blocks the decision. */}
+      {staleSince ? (
+        <span
+          className="mt-2 inline-flex items-center gap-1 rounded-full bg-amber-50 px-1.5 py-0.5 text-meta font-semibold text-amber-800"
+          title={t("jdEditedTitle", { date: new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(new Date(staleSince)) })}
+        >
+          <History size={11} aria-hidden /> {t("jdEditedBadge", { date: new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(new Date(staleSince)) })}
+        </span>
+      ) : null}
 
       {/* Direction 1 — compact confidence band. A thin meter + the number, colored
           by how sure the AI is of the verdict this card is about to commit. */}

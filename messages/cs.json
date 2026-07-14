@@ -1777,7 +1777,9 @@
       "confidenceLabel": "Jistota",
       "confidencePct": "{pct} %",
       "confidenceAria": "Jistota AI v tomto doporučení: {pct} %",
-      "viewAnalysis": "Celá analýza"
+      "viewAnalysis": "Celá analýza",
+      "jdEditedBadge": "Inzerát upraven {date}",
+      "jdEditedTitle": "Inzerát byl upraven {date}, až po ohodnocení tohoto kandidáta — skóre odráží dřívější text. Pro aktualizaci spusťte analýzu znovu."
     },
     "rules": {
       "title": "Pravidla rozhodování · Screening",
@@ -1870,6 +1872,8 @@
       "wouldRejectHeading": "Zamítl by",
       "rejectedHeading": "{count, plural, one {Zamítnuto (#)} few {Zamítnuto (#)} other {Zamítnuto (#)}}",
       "commsFailedBadge": "oznámení selhalo — kontaktujte ručně",
+      "jdEditedBadge": "Inzerát upraven {date}",
+      "jdEditedTitle": "Inzerát byl upraven {date}, až po ohodnocení tohoto kandidáta — toto pořadí vychází ze skóre proti dřívějšímu textu.",
       "matchSuffix": "· shoda {score}",
       "keptHeading": "Ponecháno ({count})",
       "reasons": {

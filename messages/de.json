@@ -1806,7 +1806,9 @@
       "confidenceLabel": "Konfidenz",
       "confidencePct": "{pct} %",
       "confidenceAria": "KI-Konfidenz für diese Empfehlung: {pct} %",
-      "viewAnalysis": "Vollständige Analyse"
+      "viewAnalysis": "Vollständige Analyse",
+      "jdEditedBadge": "Stellenanzeige {date} geändert",
+      "jdEditedTitle": "Die Stellenanzeige wurde am {date} geändert, nach der Bewertung dieser Kandidatin bzw. dieses Kandidaten — der Score spiegelt den früheren Text wider. Führen Sie die Analyse erneut aus, um ihn zu aktualisieren."
     },
     "rules": {
       "title": "Entscheidungsregeln · Screening",
@@ -1899,6 +1901,8 @@
       "wouldRejectHeading": "Würde ablehnen",
       "rejectedHeading": "{count, plural, one {Abgelehnt (#)} other {Abgelehnt (#)}}",
       "commsFailedBadge": "Benachrichtigung fehlgeschlagen — manuell anstupsen",
+      "jdEditedBadge": "Stellenanzeige {date} geändert",
+      "jdEditedTitle": "Die Stellenanzeige wurde am {date} geändert, nach der Bewertung — dieses Ranking nutzt einen Score gegen den früheren Text.",
       "matchSuffix": "· Match {score}",
       "keptHeading": "Behalten ({count})",
       "reasons": {

@@ -1777,7 +1777,9 @@
       "confidenceLabel": "Confidence",
       "confidencePct": "{pct}%",
       "confidenceAria": "AI confidence in this recommendation: {pct}%",
-      "viewAnalysis": "Full analysis"
+      "viewAnalysis": "Full analysis",
+      "jdEditedBadge": "JD edited {date}",
+      "jdEditedTitle": "The JD was edited {date}, after this candidate was scored — the score reflects the earlier text. Re-run the analysis to refresh it."
     },
     "rules": {
       "title": "Decision rules · Screening",
@@ -1870,6 +1872,8 @@
       "wouldRejectHeading": "Would reject",
       "rejectedHeading": "{count, plural, one {Rejected (#)} other {Rejected (#)}}",
       "commsFailedBadge": "notification failed — nudge manually",
+      "jdEditedBadge": "JD edited {date}",
+      "jdEditedTitle": "The JD was edited {date}, after this candidate was scored — this ranking uses a score against the earlier text.",
       "matchSuffix": "· match {score}",
       "keptHeading": "Kept ({count})",
       "reasons": {

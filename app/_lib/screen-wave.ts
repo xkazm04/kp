@@ -8,6 +8,10 @@ import { isFairnessProtected, isKnownArchetype } from "./archetypes";
 import { screenWaveApprovalToken, ScreenWaveApprovalError } from "./screen-wave-approval";
 import { operatorApprover } from "./auth/operator-approver";
 import { isScored } from "./match-score";
+import { withCanonicalScores } from "./match-score-resolve";
+import { jdSlugOfJobId } from "./jd-limits";
+import { jdLastEditedAt } from "./db/jobs";
+import { isScoreStale } from "@/app/features/sub_decisions/DecisionsTypes";
 
 export { ScreenWaveApprovalError } from "./screen-wave-approval";
 
@@ -45,6 +49,13 @@ export type ScreenDecision = {
    *  candidate is out of the funnel and needs a manual nudge (mirrors the
    *  rejection_comms_failed audit event, but addressable per row in the UI). */
   commsFailed?: boolean;
+  /** Direction 2 (queue-staleness) — set when this candidate's match score was
+   *  computed BEFORE the JD's last content edit, so the row is ranking on a score
+   *  against stale text. Server-derived (same isScoreStale rule as the library /
+   *  prep chips); informs, never blocks. `staleSince` is the JD's last-edit date.
+   *  Absent (fresh score / never-edited JD / unscored) → no stale chrome. */
+  stale?: boolean;
+  staleSince?: string;
 };
 
 // The closed set of rationale shapes. Each maps to a `decisions.wave.reasons.*`
@@ -161,6 +172,21 @@ export async function runScreenWave(
   if (!checked.ok) throw new DecisionConfigError(checked.error);
   const cfg: ScreeningRule = { ...getDecisionConfig<ScreeningRule>("screening"), ...checked.override };
   const cohort = listPipeline(workspaceId).filter((e) => e.jobId === jobId && e.status === "active" && e.stage === "Screened");
+  // Direction 2 (queue-staleness) — derive, ONCE per wave, whether each candidate's
+  // score predates the JD's last content edit, using the exact isScoreStale rule the
+  // library roster + prep chips use. jdEditedAt is per-role (a JD-backed job's last
+  // revision, workspace-scoped; null for a corpus job or a never-edited JD). Each
+  // entry's scoredAt is the canonical analysis timestamp (scoreProvenance.at) — a
+  // snapshot-only or unscored entry has none and is never stale. Server-derived so
+  // the preview payload carries the honest flag; the modal only renders it.
+  const jdSlug = jdSlugOfJobId(jobId);
+  const jdEditedAt = jdSlug ? jdLastEditedAt(jdSlug, workspaceId) : null;
+  const scoredAtById = new Map<string, string | null>();
+  for (const e of withCanonicalScores(cohort, workspaceId)) {
+    scoredAtById.set(e.id, e.scoreProvenance?.source === "analysis" ? e.scoreProvenance.at : null);
+  }
+  const staleFields = (id: string): { stale: true; staleSince: string } | Record<string, never> =>
+    jdEditedAt && isScoreStale(scoredAtById.get(id) ?? null, jdEditedAt) ? { stale: true, staleSince: jdEditedAt } : {};
   // NULL-SCORE POLICY — fail closed (SD-L1-002 / REC-03): a candidate with NO
   // match score has not been measured. The old `?? 0` coercion on matchScore made
   // them a genuine-looking 0 that ranked worst, passed `0 < maxMatchToReject`,
@@ -274,7 +300,7 @@ export async function runScreenWave(
       // write, no audit event, no rejection email. The recruiter reviews this set,
       // then re-runs with dryRun:false to apply it.
       if (dryRun) {
-        decisions.push({ entryId: e.id, label: e.candidateLabel, archetype: e.archetype, matchScore: score, action: "reject", rationale, reasonCode: "reject", reasonParams });
+        decisions.push({ entryId: e.id, label: e.candidateLabel, archetype: e.archetype, matchScore: score, action: "reject", rationale, reasonCode: "reject", reasonParams, ...staleFields(e.id) });
         rejected += 1;
         continue;
       }
@@ -327,12 +353,12 @@ export async function runScreenWave(
       }
       // commsFailed rides the decision row so the committed view can badge WHO
       // needs a manual nudge — the bare commsFailures count names nobody.
-      decisions.push({ entryId: e.id, label: e.candidateLabel, archetype: e.archetype, matchScore: score, action: "reject", rationale: committedRationale, reasonCode: "reject", reasonParams, ...(commsFailed ? { commsFailed } : {}) });
+      decisions.push({ entryId: e.id, label: e.candidateLabel, archetype: e.archetype, matchScore: score, action: "reject", rationale: committedRationale, reasonCode: "reject", reasonParams, ...(commsFailed ? { commsFailed } : {}), ...staleFields(e.id) });
       rejected += 1;
     } else {
       const reason = keepReason(cfg, protectedFromAutoReject, knownArchetype, inBottom, tieSpared);
       const structured = keepReasonStructured(cfg, protectedFromAutoReject, knownArchetype, inBottom, tieSpared);
-      decisions.push({ entryId: e.id, label: e.candidateLabel, archetype: e.archetype, matchScore: score, action: "keep", rationale: reason, ...structured });
+      decisions.push({ entryId: e.id, label: e.candidateLabel, archetype: e.archetype, matchScore: score, action: "keep", rationale: reason, ...structured, ...staleFields(e.id) });
     }
   }
   // Unscored candidates (null-score policy above): each gets an EXPLICIT keep
