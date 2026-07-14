@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -38,6 +39,8 @@ from .taxonomy import ROLE_FAMILIES, ROLE_FAMILY_SET, normalize_text
 
 _DATA_DIR = Path(__file__).resolve().parents[2] / "data"
 TAXONOMY_PATH = _DATA_DIR / "taxonomy.json"
+_SEED_JOBS_PATH = _DATA_DIR / "seed_jobs" / "jobs.normalized.json"
+_SEED_CANDIDATES_PATH = _DATA_DIR / "seed_candidates" / "candidates.json"
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 COVERAGE_REPORT_PATH = _REPO_ROOT / "docs" / "TAXONOMY_COVERAGE.md"
 
@@ -89,8 +92,8 @@ SKILL_COVERAGE_FLOORS: dict[str, int] = {
     "frontline_service": 0,
     "sales_marketing": 39,
     "finance_accounting": 46,
-    "legal_compliance": 0,
-    "hr_people": 0,
+    "legal_compliance": 46,
+    "hr_people": 48,
     "education_academic": 0,
     "creative_design": 0,
     "customer_support": 37,
@@ -116,6 +119,179 @@ def load_taxonomy(path: Path = TAXONOMY_PATH) -> dict[str, Any]:
 
 def _norm(form: str) -> str:
     return normalize_text(form).strip()
+
+
+# ---------------------------------------------------------------------------
+# Corpus-collision scan.
+#
+# ``taxonomy.py::_text_contains`` matches a surface form two ways: a precise
+# whole-token match, then — only for compact forms of length >= 3 — a spaceless
+# fallback ``compact_form in compact_text`` where ``compact_text`` is the ENTIRE
+# text with every non-word character stripped (one giant blob). That fallback is
+# the industry-lock hazard the 3-char abbreviations are dense with: a surface like
+# "dpo" substring-hits inside Czech "odpovídat", and "sox"/"ats"/"sar"/"hris" hit
+# ACROSS word boundaries in the compacted blob ("pracovat s lidmi" -> "…ats…").
+# Round 4's builder caught "lean" inside "possible and" by hand; this scan does it
+# mechanically so new short vocabulary is authored THROUGH the lint, not around it.
+#
+# A surface COLLIDES against the corpus when its compact form (len >= 3) matches
+# via the compact fallback where the precise whole-token path would NOT:
+#   * interior/suffix — the compact form sits inside a single corpus word at a
+#     NON-prefix position (the "stem"-in-"system" class). A prefix occurrence is
+#     exempt: it is the benign Czech-inflection / derivation pattern (python ->
+#     "pythonu", audit -> "auditor"), which the compact fallback also fires but
+#     which is the same concept, not an unrelated word.
+#   * cross-word — the compact form does not occur inside ANY single corpus word,
+#     yet appears in a text's fully-compacted blob, so its characters are drawn
+#     from two or more concatenated words (sox, ats, hris, sar).
+# ---------------------------------------------------------------------------
+
+# Word tokens for the corpus: alphanumeric runs, underscore treated as a separator
+# (real ad prose has none; underscores only appear in machine skill-ids we don't
+# want to fuse into a false token like "customer_onboarding").
+_CORPUS_WORD_RE = re.compile(r"[^\W_]+", re.UNICODE)
+
+
+def _compact(text: str) -> str:
+    # Mirror of taxonomy.py::_compact — strips every non-word char (KEEPS the
+    # underscore, exactly as the live matcher's compact_text does), so the blob
+    # this scan searches is byte-for-byte what the real fallback searches.
+    return re.sub(r"\W+", "", text, flags=re.UNICODE)
+
+
+@dataclass(frozen=True)
+class Corpus:
+    """A representative text corpus, prepared once for the collision scan.
+
+    ``word_compacts`` are the distinct compacted single words (for the
+    interior/suffix test); ``blobs`` are the per-text fully-compacted strings (for
+    the cross-word test). Built from the seeded jobs + candidates by default.
+    """
+
+    word_compacts: frozenset[str]
+    blobs: tuple[str, ...]
+
+
+def build_corpus(texts: list[str] | tuple[str, ...]) -> Corpus:
+    words: set[str] = set()
+    blobs: list[str] = []
+    for text in texts:
+        n = normalize_text(text or "")
+        if not n:
+            continue
+        blobs.append(_compact(n))
+        for w in _CORPUS_WORD_RE.findall(n):
+            words.add(w)
+    return Corpus(frozenset(words), tuple(blobs))
+
+
+def _seed_corpus_texts() -> list[str]:
+    """Prose drawn from the seeded jobs + candidates (incl. the non-tech slice).
+
+    Missing files degrade to an empty corpus rather than raising, so the scan
+    stays runnable in a stripped checkout; the live gate asserts the files exist.
+    """
+    texts: list[str] = []
+    if _SEED_JOBS_PATH.exists():
+        for job in json.loads(_SEED_JOBS_PATH.read_text(encoding="utf-8")):
+            texts.append(job.get("title", ""))
+            texts.append(job.get("description", ""))
+            for req in job.get("requirements", []) or []:
+                texts.append((req or {}).get("skill", ""))
+            texts.extend(job.get("detectedSkills", []) or [])
+    if _SEED_CANDIDATES_PATH.exists():
+        for cand in json.loads(_SEED_CANDIDATES_PATH.read_text(encoding="utf-8")):
+            texts.append(cand.get("displayName", ""))
+            texts.append(cand.get("targetRole", ""))
+            texts.extend(cand.get("aspirations", []) or [])
+            for claim in cand.get("skillClaims", []) or []:
+                texts.append((claim or {}).get("skill", ""))
+            for ev in cand.get("evidence", []) or []:
+                texts.append(ev.get("summary", "") if isinstance(ev, dict) else str(ev))
+    return [t for t in texts if t]
+
+
+def seed_corpus() -> Corpus:
+    return build_corpus(_seed_corpus_texts())
+
+
+@dataclass(frozen=True)
+class Collision:
+    term_id: str
+    surface: str
+    compact: str
+    kind: str  # "interior" | "cross_word"
+    context: str  # the offending corpus word / blob snippet
+
+    def describe(self) -> str:
+        return (
+            f"{self.term_id}: surface {self.surface!r} (compact {self.compact!r}) "
+            f"{self.kind} collision in corpus context {self.context!r}"
+        )
+
+
+def _first_cross_word_context(compact_form: str, blobs: tuple[str, ...]) -> str | None:
+    for blob in blobs:
+        idx = blob.find(compact_form)
+        if idx >= 0:
+            lo = max(0, idx - 8)
+            hi = min(len(blob), idx + len(compact_form) + 8)
+            return blob[lo:hi]
+    return None
+
+
+def scan_corpus_collisions(
+    taxonomy: dict[str, Any],
+    corpus: Corpus | None = None,
+    *,
+    term_ids: set[str] | frozenset[str] | None = None,
+    categories: tuple[str, ...] | None = ("skill",),
+) -> list[Collision]:
+    """Every surface form (via its len>=3 compact fallback) that spuriously hits
+    the corpus. ``term_ids`` restricts the scan to specific terms (regardless of
+    category); otherwise every term carrying one of ``categories`` is scanned
+    (pass ``categories=None`` to scan all terms).
+    """
+    if corpus is None:
+        corpus = seed_corpus()
+    terms = taxonomy.get("terms") or []
+    collisions: list[Collision] = []
+    for term in terms:
+        tid = term.get("id")
+        if term_ids is not None:
+            if tid not in term_ids:
+                continue
+        elif categories is not None and not (set(term.get("categories") or []) & set(categories)):
+            continue
+        seen: set[str] = set()
+        for surface in term.get("match", []) or []:
+            if not isinstance(surface, str):
+                continue
+            cf = _compact(_norm(surface))
+            if len(cf) < 3 or cf in seen:
+                continue
+            seen.add(cf)
+            # interior/suffix inside a single word (non-prefix occurrence only).
+            interior = next(
+                (w for w in corpus.word_compacts if cf in w and not w.startswith(cf)),
+                None,
+            )
+            if interior is not None:
+                collisions.append(Collision(str(tid), surface, cf, "interior", interior))
+                continue
+            # cross-word: a SINGLE-token surface whose compact form is absent from
+            # every single corpus word yet present in a blob — so its characters are
+            # drawn from two concatenated words (sox <- "espresso xcuitest"). A
+            # MULTI-word surface ("customer due diligence") legitimately spans word
+            # boundaries in the compacted blob — that is exactly the phrase match the
+            # compact fallback exists to make — so it is never a cross-word collision.
+            if len(_norm(surface).split()) > 1:
+                continue
+            if not any(cf in w for w in corpus.word_compacts):
+                ctx = _first_cross_word_context(cf, corpus.blobs)
+                if ctx is not None:
+                    collisions.append(Collision(str(tid), surface, cf, "cross_word", ctx))
+    return collisions
 
 
 def lint_taxonomy(
@@ -329,6 +505,18 @@ def main(argv: list[str] | None = None) -> int:
     taxonomy = load_taxonomy()
     result = lint_taxonomy(taxonomy)
     _print_lint(result)
+
+    # Corpus-collision scan over every skill surface (informational — the live gate
+    # in tests/test_taxonomy_check.py scopes the FAIL to the non-tech families whose
+    # short abbreviations were authored through it; grandfathered tech terms such as
+    # sql-in-postgresql predate the scan).
+    collisions = scan_corpus_collisions(taxonomy)
+    if collisions:
+        print(f"\nCORPUS COLLISIONS: {len(collisions)} skill surface(s) hit the seed corpus:")
+        for c in collisions:
+            print(f"  {c.describe()}")
+    else:
+        print("\nCORPUS COLLISIONS: none across skill surfaces.")
 
     print()
     print(render_coverage_table(taxonomy))

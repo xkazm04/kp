@@ -961,9 +961,13 @@
       ],
       "role_family_votes": {
         "software_engineering": 0.5,
-        "product_project": 0.5
+        "product_project": 0.5,
+        "legal_compliance": 1
       },
-      "salary_signal": "regulated_industry"
+      "salary_signal": "regulated_industry",
+      "parents": [
+        "financial_regulation"
+      ]
     },
     {
       "id": "iso_27001",
@@ -1010,9 +1014,13 @@
       ],
       "role_family_votes": {
         "software_engineering": 0.3,
-        "product_project": 0.7
+        "product_project": 0.7,
+        "legal_compliance": 1
       },
-      "salary_signal": "regulated_industry"
+      "salary_signal": "regulated_industry",
+      "parents": [
+        "data_protection"
+      ]
     },
     {
       "id": "qa",
@@ -2846,7 +2854,8 @@
         "skill"
       ],
       "role_family_votes": {
-        "finance_accounting": 1
+        "finance_accounting": 1,
+        "legal_compliance": 0.5
       },
       "salary_signal": "regulated_industry"
     },
@@ -2862,7 +2871,8 @@
         "skill"
       ],
       "role_family_votes": {
-        "finance_accounting": 1
+        "finance_accounting": 1,
+        "legal_compliance": 0.5
       },
       "parents": [
         "aml"
@@ -2881,7 +2891,8 @@
         "skill"
       ],
       "role_family_votes": {
-        "finance_accounting": 1
+        "finance_accounting": 1,
+        "legal_compliance": 0.5
       },
       "parents": [
         "kyc"
@@ -2899,7 +2910,8 @@
         "skill"
       ],
       "role_family_votes": {
-        "finance_accounting": 1
+        "finance_accounting": 1,
+        "legal_compliance": 0.5
       },
       "parents": [
         "aml"
@@ -2917,7 +2929,8 @@
         "skill"
       ],
       "role_family_votes": {
-        "finance_accounting": 1
+        "finance_accounting": 1,
+        "legal_compliance": 0.5
       },
       "parents": [
         "aml"
@@ -2935,7 +2948,8 @@
         "skill"
       ],
       "role_family_votes": {
-        "finance_accounting": 1
+        "finance_accounting": 1,
+        "legal_compliance": 0.5
       }
     },
     {
@@ -3227,7 +3241,8 @@
         "skill"
       ],
       "role_family_votes": {
-        "finance_accounting": 1
+        "finance_accounting": 1,
+        "hr_people": 0.5
       },
       "parents": [
         "accounting"
@@ -3321,7 +3336,8 @@
         "skill"
       ],
       "role_family_votes": {
-        "finance_accounting": 1
+        "finance_accounting": 1,
+        "legal_compliance": 0.5
       }
     },
     {
@@ -3385,7 +3401,8 @@
         "skill"
       ],
       "role_family_votes": {
-        "finance_accounting": 1
+        "finance_accounting": 1,
+        "legal_compliance": 0.5
       },
       "parents": [
         "risk_management_fin"
@@ -3403,7 +3420,8 @@
         "skill"
       ],
       "role_family_votes": {
-        "finance_accounting": 1
+        "finance_accounting": 1,
+        "legal_compliance": 0.5
       },
       "parents": [
         "risk_management_fin"
@@ -3422,7 +3440,8 @@
         "skill"
       ],
       "role_family_votes": {
-        "finance_accounting": 1
+        "finance_accounting": 1,
+        "legal_compliance": 0.5
       },
       "salary_signal": "regulated_industry"
     },
@@ -3437,7 +3456,8 @@
         "skill"
       ],
       "role_family_votes": {
-        "finance_accounting": 1
+        "finance_accounting": 1,
+        "legal_compliance": 0.5
       },
       "salary_signal": "regulated_industry"
     },
@@ -4986,7 +5006,8 @@
         "skill"
       ],
       "role_family_votes": {
-        "operations_logistics": 1
+        "operations_logistics": 1,
+        "legal_compliance": 0.5
       },
       "parents": [
         "document_management"
@@ -5288,6 +5309,1307 @@
       },
       "parents": [
         "logistics_skill"
+      ]
+    },
+    {
+      "id": "regulatory_compliance",
+      "match": [
+        "regulatory compliance",
+        "regulatorní compliance",
+        "soulad s předpisy",
+        "dodržování předpisů"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "legal_compliance": 1
+      },
+      "salary_signal": "regulated_industry"
+    },
+    {
+      "id": "legal_advisory",
+      "match": [
+        "legal advisory",
+        "právní poradenství",
+        "právní služby"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "legal_compliance": 1
+      }
+    },
+    {
+      "id": "data_protection",
+      "match": [
+        "data protection",
+        "ochrana osobních údajů",
+        "ochrana dat"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "legal_compliance": 1
+      },
+      "salary_signal": "regulated_industry"
+    },
+    {
+      "id": "financial_regulation",
+      "match": [
+        "financial regulation",
+        "regulace finančního trhu",
+        "bankovní regulace"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "legal_compliance": 1,
+        "finance_accounting": 0.5
+      },
+      "parents": [
+        "regulatory_compliance"
+      ],
+      "salary_signal": "regulated_industry"
+    },
+    {
+      "id": "compliance_monitoring",
+      "match": [
+        "compliance monitoring",
+        "monitoring compliance",
+        "kontrola dodržování předpisů"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "legal_compliance": 1
+      },
+      "parents": [
+        "regulatory_compliance"
+      ],
+      "salary_signal": "regulated_industry"
+    },
+    {
+      "id": "policy_management",
+      "match": [
+        "policy management",
+        "řízení interních předpisů",
+        "správa směrnic"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "legal_compliance": 1
+      },
+      "parents": [
+        "regulatory_compliance"
+      ]
+    },
+    {
+      "id": "regulatory_change_management",
+      "match": [
+        "regulatory change management",
+        "řízení regulatorních změn"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "legal_compliance": 1
+      },
+      "parents": [
+        "regulatory_compliance"
+      ],
+      "salary_signal": "regulated_industry"
+    },
+    {
+      "id": "internal_controls",
+      "match": [
+        "internal controls",
+        "vnitřní kontrolní systém",
+        "interní kontroly"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "legal_compliance": 1,
+        "finance_accounting": 0.5
+      },
+      "parents": [
+        "regulatory_compliance"
+      ]
+    },
+    {
+      "id": "esg_compliance",
+      "match": [
+        "esg",
+        "esg compliance",
+        "esg reporting",
+        "udržitelnost a esg"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "legal_compliance": 1
+      },
+      "parents": [
+        "regulatory_compliance"
+      ],
+      "salary_signal": "regulated_industry"
+    },
+    {
+      "id": "sox_compliance",
+      "match": [
+        "sarbanes-oxley",
+        "sox compliance",
+        "sox controls"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "legal_compliance": 1,
+        "finance_accounting": 0.5
+      },
+      "parents": [
+        "internal_controls"
+      ],
+      "salary_signal": "regulated_industry"
+    },
+    {
+      "id": "whistleblowing",
+      "match": [
+        "whistleblowing",
+        "oznamování protiprávního jednání",
+        "ochrana oznamovatelů"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "legal_compliance": 1
+      },
+      "parents": [
+        "regulatory_compliance"
+      ]
+    },
+    {
+      "id": "code_of_conduct",
+      "match": [
+        "code of conduct",
+        "etický kodex",
+        "kodex chování"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "legal_compliance": 1
+      },
+      "parents": [
+        "regulatory_compliance"
+      ]
+    },
+    {
+      "id": "conflict_of_interest",
+      "match": [
+        "conflict of interest",
+        "střet zájmů"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "legal_compliance": 1
+      },
+      "parents": [
+        "code_of_conduct"
+      ]
+    },
+    {
+      "id": "anti_bribery",
+      "match": [
+        "anti-bribery",
+        "anti-corruption",
+        "protikorupční compliance",
+        "boj proti korupci"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "legal_compliance": 1
+      },
+      "parents": [
+        "regulatory_compliance"
+      ],
+      "salary_signal": "regulated_industry"
+    },
+    {
+      "id": "regulatory_licensing",
+      "match": [
+        "regulatory licensing",
+        "licenční řízení",
+        "povolovací řízení"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "legal_compliance": 1
+      },
+      "parents": [
+        "regulatory_compliance"
+      ]
+    },
+    {
+      "id": "psd2",
+      "match": [
+        "psd2",
+        "payment services directive",
+        "směrnice o platebních službách"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "legal_compliance": 1,
+        "finance_accounting": 0.5
+      },
+      "parents": [
+        "financial_regulation"
+      ],
+      "salary_signal": "regulated_industry"
+    },
+    {
+      "id": "emir",
+      "match": [
+        "emir",
+        "european market infrastructure regulation"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "legal_compliance": 1,
+        "finance_accounting": 0.5
+      },
+      "parents": [
+        "financial_regulation"
+      ],
+      "salary_signal": "regulated_industry"
+    },
+    {
+      "id": "pep_screening",
+      "match": [
+        "politically exposed persons",
+        "politicky exponovaná osoba",
+        "prověření pep"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "legal_compliance": 1,
+        "finance_accounting": 0.5
+      },
+      "parents": [
+        "sanctions_screening"
+      ],
+      "salary_signal": "regulated_industry"
+    },
+    {
+      "id": "suspicious_activity_reporting",
+      "match": [
+        "suspicious activity report",
+        "suspicious activity reporting",
+        "oznámení podezřelého obchodu"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "legal_compliance": 1,
+        "finance_accounting": 0.5
+      },
+      "parents": [
+        "aml"
+      ],
+      "salary_signal": "regulated_industry"
+    },
+    {
+      "id": "market_abuse",
+      "match": [
+        "market abuse",
+        "insider trading",
+        "zneužití trhu",
+        "obchodování zasvěcených osob"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "legal_compliance": 1,
+        "finance_accounting": 0.5
+      },
+      "parents": [
+        "aml"
+      ],
+      "salary_signal": "regulated_industry"
+    },
+    {
+      "id": "privacy_by_design",
+      "match": [
+        "privacy by design",
+        "ochrana soukromí již od návrhu"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "legal_compliance": 1
+      },
+      "parents": [
+        "data_protection"
+      ],
+      "salary_signal": "regulated_industry"
+    },
+    {
+      "id": "dpia",
+      "match": [
+        "data protection impact assessment",
+        "posouzení vlivu na ochranu osobních údajů"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "legal_compliance": 1
+      },
+      "parents": [
+        "data_protection"
+      ],
+      "salary_signal": "regulated_industry"
+    },
+    {
+      "id": "data_subject_rights",
+      "match": [
+        "data subject rights",
+        "práva subjektů údajů"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "legal_compliance": 1
+      },
+      "parents": [
+        "data_protection"
+      ],
+      "salary_signal": "regulated_industry"
+    },
+    {
+      "id": "data_protection_officer",
+      "match": [
+        "data protection officer",
+        "pověřenec pro ochranu osobních údajů"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "legal_compliance": 1
+      },
+      "parents": [
+        "data_protection"
+      ],
+      "salary_signal": "regulated_industry"
+    },
+    {
+      "id": "contract_law",
+      "match": [
+        "contract law",
+        "smluvní právo",
+        "závazkové právo"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "legal_compliance": 1
+      },
+      "parents": [
+        "legal_advisory"
+      ]
+    },
+    {
+      "id": "contract_drafting",
+      "match": [
+        "contract drafting",
+        "příprava smluv",
+        "tvorba smluv"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "legal_compliance": 1
+      },
+      "parents": [
+        "contract_law"
+      ]
+    },
+    {
+      "id": "commercial_law",
+      "match": [
+        "commercial law",
+        "obchodní právo"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "legal_compliance": 1
+      },
+      "parents": [
+        "legal_advisory"
+      ]
+    },
+    {
+      "id": "corporate_law",
+      "match": [
+        "corporate law",
+        "právo obchodních společností",
+        "korporátní právo"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "legal_compliance": 1
+      },
+      "parents": [
+        "legal_advisory"
+      ]
+    },
+    {
+      "id": "litigation",
+      "match": [
+        "litigation",
+        "soudní spory",
+        "sporná agenda"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "legal_compliance": 1
+      },
+      "parents": [
+        "legal_advisory"
+      ]
+    },
+    {
+      "id": "legal_research",
+      "match": [
+        "legal research",
+        "právní rešerše",
+        "právní analýza"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "legal_compliance": 1
+      },
+      "parents": [
+        "legal_advisory"
+      ]
+    },
+    {
+      "id": "intellectual_property",
+      "match": [
+        "intellectual property",
+        "ip law",
+        "duševní vlastnictví"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "legal_compliance": 1
+      },
+      "parents": [
+        "legal_advisory"
+      ]
+    },
+    {
+      "id": "labour_law",
+      "match": [
+        "labour law",
+        "labor law",
+        "pracovní právo"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "legal_compliance": 1,
+        "hr_people": 0.5
+      },
+      "parents": [
+        "legal_advisory"
+      ]
+    },
+    {
+      "id": "recruiting",
+      "match": [
+        "recruiting",
+        "recruitment",
+        "nábor",
+        "nábor zaměstnanců"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "hr_people": 1
+      }
+    },
+    {
+      "id": "sourcing",
+      "match": [
+        "sourcing",
+        "candidate sourcing",
+        "vyhledávání kandidátů"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "hr_people": 1
+      },
+      "parents": [
+        "recruiting"
+      ]
+    },
+    {
+      "id": "candidate_screening",
+      "match": [
+        "candidate screening",
+        "screening kandidátů",
+        "předvýběr kandidátů"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "hr_people": 1
+      },
+      "parents": [
+        "recruiting"
+      ]
+    },
+    {
+      "id": "interviewing_hr",
+      "match": [
+        "interviewing",
+        "vedení pohovorů",
+        "pracovní pohovory"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "hr_people": 1
+      },
+      "parents": [
+        "recruiting"
+      ]
+    },
+    {
+      "id": "employer_branding",
+      "match": [
+        "employer branding",
+        "budování značky zaměstnavatele"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "hr_people": 1
+      },
+      "parents": [
+        "recruiting"
+      ]
+    },
+    {
+      "id": "applicant_tracking",
+      "match": [
+        "applicant tracking system",
+        "applicant tracking",
+        "evidence uchazečů"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "hr_people": 1
+      },
+      "parents": [
+        "recruiting"
+      ]
+    },
+    {
+      "id": "candidate_experience",
+      "match": [
+        "candidate experience",
+        "zkušenost kandidáta"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "hr_people": 1
+      },
+      "parents": [
+        "recruiting"
+      ]
+    },
+    {
+      "id": "technical_recruiting",
+      "match": [
+        "technical recruiting",
+        "it nábor",
+        "technický nábor"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "hr_people": 1
+      },
+      "parents": [
+        "recruiting"
+      ]
+    },
+    {
+      "id": "employee_lifecycle",
+      "match": [
+        "employee lifecycle",
+        "životní cyklus zaměstnance"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "hr_people": 1
+      }
+    },
+    {
+      "id": "onboarding",
+      "match": [
+        "onboarding",
+        "adaptace zaměstnanců",
+        "nástup zaměstnanců"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "hr_people": 1
+      },
+      "parents": [
+        "employee_lifecycle"
+      ]
+    },
+    {
+      "id": "offboarding",
+      "match": [
+        "offboarding",
+        "ukončení pracovního poměru",
+        "výstup zaměstnance"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "hr_people": 1
+      },
+      "parents": [
+        "employee_lifecycle"
+      ]
+    },
+    {
+      "id": "exit_interviews",
+      "match": [
+        "exit interview",
+        "výstupní pohovor"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "hr_people": 1
+      },
+      "parents": [
+        "employee_lifecycle"
+      ]
+    },
+    {
+      "id": "compensation_benefits",
+      "match": [
+        "compensation and benefits",
+        "comp and ben",
+        "odměňování a benefity",
+        "comp & ben"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "hr_people": 1
+      }
+    },
+    {
+      "id": "total_rewards",
+      "match": [
+        "total rewards",
+        "celková odměna"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "hr_people": 1
+      },
+      "parents": [
+        "compensation_benefits"
+      ]
+    },
+    {
+      "id": "benefits_administration",
+      "match": [
+        "benefits administration",
+        "správa benefitů",
+        "zaměstnanecké benefity"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "hr_people": 1
+      },
+      "parents": [
+        "compensation_benefits"
+      ]
+    },
+    {
+      "id": "job_grading",
+      "match": [
+        "job grading",
+        "job evaluation",
+        "hodnocení pracovních míst"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "hr_people": 1
+      },
+      "parents": [
+        "compensation_benefits"
+      ]
+    },
+    {
+      "id": "salary_benchmarking_hr",
+      "match": [
+        "salary benchmarking",
+        "mzdový benchmarking",
+        "srovnávání mezd"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "hr_people": 1
+      },
+      "parents": [
+        "compensation_benefits"
+      ]
+    },
+    {
+      "id": "learning_development",
+      "match": [
+        "learning and development",
+        "l&d",
+        "vzdělávání a rozvoj",
+        "rozvoj zaměstnanců"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "hr_people": 1
+      }
+    },
+    {
+      "id": "training_needs_analysis",
+      "match": [
+        "training needs analysis",
+        "analýza vzdělávacích potřeb"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "hr_people": 1
+      },
+      "parents": [
+        "learning_development"
+      ]
+    },
+    {
+      "id": "training_delivery",
+      "match": [
+        "training delivery",
+        "vedení školení",
+        "realizace školení"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "hr_people": 1
+      },
+      "parents": [
+        "learning_development"
+      ]
+    },
+    {
+      "id": "career_development",
+      "match": [
+        "career development",
+        "kariérní rozvoj",
+        "rozvoj kariéry"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "hr_people": 1
+      },
+      "parents": [
+        "learning_development"
+      ]
+    },
+    {
+      "id": "leadership_development",
+      "match": [
+        "leadership development",
+        "rozvoj leadershipu",
+        "rozvoj manažerů"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "hr_people": 1
+      },
+      "parents": [
+        "learning_development"
+      ]
+    },
+    {
+      "id": "lms_admin",
+      "match": [
+        "learning management system",
+        "lms",
+        "správa lms"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "hr_people": 1
+      },
+      "parents": [
+        "learning_development"
+      ]
+    },
+    {
+      "id": "performance_management",
+      "match": [
+        "performance management",
+        "řízení výkonnosti",
+        "hodnocení výkonu"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "hr_people": 1
+      }
+    },
+    {
+      "id": "competency_framework",
+      "match": [
+        "competency framework",
+        "kompetenční model",
+        "matice kompetencí"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "hr_people": 1
+      },
+      "parents": [
+        "performance_management"
+      ]
+    },
+    {
+      "id": "succession_planning",
+      "match": [
+        "succession planning",
+        "plánování nástupnictví",
+        "nástupnictví"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "hr_people": 1
+      },
+      "parents": [
+        "performance_management"
+      ]
+    },
+    {
+      "id": "talent_management",
+      "match": [
+        "talent management",
+        "řízení talentů",
+        "rozvoj talentů"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "hr_people": 1
+      }
+    },
+    {
+      "id": "employee_relations",
+      "match": [
+        "employee relations",
+        "zaměstnanecké vztahy",
+        "vztahy se zaměstnanci"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "hr_people": 1
+      }
+    },
+    {
+      "id": "grievance_handling",
+      "match": [
+        "grievance handling",
+        "řešení stížností zaměstnanců"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "hr_people": 1
+      },
+      "parents": [
+        "employee_relations"
+      ]
+    },
+    {
+      "id": "conflict_resolution_hr",
+      "match": [
+        "conflict resolution",
+        "řešení konfliktů na pracovišti"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "hr_people": 1
+      },
+      "parents": [
+        "employee_relations"
+      ]
+    },
+    {
+      "id": "collective_bargaining",
+      "match": [
+        "collective bargaining",
+        "kolektivní vyjednávání",
+        "kolektivní smlouva"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "hr_people": 1
+      },
+      "parents": [
+        "employee_relations"
+      ]
+    },
+    {
+      "id": "employee_engagement",
+      "match": [
+        "employee engagement",
+        "angažovanost zaměstnanců",
+        "engagement survey",
+        "průzkum spokojenosti"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "hr_people": 1
+      },
+      "parents": [
+        "employee_relations"
+      ]
+    },
+    {
+      "id": "workplace_wellbeing",
+      "match": [
+        "workplace wellbeing",
+        "wellbeing zaměstnanců",
+        "péče o pohodu zaměstnanců"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "hr_people": 1
+      },
+      "parents": [
+        "employee_relations"
+      ]
+    },
+    {
+      "id": "hr_operations",
+      "match": [
+        "hr operations",
+        "hr administrativa",
+        "personální administrativa"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "hr_people": 1
+      }
+    },
+    {
+      "id": "hris_admin",
+      "match": [
+        "human resources information system",
+        "hr information system",
+        "personální informační systém"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "hr_people": 1
+      },
+      "parents": [
+        "hr_operations"
+      ]
+    },
+    {
+      "id": "people_analytics",
+      "match": [
+        "people analytics",
+        "hr analytics",
+        "personální analytika"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "hr_people": 1
+      },
+      "parents": [
+        "hr_operations"
+      ]
+    },
+    {
+      "id": "workforce_planning",
+      "match": [
+        "workforce planning",
+        "plánování pracovní síly",
+        "personální plánování"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "hr_people": 1
+      },
+      "parents": [
+        "hr_operations"
+      ]
+    },
+    {
+      "id": "headcount_planning",
+      "match": [
+        "headcount planning",
+        "plánování počtu zaměstnanců"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "hr_people": 1
+      },
+      "parents": [
+        "workforce_planning"
+      ]
+    },
+    {
+      "id": "hr_administration",
+      "match": [
+        "personnel administration",
+        "personalistika",
+        "vedení personální agendy"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "hr_people": 1
+      },
+      "parents": [
+        "hr_operations"
+      ]
+    },
+    {
+      "id": "time_attendance",
+      "match": [
+        "time and attendance",
+        "docházka",
+        "evidence docházky"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "hr_people": 1
+      },
+      "parents": [
+        "hr_operations"
+      ]
+    },
+    {
+      "id": "absence_management",
+      "match": [
+        "absence management",
+        "správa absencí",
+        "řízení nepřítomnosti"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "hr_people": 1
+      },
+      "parents": [
+        "hr_operations"
+      ]
+    },
+    {
+      "id": "hr_business_partnering",
+      "match": [
+        "hr business partner",
+        "personální business partner"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "hr_people": 1
+      }
+    },
+    {
+      "id": "organizational_development",
+      "match": [
+        "organizational development",
+        "organizational design",
+        "rozvoj organizace"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "hr_people": 1
+      }
+    },
+    {
+      "id": "dei_hr",
+      "match": [
+        "diversity and inclusion",
+        "dei",
+        "diverzita a inkluze"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "hr_people": 1
+      }
+    },
+    {
+      "id": "background_screening",
+      "match": [
+        "background check",
+        "background screening",
+        "prověření uchazeče"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "hr_people": 1
+      },
+      "parents": [
+        "recruiting"
+      ]
+    },
+    {
+      "id": "psychometric_testing",
+      "match": [
+        "psychometric testing",
+        "psychometrické testování",
+        "assessment centre",
+        "assessment center"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "hr_people": 1
+      },
+      "parents": [
+        "recruiting"
       ]
     }
   ],
