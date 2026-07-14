@@ -1120,9 +1120,23 @@ function TimelineItemRow({ item }: { item: CandidateTimelineItem }) {
       case "interview":
         return item.status === "completed" ? t("interviewCompleted") : t("interviewCreated");
       case "invite":
-        return item.status === "confirmed"
-          ? `${t("inviteConfirmed")}${item.slot ? ` — ${item.slot}` : ""}`
-          : t(relayConfigured === false ? "inviteQueued" : "inviteSent");
+        switch (item.status) {
+          case "confirmed":
+            return `${t("inviteConfirmed")}${item.slot ? ` — ${item.slot}` : ""}`;
+          // Terminal fates — the timeline stops lying about a dead link (the offer
+          // branch already surfaces its own terminal states this way).
+          case "declined":
+            return t("inviteDeclined");
+          case "no_show":
+            return t("inviteNoShow");
+          case "expired":
+            return t("inviteExpired");
+          // A candidate proposal awaiting the recruiter — a fact, not an action.
+          case "proposed":
+            return t("inviteProposed");
+          default:
+            return t(relayConfigured === false ? "inviteQueued" : "inviteSent");
+        }
       case "offer":
         return item.status === "accepted" ? t("offerAccepted") : item.status === "declined" ? t("offerDeclined") : t("offerExtended");
       default:

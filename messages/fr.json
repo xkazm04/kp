@@ -1451,6 +1451,10 @@
         "inviteSent": "Invitation de planification envoyée",
         "inviteQueued": "Invitation de planification en file dans la boîte d'envoi (non envoyée)",
         "inviteConfirmed": "Créneau confirmé",
+        "inviteDeclined": "Entretien décliné par le candidat",
+        "inviteNoShow": "Le candidat ne s'est pas présenté",
+        "inviteExpired": "Invitation de planification expirée sans utilisation",
+        "inviteProposed": "Le candidat a proposé d'autres créneaux",
         "offerExtended": "Offre envoyée",
         "offerAccepted": "Offre acceptée",
         "offerDeclined": "Offre refusée"

@@ -13,9 +13,21 @@ import { createPipelineEntry, recordEntryConsent } from "./db/pipeline.ts";
 import { saveAnalysis } from "./db/analyses.ts";
 import { recordOutbox } from "./db/devcase.ts";
 import { createInterviewSession, completeInterviewSession } from "./db/interviews.ts";
+import {
+  createScheduleInvite,
+  confirmScheduleInvite,
+  declineScheduleInvite,
+  markScheduleInviteNoShow,
+  setScheduleInviteProposals,
+} from "./schedule-store.ts";
+import { UNIT_DB_PATH } from "./testing/unit-db.ts";
+import Database from "better-sqlite3";
 import { candidateDrawerBundle } from "./candidate-timeline.ts";
 
 after(() => cleanupUnitDb());
+
+const inviteStatuses = (entryId: string): string[] =>
+  (candidateDrawerBundle(entryId)!.items.filter((i) => i.kind === "invite").map((i) => i.status)) as string[];
 
 // A completed voice interview whose AI scorecard carries the round-3 telemetry +
 // coverage that ride on the scorecard object at runtime (interview-run.ts).
@@ -130,6 +142,84 @@ test("comms appear EXACTLY ONCE — in the comms letters, never duplicated as ti
   // The timeline items no longer carry a comm kind at all — so a comm can never be
   // rendered twice (once as a letter, once in history).
   assert.equal(bundle!.items.some((i) => (i.kind as string) === "comm"), false, "no comm item duplicates the letter");
+});
+
+// ── Direction 1: read-back entities project onto the interview outcome ──────────
+test("the interview outcome projects the structured read-back entities", () => {
+  const e = createPipelineEntry({ candidateId: "cand-ent", candidateLabel: "Enti Ties", jobId: "jd-frontend", jobTitle: "Frontend Engineer" });
+  seedCompletedInterview(e.entry.id, {
+    entities: {
+      confirmed: ["PostgreSQL", " Docker "],
+      corrected: [{ heard: "Rust", meant: "React" }, { heard: "", meant: "x" }],
+      unconfirmed: ["Kubernetes", 42],
+    },
+  });
+  const iv = candidateDrawerBundle(e.entry.id)!.interview;
+  // Projected through the SAME normalizer the modal uses: trimmed, half-empty pairs
+  // and non-string buckets dropped.
+  assert.deepEqual(iv!.entities, {
+    confirmed: ["PostgreSQL", "Docker"],
+    corrected: [{ heard: "Rust", meant: "React" }],
+    unconfirmed: ["Kubernetes"],
+  });
+});
+
+test("no read-back ⇒ entities absent (no chrome), and consent redaction drops it", () => {
+  const e1 = createPipelineEntry({ candidateId: "cand-noent", candidateLabel: "No Enti", jobId: "jd-frontend", jobTitle: "Frontend Engineer" });
+  seedCompletedInterview(e1.entry.id); // scorecard carries no entities
+  assert.equal(candidateDrawerBundle(e1.entry.id)!.interview!.entities, undefined, "absent when no read-back happened");
+
+  const e2 = createPipelineEntry({ candidateId: "cand-entredact", candidateLabel: "Ent Redact", jobId: "jd-frontend", jobTitle: "Frontend Engineer" });
+  seedCompletedInterview(e2.entry.id, { entities: { confirmed: ["React"], corrected: [], unconfirmed: [] } });
+  recordEntryConsent(e2.entry.id, "apply", -1); // already expired ⇒ redaction at read
+  assert.equal(candidateDrawerBundle(e2.entry.id)!.interview!.entities, undefined, "dropped with the redacted scorecard");
+});
+
+// ── Direction 2: terminal invite states stop rendering as live ──────────────────
+test("a declined invite surfaces its true terminal state (not just 'sent')", () => {
+  const e = createPipelineEntry({ candidateId: "cand-decl", candidateLabel: "Deb Cline", jobId: "jd-frontend", jobTitle: "Frontend Engineer" });
+  const inv = createScheduleInvite({ entryId: e.entry.id });
+  declineScheduleInvite(inv.token);
+  assert.deepEqual(inviteStatuses(e.entry.id), ["sent", "declined"], "the story ends declined, no stale confirmed");
+});
+
+test("a no-show invite renders confirmed → no_show, anchored to the missed slot", () => {
+  const e = createPipelineEntry({ candidateId: "cand-noshow", candidateLabel: "Noah Show", jobId: "jd-frontend", jobTitle: "Frontend Engineer" });
+  const inv = createScheduleInvite({ entryId: e.entry.id });
+  confirmScheduleInvite(inv.token, "Wed 15 Jan · 10:00", "2030-01-15T10:00:00.000Z");
+  markScheduleInviteNoShow(inv.token);
+  const items = candidateDrawerBundle(e.entry.id)!.items.filter((i) => i.kind === "invite");
+  assert.deepEqual(items.map((i) => i.status), ["sent", "confirmed", "no_show"]);
+  assert.equal(items.find((i) => i.status === "no_show")!.at, "2030-01-15T10:00:00.000Z", "the lapse is anchored to the missed slot time");
+});
+
+test("a candidate's pending proposal is a timeline fact", () => {
+  const e = createPipelineEntry({ candidateId: "cand-prop", candidateLabel: "Pro Posal", jobId: "jd-frontend", jobTitle: "Frontend Engineer" });
+  const inv = createScheduleInvite({ entryId: e.entry.id });
+  setScheduleInviteProposals(inv.token, [{ value: "2030-02-01T09:00:00.000Z", label: "Fri 1 Feb · 09:00" }]);
+  assert.deepEqual(inviteStatuses(e.entry.id), ["sent", "proposed"], "the proposal is recorded, invite still pending");
+});
+
+test("a stale pending invite past its TTL renders derived 'expired'", () => {
+  const e = createPipelineEntry({ candidateId: "cand-exp", candidateLabel: "Ex Pyred", jobId: "jd-frontend", jobTitle: "Frontend Engineer" });
+  const inv = createScheduleInvite({ entryId: e.entry.id });
+  // Backdate created_at past the 7-day TTL via a raw handle on the same test DB —
+  // there's no store API to age a row, and expiry is derived from createdAt.
+  const raw = new Database(UNIT_DB_PATH);
+  raw.prepare(`UPDATE schedule_invites SET created_at = ? WHERE token = ?`).run("2020-01-01T00:00:00.000Z", inv.token);
+  raw.close();
+  assert.deepEqual(inviteStatuses(e.entry.id), ["sent", "expired"], "a never-booked stale link stops reading as live");
+});
+
+test("a live pending/confirmed invite is unchanged (no terminal item)", () => {
+  const ep = createPipelineEntry({ candidateId: "cand-live", candidateLabel: "Liv Ely", jobId: "jd-frontend", jobTitle: "Frontend Engineer" });
+  createScheduleInvite({ entryId: ep.entry.id });
+  assert.deepEqual(inviteStatuses(ep.entry.id), ["sent"], "a fresh pending invite is just 'sent'");
+
+  const ec = createPipelineEntry({ candidateId: "cand-conf", candidateLabel: "Con Firmed", jobId: "jd-frontend", jobTitle: "Frontend Engineer" });
+  const inv = createScheduleInvite({ entryId: ec.entry.id });
+  confirmScheduleInvite(inv.token, "Wed 15 Jan · 14:00", "2030-01-15T14:00:00.000Z");
+  assert.deepEqual(inviteStatuses(ec.entry.id), ["sent", "confirmed"], "a confirmed booking stays sent + confirmed");
 });
 
 test("the bundle carries every drawer section in one payload", () => {

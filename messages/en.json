@@ -1425,6 +1425,10 @@
         "inviteSent": "Scheduling invite sent",
         "inviteQueued": "Scheduling invite queued in Outbox (not delivered)",
         "inviteConfirmed": "Slot confirmed",
+        "inviteDeclined": "Interview declined by the candidate",
+        "inviteNoShow": "Candidate did not attend",
+        "inviteExpired": "Scheduling invite expired unused",
+        "inviteProposed": "Candidate proposed alternative times",
         "offerExtended": "Offer extended",
         "offerAccepted": "Offer accepted",
         "offerDeclined": "Offer declined"

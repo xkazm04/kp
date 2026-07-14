@@ -1,6 +1,7 @@
 import { getPipelineEntry, latestInterviewByEntry, listAnalyses, listConsentEvents, listOutboxFiltered, listPipelineEventsForEntry, type ConsentEvent, type PipelineEvent } from "./db";
 import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 import { listScheduleInvites } from "./schedule-store";
+import { isScheduleInviteExpired, INVITE_LINK_TTL_DAYS } from "./schedule-slots";
 import { listOffersForEntry } from "./offers-store";
 import { jdSlugOfJobId } from "./jd-limits";
 import { deriveCommsView } from "./comms-view";
@@ -168,6 +169,32 @@ function candidateTimelineForEntry(
     if (invite.entryId !== entry.id) continue;
     items.push({ at: invite.createdAt, kind: "invite", status: "sent" });
     if (invite.confirmedAt) items.push({ at: invite.confirmedAt, kind: "invite", status: "confirmed", slot: invite.slot });
+    // The candidate proposed alternative times the recruiter hasn't actioned yet — a
+    // timeline FACT (no action, no link): the story shouldn't read as a live "invite
+    // sent" when the ball is actually in the recruiter's court.
+    if (invite.proposalStatus === "pending" && invite.proposalsAt) {
+      items.push({ at: invite.proposalsAt, kind: "invite", status: "proposed" });
+    }
+    // Terminal fate — mirror the offer branch below: a declined / no-show / (derived)
+    // expired invite must stop rendering as a live "sent/confirmed" link forever.
+    // declined + no_show are stored statuses; expired is DERIVED from a still-pending
+    // row's age (isScheduleInviteExpired), so no row is written for it.
+    if (invite.status === "declined") {
+      // No stored decline timestamp (the column doesn't exist) — anchor the fact at
+      // the best-known instant (a proposal they made, else the invite's creation),
+      // never a fabricated later time.
+      items.push({ at: invite.proposalsAt ?? invite.createdAt, kind: "invite", status: "declined" });
+    } else if (invite.status === "no_show") {
+      // no_show keeps slot_at as the record of the missed time (schedule-store) — the
+      // truthful instant for the lapse.
+      items.push({ at: invite.slotAt ?? invite.confirmedAt ?? invite.createdAt, kind: "invite", status: "no_show" });
+    } else if (isScheduleInviteExpired(invite)) {
+      // Surface the lapse at its TTL deadline (createdAt + INVITE_LINK_TTL_DAYS) so a
+      // never-booked link stops reading as "sent" forever — exactly the offer branch's
+      // expired-at-its-deadline handling.
+      const expiredAt = new Date(Date.parse(invite.createdAt) + INVITE_LINK_TTL_DAYS * 86_400_000).toISOString();
+      items.push({ at: expiredAt, kind: "invite", status: "expired" });
+    }
   }
 
   for (const offer of listOffersForEntry(entry.id)) {

@@ -1425,6 +1425,10 @@
         "inviteSent": "Pozvánka k plánování odeslána",
         "inviteQueued": "Pozvánka k plánování ve frontě v Outboxu (nedoručeno)",
         "inviteConfirmed": "Termín potvrzen",
+        "inviteDeclined": "Pohovor kandidátem odmítnut",
+        "inviteNoShow": "Kandidát se nedostavil",
+        "inviteExpired": "Pozvánka k plánování vypršela nevyužita",
+        "inviteProposed": "Kandidát navrhl náhradní termíny",
         "offerExtended": "Nabídka předložena",
         "offerAccepted": "Nabídka přijata",
         "offerDeclined": "Nabídka odmítnuta"

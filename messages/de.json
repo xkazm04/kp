@@ -1451,6 +1451,10 @@
         "inviteSent": "Planungseinladung gesendet",
         "inviteQueued": "Planungseinladung im Postausgang eingereiht (nicht zugestellt)",
         "inviteConfirmed": "Termin bestätigt",
+        "inviteDeclined": "Gespräch von der Kandidatin oder dem Kandidaten abgesagt",
+        "inviteNoShow": "Kandidatin oder Kandidat ist nicht erschienen",
+        "inviteExpired": "Planungseinladung ungenutzt abgelaufen",
+        "inviteProposed": "Kandidatin oder Kandidat hat Ausweichtermine vorgeschlagen",
         "offerExtended": "Angebot unterbreitet",
         "offerAccepted": "Angebot angenommen",
         "offerDeclined": "Angebot abgelehnt"
