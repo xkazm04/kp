@@ -2172,6 +2172,8 @@
       "candidatesLoading": "Loading candidates…",
       "candidatesLoadFailed": "Couldn't load candidates right now.",
       "candidatesEmpty": "No candidates analyzed against this JD yet. Generated roles also source candidates into the Pipeline.",
+      "analysisStale": "JD edited {date}",
+      "analysisStaleTitle": "The JD was edited {date}, after this candidate was scored — the score reflects the earlier text. Re-run the analysis to refresh it.",
       "sectionLabel": "Library section",
       "generate": "Generate",
       "colRole": "Role",

@@ -2172,6 +2172,8 @@
       "candidatesLoading": "Načítání kandidátů…",
       "candidatesLoadFailed": "Kandidáty se teď nepodařilo načíst.",
       "candidatesEmpty": "Proti tomuto popisu pozice zatím nebyl analyzován žádný kandidát. Vygenerované pozice také přivádějí kandidáty do Pipeline.",
+      "analysisStale": "Popis upraven {date}",
+      "analysisStaleTitle": "Popis pozice byl upraven {date}, tedy až po vyhodnocení tohoto kandidáta — skóre odráží starší text. Pro aktualizaci spusťte analýzu znovu.",
       "sectionLabel": "Sekce knihovny",
       "generate": "Generovat",
       "colRole": "Pozice",

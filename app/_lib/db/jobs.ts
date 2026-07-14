@@ -206,6 +206,20 @@ export function listJdRevisions(slug: string, limit = 30, workspaceId: string = 
     .all(slug, workspaceId, Math.min(Math.max(limit, 1), 100)) as JdRevision[];
 }
 
+/** The timestamp of the JD's last CONTENT change, or null if it was never edited.
+ *  Each jd_revisions row is a PRE-edit snapshot written AT edit time (updateJd and
+ *  revertJd both stamp created_at = now before overwriting), so the MAX(created_at)
+ *  over a slug's revisions is exactly when the live body last changed. A revert
+ *  writes a snapshot too, so it counts as a change — the honest source for "was
+ *  this analysis scored against stale text?". Workspace-scoped like every other
+ *  jd_revisions read. */
+export function jdLastEditedAt(slug: string, workspaceId: string = DEFAULT_WORKSPACE_ID): string | null {
+  const row = ensureDb()
+    .prepare(`SELECT MAX(created_at) AS ts FROM jd_revisions WHERE slug = ? AND workspace_id = ?`)
+    .get(slug, workspaceId) as { ts: string | null } | undefined;
+  return row?.ts ?? null;
+}
+
 export type JdRevertResult =
   | { ok: true; title: string; body: string }
   | { ok: false; reason: "not_found" | "conflict" };

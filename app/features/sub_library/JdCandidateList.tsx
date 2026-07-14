@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { RotateCcw } from "lucide-react";
+import { History, RotateCcw } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { ScoreBadge } from "@/app/_components/ScoreBadge";
+import { shortDate } from "./jd-library";
 
 type JdAnalysisRow = {
   slug: string;
@@ -12,6 +13,7 @@ type JdAnalysisRow = {
   score: number | null;
   role_family: string | null;
   seniority: string | null;
+  created_at: string;
 };
 
 // The analyzed-candidates roster for one JD, shown inside the detail modal:
@@ -20,6 +22,9 @@ type JdAnalysisRow = {
 export function JdCandidateList({ slug, count }: { slug: string; count: number }) {
   const t = useTranslations("library.tab");
   const [analyses, setAnalyses] = useState<JdAnalysisRow[] | null>(null);
+  // When the JD body last changed (null = never edited). Any analysis scored
+  // before this reflects the OLD text — flagged inline, nothing auto re-runs.
+  const [jdEditedAt, setJdEditedAt] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
 
   const load = () => {
@@ -30,7 +35,10 @@ export function JdCandidateList({ slug, count }: { slug: string; count: number }
         if (!r.ok) throw new Error();
         return r.json();
       })
-      .then((payload) => setAnalyses((payload.analyses as JdAnalysisRow[]) ?? []))
+      .then((payload) => {
+        setAnalyses((payload.analyses as JdAnalysisRow[]) ?? []);
+        setJdEditedAt(typeof payload.jdEditedAt === "string" ? payload.jdEditedAt : null);
+      })
       .catch(() => setFailed(true));
   };
 
@@ -66,19 +74,32 @@ export function JdCandidateList({ slug, count }: { slug: string; count: number }
   }
   return (
     <ul className="divide-y divide-stone-200 rounded-md border border-stone-200 bg-white">
-      {analyses.map((row) => (
-        <li key={row.slug} className="flex items-center justify-between gap-3 px-3 py-2">
-          <div className="min-w-0">
-            <Link href={`/history/${row.slug}`} className="text-sm font-semibold text-ink hover:text-coral hover:underline">
-              {row.candidate_label}
-            </Link>
-            <p className="truncate text-sm capitalize text-steel">
-              {row.role_family ?? "—"} · {row.seniority ?? "—"}
-            </p>
-          </div>
-          <ScoreBadge score={row.score} />
-        </li>
-      ))}
+      {analyses.map((row) => {
+        // Scored before the JD's last content change ⇒ this score is against stale
+        // text. String compare is correct for ISO-8601 UTC timestamps.
+        const stale = jdEditedAt != null && row.created_at < jdEditedAt;
+        return (
+          <li key={row.slug} className="flex items-center justify-between gap-3 px-3 py-2">
+            <div className="min-w-0">
+              <Link href={`/history/${row.slug}`} className="text-sm font-semibold text-ink hover:text-coral hover:underline">
+                {row.candidate_label}
+              </Link>
+              <p className="truncate text-sm capitalize text-steel">
+                {row.role_family ?? "—"} · {row.seniority ?? "—"}
+              </p>
+              {stale ? (
+                <span
+                  className="mt-1 inline-flex items-center gap-1 rounded-full bg-amber-50 px-1.5 py-0.5 text-xs font-semibold text-amber-800"
+                  title={t("analysisStaleTitle", { date: shortDate(jdEditedAt!) })}
+                >
+                  <History size={11} aria-hidden /> {t("analysisStale", { date: shortDate(jdEditedAt!) })}
+                </span>
+              ) : null}
+            </div>
+            <ScoreBadge score={row.score} />
+          </li>
+        );
+      })}
     </ul>
   );
 }

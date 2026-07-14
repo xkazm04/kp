@@ -2201,6 +2201,8 @@
       "candidatesLoading": "Kandidat/innen werden geladen…",
       "candidatesLoadFailed": "Kandidat/innen konnten gerade nicht geladen werden.",
       "candidatesEmpty": "Noch keine Kandidat/innen gegen diese Stellenbeschreibung analysiert. Generierte Positionen sourcen ebenfalls Kandidat/innen in die Pipeline.",
+      "analysisStale": "Stellenbeschreibung {date} bearbeitet",
+      "analysisStaleTitle": "Die Stellenbeschreibung wurde {date} bearbeitet, also nach der Bewertung dieser Person — die Bewertung bezieht sich auf den früheren Text. Führen Sie die Analyse erneut aus, um sie zu aktualisieren.",
       "sectionLabel": "Bibliotheksbereich",
       "generate": "Generieren",
       "colRole": "Position",

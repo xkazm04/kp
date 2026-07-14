@@ -2201,6 +2201,8 @@
       "candidatesLoading": "Chargement des candidats…",
       "candidatesLoadFailed": "Impossible de charger les candidats pour le moment.",
       "candidatesEmpty": "Aucun candidat analysé face à cette fiche pour l'instant. Les postes générés sourcent aussi des candidats dans le pipeline.",
+      "analysisStale": "Fiche modifiée le {date}",
+      "analysisStaleTitle": "La fiche de poste a été modifiée le {date}, après l'évaluation de ce candidat — le score reflète le texte antérieur. Relancez l'analyse pour l'actualiser.",
       "sectionLabel": "Section bibliothèque",
       "generate": "Générer",
       "colRole": "Poste",
