@@ -2,40 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { actOnPipelineEntry, listPipeline, recordAutomationEvent, type PipelineEntry } from "@/app/_lib/db";
 import { runAutomationPass } from "@/app/_lib/automation-pass";
 import { dispatchRejection } from "@/app/_lib/comms-dispatch";
-import { describeCommand, isMutating, parseCommand, resolveRejectTargets, type ParsedCommand } from "@/app/_lib/pipeline-command";
-import { compareByMatchScoreDesc } from "@/app/_lib/match-score";
+import { affected, describeCommand, isMutating, parseCommand, resolveRejectTargets } from "@/app/_lib/pipeline-command";
+import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { safeJsonError } from "@/app/_lib/api-response";
 
 
 const PREVIEW_CAP = 50;
 
 type PreviewRow = { id: string; label: string; score: number | null; jobTitle: string | null; stage: string };
-
-// Resolve the candidate set a mutating command would touch (the preview). Read-
-// only; never mutates. Empty for run_policy (it has no candidate preview — it runs
-// the whole deterministic pass with its own fairness backstops).
-function affected(cmd: ParsedCommand): PipelineEntry[] {
-  const active = listPipeline().filter((e) => e.status === "active");
-  if (cmd.kind === "reject_below") {
-    const q = cmd.jobQuery?.toLowerCase() ?? null;
-    return active.filter(
-      (e) =>
-        e.matchScore != null &&
-        e.matchScore < cmd.threshold &&
-        (!q || (e.jobTitle ?? "").toLowerCase().includes(q))
-    );
-  }
-  if (cmd.kind === "advance_top") {
-    // "Top N" is meaningful only over measured candidates: the filter excludes
-    // unscored entries (fail closed — same null-score policy as the screen wave),
-    // and the shared comparator ranks without ever fabricating a 0.
-    return [...active]
-      .filter((e) => e.matchScore != null && e.stage !== "Hired")
-      .sort(compareByMatchScoreDesc)
-      .slice(0, cmd.count);
-  }
-  return [];
-}
 
 const toRow = (e: PipelineEntry): PreviewRow => ({
   id: e.id,
@@ -50,8 +25,22 @@ const toRow = (e: PipelineEntry): PreviewRow => ({
 // actions the board/automation already use (actOnPipelineEntry actor:"human",
 // runAutomationPass) — the command bar is a parse + preview convenience, not a new
 // privilege.
+//
+// AUTH (perfect-board): operator-gated like /api/decisions/* and screen-wave.
+// This is the board's most powerful mutation surface — one call can bulk-reject
+// (with candidate emails) across the workspace OR trigger the global policy pass
+// (run_policy) — so it re-verifies the operator session as defense in depth:
+// proxy.ts already keeps it off the public allow-list, and requireOperator
+// additionally rejects the anonymous demo-workspace session the proxy would wave
+// through. In open mode (no KP_OPERATOR_PASSWORD) this is a no-op, so local dev
+// and the guided sim (which drive the board through the per-card routes, never
+// this bar) are unaffected.
 export async function POST(request: NextRequest) {
+  const denied = await requireOperator();
+  if (denied) return denied;
   try {
+    // Tenant scope: preview AND execute operate ONLY on the caller's workspace.
+    const ws = await currentWorkspace();
     const body = (await request.json().catch(() => ({}))) as { text?: string; confirm?: boolean; confirmIds?: unknown };
     const cmd = parseCommand(typeof body.text === "string" ? body.text : "");
 
@@ -65,7 +54,7 @@ export async function POST(request: NextRequest) {
     // affected set ONCE — the row slice and the total both read it (run_policy has
     // no candidate preview, so its total is null and the scan is skipped).
     if (!body.confirm) {
-      const hits = cmd.kind === "run_policy" ? [] : affected(cmd);
+      const hits = cmd.kind === "run_policy" ? [] : affected(cmd, listPipeline(ws));
       const rows = hits.slice(0, PREVIEW_CAP).map(toRow);
       const total = cmd.kind === "run_policy" ? null : hits.length;
       return NextResponse.json({ kind: cmd.kind, description, mutating: isMutating(cmd), preview: rows, total });
@@ -73,12 +62,17 @@ export async function POST(request: NextRequest) {
 
     // Execute.
     if (cmd.kind === "run_policy") {
+      // run_policy runs the deterministic GLOBAL policy pass — the SAME sweep the
+      // scheduler heartbeat runs. It spans teams by design and scopes every WRITE
+      // to each entry's own workspace (automation-pass.ts), so it can never mutate
+      // one tenant's rows under another's; the operator gate above is what keeps a
+      // non-operator (or the demo session) from triggering it at all.
       const result = await runAutomationPass();
       return NextResponse.json({ kind: cmd.kind, executed: true, description, summary: result.summary });
     }
 
-    // The live still-matching set at execute time.
-    const matching = affected(cmd);
+    // The live still-matching set at execute time — same workspace scope as the preview.
+    const matching = affected(cmd, listPipeline(ws));
     // bug-ui pipeline #3 — a reject_below confirm binds to the PREVIEWED id set
     // (carried on the confirm POST): execute only on ids that were shown to the
     // recruiter AND still match, so a candidate scored below the line in the gap
@@ -103,7 +97,7 @@ export async function POST(request: NextRequest) {
     for (const e of targets) {
       try {
         if (cmd.kind === "reject_below") {
-          const updated = actOnPipelineEntry(e.id, "reject", `Command bar: below ${cmd.threshold}%`, { expectedStage: e.stage, actor: "human" });
+          const updated = actOnPipelineEntry(e.id, "reject", `Command bar: below ${cmd.threshold}%`, { expectedStage: e.stage, actor: "human" }, ws);
           if (updated) {
             count += 1;
             // A bulk reject must NEVER ghost the candidate (UAT M3): the command bar
@@ -120,7 +114,8 @@ export async function POST(request: NextRequest) {
               recordAutomationEvent(
                 e.id,
                 "rejection_comms_failed",
-                `Rejected via command bar, but the notification failed to queue — nudge manually. (${msg})`
+                `Rejected via command bar, but the notification failed to queue — nudge manually. (${msg})`,
+                ws
               );
             }
           }
@@ -135,7 +130,7 @@ export async function POST(request: NextRequest) {
           // (`heldAtOffer`) so the recruiter routes them through the offer flow.
           if (e.stage === "Offer") {
             heldAtOffer += 1;
-          } else if (actOnPipelineEntry(e.id, "accept", "Command bar: advance top", { expectedStage: e.stage, actor: "human" })) {
+          } else if (actOnPipelineEntry(e.id, "accept", "Command bar: advance top", { expectedStage: e.stage, actor: "human" }, ws)) {
             count += 1;
           }
         }

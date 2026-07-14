@@ -6,6 +6,9 @@
 // An LLM fallback for free-form phrasing can wrap this (parse here first, defer to
 // a model only on `unknown`) — kept out of the core so it stays import-free/tested.
 
+import { compareByMatchScoreDesc } from "./match-score";
+import type { PipelineEntry } from "./db";
+
 export type ParsedCommand =
   | { kind: "reject_below"; threshold: number; jobQuery: string | null }
   | { kind: "advance_top"; count: number }
@@ -85,6 +88,36 @@ export function describeCommand(cmd: ParsedCommand): string {
 /** Whether an intent mutates state (so the route requires an explicit confirm). */
 export function isMutating(cmd: ParsedCommand): boolean {
   return cmd.kind === "reject_below" || cmd.kind === "advance_top" || cmd.kind === "run_policy";
+}
+
+/** The candidate set a mutating command would touch (the preview), resolved over a
+ *  GIVEN entry list. PURE + read-only — never mutates. TENANCY: the caller passes
+ *  `listPipeline(workspaceId)`, so the scope is the CALLER's workspace; because the
+ *  execute path acts ONLY on what this returns, scoping the input list is what keeps
+ *  the NL command bar inside one tenant (it previously read the default workspace).
+ *  Empty for run_policy — it has no candidate preview (it runs the whole
+ *  deterministic pass with its own fairness backstops). */
+export function affected(cmd: ParsedCommand, entries: PipelineEntry[]): PipelineEntry[] {
+  const active = entries.filter((e) => e.status === "active");
+  if (cmd.kind === "reject_below") {
+    const q = cmd.jobQuery?.toLowerCase() ?? null;
+    return active.filter(
+      (e) =>
+        e.matchScore != null &&
+        e.matchScore < cmd.threshold &&
+        (!q || (e.jobTitle ?? "").toLowerCase().includes(q))
+    );
+  }
+  if (cmd.kind === "advance_top") {
+    // "Top N" is meaningful only over measured candidates: the filter excludes
+    // unscored entries (fail closed — same null-score policy as the screen wave),
+    // and the shared comparator ranks without ever fabricating a 0.
+    return [...active]
+      .filter((e) => e.matchScore != null && e.stage !== "Hired")
+      .sort(compareByMatchScoreDesc)
+      .slice(0, cmd.count);
+  }
+  return [];
 }
 
 /** Bind a `reject_below` confirm to the exact cohort the recruiter reviewed
