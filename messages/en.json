@@ -127,6 +127,8 @@
     "histScore": "score {score}",
     "histLoadFailed": "We couldn't load this analysis right now. Please try again in a moment.",
     "histSchemaOld": "This run was saved in an older schema and can't be rendered.",
+    "alsoAnalyzedFor": "Also analyzed for:",
+    "labelCollision": "Heads up — another candidate in this workspace shares this file-derived name but has a different CV. Make sure you're looking at the right person.",
     "panel": {
       "candidate": "Candidate",
       "extractionQuality": "Extraction Quality",
@@ -3032,7 +3034,8 @@
     "colJd": "JD",
     "colSaved": "Saved",
     "disposition": { "advance": "advance", "hold": "hold", "pass": "pass" },
-    "reviewFlags": "{count, plural, one {# quality check flagged for review} other {# quality checks flagged for review}}"
+    "reviewFlags": "{count, plural, one {# quality check flagged for review} other {# quality checks flagged for review}}",
+    "priorRuns": "{count, plural, one {supersedes # earlier run of the same CV} other {supersedes # earlier runs of the same CV}}"
   },
   "results": {
     "quality": {

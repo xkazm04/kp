@@ -127,6 +127,8 @@
     "histScore": "Score {score}",
     "histLoadFailed": "Diese Analyse konnte gerade nicht geladen werden. Bitte versuchen Sie es gleich noch einmal.",
     "histSchemaOld": "Dieser Durchlauf wurde in einem älteren Schema gespeichert und kann nicht angezeigt werden.",
+    "alsoAnalyzedFor": "Ebenfalls analysiert für:",
+    "labelCollision": "Hinweis — ein anderer Kandidat in diesem Arbeitsbereich trägt denselben aus dem Dateinamen abgeleiteten Namen, hat aber einen anderen Lebenslauf. Vergewissern Sie sich, dass Sie die richtige Person ansehen.",
     "panel": {
       "candidate": "Kandidat/in",
       "extractionQuality": "Extraktionsqualität",
@@ -3096,7 +3098,8 @@
       "hold": "zurückhalten",
       "pass": "ablehnen"
     },
-    "reviewFlags": "{count, plural, one {# Qualitätsprüfung zur Überprüfung markiert} other {# Qualitätsprüfungen zur Überprüfung markiert}}"
+    "reviewFlags": "{count, plural, one {# Qualitätsprüfung zur Überprüfung markiert} other {# Qualitätsprüfungen zur Überprüfung markiert}}",
+    "priorRuns": "{count, plural, one {ersetzt # früheren Lauf desselben Lebenslaufs} other {ersetzt # frühere Läufe desselben Lebenslaufs}}"
   },
   "results": {
     "quality": {

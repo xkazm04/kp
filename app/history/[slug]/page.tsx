@@ -6,7 +6,7 @@ import { ReportActions } from "@/app/_components/results/ReportActions";
 import { DispositionEditor } from "@/app/_components/results/DispositionEditor";
 import { WorkspaceShell } from "@/app/features/WorkspaceNav";
 import { RecordRecent } from "@/app/features/RecordRecent";
-import { findActiveEntriesByCandidateLabel, loadAnalysis, parseStoredGithubAnalysis, type PipelineEntry } from "@/app/_lib/db";
+import { findActiveEntriesByCandidateLabel, hasLabelCollision, listAnalysesByCvHash, loadAnalysis, parseStoredGithubAnalysis, type PipelineEntry } from "@/app/_lib/db";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { analysisSchema } from "@/app/_lib/schemas";
 import type { ResultPanelGithub } from "@/app/_components/results/ResultPanel";
@@ -90,6 +90,27 @@ export default async function HistoryDetailPage({
     return tEnums.has(key) ? tEnums(key) : stage;
   };
 
+  // Content-addressed identity (cv_hash) surfaces two things, both best-effort so a
+  // store fault never breaks the report:
+  //  1. Cross-job linkage — the SAME CV content analyzed against OTHER jobs, so the
+  //     recruiter sees the candidate's full footprint. Deduped to one link per JD,
+  //     newest first (the store returns newest-first), workspace-scoped.
+  //  2. Label collision — another saved analysis shares this filename-derived label
+  //     but a DIFFERENT CV, i.e. two different people under one "CV.pdf"-style name.
+  const alsoAnalyzed: { jdSlug: string; slug: string }[] = [];
+  let labelCollision = false;
+  try {
+    const seenJds = new Set<string>();
+    for (const other of listAnalysesByCvHash(found.row.cv_hash, ws, slug)) {
+      if (!other.jd_slug || other.jd_slug === found.row.jd_slug || seenJds.has(other.jd_slug)) continue;
+      seenJds.add(other.jd_slug);
+      alsoAnalyzed.push({ jdSlug: other.jd_slug, slug: other.slug });
+    }
+    labelCollision = hasLabelCollision(found.row.candidate_label, found.row.cv_hash, ws);
+  } catch (error) {
+    console.error(`[history] identity lookup failed for "${slug}"`, error);
+  }
+
   return (
     <WorkspaceShell active="analyze">
       {/* SHELL3: visiting the saved report IS opening the entity — record it. */}
@@ -133,6 +154,24 @@ export default async function HistoryDetailPage({
             </>
           ) : null}
         </p>
+        {alsoAnalyzed.length > 0 ? (
+          <p className="text-sm text-steel">
+            {t("alsoAnalyzedFor")}{" "}
+            {alsoAnalyzed.map((entry, i) => (
+              <span key={entry.slug}>
+                {i > 0 ? ", " : ""}
+                <Link href={`/history/${encodeURIComponent(entry.slug)}`} className="font-mono text-coral hover:underline">
+                  JD {entry.jdSlug}
+                </Link>
+              </span>
+            ))}
+          </p>
+        ) : null}
+        {labelCollision ? (
+          <p className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800">
+            {t("labelCollision")}
+          </p>
+        ) : null}
         <DispositionEditor
           slug={slug}
           initialDisposition={found.row.disposition ?? null}

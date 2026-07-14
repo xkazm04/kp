@@ -19,6 +19,10 @@ export type AnalysisRow = {
   review_flags?: number | null;
   // GH1 — attached GitHub deep-dive JSON, fetched only by loadAnalysis.
   github_json?: string | null;
+  // Content-addressed candidate identity — SHA-256 of the CV bytes (see the
+  // cv_hash migration in core.ts). Present on SELECTs that fetch it; NULL on rows
+  // saved before the column existed. Fetched by the summary + detail reads below.
+  cv_hash?: string | null;
 };
 
 // The recruiter dispositions a saved analysis can carry (RES5). advance/hold/pass
@@ -27,6 +31,13 @@ export const ANALYSIS_DISPOSITIONS = ["advance", "hold", "pass"] as const;
 export type AnalysisDisposition = (typeof ANALYSIS_DISPOSITIONS)[number];
 
 export type AnalysisSummary = Omit<AnalysisRow, "payload_json">;
+
+// listAnalyses collapses same-(cv_hash, jd_slug) re-runs to the newest row and
+// reports how many older runs it stands in for, so a re-analyzed CV no longer
+// accumulates duplicate History rows. `prior_runs` is COMPUTED (a count of the
+// superseded rows), not a stored column; 0 for a first/only run or a legacy
+// NULL-cv_hash row (which is never grouped). No row is ever deleted.
+export type AnalysisListRow = AnalysisSummary & { prior_runs: number };
 
 export type SaveAnalysisInput = {
   candidateLabel: string;
@@ -38,6 +49,10 @@ export type SaveAnalysisInput = {
   // Warn-shaped sanity-check count (countSanityWarns). Denormalized so the
   // History list can flag degraded analyses straight off the summary SELECT.
   reviewFlags?: number | null;
+  // Content-addressed candidate identity — SHA-256 of the CV bytes, already
+  // computed by the analyze intake (cvVariantHash). Threaded, not re-hashed.
+  // Absent ⇒ NULL (the identity features degrade to per-row, never grouping).
+  cvHash?: string | null;
 };
 
 // Tenant scope (P2): `workspaceId` defaults to the single workspace, so existing
@@ -49,8 +64,8 @@ export function saveAnalysis(input: SaveAnalysisInput, workspaceId: string = DEF
   const payloadJson = JSON.stringify(input.payload);
   const stmt = db.prepare(
     `INSERT INTO analyses
-      (slug, candidate_label, jd_slug, score, role_family, seniority, payload_json, created_at, review_flags, workspace_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      (slug, candidate_label, jd_slug, score, role_family, seniority, payload_json, created_at, review_flags, workspace_id, cv_hash)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   );
   const slug = insertWithUniqueSlug((s) =>
     stmt.run(
@@ -63,24 +78,99 @@ export function saveAnalysis(input: SaveAnalysisInput, workspaceId: string = DEF
       payloadJson,
       createdAt,
       input.reviewFlags ?? null,
-      workspaceId
+      workspaceId,
+      input.cvHash ?? null
     )
   );
   return { slug, createdAt };
 }
 
-export function listAnalyses(limit = 100, workspaceId: string = DEFAULT_WORKSPACE_ID): AnalysisSummary[] {
+export function listAnalyses(limit = 100, workspaceId: string = DEFAULT_WORKSPACE_ID): AnalysisListRow[] {
   const db = ensureDb();
+  // Content-addressed grouping: a re-run of the same CV (same cv_hash) against the
+  // same JD used to add a fresh History row every time — duplicates piled up even
+  // when the compute was a pure cache hit. We now return the NEWEST row per
+  // (cv_hash, jd_slug) group and annotate it with prior_runs = how many older runs
+  // it supersedes; NO row is deleted, so the older runs stay loadable by slug.
+  //   - `a` is kept only when NO newer sibling exists in its group (the "is newest"
+  //     NOT EXISTS predicate). Ties on created_at break by slug so exactly one wins.
+  //   - Grouping applies ONLY to non-NULL cv_hash rows; a legacy NULL-hash row has
+  //     no siblings (a.cv_hash IS NULL makes every `= a.cv_hash` false), so it is
+  //     always kept with prior_runs = 0 — behavior-identical to before for old data.
+  //   - jd_slug is compared with `IS` (null-safe): two JD-less runs of the same CV
+  //     group together; a CV run against different JDs does NOT.
+  // Every subquery carries workspace_id (tenancy source guard) and matches a.workspace_id.
   const rows = db
     .prepare(
-      `SELECT slug, candidate_label, jd_slug, score, role_family, seniority, created_at, disposition, decision_note, review_flags
+      `SELECT a.slug, a.candidate_label, a.jd_slug, a.score, a.role_family, a.seniority,
+              a.created_at, a.disposition, a.decision_note, a.review_flags, a.cv_hash,
+              (SELECT COUNT(*) FROM analyses p
+                 WHERE p.workspace_id = a.workspace_id
+                   AND a.cv_hash IS NOT NULL AND p.cv_hash = a.cv_hash
+                   AND p.jd_slug IS a.jd_slug
+                   AND (p.created_at < a.created_at
+                        OR (p.created_at = a.created_at AND p.slug < a.slug))) AS prior_runs
+       FROM analyses a
+       WHERE a.workspace_id = ?
+         AND NOT EXISTS (
+           SELECT 1 FROM analyses n
+             WHERE n.workspace_id = a.workspace_id
+               AND a.cv_hash IS NOT NULL AND n.cv_hash = a.cv_hash
+               AND n.jd_slug IS a.jd_slug
+               AND (n.created_at > a.created_at
+                    OR (n.created_at = a.created_at AND n.slug > a.slug)))
+       ORDER BY a.created_at DESC
+       LIMIT ?`
+    )
+    .all(workspaceId, limit) as AnalysisListRow[];
+  return rows;
+}
+
+// Cross-job linkage (content-addressed identity): every OTHER analysis of the
+// SAME CV content (cv_hash) in this workspace, so the report can say "also
+// analyzed for: …". Excludes the row being viewed and rows that share its JD
+// (those are the same question, surfaced by History grouping instead). Newest
+// first, bounded. Returns [] for a NULL/empty hash (nothing to link).
+export function listAnalysesByCvHash(
+  cvHash: string | null | undefined,
+  workspaceId: string = DEFAULT_WORKSPACE_ID,
+  excludeSlug?: string,
+  limit = 20
+): AnalysisSummary[] {
+  if (!cvHash) return [];
+  const db = ensureDb();
+  return db
+    .prepare(
+      `SELECT slug, candidate_label, jd_slug, score, role_family, seniority, created_at
        FROM analyses
-       WHERE workspace_id = ?
+       WHERE workspace_id = ? AND cv_hash = ? AND slug != ?
        ORDER BY created_at DESC
        LIMIT ?`
     )
-    .all(workspaceId, limit) as AnalysisSummary[];
-  return rows;
+    .all(workspaceId, cvHash, excludeSlug ?? "", limit) as AnalysisSummary[];
+}
+
+// Label-collision probe: does another saved analysis in this workspace carry the
+// SAME filename-derived candidate_label but a DIFFERENT CV content hash? That
+// means two different people share a label (e.g. both files were "CV.pdf") — the
+// report/History surfaces a caution so the recruiter isn't misled by the label.
+// Requires a known cv_hash on both sides (NULL-hash legacy rows can't be judged).
+export function hasLabelCollision(
+  candidateLabel: string,
+  cvHash: string | null | undefined,
+  workspaceId: string = DEFAULT_WORKSPACE_ID
+): boolean {
+  if (!cvHash) return false;
+  const db = ensureDb();
+  const row = db
+    .prepare(
+      `SELECT 1 FROM analyses
+       WHERE workspace_id = ? AND candidate_label = ?
+         AND cv_hash IS NOT NULL AND cv_hash != ?
+       LIMIT 1`
+    )
+    .get(workspaceId, candidateLabel, cvHash);
+  return row != null;
 }
 
 /** Record (or clear) the human disposition + note on a saved analysis (RES5).
@@ -215,7 +305,7 @@ export function loadAnalysis(slug: string, workspaceId: string = DEFAULT_WORKSPA
   const db = ensureDb();
   const row = db
     .prepare(
-      `SELECT slug, candidate_label, jd_slug, score, role_family, seniority, payload_json, created_at, disposition, decision_note, github_json
+      `SELECT slug, candidate_label, jd_slug, score, role_family, seniority, payload_json, created_at, disposition, decision_note, github_json, cv_hash
        FROM analyses WHERE slug = ? AND workspace_id = ?`
     )
     .get(slug, workspaceId) as AnalysisRow | undefined;

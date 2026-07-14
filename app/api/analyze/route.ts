@@ -4,7 +4,7 @@ import { isLocale } from "@/i18n/locales";
 import { meterGate } from "@/app/_lib/billing";
 import { listRecentTasks } from "@/app/_lib/db";
 import type { AnalyzeParams } from "@/app/_lib/analyze-run";
-import { dedupeCvVariants } from "@/app/_lib/cv-variant";
+import { cvVariantHash, dedupeCvVariants } from "@/app/_lib/cv-variant";
 import { newRequestId } from "@/app/_lib/logger";
 import { createWorkdir, persistFile } from "@/app/_lib/python-runner";
 import { startTask } from "@/app/_lib/tasks";
@@ -77,10 +77,14 @@ export async function POST(request: Request) {
 
   // Persist everything to a stable dir; the task (not this request) cleans it up.
   const baseDir = await createWorkdir();
-  const variants: { label: string; cvPath: string }[] = [];
+  const variants: { label: string; cvPath: string; cvHash: string }[] = [];
   for (let i = 0; i < cvFiles.length; i += 1) {
     const cvPath = await persistFile(baseDir, cvFiles[i].file, `cv-${i}`);
-    variants.push({ label: cvFiles[i].label, cvPath });
+    // Content-addressed identity: stamp the CV's content hash so the saved analysis
+    // is keyed to the CV bytes, not the filename. Reuses cvVariantHash — the SAME
+    // digest collectCvFiles already computed to dedupe (see below) — so the identity
+    // and the "same variant" question stay one answer.
+    variants.push({ label: cvFiles[i].label, cvPath, cvHash: cvFiles[i].cvHash });
   }
   const jobDescriptionPath = jobDescFile ? await persistFile(baseDir, jobDescFile, "job-description") : null;
   const companyPath = compFile ? await persistFile(baseDir, compFile, "company") : null;
@@ -164,7 +168,7 @@ export async function POST(request: Request) {
 // twice no longer runs twice, hits the same analyze cache key, and ranks an
 // identical clone against itself. The (n) suffix still disambiguates genuinely
 // different files that happen to share a display name.
-async function collectCvFiles(form: FormData): Promise<Array<{ file: File; label: string }>> {
+async function collectCvFiles(form: FormData): Promise<Array<{ file: File; label: string; cvHash: string }>> {
   const uploaded: File[] = [];
   for (const value of form.getAll("cvs")) {
     if (value instanceof File && value.size > 0) uploaded.push(value);
@@ -176,13 +180,15 @@ async function collectCvFiles(form: FormData): Promise<Array<{ file: File; label
 
   const unique = await dedupeCvVariants(uploaded);
 
-  const out: Array<{ file: File; label: string }> = [];
+  const out: Array<{ file: File; label: string; cvHash: string }> = [];
   const seenLabels = new Set<string>();
   for (const file of unique) {
     let label = file.name || `CV ${out.length + 1}`;
     if (seenLabels.has(label)) label = `${label} (${out.length + 1})`;
     seenLabels.add(label);
-    out.push({ file, label });
+    // Content hash = the content-addressed candidate identity persisted with the
+    // saved analysis. Same helper dedupeCvVariants used above, so it's cheap here.
+    out.push({ file, label, cvHash: await cvVariantHash(file) });
   }
   return out;
 }

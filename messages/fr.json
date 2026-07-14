@@ -127,6 +127,8 @@
     "histScore": "score {score}",
     "histLoadFailed": "Impossible de charger cette analyse pour le moment. Veuillez réessayer dans un instant.",
     "histSchemaOld": "Cette analyse a été enregistrée dans un ancien schéma et ne peut pas être affichée.",
+    "alsoAnalyzedFor": "Également analysé pour :",
+    "labelCollision": "Attention — un autre candidat dans cet espace de travail porte le même nom dérivé du fichier mais possède un CV différent. Vérifiez que vous consultez la bonne personne.",
     "panel": {
       "candidate": "Candidat(e)",
       "extractionQuality": "Qualité d'extraction",
@@ -3096,7 +3098,8 @@
       "hold": "en attente",
       "pass": "écarter"
     },
-    "reviewFlags": "{count, plural, one {# contrôle qualité à examiner} other {# contrôles qualité à examiner}}"
+    "reviewFlags": "{count, plural, one {# contrôle qualité à examiner} other {# contrôles qualité à examiner}}",
+    "priorRuns": "{count, plural, one {remplace # analyse précédente du même CV} other {remplace # analyses précédentes du même CV}}"
   },
   "results": {
     "quality": {

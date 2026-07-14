@@ -15,7 +15,10 @@ import { cleanupWorkdir, parsePythonJson, parseStderrError, spawnPython } from "
 export type AnalyzeParams = {
   baseDir: string;
   grounding: boolean;
-  variants: { label: string; cvPath: string }[];
+  // cvHash: content-addressed candidate identity (SHA-256 of the CV bytes),
+  // computed once at intake and stamped on the saved analysis. Optional so
+  // non-route callers (tests) can omit it.
+  variants: { label: string; cvPath: string; cvHash?: string }[];
   jobDescriptionPath?: string | null;
   jobDescriptionText?: string | null;
   companyPath?: string | null;
@@ -181,7 +184,8 @@ export async function runAnalyze(p: AnalyzeParams, onProgress?: ProgressFn, sign
 
     if (analyses.length === 1) {
       const single = analyses[0];
-      const persisted = persistAnalysis(single.label, p.jdSlug ?? null, single.analysis, p.workspace);
+      // Single analysis ⇒ exactly one variant, so its cvHash is the identity.
+      const persisted = persistAnalysis(single.label, p.jdSlug ?? null, single.analysis, p.workspace, p.variants[0]?.cvHash);
       void logAnalyze({
         ...baseAnalyzeLog(p, startedAt),
         candidate_label: single.label,
@@ -196,7 +200,10 @@ export async function runAnalyze(p: AnalyzeParams, onProgress?: ProgressFn, sign
     const comparison = buildComparison(analyses);
     const winner = analyses.find((a) => a.label === comparison.bestLabel) ?? analyses[0];
     const merged = { ...winner.analysis, comparison };
-    const persisted = persistAnalysis(`${winner.label} (best of ${analyses.length})`, p.jdSlug ?? null, merged, p.workspace);
+    // Best-of-N ⇒ the saved row represents the WINNING variant, so key it to the
+    // winner's CV content hash (matched back by label).
+    const winnerHash = p.variants.find((v) => v.label === winner.label)?.cvHash;
+    const persisted = persistAnalysis(`${winner.label} (best of ${analyses.length})`, p.jdSlug ?? null, merged, p.workspace, winnerHash);
     void logAnalyze({
       ...baseAnalyzeLog(p, startedAt),
       candidate_label: `${winner.label} (best of ${analyses.length})`,
@@ -211,11 +218,14 @@ export async function runAnalyze(p: AnalyzeParams, onProgress?: ProgressFn, sign
   }
 }
 
-function persistAnalysis(candidateLabel: string, jdSlug: string | null, analysis: Analysis, workspaceId?: string) {
+function persistAnalysis(candidateLabel: string, jdSlug: string | null, analysis: Analysis, workspaceId?: string, cvHash?: string) {
   try {
     return saveAnalysis({
       candidateLabel,
       jdSlug,
+      // Content-addressed identity — persisted so re-runs of the same CV collapse
+      // in History and link across jobs instead of accumulating filename-keyed rows.
+      cvHash: cvHash ?? null,
       // Store the RECONCILED total (component sum), the same value the report dial / Compare
       // "Overall" render via reconcileScoreTotal — so the History list + detail header (which
       // read this denormalized column) can't disagree with the dial when the pipeline's raw

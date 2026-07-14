@@ -20,6 +20,9 @@ type AnalysisRow = {
   // SCOR2 — warn-shaped sanity-check count stamped at save time; NULL on rows
   // saved before the column existed (no pill).
   review_flags?: number | null;
+  // Content-addressed identity: how many OLDER re-runs of the same CV+JD this row
+  // supersedes (the list collapses them to the newest). 0/absent = a first/only run.
+  prior_runs?: number | null;
 };
 
 // RES5 — the recruiter's recorded decision on a saved analysis, shown as a pill on
@@ -226,7 +229,18 @@ export function HistoryTab() {
                         {row.slug}
                       </Link>
                     </Td>
-                    <Td>{row.candidate_label}</Td>
+                    <Td>
+                      {row.candidate_label}
+                      {row.prior_runs ? (
+                        <span
+                          className="ml-1.5 inline-block rounded-full bg-stone-100 px-1.5 py-0.5 text-xs font-medium text-steel"
+                          title={t("priorRuns", { count: row.prior_runs })}
+                        >
+                          {"↻ "}
+                          {row.prior_runs}
+                        </span>
+                      ) : null}
+                    </Td>
                     <Td className="capitalize">{row.role_family ? enumLabel("family", row.role_family) : "—"}</Td>
                     <Td className="capitalize">{row.seniority ? enumLabel("seniority", row.seniority) : "—"}</Td>
                     <Td>

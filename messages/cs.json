@@ -127,6 +127,8 @@
     "histScore": "skóre {score}",
     "histLoadFailed": "Tuto analýzu se teď nepodařilo načíst. Zkuste to prosím za chvíli.",
     "histSchemaOld": "Tento běh byl uložen ve starším schématu a nelze ho zobrazit.",
+    "alsoAnalyzedFor": "Také analyzováno pro:",
+    "labelCollision": "Upozornění — jiný kandidát v tomto pracovním prostoru má stejné jméno odvozené od názvu souboru, ale jiné CV. Ověřte si prosím, že se díváte na správnou osobu.",
     "panel": {
       "candidate": "Kandidát",
       "extractionQuality": "Kvalita extrakce",
@@ -3032,7 +3034,8 @@
     "colJd": "Pozice",
     "colSaved": "Uloženo",
     "disposition": { "advance": "postoupit", "hold": "pozdržet", "pass": "zamítnout" },
-    "reviewFlags": "{count, plural, one {# kontrola kvality označena k posouzení} few {# kontroly kvality označeny k posouzení} other {# kontrol kvality označeno k posouzení}}"
+    "reviewFlags": "{count, plural, one {# kontrola kvality označena k posouzení} few {# kontroly kvality označeny k posouzení} other {# kontrol kvality označeno k posouzení}}",
+    "priorRuns": "{count, plural, one {nahrazuje # dřívější běh stejného CV} few {nahrazuje # dřívější běhy stejného CV} other {nahrazuje # dřívějších běhů stejného CV}}"
   },
   "results": {
     "quality": {

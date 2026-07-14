@@ -857,6 +857,15 @@ export function ensureDb(): Database.Database {
     // Tenant scope (P2): the workspace a saved analysis belongs to. NULL on legacy
     // rows ⇒ backfilled to the default workspace below. The first scoped table.
     "ALTER TABLE analyses ADD COLUMN workspace_id TEXT",
+    // Content-addressed candidate identity: the SHA-256 of the CV bytes (the same
+    // per-CV content hash the analyze intake already computes for variant dedupe /
+    // the cache key). Identity used to BE the filename — two filenames for one person
+    // never linked, two "CV.pdf" collided, and re-running a cached CV+JD kept INSERTing
+    // duplicate History rows. With this, the same content is one identity regardless
+    // of filename: History collapses same-(cv_hash, jd) re-runs, the report links the
+    // same person's other-job analyses, and a filename-derived label shared by two
+    // different hashes surfaces a collision caution. NULL on legacy rows (never grouped).
+    "ALTER TABLE analyses ADD COLUMN cv_hash TEXT",
     // Tenant scope (P2): the profiles domain (2nd scoped table). Same backfill below.
     "ALTER TABLE profiles ADD COLUMN workspace_id TEXT",
     // Tenant scope (P1): the Library JD tables — a team's private drafts/openings +
@@ -946,6 +955,11 @@ export function ensureDb(): Database.Database {
   // access_token (new credentials); index it like the other single-row token lookups.
   // Created AFTER the ALTER loop above so a legacy DB already holds the column.
   db.exec(`CREATE INDEX IF NOT EXISTS idx_skill_profiles_access_token ON skill_profiles (access_token)`);
+  // Content-addressed identity lookups: History grouping (newest per cv_hash+jd),
+  // cross-job linkage (same cv_hash, other JDs), and the label-collision probe all
+  // filter analyses by (workspace_id, cv_hash). Created AFTER the ALTER loop so a
+  // legacy DB already holds the column.
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_analyses_cv_hash ON analyses (workspace_id, cv_hash)`);
   // Atomic dedup: a (posting, candidate, repo) triple is unique, so two
   // concurrent submits can't both INSERT (double-click / webhook retry storm).
   // Guarded: a legacy DB may already hold duplicate triples that block the
