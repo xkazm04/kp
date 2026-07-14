@@ -1,7 +1,7 @@
 "use client";
 
-import { GitBranch } from "lucide-react";
-import { useEffect, useState } from "react";
+import { GitBranch, Plus } from "lucide-react";
+import { useEffect, useId, useState } from "react";
 import { useTranslations } from "next-intl";
 import { GithubAnalysisPanel } from "@/app/_components/GithubAnalysisPanel";
 import { hasRenderableComparison } from "@/app/_lib/comparison";
@@ -40,6 +40,11 @@ type ResultPanelProps = {
   // instead of the recorded estimate. Omitted on saved reports (which always show
   // the cost the run actually recorded).
   runCached?: boolean;
+  // Direction 1 — when the run CAN'T be filed under a job (a JD-less analysis, or
+  // one that didn't persist), the live Analyze tab passes an honest one-line
+  // reason instead of a hidden button, so the recruiter's dead-end is explained
+  // rather than silent. Ignored when `pipelineRef` is present (the button wins).
+  pipelineDisabledReason?: string;
 };
 
 type ResultTab = "extraction" | "compare" | "jobFit" | "salary" | "interview" | "github";
@@ -80,7 +85,7 @@ function RunCostLine({
   );
 }
 
-export function ResultPanel({ analysis, github, onGithubRetry, pipelineRef, runCached }: ResultPanelProps) {
+export function ResultPanel({ analysis, github, onGithubRetry, pipelineRef, runCached, pipelineDisabledReason }: ResultPanelProps) {
   // RES2 — the report chrome (tab labels, aria) is bilingual; the tab CONTENT
   // is the LLM narrative, already generated in the recruiter's language.
   const t = useTranslations("report");
@@ -173,6 +178,10 @@ export function ResultPanel({ analysis, github, onGithubRetry, pipelineRef, runC
             github={github?.status === "done" ? github.analysis : null}
           />
         </div>
+      ) : pipelineDisabledReason ? (
+        <div className="flex items-start justify-end">
+          <PipelineDisabledNote reason={pipelineDisabledReason} label={t("addToPipeline")} />
+        </div>
       ) : null}
       {analysis.v2Profile ? <ArchetypeBanner v2Profile={analysis.v2Profile} /> : null}
       <QualityStrip checks={analysis.sanityChecks ?? []} />
@@ -221,5 +230,30 @@ export function ResultPanel({ analysis, github, onGithubRetry, pipelineRef, runC
         ) : null}
       </div>
     </section>
+  );
+}
+
+// Direction 1 — the honest counterpart to AddToPipelineButton: when a run can't be
+// filed under a job, show a DISABLED add affordance with a one-line reason rather
+// than hiding the action (so the recruiter learns WHY they can't add, e.g. "board
+// lanes are keyed by a job"). Tokens only; reads correctly in both themes.
+function PipelineDisabledNote({ reason, label }: { reason: string; label: string }) {
+  const reasonId = useId();
+  return (
+    <div className="flex flex-col items-end gap-1">
+      <button
+        type="button"
+        disabled
+        aria-disabled
+        aria-describedby={reasonId}
+        className="inline-flex h-10 cursor-not-allowed items-center justify-center gap-2 rounded-md border border-stone-300 px-4 text-base font-semibold text-steel opacity-70"
+      >
+        <Plus className="h-4 w-4" aria-hidden />
+        {label}
+      </button>
+      <p id={reasonId} className="max-w-xs text-right text-sm text-steel">
+        {reason}
+      </p>
+    </div>
   );
 }

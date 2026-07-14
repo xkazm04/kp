@@ -1,17 +1,31 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { GithubAnalysisPanel } from "@/app/_components/GithubAnalysisPanel";
 import { ResultPanel } from "@/app/_components/results/ResultPanel";
 import { AnalysisProgress } from "@/app/_components/AnalysisProgress";
 import { AnalyzeForm } from "./AnalyzeForm";
 import { AnalyzeFormCollapsed } from "./AnalyzeFormCollapsed";
 import { deriveCollapseDecision } from "./analyzeCollapse";
+import { deriveAnalyzePipelineAffordance } from "./analyzePipelineRef";
 import { useAnalyzeForm } from "./useAnalyzeForm";
 
 export function AnalyzeTab() {
+  const t = useTranslations("analyze");
   const state = useAnalyzeForm();
   const { inputs, flags, result, handlers } = state;
+  // Direction 1 — offer the SAME Add-to-pipeline the saved report does, right on
+  // the live result, reusing the shared AddToPipelineButton plumbing. A JD-less
+  // (or unsaved) run gets an honest disabled affordance with a one-line reason.
+  const affordance = deriveAnalyzePipelineAffordance(result.analysis);
+  const pipelineRef = affordance?.kind === "add" ? affordance.ref : undefined;
+  const pipelineDisabledReason =
+    affordance?.kind === "disabled"
+      ? affordance.reason === "jdless"
+        ? t("addToPipelineJdless")
+        : t("addToPipelineUnsaved")
+      : undefined;
   const isAnalyzing = flags.isLoading || flags.isCompleting;
   // A GitHub-only run (GH3) produces no main analysis — its panel below counts
   // as a result for the form auto-collapse too. A CV error, however, is NOT a
@@ -63,6 +77,8 @@ export function AnalyzeTab() {
       {result.analysis ? (
         <ResultPanel
           analysis={result.analysis}
+          pipelineRef={pipelineRef}
+          pipelineDisabledReason={pipelineDisabledReason}
           github={
             result.githubStatus === "idle"
               ? undefined

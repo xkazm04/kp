@@ -220,7 +220,12 @@ export async function runAnalyze(p: AnalyzeParams, onProgress?: ProgressFn, sign
 
 function persistAnalysis(candidateLabel: string, jdSlug: string | null, analysis: Analysis, workspaceId?: string, cvHash?: string) {
   try {
-    return saveAnalysis({
+    // Echo the persisted candidate label + JD slug back onto the receipt (the DB
+    // returns only { slug, createdAt }). The live Analyze result reads these to
+    // offer the SAME "Add to pipeline" the saved report does — filed under the
+    // EXACT label the report's on-board chip matches by, and the JD slug the
+    // board keys its lanes on — without a round-trip to History (Direction 1).
+    const receipt = saveAnalysis({
       candidateLabel,
       jdSlug,
       // Content-addressed identity — persisted so re-runs of the same CV collapse
@@ -237,6 +242,7 @@ function persistAnalysis(candidateLabel: string, jdSlug: string | null, analysis
       payload: analysis,
       reviewFlags: countSanityWarns(analysis.sanityChecks ?? []),
     }, workspaceId);
+    return { ...receipt, candidateLabel, jdSlug };
   } catch (error) {
     console.error("Failed to persist analysis", error);
     return null;

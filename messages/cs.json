@@ -3745,6 +3745,8 @@
     "blindTitle": "Před hodnocením odstranit z CV identitu (jméno, kontakt, fotka, rodově zabarvené výrazy, věk); jméno se znovu připojí až do výsledku a kontrolní záznam uvede, co bylo odstraněno.",
     "blindGithubSuppressed": "Hloubkový rozbor GitHubu se v anonymním režimu přeskakuje – odhalil by identitu, kterou anonymní screening skrývá.",
     "blindGithubOnly": "Anonymní režim přeskakuje hloubkový rozbor GitHubu, takže pro analýzu přidejte CV.",
+    "addToPipelineJdless": "Sloupce nástěnky jsou vázané na pozici — chcete-li kandidáta přidat, spusťte analýzu proti uloženému popisu pozice.",
+    "addToPipelineUnsaved": "Tuto analýzu se nepodařilo uložit, takže ji nelze přidat do pipeline.",
     "attachCv": "Připojte CV pro spuštění analýzy.",
     "githubOnlyReady": "Hloubková analýza GitHubu připravena — pro plnou analýzu přiložte CV.",
     "ready": "Připraveno — Gemini trvá 15–25 sekund.",

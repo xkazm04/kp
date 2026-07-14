@@ -3813,6 +3813,8 @@
     "blindTitle": "Identität (Name, Kontakt, Foto, geschlechtsbezogene Begriffe, Alter) vor der Bewertung aus dem CV schwärzen; der Name wird erst im Ergebnis wieder angefügt, und das Trust-Ledger hält fest, was geschwärzt wurde.",
     "blindGithubSuppressed": "Der GitHub-Deep-Dive wird im Blind-Modus übersprungen – er würde die Identität offenlegen, die das Blind-Screening verbirgt.",
     "blindGithubOnly": "Der Blind-Modus überspringt den GitHub-Deep-Dive — fügen Sie einen Lebenslauf hinzu, um eine Analyse auszuführen.",
+    "addToPipelineJdless": "Die Board-Spalten sind an eine Stelle gebunden — analysieren Sie gegen eine gespeicherte Stellenbeschreibung, um diese Person hinzuzufügen.",
+    "addToPipelineUnsaved": "Diese Analyse wurde nicht gespeichert und kann daher nicht zur Pipeline hinzugefügt werden.",
     "attachCv": "Hängen Sie einen CV an, um die Analyse zu aktivieren.",
     "githubOnlyReady": "Reiner GitHub-Deep-Dive bereit — hängen Sie einen CV für die vollständige Analyse an.",
     "ready": "Bereit — Gemini braucht 15–25 Sekunden.",

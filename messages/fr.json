@@ -3813,6 +3813,8 @@
     "blindTitle": "Masque l’identité (nom, contact, photo, termes genrés, âge) du CV avant l’évaluation ; le nom n’est rattaché que dans le résultat, et le registre de confiance consigne ce qui a été masqué.",
     "blindGithubSuppressed": "L’analyse GitHub approfondie est ignorée en mode aveugle – elle révélerait l’identité que le screening aveugle masque.",
     "blindGithubOnly": "Le mode aveugle ignore l’analyse GitHub approfondie ; ajoutez un CV pour lancer une analyse.",
+    "addToPipelineJdless": "Les colonnes du tableau sont rattachées à un poste — analysez le CV avec une fiche de poste enregistrée pour ajouter ce candidat.",
+    "addToPipelineUnsaved": "Cette analyse n’a pas été enregistrée ; elle ne peut donc pas être ajoutée au pipeline.",
     "attachCv": "Joignez un CV pour activer l’analyse.",
     "githubOnlyReady": "Analyse GitHub approfondie prête — joignez un CV pour l’analyse complète.",
     "ready": "Prêt — Gemini prend 15–25 secondes.",

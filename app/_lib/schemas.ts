@@ -73,7 +73,19 @@ export const analysisSchema = analysisResultSchema.extend({
   // from stripping it on the client parse, so the live Analyze tab can address
   // the saved row — e.g. PATCH the GitHub deep-dive onto it (GH1) or link the
   // stable /history/<slug> report.
-  persistence: z.object({ slug: z.string(), createdAt: z.string() }).nullish()
+  // `candidateLabel` + `jdSlug` are echoed from the persisted row so the live
+  // Analyze result can offer the same "Add to pipeline" the saved report does,
+  // filed under the exact label the board's on-board chip matches by and the JD
+  // slug the board keys lanes on (Direction 1). Nullish: a JD-less run has no
+  // slug; a failed persist yields a null receipt entirely.
+  persistence: z
+    .object({
+      slug: z.string(),
+      createdAt: z.string(),
+      candidateLabel: z.string().nullish(),
+      jdSlug: z.string().nullish(),
+    })
+    .nullish()
 });
 
 export type Analysis = z.infer<typeof analysisSchema>;

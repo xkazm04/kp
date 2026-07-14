@@ -3745,6 +3745,8 @@
     "blindTitle": "Redact identity (name, contact, photo, gendered terms, age) from the CV before scoring; the name is re-attached only in the result, and the trust ledger records what was redacted.",
     "blindGithubSuppressed": "GitHub deep-dive is skipped in blind mode — it would reveal the identity blind screening redacts.",
     "blindGithubOnly": "Blind mode skips the GitHub deep-dive, so add a CV to run an analysis.",
+    "addToPipelineJdless": "Board lanes are keyed by a job — analyze against a saved job description to add this candidate.",
+    "addToPipelineUnsaved": "This analysis wasn't saved, so it can't be added to the pipeline.",
     "attachCv": "Attach a CV to enable Analyze.",
     "githubOnlyReady": "GitHub-only deep-dive ready — attach a CV for the full analysis.",
     "ready": "Ready — Gemini takes 15–25 seconds.",
