@@ -177,6 +177,9 @@ def analyze_cv(
         _emit(progress, "scoring", "active")
         with StageTimer(timings, "scoring"):
             score = _score_from_payload(payload.get("score"), repairs)
+            # The LLM's own claimed total, kept ONLY as a divergence signal for the
+            # sanity checks below — the persisted score.total is the component sum.
+            score_reported_total = _reported_score_total(payload.get("score"))
         _emit(progress, "scoring", "done")
 
         _emit(progress, "salary", "active")
@@ -267,7 +270,9 @@ def analyze_cv(
             )
 
             # Built last so helper-degrade notes collected above are included.
-            sanity_checks = _sanity_checks(raw_text, score, salary) + repairs
+            sanity_checks = (
+                _sanity_checks(raw_text, score, salary, score_reported_total) + repairs
+            )
             # CV authenticity screen (idea-cae71d45): fold deterministic
             # fabrication / AI-padding signals into the trust ledger so they count
             # toward review_flags and the UI can derive a trust band. A SCREEN —
@@ -660,6 +665,15 @@ def _v2_profile_and_routing(
 
 
 def _score_from_payload(raw: Any, repairs: list[str] | None = None) -> ScoreBreakdown:
+    """Parse the five weighted score components and compute the headline total.
+
+    Server-authoritative total (Direction 2): the persisted ``total`` is ALWAYS the
+    deterministic component sum (weights 25/30/23/12/10 cap it at exactly 100), never
+    the model's own ``total``. The LLM's claimed total is downgraded to a sanity
+    SIGNAL — see :func:`_reported_score_total` / :func:`_score_sanity_checks`, which
+    still flag a divergence for observability — so a bad generation can no longer hand
+    back a headline number that contradicts its own breakdown.
+    """
     if not isinstance(raw, dict):
         if repairs is not None:
             repairs.append("Score section missing — defaulted to 0 (manual review)")
@@ -669,12 +683,9 @@ def _score_from_payload(raw: Any, repairs: list[str] | None = None) -> ScoreBrea
     role_seniority = _clamp_int(raw.get("role_seniority"), 0, 23, 0)
     education = _clamp_int(raw.get("education"), 0, 12, 0)
     traits = _clamp_int(raw.get("traits"), 0, 10, 0)
-    total = _clamp_int(
-        raw.get("total"),
-        0,
-        100,
-        min(experience + skills + role_seniority + education + traits, 100),
-    )
+    # Authoritative: the component sum IS the total. The maxima sum to exactly 100 so
+    # the min() is defensive belt-and-suspenders, never actually engaged.
+    total = min(experience + skills + role_seniority + education + traits, 100)
     return ScoreBreakdown(
         total=total,
         experience=experience,
@@ -683,6 +694,21 @@ def _score_from_payload(raw: Any, repairs: list[str] | None = None) -> ScoreBrea
         education=education,
         traits=traits,
     )
+
+
+def _reported_score_total(raw: Any) -> int | None:
+    """The LLM's OWN claimed score total (clamped to 0-100), or ``None`` when the
+    generation omitted one.
+
+    This is the sanity SIGNAL only — :func:`_score_from_payload` no longer trusts it
+    for the persisted total. :func:`_score_sanity_checks` compares it against the
+    authoritative component sum so a model that reports a headline contradicting its
+    own breakdown is still surfaced for review. ``None`` (omitted total) means "no
+    signal to check" — there is nothing to diverge from.
+    """
+    if not isinstance(raw, dict) or raw.get("total") is None:
+        return None
+    return _clamp_int(raw.get("total"), 0, 100, 0)
 
 
 # --- Salary currency/period validation & multi-market plausibility ----------
@@ -1117,40 +1143,51 @@ def _build_deterministic_evidence(
     )
 
 
-# Largest gap (in score points) tolerated between the headline total and the sum
-# of its five components before it is flagged for manual review. The contract is
-# total == experience+skills+role_seniority+education+traits (whose maxima
-# 25+30+23+12+10 sum to exactly 100), but _score_from_payload takes the model's
-# own clamped total rather than recomputing it, so a bad generation can hand back
-# a headline number that contradicts its own breakdown. A couple of points absorbs
-# trivial model rounding; a wider gap is a real contradiction — the score dial
-# telling a different story than the factor bars — and is surfaced for a human.
+# Largest gap (in score points) tolerated between the model's OWN reported total and
+# the deterministic component sum before it is flagged for manual review. The
+# persisted total is now ALWAYS the component sum (total ==
+# experience+skills+role_seniority+education+traits, whose maxima 25+30+23+12+10 sum
+# to exactly 100) — see _score_from_payload — so the dial can never disagree with the
+# bars. The model still reports its own total as a sanity signal; when THAT diverges
+# from the sum by more than this tolerance it is surfaced for observability. A couple
+# of points absorbs trivial model rounding; a wider gap means the generation's
+# headline contradicted its own breakdown, worth a human's eye even though we no
+# longer trust it.
 SCORE_TOTAL_TOLERANCE = 2
 
 
-def _sanity_checks(text: str, score: ScoreBreakdown, salary: SalaryEstimate) -> list[str]:
+def _sanity_checks(
+    text: str,
+    score: ScoreBreakdown,
+    salary: SalaryEstimate,
+    score_reported_total: int | None = None,
+) -> list[str]:
     checks = []
     checks.append("Profile text length OK" if len(text) >= 120 else "Profile text is short")
-    checks.extend(_score_sanity_checks(score))
+    checks.extend(_score_sanity_checks(score, score_reported_total))
     checks.extend(_salary_sanity_checks(salary))
     return checks
 
 
-def _score_sanity_checks(score: ScoreBreakdown) -> list[str]:
-    """Sanity-state the fit score: its 0-100 range AND whether the headline total
-    agrees with its own breakdown.
+def _score_sanity_checks(
+    score: ScoreBreakdown, reported_total: int | None = None
+) -> list[str]:
+    """Sanity-state the fit score: its 0-100 range AND whether the model's OWN
+    reported total agreed with the authoritative breakdown.
 
-    ``_score_from_payload`` takes the model's own ``total`` (clamped to 0-100)
-    rather than recomputing it from the five components, so a bad generation can
-    return a total that contradicts its parts — e.g. a 95 sitting above components
-    that sum to 40. The web UI pins the *displayed* total to the component sum so
-    the dial can't visibly disagree with the bars (see ``reconcileScoreTotal`` in
-    app/_lib/format.ts), but that divergence is otherwise silent in the result.
-    Flag it here for manual review when it exceeds :data:`SCORE_TOTAL_TOLERANCE`,
-    turning a quiet data-integrity defect into a visible, reviewable one. A total
-    re-derived from the parts (when the model omits it) sums exactly and never
-    trips this.
+    ``_score_from_payload`` now ALWAYS sets the persisted ``total`` to the component
+    sum (server-authoritative), so the dial can never disagree with the bars. The
+    model still reports its own total, which arrives here as ``reported_total`` — a
+    pure sanity signal. When it diverges from the sum past :data:`SCORE_TOTAL_
+    TOLERANCE` the check flags it for observability (same string/shape the dashboards
+    already scan), turning a quiet generation defect into a visible, reviewable one
+    even though the bad number is no longer trusted.
+
+    ``reported_total`` defaults to ``score.total`` when not supplied — so a directly
+    constructed :class:`ScoreBreakdown` (or an omitted model total, which sums exactly)
+    self-checks and never spuriously trips.
     """
+    reported = score.total if reported_total is None else reported_total
     component_sum = (
         score.experience
         + score.skills
@@ -1158,13 +1195,13 @@ def _score_sanity_checks(score: ScoreBreakdown) -> list[str]:
         + score.education
         + score.traits
     )
-    divergence = abs(score.total - component_sum)
+    divergence = abs(reported - component_sum)
     return [
         "Score is inside 0-100" if 0 <= score.total <= 100 else "Score outside expected range",
         "Score total matches its breakdown"
         if divergence <= SCORE_TOTAL_TOLERANCE
         else (
-            f"Score total ({score.total}) disagrees with its breakdown "
+            f"Score total ({reported}) disagrees with its breakdown "
             f"(components sum to {component_sum}, off by {divergence}) — "
             "verify the score before trusting it"
         ),

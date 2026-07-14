@@ -55,8 +55,19 @@ TAXONOMY_JSON = REPO_ROOT / "data" / "taxonomy.json"
 # ANALYSIS_RESPONSE_SCHEMA), and a prior cached payload simply lacks it (the report
 # omits the cost line, no wrong result). No cached analysis output changed, so
 # PROMPT_VERSION is intentionally NOT bumped.
+# NOTE (matching-engine round 2 — server-authoritative score total): the
+# fingerprint was re-recorded when the ScoreBreakdown DOCSTRING in models.py was
+# updated to describe the new authority (the persisted total is always the component
+# sum; the LLM total is a sanity signal only). The whole-module Pydantic hash is
+# deliberately conservative, so it trips on a pure docstring edit — but NO Pydantic
+# field, no ANALYSIS_RESPONSE_SCHEMA, and no Gemini prompt changed. The scoring-logic
+# change itself lives in pipeline.py, which this fingerprint does not hash and which
+# only affects freshly computed analyses; prior cached analyses are intentionally
+# served as-is (their divergent totals already display reconciled to the component
+# sum via reconcileScoreTotal). So no cached analysis OUTPUT is invalidated and
+# PROMPT_VERSION is intentionally NOT bumped.
 EXPECTED_PROMPT_VERSION = "v5-2026-06-09-lang-cachekey"
-EXPECTED_ANALYSIS_FINGERPRINT = "c1f553f37ac41a3295990b4334658861a8d5eb7f99521dd995a5dbe9c83de8d0"
+EXPECTED_ANALYSIS_FINGERPRINT = "c9a2f9817ea0f78ce8ba82938391ccf686a2ac7b258b5a2cf03d7430df2f4511"
 
 
 def _strip_ts_comments(text: str) -> str:

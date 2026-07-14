@@ -56,16 +56,18 @@ class CandidateProfile(_Base):
 class ScoreBreakdown(_Base):
     """Fit score split into a total and its five weighted components.
 
-    Contract: ``total`` is the sum of the five components
+    Contract: ``total`` IS the sum of the five components
     (experience/skills/role_seniority/education/traits), whose maxima
-    25/30/23/12/10 add to exactly 100. ``_score_from_payload`` in pipeline.py
-    takes the model's own ``total`` (clamped) rather than recomputing it, so a
-    bad generation can return a ``total`` that disagrees with its parts. The web
-    UI treats the component sum as authoritative for display and pins the score
-    dial to it (see ``reconcileScoreTotal`` / the score-breakdown invariant in
-    app/_lib/format.ts) so the dial can never contradict the factor breakdown.
-    On the Python side ``_score_sanity_checks`` flags a divergence past
-    ``SCORE_TOTAL_TOLERANCE`` into ``sanity_checks`` for manual review.
+    25/30/23/12/10 add to exactly 100. ``_score_from_payload`` in pipeline.py is
+    server-authoritative — it ALWAYS computes ``total`` from the components and never
+    trusts the model's own ``total``, so a bad generation can no longer persist a
+    headline that disagrees with its parts. The model's claimed total survives only
+    as a sanity SIGNAL: ``_score_sanity_checks`` compares it against the sum and, past
+    ``SCORE_TOTAL_TOLERANCE``, flags the divergence into ``sanity_checks`` for
+    observability. The web UI still pins the displayed dial to the component sum (see
+    ``reconcileScoreTotal`` / the score-breakdown invariant in app/_lib/format.ts);
+    with the server total now equal to the sum that reconciliation is a no-op for
+    freshly computed analyses (it still guards older stored ones on read).
     """
 
     total: int
