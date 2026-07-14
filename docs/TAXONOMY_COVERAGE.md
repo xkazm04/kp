@@ -12,15 +12,15 @@ Per-role-family coverage of `data/taxonomy.json`. A term counts toward every fam
 | `healthcare_clinical` | 0 | 3 | 0% | 3 (100%) |
 | `life_sciences_research` | 0 | 1 | 0% | 1 (100%) |
 | `skilled_trades` | 0 | 3 | 0% | 3 (100%) |
-| `operations_logistics` | 0 | 5 | 0% | 5 (100%) |
+| `operations_logistics` | 40 (floor 40) | 45 | 42% | 45 (100%) |
 | `frontline_service` | 0 | 4 | 0% | 4 (100%) |
-| `sales_marketing` | 0 | 2 | 0% | 2 (100%) |
-| `finance_accounting` | 0 | 3 | 0% | 3 (100%) |
+| `sales_marketing` | 39 (floor 39) | 41 | 37% | 41 (100%) |
+| `finance_accounting` | 46 (floor 46) | 49 | 55% | 49 (100%) |
 | `legal_compliance` | 0 | 2 | 0% | 2 (100%) |
 | `hr_people` | 0 | 1 | 0% | 1 (100%) |
 | `education_academic` | 0 | 1 | 0% | 1 (100%) |
 | `creative_design` | 0 | 2 | 0% | 2 (100%) |
-| `customer_support` | 0 | 1 | 0% | 1 (100%) |
+| `customer_support` | 37 (floor 37) | 38 | 37% | 38 (100%) |
 | `general_professional` | 0 | 3 | 0% | 3 (100%) |
 
-_Total terms: 176._
+_Total terms: 337._

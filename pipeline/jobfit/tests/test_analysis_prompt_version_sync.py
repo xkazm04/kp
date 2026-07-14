@@ -73,8 +73,24 @@ TAXONOMY_JSON = REPO_ROOT / "data" / "taxonomy.json"
 # is read ONLY by the KO filter / language-coverage blend (matching._has_language),
 # never by the Gemini analysis prompt or ANALYSIS_RESPONSE_SCHEMA, so no cached
 # analysis output changed. PROMPT_VERSION is therefore intentionally NOT bumped.
+# NOTE (matching-engine round 3 — non-tech skill graph): the taxonomy part of the
+# fingerprint was NARROWED from the whole file to only its PROMPT-FEEDING keys
+# (`role_families` + `salary_signals` — see _prompt_feeding_taxonomy below). The old
+# whole-file hash tripped on every `terms` edit, but the `terms` array feeds the
+# analysis prompt only through the deterministic PRE-PASS seeds (detected_skills /
+# detected_signals — non-authoritative hints Gemini overrides, and runtime-derived
+# from the specific CV so no static pin could ever capture them), plus the transform /
+# matching / classification layers — NONE of which is the cached analysis prompt or
+# ANALYSIS_RESPONSE_SCHEMA. The ONLY taxonomy DATA embedded verbatim in the prompt is
+# the `role_families` description block (via role_family_catalog); `salary_signals` is
+# included conservatively as the annotation vocabulary for the signals surfaced to the
+# prompt. So authoring skill terms no longer trips this pin (correctly — it cannot
+# invalidate a cached analysis), while a change to the prompt-feeding families/signals
+# still does. The fingerprint below was re-recorded ONCE for this split; because the
+# hashed prompt-feeding content is byte-identical to before, PROMPT_VERSION is NOT
+# bumped (no cached analysis output changed).
 EXPECTED_PROMPT_VERSION = "v5-2026-06-09-lang-cachekey"
-EXPECTED_ANALYSIS_FINGERPRINT = "0d345edbee7e32dfffc564166dd0a23562fba9a5457d4e9231e6e4a098bfb267"
+EXPECTED_ANALYSIS_FINGERPRINT = "a1e42c1bde740e0d8610600ed7b5bba0064f594e7244f87e2e9607aafd033cc4"
 
 
 def _strip_ts_comments(text: str) -> str:
@@ -92,6 +108,23 @@ def _ts_prompt_version(text: str) -> str:
     return match.group(1)
 
 
+# The taxonomy keys whose CONTENT is embedded in / consumed by the analysis prompt.
+# `role_families` is the description block role_family_catalog() renders verbatim into
+# the prompt; `salary_signals` is the annotation vocabulary for the deterministic
+# signals surfaced to it. Deliberately EXCLUDES `terms` (the per-term skill vocabulary
+# reaches the prompt only as non-authoritative, CV-derived pre-pass seeds) and the
+# transform/matching-only keys (family_degree_terms, adjacent_domain_signals,
+# language_aliases, company_*), none of which touch the cached analysis output.
+_PROMPT_FEEDING_TAXONOMY_KEYS = ("role_families", "salary_signals")
+
+
+def _prompt_feeding_taxonomy() -> str:
+    """Canonical JSON of the taxonomy subset the analysis prompt actually depends on."""
+    taxonomy = json.loads(TAXONOMY_JSON.read_text(encoding="utf-8"))
+    subset = {k: taxonomy.get(k) for k in _PROMPT_FEEDING_TAXONOMY_KEYS}
+    return json.dumps(subset, sort_keys=True, ensure_ascii=False)
+
+
 def _analysis_parts() -> list[str]:
     """The exact analysis-affecting sources the cache-key version must track.
 
@@ -107,8 +140,9 @@ def _analysis_parts() -> list[str]:
         inspect.getsource(gemini.analyze_profile_with_gemini),
         # The Pydantic schema the analysis payload is validated against.
         inspect.getsource(models),
-        # The taxonomy the roles/skills resolve against.
-        TAXONOMY_JSON.read_text(encoding="utf-8"),
+        # ONLY the prompt-feeding taxonomy content (role_families + salary_signals),
+        # not the whole file — skill-term authoring must not trip this pin.
+        _prompt_feeding_taxonomy(),
     ]
 
 
