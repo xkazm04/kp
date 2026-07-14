@@ -11,6 +11,7 @@ from .authenticity import authenticity_checks, prompt_injection_checks
 from .credentials import credential_checks
 from .extractors import clean_text, count_letter_spacing, extract_text
 from .gemini import GEMINI_MODEL, analyze_profile_with_gemini
+from .llm.base import price_usd
 from .redact import redact_pii
 from .insights import (
     apply_company_salary_context,
@@ -22,6 +23,7 @@ from .logger import StageTimer, append_pipeline_log, new_request_id
 from .models import (
     AnalysisMetadata,
     AnalysisResult,
+    RunCost,
     CandidateProfile,
     Credential,
     DeterministicEvidence,
@@ -302,6 +304,22 @@ def analyze_cv(
             if market_evidence is not None and market_evidence.summary:
                 parsing_notes.append(f"Grounded market context: {market_evidence.summary[:500]}")
 
+            # Per-run cost estimate from the actual token usage the model reported,
+            # priced through the SAME shared table the usage ledger uses (no UI
+            # re-guess). None when the run reported no usage (e.g. an offline fake).
+            run_cost = None
+            if gemini_usage:
+                cost_in = int(gemini_usage.get("prompt_tokens", 0) or 0)
+                cost_out = int(gemini_usage.get("candidate_tokens", 0) or 0)
+                run_cost = RunCost(
+                    model=GEMINI_MODEL,
+                    input_tokens=cost_in,
+                    output_tokens=cost_out,
+                    cached_tokens=gemini_usage.get("cached_tokens"),
+                    cost_usd=price_usd(GEMINI_MODEL, cost_in, cost_out),
+                    estimated=True,
+                )
+
             metadata = AnalysisMetadata(
                 analysis_engine="gemini",
                 text_extractor="gemini",
@@ -309,6 +327,7 @@ def analyze_cv(
                 parsing_notes=parsing_notes,
                 grounding_sources=sources,
                 deterministic_evidence=evidence,
+                run_cost=run_cost,
             )
 
             # Archetype-routed v2 profile so a CV-uploaded student/switcher is

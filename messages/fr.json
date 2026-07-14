@@ -129,6 +129,12 @@
     "histSchemaOld": "Cette analyse a été enregistrée dans un ancien schéma et ne peut pas être affichée.",
     "alsoAnalyzedFor": "Également analysé pour :",
     "labelCollision": "Attention — un autre candidat dans cet espace de travail porte le même nom dérivé du fichier mais possède un CV différent. Vérifiez que vous consultez la bonne personne.",
+    "runCost": {
+      "line": "Coût est. ~{cost} · {model} · estimation",
+      "unpriced": "Coût est. non mesuré · {model}",
+      "cached": "Servi depuis le cache — aucun coût supplémentaire",
+      "title": "Estimé à partir de l'utilisation des tokens aux prix catalogue — montant non contractuel."
+    },
     "panel": {
       "candidate": "Candidat(e)",
       "extractionQuality": "Qualité d'extraction",

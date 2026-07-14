@@ -129,6 +129,12 @@
     "histSchemaOld": "Tento běh byl uložen ve starším schématu a nelze ho zobrazit.",
     "alsoAnalyzedFor": "Také analyzováno pro:",
     "labelCollision": "Upozornění — jiný kandidát v tomto pracovním prostoru má stejné jméno odvozené od názvu souboru, ale jiné CV. Ověřte si prosím, že se díváte na správnou osobu.",
+    "runCost": {
+      "line": "Odh. náklady ~{cost} · {model} · odhad",
+      "unpriced": "Odh. náklady nezměřeny · {model}",
+      "cached": "Načteno z mezipaměti — bez dalších nákladů",
+      "title": "Odhadnuto z využití tokenů podle ceníku — nejde o smluvní částku."
+    },
     "panel": {
       "candidate": "Kandidát",
       "extractionQuality": "Kvalita extrakce",

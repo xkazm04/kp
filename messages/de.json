@@ -129,6 +129,12 @@
     "histSchemaOld": "Dieser Durchlauf wurde in einem älteren Schema gespeichert und kann nicht angezeigt werden.",
     "alsoAnalyzedFor": "Ebenfalls analysiert für:",
     "labelCollision": "Hinweis — ein anderer Kandidat in diesem Arbeitsbereich trägt denselben aus dem Dateinamen abgeleiteten Namen, hat aber einen anderen Lebenslauf. Vergewissern Sie sich, dass Sie die richtige Person ansehen.",
+    "runCost": {
+      "line": "Gesch. Kosten ~{cost} · {model} · Schätzung",
+      "unpriced": "Gesch. Kosten nicht erfasst · {model}",
+      "cached": "Aus dem Cache geladen — keine neuen Kosten",
+      "title": "Geschätzt aus dem Token-Verbrauch zu Listenpreisen — kein vertraglicher Betrag."
+    },
     "panel": {
       "candidate": "Kandidat/in",
       "extractionQuality": "Extraktionsqualität",

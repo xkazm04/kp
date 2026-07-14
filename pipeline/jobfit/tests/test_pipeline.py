@@ -177,5 +177,42 @@ class BlindNameReattachTest(unittest.TestCase):
         self.assertNotEqual(result.candidate.name, "Machine Learning Engineer")
 
 
+class RunCostMetadataTest(unittest.TestCase):
+    """Direction 2: the per-run LLM cost estimate is threaded onto the saved
+    analysis (metadata.run_cost) from the tokens the run actually reported, priced
+    through the shared MTOK_PRICES table — so the report shows a real figure, not a
+    UI re-guess."""
+
+    def _run_with_usage(self, usage: dict) -> object:
+        payload = _payload(total=80)
+        with mock.patch.object(P, "extract_text", lambda _p: payload["profile"]["raw_text"]), mock.patch.object(
+            P, "analyze_profile_with_gemini", lambda *a, **k: (payload, [], usage)
+        ):
+            return P.analyze_cv(Path("cv.pdf"))
+
+    def test_run_cost_is_populated_from_reported_usage(self) -> None:
+        from pipeline.jobfit.gemini import GEMINI_MODEL
+        from pipeline.jobfit.llm.base import price_usd
+
+        result = self._run_with_usage(
+            {"prompt_tokens": 1000, "candidate_tokens": 200, "cached_tokens": 50}
+        )
+        rc = result.metadata.run_cost
+        self.assertIsNotNone(rc, "run_cost must be attached when usage is reported")
+        self.assertEqual(rc.model, GEMINI_MODEL)
+        self.assertEqual(rc.input_tokens, 1000)
+        self.assertEqual(rc.output_tokens, 200)
+        self.assertEqual(rc.cached_tokens, 50)
+        self.assertTrue(rc.estimated)
+        # Cost comes from the SAME shared pricing the ledger uses — not a re-guess.
+        self.assertEqual(rc.cost_usd, price_usd(GEMINI_MODEL, 1000, 200))
+        self.assertIsNotNone(rc.cost_usd)
+
+    def test_no_usage_reported_means_no_run_cost(self) -> None:
+        # An offline/faked run with no usage metadata reports no cost (never a fake 0).
+        result = self._run_with_usage({})
+        self.assertIsNone(result.metadata.run_cost)
+
+
 if __name__ == "__main__":
     unittest.main()

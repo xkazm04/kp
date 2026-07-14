@@ -35,11 +35,52 @@ type ResultPanelProps = {
   // act on a job-fit read without leaving for the Match tab. Omitted where the
   // identifiers aren't available (e.g. a fresh, not-yet-saved analyze run).
   pipelineRef?: PipelineRef;
+  // Metering (Direction 2): when the live Analyze tab served this result from the
+  // prompt cache, it passes cached=true so the cost line reads "no new cost"
+  // instead of the recorded estimate. Omitted on saved reports (which always show
+  // the cost the run actually recorded).
+  runCached?: boolean;
 };
 
 type ResultTab = "extraction" | "compare" | "jobFit" | "salary" | "interview" | "github";
 
-export function ResultPanel({ analysis, github, onGithubRetry, pipelineRef }: ResultPanelProps) {
+// Format a small USD figure: sub-cent runs keep 4 decimals so they don't read as
+// "$0.00"; larger ones use the usual 2. Non-contractual estimate (see RunCostLine).
+function formatCostUsd(cost: number): string {
+  return `$${cost < 0.01 ? cost.toFixed(4) : cost.toFixed(2)}`;
+}
+
+// Metering cost line (Direction 2): the per-analysis LLM cost estimate, from what
+// the run actually recorded (metadata.runCost, priced through the shared table) —
+// not a UI re-guess. A cache-served run shows a no-new-cost note instead.
+function RunCostLine({
+  runCost,
+  cached,
+}: {
+  runCost: NonNullable<Analysis["metadata"]>["runCost"] | undefined;
+  cached?: boolean;
+}) {
+  const t = useTranslations("report");
+  if (cached) {
+    return <p className="text-xs text-steel">{t("runCost.cached")}</p>;
+  }
+  if (!runCost) return null;
+  const model = runCost.model ?? "—";
+  if (runCost.costUsd == null) {
+    return (
+      <p className="text-xs text-steel" title={t("runCost.title")}>
+        {t("runCost.unpriced", { model })}
+      </p>
+    );
+  }
+  return (
+    <p className="text-xs text-steel" title={t("runCost.title")}>
+      {t("runCost.line", { cost: formatCostUsd(runCost.costUsd), model })}
+    </p>
+  );
+}
+
+export function ResultPanel({ analysis, github, onGithubRetry, pipelineRef, runCached }: ResultPanelProps) {
   // RES2 — the report chrome (tab labels, aria) is bilingual; the tab CONTENT
   // is the LLM narrative, already generated in the recruiter's language.
   const t = useTranslations("report");
@@ -135,6 +176,8 @@ export function ResultPanel({ analysis, github, onGithubRetry, pipelineRef }: Re
       ) : null}
       {analysis.v2Profile ? <ArchetypeBanner v2Profile={analysis.v2Profile} /> : null}
       <QualityStrip checks={analysis.sanityChecks ?? []} />
+      <RunCostLine runCost={analysis.metadata?.runCost} cached={runCached} />
+
       <div className="rounded-lg border border-stone-200 bg-white p-2 shadow-panel">
         <div role="tablist" aria-label={t("sections")} onKeyDown={onTabKeyDown} className={`grid gap-1 sm:grid-cols-2 ${lgGridClass}`}>
           {tabs.map((tab) => {

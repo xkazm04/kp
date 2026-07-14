@@ -129,6 +129,12 @@
     "histSchemaOld": "This run was saved in an older schema and can't be rendered.",
     "alsoAnalyzedFor": "Also analyzed for:",
     "labelCollision": "Heads up — another candidate in this workspace shares this file-derived name but has a different CV. Make sure you're looking at the right person.",
+    "runCost": {
+      "line": "Est. cost ~{cost} · {model} · estimate",
+      "unpriced": "Est. cost not metered · {model}",
+      "cached": "Served from cache — no new cost",
+      "title": "Estimated from token usage at list prices — not a contractual figure."
+    },
     "panel": {
       "candidate": "Candidate",
       "extractionQuality": "Extraction Quality",

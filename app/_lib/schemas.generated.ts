@@ -83,6 +83,14 @@ export const analysisResultSchema = z.object({
       detectedSkills: z.array(z.string()),
       detectedCompanyType: z.string().nullish(),
       detectedCompanyModifiers: z.array(z.string())
+    }).nullish(),
+    runCost: z.object({
+      model: z.string().nullish(),
+      inputTokens: z.number(),
+      outputTokens: z.number(),
+      cachedTokens: z.number().nullish(),
+      costUsd: z.number().nullish(),
+      estimated: z.boolean()
     }).nullish()
   }).nullish(),
   marketEvidence: z.object({

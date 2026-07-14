@@ -21,6 +21,18 @@ async function ingestUsageLog(logPath: string): Promise<void> {
 
 const PYTHON_CMD = process.env.PYTHON_CMD ?? (process.platform === "win32" ? "python" : "python3");
 
+// LLM-usage metering is ON BY DEFAULT: every spawn gets a per-call sidecar path so
+// the flagship CV-analysis (and every other CLI's) spend lands in the llm_usage
+// ledger. An operator opts OUT by setting KP_LLM_USAGE_LOG to an explicit off token
+// — we then DON'T mint a sidecar (nothing to meter or ingest), and pass the token
+// through so the Python monitor also treats it as disabled. Mirrors monitor._LEDGER_OFF_TOKENS.
+const LEDGER_OFF_TOKENS = new Set(["0", "off", "false", "no", "disable", "disabled"]);
+function meteringOptOut(): string | null {
+  const raw = process.env.KP_LLM_USAGE_LOG;
+  if (raw && LEDGER_OFF_TOKENS.has(raw.trim().toLowerCase())) return raw;
+  return null;
+}
+
 export type PythonError = {
   message: string;
   status: number;
@@ -115,7 +127,10 @@ export function spawnPython(
   // settles (below). Unique per spawn so there are no cross-process append races
   // and each file is ingested exactly once. Set for EVERY spawn — a non-LLM CLI
   // simply never creates it. opts.env can override it if a caller needs to.
-  const usageLogPath = path.join(os.tmpdir(), `kp-llm-usage-${process.pid}-${randomUUID()}.ndjson`);
+  // Default: a fresh sidecar path (metering ON). Opt-out: reuse the operator's off
+  // token so the child meters nothing and we skip ingest below.
+  const optOut = meteringOptOut();
+  const usageLogPath = optOut ?? path.join(os.tmpdir(), `kp-llm-usage-${process.pid}-${randomUUID()}.ndjson`);
   const child = spawn(PYTHON_CMD, args, {
     // cwd defaults to the parent's process.cwd() (the project root, where the
     // `pipeline` package is importable for `python -m`); passing it explicitly is
@@ -216,7 +231,9 @@ export function spawnPython(
   // or abort — all kill the child, so no further lines are written). Detached
   // from `result` so it neither delays nor alters what the caller awaits, and its
   // own rejection is swallowed.
-  void result.finally(() => ingestUsageLog(usageLogPath)).catch(() => {});
+  // Skip ingest entirely when the operator opted out — usageLogPath is their token
+  // (e.g. "0"), not a real sidecar, so there is nothing to fold in.
+  if (!optOut) void result.finally(() => ingestUsageLog(usageLogPath)).catch(() => {});
   return { child, result };
 }
 

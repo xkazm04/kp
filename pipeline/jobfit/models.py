@@ -202,6 +202,21 @@ class DeterministicEvidence(_Base):
     detected_company_modifiers: list[str] = Field(default_factory=list)
 
 
+class RunCost(_Base):
+    """The metered cost of the flagship LLM call that produced this analysis, so
+    the saved report can show what the run actually cost (not a UI re-guess).
+    ``cost_usd`` is priced from the shared MTOK_PRICES table (llm.base.price_usd),
+    the SAME mechanism the usage ledger uses — an ESTIMATE (``estimated`` true),
+    non-contractual, like the voice per-minute prices. ``cost_usd`` is null when
+    the model isn't in the price book (visible-but-unpriced, never a silent 0)."""
+    model: str | None = None
+    input_tokens: int = 0
+    output_tokens: int = 0
+    cached_tokens: int | None = None
+    cost_usd: float | None = None
+    estimated: bool = True
+
+
 class AnalysisMetadata(_Base):
     analysis_engine: str
     text_extractor: str
@@ -209,6 +224,9 @@ class AnalysisMetadata(_Base):
     parsing_notes: list[str] = Field(default_factory=list)
     grounding_sources: list[str] = Field(default_factory=list)
     deterministic_evidence: DeterministicEvidence | None = None
+    # Per-run metered LLM cost estimate (surfaced on the saved report). None when
+    # no token usage was reported for the run.
+    run_cost: RunCost | None = None
 
 
 # --- Soft-signal panel (SCOR1) -------------------------------------------------

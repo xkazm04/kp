@@ -217,6 +217,25 @@ class LedgerSidecarTest(unittest.TestCase):
             # Must not raise and must not create any file.
             StubProvider([_result()]).complete("hi")
 
+    def test_explicit_opt_out_token_disables_the_ledger(self) -> None:
+        # Metering is ON BY DEFAULT (a real path writes); an operator opts OUT by
+        # setting KP_LLM_USAGE_LOG to an off token like "0". It must then write
+        # NOTHING — not attempt to open a file literally named "0".
+        monitor.reset()
+        self.addCleanup(monitor.reset)
+        for token in ("0", "off", "false", "no"):
+            with self.subTest(token=token):
+                with tempfile.TemporaryDirectory() as d:
+                    cwd = os.getcwd()
+                    os.chdir(d)  # so a stray open("0") would land here and be visible
+                    try:
+                        with mock.patch.dict(os.environ, {"KP_LLM_USAGE_LOG": token}, clear=False):
+                            os.environ.pop("LIGHTTRACK_URL", None)
+                            StubProvider([_result()], use_case="match_reasoning").complete("hi")
+                        self.assertEqual(os.listdir(d), [], f"opt-out token {token!r} must write no ledger")
+                    finally:
+                        os.chdir(cwd)
+
     def test_emit_deterministic_writes_zero_cost_fallback_line(self) -> None:
         """Item 22: the keyless/failed deterministic fallback is ledger-visible —
         one source:"deterministic" line with zero tokens/cost, provider
