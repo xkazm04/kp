@@ -11,7 +11,7 @@ import { useEnumLabel, labelOr } from "@/app/_lib/use-enum-label";
 import { momentumWeekLabel, type MomentumWeek } from "@/app/_lib/analytics-momentum";
 import { forecastHires } from "@/app/_lib/analytics-forecast";
 import type { OfferConversion } from "@/app/_lib/analytics-offer";
-import type { Delta, PeriodDeltas } from "@/app/_lib/analytics-deltas";
+import type { Delta, PeriodDeltas, SourceDelta, ChannelDelta } from "@/app/_lib/analytics-deltas";
 import { kindLabel, type AutomationImpact } from "@/app/_lib/decision-attribution";
 import type { AutomationRoi } from "@/app/_lib/automation-roi";
 // `import type` only — erased at compile time, no server code in the bundle.
@@ -325,6 +325,7 @@ export function AnalyticsTab() {
           />
           <SourcePanel
             rows={data.bySource}
+            deltas={data.deltas?.bySource ?? null}
             channelsHref={buildUrl({ ...clearedTabScopedParams(), tab: "channels" }, search.toString())}
           />
         </div>
@@ -340,6 +341,7 @@ export function AnalyticsTab() {
 
       <ChannelEconomicsPanel
         rows={data.byChannel}
+        deltas={data.deltas?.byChannel ?? null}
         variants={data.byVariant}
         variantTotal={data.byVariantTotal}
         recommendations={data.variantRecommendations}
@@ -608,24 +610,36 @@ function ImpactRow({ label, value }: { label: string; value: number }) {
 // server-side from each entry's earliest event kind), with the interview/hire
 // payoff per channel. Answers "does the apply link or recruiter sourcing
 // produce the candidates that actually get hired".
-function SourcePanel({ rows, channelsHref }: { rows: Analytics["bySource"]; channelsHref: string }) {
+function SourcePanel({ rows, deltas, channelsHref }: { rows: Analytics["bySource"]; deltas: SourceDelta[] | null; channelsHref: string }) {
   const t = useTranslations("analytics");
   const sourceLabel = (s: string) => labelOr(t, `source.${s}`, s);
+  // Direction 2 — index the vs-prior movement by source; only present in a
+  // windowed view (all-time has no prior window, so deltas is null).
+  const deltaBySource = new Map((deltas ?? []).map((d) => [d.source, d]));
   return (
     <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
       <h3 className="font-serif text-h2 text-ink">{t("bySource")}</h3>
       <ul className="mt-3 space-y-3">
-        {rows.map((r) => (
+        {rows.map((r) => {
+          const d = deltaBySource.get(r.source);
+          return (
           <li key={r.source}>
             <div className="flex items-baseline justify-between text-base">
               <span className="font-medium text-ink">{sourceLabel(r.source)}</span>
-              <span className="font-medium text-moss">{r.hireRatePct}%</span>
+              <span className="flex items-baseline gap-1.5 font-medium text-moss">
+                {r.hireRatePct}%
+                {/* vs the prior equal-length window; higher hire rate is better. */}
+                {d?.conversionPct ? <DeltaChip delta={d.conversionPct} unit="pts" /> : null}
+              </span>
             </div>
-            <p className="mt-0.5 text-sm text-steel">
-              {t("sourceLine", { total: r.total, interview: r.reachedInterview, hired: r.hired })}
+            <p className="mt-0.5 flex items-baseline gap-1.5 text-sm text-steel">
+              <span>{t("sourceLine", { total: r.total, interview: r.reachedInterview, hired: r.hired })}</span>
+              {/* Volume movement — a bare count chip (more leads reads green). */}
+              {d?.volume ? <DeltaChip delta={d.volume} /> : null}
             </p>
           </li>
-        ))}
+          );
+        })}
         {rows.length === 0 ? <li className="text-base text-steel">{t("noSourceData")}</li> : null}
       </ul>
       {/* Channel economics are configured on the Channels tab — give the ROI
@@ -646,6 +660,7 @@ function SourcePanel({ rows, channelsHref }: { rows: Analytics["bySource"]; chan
 // recommendations (a suggestion, never an actuator — see source-analytics.ts).
 function ChannelEconomicsPanel({
   rows,
+  deltas,
   variants,
   variantTotal,
   recommendations,
@@ -653,6 +668,7 @@ function ChannelEconomicsPanel({
   windowed,
 }: {
   rows: ChannelEconomics[];
+  deltas: ChannelDelta[] | null;
   variants: VariantStat[];
   variantTotal: number;
   recommendations: VariantRecommendation[];
@@ -665,6 +681,8 @@ function ChannelEconomicsPanel({
   const format = useFormatter();
   const channelName = (channel: string) => labelOr(t, `names.${channel}`, channel);
   const czk = (n: number) => format.number(n);
+  // Direction 2 — vs-prior movement per channel; null in the all-time view.
+  const deltaByChannel = new Map((deltas ?? []).map((d) => [d.channel, d]));
 
   return (
     <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
@@ -690,13 +708,26 @@ function ChannelEconomicsPanel({
               </tr>
             </thead>
             <tbody>
-              {rows.map((r) => (
+              {rows.map((r) => {
+                const d = deltaByChannel.get(r.channel);
+                return (
                 <tr key={r.channel} className="border-b border-stone-100 last:border-0">
                   <td className="py-2 pr-2 font-medium text-ink">{channelName(r.channel)}</td>
-                  <td className="py-2 text-right text-steel">{r.total}</td>
+                  <td className="py-2 text-right text-steel">
+                    <span className="inline-flex items-baseline gap-1.5">
+                      {r.total}
+                      {/* vs the prior equal-length window — lead volume movement. */}
+                      {d?.volume ? <DeltaChip delta={d.volume} /> : null}
+                    </span>
+                  </td>
                   <td className="py-2 text-right text-steel">{r.reachedInterview}</td>
                   <td className="py-2 text-right text-ink">{r.hired}</td>
-                  <td className="py-2 text-right font-medium text-moss">{r.hireRatePct}%</td>
+                  <td className="py-2 text-right font-medium text-moss">
+                    <span className="inline-flex items-baseline gap-1.5">
+                      {r.hireRatePct}%
+                      {d?.conversionPct ? <DeltaChip delta={d.conversionPct} unit="pts" /> : null}
+                    </span>
+                  </td>
                   <td className="py-2 text-right text-steel">
                     {r.medianHoursToDecision != null ? t("hoursShort", { hours: r.medianHoursToDecision }) : "—"}
                   </td>
@@ -704,11 +735,16 @@ function ChannelEconomicsPanel({
                     <SpendInput channel={r.channel} channelLabel={channelName(r.channel)} value={r.spendCzk} onSaved={onSpendSaved} />
                   </td>
                   <td className="py-2 text-right text-ink">
-                    {r.costPerApplicantCzk != null ? czk(r.costPerApplicantCzk) : "—"}
+                    <span className="inline-flex items-baseline gap-1.5">
+                      {r.costPerApplicantCzk != null ? czk(r.costPerApplicantCzk) : "—"}
+                      {/* Lower CPA is the win; null in windowed views (lifetime spend). */}
+                      {d?.costPerApplicantCzk ? <DeltaChip delta={d.costPerApplicantCzk} lowerIsBetter /> : null}
+                    </span>
                   </td>
                   <td className="py-2 text-right text-ink">{r.costPerHireCzk != null ? czk(r.costPerHireCzk) : "—"}</td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>
