@@ -7,7 +7,10 @@ import { AlertTriangle, ArrowLeftRight, Ban, Banknote, Calendar, ClipboardList, 
 import { useTranslations } from "next-intl";
 import { useDialogA11y } from "@/app/_components/useDialogA11y";
 import { useScoreProvenanceText } from "@/app/_components/ScoreProvenanceLabel";
-import type { CandidateTimelineItem } from "@/app/_lib/candidate-timeline";
+import type { CandidateConsentView, CandidateTimelineItem } from "@/app/_lib/candidate-timeline";
+import type { InterviewTelemetry } from "@/app/_lib/interview-telemetry";
+import type { ScorecardCoverage } from "@/app/_lib/interview-transcript";
+import { talkSharePercent, formatSpokenDuration } from "@/app/_lib/voice/telemetry-format";
 import { buildUrl } from "@/app/features/tabs";
 import { useTasks, useTaskResult } from "@/app/features/tasks/TasksProvider";
 import { useDeliveryCapability } from "@/app/features/useDeliveryCapability";
@@ -73,13 +76,29 @@ type InterviewOutcome = {
   summary?: string;
   ratings?: ScorecardRating[];
   hasTranscript?: boolean;
+  // Round-3 conversation signals + scoring-coverage caveat, projected server-side
+  // onto the bundle (candidate-timeline.ts) — rendered with the same semantics as
+  // the InterviewTranscriptModal strip. Absent ⇒ no chrome.
+  telemetry?: InterviewTelemetry;
+  coverage?: ScorecardCoverage;
 };
+
+// The scripted-hint uptake → localized label key (shared scheduleTab.transcript
+// catalog; mirrors InterviewTranscriptModal so the wording never forks).
+const HINT_LABEL_KEY = {
+  integrated: "hintIntegrated",
+  acknowledged: "hintAcknowledged",
+  missed: "hintMissed",
+} as const;
 
 export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; onClose: () => void; onChanged: () => void }) {
   const router = useRouter();
   const search = useSearchParams();
   const t = useTranslations("pipeline.drawer");
   const tActions = useTranslations("pipeline.actions");
+  // Interview telemetry + coverage reuse the SAME localized catalog the transcript
+  // modal renders, so the drawer's signals never fork their wording.
+  const tTranscript = useTranslations("scheduleTab.transcript");
   // d95fed6d — origin-chip labels reuse the channel-name catalog Analytics
   // already maintains, falling back to the raw id for unmapped values.
   const tChannels = useTranslations("analytics.channels");
@@ -135,6 +154,9 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
   // offer, joined server-side and merged chronologically into the history below.
   // Comms are excluded here — the drawer has a richer dedicated section above.
   const [extraTimeline, setExtraTimeline] = useState<CandidateTimelineItem[]>([]);
+  // GDPR consent snapshot + audit trail, now IN the bundle so ConsentPanel reads it
+  // from props instead of firing its own second fetch (one-call drawer).
+  const [consent, setConsent] = useState<CandidateConsentView | null>(null);
 
   // WCAG dialog behavior via the shared hook (replacing a hand-rolled, node-bound
   // version whose Escape only fired while focus was inside the drawer and which didn't
@@ -173,6 +195,7 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
         setExtraTimeline((d.items as CandidateTimelineItem[]) ?? []);
         setComms((d.comms as typeof comms) ?? []);
         setIvOutcome((d.interview as InterviewOutcome | null) ?? null);
+        setConsent((d.consent as CandidateConsentView | undefined) ?? null);
         // Same client-side gate the dedicated prep fetch used: keep a scorecard
         // only when it carries ratings or a summary (an empty artifact is noise).
         const sc = (d.humanScorecard as Scorecard | null) ?? null;
@@ -543,6 +566,14 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
                   </span>
                 ) : null}
               </div>
+              {/* Honest coverage caveat — only when head+tail sampling meant the
+                  scorer read less than the whole transcript (same wording + token
+                  as the transcript modal); nothing when coverage is complete. */}
+              {ivOutcome.coverage ? (
+                <p className="mt-2 rounded-md bg-dial-amber/15 px-2.5 py-1.5 text-sm text-ink">
+                  {tTranscript("coverageCaveat", { kept: ivOutcome.coverage.keptTurns, total: ivOutcome.coverage.totalTurns })}
+                </p>
+              ) : null}
               {ivOutcome.summary ? <p className="mt-1 text-sm text-ink">{ivOutcome.summary}</p> : null}
               {ivOutcome.ratings?.length ? (
                 <ul className="mt-1.5 space-y-0.5">
@@ -556,6 +587,7 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
               {ivOutcome.ratings?.length ? (
                 <p className="mt-1 text-meta text-steel">{t("fixedRubric", { anchor: RUBRIC_ANCHOR_LINE })}</p>
               ) : null}
+              {ivOutcome.telemetry ? <InterviewTelemetryStrip telemetry={ivOutcome.telemetry} t={tTranscript} /> : null}
               <p className="mt-1.5 text-meta text-steel">{t("voiceFeedsNote")}</p>
             </div>
           ) : null}
@@ -785,7 +817,9 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
             />
           </div>
 
-          <ConsentPanel key={entry.id} entryId={entry.id} />
+          {/* Consent snapshot rides the one-call bundle (view=), so ConsentPanel
+              fires no second fetch on open — the drawer opens with a single request. */}
+          <ConsentPanel key={entry.id} entryId={entry.id} view={consent} />
 
           <div>
             <p className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-coral">
@@ -971,6 +1005,48 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
           </div>
         </div>
       </aside>
+    </div>
+  );
+}
+
+// Compact strip of the per-interview telemetry projected onto the bundle — the SAME
+// descriptive signals (talk share, longest pause, spoken duration, scripted-hint
+// uptake) the InterviewTranscriptModal shows, formatted through the shared
+// telemetry-format projections so the numbers never fork. Neutral tokens only (a
+// descriptive signal, never a score); renders nothing when every field is null.
+function InterviewTelemetryStrip({
+  telemetry,
+  t,
+}: {
+  telemetry: InterviewTelemetry;
+  t: ReturnType<typeof useTranslations<"scheduleTab.transcript">>;
+}) {
+  const talk = talkSharePercent(telemetry);
+  const pause = formatSpokenDuration(telemetry.longestResponseGapSec);
+  const duration = formatSpokenDuration(telemetry.durationSec);
+  const hintKey =
+    telemetry.hint.offered && telemetry.hint.uptake !== "not_offered" ? HINT_LABEL_KEY[telemetry.hint.uptake] : null;
+
+  const items: { label: string; value: string }[] = [];
+  if (talk !== null) items.push({ label: t("telemetryTalkShare"), value: t("telemetryTalkShareValue", { pct: talk }) });
+  if (pause) items.push({ label: t("telemetryLongestPause"), value: pause });
+  if (duration) items.push({ label: t("telemetryDuration"), value: duration });
+  if (hintKey) items.push({ label: t("telemetryHint"), value: t(hintKey) });
+
+  if (items.length === 0) return null;
+
+  return (
+    <div className="mt-2 rounded-md border border-stone-200 bg-stone-50 p-2">
+      <p className="text-meta uppercase tracking-wide text-steel">{t("telemetryHeading")}</p>
+      <dl className="mt-1 flex flex-wrap gap-x-4 gap-y-1">
+        {items.map((it, i) => (
+          <div key={i} className="flex items-baseline gap-1.5">
+            <dt className="text-meta text-steel">{it.label}</dt>
+            <dd className="text-sm font-semibold text-ink nums">{it.value}</dd>
+          </div>
+        ))}
+      </dl>
+      <p className="mt-1 text-meta text-steel">{t("telemetryNote")}</p>
     </div>
   );
 }

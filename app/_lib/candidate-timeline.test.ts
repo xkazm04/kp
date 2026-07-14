@@ -9,12 +9,79 @@
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { cleanupUnitDb } from "./testing/unit-db.ts";
-import { createPipelineEntry } from "./db/pipeline.ts";
+import { createPipelineEntry, recordEntryConsent } from "./db/pipeline.ts";
 import { saveAnalysis } from "./db/analyses.ts";
 import { recordOutbox } from "./db/devcase.ts";
+import { createInterviewSession, completeInterviewSession } from "./db/interviews.ts";
 import { candidateDrawerBundle } from "./candidate-timeline.ts";
 
 after(() => cleanupUnitDb());
+
+// A completed voice interview whose AI scorecard carries the round-3 telemetry +
+// coverage that ride on the scorecard object at runtime (interview-run.ts).
+const TELEMETRY = {
+  version: 1,
+  turns: 12,
+  candidateTurns: 6,
+  interviewerTurns: 6,
+  candidateWords: 300,
+  interviewerWords: 100,
+  talkRatio: 0.75,
+  durationSec: 630,
+  longestResponseGapSec: 42,
+  hint: { offered: true, turnIndex: 4, uptake: "integrated", responseSec: 8 },
+} as const;
+const COVERAGE = { version: 1, keptTurns: 40, totalTurns: 120, droppedTurns: 80, droppedChars: 5000, coverageRatio: 0.33 } as const;
+
+function seedCompletedInterview(entryId: string, extra: Record<string, unknown> = {}) {
+  const session = createInterviewSession({ provider: "openai", entryId, mode: "candidate" });
+  completeInterviewSession(session.id, {
+    transcript: [{ role: "candidate", text: "I'd approach it incrementally." }],
+    scorecard: { recommendation: "advance", summary: "Strong structured reasoning.", ratings: [{ competency: "problem_solving", rating: 4 }], telemetry: TELEMETRY, coverage: COVERAGE, ...extra },
+    status: "completed",
+  });
+}
+
+test("the interview outcome projects telemetry + coverage from the scorecard", () => {
+  const e = createPipelineEntry({ candidateId: "cand-iv", candidateLabel: "Iva Telemetry", jobId: "jd-frontend", jobTitle: "Frontend Engineer" });
+  seedCompletedInterview(e.entry.id);
+
+  const bundle = candidateDrawerBundle(e.entry.id);
+  const iv = bundle!.interview;
+  assert.ok(iv, "the completed interview rides the bundle");
+  assert.equal(iv!.recommendation, "advance");
+  assert.equal(iv!.hasTranscript, true);
+  // The descriptive signals + the coverage caveat shape are projected verbatim.
+  assert.deepEqual(iv!.telemetry, TELEMETRY, "telemetry rides the outcome");
+  assert.deepEqual(iv!.coverage, COVERAGE, "coverage rides the outcome");
+});
+
+test("consent-expiry redaction drops the scorecard synthesis AND its telemetry/coverage", () => {
+  const e = createPipelineEntry({ candidateId: "cand-redact", candidateLabel: "Red Acted", jobId: "jd-frontend", jobTitle: "Frontend Engineer" });
+  seedCompletedInterview(e.entry.id);
+  // ttlDays -1 ⇒ consent already expired ⇒ consentWithholdsPii ⇒ redaction at read.
+  recordEntryConsent(e.entry.id, "apply", -1);
+
+  const bundle = candidateDrawerBundle(e.entry.id);
+  assert.equal(bundle!.consent.consent.status, "expired", "the consent snapshot reads expired in the bundle");
+  const iv = bundle!.interview;
+  assert.ok(iv, "the outcome object still renders a state (metadata kept)");
+  assert.equal(iv!.summary, undefined, "the verbatim synthesis is withheld");
+  assert.equal(iv!.telemetry, undefined, "telemetry is withheld with the redacted scorecard");
+  assert.equal(iv!.coverage, undefined, "coverage is withheld with the redacted scorecard");
+  assert.equal(iv!.hasTranscript, false, "the redacted transcript reads as absent");
+});
+
+test("the consent snapshot + audit trail ride the bundle (no separate drawer fetch)", () => {
+  const e = createPipelineEntry({ candidateId: "cand-consent", candidateLabel: "Con Sent", jobId: "jd-frontend", jobTitle: "Frontend Engineer" });
+  recordEntryConsent(e.entry.id, "apply"); // default TTL ⇒ active
+
+  const bundle = candidateDrawerBundle(e.entry.id);
+  assert.equal(bundle!.consent.consent.status, "active", "granted consent reads active");
+  assert.equal(bundle!.consent.consent.source, "apply");
+  assert.ok(bundle!.consent.consent.givenAt, "the grant timestamp rides along");
+  assert.ok(bundle!.consent.events.some((ev) => ev.kind === "granted"), "the audit trail rides the bundle too");
+});
 
 test("same-named candidates on different JD-backed jobs do NOT inherit each other's analyses", () => {
   const NAME = "Jan Novák"; // two real, distinct people who happen to share a name
@@ -74,5 +141,6 @@ test("the bundle carries every drawer section in one payload", () => {
   assert.ok(bundle!.events.some((ev) => ev.kind === "added"), "pipeline events ride the bundle");
   assert.equal(bundle!.interview, null, "no interview yet");
   assert.equal(bundle!.humanScorecard, null, "no human scorecard yet");
+  assert.equal(bundle!.consent.consent.status, "none", "consent rides the bundle (none until granted)");
   assert.equal(candidateDrawerBundle("does-not-exist"), null, "an unknown entry is null (route → 404)");
 });

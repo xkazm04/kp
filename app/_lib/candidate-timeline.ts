@@ -1,12 +1,14 @@
-import { getPipelineEntry, latestInterviewByEntry, listAnalyses, listOutboxFiltered, listPipelineEventsForEntry, type PipelineEvent } from "./db";
+import { getPipelineEntry, latestInterviewByEntry, listAnalyses, listConsentEvents, listOutboxFiltered, listPipelineEventsForEntry, type ConsentEvent, type PipelineEvent } from "./db";
 import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 import { listScheduleInvites } from "./schedule-store";
 import { listOffersForEntry } from "./offers-store";
 import { jdSlugOfJobId } from "./jd-limits";
 import { deriveCommsView } from "./comms-view";
-import { consentWithholdsPii, redactTranscriptForConsent } from "./consent";
+import { consentStatus, consentWithholdsPii, redactTranscriptForConsent, type ConsentStatus } from "./consent";
 import { getInterviewPrep } from "./interview-prep";
 import type { Scorecard } from "./interview-scorecard";
+import type { InterviewTelemetry } from "./interview-telemetry";
+import type { ScorecardCoverage } from "./interview-transcript";
 
 // c6524f2f — one chronological story per candidate. A candidate's record is
 // scattered across stores that never meet on one surface: pipeline events,
@@ -65,12 +67,34 @@ export type CandidateComm = {
 // The latest completed voice-interview outcome, derived from its scorecard — the
 // same projection the /api/interview/by-entry read produced for the drawer, now
 // server-joined so it rides the single bundle. Consent-gated identically (a
-// withheld-PII entry drops the verbatim synthesis).
+// withheld-PII entry drops the verbatim synthesis AND, with it, the telemetry +
+// coverage that ride on the scorecard object).
 export type InterviewOutcome = {
   recommendation?: string;
   summary?: string;
   ratings?: Scorecard["ratings"];
   hasTranscript?: boolean;
+  // Round-3 telemetry + scoring-coverage — the same descriptive conversation
+  // signals (talk share, longest pause, duration, hint uptake) and the honest
+  // "scorer read N/total turns" caveat the InterviewTranscriptModal shows. Both
+  // ride on the AI scorecard object at runtime (interview-run.ts); absent on old
+  // sessions and on a complete-coverage score (no caveat needed).
+  telemetry?: InterviewTelemetry;
+  coverage?: ScorecardCoverage;
+};
+
+// The GDPR consent snapshot + audit trail for one entry — the SAME shape the
+// dedicated /api/pipeline/[id]/consent read returns, now folded into the bundle so
+// the drawer's "Data & consent" panel no longer fires its own second fetch on open.
+export type CandidateConsentView = {
+  consent: {
+    givenAt: string | null;
+    expiresAt: string | null;
+    source: string | null;
+    anonymizedAt: string | null;
+    status: ConsentStatus;
+  };
+  events: ConsentEvent[];
 };
 
 // Everything the CandidateDrawer needs to render, in ONE call.
@@ -80,6 +104,7 @@ export type CandidateDrawerBundle = {
   comms: CandidateComm[];
   interview: InterviewOutcome | null;
   humanScorecard: Scorecard | null;
+  consent: CandidateConsentView;
 };
 
 const ANALYSES_SCAN_LIMIT = 300;
@@ -185,11 +210,40 @@ function candidateInterviewOutcome(
     session = redactTranscriptForConsent(session);
   }
   const sc = (session.scorecard ?? null) as Scorecard | null;
+  // Telemetry + coverage ride on the scorecard OBJECT at runtime (interview-run.ts)
+  // but aren't in the pure Scorecard type — read them through the SAME narrow guard
+  // InterviewTranscriptModal uses. Because redactTranscriptForConsent nulls the whole
+  // scorecard, a withheld-PII entry drops these along with the verbatim synthesis.
+  const enriched = sc as (Scorecard & { telemetry?: InterviewTelemetry; coverage?: ScorecardCoverage }) | null;
   return {
     recommendation: sc?.recommendation,
     summary: sc?.summary,
     ratings: sc?.ratings,
     hasTranscript: Array.isArray(session.transcript) && session.transcript.length > 0,
+    telemetry: enriched?.telemetry,
+    coverage: enriched?.coverage,
+  };
+}
+
+// The GDPR consent snapshot + audit trail for one entry — same derivation as the
+// /api/pipeline/[id]/consent read, now workspace-scoped through the resolved entry
+// so it rides the single bundle instead of a second drawer fetch.
+function candidateConsent(
+  entry: NonNullable<ReturnType<typeof getPipelineEntry>>,
+  workspaceId: string
+): CandidateConsentView {
+  return {
+    consent: {
+      givenAt: entry.consentGivenAt,
+      expiresAt: entry.consentExpiresAt,
+      source: entry.consentSource,
+      anonymizedAt: entry.anonymizedAt,
+      status: consentStatus(
+        { givenAt: entry.consentGivenAt, expiresAt: entry.consentExpiresAt, anonymizedAt: entry.anonymizedAt },
+        Date.now()
+      ),
+    },
+    events: listConsentEvents(entry.id, workspaceId),
   };
 }
 
@@ -213,5 +267,6 @@ export function candidateDrawerBundle(entryId: string, workspaceId: string = DEF
     comms: candidateComms(entry.id, workspaceId),
     interview: candidateInterviewOutcome(entry),
     humanScorecard: candidateHumanScorecard(entry.id),
+    consent: candidateConsent(entry, workspaceId),
   };
 }

@@ -17,35 +17,45 @@ type ConsentView = {
   events: { id: number; kind: string; detail: string | null; createdAt: string }[];
 };
 
-// GDPR "Data & consent" section in the candidate drawer (recruiter-facing). Lazily
-// fetches the consent snapshot + audit trail for the entry and renders the
-// lifecycle status, expiry, source and history. Read-only — the lifecycle is driven
-// by apply (grant), the expiry sweep (anonymize) and the candidate erasure page.
-export function ConsentPanel({ entryId }: { entryId: string }) {
+// GDPR "Data & consent" section in the candidate drawer (recruiter-facing). Renders
+// the lifecycle status, expiry, source and history. Read-only — the lifecycle is
+// driven by apply (grant), the expiry sweep (anonymize) and the candidate erasure
+// page.
+//
+// One-call drawer (perfect-board): the consent snapshot now rides the candidate
+// drawer bundle, so the drawer passes it in as `view` and this panel fires NO fetch
+// of its own — the drawer opens with a single request. The self-fetch fallback (by
+// entryId) is retained for any caller that renders the panel WITHOUT the bundle, so
+// the component stays usable standalone.
+export function ConsentPanel({ entryId, view: bundled }: { entryId: string; view?: ConsentView | null }) {
   const t = useTranslations("pipeline.drawer.consent");
   const locale = useLocale();
   // REC-10 — "Expiry reminder sent" is only claimed when a relay can deliver
   // one; without it the reminder is a terminal local-outbox row.
   const relayConfigured = useDeliveryCapability();
-  const [view, setView] = useState<ConsentView | null>(null);
+  const [fetched, setFetched] = useState<ConsentView | null>(null);
   const [failed, setFailed] = useState(false);
+  // Prefer the bundled snapshot; only the fallback path populates `fetched`.
+  const view = bundled ?? fetched;
 
-  // The drawer keys this panel by entryId, so it remounts (fresh null state) per
-  // candidate — no synchronous reset needed; the effect only loads.
+  // The drawer keys this panel by entryId, so it remounts (fresh state) per
+  // candidate. When the bundle supplied the snapshot there is nothing to load;
+  // otherwise (standalone use) fall back to the dedicated consent read.
   useEffect(() => {
+    if (bundled !== undefined) return; // bundle-provided (incl. null) → never self-fetch
     let live = true;
     fetch(`/api/pipeline/${encodeURIComponent(entryId)}/consent`)
       .then((r) => r.json())
       .then((p) => {
         if (!live) return;
         if (p.error) throw new Error(p.error);
-        setView(p as ConsentView);
+        setFetched(p as ConsentView);
       })
       .catch(() => live && setFailed(true));
     return () => {
       live = false;
     };
-  }, [entryId]);
+  }, [entryId, bundled]);
 
   const fmt = (iso: string | null) =>
     iso ? new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(new Date(iso)) : "—";
