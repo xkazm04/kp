@@ -45,6 +45,11 @@ type ResultPanelProps = {
   // reason instead of a hidden button, so the recruiter's dead-end is explained
   // rather than silent. Ignored when `pipelineRef` is present (the button wins).
   pipelineDisabledReason?: string;
+  // Lineage (profile ↔ CV): the saved analysis slug this result renders, threaded
+  // to ArchetypeBanner's "Save as profile" so profiles born there carry source
+  // lineage (staleness detection). Absent on unsaved runs → lineage-less save,
+  // exactly the old behavior.
+  analysisSlug?: string;
 };
 
 type ResultTab = "extraction" | "compare" | "jobFit" | "salary" | "interview" | "github";
@@ -85,7 +90,7 @@ function RunCostLine({
   );
 }
 
-export function ResultPanel({ analysis, github, onGithubRetry, pipelineRef, runCached, pipelineDisabledReason }: ResultPanelProps) {
+export function ResultPanel({ analysis, github, onGithubRetry, pipelineRef, runCached, pipelineDisabledReason, analysisSlug }: ResultPanelProps) {
   // RES2 — the report chrome (tab labels, aria) is bilingual; the tab CONTENT
   // is the LLM narrative, already generated in the recruiter's language.
   const t = useTranslations("report");
@@ -183,7 +188,7 @@ export function ResultPanel({ analysis, github, onGithubRetry, pipelineRef, runC
           <PipelineDisabledNote reason={pipelineDisabledReason} label={t("addToPipeline")} />
         </div>
       ) : null}
-      {analysis.v2Profile ? <ArchetypeBanner v2Profile={analysis.v2Profile} /> : null}
+      {analysis.v2Profile ? <ArchetypeBanner v2Profile={analysis.v2Profile} sourceAnalysisSlug={analysisSlug} /> : null}
       <QualityStrip checks={analysis.sanityChecks ?? []} />
       <RunCostLine runCost={analysis.metadata?.runCost} cached={runCached} />
 

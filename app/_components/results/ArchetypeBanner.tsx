@@ -31,7 +31,17 @@ type SaveState =
   | { kind: "saved"; id: string }
   | { kind: "error"; message: string };
 
-export function ArchetypeBanner({ v2Profile }: { v2Profile: Record<string, unknown> }) {
+export function ArchetypeBanner({
+  v2Profile,
+  sourceAnalysisSlug,
+}: {
+  v2Profile: Record<string, unknown>;
+  // Lineage: the saved analysis this banner's profile came from. When present,
+  // "Save as profile" stamps source lineage server-side (/api/profile resolves the
+  // authoritative cv_hash from the slug — never client-supplied), enabling
+  // staleness detection. Absent (unsaved run) → lineage-less save, old behavior.
+  sourceAnalysisSlug?: string;
+}) {
   const v2 = v2Profile as V2;
   const [save, setSave] = useState<SaveState>({ kind: "idle" });
   // Answers to the completeness follow-up, keyed by check id. Optional: saving
@@ -61,7 +71,12 @@ export function ArchetypeBanner({ v2Profile }: { v2Profile: Record<string, unkno
       const r = await fetch("/api/profile", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ profile, signals: { selfDeclared: v2.archetype }, persist: true }),
+        body: JSON.stringify({
+          profile,
+          signals: { selfDeclared: v2.archetype },
+          persist: true,
+          ...(sourceAnalysisSlug ? { sourceAnalysisSlug } : {}),
+        }),
       });
       const payload = await r.json();
       if (!r.ok) throw new Error(payload.error ?? `Save failed (${r.status}).`);

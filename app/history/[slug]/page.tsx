@@ -182,6 +182,7 @@ export default async function HistoryDetailPage({
       <div className="mt-6">
         <ResultPanel
           analysis={parsed.data}
+          analysisSlug={slug}
           github={parseGithub(found.row.github_json, slug)}
           // Offer "Add to pipeline" only when the analysis was run against a saved
           // JD — that slug is the role the candidate is filed under (the board keys

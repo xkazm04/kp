@@ -93,6 +93,7 @@ export function AnalyzeTab() {
       {result.analysis ? (
         <ResultPanel
           analysis={result.analysis}
+          analysisSlug={result.analysis.persistence?.slug ?? undefined}
           pipelineRef={pipelineRef}
           pipelineDisabledReason={pipelineDisabledReason}
           // Cross-worktree seam (director note): flag a fully-cached delivery so the
