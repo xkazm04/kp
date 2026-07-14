@@ -93,7 +93,8 @@ export function listAnalyses(limit = 100, workspaceId: string = DEFAULT_WORKSPAC
   // (cv_hash, jd_slug) group and annotate it with prior_runs = how many older runs
   // it supersedes; NO row is deleted, so the older runs stay loadable by slug.
   //   - `a` is kept only when NO newer sibling exists in its group (the "is newest"
-  //     NOT EXISTS predicate). Ties on created_at break by slug so exactly one wins.
+  //     NOT EXISTS predicate). Ties on created_at (same-millisecond re-runs) break by
+  //     rowid — true insertion order — so "newest" is deterministic, not slug-random.
   //   - Grouping applies ONLY to non-NULL cv_hash rows; a legacy NULL-hash row has
   //     no siblings (a.cv_hash IS NULL makes every `= a.cv_hash` false), so it is
   //     always kept with prior_runs = 0 — behavior-identical to before for old data.
@@ -109,7 +110,7 @@ export function listAnalyses(limit = 100, workspaceId: string = DEFAULT_WORKSPAC
                    AND a.cv_hash IS NOT NULL AND p.cv_hash = a.cv_hash
                    AND p.jd_slug IS a.jd_slug
                    AND (p.created_at < a.created_at
-                        OR (p.created_at = a.created_at AND p.slug < a.slug))) AS prior_runs
+                        OR (p.created_at = a.created_at AND p.rowid < a.rowid))) AS prior_runs
        FROM analyses a
        WHERE a.workspace_id = ?
          AND NOT EXISTS (
@@ -118,7 +119,7 @@ export function listAnalyses(limit = 100, workspaceId: string = DEFAULT_WORKSPAC
                AND a.cv_hash IS NOT NULL AND n.cv_hash = a.cv_hash
                AND n.jd_slug IS a.jd_slug
                AND (n.created_at > a.created_at
-                    OR (n.created_at = a.created_at AND n.slug > a.slug)))
+                    OR (n.created_at = a.created_at AND n.rowid > a.rowid)))
        ORDER BY a.created_at DESC
        LIMIT ?`
     )
