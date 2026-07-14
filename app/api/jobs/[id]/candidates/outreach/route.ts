@@ -35,10 +35,18 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       archetype?: string | null;
       matchScore?: number | null;
       roleFamily?: string | null;
+      source?: unknown;
     };
     if (!body.candidateId) {
       return NextResponse.json({ error: "candidateId is required." }, { status: 400 });
     }
+
+    // d95fed6d — the sourcing channel this reach-out was filed from ("sourcing" for
+    // the recruiter/rediscovery surfaces). Bounded + shape-checked at the boundary
+    // (a slug-like token, mirroring /api/pipeline); an out-of-shape value is dropped,
+    // not 400'd — provenance is an annotation, never worth failing the outreach over.
+    const sourceChannel =
+      typeof body.source === "string" && /^[a-z0-9_-]{1,40}$/.test(body.source) ? body.source : null;
 
     // GDPR gate BEFORE we mint anything (bug-ui-scan #1): consult the candidate's
     // EXISTING consent across all their entries. A rediscovery re-contact for a
@@ -72,6 +80,12 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       jobTitle: job.title,
       matchScore: body.matchScore ?? null,
       stage: "Screened",
+      // Honest channel attribution (E3): a reach-out-sourced candidate is no longer
+      // persisted with a null source_channel — it round-trips to the drawer's "via"
+      // line + the board's source facet. Only set on a NEW entry; a re-add returns
+      // the existing row untouched (createPipelineEntry never relabels), so a second
+      // click can't rewrite an earlier attribution.
+      sourceChannel,
       // Sourced candidates gave no explicit language choice — infer from the CV
       // languages on their saved profile so the outreach below (and every later
       // comm) speaks their language; NULL falls to the workspace default.

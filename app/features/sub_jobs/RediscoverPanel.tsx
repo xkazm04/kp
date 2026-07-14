@@ -27,7 +27,7 @@ export function RediscoverPanel({ jobId, jobTitle }: { jobId: string; jobTitle: 
   const data = body ? body.rediscovered ?? [] : null;
   const skipped = body?.skipped ?? [];
   const { add, added, adding, error: addError, announce } = useAddToPipeline(jobId, jobTitle, "sourcing");
-  const { reach, reached, reaching, error: reachError, announce: reachAnnounce } = useReachOut(jobId);
+  const { reach, reached, reaching, error: reachError, announce: reachAnnounce } = useReachOut(jobId, "sourcing");
 
   if (error) return <p className="text-base text-coral">{error}</p>;
   if (!data)

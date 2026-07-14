@@ -59,7 +59,7 @@ export function RecruiterCandidates({
   const guardRef = useRef(makeLatestRequestGuard());
   const abortRef = useRef<AbortController | null>(null);
   const { add, added, adding, error: cardError, announce } = useAddToPipeline(jobId, jobTitle, "sourcing");
-  const { reach, reached, reaching, error: reachError, announce: reachAnnounce } = useReachOut(jobId);
+  const { reach, reached, reaching, error: reachError, announce: reachAnnounce } = useReachOut(jobId, "sourcing");
 
   const load = async () => {
     // bug-ui-scan-2026-07-09 (sourcing-campaigns-rediscovery #3): capture the jobId as
