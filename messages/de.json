@@ -3444,10 +3444,23 @@
       "title": "Einstellungsprognose",
       "noSignal": "Noch nicht genug Signal — sobald Kandidaten einströmen und mindestens eine Einstellung erfolgt ist, erscheinen hier prognostizierte Einstellungen.",
       "basis": "Basierend auf {velocity} neu/Woche und {conv} % Gesamtkonversion.",
+      "acceptBasis": "Unter Annahme der beobachteten {pct} % Angebotsannahme (n={n}).",
       "inFlight": "Erwartet aus laufendem Bestand",
       "horizon": "Nächste {weeks} Wochen",
       "plusHires": "+{hires}",
       "eta": "Durchschnittliche Time-to-Hire: {days} Tage."
+    },
+    "offers": {
+      "title": "Angebotsphase",
+      "notEnough": "Noch nicht genug Angebote — {n} von {min} nötig, um Annahmequoten zu zeigen.",
+      "headline": "{pct} % angenommen",
+      "basis": "{accepted} von {extended} unterbreiteten Angeboten.",
+      "accepted": "Angenommen",
+      "declined": "Abgelehnt",
+      "expired": "Abgelaufen",
+      "pending": "Wartet auf Antwort",
+      "countPct": "{count} · {pct} %",
+      "viewPending": "Kandidaten anzeigen, die auf eine Antwort warten"
     },
     "roi": {
       "title": "ROI — was die Automatisierung gespart hat",

@@ -49,6 +49,56 @@ test("no hires yet → no signal, flat-zero projection (not a misleading forecas
   assert.deepEqual(f.projected.map((p) => p.hires), [0, 0, 0]);
 });
 
+test("a null accept rate leaves the projection byte-identical to the pre-offer math", () => {
+  const base = forecastHires({ weeklyAdded: [10, 10], funnel, avgTimeToHireDays: 30, horizonsWeeks: [4, 8] });
+  const withNull = forecastHires({ weeklyAdded: [10, 10], funnel, avgTimeToHireDays: 30, horizonsWeeks: [4, 8], offerAcceptRate: null });
+  assert.deepEqual(withNull.projected, base.projected);
+  assert.equal(withNull.inFlightExpectedHires, base.inFlightExpectedHires);
+  assert.equal(withNull.offerAcceptRate, null);
+});
+
+test("an observed accept rate rebuilds the offer→hire leg of the projection", () => {
+  // Offer stage reached 10 of 100 first-reached → reach-to-offer = 0.10.
+  // With a measured 80% accept: effective conversion = 0.10 × 0.80 = 0.08.
+  // 10/wk × 4wk × 0.08 = 3.2 ; × 8wk = 6.4.
+  const f = forecastHires({ weeklyAdded: [10, 10], funnel, avgTimeToHireDays: 30, horizonsWeeks: [4, 8], offerAcceptRate: 0.8 });
+  assert.equal(f.offerAcceptRate, 0.8);
+  assert.deepEqual(f.projected, [
+    { weeks: 4, hires: 3.2 },
+    { weeks: 8, hires: 6.4 },
+  ]);
+});
+
+test("the observed accept rate credits in-flight offer-stage candidates directly", () => {
+  // Same funnel as the in-flight test; with accept=0.5 the offer row's 2 actives
+  // are credited 2×0.5 = 1.0 (vs the funnel-derived 2×(5/10)=1.0 here — chosen so
+  // only the accept-rate PATH differs, not the arithmetic). Earlier stages keep
+  // their funnel conversion: 10*(5/100)+8*(5/50)+4*(5/20)+2*0.5 = 0.5+0.8+1.0+1.0.
+  const f = forecastHires({ weeklyAdded: [5], funnel, avgTimeToHireDays: 20, offerAcceptRate: 0.5 });
+  assert.equal(f.inFlightExpectedHires, 3.3);
+});
+
+test("an accept rate with no offer leg is ignored (echoed as null)", () => {
+  const noOffer = [
+    { stage: "Accepted", reached: 40, current: 20 },
+    { stage: "Hired", reached: 4, current: 0 },
+  ];
+  // offerReached = the row before Hired = Accepted (40) — there IS a second-to-last
+  // row, but if it had 0 reached the rate would be ignored. Here prove the null
+  // path: an all-time funnel whose offer row reached 0.
+  const zeroOffer = [
+    { stage: "Interview", reached: 20, current: 5 },
+    { stage: "Offer", reached: 0, current: 0 },
+    { stage: "Hired", reached: 3, current: 0 },
+  ];
+  const a = forecastHires({ weeklyAdded: [4], funnel: noOffer, avgTimeToHireDays: null, offerAcceptRate: 0.9 });
+  const b = forecastHires({ weeklyAdded: [4], funnel: zeroOffer, avgTimeToHireDays: null, offerAcceptRate: 0.9 });
+  // noOffer applies (Accepted is the offer row, reached 40) — so it is NOT null.
+  assert.equal(a.offerAcceptRate, 0.9);
+  // zeroOffer has offerReached 0 → rate ignored, echoed null.
+  assert.equal(b.offerAcceptRate, null);
+});
+
 test("an empty cohort yields a null conversion and no signal", () => {
   const f = forecastHires({ weeklyAdded: [], funnel: [{ stage: "Accepted", reached: 0, current: 0 }], avgTimeToHireDays: null });
   assert.equal(f.overallConversionPct, null);

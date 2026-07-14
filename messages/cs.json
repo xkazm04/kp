@@ -3380,10 +3380,23 @@
       "title": "Prognóza přijetí",
       "noSignal": "Zatím nedostatek dat — jakmile začnou proudit kandidáti a dojde alespoň k jednomu přijetí, objeví se zde prognóza přijetí.",
       "basis": "Na základě {velocity} nových/týden a celkové konverze {conv} %.",
+      "acceptBasis": "Za předpokladu pozorované {pct}% akceptace nabídek (n={n}).",
       "inFlight": "Očekáváno z probíhajících",
       "horizon": "Příštích {weeks} týdnů",
       "plusHires": "+{hires}",
       "eta": "Průměrná doba do přijetí: {days} dní."
+    },
+    "offers": {
+      "title": "Fáze nabídky",
+      "notEnough": "Zatím málo nabídek — pro zobrazení míry akceptace je potřeba {n} z {min}.",
+      "headline": "{pct} % přijato",
+      "basis": "{accepted} z {extended} odeslaných nabídek.",
+      "accepted": "Přijato",
+      "declined": "Odmítnuto",
+      "expired": "Vypršelo",
+      "pending": "Čeká na odpověď",
+      "countPct": "{count} · {pct} %",
+      "viewPending": "Zobrazit kandidáty čekající na odpověď"
     },
     "roi": {
       "title": "Návratnost — co automatizace ušetřila",

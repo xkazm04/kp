@@ -1,6 +1,7 @@
 import { pickBottleneck, type Bottleneck } from "../analytics-bottleneck";
 import { MOMENTUM_EVENT_KINDS, MOMENTUM_WEEKS, weeklyMomentum, type MomentumWeek } from "../analytics-momentum";
 import { summarizeAutomationImpact, type AutomationImpact } from "../decision-attribution";
+import { offerConversion, type OfferConversion } from "../analytics-offer";
 import { automationRoi, type AutomationRoi } from "../automation-roi";
 import { FUNNEL_STAGES, hasAdvancedPastScreening, type FunnelStage } from "../pipeline-stages";
 import { SIM_TITLE_LIKE } from "@/app/features/simulation/constants";
@@ -72,6 +73,10 @@ export type PipelineAnalytics = {
   // ANA3 — automation-vs-human rollup over the same window, folded through the
   // shared decision-attribution map the DecisionLog badges use.
   automation: AutomationImpact;
+  // Direction 1 — the offer leg (interview → offer → accepted): extended /
+  // accepted / declined / expired rates folded from the SAME windowed kindCounts,
+  // honesty-gated on the min-offers floor. Feeds the forecast's acceptance input.
+  offers: OfferConversion;
   // b39992b1 — counterfactual ROI: the recruiter-hours + CZK the automated event
   // trail saved over the window, at the org's (or default) hourly rate.
   automationRoi: AutomationRoi;
@@ -340,6 +345,16 @@ export function pipelineAnalytics(
     resolved: holdRow.resolved ?? 0,
   });
 
+  // Direction 1 — the offer leg, from the same windowed/sim-excluded/workspace-
+  // scoped kindCounts (no new query). offer_sent = extended; the three terminal
+  // kinds are the resolutions. Pure fold + honesty gate lives in analytics-offer.
+  const offers = offerConversion({
+    extended: kindCounts["offer_sent"] ?? 0,
+    accepted: kindCounts["offer_accepted"] ?? 0,
+    declined: kindCounts["offer_declined"] ?? 0,
+    expired: kindCounts["offer_expired"] ?? 0,
+  });
+
   // Source effectiveness (ANA4): each entry's FIRST event names how it entered
   // the pipeline (MIN(id) — insertion order — as the earliest-event proxy).
   // Same cohort window as the rest of the page. Entries with no events (legacy)
@@ -510,6 +525,7 @@ export function pipelineAnalytics(
     windowDays: windowDays ?? null,
     momentum,
     automation,
+    offers,
     bySource,
     byChannel,
     byVariant,

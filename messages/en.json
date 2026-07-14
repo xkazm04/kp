@@ -3380,10 +3380,23 @@
       "title": "Hire forecast",
       "noSignal": "Not enough signal yet — once candidates are flowing and at least one hire has landed, projected hires appear here.",
       "basis": "Based on {velocity} new/week and a {conv}% overall conversion.",
+      "acceptBasis": "Assuming the observed {pct}% offer acceptance (n={n}).",
       "inFlight": "Expected from in-flight",
       "horizon": "Next {weeks} weeks",
       "plusHires": "+{hires}",
       "eta": "Average time to hire: {days} days."
+    },
+    "offers": {
+      "title": "Offer leg",
+      "notEnough": "Not enough offers yet — {n} of {min} needed to show acceptance rates.",
+      "headline": "{pct}% accepted",
+      "basis": "{accepted} of {extended} offers extended.",
+      "accepted": "Accepted",
+      "declined": "Declined",
+      "expired": "Expired",
+      "pending": "Awaiting response",
+      "countPct": "{count} · {pct}%",
+      "viewPending": "View candidates awaiting a response"
     },
     "roi": {
       "title": "ROI — what the automation saved",

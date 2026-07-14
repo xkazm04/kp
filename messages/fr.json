@@ -3444,10 +3444,23 @@
       "title": "Prévision de recrutement",
       "noSignal": "Pas encore assez de signal — dès que les candidats afflueront et qu'au moins un recrutement aura eu lieu, les recrutements prévus apparaîtront ici.",
       "basis": "Sur la base de {velocity} nouveaux/semaine et d'une conversion globale de {conv} %.",
+      "acceptBasis": "En supposant le taux d'acceptation observé de {pct} % (n={n}).",
       "inFlight": "Attendus des dossiers en cours",
       "horizon": "{weeks} prochaines semaines",
       "plusHires": "+{hires}",
       "eta": "Délai moyen de recrutement : {days} jours."
+    },
+    "offers": {
+      "title": "Phase d'offre",
+      "notEnough": "Pas encore assez d'offres — {n} sur {min} nécessaires pour afficher les taux d'acceptation.",
+      "headline": "{pct} % acceptées",
+      "basis": "{accepted} offres acceptées sur {extended} proposées.",
+      "accepted": "Acceptées",
+      "declined": "Refusées",
+      "expired": "Expirées",
+      "pending": "En attente de réponse",
+      "countPct": "{count} · {pct} %",
+      "viewPending": "Voir les candidats en attente de réponse"
     },
     "roi": {
       "title": "ROI — ce que l'automatisation a fait gagner",

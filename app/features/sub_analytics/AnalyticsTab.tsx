@@ -10,6 +10,7 @@ import { useJsonFetch } from "@/app/_lib/useJsonFetch";
 import { useEnumLabel, labelOr } from "@/app/_lib/use-enum-label";
 import { momentumWeekLabel, type MomentumWeek } from "@/app/_lib/analytics-momentum";
 import { forecastHires } from "@/app/_lib/analytics-forecast";
+import type { OfferConversion } from "@/app/_lib/analytics-offer";
 import type { Delta, PeriodDeltas } from "@/app/_lib/analytics-deltas";
 import { kindLabel, type AutomationImpact } from "@/app/_lib/decision-attribution";
 import type { AutomationRoi } from "@/app/_lib/automation-roi";
@@ -45,6 +46,9 @@ type Analytics = {
   windowDays: number | null;
   momentum: MomentumWeek[];
   automation: AutomationImpact;
+  // Direction 1 — offer-leg conversion (extended/accepted/declined/expired),
+  // honesty-gated; also feeds the forecast's acceptance-probability input.
+  offers: OfferConversion;
   // b39992b1 — recruiter-hours + CZK the automation saved over the window.
   automationRoi: AutomationRoi;
   bySource: { source: string; total: number; reachedInterview: number; hired: number; hireRatePct: number }[];
@@ -274,6 +278,9 @@ export function AnalyticsTab() {
               </ul>
             </div>
           ) : null}
+          {/* Direction 1 — the offer leg: extended → accepted / declined / expired,
+              the funnel's missing tail. Honesty-gated below the min-offers floor. */}
+          <OfferLegPanel offers={data.offers} boardHref={boardHref} />
           {/* 82c2b8e8 — set the goal lines the funnel + time-to-hire flag against. */}
           <GoalsEditor
             stages={data.funnel.map((f) => f.stage)}
@@ -284,8 +291,9 @@ export function AnalyticsTab() {
         </div>
 
         <div className="space-y-6">
-          {/* 094b5870 — forward projection from the same velocity/conversion/TTH. */}
-          <ForecastPanel funnel={data.funnel} momentum={data.momentum} avgTimeToHireDays={data.avgTimeToHireDays} />
+          {/* 094b5870 — forward projection from the same velocity/conversion/TTH,
+              now with the observed offer-acceptance probability (Direction 1). */}
+          <ForecastPanel funnel={data.funnel} momentum={data.momentum} avgTimeToHireDays={data.avgTimeToHireDays} offers={data.offers} />
 
           <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
             <h3 className="font-serif text-h2 text-ink">{t("byArchetype")}</h3>
@@ -889,6 +897,59 @@ function SpendInput({
   );
 }
 
+// Direction 1 — the offer leg the funnel stops short of: of the offers EXTENDED,
+// how many were accepted / declined / let expire. Folded server-side from the
+// same windowed offer events; honesty-gated below the min-offers floor (a headline
+// rate on a handful of offers would mislead). Deep-links to the candidates still
+// sitting at the Offer stage — the only offer sub-population with a live board
+// handle (accepted/declined/expired candidates have left the board).
+function OfferLegPanel({ offers, boardHref }: { offers: OfferConversion; boardHref: (filter: { q?: string; stage?: string }) => string }) {
+  const t = useTranslations("analytics.offers");
+  // No offers ever extended in this window → nothing to measure; stay silent
+  // rather than render an empty scaffold.
+  if (offers.extended === 0) return null;
+  return (
+    <div className="mt-4 border-t border-stone-200 pt-3">
+      <p className="text-meta uppercase tracking-wide text-steel">{t("title")}</p>
+      {!offers.enoughData ? (
+        <p className="mt-1 text-sm text-steel">{t("notEnough", { n: offers.n, min: offers.minOffers })}</p>
+      ) : (
+        <>
+          <p className="mt-1 font-serif text-h2 leading-tight text-moss">{t("headline", { pct: offers.acceptRatePct ?? 0 })}</p>
+          <p className="mt-0.5 text-sm text-steel">{t("basis", { extended: offers.extended, accepted: offers.accepted })}</p>
+          <ul className="mt-2 space-y-1 text-base">
+            <li className="flex items-baseline justify-between gap-2">
+              <span className="text-steel">{t("accepted")}</span>
+              <span className="font-medium text-moss">{t("countPct", { count: offers.accepted, pct: offers.acceptRatePct ?? 0 })}</span>
+            </li>
+            <li className="flex items-baseline justify-between gap-2">
+              <span className="text-steel">{t("declined")}</span>
+              <span className="font-medium text-coral">{t("countPct", { count: offers.declined, pct: offers.declineRatePct ?? 0 })}</span>
+            </li>
+            <li className="flex items-baseline justify-between gap-2">
+              <span className="text-steel">{t("expired")}</span>
+              <span className="font-medium text-ink">{t("countPct", { count: offers.expired, pct: offers.expireRatePct ?? 0 })}</span>
+            </li>
+            {offers.pending > 0 ? (
+              <li className="flex items-baseline justify-between gap-2">
+                <span className="text-steel">{t("pending")}</span>
+                {/* The only offer sub-population with a live board handle. */}
+                <Link
+                  href={boardHref({ stage: "Offer" })}
+                  title={t("viewPending")}
+                  className="focus-ring rounded font-medium text-ink underline-offset-2 hover:text-coral hover:underline"
+                >
+                  {offers.pending}
+                </Link>
+              </li>
+            ) : null}
+          </ul>
+        </>
+      )}
+    </div>
+  );
+}
+
 // 094b5870 — forward hire projection, computed client-side from the same payload
 // the rest of the page renders (pure forecastHires — no extra fetch). Shows the
 // expected hires already in flight, an inflow projection over a few horizons, and
@@ -898,16 +959,21 @@ function ForecastPanel({
   funnel,
   momentum,
   avgTimeToHireDays,
+  offers,
 }: {
   funnel: Funnel[];
   momentum: MomentumWeek[];
   avgTimeToHireDays: number | null;
+  offers: OfferConversion;
 }) {
   const t = useTranslations("analytics.forecast");
   const f = forecastHires({
     weeklyAdded: momentum.map((w) => w.added),
     funnel: funnel.map((r) => ({ stage: r.stage, reached: r.reached, current: r.current })),
     avgTimeToHireDays,
+    // Direction 1 — the measured accept rate (null below the min-offers gate, so
+    // the projection stays exactly as before until there are enough offers).
+    offerAcceptRate: offers.acceptRate,
   });
   return (
     <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
@@ -919,6 +985,11 @@ function ForecastPanel({
           <p className="mt-1 text-sm text-steel">
             {t("basis", { velocity: f.weeklyVelocity, conv: f.overallConversionPct ?? 0 })}
           </p>
+          {/* Direction 1 — state the acceptance assumption the projection now
+              rests on, only once the offer-accept rate cleared the honesty gate. */}
+          {f.offerAcceptRate != null && offers.acceptRatePct != null ? (
+            <p className="mt-0.5 text-sm text-steel">{t("acceptBasis", { pct: offers.acceptRatePct, n: offers.n })}</p>
+          ) : null}
           <dl className="mt-3 space-y-2">
             <div className="flex items-baseline justify-between">
               <dt className="text-base text-ink">{t("inFlight")}</dt>
