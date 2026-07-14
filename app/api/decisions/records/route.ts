@@ -2,14 +2,17 @@ import { NextResponse } from "next/server";
 import { listDecisionRecords, verifyDecisionChain } from "@/app/_lib/decision-record-store";
 import { listPipeline } from "@/app/_lib/db";
 import { jsonError } from "@/app/_lib/api-response";
+import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 
 
 // Decision System of Record (moonshot D) — read the sealed, hash-chained decision
 // records (today: the auto-rejections sealed by screen-wave) plus a tamper-evidence
 // verdict. `?candidate=<entryId>` scopes the list to one subject (the "right to
-// explanation" dossier); the chain verdict is ALWAYS computed over the whole chain,
-// since integrity is global — a tamper anywhere invalidates the proof everywhere.
+// explanation" dossier). Tenant (P1): integrity is PER-TENANT — each team has its own
+// independent chain (org plan §6), so the list, the verify verdict, and the live-board
+// resolver are all scoped to the caller's workspace; a tamper in one team's chain
+// invalidates only that team's proof, and one team never sees another's records.
 // Read-only.
 //
 // OPERATOR-GATED (backlog #30 / SD-L1-010): the sealed chain carries real
@@ -23,16 +26,17 @@ export async function GET(request: Request) {
   const denied = await requireOperator();
   if (denied) return denied;
   try {
+    const ws = await currentWorkspace();
     const candidate = new URL(request.url).searchParams.get("candidate");
-    const records = listDecisionRecords(candidate ? { candidateRef: candidate } : undefined);
-    const chain = verifyDecisionChain();
+    const records = listDecisionRecords(candidate ? { candidateRef: candidate, workspaceId: ws } : { workspaceId: ws });
+    const chain = verifyDecisionChain(ws);
     // Direction 2 — resolve each record's candidateRef (a pipeline entry id) to a
     // live board entry so the panel can deep-link it. A record OUTLIVES its entry
     // (records are permanent, entries are archived/deleted) and some refs are
     // policy-level, so a ref that no longer resolves stays plain text. The sealed
     // record shape is untouched — this is a parallel view map only, so the
     // hash-verified `records` are byte-for-byte what they were sealed as.
-    const live = new Map(listPipeline().map((e) => [e.id, e.candidateLabel]));
+    const live = new Map(listPipeline(ws).map((e) => [e.id, e.candidateLabel]));
     const resolved: Record<string, { label: string; live: boolean }> = {};
     for (const r of records) {
       if (resolved[r.candidateRef]) continue;

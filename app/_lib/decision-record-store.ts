@@ -193,7 +193,7 @@ function rowToRecord(r: DecisionRow): DecisionRecord {
 /** Seal one decision into the chain. Atomic: reading the latest hash and inserting
  *  happen in ONE transaction so two concurrent seals can't both link off the same
  *  prev and fork the chain (better-sqlite3 is synchronous; the tx serializes them). */
-export function sealDecisionRecord(input: DecisionRecordInput): DecisionRecord {
+export function sealDecisionRecord(input: DecisionRecordInput, workspaceOverride?: string): DecisionRecord {
   const d = db();
   const createdAt = new Date().toISOString();
   const payload = recordPayload(input, createdAt);
@@ -202,12 +202,23 @@ export function sealDecisionRecord(input: DecisionRecordInput): DecisionRecord {
     // Tenant (P1): the record joins its subject entry's workspace chain (candidateRef is
     // the pipeline entry id). Guarded: a system decision with no matching entry, or an
     // isolated store without pipeline_entries, seals onto the default workspace's chain.
+    //
+    // EXPLICIT OVERRIDE: a NON-ENTRY ref (e.g. a policy seal keyed on
+    // "policy:screening:<ws>") matches no pipeline_entries row, so the entry-derived
+    // resolution below would silently fall back to the DEFAULT workspace even when the
+    // caller already holds the authenticated one. Such callers pass workspaceOverride so
+    // the policy record lands on THEIR chain, not the default. Entry-backed refs pass
+    // nothing and keep the entry-derived resolution as their default.
     let workspaceId = DEFAULT_WORKSPACE_ID;
-    try {
-      const ws = d.prepare(`SELECT workspace_id FROM pipeline_entries WHERE id = ?`).get(input.candidateRef) as { workspace_id?: string } | undefined;
-      workspaceId = ws?.workspace_id ?? DEFAULT_WORKSPACE_ID;
-    } catch {
-      /* pipeline_entries absent on this connection — seal onto the default chain */
+    if (workspaceOverride) {
+      workspaceId = workspaceOverride;
+    } else {
+      try {
+        const ws = d.prepare(`SELECT workspace_id FROM pipeline_entries WHERE id = ?`).get(input.candidateRef) as { workspace_id?: string } | undefined;
+        workspaceId = ws?.workspace_id ?? DEFAULT_WORKSPACE_ID;
+      } catch {
+        /* pipeline_entries absent on this connection — seal onto the default chain */
+      }
     }
     // Link off the latest hash IN THIS WORKSPACE — a per-tenant chain, so one team's
     // seals never enter another's proof (org plan §6). Read its key_id too, to refuse a
@@ -262,9 +273,9 @@ export function sealDecisionRecord(input: DecisionRecordInput): DecisionRecord {
  *  effect that must NEVER abort or fail the decision it records (a hire, a
  *  scorecard, an offer). Logs + returns null on failure (e.g. KP-less env, DB
  *  lock). Use this at every decision call site instead of a hand-rolled try/catch. */
-export function sealDecisionSafe(input: DecisionRecordInput): DecisionRecord | null {
+export function sealDecisionSafe(input: DecisionRecordInput, workspaceOverride?: string): DecisionRecord | null {
   try {
-    return sealDecisionRecord(input);
+    return sealDecisionRecord(input, workspaceOverride);
   } catch (error) {
     console.warn(`[decision-record] seal failed for kind="${input.kind}" ref="${input.candidateRef}":`, error);
     return null;

@@ -185,7 +185,7 @@ const HANDLERS: Record<string, Spec> = {
     label: (p) => `Lifecycle · ${p.title ?? p.lifecycleId ?? ""}`,
   },
   group_eval: {
-    run: (ctx) => runGroupEval(ctx.params, ctx.signal),
+    run: (ctx) => runGroupEval(ctx.params, ctx.signal, ctx.workspaceId),
     label: (p) => `Group evaluation · ${p.roleTitle ?? p.roleKey ?? ""}`,
   },
   jd_build: {

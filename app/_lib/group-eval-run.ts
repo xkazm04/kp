@@ -1,7 +1,7 @@
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
 import { getJob, getProfileRecord, loadAnalysis, type JobRecord } from "./db";
-import { getWorkspaceDefaultLocale } from "./db/workspaces";
+import { DEFAULT_WORKSPACE_ID, getWorkspaceDefaultLocale } from "./db/workspaces";
 import { runReasoning } from "./reasoning-run";
 import { getGroupEval, saveGroupEval } from "./group-eval";
 import { isEarlyCareer } from "./archetypes";
@@ -117,13 +117,15 @@ type ResolvedCandidate = {
   analysis: ReturnType<typeof loadAnalysis>;
 };
 
-function resolveCandidates(input: GroupEvalCandidate[]): Map<string, ResolvedCandidate> {
+function resolveCandidates(input: GroupEvalCandidate[], workspaceId: string): Map<string, ResolvedCandidate> {
   const resolved = new Map<string, ResolvedCandidate>();
   for (const c of input) {
     if (!c.candidateId || resolved.has(c.candidateId)) continue;
     // The analysis doubles as the pool fallback AND the salary source, so it is
-    // loaded for everyone; profile-only candidates simply carry null.
-    resolved.set(c.candidateId, { profile: getProfileRecord(c.candidateId), analysis: loadAnalysis(c.candidateId) });
+    // loaded for everyone; profile-only candidates simply carry null. Both reads
+    // are scoped to the caller's team so the eval never composes from another
+    // tenant's profile/analysis rows.
+    resolved.set(c.candidateId, { profile: getProfileRecord(c.candidateId, workspaceId), analysis: loadAnalysis(c.candidateId, workspaceId) });
   }
   return resolved;
 }
@@ -252,7 +254,16 @@ async function runGroupCompare(
   }
 }
 
-export async function runGroupEval(params: Record<string, unknown>, signal?: AbortSignal): Promise<Record<string, unknown>> {
+export async function runGroupEval(
+  params: Record<string, unknown>,
+  signal?: AbortSignal,
+  // Tenant (P1): the workspace whose cohort this eval runs on. Threaded from the
+  // task's workspaceId (tasks.ts group_eval handler), so the persisted governance
+  // read, the profile/analysis reads, the per-candidate reasoning, and the saved
+  // eval all resolve on the CALLER's team — never composed from default-workspace
+  // data. Defaults to the single default workspace so scripts keep today's behavior.
+  workspaceId: string = DEFAULT_WORKSPACE_ID
+): Promise<Record<string, unknown>> {
   const roleKey = String(params.roleKey ?? "");
   const roleTitle = (params.roleTitle as string) ?? "the role";
   const jobId = params.jobId ? String(params.jobId) : null;
@@ -269,7 +280,7 @@ export async function runGroupEval(params: Record<string, unknown>, signal?: Abo
   // last run under. resolveGovernanceMode keeps a committee/eligibility role governed so a
   // rerun whose client state reset can never silently downgrade it and auto-seal an AI lead.
   const requestedGovernanceMode = normalizeGovernanceMode(params.governanceMode);
-  const priorEval = getGroupEval(roleKey);
+  const priorEval = getGroupEval(roleKey, workspaceId);
   const storedGovernanceMode = priorEval
     ? normalizeGovernanceMode((priorEval.payload as { governanceMode?: unknown }).governanceMode)
     : null;
@@ -302,7 +313,7 @@ export async function runGroupEval(params: Record<string, unknown>, signal?: Abo
 
   // Resolve every candidate's stored rows ONCE; rankCandidates, the payload
   // read and the salary expectation below all share this snapshot (idea-c7c2d014).
-  const resolved = resolveCandidates(input);
+  const resolved = resolveCandidates(input, workspaceId);
 
   // Min-cohort floor (bug-ui-scan-2026-07-09 #4): a comparative verdict — a lead "over
   // the field", "unique" differentiators, a robust cross-scheme ranking — is meaningless
@@ -350,7 +361,7 @@ export async function runGroupEval(params: Record<string, unknown>, signal?: Abo
     input.map(async (c): Promise<{ reasoning: Reasoning; source: string | null }> => {
       if (!jobId || !c.candidateId) return { reasoning: {}, source: null };
       try {
-        const out = await runReasoning({ jobId, profileId: c.candidateId }, signal);
+        const out = await runReasoning({ jobId, profileId: c.candidateId }, signal, workspaceId);
         return { reasoning: (out.reasoning as Reasoning) ?? {}, source: String(out.source ?? "deterministic") };
       } catch {
         return { reasoning: {}, source: "deterministic" };
@@ -561,6 +572,6 @@ export async function runGroupEval(params: Record<string, unknown>, signal?: Abo
     comparisonSource: compare?.source ?? null,
   };
 
-  saveGroupEval(roleKey, roleTitle, payload);
+  saveGroupEval(roleKey, roleTitle, payload, workspaceId);
   return payload;
 }

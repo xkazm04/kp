@@ -1,4 +1,5 @@
 import { actOnPipelineEntry, listPipeline, recordAutomationEvent } from "./db";
+import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 import { getDecisionConfig, type ScreeningRule } from "./decision-config-store";
 import { sealDecisionSafe } from "./decision-record-store";
 import { DecisionConfigError, screenBottomCount, tieSafeBottomCount, validateScreeningOverride } from "./decision-config-schema";
@@ -122,7 +123,13 @@ export async function runScreenWave(
   // approved from the preview, plus who approved it. A commit without it — or with
   // a token that no longer matches the live set — is refused (no solely-automated
   // adverse decision; EU AI Act / GDPR Art. 22). A dry run needs no approval.
-  opts?: { dryRun?: boolean; approval?: { approvedBy: string; token: string } }
+  opts?: { dryRun?: boolean; approval?: { approvedBy: string; token: string } },
+  // Tenant (P1): the team whose Screened cohort this wave ranks, rejects, and seals.
+  // Threaded from the route's currentWorkspace(); an unscoped default here would run
+  // the whole wave (preview, approval token, commits, seals) on the default team's
+  // cohort regardless of who called it. Defaults to the single default workspace so
+  // scripts/tests keep today's behavior.
+  workspaceId: string = DEFAULT_WORKSPACE_ID
 ): Promise<{
   decisions: ScreenDecision[];
   rejected: number;
@@ -153,7 +160,7 @@ export async function runScreenWave(
   const checked = validateScreeningOverride(override);
   if (!checked.ok) throw new DecisionConfigError(checked.error);
   const cfg: ScreeningRule = { ...getDecisionConfig<ScreeningRule>("screening"), ...checked.override };
-  const cohort = listPipeline().filter((e) => e.jobId === jobId && e.status === "active" && e.stage === "Screened");
+  const cohort = listPipeline(workspaceId).filter((e) => e.jobId === jobId && e.status === "active" && e.stage === "Screened");
   // NULL-SCORE POLICY — fail closed (SD-L1-002 / REC-03): a candidate with NO
   // match score has not been measured. The old `?? 0` coercion on matchScore made
   // them a genuine-looking 0 that ranked worst, passed `0 < maxMatchToReject`,
@@ -232,7 +239,7 @@ export async function runScreenWave(
     // A preview writes nothing — the unknown-archetype audit marker only fires on a
     // committed run, so a recruiter re-previewing doesn't spam the audit trail.
     if (!knownArchetype && !dryRun) {
-      recordAutomationEvent(e.id, "fairness_gate_unknown_archetype", `Unknown archetype "${e.archetype ?? "(null)"}" — shielded from auto-rejection (fail-closed).`);
+      recordAutomationEvent(e.id, "fairness_gate_unknown_archetype", `Unknown archetype "${e.archetype ?? "(null)"}" — shielded from auto-rejection (fail-closed).`, workspaceId);
     }
     const inBottom = rank < effectiveBottomCount;
     // Inside the raw bottom-% but above the tie-safe cutoff → kept only because the
@@ -281,7 +288,7 @@ export async function runScreenWave(
       // the event detail). The old shape — a `rejected` event from the act PLUS a
       // separate recordAutomationEvent("auto_rejected") — counted every wave
       // reject once as HUMAN and once as AUTO, and twice in momentum's bars.
-      const updated = actOnPipelineEntry(e.id, "reject", committedRationale, { expectedStage: e.stage, actor: "system" });
+      const updated = actOnPipelineEntry(e.id, "reject", committedRationale, { expectedStage: e.stage, actor: "system" }, workspaceId);
       if (!updated) {
         const skipped = `Skipped — stage changed mid-wave (was ${e.stage}); left untouched.`;
         decisions.push({ entryId: e.id, label: e.candidateLabel, archetype: e.archetype, matchScore: score, action: "keep", rationale: skipped, reasonCode: "staleSkipped", reasonParams: { wasStage: e.stage } });
@@ -316,7 +323,7 @@ export async function runScreenWave(
         commsFailures += 1;
         const msg = commsError instanceof Error ? commsError.message : String(commsError);
         console.warn(`[screen-wave] rejection comms failed for ${e.candidateLabel} (${e.id}): ${msg}`);
-        recordAutomationEvent(e.id, "rejection_comms_failed", `Auto-rejected, but the notification failed to queue — nudge manually. (${msg})`);
+        recordAutomationEvent(e.id, "rejection_comms_failed", `Auto-rejected, but the notification failed to queue — nudge manually. (${msg})`, workspaceId);
       }
       // commsFailed rides the decision row so the committed view can badge WHO
       // needs a manual nudge — the bare commsFailures count names nobody.

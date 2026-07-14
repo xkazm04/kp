@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { runScreenWave, ScreenWaveApprovalError } from "@/app/_lib/screen-wave";
 import { DecisionConfigError, validateScreeningOverride } from "@/app/_lib/decision-config-schema";
+import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { operatorApprover } from "@/app/_lib/auth/operator-approver";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 
@@ -10,14 +11,18 @@ export const maxDuration = 60;
 // `override` rule lets the simulation/preview run it without changing the saved
 // config.
 // Operator-gated (backlog #30 / SD-L1-010): the wave rejects real candidates,
-// queues their adverse-action emails, and seals records into the global chain —
-// so the handler re-verifies the operator session (rejecting the anonymous
+// queues their adverse-action emails, and seals records into THIS TEAM's per-tenant
+// chain — so the handler re-verifies the operator session (rejecting the anonymous
 // demo-workspace session) exactly like /api/automation/[task]. The dry-run
 // preview reads the same cohort PII, so it is gated too.
 export async function POST(request: NextRequest) {
   const denied = await requireOperator();
   if (denied) return denied;
   try {
+    // Tenant (P1): scope the whole wave — cohort read, approval token, commits, and
+    // seals — to the caller's team. Without this the wave would rank and reject the
+    // DEFAULT team's Screened cohort regardless of who is signed in.
+    const ws = await currentWorkspace();
     const body = (await request.json()) as {
       jobId?: string;
       override?: unknown;
@@ -58,7 +63,7 @@ export async function POST(request: NextRequest) {
             token: approvalToken,
             approvedBy: operatorApprover(),
           };
-    const result = await runScreenWave(body.jobId, checked.override, { dryRun, approval });
+    const result = await runScreenWave(body.jobId, checked.override, { dryRun, approval }, ws);
     return NextResponse.json(result);
   } catch (error) {
     // No human approval (or a token that no longer matches the live set) → 409 so

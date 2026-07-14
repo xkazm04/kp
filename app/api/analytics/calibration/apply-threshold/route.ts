@@ -54,15 +54,21 @@ export async function POST(request: Request) {
     // policy so the sealed-records panel shows it as a policy decision, and the
     // rationale carries the auditable basis (band, n, observed rate, before→after).
     const approvedBy = operatorApprover();
-    sealDecisionSafe({
-      kind: "screening_threshold_adjusted",
-      actor: "human:operator",
-      policyVersion: `calibration-reco/maxMatch:${currentThreshold}->${rec.suggestedThreshold}`,
-      candidateRef: `policy:screening:${ws}`,
-      rationale: `Screening auto-reject floor ${rec.direction === "lower" ? "lowered" : "raised"} ${currentThreshold} → ${rec.suggestedThreshold} on calibration evidence: candidates scoring ${rec.band.lo}–${rec.band.hi} advanced past screening ${rec.advanceRatePct}% of the time (n=${rec.n}, overall n=${rec.totalOutcomes}). Approved by ${approvedBy}.`,
-      reasonCode: "calibrationThreshold",
-      inputs: { ...rec, previousThreshold: currentThreshold, approvedBy },
-    });
+    sealDecisionSafe(
+      {
+        kind: "screening_threshold_adjusted",
+        actor: "human:operator",
+        policyVersion: `calibration-reco/maxMatch:${currentThreshold}->${rec.suggestedThreshold}`,
+        candidateRef: `policy:screening:${ws}`,
+        rationale: `Screening auto-reject floor ${rec.direction === "lower" ? "lowered" : "raised"} ${currentThreshold} → ${rec.suggestedThreshold} on calibration evidence: candidates scoring ${rec.band.lo}–${rec.band.hi} advanced past screening ${rec.advanceRatePct}% of the time (n=${rec.n}, overall n=${rec.totalOutcomes}). Approved by ${approvedBy}.`,
+        reasonCode: "calibrationThreshold",
+        inputs: { ...rec, previousThreshold: currentThreshold, approvedBy },
+      },
+      // Explicit workspace: candidateRef is a policy string, not a pipeline entry, so
+      // the store can't derive the team from it — pass the authenticated workspace so
+      // this policy seal lands on THIS team's chain, not the default (Direction 1e).
+      ws
+    );
 
     return NextResponse.json({ ok: true, previousThreshold: currentThreshold, newThreshold: rec.suggestedThreshold });
   } catch (error) {
