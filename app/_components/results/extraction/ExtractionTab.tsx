@@ -8,7 +8,7 @@ import { labelize, reconcileScoreTotal } from "@/app/_lib/format";
 import type { Analysis } from "@/app/_lib/schemas";
 import { dedupeBy } from "@/app/_lib/dedupe";
 import { safeHttpLinks } from "@/app/_lib/safe-url";
-import { EnginePanel, InlineList, ListBlock, Metric } from "../shared";
+import { EnginePanel, InlineList, LazyDetails, ListBlock, Metric } from "../shared";
 
 export function ExtractionTab({ analysis }: { analysis: Analysis }) {
   const t = useTranslations("report");
@@ -118,14 +118,19 @@ export function ExtractionTab({ analysis }: { analysis: Analysis }) {
         {analysis.extractionComparison ? (
           <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
             <h3 className="font-serif text-h3 text-ink">{t("panel.extractorComparison")}</h3>
-            {/* The two raw extracted-text dumps are a diagnostic — collapsed by default. */}
-            <details className="mt-3">
-              <summary className="focus-ring cursor-pointer text-sm font-medium text-steel">{t("panel.showExtractedText")}</summary>
+            {/* The two raw extracted-text dumps are a diagnostic — collapsed by default,
+                and (via LazyDetails) not mounted into the DOM until the first expand so
+                two large <pre> blocks don't ride every report render unopened. */}
+            <LazyDetails
+              className="mt-3"
+              summaryClassName="focus-ring cursor-pointer text-sm font-medium text-steel"
+              summary={t("panel.showExtractedText")}
+            >
               <div className="mt-4 grid gap-4 lg:grid-cols-2">
                 <TextPreview title={t("panel.parserFast")} text={analysis.extractionComparison.pypdfText} />
                 <TextPreview title={t("panel.parserAi")} text={analysis.extractionComparison.geminiText} />
               </div>
-            </details>
+            </LazyDetails>
           </div>
         ) : null}
 

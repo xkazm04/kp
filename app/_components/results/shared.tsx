@@ -8,6 +8,41 @@ import { dedupe } from "@/app/_lib/dedupe";
 import { copyText } from "@/app/_lib/export-utils";
 import { PAPER, INK, MOSS, STEEL, LIMEWASH } from "@/app/_lib/brand";
 
+/**
+ * A `<details>` whose children mount only AFTER the first expand, then stay
+ * mounted. A plain `<details>` keeps its collapsed content in the DOM the whole
+ * time — for the two full raw-CV-text dumps in ExtractionTab that means two large
+ * `<pre>` blocks are parsed and held on every report render even when nobody opens
+ * them. Deferring the mount until the first toggle keeps the collapsed report lean
+ * without changing the markup, classes, or the native disclosure behavior.
+ */
+export function LazyDetails({
+  summary,
+  children,
+  className,
+  summaryClassName,
+}: {
+  summary: React.ReactNode;
+  children: React.ReactNode;
+  className?: string;
+  summaryClassName?: string;
+}) {
+  // Latches true on the first expand and never resets — so re-collapsing keeps the
+  // (already-parsed) content mounted instead of re-mounting it on every toggle.
+  const [hasOpened, setHasOpened] = useState(false);
+  return (
+    <details
+      className={className}
+      onToggle={(event) => {
+        if (event.currentTarget.open) setHasOpened(true);
+      }}
+    >
+      <summary className={summaryClassName}>{summary}</summary>
+      {hasOpened ? children : null}
+    </details>
+  );
+}
+
 export function Metric({ label, value }: { label: string; value: number }) {
   return (
     <div className="rounded-md bg-paper p-3">
