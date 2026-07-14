@@ -21,6 +21,12 @@ import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { ResultView } from "./CandidateResultView";
 import { ConsentPanel } from "./ConsentPanel";
 import { useTokenLink, TokenLinkPanel } from "./TokenLink";
+// IMPORT-only reuse (perfect-board): the existing Schedule-tab transcript modal,
+// opened in place over the drawer so viewing a transcript no longer means leaving
+// for the Schedule tab. It renders from a SchedEntry-shaped record we adapt from
+// the drawer's entry below — the modal itself is untouched.
+import { InterviewTranscriptModal } from "@/app/features/sub_schedule/InterviewTranscriptModal";
+import type { SchedEntry } from "@/app/features/sub_schedule/ScheduleTypes";
 import { type Entry, type Result, type TaskId } from "./CandidateDrawerTypes";
 import { styleFor, type PipelineEvent } from "./PipelineTypes";
 import { EventDot, useEventVerb, useRelativeTime } from "./PipelineShared";
@@ -145,6 +151,11 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
   // Latest completed voice interview — surfaced as an evidence source in the
   // candidate's analysis (its scorecard also feeds the Decisions gate).
   const [ivOutcome, setIvOutcome] = useState<InterviewOutcome | null>(null);
+  // "View transcript, without leaving the drawer": when the interview chapter
+  // reports hasTranscript, open the existing InterviewTranscriptModal in place
+  // (stacked over the drawer). Absent transcript ⇒ this stays false and no chrome
+  // renders.
+  const [showTranscript, setShowTranscript] = useState(false);
   // The recruiter's human scorecard for this candidate (PREP1), if one was filled
   // from the prep modal — surfaced here so a human-led round isn't invisible on
   // the board the way the AI voice-screen scorecard already is.
@@ -593,6 +604,19 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
               ) : null}
               {ivOutcome.entities ? <ReadbackEntitiesStrip entities={ivOutcome.entities} t={tTranscript} /> : null}
               {ivOutcome.telemetry ? <InterviewTelemetryStrip telemetry={ivOutcome.telemetry} t={tTranscript} /> : null}
+              {/* The full transcript was the interview chapter's only dead field —
+                  computed server-side, typed here, rendered nowhere. Surface it as
+                  an in-place action that opens the existing Schedule-tab modal
+                  stacked over the drawer (no tab trip). Only when one exists. */}
+              {ivOutcome.hasTranscript ? (
+                <button
+                  type="button"
+                  onClick={() => setShowTranscript(true)}
+                  className="focus-ring mt-2 inline-flex items-center gap-1.5 rounded-md border border-stone-200 bg-white px-2.5 py-1.5 text-sm font-semibold text-ink hover:border-coral/40"
+                >
+                  <FileText size={13} className="text-coral" aria-hidden /> {t("viewTranscript")}
+                </button>
+              ) : null}
               <p className="mt-1.5 text-meta text-steel">{t("voiceFeedsNote")}</p>
             </div>
           ) : null}
@@ -1010,6 +1034,34 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
           </div>
         </div>
       </aside>
+
+      {/* The transcript modal, stacked over the drawer via the shared Modal portal +
+          useDialogA11y stack (Escape closes the top-of-stack modal first, then the
+          drawer). Adapted to the modal's SchedEntry prop shape WITHOUT touching the
+          modal: it reads only id/candidateLabel/jobTitle, and fetches the session by
+          entry id itself; approvalKind/approvalDetail are absent from the drawer's
+          record and unused by the modal, so they degrade to null. */}
+      {showTranscript ? (
+        <InterviewTranscriptModal
+          entry={
+            {
+              id: entry.id,
+              candidateId: entry.candidateId,
+              candidateLabel: entry.candidateLabel,
+              archetype: entry.archetype,
+              roleFamily: entry.roleFamily,
+              jobId: entry.jobId,
+              jobTitle: entry.jobTitle,
+              stage: entry.stage,
+              matchScore: entry.matchScore ?? null,
+              status: entry.status,
+              approvalKind: null,
+              approvalDetail: null,
+            } satisfies SchedEntry
+          }
+          onClose={() => setShowTranscript(false)}
+        />
+      ) : null}
     </div>
   );
 }

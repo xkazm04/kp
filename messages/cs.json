@@ -1424,6 +1424,7 @@
       "interviewOutcome": "Výsledek pohovoru",
       "fixedRubric": "Pevná rubrika · {anchor}",
       "voiceFeedsNote": "Hlasový pohovor prvního kola nyní vstupuje do posouzení hodnoticí karty a hodnocení tohoto kandidáta.",
+      "viewTranscript": "Zobrazit přepis",
       "humanScorecard": "Hodnoticí karta člověka",
       "humanScorecardNote": "Zaznamenáno náborářem podle rubriky přípravy na pohovor.",
       "githubEvidence": "GitHub podklady",

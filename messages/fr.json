@@ -1450,6 +1450,7 @@
       "interviewOutcome": "Résultat de l'entretien",
       "fixedRubric": "Grille fixe · {anchor}",
       "voiceFeedsNote": "Un entretien vocal de premier tour alimente désormais l'examen du scorecard et l'évaluation de ce candidat.",
+      "viewTranscript": "Voir la transcription",
       "humanScorecard": "Scorecard humain",
       "humanScorecardNote": "Enregistré par un recruteur à partir de la grille de préparation d'entretien.",
       "githubEvidence": "Preuves GitHub",

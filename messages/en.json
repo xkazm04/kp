@@ -1424,6 +1424,7 @@
       "interviewOutcome": "Interview outcome",
       "fixedRubric": "Fixed rubric · {anchor}",
       "voiceFeedsNote": "A voice 1st-round interview now feeds this candidate's scorecard review and assessment.",
+      "viewTranscript": "View transcript",
       "humanScorecard": "Human scorecard",
       "humanScorecardNote": "Recorded by a recruiter from the interview prep rubric.",
       "githubEvidence": "GitHub evidence",

@@ -1450,6 +1450,7 @@
       "interviewOutcome": "Interview-Ergebnis",
       "fixedRubric": "Festes Bewertungsraster · {anchor}",
       "voiceFeedsNote": "Ein Voice-Interview der ersten Runde fließt jetzt in die Scorecard-Prüfung und Bewertung ein.",
+      "viewTranscript": "Transkript ansehen",
       "humanScorecard": "Manuelle Scorecard",
       "humanScorecardNote": "Von einem Recruiter anhand des Bewertungsrasters für die Interview-Vorbereitung erfasst.",
       "githubEvidence": "GitHub-Nachweise",
