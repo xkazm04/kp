@@ -16,7 +16,10 @@ type Salary = {
   seniority: string;
   jobBand: [number, number] | null;
   marketBand: [number, number] | null;
-  belowMarket: boolean;
+  // null = verdict honestly silenced (job band and benchmark band are in
+  // different currencies; the pipeline does no FX — winnability.py mirror).
+  belowMarket: boolean | null;
+  currencyComparable?: boolean;
   topVsMarketFloorPct?: number;
 };
 type Winnability = {
@@ -171,7 +174,10 @@ export function CoachPanel({ jobId, jobTitle }: { jobId: string; jobTitle: strin
         </div>
       ) : null}
 
-      {salary && salary.marketBand ? (
+      {/* A silenced verdict (belowMarket === null: cross-currency bands, no FX)
+          renders NOTHING — "salaryOk" would be a confident-but-wrong claim, and
+          fmtBand would relabel the job's figures in APP_CURRENCY. */}
+      {salary && salary.marketBand && salary.belowMarket !== null ? (
         <div
           className={`flex items-start gap-2 rounded-lg border px-3 py-2.5 ${
             salary.belowMarket ? "border-coral/40 bg-coral/5" : "border-stone-200 bg-white"
