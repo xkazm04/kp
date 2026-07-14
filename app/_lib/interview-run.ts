@@ -48,7 +48,52 @@ type PrepPayload = {
   durationMin?: number;
   focusAreas?: string[];
   chronology?: ChronologyBlock[];
+  // Interview-kit questions imported into the pack (written by /api/interview-prep
+  // POST, rendered in the prep modal). Aloud-material the recruiter wants asked —
+  // now carried into the voice brief alongside the generated chronology.
+  importedQuestions?: string[];
 };
+
+/** Cap on imported interview-kit questions carried into a grounded brief, so a
+ *  40-question import (the /api/interview-prep import cap) can't overwhelm the
+ *  brief's length discipline. What is dropped is stated in the brief prose. */
+export const MAX_BRIEF_IMPORTED_QUESTIONS = 8;
+
+/** The imported interview-kit questions (prep payload `importedQuestions`) that
+ *  should ride a grounded brief: trimmed, de-duplicated, and — the coordination
+ *  guard with the sibling "weave into chronology" work — dropped when their exact
+ *  text is already asked in a chronology block, so a woven question never
+ *  double-renders. Pure/exported for the brief-construction unit tests. */
+export function importedQuestionsForBrief(importedQuestions: unknown, alreadyAsked: Iterable<string>): string[] {
+  const seen = new Set<string>();
+  for (const q of alreadyAsked) if (typeof q === "string") seen.add(q.trim());
+  const out: string[] = [];
+  if (Array.isArray(importedQuestions)) {
+    for (const raw of importedQuestions) {
+      if (typeof raw !== "string") continue;
+      const q = raw.trim();
+      if (!q || seen.has(q)) continue;
+      seen.add(q);
+      out.push(q);
+    }
+  }
+  return out;
+}
+
+/** The run-of-show tail for imported interview-kit questions: a single appended
+ *  block, capped to MAX_BRIEF_IMPORTED_QUESTIONS with the cap stated in prose.
+ *  Empty string when there is nothing to add, so an import-free brief is
+ *  byte-identical to before this feature. */
+function composeImportedRunOfShowLine(imported: string[]): string {
+  if (imported.length === 0) return "";
+  const shown = imported.slice(0, MAX_BRIEF_IMPORTED_QUESTIONS);
+  const cap =
+    imported.length > shown.length
+      ? ` (the first ${shown.length} of ${imported.length} — ask the rest only if time allows)`
+      : "";
+  const qs = shown.map((q) => `“${q}”`).join(" ");
+  return `  Also weave in these recruiter-added questions wherever they fit best${cap}: ${qs}.`;
+}
 
 // App §2 / P1 root cause: when the candidate EXPLICITLY chose a language at apply (entry.locale is
 // a real locale, not the workspace-default guess), tell the agent to OPEN in it instead of the
@@ -60,7 +105,7 @@ function withOpeningLanguage(instructions: string, preferred: Locale | null): st
   return `${instructions} The candidate chose to apply in ${name}, so open the interview in ${name} (you may still follow them if they switch language later).`;
 }
 
-function composeBrief(
+export function composeBrief(
   company: string,
   title: string,
   roleLine: string,
@@ -76,6 +121,12 @@ function composeBrief(
       return `${i + 1}. ${b.topic} (${b.fromMin}–${b.toMin} min) — ${b.goal}${qs ? ` Ask: ${qs}.` : ""}${fu}`;
     })
     .join("  ");
+  // Imported interview-kit questions ride the run-of-show as a capped appended
+  // block, skipping any whose exact text a chronology block already asks (the
+  // sibling weave-into-chronology guard, so nothing double-renders).
+  const askedInChronology = chron.flatMap((b) => (b.questions ?? []).filter(Boolean));
+  const imported = importedQuestionsForBrief(prep?.importedQuestions, askedInChronology);
+  const importedLine = composeImportedRunOfShowLine(imported);
   return [
     `You are a warm, professional first-round screening interviewer at ${company} for the ${roleLine} role.`,
     PERSONA_ONE_QUESTION,
@@ -85,7 +136,7 @@ function composeBrief(
     PERSONA_LANGUAGE_DETECT,
     `Begin by briefly introducing yourself as an AI assistant, ${company}, and the ${title} position in two or three sentences, and mention that the call is transcribed for a human recruiter.`,
     `Then lead the conversation through this run of show (about ${durationMin} minutes total), keeping each topic roughly time-boxed. Ask the listed questions naturally, one at a time, with short follow-ups, and adapt to the candidate's answers:`,
-    runOfShow,
+    runOfShow + importedLine,
     "Do not give feedback, scores, or any hiring decision, and never praise or judge the quality of an answer or tell the candidate their thinking, instinct, or approach is right (avoid “great”, “impressive”, “exactly right”, “the right instinct”, “on the right track”) — stay warm by showing interest and inviting them to continue (“thank you”, “understood”, “tell me more”), not by approving. When the agenda is covered, invite the candidate's questions, thank them, and say a human recruiter will review the conversation.",
   ].join(" ");
 }
@@ -326,6 +377,16 @@ export function buildCandidateSafeBrief(entryId: string): string | null {
   if (chron.length === 0) return null;
   const blocks = chron.map(sanitizeChronologyBlock).filter((b): b is CandidateSafeBlock => b !== null);
   if (blocks.length === 0) return null;
+  // Imported interview-kit questions are aloud-material (the questions the recruiter
+  // wants asked), so they reach the candidate-safe brief through the SAME allow-list
+  // sanitizer as chronology questions — de-duped against questions already asked in
+  // the plan (the sibling weave-into-chronology guard) and capped for length.
+  const askedAloud = blocks.flatMap((b) => b.questions);
+  const imported = importedQuestionsForBrief(prep?.importedQuestions, askedAloud).slice(0, MAX_BRIEF_IMPORTED_QUESTIONS);
+  if (imported.length > 0) {
+    const extra = sanitizeChronologyBlock({ topic: "Recruiter-added questions", questions: imported });
+    if (extra) blocks.push(extra);
+  }
   return withOpeningLanguage(
     composeCandidateBrief({ company, roleLine, candidateLabel, durationMin: prep?.durationMin ?? GROUNDED_DEFAULT_MIN, blocks }),
     preferredLang

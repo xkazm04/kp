@@ -107,6 +107,23 @@ test("malformed inputs cannot smuggle non-string content", () => {
   assert.ok(!("fromMin" in block) && !("toMin" in block), "non-numeric timeboxes are dropped");
 });
 
+test("imported interview-kit questions ride the SAME allow-list as a plain aloud block", () => {
+  // Direction 1: buildCandidateSafeBrief routes the flat `importedQuestions` list
+  // through sanitizeChronologyBlock as { topic, questions } — so imported questions
+  // reach the candidate-safe brief only via the tested allow-list, and nothing but
+  // the aloud questions can survive (a stray internal-looking field cannot smuggle).
+  const extra = sanitizeChronologyBlock({
+    topic: "Recruiter-added questions",
+    questions: ["How do you approach flaky tests?", "  ", 42],
+    // A private field that must not survive even on this synthetic block:
+    listenFor: LISTEN_FOR,
+  });
+  assert.ok(extra);
+  assert.equal(extra.topic, "Recruiter-added questions");
+  assert.deepEqual(extra.questions, ["How do you approach flaky tests?"]);
+  assertNoInternal(JSON.stringify(extra));
+});
+
 test("composed brief carries only sanitized material end to end", () => {
   const blocks = [
     sanitizeChronologyBlock({
