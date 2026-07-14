@@ -3,7 +3,7 @@ import { getInterviewPrep, listPreparedEntries, prepJdEditedAt, saveInterviewPre
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { safeJsonError } from "@/app/_lib/api-response";
 import { MAX_ENTRY_ID_LEN, parseEntriesParam } from "@/app/_lib/entries-param";
-import { mergeImportedQuestions, normalizeIncoming, readImported } from "./importMerge.ts";
+import { assignImportedBlock, mergeImportedQuestions, normalizeIncoming, readImportedEntries, MAX_BLOCK_REF_LEN, MAX_IMPORT_QUESTION_LEN } from "./importMerge.ts";
 
 
 // Caps for the interviewer-progress write (PREP2). Bounded so a crafted body can't
@@ -94,13 +94,49 @@ export async function POST(request: NextRequest) {
     if (!existing) {
       return NextResponse.json({ error: "No interview prep to import into — generate it first." }, { status: 404 });
     }
-    const prior = readImported(existing.payload);
+    const prior = readImportedEntries(existing.payload);
     const merged = mergeImportedQuestions(prior, incoming);
     const added = merged.length - prior.length;
     if (added > 0) {
       saveInterviewPrep(entry, existing.candidateLabel, existing.jobTitle, { ...existing.payload, importedQuestions: merged });
     }
     return NextResponse.json({ ok: true, added, total: merged.length });
+  } catch (error) {
+    return safeJsonError(error, "api:interview-prep", "INTERVIEW_PREP_FAILED");
+  }
+}
+
+// PATCH ?entry=<id> → weave an imported question into a chronology block, or unassign
+// it (Direction 3). Body: { question: string, blockRef: string | null }. The question
+// stays in importedQuestions and only gains/loses a `blockRef` (the target block's
+// topic) — the single-home model, so it's never duplicated into the generator-owned
+// chronology (Regenerate would wipe that) and the voice brief reading importedQuestions
+// sees the one key. Idempotent; 404 when no pack exists, 400 on a missing question.
+export async function PATCH(request: NextRequest) {
+  try {
+    const entry = request.nextUrl.searchParams.get("entry");
+    if (!entry || !entry.trim() || entry.length > MAX_ENTRY_ID_LEN) {
+      return NextResponse.json({ error: "entry is required" }, { status: 400 });
+    }
+    const body = (await request.json().catch(() => ({}))) as { question?: unknown; blockRef?: unknown };
+    const question = typeof body.question === "string" ? body.question.trim().slice(0, MAX_IMPORT_QUESTION_LEN) : "";
+    if (!question) {
+      return NextResponse.json({ error: "question is required" }, { status: 400 });
+    }
+    // null / "" / missing ⇒ unassign; otherwise the target block's topic (bounded).
+    const blockRef = typeof body.blockRef === "string" && body.blockRef.trim() ? body.blockRef.trim().slice(0, MAX_BLOCK_REF_LEN) : null;
+
+    const existing = getInterviewPrep(entry);
+    if (!existing) {
+      return NextResponse.json({ error: "No interview prep to update — generate it first." }, { status: 404 });
+    }
+    const prior = readImportedEntries(existing.payload);
+    const merged = assignImportedBlock(prior, question, blockRef);
+    // Only write when something actually changed (idempotent no-op stays cheap).
+    if (JSON.stringify(merged) !== JSON.stringify(prior)) {
+      saveInterviewPrep(entry, existing.candidateLabel, existing.jobTitle, { ...existing.payload, importedQuestions: merged });
+    }
+    return NextResponse.json({ ok: true, importedQuestions: merged });
   } catch (error) {
     return safeJsonError(error, "api:interview-prep", "INTERVIEW_PREP_FAILED");
   }

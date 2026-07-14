@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, Check, Clock, Copy, History, Loader2, ListChecks, NotebookPen, RefreshCw, Sparkles, UserRound } from "lucide-react";
+import { AlertTriangle, Check, Clock, Copy, History, Loader2, ListChecks, NotebookPen, Plus, RefreshCw, Sparkles, UserRound, X } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { copyText } from "@/app/_lib/export-utils";
 import { HumanScorecardPanel } from "./HumanScorecardPanel";
@@ -30,10 +30,35 @@ type Prep = RunOfShow & {
   humanScorecard?: Scorecard;
   interviewer?: string;
   // Questions imported from the candidate's analysis report (Direction 2). A
-  // dedicated key preserved across Regenerate; rendered read-only as reference
-  // material the interviewer can weave into the timed plan above.
-  importedQuestions?: string[];
+  // dedicated key preserved across Regenerate. An element is either a legacy plain
+  // string OR a { question, blockRef? } entry (Direction 3): a `blockRef` names the
+  // chronology block topic the question has been WOVEN into, so it renders inside
+  // that block + counts in the completion meter rather than sitting read-only below.
+  // ONE key, so the voice brief that reads importedQuestions composes with it.
+  importedQuestions?: ImportedQuestion[];
 };
+
+// Direction 3 — an imported question, normalized to the entry shape the modal
+// renders. A woven question carries the topic of the block it belongs to.
+type ImportedEntry = { question: string; blockRef?: string };
+type ImportedQuestion = string | ImportedEntry;
+
+/** Normalize a stored importedQuestions element (legacy string or {question,
+ *  blockRef?}) to an entry, tolerating junk. Mirrors the server's
+ *  normalizeImportedEntry so the modal and the API agree on the one shape. */
+function normImported(raw: ImportedQuestion): ImportedEntry | null {
+  if (typeof raw === "string") {
+    const q = raw.trim();
+    return q ? { question: q } : null;
+  }
+  if (raw && typeof raw === "object") {
+    const q = typeof raw.question === "string" ? raw.question.trim() : "";
+    if (!q) return null;
+    const blockRef = typeof raw.blockRef === "string" && raw.blockRef.trim() ? raw.blockRef.trim() : undefined;
+    return blockRef ? { question: q, blockRef } : { question: q };
+  }
+  return null;
+}
 
 export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onClose: () => void }) {
   const t = useTranslations("scheduleTab.prep");
@@ -52,6 +77,13 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
   const [notes, setNotes] = useState("");
   const [interviewer, setInterviewer] = useState(""); // assigned human owner (PREP5)
   const [copied, setCopied] = useState(false);
+  // Direction 3 — the imported questions the modal shows. Seeded from the payload,
+  // overridden locally after a weave/unweave PATCH (so the block/imported split
+  // updates without a full refetch); reset to null on a completed (re)generation,
+  // which carries importedQuestions forward. `pickerFor` is the question whose
+  // "add to plan" block-picker is currently open (single-open).
+  const [importedOverride, setImportedOverride] = useState<ImportedEntry[] | null>(null);
+  const [pickerFor, setPickerFor] = useState<string | null>(null);
   // PREP2: hydrate the interviewer's saved checklist + notes once the artifact
   // loads, then debounce-persist edits. The `hydrated` flag stops the saved state from
   // being written straight back; `dirtyRef` gates the save to genuine user edits.
@@ -162,6 +194,10 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
     setChecked(up?.checked ?? {});
     setNotes(typeof up?.notes === "string" ? up.notes : "");
     setInterviewer(typeof result?.interviewer === "string" ? result.interviewer : "");
+    // The regenerated result carries importedQuestions forward, so drop any local
+    // weave override and read the fresh copy (blockRefs preserved by the merge).
+    setImportedOverride(null);
+    setPickerFor(null);
     // eslint-disable-next-line react-hooks/refs -- guarded once-per-task hydration; the dirty flag must clear atomically with the state seed above (this is the render-phase completion pattern documented above, not an effect round-trip)
     dirtyRef.current = false;
   } else if (taskId && (genStatus === "failed" || genStatus === "canceled" || genStatus === "interrupted")) {
@@ -182,6 +218,52 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
   };
   const generating = taskId !== null;
 
+  // Direction 3 — the imported questions, normalized and split into WOVEN (assigned
+  // to a chronology block by its topic) and UNASSIGNED. A blockRef that no longer
+  // matches any current block topic (e.g. a Regenerate reshaped the plan) degrades to
+  // unassigned so the question is shown again rather than silently lost — its content
+  // is always preserved in importedQuestions.
+  const importedEntries = useMemo<ImportedEntry[]>(() => {
+    if (importedOverride) return importedOverride;
+    const raw = prep?.importedQuestions ?? [];
+    return raw.map(normImported).filter((e): e is ImportedEntry => e !== null);
+  }, [importedOverride, prep]);
+  const blockTopics = useMemo(() => new Set((prep?.chronology ?? []).map((b) => b.topic)), [prep]);
+  const wovenList = useMemo(
+    () => importedEntries.filter((e) => e.blockRef && blockTopics.has(e.blockRef)),
+    [importedEntries, blockTopics]
+  );
+  const unassigned = useMemo(
+    () => importedEntries.filter((e) => !e.blockRef || !blockTopics.has(e.blockRef)),
+    [importedEntries, blockTopics]
+  );
+  const wovenForBlock = (topic: string) => wovenList.filter((e) => e.blockRef === topic);
+  // Short, stable-enough checkbox key for a woven question (index in wovenList —
+  // like the c-/k- keys; the PUT route caps checked keys at 64 chars, so the raw
+  // question text can't be the key).
+  const wovenKeyOf = (question: string) => `w-${wovenList.findIndex((e) => e.question === question)}`;
+
+  // Weave an imported question into a block (blockRef = topic) or unassign it
+  // (blockRef = null), via the PATCH that only moves the blockRef — the question
+  // stays in its single home (importedQuestions). Optimistically applies the
+  // server's returned list so the block/imported split updates without a refetch.
+  const setBlock = async (question: string, blockRef: string | null) => {
+    setPickerFor(null);
+    try {
+      const res = await fetch(`/api/interview-prep?entry=${encodeURIComponent(entry.id)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question, blockRef }),
+      });
+      const d = (await res.json().catch(() => ({}))) as { importedQuestions?: ImportedQuestion[] };
+      if (res.ok && Array.isArray(d.importedQuestions)) {
+        setImportedOverride(d.importedQuestions.map(normImported).filter((e): e is ImportedEntry => e !== null));
+      }
+    } catch {
+      /* weave is best-effort — a blip shouldn't interrupt the interview */
+    }
+  };
+
   // Copy the whole prep guide as plain text (Theme C, PREP3) so an interviewer can
   // drop it into their notes / a calendar invite / an email — the guide was
   // render-only, lost the moment the modal closed.
@@ -197,6 +279,8 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
     for (const b of prep.chronology) {
       lines.push(`- [${b.fromMin}–${b.toMin} min] ${b.topic} — ${b.goal}`);
       for (const q of b.questions) lines.push(`    "${q}"`);
+      // Woven imported questions live inside their block (Direction 3).
+      for (const w of wovenForBlock(b.topic)) lines.push(`    "${w.question}"`);
       if (b.followUp) lines.push(`    ${t("copyFollowUp", { text: b.followUp })}`);
     }
     const sig = prep.signals ?? [];
@@ -204,10 +288,10 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
       lines.push("", t("copySignals"));
       for (const s of sig) lines.push(`- ${s}`);
     }
-    const imported = prep.importedQuestions ?? [];
-    if (imported.length) {
+    // Only UNASSIGNED imported questions remain in the reference section.
+    if (unassigned.length) {
       lines.push("", t("importedQuestions"));
-      for (const q of imported) lines.push(`- "${q}"`);
+      for (const q of unassigned) lines.push(`- "${q.question}"`);
     }
     const ok = await copyText(lines.join("\n"));
     setCopied(ok);
@@ -219,20 +303,24 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
   // Derived from `prep` alone (no intermediate `?? []` value in the deps, which
   // would re-make a fresh array — and re-fire the memo — every render).
   const signals = prep?.signals ?? [];
+  // Woven imported questions are checkable items too (Direction 3), so they count in
+  // the total alongside the chronology blocks and the signals.
   const totalItems = useMemo(
-    () => (prep ? prep.chronology.length + (prep.signals ?? []).length : 0),
-    [prep]
+    () => (prep ? prep.chronology.length + (prep.signals ?? []).length + wovenList.length : 0),
+    [prep, wovenList]
   );
   // Count only keys that map to a CURRENTLY-rendered item (c-<i> for chronology, k-<i> for
-  // signals). Counting every truthy key in the stored map let a payload whose generated body
-  // shrank — but kept older userProgress keys — render "9/6 done" (> total) and a >100% meter.
+  // signals, w-<i> for woven imported questions). Counting every truthy key in the stored map
+  // let a payload whose generated body shrank — but kept older userProgress keys — render
+  // "9/6 done" (> total) and a >100% meter.
   const doneItems = useMemo(() => {
     if (!prep) return 0;
     let n = 0;
     for (let i = 0; i < prep.chronology.length; i++) if (checked[`c-${i}`]) n += 1;
     for (let i = 0; i < (prep.signals ?? []).length; i++) if (checked[`k-${i}`]) n += 1;
+    for (let i = 0; i < wovenList.length; i++) if (checked[`w-${i}`]) n += 1;
     return n;
-  }, [prep, checked]);
+  }, [prep, checked, wovenList]);
 
   return (
     <Modal
@@ -365,6 +453,7 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
               {prep.chronology.map((b, i) => {
                 const key = `c-${i}`;
                 const on = Boolean(checked[key]);
+                const woven = wovenForBlock(b.topic);
                 return (
                   <li key={key} className={`rounded-md border p-2.5 transition-colors ${on ? "border-moss/40 bg-moss/5" : "border-stone-200"}`}>
                     <label className="flex cursor-pointer items-start gap-2.5">
@@ -388,6 +477,45 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
                         {b.followUp ? <span className="mt-0.5 block text-sm text-steel">{t("followUp", { text: b.followUp })}</span> : null}
                       </span>
                     </label>
+                    {/* Woven imported questions (Direction 3): checkable, counted in
+                        the meter, each removable back to the imported section. */}
+                    {woven.length ? (
+                      <ul className="mt-1.5 space-y-1 border-t border-stone-200 pt-1.5">
+                        {woven.map((w) => {
+                          const wkey = wovenKeyOf(w.question);
+                          const won = Boolean(checked[wkey]);
+                          return (
+                            <li key={wkey} className="flex items-start gap-1.5">
+                              <label className="flex min-w-0 flex-1 cursor-pointer items-start gap-2 text-sm text-ink">
+                                <Checkbox
+                                  checked={won}
+                                  onChange={(e) => {
+                                    markEdited();
+                                    setChecked((s) => ({ ...s, [wkey]: e.target.checked }));
+                                  }}
+                                  className="mt-0.5"
+                                />
+                                <span className={`min-w-0 ${won ? "text-steel line-through" : ""}`}>
+                                  “{w.question}”
+                                  <span className="ml-1.5 inline-flex items-center gap-0.5 rounded bg-paper px-1 py-0.5 align-middle text-meta font-semibold text-steel">
+                                    <Sparkles size={10} aria-hidden /> {t("importedTag")}
+                                  </span>
+                                </span>
+                              </label>
+                              <button
+                                type="button"
+                                onClick={() => setBlock(w.question, null)}
+                                aria-label={t("removeFromPlanAria")}
+                                title={t("removeFromPlan")}
+                                className="focus-ring mt-0.5 shrink-0 rounded p-0.5 text-steel hover:text-coral"
+                              >
+                                <X size={13} aria-hidden />
+                              </button>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    ) : null}
                   </li>
                 );
               })}
@@ -424,18 +552,53 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
           ) : null}
 
           {/* Questions imported from the candidate's analysis report (Direction 2):
-              read-only reference the interviewer can pull into the timed plan. */}
-          {prep.importedQuestions?.length ? (
+              reference material the interviewer can WEAVE into a timed block (Direction
+              3). Once woven, a question moves up into its block above; only the
+              still-unassigned ones remain here. */}
+          {unassigned.length ? (
             <section>
               <p className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-steel">
                 <Sparkles size={13} /> {t("importedQuestions")}
               </p>
-              <ul className="mt-1.5 space-y-1">
-                {prep.importedQuestions.map((q, i) => (
-                  <li key={`iq-${i}`} className="text-sm text-ink">
-                    “{q}”
-                  </li>
-                ))}
+              <ul className="mt-1.5 space-y-1.5">
+                {unassigned.map((q, i) => {
+                  const picking = pickerFor === q.question;
+                  return (
+                    <li key={`iq-${i}`} className="rounded-md border border-stone-200 p-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <span className="min-w-0 flex-1 text-sm text-ink">“{q.question}”</span>
+                        <button
+                          type="button"
+                          onClick={() => setPickerFor(picking ? null : q.question)}
+                          aria-expanded={picking}
+                          className="focus-ring inline-flex shrink-0 items-center gap-1 rounded-md border border-stone-200 px-2 py-1 text-meta font-semibold text-ink hover:border-coral/40"
+                        >
+                          <Plus size={12} className="text-coral" /> {t("addToPlan")}
+                        </button>
+                      </div>
+                      {/* Block picker: choose which timed block to weave this into.
+                          The plan's own topics, so the choice is always valid. */}
+                      {picking ? (
+                        <div className="mt-2 flex flex-wrap gap-1.5 border-t border-stone-200 pt-2">
+                          {prep.chronology.length ? (
+                            prep.chronology.map((b, bi) => (
+                              <button
+                                key={`pick-${bi}`}
+                                type="button"
+                                onClick={() => setBlock(q.question, b.topic)}
+                                className="focus-ring rounded-full border border-stone-200 px-2.5 py-1 text-meta font-semibold text-steel hover:border-coral/40 hover:text-ink"
+                              >
+                                {b.topic}
+                              </button>
+                            ))
+                          ) : (
+                            <span className="text-meta text-steel">{t("noBlocksToWeave")}</span>
+                          )}
+                        </div>
+                      ) : null}
+                    </li>
+                  );
+                })}
               </ul>
             </section>
           ) : null}

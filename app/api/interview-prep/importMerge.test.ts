@@ -4,29 +4,33 @@ import { mergeImportedQuestions, normalizeIncoming, readImported, MAX_IMPORT_QUE
 
 // Direction 2 — the interview-kit → prep-pack import. These are the guards the
 // route relies on: duplicate-import idempotency, order preservation, caps, and the
-// defensive reads at the trust boundary.
+// defensive reads at the trust boundary. Direction 3 turned the stored shape into
+// { question, blockRef? } entries, so `prior` is entries and new imports append as
+// unassigned {question}.
+
+const q = (question: string) => ({ question });
 
 test("re-importing the same kit is a no-op (duplicate-import guard)", () => {
   const kit = ["Tell me about a time you shipped under pressure.", "How do you handle disagreement?"];
   const first = mergeImportedQuestions([], kit);
-  assert.deepEqual(first, kit);
+  assert.deepEqual(first, kit.map(q));
   // A second import of the same content must not stack copies.
   const second = mergeImportedQuestions(first, kit);
-  assert.deepEqual(second, kit);
+  assert.deepEqual(second, kit.map(q));
   assert.equal(second.length, kit.length);
 });
 
 test("new questions append after prior ones, order preserved", () => {
-  const prior = ["Q1", "Q2"];
+  const prior = [q("Q1"), q("Q2")];
   const merged = mergeImportedQuestions(prior, ["Q2", "Q3", "Q1", "Q4"]);
-  assert.deepEqual(merged, ["Q1", "Q2", "Q3", "Q4"]);
+  assert.deepEqual(merged, [q("Q1"), q("Q2"), q("Q3"), q("Q4")]);
 });
 
 test("the import is capped so a crafted body can't balloon the payload", () => {
-  const prior = Array.from({ length: MAX_IMPORT_QUESTIONS - 1 }, (_, i) => `p${i}`);
+  const prior = Array.from({ length: MAX_IMPORT_QUESTIONS - 1 }, (_, i) => q(`p${i}`));
   const merged = mergeImportedQuestions(prior, ["new-a", "new-b", "new-c"]);
   assert.equal(merged.length, MAX_IMPORT_QUESTIONS);
-  assert.equal(merged[MAX_IMPORT_QUESTIONS - 1], "new-a"); // only the first that fit
+  assert.deepEqual(merged[MAX_IMPORT_QUESTIONS - 1], q("new-a")); // only the first that fit
 });
 
 test("normalizeIncoming keeps clean strings, trims, caps length, drops junk", () => {
