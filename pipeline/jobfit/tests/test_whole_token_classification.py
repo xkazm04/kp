@@ -99,16 +99,22 @@ class DataDrivenLanguageAliasesTest(unittest.TestCase):
     def test_matching_reads_the_taxonomy_map(self) -> None:
         self.assertIs(_LANG_ALIASES, LANGUAGE_ALIASES)
 
-    def test_four_buckets_are_byte_identical_to_the_original(self) -> None:
-        self.assertEqual(
-            LANGUAGE_ALIASES,
-            {
-                "english": ("english", "angli", "en "),
-                "czech": ("czech", "česk", "cesk", "čeština", "cestina"),
-                "german": ("german", "deutsch", "němč", "nemc"),
-                "slovak": ("slovak", "slovenš", "slovens"),
-            },
-        )
+    def test_original_four_buckets_are_byte_identical(self) -> None:
+        # The original four buckets must stay byte-identical; the EU-language
+        # additions extend the map, they don't perturb what already worked.
+        for lang, needles in {
+            "english": ("english", "angli", "en "),
+            "czech": ("czech", "česk", "cesk", "čeština", "cestina"),
+            "german": ("german", "deutsch", "němč", "nemc"),
+            "slovak": ("slovak", "slovenš", "slovens"),
+        }.items():
+            self.assertEqual(LANGUAGE_ALIASES[lang], needles)
+
+    def test_eu_languages_are_bucketed(self) -> None:
+        # The practical EU languages now carry buckets so a native surface form
+        # satisfies an English requirement (see matching's KO-filter test).
+        for lang in ("polish", "hungarian", "romanian", "french", "spanish", "italian", "dutch", "ukrainian"):
+            self.assertIn(lang, LANGUAGE_ALIASES)
 
     def test_has_language_still_resolves_aliases(self) -> None:
         self.assertTrue(_has_language(["Czech (native)"], "Czech"))
@@ -116,10 +122,11 @@ class DataDrivenLanguageAliasesTest(unittest.TestCase):
         self.assertFalse(_has_language(["English"], "Czech"))
 
     def test_unbucketed_language_falls_back_to_raw_matching(self) -> None:
-        # A language with no bucket (e.g. French) still matches its raw requirement
-        # string, so the KO filter degrades gracefully rather than always failing.
-        self.assertTrue(_has_language(["French C1"], "French"))
-        self.assertFalse(_has_language(["English"], "French"))
+        # A language with no bucket (e.g. Portuguese) still matches its raw
+        # requirement string, so the KO filter degrades gracefully rather than
+        # always failing.
+        self.assertTrue(_has_language(["Portuguese C1"], "Portuguese"))
+        self.assertFalse(_has_language(["English"], "Portuguese"))
 
 
 if __name__ == "__main__":

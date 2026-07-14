@@ -47,6 +47,9 @@ class CzechDefaultIsUnchangedTest(unittest.TestCase):
         self.assertEqual(CZECH_MARKET.period, "month")
         self.assertEqual(CZECH_MARKET.plausibility_ceiling, 350_000)
         self.assertEqual(CZECH_MARKET.default_location, "Praha")
+        # The company-adjustment band, byte-identical to the old insights.py literals.
+        self.assertEqual(CZECH_MARKET.company_adjustment_max, 1.20)
+        self.assertEqual(CZECH_MARKET.company_adjustment_min, 0.75)
 
 
 class ConsumersReadTheConfigTest(unittest.TestCase):
@@ -60,6 +63,15 @@ class ConsumersReadTheConfigTest(unittest.TestCase):
     def test_default_policy_location_comes_from_the_active_market(self) -> None:
         self.assertEqual(DEFAULT_POLICY["location"], ACTIVE_MARKET.default_location)
         self.assertEqual(DEFAULT_POLICY["location"], "Praha")
+
+    def test_company_adjustment_band_comes_from_the_active_market(self) -> None:
+        from pipeline.jobfit import insights
+
+        self.assertEqual(insights._MAX_ADJUSTMENT, ACTIVE_MARKET.company_adjustment_max)
+        self.assertEqual(insights._MIN_ADJUSTMENT, ACTIVE_MARKET.company_adjustment_min)
+        # Byte-identical to the old literals for the Czech default.
+        self.assertEqual(insights._MAX_ADJUSTMENT, 1.20)
+        self.assertEqual(insights._MIN_ADJUSTMENT, 0.75)
 
     def test_currency_period_default_follows_the_active_market(self) -> None:
         # Empty inputs fall back to the active market baseline (CZK/month).
@@ -76,6 +88,9 @@ class SeamProvenBySecondMarketTest(unittest.TestCase):
         self.assertNotEqual(BERLIN_MARKET.currency, CZECH_MARKET.currency)
         self.assertNotEqual(BERLIN_MARKET.plausibility_ceiling, CZECH_MARKET.plausibility_ceiling)
         self.assertNotEqual(BERLIN_MARKET.default_location, CZECH_MARKET.default_location)
+        # The non-production Berlin stub carries its own (placeholder) adjustment band,
+        # proving the clamp re-homes with the market rather than staying a Czech literal.
+        self.assertNotEqual(BERLIN_MARKET.company_adjustment_max, CZECH_MARKET.company_adjustment_max)
 
     def test_pipeline_defaults_switch_under_the_berlin_market(self) -> None:
         # The same empty input now defaults to EUR/month instead of CZK/month,

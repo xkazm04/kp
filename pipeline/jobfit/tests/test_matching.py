@@ -97,6 +97,29 @@ class KoFilterTest(unittest.TestCase):
         passed, _ = ko_filter(cand, job)
         self.assertTrue(passed)
 
+    def test_native_surface_matches_newly_bucketed_language(self) -> None:
+        # Before the EU-language buckets existed, a "polish" requirement fell back to
+        # a raw casefold substring test, so a Czech CV listing the language as
+        # "polština" (the native surface) silently FAILED to match — the KO filter
+        # would either drop a qualified candidate or, on the lenient path, pass a real
+        # miss. With the alias bucket, the native Czech surface satisfies the English
+        # requirement. This asserts the whole KO filter, not just _has_language.
+        job = mkjob(languages=["Polish"])
+        cand = MatchCandidate(
+            skills=["Reklamace"],
+            seniority="senior",
+            languages=["Čeština (rodilý mluvčí)", "Polština (B2)"],
+        )
+        passed, reasons = ko_filter(cand, job)
+        self.assertTrue(passed, f"native 'Polština' should satisfy a 'Polish' requirement; reasons={reasons}")
+        self.assertFalse(any(r.key == "language" for r in reasons))
+
+        # And it still correctly BLOCKS a candidate who genuinely lacks the language:
+        czech_only = MatchCandidate(seniority="senior", languages=["Čeština"])
+        blocked, block_reasons = ko_filter(czech_only, job)
+        self.assertFalse(blocked)
+        self.assertTrue(any(r.key == "language" for r in block_reasons))
+
     def test_work_mode_preference(self) -> None:
         job = mkjob(work_mode="onsite", languages=["English"])
         cand = MatchCandidate(seniority="senior", languages=["English"], preferred_work_modes=["remote", "hybrid"])

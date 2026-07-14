@@ -34,6 +34,11 @@ class MarketConfig:
     * ``default_location`` — the market hub stamped onto an ad that names no city.
     * ``benchmark_source_id`` — id of the anchor/benchmark dataset the bands come
       from (provenance; ties back to ``salary_benchmarks.json``).
+    * ``company_adjustment_max`` / ``company_adjustment_min`` — the defensible
+      clamp on the cumulative company-compensation multiplier (insights.py). The
+      band is market-calibrated (the Czech ceiling aligns with the upper end of
+      the Kitalent Prague multinational base premium), so like the salary ceiling
+      it must re-home with the market rather than stay a hardcoded literal.
     """
 
     market_id: str
@@ -42,6 +47,8 @@ class MarketConfig:
     plausibility_ceiling: int
     default_location: str
     benchmark_source_id: str
+    company_adjustment_max: float
+    company_adjustment_min: float
 
 
 # The product default. These values reproduce the constants that were hardcoded in
@@ -55,6 +62,11 @@ CZECH_MARKET = MarketConfig(
     plausibility_ceiling=350_000,
     default_location="Praha",
     benchmark_source_id="cz-ispv-2025",
+    # Byte-identical to the previously-hardcoded insights.py band. 1.20 aligns with
+    # the upper end of the Kitalent Prague multinational base premium (30–40% over
+    # local mid-market); 0.75 floors a stacked-discount company.
+    company_adjustment_max=1.20,
+    company_adjustment_min=0.75,
 )
 
 # A second sample market that exercises the seam end-to-end (different currency,
@@ -68,6 +80,10 @@ BERLIN_MARKET = MarketConfig(
     plausibility_ceiling=30_000,
     default_location="Berlin",
     benchmark_source_id="de-berlin-sample",
+    # NON-PRODUCTION placeholders (like this stub's other fields): a tighter band
+    # standing in for a real German multinational-premium calibration we don't hold.
+    company_adjustment_max=1.15,
+    company_adjustment_min=0.80,
 )
 
 

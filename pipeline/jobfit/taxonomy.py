@@ -161,6 +161,16 @@ for _lang, _needles in _raw_language_aliases.items():
             f"{_TAXONOMY_PATH}::language_aliases[{_lang!r}] must be a non-empty list "
             "of non-empty needle strings."
         )
+    # _has_language casefolds the candidate's language blob before substring-testing
+    # these needles, so an upper/mixed-case needle is dead config it could never
+    # match. Enforce the lowercase invariant at load so an authoring slip on a new
+    # language fails loudly here instead of silently never matching.
+    _bad_case = [_n for _n in _needles if _n != _n.casefold()]
+    if _bad_case:
+        raise RuntimeError(
+            f"{_TAXONOMY_PATH}::language_aliases[{_lang!r}] needles must be lowercase "
+            f"(casefolded); offending: {_bad_case!r}."
+        )
     LANGUAGE_ALIASES[str(_lang)] = tuple(_needles)
 
 COMPANY_ADJUSTMENTS: dict[str, dict[str, Any]] = dict(_TAXONOMY.get("company_adjustments", {}))
