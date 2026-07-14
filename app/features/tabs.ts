@@ -227,10 +227,15 @@ export const TAB_SCOPED_PARAM_KEYS = [
   // Board filter deep-link params (ANA1): analytics charts link into the
   // pipeline board pre-filtered (?q= text, ?quick= chip, ?stage= funnel stage).
   // Tab-scoped like any selection — switching away must not let a stale filter
-  // silently re-apply when the user later returns via the sidebar.
+  // silently re-apply when the user later returns via the sidebar. The board's
+  // compound filters (perfect-board) extend this: ?quick= is now a CSV, and
+  // ?score=/?source= (CSV bands + channels) and ?sort= join the same scoped set.
   "q",
   "quick",
   "stage",
+  "score",
+  "source",
+  "sort",
 ] as const;
 
 export type TabScopedParamKey = (typeof TAB_SCOPED_PARAM_KEYS)[number];

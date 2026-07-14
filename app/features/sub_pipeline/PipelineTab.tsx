@@ -18,6 +18,27 @@ import { CHIP_TOGGLE, EYEBROW, INTRO, PAGE_HEADER, SECTION, STAT, STAT_LABEL, ST
 import { CandidateDrawer } from "./CandidateDrawer";
 import { PipelineBoard } from "./PipelineBoard";
 import { boardSignature, eventsSignature } from "./pipeline-render-diet";
+import {
+  SCORE_BANDS,
+  entryMatchesFilters,
+  entrySource,
+  normalizeView,
+  parseQuicksParam,
+  parseScoreBandsParam,
+  parseSortParam,
+  parseSourcesParam,
+  serializeQuicks,
+  serializeScoreBands,
+  serializeSort,
+  serializeSources,
+  setsEqual,
+  sortFilteredEntries,
+  UNATTRIBUTED_SOURCE,
+  type QuickFilter,
+  type SavedView,
+  type ScoreBandKey,
+  type SortKey,
+} from "./pipeline-board-filters";
 import { bulkConfirmReducer } from "./pipeline-bulk-confirm";
 import { EventDot, useEventVerb, useRelativeTime } from "./PipelineShared";
 import { TodayRail } from "./TodayRail";
@@ -72,16 +93,10 @@ function groupPositions(entries: Entry[]): Position[] {
   return [...map.values()].sort((a, b) => a.title.localeCompare(b.title));
 }
 
-// The board's quick-filter toggles (free-text name/role search runs alongside).
-// Canonical value list so the ?quick= deep-link param (ANA1) validates against
-// the same set the chips render from.
-const QUICK_FILTERS = ["interview", "aging", "awaiting", "intake"] as const;
-type QuickFilter = (typeof QUICK_FILTERS)[number];
-
-// A saved board view (PIPE5): a named snapshot of the search + quick-filter +
-// stage filter. `stage` was added later — it's optional so views persisted
-// before it hydrate as "no stage filter" (undefined ⇒ null everywhere below).
-type SavedView = { id: string; name: string; query: string; quick: QuickFilter | null; stage?: string | null };
+// The quick-filter list, the score-band / source facets, the sort options, the
+// composed predicate, and the URL/saved-view (de)serialization all live in the pure,
+// unit-pinned pipeline-board-filters module (imported above) so the board's filters
+// can never diverge from what a card renders. This file wires them to state + URL.
 const PIPELINE_VIEWS_KEY = "kp.pipelineViews";
 const PIPELINE_SLA_KEY = "kp.pipelineStageSla"; // per-stage aging overrides (PIPE4)
 
@@ -105,6 +120,15 @@ export function PipelineTab() {
   const router = useRouter();
   const search = useSearchParams();
   const t = useTranslations("pipeline.tab");
+  // Source-facet chip labels reuse the channel-name catalog Analytics maintains
+  // (mirrors the drawer's origin chip), falling back to the raw id for unmapped
+  // values; the null-source sentinel gets its own localized "unattributed" label.
+  const tChannels = useTranslations("analytics.channels");
+  const channelName = (channel: string) => {
+    if (channel === UNATTRIBUTED_SOURCE) return t("filterSourceUnattributed");
+    const key = `names.${channel}` as Parameters<typeof tChannels>[0];
+    return tChannels.has(key) ? tChannels(key) : channel;
+  };
   const enumLabel = useEnumLabel();
   const eventVerb = useEventVerb();
   const relativeTime = useRelativeTime();
@@ -126,10 +150,14 @@ export function PipelineTab() {
   // re-reads them. In-board filter edits intentionally do NOT write back to the
   // URL (shareable view URLs are their own finding, PIPE3 in the 06-10 scan).
   const [query, setQuery] = useState(() => search.get("q") ?? "");
-  const [quick, setQuick] = useState<QuickFilter | null>(() => {
-    const v = search.get("quick");
-    return v && (QUICK_FILTERS as readonly string[]).includes(v) ? (v as QuickFilter) : null;
-  });
+  // Compound filters (perfect-board): quick chips are now MULTI-select composing
+  // with AND (?quick= is a CSV; a legacy single value hydrates as a one-element
+  // set), plus score-band and source facets (OR within, AND across) and a within-
+  // lane sort. All hydrate ONCE at mount from the URL, same as the query/stage.
+  const [quicks, setQuicks] = useState<ReadonlySet<QuickFilter>>(() => parseQuicksParam(search.get("quick")));
+  const [scoreBands, setScoreBands] = useState<ReadonlySet<ScoreBandKey>>(() => parseScoreBandsParam(search.get("score")));
+  const [sources, setSources] = useState<ReadonlySet<string>>(() => parseSourcesParam(search.get("source")));
+  const [sort, setSort] = useState<SortKey>(() => parseSortParam(search.get("sort")));
   // Stage filter (ANA1): the one dimension the funnel needs that the quick chips
   // don't cover. Deep-link-only entry (no always-visible chip mints it); shown
   // as a dismissible pill while active.
@@ -353,30 +381,27 @@ export function PipelineTab() {
   const degraded = (entries ?? []).filter((e) => e.intakeDegraded && e.status !== "rejected");
   const degradedCount = degraded.length;
 
-  // Board search + quick-filter (PIPE2). The summary StatChips above stay full
-  // totals; only the board (its lanes + cards) narrows. boardPositions drops lanes
-  // with no surviving candidate so a name search doesn't leave empty columns.
-  const q = query.trim().toLowerCase();
+  // Board search + compound filters (PIPE2 / perfect-board). The summary StatChips
+  // above stay full totals; only the board (its lanes + cards) narrows. The composed
+  // predicate lives in the pure filters module; the chosen sort is applied WITHIN the
+  // filtered set (lanes group downstream, so this reorders cards within each cell).
+  // boardPositions drops lanes with no surviving candidate so a filter doesn't leave
+  // empty columns.
   const filteredEntries = useMemo(() => {
-    return (entries ?? []).filter((e) => {
-      const hitQuery =
-        !q || (e.candidateLabel ?? "").toLowerCase().includes(q) || (e.jobTitle ?? "").toLowerCase().includes(q);
-      if (!hitQuery) return false;
-      if (stageFilter && e.stage !== stageFilter) return false;
-      switch (quick) {
-        case "aging":
-          return e.stage !== "Hired" && (daysSince(e.stageChangedAt) ?? 0) >= slaForStage(e.stage, slaOverrides);
-        case "awaiting":
-          return needsHumanDecision(e.approvalKind) && e.status === "active";
-        case "intake":
-          return e.intakeDegraded && e.status !== "rejected";
-        case "interview":
-          return e.stage === "Interview";
-        default:
-          return true;
-      }
-    });
-  }, [entries, q, quick, stageFilter, slaOverrides]);
+    const matched = (entries ?? []).filter((e) =>
+      entryMatchesFilters(e, { query, quicks, scoreBands, sources, stage: stageFilter }, { overrides: slaOverrides })
+    );
+    return sortFilteredEntries(matched, sort);
+  }, [entries, query, quicks, scoreBands, sources, stageFilter, slaOverrides, sort]);
+
+  // The distinct source/channel facet values present on the board (all entries, not
+  // the filtered set), so the source chips only offer values that actually exist —
+  // including the unattributed sentinel when any entry has no channel.
+  const sourceValues = useMemo(() => {
+    const s = new Set<string>();
+    for (const e of entries ?? []) s.add(entrySource(e));
+    return [...s].sort();
+  }, [entries]);
 
   // bdc7fc01 — the awaiting-decision subset of the current selection (the only
   // entries bulk accept/reject can act on), plus a per-approval-kind breakdown so
@@ -407,7 +432,8 @@ export function PipelineTab() {
     [selectedIds, entries]
   );
   const boardPositions = useMemo(() => groupPositions(filteredEntries), [filteredEntries]);
-  const filtering = Boolean(q) || quick !== null || stageFilter !== null;
+  const filtering =
+    Boolean(query.trim()) || quicks.size > 0 || scoreBands.size > 0 || sources.size > 0 || stageFilter !== null;
 
   // PIPE3 — two-way URL sync: filter changes write back to the same ?q/?quick/
   // ?stage params the mount hydration (ANA1) reads, so the board's view state
@@ -418,76 +444,169 @@ export function PipelineTab() {
   useEffect(() => () => {
     if (urlSyncTimer.current != null) window.clearTimeout(urlSyncTimer.current);
   }, []);
-  const writeFiltersToUrl = (next: { q: string; quick: QuickFilter | null; stage: string | null }, debounceMs = 0) => {
+  // The full compound-filter shape carried through the URL sync. Sort rides along so
+  // it's bookmarkable + saved-view-round-trippable, though it's a view preference,
+  // not a "filter" (so Clear leaves it be).
+  type FilterUrlShape = {
+    q: string;
+    quicks: ReadonlySet<QuickFilter>;
+    scoreBands: ReadonlySet<ScoreBandKey>;
+    sources: ReadonlySet<string>;
+    sort: SortKey;
+    stage: string | null;
+  };
+  const writeFiltersToUrl = (next: FilterUrlShape, debounceMs = 0) => {
     const apply = () =>
       router.replace(
-        buildUrl({ q: next.q.trim() || null, quick: next.quick, stage: next.stage }, search.toString()),
+        buildUrl(
+          {
+            q: next.q.trim() || null,
+            quick: serializeQuicks(next.quicks),
+            score: serializeScoreBands(next.scoreBands),
+            source: serializeSources(next.sources),
+            sort: serializeSort(next.sort),
+            stage: next.stage,
+          },
+          search.toString()
+        ),
         { scroll: false }
       );
     if (urlSyncTimer.current != null) window.clearTimeout(urlSyncTimer.current);
     if (debounceMs > 0) urlSyncTimer.current = window.setTimeout(apply, debounceMs);
     else apply();
   };
+  // The current filter state as the URL shape, so a single-facet change only has to
+  // override the one field it touches.
+  const currentFilterShape = (): FilterUrlShape => ({ q: query, quicks, scoreBands, sources, sort, stage: stageFilter });
   const setQueryAndSync = (value: string) => {
     setQuery(value);
-    writeFiltersToUrl({ q: value, quick, stage: stageFilter }, 400);
+    writeFiltersToUrl({ ...currentFilterShape(), q: value }, 400);
+  };
+  // Toggle a member in/out of a facet set (multi-select), returning the new set.
+  const toggled = <T,>(setValue: ReadonlySet<T>, v: T): Set<T> => {
+    const next = new Set(setValue);
+    if (next.has(v)) next.delete(v);
+    else next.add(v);
+    return next;
   };
   const toggleQuick = (f: QuickFilter) => {
-    const next = quick === f ? null : f;
-    setQuick(next);
-    writeFiltersToUrl({ q: query, quick: next, stage: stageFilter });
+    const next = toggled(quicks, f);
+    setQuicks(next);
+    writeFiltersToUrl({ ...currentFilterShape(), quicks: next });
+  };
+  const toggleBand = (b: ScoreBandKey) => {
+    const next = toggled(scoreBands, b);
+    setScoreBands(next);
+    writeFiltersToUrl({ ...currentFilterShape(), scoreBands: next });
+  };
+  const toggleSource = (s: string) => {
+    const next = toggled(sources, s);
+    setSources(next);
+    writeFiltersToUrl({ ...currentFilterShape(), sources: next });
+  };
+  const setSortAndSync = (s: SortKey) => {
+    setSort(s);
+    writeFiltersToUrl({ ...currentFilterShape(), sort: s });
   };
   const clearStageFilter = () => {
     setStageFilter(null);
-    writeFiltersToUrl({ q: query, quick, stage: null });
+    writeFiltersToUrl({ ...currentFilterShape(), stage: null });
   };
   // Today rail → board: focus on one stage, clearing the other filters so the
-  // board shows exactly the cohort the rail row counted.
+  // board shows exactly the cohort the rail row counted (sort is left as-is).
   const showStage = (stage: string) => {
+    const empty = { quicks: new Set<QuickFilter>(), scoreBands: new Set<ScoreBandKey>(), sources: new Set<string>() };
     setQuery("");
-    setQuick(null);
+    setQuicks(empty.quicks);
+    setScoreBands(empty.scoreBands);
+    setSources(empty.sources);
     setStageFilter(stage);
-    writeFiltersToUrl({ q: "", quick: null, stage });
+    writeFiltersToUrl({ q: "", ...empty, sort, stage });
   };
   const clearFilters = () => {
+    const empty = { quicks: new Set<QuickFilter>(), scoreBands: new Set<ScoreBandKey>(), sources: new Set<string>() };
     setQuery("");
-    setQuick(null);
+    setQuicks(empty.quicks);
+    setScoreBands(empty.scoreBands);
+    setSources(empty.sources);
     setStageFilter(null);
-    writeFiltersToUrl({ q: "", quick: null, stage: null });
+    writeFiltersToUrl({ q: "", ...empty, sort, stage: null });
   };
   // PIPE3 — a saved view as a pasteable link: built from a CLEAN query string
   // (not the current one) so the share never drags along unrelated params.
   const [copiedViewId, setCopiedViewId] = useState<string | null>(null);
   const copyViewLink = async (v: SavedView) => {
-    // Encode the view's stage filter too — a view saved with an active funnel
-    // stage used to share a link that silently dropped it, so the recipient
-    // opened a broader board than the sharer meant (?stage= round-trips via the
-    // mount hydration that reads it).
-    const href = `${window.location.origin}${buildUrl({ tab: "pipeline", q: v.query.trim() || null, quick: v.quick, stage: v.stage ?? null }, "")}`;
+    // Encode the WHOLE view (compound quicks + score/source facets + sort + stage) so
+    // a shared link reopens exactly the board the sharer saved — a view saved with an
+    // active funnel stage or a score band used to share a link that silently dropped
+    // it. Normalize first so a legacy single-quick view still shares correctly.
+    const nv = normalizeView(v);
+    const href = `${window.location.origin}${buildUrl(
+      {
+        tab: "pipeline",
+        q: nv.query.trim() || null,
+        quick: serializeQuicks(new Set(nv.quicks)),
+        score: serializeScoreBands(new Set(nv.scoreBands)),
+        source: serializeSources(new Set(nv.sources)),
+        sort: serializeSort(nv.sort),
+        stage: nv.stage,
+      },
+      ""
+    )}`;
     if (await copyText(href)) {
       setCopiedViewId(v.id);
       window.setTimeout(() => setCopiedViewId((cur) => (cur === v.id ? null : cur)), 2000);
     }
   };
   // PIPE5 — save the current filter combo as a named view, apply one, or drop it.
-  // The active-view match includes the stage filter (?? null so a legacy view
-  // saved without one still matches when no stage is active), so a view isn't
-  // falsely marked active just because its query + quick chip happen to agree.
+  // The active-view match compares the WHOLE normalized shape (compound quicks +
+  // score/source facets + sort + stage, order-independently) so a view isn't falsely
+  // marked active just because part of it agrees, and a legacy single-quick view
+  // still matches once normalized.
   const activeViewId =
-    views.find((v) => v.query === query && v.quick === quick && (v.stage ?? null) === stageFilter)?.id ?? null;
+    views.find((v) => {
+      const nv = normalizeView(v);
+      return (
+        nv.query === query &&
+        setsEqual(quicks, nv.quicks) &&
+        setsEqual(scoreBands, nv.scoreBands) &&
+        setsEqual(sources, nv.sources) &&
+        nv.sort === sort &&
+        nv.stage === stageFilter
+      );
+    })?.id ?? null;
   const saveView = () => {
-    const suggested = query.trim() || (quick ? quick : "view");
+    const suggested = query.trim() || (quicks.size ? [...quicks][0] : "view");
     const name = window.prompt(t("saveViewPrompt"), suggested)?.trim();
     if (!name) return;
-    // Capture the ACTIVE stage filter in the view — it's part of the cohort the
-    // recruiter is looking at, so a view that omits it reopens a different board.
-    persistViews([...views.filter((v) => v.name !== name), { id: name, name, query, quick, stage: stageFilter }]);
+    // Capture the WHOLE active combo — every facet the recruiter is looking at, so
+    // the view reopens the same board. `quick` (single) is written too for forward
+    // back-compat with any older reader.
+    const view: SavedView = {
+      id: name,
+      name,
+      query,
+      quicks: [...quicks],
+      quick: quicks.size ? [...quicks][0] : null,
+      score: [...scoreBands],
+      source: [...sources],
+      sort,
+      stage: stageFilter,
+    };
+    persistViews([...views.filter((v) => v.name !== name), view]);
   };
   const applyView = (v: SavedView) => {
-    setQuery(v.query);
-    setQuick(v.quick);
-    setStageFilter(v.stage ?? null);
-    writeFiltersToUrl({ q: v.query, quick: v.quick, stage: v.stage ?? null });
+    const nv = normalizeView(v);
+    const quicksSet = new Set(nv.quicks);
+    const bandsSet = new Set(nv.scoreBands);
+    const sourcesSet = new Set(nv.sources);
+    setQuery(nv.query);
+    setQuicks(quicksSet);
+    setScoreBands(bandsSet);
+    setSources(sourcesSet);
+    setSort(nv.sort);
+    setStageFilter(nv.stage);
+    writeFiltersToUrl({ q: nv.query, quicks: quicksSet, scoreBands: bandsSet, sources: sourcesSet, sort: nv.sort, stage: nv.stage });
   };
   const deleteView = (id: string) => persistViews(views.filter((v) => v.id !== id));
 
@@ -900,8 +1019,8 @@ export function PipelineTab() {
                 key={f}
                 type="button"
                 onClick={() => toggleQuick(f)}
-                aria-pressed={quick === f}
-                className={CHIP_TOGGLE(quick === f)}
+                aria-pressed={quicks.has(f)}
+                className={CHIP_TOGGLE(quicks.has(f))}
               >
                 {label}
               </button>
@@ -967,6 +1086,67 @@ export function PipelineTab() {
             >
               <Timer size={13} /> {t("agingSlas")}
             </button>
+          </div>
+
+          {/* perfect-board — compound facets the single-select quick row can't
+              express: a score-range band set (honest tiers consistent with the card
+              ScoreBadge; unscored is its own bucket) and, when the board spans more
+              than one channel, a source facet — plus a within-lane sort. Bands +
+              sources compose OR-within / AND-across; every quick chip AND-composes. */}
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-meta uppercase tracking-wide text-steel">{t("filterScoreLabel")}</span>
+              {SCORE_BANDS.map((b) => (
+                <button
+                  key={b}
+                  type="button"
+                  onClick={() => toggleBand(b)}
+                  aria-pressed={scoreBands.has(b)}
+                  className={CHIP_TOGGLE(scoreBands.has(b))}
+                >
+                  {t(
+                    b === "strong"
+                      ? "filterScoreStrong"
+                      : b === "mid"
+                        ? "filterScoreMid"
+                        : b === "weak"
+                          ? "filterScoreWeak"
+                          : "filterScoreUnscored"
+                  )}
+                </button>
+              ))}
+            </div>
+            {sourceValues.length > 1 ? (
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-meta uppercase tracking-wide text-steel">{t("filterSourceLabel")}</span>
+                {sourceValues.map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => toggleSource(s)}
+                    aria-pressed={sources.has(s)}
+                    className={CHIP_TOGGLE(sources.has(s))}
+                  >
+                    {channelName(s)}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+            <label className="ml-auto flex items-center gap-1.5 text-sm font-medium text-steel">
+              {t("sortLabel")}
+              <Select
+                ariaLabel={t("sortLabel")}
+                value={sort}
+                onChange={(v) => setSortAndSync(v as SortKey)}
+                size="sm"
+                className="h-8"
+                options={[
+                  { value: "insertion", label: t("sortInsertion") },
+                  { value: "score", label: t("sortScore") },
+                  { value: "age", label: t("sortAge") },
+                ]}
+              />
+            </label>
           </div>
 
           {/* PIPE1: the batch action bar — pairs with the filters above (filter
