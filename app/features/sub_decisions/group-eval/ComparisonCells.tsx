@@ -3,6 +3,7 @@ import { CheckCircle2, CircleDot, Minus, XCircle } from "lucide-react";
 import { PotentialBadge } from "@/app/_components/PotentialBadge";
 import { ConfidenceBandBadge, ConfidenceRange, FitTierBadge } from "@/app/_components/Badge";
 import { provLabel } from "@/app/features/sub_match/MatchTypes";
+import { useConfidenceBandCopy, useFitTierLabels } from "@/app/features/sub_match/MatchShared";
 import { formatSalaryRange, scoreTone, scoreToneColor } from "@/app/_lib/format";
 import { isSameCurrency, normalizeCurrency, salaryBandPosition } from "@/app/_lib/salary-band";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
@@ -15,23 +16,25 @@ import type { EvalCandidate } from "./types";
 export const Dash = () => <span className="text-stone-300">—</span>;
 
 export function FitCell({ c }: { c: EvalCandidate }) {
+  const fitLabels = useFitTierLabels();
   return (
     <div className="flex items-center gap-2">
       {/* Unscored renders a dash in the neutral null tone — never a 0. */}
       <span className="font-serif text-[26px] leading-none tabular-nums" style={{ color: scoreToneColor(scoreTone(c.score)) }}>
         {c.score ?? "—"}
       </span>
-      <FitTierBadge tier={c.fitTier} score={c.score} />
+      <FitTierBadge tier={c.fitTier} score={c.score} labels={fitLabels} />
     </div>
   );
 }
 
 export function ConfidenceCell({ c }: { c: EvalCandidate }) {
+  const bandCopy = useConfidenceBandCopy();
   if (!c.confidence) return <Dash />;
   return (
     <div className="flex flex-wrap items-center gap-1.5">
-      <ConfidenceRange low={c.confidence.low} high={c.confidence.high} drivers={c.confidence.drivers} className="nums text-sm text-steel" />
-      <ConfidenceBandBadge level={c.confidence.level} drivers={c.confidence.drivers} />
+      <ConfidenceRange low={c.confidence.low} high={c.confidence.high} drivers={c.confidence.drivers} copy={bandCopy} className="nums text-sm text-steel" />
+      <ConfidenceBandBadge level={c.confidence.level} drivers={c.confidence.drivers} copy={bandCopy} />
     </div>
   );
 }

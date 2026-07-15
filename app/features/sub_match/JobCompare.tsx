@@ -6,7 +6,7 @@ import { ConfidenceBandBadge, ConfidenceRange, FitTierBadge } from "@/app/_compo
 import { scoreTone, scoreToneColor } from "@/app/_lib/format";
 import { formatBandCompact, type MatchResult, type ScoreDimension } from "./MatchTypes";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
-import { useMatchLabels } from "./MatchShared";
+import { useConfidenceBandCopy, useFitTierLabels, useMatchLabels } from "./MatchShared";
 
 // Compare-jobs-for-one-candidate (MAT5): the role-for-candidate mirror of the
 // candidate-for-role compare. Given 2–4 selected matches, render a transposed
@@ -18,6 +18,8 @@ export function JobCompare({ matches, onClose }: { matches: MatchResult[]; onClo
   const t = useTranslations("match.jobCompare");
   const enumLabel = useEnumLabel();
   const { dimLabel, drivers: driverLabels } = useMatchLabels();
+  const bandCopy = useConfidenceBandCopy();
+  const fitLabels = useFitTierLabels();
   // Dimension rows: union of breakdown keys across the selected roles, labelled
   // from the first that carries each (archetype-aware, localized), aligned by key.
   const dims: ScoreDimension[] = [];
@@ -67,7 +69,7 @@ export function JobCompare({ matches, onClose }: { matches: MatchResult[]; onClo
                 <td key={m.jobId} className={`p-2 ${m.total === totalLead ? "bg-moss/5" : ""}`}>
                   <span className="inline-flex items-center gap-1.5">
                     <span className="font-serif text-xl leading-none tabular-nums" style={{ color: scoreToneColor(scoreTone(m.total)) }}>{m.total}</span>
-                    <FitTierBadge tier={m.fitTier} score={m.total} />
+                    <FitTierBadge tier={m.fitTier} score={m.total} labels={fitLabels} />
                   </span>
                 </td>
               ))}
@@ -77,8 +79,8 @@ export function JobCompare({ matches, onClose }: { matches: MatchResult[]; onClo
               {matches.map((m) => (
                 <td key={m.jobId} className="p-2">
                   <span className="inline-flex items-center gap-1.5">
-                    <ConfidenceRange low={m.confidence.low} high={m.confidence.high} drivers={driverLabels(m.confidence)} className="nums text-steel" />
-                    <ConfidenceBandBadge level={m.confidence.level} drivers={driverLabels(m.confidence)} />
+                    <ConfidenceRange low={m.confidence.low} high={m.confidence.high} drivers={driverLabels(m.confidence)} copy={bandCopy} className="nums text-steel" />
+                    <ConfidenceBandBadge level={m.confidence.level} drivers={driverLabels(m.confidence)} copy={bandCopy} />
                   </span>
                 </td>
               ))}

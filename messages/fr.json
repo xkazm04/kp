@@ -2841,6 +2841,19 @@
     "snapshot": "instantané à l'ajout"
   },
   "match": {
+    "band": {
+      "tight": { "label": "Fourchette étroite", "aria": "Intervalle de confiance : étroit — grande certitude" },
+      "moderate": { "label": "Fourchette modérée", "aria": "Intervalle de confiance : certitude modérée" },
+      "wide": { "label": "Fourchette large", "aria": "Intervalle de confiance : large — faible certitude" },
+      "titlePrefix": "Pourquoi cette fourchette :",
+      "titleFallback": "Fourchette étroite — preuves solides et vérifiables."
+    },
+    "fitTier": {
+      "strong": "Forte adéquation",
+      "promising": "Adéquation prometteuse",
+      "partial": "Adéquation partielle",
+      "unknown": "Adéquation"
+    },
     "tab": {
       "eyebrow": "Espace de travail",
       "title": "Faire correspondre un candidat → des postes",

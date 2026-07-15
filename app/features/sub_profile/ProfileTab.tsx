@@ -216,6 +216,7 @@ export function ProfileTab() {
               <CandidateMatrix
                 archetypes={archetypes}
                 reloadKey={dataRev}
+                archivedArchetypeIds={archetypes.filter((a) => a.archived).map((a) => a.id)}
                 onEditProfile={(id) => void openEditor(id)}
                 onNewProfile={() => setEditor({ mode: "create", editingId: null, initialPayload: null })}
               />

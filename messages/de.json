@@ -2841,6 +2841,19 @@
     "snapshot": "Snapshot beim Hinzufügen"
   },
   "match": {
+    "band": {
+      "tight": { "label": "Enges Band", "aria": "Konfidenzband: eng — hohe Sicherheit" },
+      "moderate": { "label": "Moderates Band", "aria": "Konfidenzband: moderate Sicherheit" },
+      "wide": { "label": "Breites Band", "aria": "Konfidenzband: breit — geringe Sicherheit" },
+      "titlePrefix": "Warum dieses Band:",
+      "titleFallback": "Enges Band — starke, überprüfbare Belege."
+    },
+    "fitTier": {
+      "strong": "Starke Passung",
+      "promising": "Vielversprechende Passung",
+      "partial": "Teilweise Passung",
+      "unknown": "Passung"
+    },
     "tab": {
       "eyebrow": "Arbeitsbereich",
       "title": "Kandidat → Stellen matchen",

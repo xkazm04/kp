@@ -8,7 +8,7 @@ import { ScoreBadge } from "@/app/_components/ScoreBadge";
 import { TextArea } from "@/app/_components/TextArea";
 import { ConfidenceBandBadge, ConfidenceRange, FitTierBadge } from "@/app/_components/Badge";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
-import { ScoreBreakdown } from "@/app/features/sub_match/MatchShared";
+import { ScoreBreakdown, useConfidenceBandCopy, useFitTierLabels } from "@/app/features/sub_match/MatchShared";
 import { provLabel, type MatchResultView } from "@/app/features/sub_match/MatchTypes";
 import type { Entry } from "./DecisionsTypes";
 
@@ -51,6 +51,8 @@ export function AnalysisSummaryModal({
 }) {
   const t = useTranslations("decisions.summary");
   const enumLabel = useEnumLabel();
+  const bandCopy = useConfidenceBandCopy();
+  const fitLabels = useFitTierLabels();
   const [payload, setPayload] = useState<Payload | null>(null);
   const [reason, setReason] = useState("");
   const [loading, setLoading] = useState(Boolean(entry.candidateId));
@@ -134,11 +136,11 @@ export function AnalysisSummaryModal({
         <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-ink">
           {t("fit")} <ScoreBadge score={match?.total ?? entry.matchScore ?? null} />
         </span>
-        <FitTierBadge tier={match?.fitTier} score={match?.total ?? entry.matchScore ?? undefined} />
+        <FitTierBadge tier={match?.fitTier} score={match?.total ?? entry.matchScore ?? undefined} labels={fitLabels} />
         {match?.confidence ? (
           <span className="inline-flex items-center gap-1.5">
-            <ConfidenceRange low={match.confidence.low} high={match.confidence.high} drivers={match.confidence.drivers} className="nums text-sm text-steel" />
-            <ConfidenceBandBadge level={match.confidence.level} drivers={match.confidence.drivers} />
+            <ConfidenceRange low={match.confidence.low} high={match.confidence.high} drivers={match.confidence.drivers} copy={bandCopy} className="nums text-sm text-steel" />
+            <ConfidenceBandBadge level={match.confidence.level} drivers={match.confidence.drivers} copy={bandCopy} />
           </span>
         ) : null}
         {payload?.seniority ? <span className="rounded-md bg-paper px-2 py-1 text-sm text-ink">{enumLabel("seniority", payload.seniority)}</span> : null}

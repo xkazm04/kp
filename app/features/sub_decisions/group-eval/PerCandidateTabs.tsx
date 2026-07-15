@@ -5,7 +5,7 @@ import { AlertTriangle, CheckCircle2, CircleDot, XCircle } from "lucide-react";
 import { PotentialBadge } from "@/app/_components/PotentialBadge";
 import { ScoreBadge } from "@/app/_components/ScoreBadge";
 import { ConfidenceBandBadge, FitTierBadge } from "@/app/_components/Badge";
-import { ScoreBreakdown } from "@/app/features/sub_match/MatchShared";
+import { ScoreBreakdown, useConfidenceBandCopy, useFitTierLabels } from "@/app/features/sub_match/MatchShared";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { styleFor } from "../DecisionsTypes";
 import { potentialOf } from "./helpers";
@@ -49,6 +49,8 @@ function CandidateDetail({
 }) {
   const t = useTranslations("decisions.groupEval");
   const enumLabel = useEnumLabel();
+  const bandCopy = useConfidenceBandCopy();
+  const fitLabels = useFitTierLabels();
   return (
     <div className="rounded-xl border border-stone-200 p-4">
       <div className="flex flex-wrap items-center gap-3">
@@ -64,8 +66,8 @@ function CandidateDetail({
         </div>
         <div className="ml-auto flex items-center gap-2">
           <ScoreBadge score={c.score} />
-          <FitTierBadge tier={c.fitTier} score={c.score} />
-          {c.confidence ? <ConfidenceBandBadge level={c.confidence.level} drivers={c.confidence.drivers} /> : null}
+          <FitTierBadge tier={c.fitTier} score={c.score} labels={fitLabels} />
+          {c.confidence ? <ConfidenceBandBadge level={c.confidence.level} drivers={c.confidence.drivers} copy={bandCopy} /> : null}
           {/* Decide right here (DEC3) — at the moment of highest comparative
               context — instead of closing the modal to open a per-candidate one.
               Reuses the same act()/expectedStage path as the queue. Once decided,

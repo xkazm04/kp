@@ -7,8 +7,36 @@ import { Meter } from "@/app/_components/Meter";
 import { Skeleton } from "@/app/_components/Skeleton";
 import { scoreTone, scoreToneColor } from "@/app/_lib/format";
 import { useReducedMotion } from "@/app/_lib/useReducedMotion";
+import type { ConfidenceBandCopy, FitTierLabels } from "@/app/_components/Badge";
 import type { Confidence, KoReason, LabelCode, MatchResponse, Reasoning, ReasoningState, ScoreDimension } from "./MatchTypes";
 import { isEarlyCareer } from "./MatchTypes";
+
+// Localized confidence-band vocabulary for the shared Badge primitive, resolved
+// HERE (in a consuming layer) from the match.band.* catalog and passed down — the
+// Badge stays locale-dumb. One hook so every match surface (card, results,
+// compare, group-eval, recruiter list) speaks the same band language.
+export function useConfidenceBandCopy(): ConfidenceBandCopy {
+  const t = useTranslations("match.band");
+  return {
+    tight: { label: t("tight.label"), ariaLabel: t("tight.aria") },
+    moderate: { label: t("moderate.label"), ariaLabel: t("moderate.aria") },
+    wide: { label: t("wide.label"), ariaLabel: t("wide.aria") },
+    title: { prefix: t("titlePrefix"), fallback: t("titleFallback") },
+  };
+}
+
+// Localized fit-tier vocabulary (match.fitTier.*) for FitTierBadge — the tier
+// concept is the server's (matching.py fit_tier_for), the display words are the
+// recruiter's language, resolved here and passed to the dumb primitive.
+export function useFitTierLabels(): FitTierLabels {
+  const t = useTranslations("match.fitTier");
+  return {
+    strong: t("strong"),
+    promising: t("promising"),
+    partial: t("partial"),
+    unknown: t("unknown"),
+  };
+}
 
 // Shared resolver for the four Python-emitted, code-carried labels (localize-python-
 // seam): drivers, assumptions, KO clauses, and score-breakdown dimension names. Python

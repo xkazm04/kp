@@ -16,6 +16,7 @@ export function CandidateMatrix({
   onNewProfile,
   onEditProfile,
   reloadKey = 0,
+  archivedArchetypeIds,
 }: {
   archetypes: ArchetypeDef[];
   onNewProfile: () => void;
@@ -23,8 +24,15 @@ export function CandidateMatrix({
   onEditProfile: (id: string) => void;
   /** Bump to force a refetch (e.g. after a roster delete elsewhere on the tab). */
   reloadKey?: number;
+  /** Ids of retired archetypes — mirrors the roster: a retired column with
+   *  candidates is flagged; an EMPTY retired column is pruned (no dead all-dots
+   *  column). */
+  archivedArchetypeIds?: readonly string[];
 }) {
   const t = useTranslations("profile.matrix");
+  // Reuse the roster's exact "retired" vocabulary so the marking reads identically
+  // across both candidate projections.
+  const tr = useTranslations("profile.roster");
   const enumLabel = useEnumLabel();
   const [candidates, setCandidates] = useState<CandidateRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -56,15 +64,20 @@ export function CandidateMatrix({
   // candidate but isn't (or no longer is) in the registry — mapped through
   // archetypeDisplayKey so the fail-closed "unknown" sentinel folds into a single
   // honest "Unrouted" column instead of a raw "unknown" one, and no candidate is
-  // dropped from the matrix.
+  // dropped from the matrix. Retired archetypes still score, so a retired column
+  // that HAS candidates stays (flagged); an EMPTY one is pruned as dead chrome.
   const columns = useMemo(() => {
-    const cols = archetypes.map((a) => ({ id: a.id, label: a.label }));
+    const archived = new Set(archivedArchetypeIds ?? []);
+    const usedKeys = new Set((candidates ?? []).map((c) => archetypeDisplayKey(c.archetype)));
+    const cols = archetypes
+      .filter((a) => !archived.has(a.id) || usedKeys.has(a.id))
+      .map((a) => ({ id: a.id, label: a.label, archived: archived.has(a.id) }));
     const known = new Set(cols.map((c) => c.id));
     const extra = [
       ...new Set((candidates ?? []).map((c) => archetypeDisplayKey(c.archetype)).filter((id) => !known.has(id))),
     ];
-    return [...cols, ...extra.map((id) => ({ id, label: id }))];
-  }, [archetypes, candidates]);
+    return [...cols, ...extra.map((id) => ({ id, label: id, archived: false }))];
+  }, [archetypes, candidates, archivedArchetypeIds]);
 
   // Sort by column order then score desc, so each candidate's single filled cell
   // clusters under its archetype column and reads as a grouped block.
@@ -119,9 +132,19 @@ export function CandidateMatrix({
                       scope="col"
                       className="px-3 py-2.5 text-left text-sm font-semibold uppercase tracking-wide text-steel"
                     >
-                      {/* Registry columns carry their own label; the synthetic
-                          "unrouted"/extra columns (label === id) localize via the enum. */}
-                      {c.label === c.id ? enumLabel("archetype", c.id) : c.label}
+                      <span className="inline-flex flex-wrap items-center gap-1.5">
+                        {/* Registry columns carry their own label; the synthetic
+                            "unrouted"/extra columns (label === id) localize via the enum. */}
+                        <span>{c.label === c.id ? enumLabel("archetype", c.id) : c.label}</span>
+                        {c.archived ? (
+                          <span
+                            className="rounded-full bg-stone-200 px-1.5 py-0.5 text-micro font-semibold uppercase tracking-wide text-steel"
+                            title={tr("retiredArchetypeTitle")}
+                          >
+                            {tr("retiredArchetype")}
+                          </span>
+                        ) : null}
+                      </span>
                     </th>
                   ))}
                 </tr>

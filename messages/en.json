@@ -2812,6 +2812,19 @@
     "snapshot": "snapshot at add"
   },
   "match": {
+    "band": {
+      "tight": { "label": "Tight band", "aria": "Confidence band: tight — high certainty" },
+      "moderate": { "label": "Moderate band", "aria": "Confidence band: moderate certainty" },
+      "wide": { "label": "Wide band", "aria": "Confidence band: wide — low certainty" },
+      "titlePrefix": "Why this band:",
+      "titleFallback": "Narrow band — strong, verifiable evidence."
+    },
+    "fitTier": {
+      "strong": "Strong fit",
+      "promising": "Promising fit",
+      "partial": "Partial fit",
+      "unknown": "Fit"
+    },
     "tab": {
       "eyebrow": "Workspace",
       "title": "Match candidate → jobs",

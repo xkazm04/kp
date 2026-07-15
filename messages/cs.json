@@ -2812,6 +2812,19 @@
     "snapshot": "snímek při zařazení"
   },
   "match": {
+    "band": {
+      "tight": { "label": "Úzké rozpětí", "aria": "Pásmo jistoty: úzké — vysoká jistota" },
+      "moderate": { "label": "Střední rozpětí", "aria": "Pásmo jistoty: střední jistota" },
+      "wide": { "label": "Široké rozpětí", "aria": "Pásmo jistoty: široké — nízká jistota" },
+      "titlePrefix": "Proč toto rozpětí:",
+      "titleFallback": "Úzké rozpětí — silné, ověřitelné podklady."
+    },
+    "fitTier": {
+      "strong": "Silná shoda",
+      "promising": "Slibná shoda",
+      "partial": "Částečná shoda",
+      "unknown": "Shoda"
+    },
     "tab": {
       "eyebrow": "Pracovní prostor",
       "title": "Spárovat kandidáta → pozice",

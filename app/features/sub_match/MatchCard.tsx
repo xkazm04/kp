@@ -6,7 +6,7 @@ import { useTasks, useTaskResult } from "@/app/features/tasks/TasksProvider";
 import { ConfidenceBandBadge, confidenceBandTitle } from "@/app/_components/Badge";
 import type { MatchRef, MatchResult, Reasoning, ReasoningState } from "./MatchTypes";
 import { formatBandCompact, isEarlyCareer, provLabel } from "./MatchTypes";
-import { Bar, ReasoningPanel, ScoreBreakdown, useMatchLabels } from "./MatchShared";
+import { Bar, ReasoningPanel, ScoreBreakdown, useConfidenceBandCopy, useFitTierLabels, useMatchLabels } from "./MatchShared";
 import { FitTierBadge } from "@/app/_components/Badge";
 import { Checkbox } from "@/app/_components/Checkbox";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
@@ -51,6 +51,8 @@ export function MatchCard({
   // badge tooltip, the score-column title, and the inline "why this band" line so
   // all three read the same language.
   const driverLabels = matchLabels.drivers(m.confidence);
+  const bandCopy = useConfidenceBandCopy();
+  const fitLabels = useFitTierLabels();
   const { startTask } = useTasks();
   const [reasoning, setReasoning] = useState<ReasoningState | null>(null);
   const [taskId, setTaskId] = useState<string | null>(null);
@@ -90,7 +92,7 @@ export function MatchCard({
       <div className="flex items-start gap-4">
         <div className="w-16 shrink-0 text-center tabular-nums tracking-tight">
           <div className="font-serif text-2xl text-ink">{m.total}</div>
-          <div className="text-sm text-steel" title={confidenceBandTitle(driverLabels)}>
+          <div className="text-sm text-steel" title={confidenceBandTitle(driverLabels, bandCopy.title)}>
             {m.confidence.low}–{m.confidence.high}
           </div>
           <div className="mt-0.5 text-sm uppercase text-steel">#{index + 1}</div>
@@ -99,13 +101,13 @@ export function MatchCard({
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-base font-semibold text-ink">{m.title}</span>
-            <FitTierBadge tier={m.fitTier} score={m.total} />
+            <FitTierBadge tier={m.fitTier} score={m.total} labels={fitLabels} />
             {m.isEntryEligible ? (
               <span className="rounded-full bg-green-50 px-2 py-0.5 text-sm font-semibold text-green-700">
                 {t("card.entryEligible")}
               </span>
             ) : null}
-            <ConfidenceBandBadge level={m.confidence.level} drivers={driverLabels} />
+            <ConfidenceBandBadge level={m.confidence.level} drivers={driverLabels} copy={bandCopy} />
             <div className="ml-auto flex items-center gap-1.5">
               {selectable && canAdd && !added ? (
                 <Checkbox
