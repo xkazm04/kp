@@ -3,7 +3,7 @@
 import { AlertTriangle, CheckCircle2, Coins, Languages, SlidersHorizontal, Users } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
-import { EmptyState } from "./JobsShared";
+import { EmptyState, SkelBar } from "./JobsShared";
 // bug-ui-scan-2026-07-09 (sourcing-campaigns-rediscovery #5): the salary band is
 // formatted through the shared APP_CURRENCY helper (see coach-salary.ts) instead of a
 // local cs-CZ + hardcoded "CZK" template, so the coach can't mislabel the currency.
@@ -58,7 +58,21 @@ export function CoachPanel({ jobId, jobTitle }: { jobId: string; jobTitle: strin
       </div>
     );
   }
-  if (!data) return <p className="text-base text-steel">{t("grading")}</p>;
+  if (!data)
+    // Multi-second CLI winnability grade: reserve the verdict + stat-tile shape with
+    // skeletons (and announce busy) instead of a bare one-line loader — the sibling
+    // pattern (RediscoverPanel / CampaignTab).
+    return (
+      <div className="space-y-3" aria-busy="true">
+        <p className="text-sm text-steel">{t("grading")}</p>
+        <SkelBar className="h-14 w-full" />
+        <div className="grid grid-cols-3 gap-2">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <SkelBar key={i} className="h-16 w-full" />
+          ))}
+        </div>
+      </div>
+    );
   if (data.poolSize === 0) {
     return <EmptyState icon={Users} title={t("emptyPoolTitle")} body={t("emptyPoolBody")} />;
   }

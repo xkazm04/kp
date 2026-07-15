@@ -19,7 +19,14 @@ export function useJsonFetch<T>(
 
   useEffect(() => {
     let alive = true;
-    fetch(url)
+    // Abort the in-flight request on unmount / url change / reload so a fetch that
+    // reaches a server-side CLI child (rediscover, winnability) SIGKILLs that child
+    // via request.signal instead of orphaning it to run to completion. The `alive`
+    // flag still gates every setState (an abort resolves in the SAME closure, so its
+    // guard already reads false); the AbortError is additionally swallowed so a race
+    // where the rejection lands before `alive` flips can never surface as an error.
+    const controller = new AbortController();
+    fetch(url, { signal: controller.signal })
       .then(async (r) => {
         const body = (await r.json().catch(() => null)) as (T & { error?: string }) | null;
         if (!alive) return;
@@ -37,11 +44,15 @@ export function useJsonFetch<T>(
         }
         setData(body as T);
       })
-      .catch(() => {
-        if (alive) setError(errorLabel);
+      .catch((err) => {
+        // An abort (unmount / url change / reload) is expected — never surface it as a
+        // load failure. Only a genuine fetch/parse failure sets the (reload-able) error.
+        if (!alive || controller.signal.aborted || (err as { name?: string })?.name === "AbortError") return;
+        setError(errorLabel);
       });
     return () => {
       alive = false;
+      controller.abort();
     };
   }, [url, errorLabel, nonce]);
 
