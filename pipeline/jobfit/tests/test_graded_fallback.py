@@ -46,9 +46,9 @@ class UnresolvedPreconditionTest(unittest.TestCase):
             "quokka framework", "quokka runtime", "langgraph agent", "agent langgraph",
             "management of frobnitz", "management of wibblewob", "frobscript",
             "frobjavascript", "relational frobnitz", "non-relational frobnitz",
-            "řízení frobnitz", "řízení wibblewob", "art direction",
-            "brand identity design", "brand strategy design", "motion graphics",
-            "typography",
+            "řízení frobnitz", "řízení wibblewob", "frobnitz direction",
+            "wibble identity design", "wibble strategy design", "quokka graphics",
+            "florptool",
         ):
             self.assertIsNone(tax.resolve_term(surface), f"{surface!r} unexpectedly resolves")
 
@@ -247,13 +247,16 @@ class HazardTest(unittest.TestCase):
 
 
 class ThreeStateUnprovenFixtureTest(unittest.TestCase):
-    """A creative_design family (still at ZERO taxonomy terms) now yields a
-    three-state skill verdict — matched / unproven(adjacency) / missing — where
-    before every pair was a bare 0/1 and the middle state could not exist."""
+    """The graded token-fallback yields a three-state skill verdict — matched /
+    unproven(adjacency) / missing — for skills the taxonomy does NOT model, where
+    before every pair was a bare 0/1 and the middle state could not exist. Uses
+    invented surfaces so it exercises the fallback path regardless of how much real
+    vocabulary the taxonomy grows (phase 4 modelled the creative surfaces this
+    fixture originally used)."""
 
     def _candidate(self) -> MatchCandidate:
         return MatchCandidate(
-            skills=["art direction", "brand identity design", "typography"],
+            skills=["frobnitz direction", "wibble identity design", "florptool"],
             seniority="senior",
             role_family="creative_design",
             languages=["English"],
@@ -264,9 +267,9 @@ class ThreeStateUnprovenFixtureTest(unittest.TestCase):
         return mkjob(
             role_family="creative_design",
             requirements=[
-                {"skill": "art direction", "kind": "must_have", "hardness": "prerequisite"},
-                {"skill": "brand strategy design", "kind": "must_have", "hardness": "prerequisite"},
-                {"skill": "motion graphics", "kind": "must_have", "hardness": "prerequisite"},
+                {"skill": "frobnitz direction", "kind": "must_have", "hardness": "prerequisite"},
+                {"skill": "wibble strategy design", "kind": "must_have", "hardness": "prerequisite"},
+                {"skill": "quokka graphics", "kind": "must_have", "hardness": "prerequisite"},
             ],
         )
 
@@ -274,20 +277,20 @@ class ThreeStateUnprovenFixtureTest(unittest.TestCase):
         score, matched, missing, strength, unproven = score_skills(self._candidate(), self._job())
 
         # matched: an exact (un-modelled) string match still earns full credit.
-        self.assertIn("art direction", matched)
-        self.assertEqual(strength["art direction"], 1.0)
+        self.assertIn("frobnitz direction", matched)
+        self.assertEqual(strength["frobnitz direction"], 1.0)
 
-        # unproven: a token-overlap partial ("brand ... design") is sub-threshold and
+        # unproven: a token-overlap partial ("wibble ... design") is sub-threshold and
         # honestly classified "adjacency" (a fractional signal exists), NOT missing.
-        self.assertIn("brand strategy design", unproven)
-        self.assertNotIn("brand strategy design", matched)
-        self.assertNotIn("brand strategy design", missing)
-        self.assertEqual(unproven["brand strategy design"]["reason"], "adjacency")
-        self.assertLessEqual(unproven["brand strategy design"]["score"], _FALLBACK_CAP)
-        self.assertGreater(unproven["brand strategy design"]["score"], 0.0)
+        self.assertIn("wibble strategy design", unproven)
+        self.assertNotIn("wibble strategy design", matched)
+        self.assertNotIn("wibble strategy design", missing)
+        self.assertEqual(unproven["wibble strategy design"]["reason"], "adjacency")
+        self.assertLessEqual(unproven["wibble strategy design"]["score"], _FALLBACK_CAP)
+        self.assertGreater(unproven["wibble strategy design"]["score"], 0.0)
 
         # missing: no distinctive token in common -> a true gap.
-        self.assertIn("motion graphics", missing)
+        self.assertIn("quokka graphics", missing)
 
         # The three buckets are disjoint and the sub-score is positive.
         self.assertGreater(score, 0.0)
@@ -295,15 +298,15 @@ class ThreeStateUnprovenFixtureTest(unittest.TestCase):
     def test_weak_provenance_flips_reason_to_both(self) -> None:
         # The same adjacency partial, but self-declared -> "both" (related AND weak).
         cand = MatchCandidate(
-            skills=["art direction", "brand identity design", "typography"],
+            skills=["frobnitz direction", "wibble identity design", "florptool"],
             seniority="senior",
             role_family="creative_design",
             languages=["English"],
             years_experience=8,
-            skill_provenance={"brand identity design": WEAK},
+            skill_provenance={"wibble identity design": WEAK},
         )
         _s, _m, _mi, _st, unproven = score_skills(cand, self._job())
-        self.assertEqual(unproven["brand strategy design"]["reason"], "both")
+        self.assertEqual(unproven["wibble strategy design"]["reason"], "both")
 
 
 if __name__ == "__main__":

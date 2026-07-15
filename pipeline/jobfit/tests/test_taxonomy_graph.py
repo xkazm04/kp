@@ -18,7 +18,8 @@ class SurfaceResolutionTest(unittest.TestCase):
         self.assertEqual(tax.resolve_term("nextjs"), "next_js")
 
     def test_unknown_surface_returns_none(self) -> None:
-        self.assertIsNone(tax.resolve_term("Figma"))
+        # A surface the taxonomy genuinely does not model (Figma is now modelled).
+        self.assertIsNone(tax.resolve_term("Blorptech9000"))
         self.assertIsNone(tax.resolve_term(""))
 
     def test_detected_skills_regression(self) -> None:

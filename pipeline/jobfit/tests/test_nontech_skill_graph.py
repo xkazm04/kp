@@ -290,5 +290,149 @@ class SkilledTradesGraduatedCreditTest(unittest.TestCase):
         self.assertLess(strength["machining"], 1.0)
 
 
+class CreativeDesignGraduatedCreditTest(unittest.TestCase):
+    """Phase 4 (last-families): the creative_design skill graph grants graduated
+    credit and reports 'adjacency' for a near-miss sibling."""
+
+    def test_hierarchy_edges_exist(self) -> None:
+        # wireframing/prototyping are siblings under ux_design; ui_design -> ux_design.
+        self.assertIn("ux_design", tax.ancestors("wireframing"))
+        self.assertIn("ux_design", tax.ancestors("ui_design"))
+
+    def test_bilingual_surface_forms_resolve(self) -> None:
+        self.assertEqual(tax.resolve_term("drátěné modely"), "wireframing")
+        self.assertEqual(tax.resolve_term("typografie"), "typography")
+        self.assertEqual(tax.resolve_term("firemní identita"), "brand_identity")
+        # A proper-noun tool is bilingual_exempt (identical in CZ + EN JDs).
+        self.assertEqual(tax.resolve_term("figma"), "figma")
+
+    def test_sibling_near_miss_scores_0_4_and_classifies_adjacency(self) -> None:
+        # CV: wireframing (Czech surface). JD: prototyping must-have — a sibling under
+        # ux_design, scoring the documented 0.4 and classified "adjacency", NOT missing.
+        self.assertAlmostEqual(tax.term_match_score("wireframing", "prototyping"), 0.4)
+        cand = MatchCandidate(
+            skills=["drátěné modely"],  # wireframing
+            seniority="medior", role_family="creative_design",
+            languages=["Czech", "English"], years_experience=4,
+        )
+        job = mkjob(
+            role_family="creative_design",
+            requirements=[{"skill": "prototyping", "kind": "must_have", "hardness": "prerequisite"}],
+        )
+        score, matched, missing, strength, unproven = score_skills(cand, job)
+        self.assertAlmostEqual(score, 0.4)
+        self.assertNotIn("prototyping", matched)
+        self.assertNotIn("prototyping", missing)
+        self.assertEqual(unproven["prototyping"]["reason"], "adjacency")
+
+    def test_specialization_earns_graduated_credit(self) -> None:
+        cand = MatchCandidate(
+            skills=["ui design"],  # ui_design, a specialization of ux_design
+            seniority="medior", role_family="creative_design",
+            languages=["Czech", "English"], years_experience=4,
+        )
+        job = mkjob(
+            role_family="creative_design",
+            requirements=[{"skill": "ux design", "kind": "must_have", "hardness": "prerequisite"}],
+        )
+        score, matched, _missing, strength, _unproven = score_skills(cand, job)
+        self.assertGreater(score, 0.0)
+        self.assertLess(score, 1.0)
+        self.assertIn("ux design", matched)
+        self.assertLess(strength["ux design"], 1.0)
+
+
+class LifeSciencesGraduatedCreditTest(unittest.TestCase):
+    """Phase 4 (last-families): the life_sciences_research skill graph grants
+    graduated credit and reports 'adjacency' for a near-miss sibling. These new
+    skill terms strengthen life-sci routing without disturbing the data_ai boundary
+    (the `scientist` skill term still votes data_ai; the merge was deliberately not
+    done)."""
+
+    def test_hierarchy_edges_exist(self) -> None:
+        # hplc/gas_chromatography are siblings under chromatography; qpcr -> pcr.
+        self.assertIn("chromatography", tax.ancestors("hplc"))
+        self.assertIn("pcr", tax.ancestors("qpcr"))
+
+    def test_bilingual_surface_forms_resolve(self) -> None:
+        self.assertEqual(tax.resolve_term("chromatografie"), "chromatography")
+        self.assertEqual(tax.resolve_term("kvantitativní pcr"), "qpcr")
+        self.assertEqual(tax.resolve_term("buněčné kultury"), "cell_culture")
+
+    def test_sibling_near_miss_scores_0_4_and_classifies_adjacency(self) -> None:
+        # CV: HPLC (Czech surface). JD: gas chromatography must-have — a sibling under
+        # chromatography, scoring 0.4 and classified "adjacency".
+        self.assertAlmostEqual(tax.term_match_score("hplc", "gas_chromatography"), 0.4)
+        cand = MatchCandidate(
+            skills=["kapalinová chromatografie"],  # hplc
+            seniority="senior", role_family="life_sciences_research",
+            languages=["Czech", "English"], years_experience=7,
+        )
+        job = mkjob(
+            role_family="life_sciences_research",
+            requirements=[{"skill": "gas chromatography", "kind": "must_have", "hardness": "prerequisite"}],
+        )
+        score, matched, missing, strength, unproven = score_skills(cand, job)
+        self.assertAlmostEqual(score, 0.4)
+        self.assertNotIn("gas chromatography", matched)
+        self.assertNotIn("gas chromatography", missing)
+        self.assertEqual(unproven["gas chromatography"]["reason"], "adjacency")
+
+    def test_specialization_earns_graduated_credit(self) -> None:
+        cand = MatchCandidate(
+            skills=["kvantitativní pcr"],  # qpcr, a specialization of pcr
+            seniority="senior", role_family="life_sciences_research",
+            languages=["Czech", "English"], years_experience=7,
+        )
+        job = mkjob(
+            role_family="life_sciences_research",
+            requirements=[{"skill": "pcr", "kind": "must_have", "hardness": "prerequisite"}],
+        )
+        score, matched, _missing, strength, _unproven = score_skills(cand, job)
+        self.assertGreater(score, 0.0)
+        self.assertLess(score, 1.0)
+        self.assertIn("pcr", matched)
+        self.assertLess(strength["pcr"], 1.0)
+
+
+class GeneralProfessionalRoutingStabilityTest(unittest.TestCase):
+    """Phase 4: general_professional meta-skills resolve (so they earn graded credit
+    instead of the token fallback) but carry a LOW vote weight, so they never hijack
+    a specialist family's classification."""
+
+    def test_meta_skills_resolve(self) -> None:
+        self.assertEqual(tax.resolve_term("komunikace"), "communication_skill")
+        self.assertEqual(tax.resolve_term("teamwork"), "teamwork")
+        self.assertEqual(tax.resolve_term("stanovení priorit"), "prioritization_skill")
+
+    def test_meta_skill_vote_weight_is_low(self) -> None:
+        by_id = {t["id"]: t for t in tax._TERMS}
+        for tid in ("communication_skill", "teamwork", "ownership", "prioritization_skill"):
+            votes = by_id[tid].get("role_family_votes", {})
+            self.assertEqual(set(votes), {"general_professional"})
+            self.assertLessEqual(votes["general_professional"], 0.25)
+
+    def test_tech_cv_with_meta_skills_still_routes_to_tech(self) -> None:
+        # A tech CV loaded with ubiquitous meta-skills must NOT flip to
+        # general_professional — the specialist signal dominates the low meta votes.
+        self.assertEqual(
+            tax.classify_role_family(
+                ["python", "react", "kubernetes", "communication skills", "teamwork", "ownership"],
+                "Senior software engineer building backend services in Python with "
+                "strong communication, teamwork and ownership.",
+            ),
+            "software_engineering",
+        )
+
+    def test_generic_office_cv_routes_to_general_professional(self) -> None:
+        self.assertEqual(
+            tax.classify_role_family(
+                ["communication skills", "teamwork", "time management", "planning", "reporting"],
+                "Office coordinator handling administration, planning and stakeholder communication.",
+            ),
+            "general_professional",
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

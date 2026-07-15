@@ -9189,6 +9189,1639 @@
       "parents": [
         "teaching_practice"
       ]
+    },
+    {
+      "id": "graphic_design",
+      "match": [
+        "graphic design",
+        "grafický design",
+        "grafika"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "creative_design": 1
+      }
+    },
+    {
+      "id": "typography",
+      "match": [
+        "typography",
+        "typografie",
+        "práce s písmem"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "creative_design": 1
+      },
+      "parents": [
+        "graphic_design"
+      ]
+    },
+    {
+      "id": "layout_design",
+      "match": [
+        "layout design",
+        "návrh rozvržení",
+        "sazba a layout"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "creative_design": 1
+      },
+      "parents": [
+        "graphic_design"
+      ]
+    },
+    {
+      "id": "print_design",
+      "match": [
+        "print design",
+        "tisková grafika",
+        "příprava pro tisk"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "creative_design": 1
+      },
+      "parents": [
+        "graphic_design"
+      ]
+    },
+    {
+      "id": "dtp",
+      "match": [
+        "desktop publishing",
+        "dtp",
+        "počítačová sazba"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "creative_design": 1
+      },
+      "parents": [
+        "print_design"
+      ]
+    },
+    {
+      "id": "illustration",
+      "match": [
+        "illustration",
+        "ilustrace",
+        "ilustrování"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "creative_design": 1
+      },
+      "parents": [
+        "graphic_design"
+      ]
+    },
+    {
+      "id": "brand_identity",
+      "match": [
+        "brand identity",
+        "firemní identita",
+        "vizuální identita"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "creative_design": 1
+      },
+      "parents": [
+        "graphic_design"
+      ]
+    },
+    {
+      "id": "logo_design",
+      "match": [
+        "logo design",
+        "návrh loga",
+        "tvorba loga"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "creative_design": 1
+      },
+      "parents": [
+        "brand_identity"
+      ]
+    },
+    {
+      "id": "visual_design",
+      "match": [
+        "visual design",
+        "vizuální design",
+        "vizuální tvorba"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "creative_design": 1
+      },
+      "parents": [
+        "graphic_design"
+      ]
+    },
+    {
+      "id": "ux_design",
+      "match": [
+        "ux design",
+        "user experience design",
+        "návrh uživatelského prostředí"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "creative_design": 1
+      }
+    },
+    {
+      "id": "ui_design",
+      "match": [
+        "ui design",
+        "user interface design",
+        "návrh uživatelského rozhraní"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "creative_design": 1
+      },
+      "parents": [
+        "ux_design"
+      ]
+    },
+    {
+      "id": "user_research",
+      "match": [
+        "user research",
+        "uživatelský výzkum",
+        "výzkum uživatelů"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "creative_design": 1
+      },
+      "parents": [
+        "ux_design"
+      ]
+    },
+    {
+      "id": "usability_testing",
+      "match": [
+        "usability testing",
+        "testování použitelnosti",
+        "uživatelské testování"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "creative_design": 1
+      },
+      "parents": [
+        "user_research"
+      ]
+    },
+    {
+      "id": "wireframing",
+      "match": [
+        "wireframing",
+        "drátěné modely",
+        "tvorba wireframů"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "creative_design": 1
+      },
+      "parents": [
+        "ux_design"
+      ]
+    },
+    {
+      "id": "prototyping",
+      "match": [
+        "prototyping",
+        "prototypování",
+        "tvorba prototypů"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "creative_design": 1
+      },
+      "parents": [
+        "ux_design"
+      ]
+    },
+    {
+      "id": "interaction_design",
+      "match": [
+        "interaction design",
+        "interakční design",
+        "návrh interakce"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "creative_design": 1
+      },
+      "parents": [
+        "ux_design"
+      ]
+    },
+    {
+      "id": "information_architecture",
+      "match": [
+        "information architecture",
+        "informační architektura"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "creative_design": 1
+      },
+      "parents": [
+        "ux_design"
+      ]
+    },
+    {
+      "id": "design_systems",
+      "match": [
+        "design systems",
+        "designový systém",
+        "design system"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "creative_design": 1
+      },
+      "parents": [
+        "ui_design"
+      ]
+    },
+    {
+      "id": "motion_graphics",
+      "match": [
+        "motion graphics",
+        "pohyblivá grafika",
+        "motion design"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "creative_design": 1
+      }
+    },
+    {
+      "id": "animation",
+      "match": [
+        "animation",
+        "animace",
+        "animování"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "creative_design": 1
+      },
+      "parents": [
+        "motion_graphics"
+      ]
+    },
+    {
+      "id": "video_production",
+      "match": [
+        "video production",
+        "video produkce",
+        "výroba videa"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "creative_design": 1
+      }
+    },
+    {
+      "id": "video_editing",
+      "match": [
+        "video editing",
+        "střih videa",
+        "videostřih"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "creative_design": 1
+      },
+      "parents": [
+        "video_production"
+      ]
+    },
+    {
+      "id": "color_grading",
+      "match": [
+        "color grading",
+        "barevné korekce",
+        "kolorování"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "creative_design": 1
+      },
+      "parents": [
+        "video_editing"
+      ]
+    },
+    {
+      "id": "photography",
+      "match": [
+        "photography",
+        "fotografie",
+        "fotografování"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "creative_design": 1
+      }
+    },
+    {
+      "id": "photo_editing",
+      "match": [
+        "photo editing",
+        "úprava fotografií",
+        "postprodukce fotografií"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "creative_design": 1
+      },
+      "parents": [
+        "photography"
+      ]
+    },
+    {
+      "id": "retouching",
+      "match": [
+        "retouching",
+        "retuš",
+        "retušování fotografií"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "creative_design": 1
+      },
+      "parents": [
+        "photo_editing"
+      ]
+    },
+    {
+      "id": "art_direction",
+      "match": [
+        "art direction",
+        "umělecké vedení",
+        "výtvarné vedení"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "creative_design": 1
+      }
+    },
+    {
+      "id": "creative_direction",
+      "match": [
+        "creative direction",
+        "kreativní vedení",
+        "kreativní směřování"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "creative_design": 1
+      }
+    },
+    {
+      "id": "editorial_design",
+      "match": [
+        "editorial design",
+        "editoriální design",
+        "časopisecká grafika"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "creative_design": 1
+      },
+      "parents": [
+        "graphic_design"
+      ]
+    },
+    {
+      "id": "copywriting",
+      "match": [
+        "copywriting",
+        "psaní textů",
+        "tvorba reklamních textů"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "creative_design": 1
+      }
+    },
+    {
+      "id": "storyboarding",
+      "match": [
+        "storyboarding",
+        "tvorba storyboardů",
+        "scénosled"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "creative_design": 1
+      },
+      "parents": [
+        "motion_graphics"
+      ]
+    },
+    {
+      "id": "3d_modeling",
+      "match": [
+        "3d modeling",
+        "3d modelování",
+        "trojrozměrné modelování"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "creative_design": 1
+      }
+    },
+    {
+      "id": "figma",
+      "match": [
+        "figma"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "creative_design": 1
+      },
+      "bilingual_exempt": true
+    },
+    {
+      "id": "adobe_photoshop",
+      "match": [
+        "adobe photoshop",
+        "photoshop"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "creative_design": 1
+      }
+    },
+    {
+      "id": "adobe_illustrator",
+      "match": [
+        "adobe illustrator"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "creative_design": 1
+      },
+      "bilingual_exempt": true
+    },
+    {
+      "id": "adobe_indesign",
+      "match": [
+        "adobe indesign",
+        "indesign"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "creative_design": 1
+      }
+    },
+    {
+      "id": "adobe_xd",
+      "match": [
+        "adobe xd"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "creative_design": 1
+      },
+      "bilingual_exempt": true
+    },
+    {
+      "id": "after_effects",
+      "match": [
+        "after effects",
+        "adobe after effects"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "creative_design": 1
+      }
+    },
+    {
+      "id": "premiere_pro",
+      "match": [
+        "premiere pro",
+        "adobe premiere"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "creative_design": 1
+      }
+    },
+    {
+      "id": "sketch_app",
+      "match": [
+        "sketch app"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "creative_design": 1
+      },
+      "bilingual_exempt": true
+    },
+    {
+      "id": "canva",
+      "match": [
+        "canva"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "creative_design": 1
+      },
+      "bilingual_exempt": true
+    },
+    {
+      "id": "laboratory_techniques",
+      "match": [
+        "laboratory techniques",
+        "laboratorní techniky",
+        "laboratorní metody"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "life_sciences_research": 1
+      }
+    },
+    {
+      "id": "sample_preparation",
+      "match": [
+        "sample preparation",
+        "příprava vzorků",
+        "úprava vzorků"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "life_sciences_research": 1
+      },
+      "parents": [
+        "laboratory_techniques"
+      ]
+    },
+    {
+      "id": "titration",
+      "match": [
+        "titration",
+        "titrace",
+        "titrační stanovení"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "life_sciences_research": 1
+      },
+      "parents": [
+        "laboratory_techniques"
+      ]
+    },
+    {
+      "id": "pcr",
+      "match": [
+        "polymerase chain reaction",
+        "pcr",
+        "polymerázová řetězová reakce"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "life_sciences_research": 1
+      },
+      "parents": [
+        "laboratory_techniques"
+      ]
+    },
+    {
+      "id": "qpcr",
+      "match": [
+        "quantitative pcr",
+        "real-time pcr",
+        "kvantitativní pcr"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "life_sciences_research": 1
+      },
+      "parents": [
+        "pcr"
+      ]
+    },
+    {
+      "id": "cell_culture",
+      "match": [
+        "cell culture",
+        "buněčné kultury",
+        "kultivace buněk"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "life_sciences_research": 1
+      },
+      "parents": [
+        "laboratory_techniques"
+      ]
+    },
+    {
+      "id": "chromatography",
+      "match": [
+        "chromatography",
+        "chromatografie"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "life_sciences_research": 1
+      },
+      "parents": [
+        "laboratory_techniques"
+      ]
+    },
+    {
+      "id": "hplc",
+      "match": [
+        "high-performance liquid chromatography",
+        "hplc",
+        "kapalinová chromatografie"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "life_sciences_research": 1
+      },
+      "parents": [
+        "chromatography"
+      ]
+    },
+    {
+      "id": "gas_chromatography",
+      "match": [
+        "gas chromatography",
+        "plynová chromatografie"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "life_sciences_research": 1
+      },
+      "parents": [
+        "chromatography"
+      ]
+    },
+    {
+      "id": "spectroscopy",
+      "match": [
+        "spectroscopy",
+        "spektroskopie",
+        "spektroskopická analýza"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "life_sciences_research": 1
+      },
+      "parents": [
+        "laboratory_techniques"
+      ]
+    },
+    {
+      "id": "mass_spectrometry",
+      "match": [
+        "mass spectrometry",
+        "hmotnostní spektrometrie"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "life_sciences_research": 1
+      },
+      "parents": [
+        "spectroscopy"
+      ]
+    },
+    {
+      "id": "microscopy",
+      "match": [
+        "microscopy",
+        "mikroskopie",
+        "mikroskopická analýza"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "life_sciences_research": 1
+      },
+      "parents": [
+        "laboratory_techniques"
+      ]
+    },
+    {
+      "id": "electrophoresis",
+      "match": [
+        "electrophoresis",
+        "elektroforéza"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "life_sciences_research": 1
+      },
+      "parents": [
+        "laboratory_techniques"
+      ]
+    },
+    {
+      "id": "western_blot",
+      "match": [
+        "western blot",
+        "westernový přenos",
+        "western blotting"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "life_sciences_research": 1
+      },
+      "parents": [
+        "electrophoresis"
+      ]
+    },
+    {
+      "id": "flow_cytometry",
+      "match": [
+        "flow cytometry",
+        "průtoková cytometrie"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "life_sciences_research": 1
+      },
+      "parents": [
+        "laboratory_techniques"
+      ]
+    },
+    {
+      "id": "elisa",
+      "match": [
+        "enzyme-linked immunosorbent assay",
+        "elisa",
+        "imunoenzymatická metoda"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "life_sciences_research": 1
+      },
+      "parents": [
+        "laboratory_techniques"
+      ]
+    },
+    {
+      "id": "dna_sequencing",
+      "match": [
+        "dna sequencing",
+        "sekvenování dna",
+        "sekvenování"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "life_sciences_research": 1
+      },
+      "parents": [
+        "laboratory_techniques"
+      ]
+    },
+    {
+      "id": "next_generation_sequencing",
+      "match": [
+        "next-generation sequencing",
+        "sekvenování nové generace",
+        "ngs sekvenování"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "life_sciences_research": 1
+      },
+      "parents": [
+        "dna_sequencing"
+      ]
+    },
+    {
+      "id": "assay_development",
+      "match": [
+        "assay development",
+        "vývoj analytických metod",
+        "vývoj esejí"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "life_sciences_research": 1
+      }
+    },
+    {
+      "id": "analytical_chemistry",
+      "match": [
+        "analytical chemistry",
+        "analytická chemie"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "life_sciences_research": 1
+      }
+    },
+    {
+      "id": "clinical_research",
+      "match": [
+        "clinical research",
+        "klinický výzkum"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "life_sciences_research": 1
+      }
+    },
+    {
+      "id": "clinical_trials",
+      "match": [
+        "clinical trials",
+        "klinické studie",
+        "klinická hodnocení"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "life_sciences_research": 1
+      },
+      "parents": [
+        "clinical_research"
+      ]
+    },
+    {
+      "id": "good_clinical_practice",
+      "match": [
+        "good clinical practice",
+        "správná klinická praxe",
+        "gcp praxe"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "life_sciences_research": 1
+      },
+      "parents": [
+        "clinical_research"
+      ]
+    },
+    {
+      "id": "pharmacovigilance",
+      "match": [
+        "pharmacovigilance",
+        "farmakovigilance",
+        "sledování bezpečnosti léčiv"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "life_sciences_research": 1
+      },
+      "parents": [
+        "clinical_research"
+      ]
+    },
+    {
+      "id": "good_laboratory_practice",
+      "match": [
+        "good laboratory practice",
+        "správná laboratorní praxe",
+        "glp praxe"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "life_sciences_research": 1
+      }
+    },
+    {
+      "id": "good_manufacturing_practice",
+      "match": [
+        "good manufacturing practice",
+        "správná výrobní praxe",
+        "gmp praxe"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "life_sciences_research": 1
+      }
+    },
+    {
+      "id": "molecular_biology",
+      "match": [
+        "molecular biology",
+        "molekulární biologie"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "life_sciences_research": 1
+      }
+    },
+    {
+      "id": "biochemistry",
+      "match": [
+        "biochemistry",
+        "biochemie"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "life_sciences_research": 1
+      }
+    },
+    {
+      "id": "microbiology",
+      "match": [
+        "microbiology",
+        "mikrobiologie"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "life_sciences_research": 1
+      }
+    },
+    {
+      "id": "immunology",
+      "match": [
+        "immunology",
+        "imunologie"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "life_sciences_research": 1
+      }
+    },
+    {
+      "id": "histology",
+      "match": [
+        "histology",
+        "histologie",
+        "histologické vyšetření"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "life_sciences_research": 1
+      }
+    },
+    {
+      "id": "genetics",
+      "match": [
+        "genetics",
+        "genetika"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "life_sciences_research": 1
+      }
+    },
+    {
+      "id": "bioinformatics",
+      "match": [
+        "bioinformatics",
+        "bioinformatika"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "life_sciences_research": 1
+      }
+    },
+    {
+      "id": "toxicology",
+      "match": [
+        "toxicology",
+        "toxikologie"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "life_sciences_research": 1
+      }
+    },
+    {
+      "id": "lab_notebook",
+      "match": [
+        "laboratory notebook",
+        "laboratorní deník",
+        "vedení laboratorního deníku"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "life_sciences_research": 1
+      }
+    },
+    {
+      "id": "lims",
+      "match": [
+        "laboratory information management system",
+        "lims",
+        "laboratorní informační systém"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "life_sciences_research": 1
+      }
+    },
+    {
+      "id": "lab_safety",
+      "match": [
+        "laboratory safety",
+        "bezpečnost práce v laboratoři",
+        "laboratorní bezpečnost"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "life_sciences_research": 1
+      }
+    },
+    {
+      "id": "scientific_writing",
+      "match": [
+        "scientific writing",
+        "psaní odborných publikací",
+        "vědecké psaní"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "life_sciences_research": 1
+      }
+    },
+    {
+      "id": "communication_skill",
+      "match": [
+        "communication skills",
+        "komunikační dovednosti",
+        "komunikace"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "general_professional": 0.15
+      }
+    },
+    {
+      "id": "written_communication",
+      "match": [
+        "written communication",
+        "písemná komunikace"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "general_professional": 0.15
+      },
+      "parents": [
+        "communication_skill"
+      ]
+    },
+    {
+      "id": "presentation_skills",
+      "match": [
+        "presentation skills",
+        "prezentování",
+        "příprava prezentací"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "general_professional": 0.15
+      },
+      "parents": [
+        "communication_skill"
+      ]
+    },
+    {
+      "id": "public_speaking_skill",
+      "match": [
+        "public speaking",
+        "veřejné vystupování",
+        "vystupování před publikem"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "general_professional": 0.15
+      },
+      "parents": [
+        "presentation_skills"
+      ]
+    },
+    {
+      "id": "teamwork",
+      "match": [
+        "teamwork",
+        "týmová práce",
+        "spolupráce v týmu"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "general_professional": 0.15
+      }
+    },
+    {
+      "id": "collaboration",
+      "match": [
+        "collaboration",
+        "spolupráce",
+        "spolupráce napříč týmy"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "general_professional": 0.15
+      }
+    },
+    {
+      "id": "ownership",
+      "match": [
+        "ownership",
+        "převzetí odpovědnosti",
+        "odpovědnost za výsledek"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "general_professional": 0.15
+      }
+    },
+    {
+      "id": "accountability",
+      "match": [
+        "accountability",
+        "zodpovědnost",
+        "osobní odpovědnost"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "general_professional": 0.15
+      }
+    },
+    {
+      "id": "problem_solving_skill",
+      "match": [
+        "problem solving",
+        "řešení problémových situací",
+        "analytické řešení problémů"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "general_professional": 0.15
+      }
+    },
+    {
+      "id": "analytical_thinking",
+      "match": [
+        "analytical thinking",
+        "analytické myšlení"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "general_professional": 0.15
+      },
+      "parents": [
+        "problem_solving_skill"
+      ]
+    },
+    {
+      "id": "critical_thinking",
+      "match": [
+        "critical thinking",
+        "kritické myšlení"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "general_professional": 0.15
+      },
+      "parents": [
+        "problem_solving_skill"
+      ]
+    },
+    {
+      "id": "time_management_skill",
+      "match": [
+        "time management",
+        "řízení času",
+        "organizace času"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "general_professional": 0.15
+      }
+    },
+    {
+      "id": "prioritization_skill",
+      "match": [
+        "prioritization",
+        "stanovení priorit",
+        "prioritizace úkolů"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "general_professional": 0.15
+      },
+      "parents": [
+        "time_management_skill"
+      ]
+    },
+    {
+      "id": "organizational_skills",
+      "match": [
+        "organizational skills",
+        "organizační schopnosti",
+        "organizace práce"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "general_professional": 0.15
+      },
+      "parents": [
+        "time_management_skill"
+      ]
+    },
+    {
+      "id": "attention_to_detail",
+      "match": [
+        "attention to detail",
+        "pozornost k detailu",
+        "důraz na detail"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "general_professional": 0.15
+      }
+    },
+    {
+      "id": "adaptability",
+      "match": [
+        "adaptability",
+        "adaptabilita",
+        "přizpůsobivost"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "general_professional": 0.15
+      }
+    },
+    {
+      "id": "proactivity",
+      "match": [
+        "proactivity",
+        "proaktivita",
+        "proaktivní přístup"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "general_professional": 0.15
+      }
+    },
+    {
+      "id": "initiative_skill",
+      "match": [
+        "taking initiative",
+        "iniciativa",
+        "samostatnost"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "general_professional": 0.15
+      }
+    },
+    {
+      "id": "decision_making",
+      "match": [
+        "decision making",
+        "rozhodování",
+        "rozhodovací schopnosti"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "general_professional": 0.15
+      }
+    },
+    {
+      "id": "planning_skill",
+      "match": [
+        "planning",
+        "plánování",
+        "plánovací dovednosti"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "general_professional": 0.15
+      }
+    },
+    {
+      "id": "reporting_skill",
+      "match": [
+        "reporting",
+        "výkaznictví",
+        "tvorba reportů"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "general_professional": 0.15
+      }
+    },
+    {
+      "id": "documentation_skill",
+      "match": [
+        "documentation",
+        "tvorba dokumentace",
+        "vedení dokumentace"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "general_professional": 0.15
+      }
+    },
+    {
+      "id": "customer_focus",
+      "match": [
+        "customer focus",
+        "orientace na zákazníka",
+        "zákaznická orientace"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "general_professional": 0.15
+      }
+    },
+    {
+      "id": "multitasking",
+      "match": [
+        "multitasking",
+        "zvládání více úkolů současně"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "general_professional": 0.15
+      }
+    },
+    {
+      "id": "coaching_skill",
+      "match": [
+        "coaching",
+        "koučování",
+        "koučink"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "general_professional": 0.15
+      }
+    },
+    {
+      "id": "change_management",
+      "match": [
+        "change management",
+        "řízení změn"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "general_professional": 0.15
+      }
+    },
+    {
+      "id": "continuous_improvement",
+      "match": [
+        "continuous improvement",
+        "kontinuální zlepšování",
+        "průběžné zlepšování"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "general_professional": 0.15
+      }
+    },
+    {
+      "id": "requirements_gathering",
+      "match": [
+        "requirements gathering",
+        "sběr požadavků",
+        "analýza požadavků"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "general_professional": 0.15
+      }
+    },
+    {
+      "id": "process_orientation",
+      "match": [
+        "process orientation",
+        "procesní myšlení",
+        "procesní přístup"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "general_professional": 0.15
+      }
     }
   ],
   "company_adjustments": {

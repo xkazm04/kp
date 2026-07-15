@@ -169,9 +169,11 @@ class CorpusCollisionScanTest(unittest.TestCase):
 
 
 # Non-tech families whose SKILL vocabulary was authored THROUGH the collision scan.
-# Phase 2 seeded legal_compliance + hr_people; phase 3 (care/trades/frontline)
-# adds the four biggest unmodelled verticals. Every SKILL surface these families
-# introduce must be collision-clean against the representative seeded corpus.
+# Phase 2 seeded legal_compliance + hr_people; phase 3 (care/trades/frontline) added
+# the four biggest unmodelled verticals; phase 4 (last-families) closes the final
+# three — creative_design, life_sciences_research, general_professional — so the
+# vocabulary is 16/16. Every SKILL surface these families introduce must be
+# collision-clean against the representative seeded corpus.
 _AUTHORED_NONTECH_FAMILIES: frozenset[str] = frozenset(
     {
         "legal_compliance",
@@ -180,6 +182,9 @@ _AUTHORED_NONTECH_FAMILIES: frozenset[str] = frozenset(
         "skilled_trades",
         "frontline_service",
         "education_academic",
+        "creative_design",
+        "life_sciences_research",
+        "general_professional",
     }
 )
 

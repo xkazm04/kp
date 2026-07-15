@@ -10,7 +10,7 @@ Per-role-family coverage of `data/taxonomy.json`. A term counts toward every fam
 | `data_ai` | 38 (floor 38) | 38 | 18% | 21 (55%) | 38 +17 exempt (100%) |
 | `product_project` | 28 (floor 28) | 29 | 7% | 25 (86%) | 29 +4 exempt (100%) |
 | `healthcare_clinical` | 44 (floor 44) | 47 | 85% | 47 (100%) | 47 (100%) |
-| `life_sciences_research` | 0 | 1 | 0% | 1 (100%) | 1 (100%) |
+| `life_sciences_research` | 38 (floor 38) | 39 | 51% | 39 (100%) | 39 (100%) |
 | `skilled_trades` | 40 (floor 40) | 43 | 72% | 43 (100%) | 43 (100%) |
 | `operations_logistics` | 40 (floor 40) | 45 | 42% | 45 (100%) | 45 (100%) |
 | `frontline_service` | 33 (floor 33) | 37 | 73% | 37 (100%) | 37 (100%) |
@@ -19,8 +19,8 @@ Per-role-family coverage of `data/taxonomy.json`. A term counts toward every fam
 | `legal_compliance` | 46 (floor 46) | 48 | 79% | 47 (98%) | 48 +1 exempt (100%) |
 | `hr_people` | 48 (floor 48) | 49 | 76% | 49 (100%) | 49 (100%) |
 | `education_academic` | 37 (floor 37) | 38 | 82% | 38 (100%) | 38 (100%) |
-| `creative_design` | 0 | 2 | 0% | 2 (100%) | 2 (100%) |
+| `creative_design` | 41 (floor 41) | 43 | 53% | 38 (88%) | 43 +5 exempt (100%) |
 | `customer_support` | 37 (floor 37) | 38 | 37% | 38 (100%) | 38 (100%) |
-| `general_professional` | 0 | 3 | 0% | 3 (100%) | 3 (100%) |
+| `general_professional` | 29 (floor 29) | 32 | 22% | 32 (100%) | 32 (100%) |
 
-_Total terms: 568._
+_Total terms: 676._

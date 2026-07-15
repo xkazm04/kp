@@ -89,16 +89,16 @@ KNOWN_CATEGORIES: frozenset[str] = frozenset(
 #     a built-out family's vocabulary must re-pin its floor in the SAME commit. (This
 #     closes the finance_accounting hole: it sat at 46 while the live count was 54,
 #     which would have permitted silently deleting 8 finance terms.)
-#   * A ZERO floor marks a "not yet built out" family (creative_design,
-#     life_sciences_research, general_professional carry only cross-voting terms) and
-#     is held as a pure minimum — a placeholder, exempt from the == pin so the family
-#     can be grown later without a floor bump gating unrelated work.
+#   * A ZERO floor marks a "not yet built out" family (carrying only cross-voting
+#     terms) and is held as a pure minimum — a placeholder, exempt from the == pin so
+#     the family can be grown later without a floor bump gating unrelated work. As of
+#     phase4 all 16 families are built out, so every floor is now a nonzero exact pin.
 SKILL_COVERAGE_FLOORS: dict[str, int] = {
     "software_engineering": 83,
     "data_ai": 38,  # ml merged into machine_learning (one-side-resolves honesty) — one fewer skill term
     "product_project": 28,
     "healthcare_clinical": 44,
-    "life_sciences_research": 0,
+    "life_sciences_research": 38,  # phase4 last-families — modelled from zero
     "skilled_trades": 40,
     "operations_logistics": 40,
     "frontline_service": 33,
@@ -107,9 +107,9 @@ SKILL_COVERAGE_FLOORS: dict[str, int] = {
     "legal_compliance": 46,
     "hr_people": 48,
     "education_academic": 37,
-    "creative_design": 0,
+    "creative_design": 41,  # phase4 last-families — modelled from zero
     "customer_support": 37,
-    "general_professional": 0,
+    "general_professional": 29,  # phase4 last-families — meta-skills at LOW vote weight (0.15)
 }
 
 
