@@ -237,13 +237,42 @@ class CrossBoundarySyncTest(unittest.TestCase):
             "app/_lib/format.ts APP_CURRENCY drifted from the active MarketConfig currency.",
         )
 
-    def test_matches_benchmark_currency(self) -> None:
+    def test_active_market_block_matches_its_config(self) -> None:
+        # Benchmarks are keyed by market; the ACTIVE market's block must be priced in
+        # the active MarketConfig currency (legacy flat file: the top-level currency).
         benchmarks = json.loads(BENCHMARKS_JSON.read_text(encoding="utf-8"))
-        self.assertEqual(
-            benchmarks.get("currency"),
-            ACTIVE_MARKET.currency,
-            "salary_benchmarks.json currency drifted from the active MarketConfig currency.",
+        markets = benchmarks.get("markets")
+        block = (
+            markets.get(ACTIVE_MARKET.market_id)
+            if isinstance(markets, dict)
+            else benchmarks  # legacy flat shape == the active market
         )
+        self.assertIsNotNone(block, f"no benchmark block for active market {ACTIVE_MARKET.market_id!r}")
+        self.assertEqual(
+            block.get("currency"),
+            ACTIVE_MARKET.currency,
+            "the active market's benchmark block drifted from its MarketConfig currency.",
+        )
+
+    def test_every_benchmark_block_is_in_lockstep_with_its_market(self) -> None:
+        # Per-market lockstep (replaces the old file-global currency guard): each
+        # benchmark block's currency must equal the MarketConfig of the SAME market,
+        # so a market can never advertise bands in a currency its config disowns.
+        benchmarks = json.loads(BENCHMARKS_JSON.read_text(encoding="utf-8"))
+        markets = benchmarks.get("markets")
+        if not isinstance(markets, dict):
+            self.skipTest("legacy flat benchmarks file — covered by the active-block guard above")
+        config_by_id = {m.market_id: m for m in (CZECH_MARKET, BERLIN_MARKET)}
+        for market_id, block in markets.items():
+            cfg = config_by_id.get(market_id)
+            self.assertIsNotNone(
+                cfg, f"benchmark block {market_id!r} has no MarketConfig to lockstep against."
+            )
+            self.assertEqual(
+                block.get("currency"),
+                cfg.currency,
+                f"benchmark block {market_id!r} currency drifted from MarketConfig {market_id!r}.",
+            )
 
 
 if __name__ == "__main__":

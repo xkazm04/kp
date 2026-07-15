@@ -38,8 +38,69 @@ def _load_json(path: Path) -> dict[str, Any]:
     return data
 
 
-_BENCHMARKS: dict[str, Any] = _load_json(_BENCHMARKS_PATH)
+from .market_config import ACTIVE_MARKET, MarketConfig
+
+_ALL_BENCHMARKS: dict[str, Any] = _load_json(_BENCHMARKS_PATH)
 _TAXONOMY: dict[str, Any] = _load_json(_TAXONOMY_PATH)
+
+# Benchmarks are keyed by market_id (``markets``: {market_id: {currency, roles, …}})
+# so onboarding a second market is configuration — adding a block — not swapping the
+# whole file in lockstep. The consumers below read the ACTIVE market's block; a guard
+# test keeps each block's currency in step with its MarketConfig. A legacy flat file
+# ({currency, roles, …} with no ``markets`` key — still what scripts/apply-market-
+# salaries.mjs writes when it regenerates the CZ bands) is read as the active market's
+# block so that regeneration never hard-breaks the pipeline at import.
+_raw_markets = _ALL_BENCHMARKS.get("markets")
+if isinstance(_raw_markets, dict) and _raw_markets:
+    _MARKET_BLOCKS: dict[str, Any] = _raw_markets
+elif isinstance(_ALL_BENCHMARKS.get("roles"), list):
+    _MARKET_BLOCKS = {ACTIVE_MARKET.market_id: _ALL_BENCHMARKS}
+else:
+    raise RuntimeError(
+        f"{_BENCHMARKS_PATH} must contain either a non-empty 'markets' object keyed by "
+        f"market_id, or a legacy top-level 'roles' array — found neither."
+    )
+
+
+def _validate_roles(block: Any, market_id: str) -> list[dict[str, Any]]:
+    """Fail-fast validation of one market block's 'roles' array (mirrors the
+    original import-time checks): a non-empty list of objects each naming a family."""
+    if not isinstance(block, dict):
+        raise RuntimeError(
+            f"{_BENCHMARKS_PATH}: market {market_id!r} must map to an object "
+            f"(got {type(block).__name__})."
+        )
+    raw_roles = block.get("roles")
+    if not isinstance(raw_roles, list) or not raw_roles:
+        raise RuntimeError(
+            f"{_BENCHMARKS_PATH}: market {market_id!r} must contain a non-empty 'roles' "
+            f"array (got {type(raw_roles).__name__})."
+        )
+    roles: list[dict[str, Any]] = []
+    for _i, _role in enumerate(raw_roles):
+        if not isinstance(_role, dict) or not _role.get("family"):
+            raise RuntimeError(
+                f"{_BENCHMARKS_PATH}: market {market_id!r} roles[{_i}] must be an object "
+                f"with a non-empty 'family'."
+            )
+        roles.append(_role)
+    return roles
+
+
+_ROLES_BY_MARKET: dict[str, list[dict[str, Any]]] = {
+    _mid: _validate_roles(_block, _mid) for _mid, _block in _MARKET_BLOCKS.items()
+}
+
+if ACTIVE_MARKET.market_id not in _MARKET_BLOCKS:
+    raise RuntimeError(
+        f"{_BENCHMARKS_PATH}: the active market {ACTIVE_MARKET.market_id!r} has no benchmark "
+        f"block. Known markets: {sorted(_MARKET_BLOCKS)}."
+    )
+
+# The active market's block drives every market-derived global below (ROLE_FAMILIES,
+# DEFAULT_FAMILY, the role-family vocabulary). For the Czech default this is the same
+# data the flat file exposed, so those globals are byte-identical.
+_BENCHMARKS: dict[str, Any] = _MARKET_BLOCKS[ACTIVE_MARKET.market_id]
 
 # Validate the taxonomy shape up front: every consumer assumes each term has an
 # 'id' and a 'match' list, so a missing 'terms' array or a malformed entry is a
@@ -59,22 +120,8 @@ for _i, _entry in enumerate(_raw_terms):
         )
     _TERMS.append(_entry)
 
-# Validate the salary benchmark roles: a non-empty 'roles' array where each role
-# names a 'family'. ROLE_FAMILIES[0] is the fallback default, so an empty list
-# would otherwise IndexError at import.
-_raw_roles = _BENCHMARKS.get("roles")
-if not isinstance(_raw_roles, list) or not _raw_roles:
-    raise RuntimeError(
-        f"{_BENCHMARKS_PATH} must contain a non-empty 'roles' array "
-        f"(got {type(_raw_roles).__name__})."
-    )
-_ROLES: list[dict[str, Any]] = []
-for _i, _role in enumerate(_raw_roles):
-    if not isinstance(_role, dict) or not _role.get("family"):
-        raise RuntimeError(
-            f"{_BENCHMARKS_PATH}: roles[{_i}] must be an object with a non-empty 'family'."
-        )
-    _ROLES.append(_role)
+# The active market's validated roles (ROLE_FAMILIES[0] is the fallback default).
+_ROLES: list[dict[str, Any]] = _ROLES_BY_MARKET[ACTIVE_MARKET.market_id]
 
 ROLE_FAMILIES: tuple[str, ...] = tuple(role["family"] for role in _ROLES)
 ROLE_FAMILY_SET: frozenset[str] = frozenset(ROLE_FAMILIES)
@@ -403,15 +450,21 @@ def skill_keyword_pool() -> list[str]:
     return pool
 
 
-def role_band(family: str, seniority: str) -> tuple[int, int] | None:
-    """Look up the CZK monthly gross anchor band for a (role_family, seniority) pair.
+def role_band(
+    family: str, seniority: str, *, market: MarketConfig = ACTIVE_MARKET
+) -> tuple[int, int] | None:
+    """Look up the monthly gross anchor band for a (role_family, seniority) pair,
+    in ``market``'s currency (defaults to the ACTIVE market — CZK for the pilot).
 
+    The bands come from ``market``'s benchmark block (``markets[market.market_id]``),
+    so re-homing the market reads ITS anchor bands rather than the Czech ones.
     Returns ``None`` when the family is unknown, the seniority key is missing, or
     the band entry is short / non-numeric (tolerated by skipping rather than
     raising). Used by the deterministic-evidence pre-pass to anchor Gemini's
     salary range.
     """
-    for role in _ROLES:
+    roles = _ROLES_BY_MARKET.get(market.market_id, _ROLES)
+    for role in roles:
         if role.get("family") != family:
             continue
         band = role.get(seniority)
