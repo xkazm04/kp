@@ -1298,7 +1298,8 @@
       "sim_attached": "entretien d'entraînement associé",
       "simAttachedDetail": "entretien d'entraînement associé — {detail}",
       "rematched": "a été réorienté vers un nouveau poste",
-      "rematched_from": "recontacté depuis une candidature antérieure"
+      "rematched_from": "recontacté depuis une candidature antérieure",
+      "group_eval": "comparé·e lors d'une évaluation de groupe"
     },
     "relTime": {
       "today": "aujourd'hui",

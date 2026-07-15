@@ -1272,7 +1272,8 @@
       "sim_attached": "cvičný pohovor připojen",
       "simAttachedDetail": "cvičný pohovor připojen — {detail}",
       "rematched": "byl/a přesměrován/a na novou pozici",
-      "rematched_from": "znovu osloven/a z dřívější přihlášky"
+      "rematched_from": "znovu osloven/a z dřívější přihlášky",
+      "group_eval": "porovnán/a ve skupinovém vyhodnocení"
     },
     "relTime": {
       "today": "dnes",

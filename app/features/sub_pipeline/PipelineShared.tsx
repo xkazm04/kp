@@ -57,6 +57,10 @@ export const EVENT_KINDS = [
   // which the drawer renders as a navigable affordance (see pipeline-rematch-link.ts).
   "rematched",
   "rematched_from",
+  // The comparative group evaluation itself (group-eval-event-anchor, round 12) —
+  // written at seal time on the crowned lead's entry; the detail is a machine
+  // summary ("selection · 4/12"), no counterpart handle.
+  "group_eval",
 ] as const;
 
 export type EventKind = (typeof EVENT_KINDS)[number];
@@ -91,6 +95,7 @@ export const EVENT_CATALOG: Record<EventKind, EventMeta> = {
   sim_attached: { Icon: Phone, tone: "text-steel" },
   rematched: { Icon: Shuffle, tone: "text-steel" },
   rematched_from: { Icon: Repeat, tone: "text-steel" },
+  group_eval: { Icon: Sparkles, tone: "text-steel" },
 };
 
 // One documented fallback for kinds outside the catalog. The feed (listPipelineEvents)
@@ -147,6 +152,8 @@ export function useEventVerb(): (ev: PipelineEvent) => string {
         return t("rematched");
       case "rematched_from":
         return t("rematched_from");
+      case "group_eval":
+        return t("group_eval");
     }
   };
 }

@@ -1298,7 +1298,8 @@
       "sim_attached": "Übungsinterview angehängt",
       "simAttachedDetail": "Übungsinterview angehängt — {detail}",
       "rematched": "wurde einer neuen Stelle zugeordnet",
-      "rematched_from": "aus einer früheren Bewerbung reaktiviert"
+      "rematched_from": "aus einer früheren Bewerbung reaktiviert",
+      "group_eval": "in einer Gruppenauswertung verglichen"
     },
     "relTime": {
       "today": "heute",
