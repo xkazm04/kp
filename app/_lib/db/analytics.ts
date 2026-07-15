@@ -540,6 +540,135 @@ export function pipelineAnalytics(
   };
 }
 
+// channel-story-complete — the period-over-period comparison (periodDeltas) reads
+// ONLY these scalars off the prior window: total, hired, avgTimeToHireDays, the
+// funnel conversion per stage, and per-source / per-channel volume + hire-rate (+ a
+// per-channel CPA that is null in any windowed view). Everything else the full
+// pipelineAnalytics battery computes for the prior window — momentum, automation,
+// holds, the decision-time median, KO counts, spend, targets, variants — is thrown
+// away by the route. Running that whole ~9-query battery twice per windowed load was
+// pure waste; this computes the SAME compared scalars with just the two queries they
+// need (the cohort SELECT + the first-event origin JOIN). Pinned byte-identical to
+// the full battery's fields by analytics-prior-slice.test.ts.
+export type PriorWindowSlice = {
+  total: number;
+  hired: number;
+  avgTimeToHireDays: number | null;
+  funnel: { stage: string; conversionPct: number | null }[];
+  bySource: { source: string; total: number; hireRatePct: number }[];
+  byChannel: { channel: string; total: number; hireRatePct: number; costPerApplicantCzk: number | null }[];
+};
+
+/**
+ * The slim prior-window aggregation: exactly the fields periodDeltas() diffs, no
+ * more. The route only ever calls this for the PRIOR window of a windowed load, so
+ * `endMs` (the window's upper bound) and `windowDays` are always set — mirror the
+ * full battery's prior call `pipelineAnalytics(windowDays, { endMs }, ws)`.
+ *
+ * Byte-identity notes (each choice matches the full battery's exact semantics):
+ *  - The cohort SELECT is upper-AND-lower-bounded (`created_at >= cutoff AND < end`),
+ *    exactly the full main query for a prior window (analytics.ts main SELECT).
+ *  - bySource comes from the first-event origin JOIN with the LOWER bound ONLY — the
+ *    full battery's sourceRows query applies `p.created_at >= cutoff` and no upper
+ *    bound, so this replicates that (a bounded version would diverge from the value
+ *    the route currently produces).
+ *  - Per-channel CPA is null: spend is a lifetime total, so a windowed cohort has no
+ *    honest per-period CPA (the full battery returns null in windowed views), which
+ *    is why no channel_spend read is needed here at all.
+ */
+export function pipelineAnalyticsPrior(
+  windowDays: number,
+  endMs: number,
+  workspaceId: string = DEFAULT_WORKSPACE_ID
+): PriorWindowSlice {
+  const db = ensureDb();
+  const cutoffIso = new Date(endMs - windowDays * 86_400_000).toISOString();
+  const upperIso = new Date(endMs).toISOString();
+  const idxOf = (s: string) => FUNNEL_STAGES.indexOf(s as FunnelStage);
+
+  const rows = db
+    .prepare(
+      `SELECT stage, status, created_at, stage_changed_at, source_channel
+         FROM pipeline_entries
+        WHERE created_at >= ? AND created_at < ? AND ${notSim()} AND workspace_id = ?`
+    )
+    .all(cutoffIso, upperIso, SIM_TITLE_LIKE, workspaceId) as {
+    stage: string;
+    status: string;
+    created_at: string | null;
+    stage_changed_at: string | null;
+    source_channel: string | null;
+  }[];
+
+  const total = rows.length;
+  const hired = rows.filter((r) => r.stage === "Hired").length;
+
+  const reached = FUNNEL_STAGES.map(() => 0);
+  for (const r of rows) {
+    const i = idxOf(r.stage);
+    if (i < 0) continue;
+    for (let k = 0; k <= i; k += 1) reached[k] += 1;
+  }
+  const funnel = FUNNEL_STAGES.map((stage, i) => ({
+    stage,
+    conversionPct: i === 0 ? null : reached[i - 1] > 0 ? Math.round((reached[i] / reached[i - 1]) * 100) : null,
+  }));
+
+  const tth = rows
+    .filter((r) => r.stage === "Hired" && r.created_at && r.stage_changed_at)
+    .map((r) => (Date.parse(r.stage_changed_at as string) - Date.parse(r.created_at as string)) / 86_400_000)
+    .filter((d) => d >= 0);
+  const avgTimeToHireDays = tth.length ? Math.round(tth.reduce((a, b) => a + b, 0) / tth.length) : null;
+
+  // bySource — earliest-event origin, the SAME JOIN + lower-bound-only window the
+  // full battery's sourceRows query uses (see byte-identity note above).
+  const sourceRows = db
+    .prepare(
+      `SELECT p.stage AS stage, fe.kind AS kind
+         FROM pipeline_entries p
+         JOIN (SELECT entry_id, kind FROM pipeline_events
+                WHERE id IN (SELECT MIN(id) FROM pipeline_events
+                              WHERE entry_id IS NOT NULL AND ${notSim()} AND workspace_id = ? GROUP BY entry_id)
+              ) fe ON fe.entry_id = p.id
+        WHERE p.created_at >= ? AND ${notSim("p.job_title")} AND p.workspace_id = ?`
+    )
+    .all(SIM_TITLE_LIKE, workspaceId, cutoffIso, SIM_TITLE_LIKE, workspaceId) as { stage: string; kind: string }[];
+  const originOf = (kind: string): string =>
+    kind === "applied" ? "applied" : kind === "matched" ? "matched" : kind === "added" || kind === "intake_degraded" ? "added" : "other";
+  const sourceMap = new Map<string, { total: number; hired: number }>();
+  for (const r of sourceRows) {
+    const key = originOf(r.kind);
+    const m = sourceMap.get(key) ?? { total: 0, hired: 0 };
+    m.total += 1;
+    if (r.stage === "Hired") m.hired += 1;
+    sourceMap.set(key, m);
+  }
+  const bySource = [...sourceMap.entries()]
+    .map(([source, m]) => ({ source, total: m.total, hireRatePct: m.total ? Math.round((m.hired / m.total) * 100) : 0 }))
+    .sort((a, b) => b.total - a.total);
+
+  // byChannel — the stored source_channel grouping off the same bounded cohort;
+  // CPA is null in any windowed view (see byte-identity note above).
+  const channelMap = new Map<string, { total: number; hired: number }>();
+  for (const r of rows) {
+    if (!r.source_channel) continue;
+    const m = channelMap.get(r.source_channel) ?? { total: 0, hired: 0 };
+    m.total += 1;
+    if (r.stage === "Hired") m.hired += 1;
+    channelMap.set(r.source_channel, m);
+  }
+  const byChannel = [...channelMap.entries()]
+    .map(([channel, m]) => ({
+      channel,
+      total: m.total,
+      hireRatePct: m.total ? Math.round((m.hired / m.total) * 100) : 0,
+      costPerApplicantCzk: null,
+    }))
+    .sort((a, b) => b.total - a.total);
+
+  return { total, hired, avgTimeToHireDays, funnel, bySource, byChannel };
+}
+
 // 82c2b8e8 — recruiter-set analytics goals (small key/value table, mirroring the
 // channel_spend persistence pattern). The time-to-hire goal lives under the
 // reserved TIME_TO_HIRE_TARGET_KEY; every other row is a funnel stage name →

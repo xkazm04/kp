@@ -3473,6 +3473,7 @@
     "legendRejected": "Rejected",
     "legendHired": "Hired",
     "bySource": "Where candidates come from",
+    "bySourceHint": "By first-touch origin",
     "source": {
       "applied": "Inbound applications",
       "matched": "Match sourcing",
@@ -3611,6 +3612,7 @@
     },
     "channels": {
       "title": "Channel economics",
+      "recordedHint": "By recorded channel",
       "intro": "Inbound channels with stored attribution (careers apply, quick apply, webhooks). Enter what you spent per channel to get cost per applicant and per hire.",
       "empty": "No channel-attributed candidates yet — inbound applies, quick-apply leads, and webhook leads will appear here.",
       "colChannel": "Channel",
@@ -3635,6 +3637,7 @@
         "matrix": "Fit matrix",
         "analyze": "CV analysis",
         "sourcing": "Proactive sourcing",
+        "rediscovery": "Talent rediscovery",
         "devcase": "Dev case"
       },
       "variantsTitle": "Creative variants",

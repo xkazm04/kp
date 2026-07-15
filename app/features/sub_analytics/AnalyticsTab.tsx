@@ -619,6 +619,10 @@ function SourcePanel({ rows, deltas, channelsHref }: { rows: Analytics["bySource
   return (
     <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
       <h3 className="font-serif text-h2 text-ink">{t("bySource")}</h3>
+      {/* channel-story-complete — this view derives origin from each candidate's
+          FIRST pipeline event; the Channel economics table below groups the stored
+          source_channel. Different taxonomies on one page, so name each honestly. */}
+      <p className="mt-0.5 text-meta uppercase tracking-wide text-steel">{t("bySourceHint")}</p>
       <ul className="mt-3 space-y-3">
         {rows.map((r) => {
           const d = deltaBySource.get(r.source);
@@ -687,6 +691,9 @@ function ChannelEconomicsPanel({
   return (
     <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
       <h3 className="font-serif text-h2 text-ink">{t("title")}</h3>
+      {/* channel-story-complete — the coherence cue paired with SourcePanel's
+          "by first-touch origin": this table groups the stored source_channel. */}
+      <p className="mt-0.5 text-meta uppercase tracking-wide text-steel">{t("recordedHint")}</p>
       <p className="mt-1 max-w-3xl text-sm text-steel">{t("intro")}</p>
 
       {rows.length === 0 ? (

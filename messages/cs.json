@@ -3473,6 +3473,7 @@
     "legendRejected": "Zamítnutí",
     "legendHired": "Přijatí",
     "bySource": "Odkud kandidáti přicházejí",
+    "bySourceHint": "Podle prvního kontaktu",
     "source": {
       "applied": "Příchozí přihlášky",
       "matched": "Párování (sourcing)",
@@ -3611,6 +3612,7 @@
     },
     "channels": {
       "title": "Ekonomika kanálů",
+      "recordedHint": "Podle zaznamenaného kanálu",
       "intro": "Příchozí kanály s uloženou atribucí (kariérní přihláška, rychlá přihláška, webhooky). Zadejte útratu za kanál a získáte cenu za uchazeče a za přijetí.",
       "empty": "Zatím žádní kandidáti s atribucí kanálu — příchozí přihlášky, rychlé přihlášky a leady z webhooků se objeví zde.",
       "colChannel": "Kanál",
@@ -3635,6 +3637,7 @@
         "matrix": "Matice fitu",
         "analyze": "Analýza CV",
         "sourcing": "Proaktivní sourcing",
+        "rediscovery": "Znovuobjevení talentů",
         "devcase": "Vývojový případ"
       },
       "variantsTitle": "Kreativní varianty",

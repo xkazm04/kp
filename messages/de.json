@@ -3537,6 +3537,7 @@
     "legendRejected": "Abgelehnt",
     "legendHired": "Eingestellt",
     "bySource": "Woher Kandidaten kommen",
+    "bySourceHint": "Nach Erstkontakt-Herkunft",
     "source": {
       "applied": "Eingehende Bewerbungen",
       "matched": "Match-Sourcing",
@@ -3675,6 +3676,7 @@
     },
     "channels": {
       "title": "Kanal-Wirtschaftlichkeit",
+      "recordedHint": "Nach erfasstem Kanal",
       "intro": "Eingehende Kanäle mit gespeicherter Attribution (Karriere-Bewerbung, Schnellbewerbung, Webhooks). Geben Sie Ihre Ausgaben je Kanal ein, um Kosten je Bewerber und je Einstellung zu erhalten.",
       "empty": "Noch keine kanalattribuierten Kandidaten — eingehende Bewerbungen, Schnellbewerbungs-Leads und Webhook-Leads erscheinen hier.",
       "colChannel": "Kanal",
@@ -3699,6 +3701,7 @@
         "matrix": "Eignungsmatrix",
         "analyze": "CV-Analyse",
         "sourcing": "Proaktives Sourcing",
+        "rediscovery": "Talent-Wiederentdeckung",
         "devcase": "Dev-Case"
       },
       "variantsTitle": "Anzeigenvarianten",

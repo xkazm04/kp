@@ -3537,6 +3537,7 @@
     "legendRejected": "Rejetés",
     "legendHired": "Recrutés",
     "bySource": "D'où viennent les candidats",
+    "bySourceHint": "Par origine du premier contact",
     "source": {
       "applied": "Candidatures entrantes",
       "matched": "Sourcing par matching",
@@ -3675,6 +3676,7 @@
     },
     "channels": {
       "title": "Économie des canaux",
+      "recordedHint": "Par canal enregistré",
       "intro": "Canaux entrants avec attribution enregistrée (candidature carrière, candidature express, webhooks). Saisissez votre dépense par canal pour obtenir le coût par candidat et par recrutement.",
       "empty": "Aucun candidat attribué à un canal pour l'instant — les candidatures entrantes, les leads de candidature express et les leads issus de webhooks apparaîtront ici.",
       "colChannel": "Canal",
@@ -3699,6 +3701,7 @@
         "matrix": "Matrice de correspondance",
         "analyze": "Analyse de CV",
         "sourcing": "Sourcing proactif",
+        "rediscovery": "Redécouverte de talents",
         "devcase": "Cas technique"
       },
       "variantsTitle": "Variantes créatives",

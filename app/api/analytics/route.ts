@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { pipelineAnalytics } from "@/app/_lib/db";
+import { pipelineAnalytics, pipelineAnalyticsPrior } from "@/app/_lib/db";
 import type { PipelineAnalytics } from "@/app/_lib/db/analytics";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { periodDeltas, type PeriodDeltas } from "@/app/_lib/analytics-deltas";
@@ -41,8 +41,11 @@ export async function GET(request: Request) {
       const current = pipelineAnalytics(windowDays, undefined, ws);
       // ce8e3c9e — only a windowed view has a well-defined "previous period". For
       // all-time (no window) there's nothing to compare against, so deltas are null.
+      // channel-story-complete — the prior window feeds ONLY periodDeltas, which reads
+      // a handful of scalars; pipelineAnalyticsPrior computes just those (2 queries)
+      // instead of re-running the full ~9-query battery whose rest the route discards.
       const deltas = windowDays
-        ? periodDeltas(current, pipelineAnalytics(windowDays, { endMs: Date.now() - windowDays * 86_400_000 }, ws))
+        ? periodDeltas(current, pipelineAnalyticsPrior(windowDays, Date.now() - windowDays * 86_400_000, ws))
         : null;
       return { ...current, deltas };
     });
