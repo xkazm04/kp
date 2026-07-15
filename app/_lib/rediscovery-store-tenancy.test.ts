@@ -90,7 +90,7 @@ test("candidateOutcomes isolates prior pipeline history by workspace", () => {
 
 test("rediscovery alerts record + list are isolated by workspace", () => {
   const rows = [
-    { candidateId: "cand-B", label: "Cand B", archetype: "bau", score: 78, prior: { kind: "rejected", label: "Rejected · X" } },
+    { candidateId: "cand-B", label: "Cand B", archetype: "bau", score: 78, prior: { kind: "rejected", label: "Rejected · X", stage: "Screened", depth: 1 } },
   ];
   const added = recordRediscoveryAlerts("jobB1", "Beta Role", rows, WS_B);
   assert.equal(added, 1);

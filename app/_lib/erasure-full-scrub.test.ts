@@ -148,7 +148,7 @@ test("erasure scrubs the candidate's PII from EVERY entry-linked table (transcri
   const invite = createScheduleInvite({ entryId: entry.id, candidateLabel: NAME, jobTitle: "Data Engineer" });
 
   // Rediscovery alert (isolated store, keyed by candidate_id).
-  recordRediscoveryAlerts(jobId, "Data Engineer", [{ candidateId: cid, label: NAME, archetype: "builder", score: 71, prior: { kind: "rejected", label: NAME } }]);
+  recordRediscoveryAlerts(jobId, "Data Engineer", [{ candidateId: cid, label: NAME, archetype: "builder", score: 71, prior: { kind: "rejected", label: NAME, stage: "Interview", depth: 2 } }]);
 
   // --- Sanity: the PII is present BEFORE erasure (guards against a tautological test). ---
   assert.match(JSON.stringify(latestInterviewByEntry(entry.id)), /zdenka\.prochazkova@example\.com/i, "transcript holds PII pre-erasure");

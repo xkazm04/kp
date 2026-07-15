@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Check, RefreshCw, Sparkles, UserPlus, X } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { ScoreBadge } from "@/app/_components/ScoreBadge";
 import { postPipelineAdd } from "@/app/_lib/useAddToPipeline";
 // bug-ui-scan-2026-07-09 (sourcing-campaigns-rediscovery #4): the add-outcome
@@ -18,7 +19,12 @@ type Alert = {
   label: string;
   archetype: string;
   score: number;
-  prior: { kind: string; label: string };
+  // `stage`/`depth` are null for legacy rows persisted before feed-tells-why — those
+  // fall back to the legacy English `label`; newer rows carry the live prior shape so
+  // the feed rebuilds the same localized why-now the panel renders.
+  // `kind` is the closed prior union (mirrors Rediscovered.prior.kind) so the
+  // whyNow.{kind} message key type-checks as an exact key, not `whyNow.${string}`.
+  prior: { kind: "rejected" | "closed" | "elsewhere"; label: string; stage: string | null; depth: number | null };
 };
 
 const PRIOR_STYLE: Record<string, string> = {
@@ -34,6 +40,10 @@ const PRIOR_STYLE: Record<string, string> = {
 // X clears the bar for new Role Y (78)" with one-click add-to-pipeline / dismiss.
 export function RediscoveryFeed() {
   const t = useTranslations("jobs.rediscoveryFeed");
+  // Same localized why-now the on-demand panel tells (RediscoverPanel): reuse the exact
+  // jobs.rediscover.whyNow.* keys + enums.stage resolution — never a forked copy.
+  const tr = useTranslations("jobs.rediscover");
+  const enumLabel = useEnumLabel();
   const [alerts, setAlerts] = useState<Alert[] | null>(null);
   const [sweeping, setSweeping] = useState(false);
   const [note, setNote] = useState<string | null>(null);
@@ -187,9 +197,23 @@ export function RediscoveryFeed() {
                         b: (chunks) => <span className="font-semibold">{chunks}</span>,
                       })}
                     </p>
-                    <span className={`mt-0.5 inline-block rounded-full px-2 py-0.5 text-meta ${PRIOR_STYLE[a.prior.kind] ?? PRIOR_STYLE.elsewhere}`}>
-                      {a.prior.label}
-                    </span>
+                    {/* feed-tells-why: rows carrying the live prior shape (stage present)
+                        tell the SAME localized why-now the panel does — whyNow.{kind} plus
+                        the "reached {stage}" disclosure when the band-limited depth boost
+                        lifted this candidate (depth > 0). Legacy rows (stage null, written
+                        before the migration) fall back to the persisted English chip. */}
+                    {a.prior.stage ? (
+                      <p className="mt-1 text-sm leading-snug text-steel">
+                        {tr(`whyNow.${a.prior.kind}`, { jobTitle: a.jobTitle, score: a.score })}
+                        {(a.prior.depth ?? 0) > 0
+                          ? " " + tr("whyNow.reached", { stage: enumLabel("stage", a.prior.stage) })
+                          : ""}
+                      </p>
+                    ) : (
+                      <span className={`mt-0.5 inline-block rounded-full px-2 py-0.5 text-meta ${PRIOR_STYLE[a.prior.kind] ?? PRIOR_STYLE.elsewhere}`}>
+                        {a.prior.label}
+                      </span>
+                    )}
                     {err ? <span className="ml-2 text-meta text-coral">{err}</span> : null}
                   </div>
                   {added.has(a.candidateId) ? (

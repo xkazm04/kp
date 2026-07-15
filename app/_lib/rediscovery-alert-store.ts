@@ -35,6 +35,8 @@ function db(): Database.Database {
       score INTEGER NOT NULL,
       prior_kind TEXT NOT NULL,
       prior_label TEXT NOT NULL,
+      prior_stage TEXT,
+      prior_depth INTEGER,
       created_at TEXT NOT NULL,
       dismissed_at TEXT,
       workspace_id TEXT NOT NULL DEFAULT 'workspace'
@@ -49,6 +51,20 @@ function db(): Database.Database {
   } catch {
     /* column already exists — idempotent */
   }
+  // feed-tells-why: the persisted alert used to carry only the prior's kind + a
+  // legacy English label, so the standing feed couldn't tell the same localized
+  // why-now story the panel does. Additively record the prior's terminal STAGE and
+  // its band-limited DEPTH boost (the {kind,label,stage,depth} live shape) so the
+  // feed can rebuild the localized disclosure. Nullable on purpose — rows written
+  // before this migration read NULL and render exactly as before (legacy English
+  // label). Per-column try/catch mirrors the workspace_id migration above.
+  for (const col of ["prior_stage TEXT", "prior_depth INTEGER"]) {
+    try {
+      d.exec(`ALTER TABLE rediscovery_alerts ADD COLUMN ${col}`);
+    } catch {
+      /* column already exists — idempotent */
+    }
+  }
   _db = d;
   return d;
 }
@@ -58,7 +74,11 @@ export type RediscoveryAlertInput = {
   label: string;
   archetype: string;
   score: number;
-  prior: { kind: string; label: string };
+  // The full live prior shape (Rediscovered.prior). `stage` is the prior's terminal
+  // pipeline stage and `depth` its band-limited ordering boost — persisted so the feed
+  // rebuilds the same localized why-now the panel renders. Structurally a superset of
+  // the legacy {kind,label}, so a Rediscovered flows straight in.
+  prior: { kind: string; label: string; stage: string; depth: number };
 };
 
 export type RediscoveryAlert = {
@@ -69,7 +89,9 @@ export type RediscoveryAlert = {
   label: string;
   archetype: string;
   score: number;
-  prior: { kind: string; label: string };
+  // `stage`/`depth` are NULL for legacy rows written before the feed-tells-why
+  // migration — the feed falls back to the legacy English `label` for those.
+  prior: { kind: string; label: string; stage: string | null; depth: number | null };
   createdAt: string;
 };
 
@@ -89,8 +111,8 @@ export function recordRediscoveryAlerts(
   const now = new Date().toISOString();
   const insert = d.prepare(`
     INSERT OR IGNORE INTO rediscovery_alerts
-      (id, job_id, job_title, candidate_id, candidate_label, archetype, score, prior_kind, prior_label, created_at, workspace_id)
-    VALUES (@id, @jobId, @jobTitle, @candidateId, @label, @archetype, @score, @priorKind, @priorLabel, @createdAt, @workspaceId)
+      (id, job_id, job_title, candidate_id, candidate_label, archetype, score, prior_kind, prior_label, prior_stage, prior_depth, created_at, workspace_id)
+    VALUES (@id, @jobId, @jobTitle, @candidateId, @label, @archetype, @score, @priorKind, @priorLabel, @priorStage, @priorDepth, @createdAt, @workspaceId)
   `);
   const tx = d.transaction((items: RediscoveryAlertInput[]): number => {
     let added = 0;
@@ -105,6 +127,8 @@ export function recordRediscoveryAlerts(
         score: r.score,
         priorKind: r.prior.kind,
         priorLabel: r.prior.label,
+        priorStage: r.prior.stage,
+        priorDepth: r.prior.depth,
         createdAt: now,
         workspaceId,
       });
@@ -122,7 +146,7 @@ export function recordRediscoveryAlerts(
 export function listRediscoveryAlerts(workspaceId: string = DEFAULT_WORKSPACE_ID): RediscoveryAlert[] {
   const rows = db()
     .prepare(
-      `SELECT id, job_id, job_title, candidate_id, candidate_label, archetype, score, prior_kind, prior_label, created_at
+      `SELECT id, job_id, job_title, candidate_id, candidate_label, archetype, score, prior_kind, prior_label, prior_stage, prior_depth, created_at
        FROM rediscovery_alerts
        WHERE dismissed_at IS NULL AND workspace_id = ?
        ORDER BY created_at DESC, score DESC`
@@ -136,7 +160,14 @@ export function listRediscoveryAlerts(workspaceId: string = DEFAULT_WORKSPACE_ID
     label: r.candidate_label as string,
     archetype: r.archetype as string,
     score: r.score as number,
-    prior: { kind: r.prior_kind as string, label: r.prior_label as string },
+    prior: {
+      kind: r.prior_kind as string,
+      label: r.prior_label as string,
+      // Legacy rows (pre-migration) read NULL — kept null so the feed can fall back
+      // to the legacy English label rather than fabricate a stage/depth.
+      stage: (r.prior_stage as string | null) ?? null,
+      depth: (r.prior_depth as number | null) ?? null,
+    },
     createdAt: r.created_at as string,
   }));
 }
