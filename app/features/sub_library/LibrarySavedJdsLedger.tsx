@@ -16,6 +16,7 @@
 // bug-ui-scan-2026-07-09 (jd-authoring-library-templates #3)
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { forwardRef, useEffect, useId, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import {
   AlertTriangle,
@@ -62,6 +63,7 @@ import {
   type JdRow,
   type StatusFilter,
 } from "./jd-library";
+import { parseCoachEditParam, COACH_EDIT_PARAM, type CoachEdit } from "@/app/features/sub_jobs/coach-apply";
 import { JdCandidateList } from "./JdCandidateList";
 import { JdModalEditor } from "./JdModalEditor";
 import { LibraryGeneratePanel } from "./LibraryGeneratePanel";
@@ -101,6 +103,38 @@ export function LibrarySavedJdsLedger() {
   const [seniority, setSeniority] = useState<string | null>(null);
   const [openRow, setOpenRow] = useState<JdRow | null>(null);
   const [ingested, setIngested] = useState<{ slug: string; jobId: string | null } | null>(null);
+
+  // winnability-apply — one-shot handoff from the winnability coach: land here with
+  // ?coachEdit=<kind~slug~delta~value> (grammar in sub_jobs/coach-apply.ts), open
+  // the targeted JD in edit mode, and paint a dismissible suggestion banner in the
+  // editor. Captured ONCE at mount (state initializer) because the param is one-shot
+  // — the effect below strips it via history.replaceState so a refresh or shared
+  // link can never re-stage a stale edit. Nothing auto-saves: the recruiter still
+  // edits the free-text body and confirms through the existing CAS save path.
+  const search = useSearchParams();
+  const [coachEdit] = useState<CoachEdit | null>(() => parseCoachEditParam(search.get(COACH_EDIT_PARAM)));
+  // Once the recruiter closes the auto-opened coach modal, the handoff is spent —
+  // a later manual open of the same JD gets a clean modal, no banner.
+  const [coachDismissed, setCoachDismissed] = useState(false);
+  useEffect(() => {
+    // Strip ?coachEdit= once (raw history write, not a React setState — the value is
+    // already in mount state, so no re-render/nav churn; mirrors DecisionsTab's ?arm=).
+    if (!search.has(COACH_EDIT_PARAM)) return;
+    const url = new URL(window.location.href);
+    url.searchParams.delete(COACH_EDIT_PARAM);
+    window.history.replaceState(window.history.state, "", url.pathname + url.search + url.hash);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  // Derived, not effect-set: the coach-targeted JD row once the library loads. A slug
+  // that isn't here (e.g. a corpus job with no JD) resolves to null — fail-closed,
+  // nothing opens. A manual open (openRow) always wins over the auto-open.
+  const coachTargetRow = coachEdit && rows ? rows.find((r) => r.slug === coachEdit.slug) ?? null : null;
+  const effectiveOpenRow = openRow ?? (coachDismissed ? null : coachTargetRow);
+  // The staged suggestion rides only the auto-opened coach session (before dismissal).
+  const stagedForOpenRow =
+    effectiveOpenRow && coachEdit && !coachDismissed && !openRow && effectiveOpenRow.slug === coachEdit.slug
+      ? coachEdit
+      : null;
   const [prefill, setPrefill] = useState<GeneratePrefill | null>(null);
   const [duplicating, setDuplicating] = useState<string | null>(null);
 
@@ -393,15 +427,20 @@ export function LibrarySavedJdsLedger() {
           </div>
         </div>
 
-      {openRow ? (
+      {effectiveOpenRow ? (
         <LedgerDetailModal
-          row={openRow}
-          onClose={() => setOpenRow(null)}
-          onDuplicate={startDuplicate}
-          duplicating={duplicating === openRow.slug}
-          onIngested={(jobId) => {
-            setIngested({ slug: openRow.slug, jobId });
+          row={effectiveOpenRow}
+          stagedSuggestion={stagedForOpenRow}
+          onClose={() => {
             setOpenRow(null);
+            setCoachDismissed(true);
+          }}
+          onDuplicate={startDuplicate}
+          duplicating={duplicating === effectiveOpenRow.slug}
+          onIngested={(jobId) => {
+            setIngested({ slug: effectiveOpenRow.slug, jobId });
+            setOpenRow(null);
+            setCoachDismissed(true);
             reload();
           }}
         />
@@ -654,12 +693,16 @@ function RowIngest({ row, reload, onIngested }: { row: JdRow; reload: () => void
 
 function LedgerDetailModal({
   row,
+  stagedSuggestion,
   onClose,
   onDuplicate,
   duplicating,
   onIngested,
 }: {
   row: JdRow;
+  // winnability-apply — when this row was opened from a coach recommendation, the
+  // staged edit to surface as a suggestion banner inside the editor. null otherwise.
+  stagedSuggestion?: CoachEdit | null;
   onClose: () => void;
   onDuplicate: (row: JdRow) => void;
   duplicating: boolean;
@@ -678,6 +721,9 @@ function LedgerDetailModal({
   const [retryError, setRetryError] = useState<string | null>(null);
   // Direction 1 — in-place edit inside the modal (title + body → the existing PATCH).
   const [editing, setEditing] = useState(false);
+  // winnability-apply — a coach handoff opens straight into edit mode. Latched off
+  // once the recruiter exits the editor so the staged session can't re-open itself.
+  const [stagedExited, setStagedExited] = useState(false);
 
   // While the build runs, poll the detail so it flips to the result in place.
   useEffect(() => {
@@ -693,6 +739,23 @@ function LedgerDetailModal({
   // has loaded. A grounded market band feeds the lint's salary-suppression seam.
   const canEdit = Boolean(jd) && !analyzing && !failed && status === "ready";
   const marketResearch = Boolean(artifacts?.options?.marketResearch) || normalizeMarketSalary(artifacts?.salary).available;
+
+  // winnability-apply — the coach handoff auto-enters edit mode by DERIVATION (no
+  // effect-set state): the staged session is live while a suggestion is present, the
+  // JD is editable, and the recruiter hasn't exited yet. `inEdit` merges that with a
+  // manual Edit toggle; exiting the editor (save / cancel) latches the session shut.
+  const stagedActive = Boolean(stagedSuggestion) && canEdit && !stagedExited;
+  const inEdit = editing || stagedActive;
+  const enterEdit = () => {
+    setEditing(true);
+    setStagedExited(false);
+  };
+  const exitEdit = () => {
+    setEditing(false);
+    setStagedExited(true);
+  };
+  const toggleEdit = () => (inEdit ? exitEdit() : enterEdit());
+  const showStaged = stagedActive ? stagedSuggestion : null;
 
   const retry = async () => {
     setRetrying(true);
@@ -738,12 +801,12 @@ function LedgerDetailModal({
             {canEdit ? (
               <button
                 type="button"
-                onClick={() => setEditing((v) => !v)}
-                aria-pressed={editing}
+                onClick={toggleEdit}
+                aria-pressed={inEdit}
                 aria-label={t("editJdAria")}
-                className={`focus-ring flex w-full items-center gap-2 rounded-md border px-3 py-2 text-sm font-semibold hover:border-coral/40 ${editing ? "border-coral/40 bg-coral/5 text-coral" : "border-stone-200 text-ink"}`}
+                className={`focus-ring flex w-full items-center gap-2 rounded-md border px-3 py-2 text-sm font-semibold hover:border-coral/40 ${inEdit ? "border-coral/40 bg-coral/5 text-coral" : "border-stone-200 text-ink"}`}
               >
-                <Pencil size={15} aria-hidden /> {editing ? t("editCancel") : t("editJd")}
+                <Pencil size={15} aria-hidden /> {inEdit ? t("editCancel") : t("editJd")}
               </button>
             ) : null}
             <button
@@ -781,14 +844,15 @@ function LedgerDetailModal({
 
         {/* Rendered posting — plus the in-progress / failed states of a backgrounded build. */}
         <section className="min-w-0">
-          {editing && jd ? (
+          {inEdit && jd ? (
             <JdModalEditor
               slug={row.slug}
               initialTitle={jd.title}
               initialBody={jd.body}
               marketResearch={marketResearch}
+              stagedSuggestion={showStaged}
               onDone={() => {
-                setEditing(false);
+                exitEdit();
                 refresh();
               }}
             />

@@ -2372,6 +2372,11 @@
       "editConflict": "Diese Beschreibung hat sich geändert, seit Sie sie geöffnet haben. Laden Sie die neueste Version und wenden Sie Ihre Änderung erneut an.",
       "editReload": "Neueste laden",
       "editGateReason": "Bearbeiten ist nur für Operatoren möglich.",
+      "coachStageEyebrow": "Vom Winnability-Coach vorgeschlagen",
+      "coachStageDismiss": "Vorschlag ausblenden",
+      "coachStageLanguage": "Erwägen Sie, die Sprachanforderung <b>{value}</b> als „nice-to-have“ einzustufen. {delta, plural, =0 {Lockern oder entfernen Sie sie unten im Text und speichern Sie.} one {Das könnte bis zu <b>+{delta}</b> weiteren Kandidaten freischalten — lockern oder entfernen Sie sie unten im Text und speichern Sie.} other {Das könnte bis zu <b>+{delta}</b> weitere Kandidaten freischalten — lockern oder entfernen Sie sie unten im Text und speichern Sie.}}",
+      "coachStageEducation": "Erwägen Sie, die Bildungsanforderung <b>{value}</b> zu streichen. {delta, plural, =0 {Lockern oder entfernen Sie sie unten im Text und speichern Sie.} one {Das könnte bis zu <b>+{delta}</b> weiteren Kandidaten freischalten — lockern oder entfernen Sie sie unten im Text und speichern Sie.} other {Das könnte bis zu <b>+{delta}</b> weitere Kandidaten freischalten — lockern oder entfernen Sie sie unten im Text und speichern Sie.}}",
+      "coachStageMustHave": "Erwägen Sie, <b>{value}</b> von einer Muss- zu einer Kann-Anforderung herabzustufen. {delta, plural, =0 {Verschieben Sie es unten im Text und speichern Sie.} one {Das könnte bis zu <b>+{delta}</b> weiteren Kandidaten in die engere Auswahl bringen — verschieben Sie es unten im Text und speichern Sie.} other {Das könnte bis zu <b>+{delta}</b> weitere Kandidaten in die engere Auswahl bringen — verschieben Sie es unten im Text und speichern Sie.}}",
       "editHistory": "Verlauf",
       "editHideHistory": "Verlauf ausblenden",
       "editHistoryEmpty": "Noch keine früheren Versionen — Änderungen und Zurücksetzungen erscheinen hier.",
@@ -2676,7 +2681,9 @@
       "salaryOk": "Das Gehalt entspricht dem Marktband <b>{market}</b> für diese Stelle.",
       "salaryUnset": "(kein Band festgelegt)",
       "notAssessed": "{n, plural, one {# Kandidat/in konnte nicht bewertet werden} other {# Kandidat/innen konnten nicht bewertet werden}} und {n, plural, one {ist} other {sind}} oben nicht mitgezählt — prüfen Sie das Profil.",
-      "footnote": "Die Prognosen lassen kps Live-Scoring-Engine erneut über Ihre gespeicherten Kandidat/innen laufen — sie entsprechen dem, was eine Veröffentlichung zutage fördern würde."
+      "footnote": "Die Prognosen lassen kps Live-Scoring-Engine erneut über Ihre gespeicherten Kandidat/innen laufen — sie entsprechen dem, was eine Veröffentlichung zutage fördern würde.",
+      "stageEdit": "Änderung vormerken",
+      "stageEditAria": "Beschreibungseditor mit vorgemerkter Änderung für {value} öffnen"
     },
     "campaign": {
       "intro": "Feed-fertige Anzeigentexte und 15-Sekunden-Videoskripte für diese Stelle — die 4-Beat-Formel (Hook · Angebot · Beleg · CTA), ausschließlich auf den genannten Fakten der Stelle beruhend. Jeder CTA verlinkt das 30-Sekunden-Schnellbewerbungsformular.",

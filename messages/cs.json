@@ -2343,6 +2343,11 @@
       "editConflict": "Tento popis se od okamžiku, kdy jste ho otevřeli, změnil. Načtěte nejnovější verzi a poté svou úpravu proveďte znovu.",
       "editReload": "Načíst nejnovější",
       "editGateReason": "Úpravy jsou dostupné pouze operátorům.",
+      "coachStageEyebrow": "Doporučeno koučem obsaditelnosti",
+      "coachStageDismiss": "Skrýt návrh",
+      "coachStageLanguage": "Zvažte, zda jazykový požadavek <b>{value}</b> nepřesunout mezi výhody. {delta, plural, =0 {Zmírněte jej nebo odeberte v textu níže a uložte.} one {Mohlo by to zpřístupnit až <b>+{delta}</b> dalšího kandidáta — zmírněte jej nebo odeberte v textu níže a uložte.} few {Mohlo by to zpřístupnit až <b>+{delta}</b> další kandidáty — zmírněte jej nebo odeberte v textu níže a uložte.} other {Mohlo by to zpřístupnit až <b>+{delta}</b> dalších kandidátů — zmírněte jej nebo odeberte v textu níže a uložte.}}",
+      "coachStageEducation": "Zvažte zrušení vzdělanostního požadavku <b>{value}</b>. {delta, plural, =0 {Zmírněte jej nebo odeberte v textu níže a uložte.} one {Mohlo by to zpřístupnit až <b>+{delta}</b> dalšího kandidáta — zmírněte jej nebo odeberte v textu níže a uložte.} few {Mohlo by to zpřístupnit až <b>+{delta}</b> další kandidáty — zmírněte jej nebo odeberte v textu níže a uložte.} other {Mohlo by to zpřístupnit až <b>+{delta}</b> dalších kandidátů — zmírněte jej nebo odeberte v textu níže a uložte.}}",
+      "coachStageMustHave": "Zvažte přesun <b>{value}</b> z nezbytných požadavků mezi výhody. {delta, plural, =0 {Přesuňte jej v textu níže a uložte.} one {Do užšího výběru by se tím mohl dostat až <b>+{delta}</b> další kandidát — přesuňte jej v textu níže a uložte.} few {Do užšího výběru by se tím mohli dostat až <b>+{delta}</b> další kandidáti — přesuňte jej v textu níže a uložte.} other {Do užšího výběru by se tím mohlo dostat až <b>+{delta}</b> dalších kandidátů — přesuňte jej v textu níže a uložte.}}",
       "editHistory": "Historie",
       "editHideHistory": "Skrýt historii",
       "editHistoryEmpty": "Zatím žádné předchozí verze — úpravy a vrácení se zobrazí zde.",
@@ -2647,7 +2652,9 @@
       "salaryOk": "Mzda odpovídá tržnímu pásmu <b>{market}</b> pro tuto roli.",
       "salaryUnset": "(pásmo neuvedeno)",
       "notAssessed": "{n, plural, one {# kandidáta se nepodařilo ohodnotit} few {# kandidáty se nepodařilo ohodnotit} other {# kandidátů se nepodařilo ohodnotit}} a {n, plural, one {není} other {nejsou}} započítáni výše — zkontrolujte jejich profil.",
-      "footnote": "Odhady znovu spouští živý skórovací engine kp proti vašim uloženým kandidátům — odpovídají tomu, co by ukázala publikace."
+      "footnote": "Odhady znovu spouští živý skórovací engine kp proti vašim uloženým kandidátům — odpovídají tomu, co by ukázala publikace.",
+      "stageEdit": "Připravit úpravu",
+      "stageEditAria": "Otevřít editor popisu s připravenou úpravou pro {value}"
     },
     "campaign": {
       "intro": "Reklamní texty do feedu a scénáře 15sekundových videí pro tuto roli — formule čtyř dob (háček · nabídka · důkaz · výzva), postavená výhradně na uvedených faktech. Každá výzva odkazuje na 30sekundovou rychlou přihlášku.",

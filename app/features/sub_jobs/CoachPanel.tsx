@@ -1,9 +1,13 @@
 "use client";
 
-import { AlertTriangle, CheckCircle2, Coins, Languages, SlidersHorizontal, Users } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Coins, Languages, SlidersHorizontal, SquarePen, Users } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
+import { jdSlugOfJobId } from "@/app/_lib/jd-limits";
+import { buildUrl, clearedTabScopedParams } from "@/app/features/tabs";
 import { EmptyState, SkelBar } from "./JobsShared";
+import { buildCoachEditParam, COACH_EDIT_PARAM, type CoachEditKind } from "./coach-apply";
 // bug-ui-scan-2026-07-09 (sourcing-campaigns-rediscovery #5): the salary band is
 // formatted through the shared APP_CURRENCY helper (see coach-salary.ts) instead of a
 // local cs-CZ + hardcoded "CZK" template, so the coach can't mislabel the currency.
@@ -43,10 +47,29 @@ type Winnability = {
 // silently emptying the pipeline, and whether the salary undercuts the market.
 export function CoachPanel({ jobId, jobTitle }: { jobId: string; jobTitle: string }) {
   const t = useTranslations("jobs.coach");
+  const router = useRouter();
+  const search = useSearchParams();
   const { data, error, reload } = useJsonFetch<Winnability>(
     `/api/jobs/${encodeURIComponent(jobId)}/winnability`,
     t("loadFailed")
   );
+
+  // winnability-apply — the coach never mutates the job (it stays read-only), but a
+  // loosen-gate / demote-must-have recommendation can hand off into the EXISTING JD
+  // editor with the change STAGED for the recruiter to confirm. Only JD-backed jobs
+  // (id `jd-<slug>`) have an editable description in the Library; a seeded/corpus job
+  // has no slug, so the affordance is honestly absent there. Salary rows never carry
+  // it — the matchable band is fixed to the grounded market analysis.
+  const jdSlug = jdSlugOfJobId(jobId);
+  const stageEdit = (kind: CoachEditKind, value: string, delta: number) => {
+    if (!jdSlug) return;
+    const param = buildCoachEditParam({ kind, slug: jdSlug, delta, value });
+    if (!param) return;
+    // Land in the Library ledger with a clean slice (clear other tab-scoped params)
+    // plus the one-shot staged edit; the ledger opens the JD in edit mode and paints
+    // a dismissible suggestion banner. Nothing auto-saves.
+    router.push(buildUrl({ tab: "library", ...clearedTabScopedParams(), [COACH_EDIT_PARAM]: param }, search.toString()));
+  };
 
   if (error) {
     return (
@@ -153,9 +176,9 @@ export function CoachPanel({ jobId, jobTitle }: { jobId: string; jobTitle: strin
           </h4>
           <ul className="space-y-1.5">
             {gates.map((g) => (
-              <li key={`g-${g.value}`} className="flex items-center gap-2 rounded-md border border-stone-200 bg-white px-3 py-2 text-base">
+              <li key={`g-${g.value}`} className="flex flex-wrap items-center gap-x-2 gap-y-1.5 rounded-md border border-stone-200 bg-white px-3 py-2 text-base">
                 <Languages size={15} className="shrink-0 text-coral" />
-                <span className="flex-1 text-ink">
+                <span className="flex-1 basis-40 text-ink">
                   {t.rich(g.kind === "language" ? "gateLanguage" : "gateEducation", {
                     value: g.value,
                     n: g.eligibleDelta,
@@ -165,12 +188,18 @@ export function CoachPanel({ jobId, jobTitle }: { jobId: string; jobTitle: strin
                 <span className="shrink-0 rounded-full bg-moss/10 px-2 py-0.5 text-sm font-semibold text-moss">
                   +{g.eligibleDelta}
                 </span>
+                <StageEditButton
+                  show={Boolean(jdSlug)}
+                  label={t("stageEdit")}
+                  ariaLabel={t("stageEditAria", { value: g.value })}
+                  onClick={() => stageEdit(g.kind, g.value, g.eligibleDelta)}
+                />
               </li>
             ))}
             {musts.map((m) => (
-              <li key={`m-${m.skill}`} className="flex items-center gap-2 rounded-md border border-stone-200 bg-white px-3 py-2 text-base">
+              <li key={`m-${m.skill}`} className="flex flex-wrap items-center gap-x-2 gap-y-1.5 rounded-md border border-stone-200 bg-white px-3 py-2 text-base">
                 <SlidersHorizontal size={15} className="shrink-0 text-coral" />
-                <span className="flex-1 text-ink">
+                <span className="flex-1 basis-40 text-ink">
                   {t.rich("mustHave", {
                     skill: m.skill,
                     missing: m.missingAmongEligible,
@@ -182,6 +211,12 @@ export function CoachPanel({ jobId, jobTitle }: { jobId: string; jobTitle: strin
                     +{m.qualifiedDelta}
                   </span>
                 ) : null}
+                <StageEditButton
+                  show={Boolean(jdSlug)}
+                  label={t("stageEdit")}
+                  ariaLabel={t("stageEditAria", { value: m.skill })}
+                  onClick={() => stageEdit("mustHave", m.skill, m.qualifiedDelta > 0 ? m.qualifiedDelta : m.missingAmongEligible)}
+                />
               </li>
             ))}
           </ul>
@@ -215,5 +250,33 @@ export function CoachPanel({ jobId, jobTitle }: { jobId: string; jobTitle: strin
 
       <p className="text-meta text-steel">{t("footnote")}</p>
     </div>
+  );
+}
+
+// The per-recommendation "stage this edit" affordance. Rendered only for a JD-backed
+// role (a slug to edit); the click deep-links into the Library ledger's JD editor
+// with the change staged (CoachPanel.stageEdit). Sits beside the "+N" badge and
+// wraps below on a narrow row.
+function StageEditButton({
+  show,
+  label,
+  ariaLabel,
+  onClick,
+}: {
+  show: boolean;
+  label: string;
+  ariaLabel: string;
+  onClick: () => void;
+}) {
+  if (!show) return null;
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={ariaLabel}
+      className="focus-ring inline-flex shrink-0 items-center gap-1 rounded-md border border-stone-200 px-2 py-1 text-sm font-semibold text-steel transition-colors hover:border-coral/40 hover:text-coral"
+    >
+      <SquarePen size={13} aria-hidden /> {label}
+    </button>
   );
 }

@@ -1,10 +1,11 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import { Check, History, RotateCcw, X } from "lucide-react";
+import { Check, History, Lightbulb, RotateCcw, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { TextInput } from "@/app/_components/TextInput";
 import { TextArea } from "@/app/_components/TextArea";
+import type { CoachEdit } from "@/app/features/sub_jobs/coach-apply";
 import { builderLintFindings } from "./jd-library";
 import { JdLintPanel } from "./JdLintPanel";
 
@@ -32,6 +33,7 @@ export function JdModalEditor({
   initialTitle,
   initialBody,
   marketResearch,
+  stagedSuggestion,
   onDone,
 }: {
   slug: string;
@@ -41,6 +43,11 @@ export function JdModalEditor({
   // suppression exactly as the builder does (the same seam), so a role that carries
   // a band doesn't trip the missing-salary advisory.
   marketResearch: boolean;
+  // winnability-apply — when the editor was opened from a coach recommendation, the
+  // staged change to surface as a dismissible suggestion banner above the fields.
+  // Advisory only: the recruiter makes the wording change themselves and saves
+  // through the existing PATCH/CAS path (which re-ingests the linked job).
+  stagedSuggestion?: CoachEdit | null;
   // Refresh the detail + leave edit mode (used by a successful save AND the
   // conflict "Reload latest" recovery).
   onDone: () => void;
@@ -48,6 +55,7 @@ export function JdModalEditor({
   const t = useTranslations("library.tab");
   const [draftTitle, setDraftTitle] = useState(initialTitle);
   const [draftBody, setDraftBody] = useState(initialBody);
+  const [suggestionDismissed, setSuggestionDismissed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [conflict, setConflict] = useState(false);
@@ -151,8 +159,39 @@ export function JdModalEditor({
 
   const disabled = busy || gateBlocked;
 
+  const bannerKey =
+    stagedSuggestion?.kind === "language"
+      ? "coachStageLanguage"
+      : stagedSuggestion?.kind === "education"
+        ? "coachStageEducation"
+        : "coachStageMustHave";
+
   return (
     <div className="space-y-3">
+      {stagedSuggestion && !suggestionDismissed ? (
+        <div className="flex items-start gap-2 rounded-lg border border-coral/40 bg-coral/5 px-3 py-2.5">
+          <Lightbulb size={16} className="mt-0.5 shrink-0 text-coral" aria-hidden />
+          <div className="flex-1 space-y-1">
+            <p className="text-meta uppercase tracking-wide text-coral">{t("coachStageEyebrow")}</p>
+            <p className="text-base text-ink">
+              {t.rich(bannerKey, {
+                value: stagedSuggestion.value,
+                delta: stagedSuggestion.delta,
+                b: (chunks) => <span className="font-semibold">{chunks}</span>,
+              })}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setSuggestionDismissed(true)}
+            aria-label={t("coachStageDismiss")}
+            title={t("coachStageDismiss")}
+            className="focus-ring shrink-0 rounded-md p-1 text-steel transition-colors hover:text-ink"
+          >
+            <X size={15} aria-hidden />
+          </button>
+        </div>
+      ) : null}
       <div className="space-y-3 rounded-lg border border-stone-200 bg-paper/40 p-4">
         <label className="block text-sm font-semibold text-steel">
           {t("editTitleLabel")}

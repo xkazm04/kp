@@ -242,6 +242,12 @@ export const TAB_SCOPED_PARAM_KEYS = [
   // history.replaceState; tab-scoped like any selection so a bare tab switch
   // can never carry a stale pre-arm along.
   "arm",
+  // winnability-apply — the Library ledger's staged JD edit handoff from the
+  // winnability coach (?coachEdit=<kind~slug~delta~value>, grammar in
+  // sub_jobs/coach-apply.ts). One-shot like ?arm=: LibrarySavedJdsLedger consumes
+  // it at mount (opens the JD in edit mode with a suggestion banner) then strips it
+  // via history.replaceState; tab-scoped so a bare tab switch can't re-stage it.
+  "coachEdit",
 ] as const;
 
 export type TabScopedParamKey = (typeof TAB_SCOPED_PARAM_KEYS)[number];
