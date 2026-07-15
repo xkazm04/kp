@@ -11,7 +11,7 @@ import { poolEntryFromAnalysis, type CandidatePoolEntry } from "./candidate-pool
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "./python-runner";
 import { rankPoolForJob } from "./recruiter-run";
 import { computeDifferentiators } from "./group-eval-differentiators";
-import { hasComparableCohort } from "./group-eval-cohort";
+import { hasComparableCohort, GROUP_EVAL_CAP } from "./group-eval-cohort";
 import { compareByMatchScoreDesc, compareScoreDesc } from "./match-score";
 import { sealDecisionSafe } from "./decision-record-store";
 import { buildEligibilityList, governanceNote, normalizeGovernanceMode, resolveGovernanceMode, sealsLead } from "./group-eval-governance";
@@ -19,10 +19,10 @@ import type { MatchResultView, ScoreDimension, Confidence, Reasoning as Canonica
 import type { Comparison, Fairness, FairnessScheme } from "@/app/features/sub_decisions/group-eval/types";
 import { assessRobustness } from "@/app/features/sub_decisions/group-eval/types";
 
-// Cap on how many candidates one comparative evaluation covers. The strongest
-// are selected by fit BEFORE the cap (see below), and the modal surfaces
+// Cap on how many candidates one comparative evaluation covers (GROUP_EVAL_CAP,
+// single-sourced from group-eval-cohort so the client selection UI shares it). The
+// strongest are selected by fit BEFORE the cap (see below), and the modal surfaces
 // "top N of M" so a bounded comparison never reads as full coverage.
-const GROUP_EVAL_CAP = 6;
 
 // Decisions "group evaluation": a comparative read of every candidate competing
 // for one role. For each candidate it pulls the gathered profile data, the FULL
@@ -267,8 +267,29 @@ export async function runGroupEval(
   const roleKey = String(params.roleKey ?? "");
   const roleTitle = (params.roleTitle as string) ?? "the role";
   const jobId = params.jobId ? String(params.jobId) : null;
-  const allCandidates = (params.candidates as GroupEvalCandidate[]) ?? [];
-  const totalCandidates = allCandidates.length;
+  // group-eval-cohort-choice — the candidates to actually compare.
+  //   • Default (no explicit selection): `params.candidates` IS the whole role
+  //     cohort; the top GROUP_EVAL_CAP by fit are compared (today's behaviour,
+  //     byte-identical) and `params.cohort` is absent.
+  //   • Explicit selection ("compare these four"): `params.candidates` carries the
+  //     recruiter's chosen subset and `params.cohort` carries the FULL role cohort.
+  //     The eval runs over the selection, but every coverage / drift bookkeeping stays
+  //     anchored to the full cohort so a narrowed comparison never reads as a shrunk pool.
+  const requested = (params.candidates as GroupEvalCandidate[]) ?? [];
+  const cohortParam = params.cohort as GroupEvalCandidate[] | undefined;
+  const hasSelectionParam = Array.isArray(cohortParam);
+  const cohort = hasSelectionParam ? cohortParam! : requested;
+  const totalCandidates = cohort.length;
+  const idOf = (c: GroupEvalCandidate) => c.candidateId || c.entryId;
+  // Server-validated membership + cap: a passed selection is filtered to members that
+  // actually belong to the role cohort (a client can't smuggle in a cross-role or
+  // stale candidate), and the GROUP_EVAL_CAP slice below enforces the bound regardless
+  // of how many ids were sent. A selection that validates to nothing (all stale /
+  // cross-role) falls back to the default top-N rather than evaluating an empty field.
+  const cohortIds = new Set(cohort.map(idOf));
+  const validatedSelection = hasSelectionParam ? requested.filter((c) => cohortIds.has(idOf(c))) : requested;
+  const useSelection = hasSelectionParam && validatedSelection.length > 0;
+  const preCap = useSelection ? validatedSelection : cohort;
   // Governance mode (P1-3): "recommendation" (default — AI synthesizes + seals a
   // single lead) vs "committee" / "eligibility_list" (the AI is ADVISORY only — it
   // never seals a winner; the committee / eligibility certification is the human's).
@@ -301,7 +322,7 @@ export async function runGroupEval(
   // measured candidate) but is never fabricated into a "score 0" — past the cap
   // it is dropped as "unranked", not as a fake bottom scorer.
   const seenIdentity = new Set<string>();
-  const input = [...allCandidates]
+  const input = [...preCap]
     .sort(compareByMatchScoreDesc)
     .filter((c) => {
       const identity = c.candidateId || c.entryId;
@@ -498,7 +519,10 @@ export async function runGroupEval(
       // the absence rather than fabricating a 0 (REC-03). robustness states whether the
       // weighting-robustness check was actually assessed, so the sealed lead never reads
       // as robustness-verified when it wasn't (bug-ui-scan-2026-07-09 A).
-      inputs: { score: lead.score, candidates: candidates.length, roleTitle, robustness },
+      // cohortSource records whether the compared field was the recruiter's explicit
+      // selection or the default top-N — so the sealed record is honest about cohort
+      // provenance (a lead crowned over a chosen four ≠ over the whole fit-ranked field).
+      inputs: { score: lead.score, candidates: candidates.length, roleTitle, robustness, cohortSource: useSelection ? "selection" : "top", cohortSize: totalCandidates },
     });
   } else if (lead) {
     // Governance mode (P1-3): the AI is advisory and must NOT seal a winner. Record
@@ -511,7 +535,7 @@ export async function runGroupEval(
       candidateRef: lead.entryId,
       rationale: deterministicSummary,
       reasonCode: "advisory",
-      inputs: { score: lead.score, candidates: candidates.length, roleTitle, governanceMode, robustness },
+      inputs: { score: lead.score, candidates: candidates.length, roleTitle, governanceMode, robustness, cohortSource: useSelection ? "selection" : "top", cohortSize: totalCandidates },
     });
   }
 
@@ -530,10 +554,18 @@ export async function runGroupEval(
     // capped comparison read as full coverage, and diff the pool for staleness.
     totalCandidates,
     cap: GROUP_EVAL_CAP,
-    capped: totalCandidates > GROUP_EVAL_CAP,
-    // Every candidate label considered at eval time (pre-cap) — the modal diffs
-    // this against the role's current pending entries to warn about pool drift.
-    evaluatedLabels: allCandidates.map((c) => c.label),
+    // "capped" (top-N of a larger pool) and "selection" (the recruiter chose the
+    // field) are mutually exclusive coverage stories — an explicit selection did NOT
+    // silently drop the rest by fit, so it never reads as a capped top-N.
+    capped: !useSelection && totalCandidates > GROUP_EVAL_CAP,
+    // group-eval-cohort-choice — provenance of the compared field: present only when
+    // the recruiter picked an explicit subset, so the modal can disclose "comparing
+    // your selection of {count} of {total}" honestly instead of the top-N wording.
+    selection: useSelection ? { count: input.length, total: totalCandidates } : null,
+    // Every candidate label in the FULL role cohort at eval time — the modal diffs
+    // this against the role's current pending entries to warn about pool drift
+    // (anchored to the whole cohort, not just a narrowed selection).
+    evaluatedLabels: cohort.map((c) => c.label),
     topPick: lead
       ? {
           label: lead.label,

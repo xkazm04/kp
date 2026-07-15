@@ -1759,7 +1759,15 @@
       "evaluating": "Evaluating…",
       "groupEvalTitle": "Compare all candidates in this role",
       "viewEvalTitle": "View the saved evaluation — re-run it from inside the modal",
-      "candidateChipTitle": "{name} · {archetype} · open analysis summary"
+      "candidateChipTitle": "{name} · {archetype} · open analysis summary",
+      "select": "Select",
+      "selectExit": "Cancel",
+      "selectTitle": "Compare a specific selection instead of the top candidates by fit",
+      "selectHelp": "Pick up to {cap} candidates to compare head-to-head.",
+      "selectHelpAtCap": "Comparing the maximum of {cap} — deselect one to swap in another.",
+      "compareSelected": "Compare {count}",
+      "compareTitle": "Compare the selected candidates",
+      "candidatePickTitle": "Select {name} to compare"
     },
     "aiReview": {
       "tagOffer": "Offer package",
@@ -1934,6 +1942,7 @@
       "noEval": "No evaluation yet — run one to compare this role's candidates.",
       "driftNotice": "<b>{count, plural, one {# candidate changed} other {# candidates changed}}</b> since this evaluation ran{when}. The ranking below may exclude a newly added candidate or recommend one already decided — re-run for an up-to-date comparison.",
       "capped": "Showing top {cap} of {total} candidates, ranked by fit.",
+      "selectionNote": "Comparing your selection of {count} of {total} candidates.",
       "aiComparison": "AI comparison",
       "aiBacked": "AI",
       "eligibilityList": "Eligibility list (ordinal, by fit)",

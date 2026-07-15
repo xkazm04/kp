@@ -132,5 +132,11 @@ export type GroupEvalPayload = {
   totalCandidates?: number;
   cap?: number;
   capped?: boolean;
+  // group-eval-cohort-choice: present only when the recruiter compared an EXPLICIT
+  // selection rather than the default top-N. `count` were compared out of `total` in
+  // the role cohort — the modal discloses "comparing your selection of {count} of
+  // {total}" instead of the capped top-N wording. Absent (null) on default top-N runs
+  // and on evals saved before this field existed.
+  selection?: { count: number; total: number } | null;
   evaluatedLabels?: string[];
 };

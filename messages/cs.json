@@ -1759,7 +1759,15 @@
       "evaluating": "Hodnotím…",
       "groupEvalTitle": "Porovnat všechny kandidáty této role",
       "viewEvalTitle": "Zobrazit uložené hodnocení — znovu jej spustíte uvnitř okna",
-      "candidateChipTitle": "{name} · {archetype} · otevřít souhrn analýzy"
+      "candidateChipTitle": "{name} · {archetype} · otevřít souhrn analýzy",
+      "select": "Vybrat",
+      "selectExit": "Zrušit",
+      "selectTitle": "Porovnat konkrétní výběr místo nejlepších kandidátů podle shody",
+      "selectHelp": "Vyberte až {cap} kandidátů k přímému porovnání.",
+      "selectHelpAtCap": "Porovnáváte maximum {cap} — jednoho odeberte, chcete-li zaměnit.",
+      "compareSelected": "Porovnat {count}",
+      "compareTitle": "Porovnat vybrané kandidáty",
+      "candidatePickTitle": "Vybrat {name} k porovnání"
     },
     "aiReview": {
       "tagOffer": "Balíček nabídky",
@@ -1934,6 +1942,7 @@
       "noEval": "Zatím žádné hodnocení — spusťte je pro porovnání kandidátů této role.",
       "driftNotice": "<b>{count, plural, one {# kandidát se změnil} few {# kandidáti se změnili} many {# kandidátů se změnilo} other {# kandidátů se změnilo}}</b> od spuštění tohoto hodnocení{when}. Pořadí níže může vynechat nově přidaného kandidáta nebo doporučit někoho, o kom už bylo rozhodnuto — spusťte znovu pro aktuální porovnání.",
       "capped": "Zobrazeno top {cap} z {total} kandidátů, seřazeno podle shody.",
+      "selectionNote": "Porovnává se váš výběr {count} z {total} kandidátů.",
       "aiComparison": "Porovnání AI",
       "aiBacked": "AI",
       "eligibilityList": "Pořadník (ordinální, dle vhodnosti)",

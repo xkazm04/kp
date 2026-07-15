@@ -1788,7 +1788,15 @@
       "evaluating": "Évaluation…",
       "groupEvalTitle": "Comparer tous les candidats de ce poste",
       "viewEvalTitle": "Voir l'évaluation enregistrée — relancez-la depuis la fenêtre",
-      "candidateChipTitle": "{name} · {archetype} · ouvrir le résumé d'analyse"
+      "candidateChipTitle": "{name} · {archetype} · ouvrir le résumé d'analyse",
+      "select": "Sélectionner",
+      "selectExit": "Annuler",
+      "selectTitle": "Comparer une sélection précise plutôt que les meilleurs candidats par correspondance",
+      "selectHelp": "Choisissez jusqu'à {cap} candidats à comparer directement.",
+      "selectHelpAtCap": "Vous comparez le maximum de {cap} — désélectionnez-en un pour l'échanger.",
+      "compareSelected": "Comparer {count}",
+      "compareTitle": "Comparer les candidats sélectionnés",
+      "candidatePickTitle": "Sélectionner {name} pour la comparaison"
     },
     "aiReview": {
       "tagOffer": "Dossier d'offre",
@@ -1963,6 +1971,7 @@
       "noEval": "Aucune évaluation pour l'instant — lancez-en une pour comparer les candidats de ce poste.",
       "driftNotice": "<b>{count, plural, one {# candidat a changé} other {# candidats ont changé}}</b> depuis l'exécution de cette évaluation{when}. Le classement ci-dessous peut exclure un candidat récemment ajouté ou en recommander un déjà décidé — relancez pour une comparaison à jour.",
       "capped": "Affichage des {cap} premiers candidats sur {total}, classés par correspondance.",
+      "selectionNote": "Comparaison de votre sélection de {count} candidats sur {total}.",
       "aiComparison": "Comparaison AI",
       "aiBacked": "AI",
       "eligibilityList": "Liste d'éligibilité (ordinale, par correspondance)",

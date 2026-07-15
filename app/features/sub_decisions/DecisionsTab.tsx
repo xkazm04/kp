@@ -448,13 +448,17 @@ export function DecisionsTab() {
     }
   };
 
-  const openGroupEval = async (g: Group, rerun = false) => {
+  const openGroupEval = async (g: Group, rerun = false, selection?: string[]) => {
     setEvalRole({ roleKey: g.roleKey, roleTitle: g.roleTitle });
     setEvalData(null);
     setEvalCreatedAt(null);
     setEvalTaskId(null);
     setEvalError(null);
-    if (evaluated[g.roleKey] && !rerun) {
+    // group-eval-cohort-choice — an explicit selection ("compare these four") always
+    // runs FRESH (it's a different, recruiter-chosen field); a saved eval is reused
+    // only for the default top-N view.
+    const hasSelection = Array.isArray(selection) && selection.length > 0;
+    if (evaluated[g.roleKey] && !rerun && !hasSelection) {
       const p = await fetch(`/api/decisions/group-eval?role=${encodeURIComponent(g.roleKey)}`)
         .then((r) => r.json())
         .catch(() => null);
@@ -477,8 +481,16 @@ export function DecisionsTab() {
       if (payload.governanceMode) setEvalMode(payload.governanceMode);
       return;
     }
-    const candidates = g.entries.map((e) => ({ entryId: e.id, candidateId: e.candidateId, label: e.candidateLabel, matchScore: e.matchScore }));
-    const started = await startTask("group_eval", { roleKey: g.roleKey, roleTitle: g.roleTitle, jobId: g.jobId, candidates, governanceMode: evalMode });
+    const cohortCands = g.entries.map((e) => ({ entryId: e.id, candidateId: e.candidateId, label: e.candidateLabel, matchScore: e.matchScore }));
+    // Selection: send the chosen subset as `candidates` and the FULL cohort as
+    // `cohort` (the server validates membership + cap and anchors coverage/drift to
+    // the full cohort). No selection: send the full cohort as `candidates` — today's
+    // shape, byte-identical — and omit `cohort`.
+    const selectedSet = hasSelection ? new Set(selection) : null;
+    const candidates = selectedSet ? cohortCands.filter((c) => selectedSet.has(c.entryId)) : cohortCands;
+    const params: Record<string, unknown> = { roleKey: g.roleKey, roleTitle: g.roleTitle, jobId: g.jobId, candidates, governanceMode: evalMode };
+    if (selectedSet) params.cohort = cohortCands;
+    const started = await startTask("group_eval", params);
     if (started) setEvalTaskId(started.id);
   };
 
@@ -884,7 +896,7 @@ export function DecisionsTab() {
                   evaluated={Boolean(evaluated[g.roleKey])}
                   busy={evalTaskId !== null && evalRole?.roleKey === g.roleKey}
                   onCandidate={setSummaryEntry}
-                  onGroupEval={() => openGroupEval(g)}
+                  onGroupEval={(selection) => openGroupEval(g, false, selection)}
                   onScreenWave={g.jobId ? () => setWaveRole({ jobId: g.jobId as string, title: g.roleTitle }) : undefined}
                 />
               ))}

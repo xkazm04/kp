@@ -23,6 +23,15 @@
 export const GROUP_EVAL_MIN_COHORT = 2;
 
 /**
+ * The maximum number of candidates ONE comparative evaluation covers. The strongest
+ * are selected by fit before the cap (top-N default), OR the recruiter picks an
+ * explicit selection of up to this many (group-eval-cohort-choice). Single-sourced
+ * here — a pure, client-safe module — so the server ranker (group-eval-run) and the
+ * client selection UI (RoleDecisionRow) enforce the SAME bound without duplicating it.
+ */
+export const GROUP_EVAL_CAP = 6;
+
+/**
  * True when the field is large enough to support a comparative verdict (a lead over the
  * field / differentiators / robustness). Below it the eval is "insufficient sample": the
  * lone candidate is still shown, but nothing comparative is asserted or sealed.

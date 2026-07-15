@@ -16,7 +16,14 @@ export function Notices({ drift, ranAt, evaluation }: { drift: number; ranAt: st
           </span>
         </div>
       ) : null}
-      {evaluation.capped ? (
+      {/* group-eval-cohort-choice — an explicit selection discloses "your selection
+          of N of M"; the default top-N run discloses the capped coverage. Mutually
+          exclusive (the server sets `capped` false when a selection was used). */}
+      {evaluation.selection ? (
+        <p className="text-sm text-steel">
+          {t("selectionNote", { count: evaluation.selection.count, total: evaluation.selection.total })}
+        </p>
+      ) : evaluation.capped ? (
         <p className="text-sm text-steel">
           {t("capped", { cap: evaluation.cap ?? evaluation.candidates?.length ?? 0, total: evaluation.totalCandidates ?? 0 })}
         </p>
