@@ -1379,6 +1379,8 @@
       "bulkMoving": "Přesouvám…",
       "bulkMoved": "{count} přesunuto",
       "bulkFailed": "{count} se nepodařilo přesunout — zůstávají vybráni, zkuste znovu",
+      "bulkNotPermitted": "K hromadným akcím na této nástěnce nemáte oprávnění — pokračujte přihlášením jako operátor.",
+      "bulkRequestFailed": "Server je nedostupný — nic se nezměnilo. Zůstávají vybráni, zkuste znovu.",
       "bulkAwaiting": "{count} čeká na rozhodnutí",
       "bulkAccept": "Přijmout {count}",
       "bulkReject": "Odmítnout {count}",

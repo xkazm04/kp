@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { safeJsonError } from "@/app/_lib/api-response";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
 import { runPipelineEntryAction } from "@/app/_lib/pipeline-entry-action";
 
@@ -42,7 +43,22 @@ function coerceItem(raw: unknown): BatchItem | null {
   };
 }
 
+// AUTH (batch-authz-parity): operator-gated, in lock-step with the command bar
+// (/api/pipeline/command). This route fans a SINGLE call out to up to BATCH_CAP
+// (200) entries and can bulk-reject them — which extends candidate-facing
+// rejection comms (runPipelineEntryAction → the shared reject path) across the
+// whole workspace, exactly the "one call can bulk-reject with candidate emails"
+// posture the command bar operator-gates. So select-all + bulk-reject must NOT
+// reach the gated action ungated: requireOperator runs FIRST (before the
+// throttle, so an anonymous demo session is refused before it can even spend
+// rate-limit budget). Same semantics as proxy.ts / requireOperator — open mode
+// (no KP_OPERATOR_PASSWORD) is a no-op, so local dev and the guided sim (which
+// drive the board through the per-card routes) are unaffected; set + valid
+// operator session → allow; the anonymous demo-workspace cookie the proxy waves
+// through → 401. The refusal is the shared { error } envelope the client renders.
 export async function POST(request: NextRequest) {
+  const denied = await requireOperator();
+  if (denied) return denied;
   const ws = await currentWorkspace();
   try {
     // Throttle the NUMBER of batch calls (each fans out to up to BATCH_CAP entries),

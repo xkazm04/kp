@@ -1405,6 +1405,8 @@
       "bulkMoving": "Déplacement…",
       "bulkMoved": "{count} déplacé",
       "bulkFailed": "Déplacement de {count} impossible — encore sélectionné, réessayez",
+      "bulkNotPermitted": "Vous n'avez pas l'autorisation d'exécuter des actions groupées sur ce tableau — connectez-vous en tant qu'opérateur pour continuer.",
+      "bulkRequestFailed": "Serveur injoignable — rien n'a changé. Toujours sélectionné, réessayez.",
       "bulkAwaiting": "{count} en attente de décision",
       "bulkAccept": "Accepter {count}",
       "bulkReject": "Rejeter {count}",

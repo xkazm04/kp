@@ -525,6 +525,7 @@
             "app/features/sub_pipeline/PipelineTypes.ts",
             "app/api/pipeline/route.ts",
             "app/api/pipeline/[id]/route.ts",
+            "app/api/pipeline/batch/route.ts",
             "app/api/pipeline/[id]/timeline/route.ts",
             "app/api/pipeline/events/route.ts",
             "app/_lib/pipeline-stages.ts",

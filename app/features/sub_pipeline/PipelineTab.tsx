@@ -651,12 +651,22 @@ export function PipelineTab() {
     dispatchBulkConfirm({ type: "selectionChanged" });
     setSelectedIds(new Set(filteredEntries.map((e) => e.id)));
   };
+  // A WHOLE-REQUEST batch refusal (the operator gate's 401/403, or a transport
+  // blip with no per-id results) is NOT a per-id reason — surface an honest,
+  // localized line so a bulk action that was blocked reads as blocked, not as a
+  // silent count or a fabricated per-id error. Mirrors the command bar, which is
+  // operator-gated in lock-step (batch-authz-parity).
+  const batchRequestReason = (res: { ok: false; status?: number }): string =>
+    res.status === 401 || res.status === 403 ? t("bulkNotPermitted") : t("bulkRequestFailed");
   const bulkMove = async () => {
     if (!bulkStage || selectedIds.size === 0 || bulkBusy) return;
     setBulkBusy(true);
     setBulkResult(null);
     let moved = 0;
     const failures = new Set<string>();
+    // A whole-request refusal reason (operator gate / transport), distinct from the
+    // per-id server reasons — it overrides the per-id line when the whole call fell.
+    let requestReason: string | null = null;
     // Distinct server reasons across the refused entries (a batch can mix a 409
     // concurrency loss with a 422 forbidden transition) — deduped so the status
     // line names WHY, not just how many.
@@ -684,12 +694,19 @@ export function PipelineTab() {
           }
         }
       } else {
-        // Transport-level failure — every attempted item stays selected for retry.
+        // Whole-request failure (operator gate refusal or transport blip) — every
+        // attempted item stays selected for retry, with an honest refusal reason.
         for (const it of items) failures.add(it.id);
+        requestReason = batchRequestReason(res);
       }
     }
     setSelectedIds(failures);
-    setBulkResult({ ok: moved, failed: failures.size, verb: "moved", reason: reasons.size ? [...reasons].join(" · ") : null });
+    setBulkResult({
+      ok: moved,
+      failed: failures.size,
+      verb: "moved",
+      reason: requestReason ?? (reasons.size ? [...reasons].join(" · ") : null),
+    });
     setBulkBusy(false);
     await load();
   };
@@ -712,6 +729,7 @@ export function PipelineTab() {
     // Same as bulkMove: surface the server's distinct reasons for refused decides
     // (e.g. a 409 stage change that lost the CAS in the gap) rather than a count.
     const reasons = new Set<string>();
+    let requestReason: string | null = null;
     const items: PipelineBatchItem[] = awaiting.map((e) => ({ id: e.id, action, expectedStage: e.stage }));
     const res = await postPipelineBatch(items);
     if (res.ok) {
@@ -723,8 +741,10 @@ export function PipelineTab() {
         }
       }
     } else {
-      // Transport-level failure — every attempted decision stays selected for retry.
+      // Whole-request failure (operator gate refusal or transport blip) — every
+      // attempted decision stays selected for retry, with an honest refusal reason.
       for (const e of awaiting) failed.add(e.id);
+      requestReason = batchRequestReason(res);
     }
     // Successes deselect; failures + any selected non-awaiting entries stay selected.
     const untouched = [...selectedIds].filter((id) => !awaiting.some((e) => e.id === id));
@@ -733,7 +753,7 @@ export function PipelineTab() {
       ok,
       failed: failed.size,
       verb: action === "accept" ? "accepted" : "rejected",
-      reason: reasons.size ? [...reasons].join(" · ") : null,
+      reason: requestReason ?? (reasons.size ? [...reasons].join(" · ") : null),
     });
     setBulkBusy(false);
     await load();

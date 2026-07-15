@@ -1379,6 +1379,8 @@
       "bulkMoving": "Moving…",
       "bulkMoved": "{count} moved",
       "bulkFailed": "{count} couldn't move — still selected, retry",
+      "bulkNotPermitted": "You don't have permission to run bulk actions on this board — sign in as an operator to continue.",
+      "bulkRequestFailed": "Couldn't reach the server — nothing changed. Still selected, retry.",
       "bulkAwaiting": "{count} awaiting a decision",
       "bulkAccept": "Accept {count}",
       "bulkReject": "Reject {count}",

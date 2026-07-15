@@ -1405,6 +1405,8 @@
       "bulkMoving": "Wird verschoben…",
       "bulkMoved": "{count} verschoben",
       "bulkFailed": "{count} konnten nicht verschoben werden — weiterhin ausgewählt, erneut versuchen",
+      "bulkNotPermitted": "Sie haben keine Berechtigung für Sammelaktionen auf diesem Board — melden Sie sich als Operator an, um fortzufahren.",
+      "bulkRequestFailed": "Server nicht erreichbar — nichts wurde geändert. Weiterhin ausgewählt, erneut versuchen.",
       "bulkAwaiting": "{count} warten auf eine Entscheidung",
       "bulkAccept": "{count} annehmen",
       "bulkReject": "{count} ablehnen",

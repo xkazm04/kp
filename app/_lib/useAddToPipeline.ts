@@ -108,17 +108,24 @@ export function postPipelineAction(id: string, body: PipelineActionBody): Promis
 // POSTs. Each item carries its OWN expectedStage CAS (the stage the board showed
 // for THAT card); the server runs each as an isolated per-id transaction and
 // reports a per-id outcome. Returns a discriminated result: `ok:false` is a
-// transport-level failure (the whole call fell over — the caller treats every item
-// as retryable), `ok:true` carries the per-id `results` (each ok, or failed + the
-// server's verbatim reason). Never throws.
+// WHOLE-REQUEST failure (the call was refused or fell over — the caller treats
+// every item as retryable), `ok:true` carries the per-id `results` (each ok, or
+// failed + the server's verbatim reason). Never throws.
+//
+// A whole-request refusal (batch-authz-parity: the operator gate returns 401/403
+// with no per-id `results`) is NOT a per-id outcome, so it carries `status` back
+// to the caller — the board renders a readable "not permitted" line rather than a
+// blank count or a fabricated per-id reason. `status` is absent on a genuine
+// transport blip (fetch threw / no response).
 export type PipelineBatchItem =
   | { id: string; action: "set_stage"; toStage: string; expectedStage: string }
   | { id: string; action: "accept" | "reject"; expectedStage: string };
 export type PipelineBatchOutcome = { id: string; ok: boolean; reason?: string };
+export type PipelineBatchResult =
+  | { ok: true; results: PipelineBatchOutcome[] }
+  | { ok: false; status?: number };
 
-export async function postPipelineBatch(
-  items: PipelineBatchItem[]
-): Promise<{ ok: true; results: PipelineBatchOutcome[] } | { ok: false }> {
+export async function postPipelineBatch(items: PipelineBatchItem[]): Promise<PipelineBatchResult> {
   try {
     const r = await fetch("/api/pipeline/batch", {
       method: "POST",
@@ -127,7 +134,7 @@ export async function postPipelineBatch(
     });
     const d = (await r.json().catch(() => null)) as { results?: PipelineBatchOutcome[] } | null;
     if (r.ok && Array.isArray(d?.results)) return { ok: true, results: d.results };
-    return { ok: false };
+    return { ok: false, status: r.status };
   } catch {
     return { ok: false };
   }
