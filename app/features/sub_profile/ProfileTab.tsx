@@ -15,6 +15,16 @@ import { CandidateMatrix } from "./CandidateMatrix";
 import { ProfileRoster } from "./ProfileRoster";
 import { ProfileEditor, type EditorMode } from "./ProfileEditor";
 
+// A note's tone picks its color + a11y role from the mapped status shades (all
+// present in the dark ramp). No new primitive — the same red-50/red-700 pattern
+// the app already uses, extended with the info (blue) and success (green) mates.
+type NoteTone = "info" | "success" | "error";
+const NOTE_TONE: Record<NoteTone, string> = {
+  info: "bg-blue-50 text-blue-700",
+  success: "bg-green-50 text-green-800",
+  error: "bg-red-50 text-red-700",
+};
+
 type EditorState = {
   mode: EditorMode;
   editingId: string | null;
@@ -36,7 +46,11 @@ export function ProfileTab() {
   const [archetypes, setArchetypes] = useState<ArchetypeDef[]>([]);
   const [archLoading, setArchLoading] = useState(true);
   const [editor, setEditor] = useState<EditorState | null>(null);
-  const [note, setNote] = useState<string | null>(null);
+  // The note channel carries a tone chosen by the producer, not a blanket
+  // error-red. A deep link that resolves to nothing (the candidate isn't saved as
+  // a profile yet) is a benign status, not a failure — it reads as info. Genuine
+  // failures elsewhere (roster delete) keep their own red error state.
+  const [note, setNote] = useState<{ text: string; tone: NoteTone } | null>(null);
   // A rebuild whose target profile was hand-edited after it was built: hold the intent
   // and warn (naming the edit date) BEFORE hydrating, so the recruiter chooses whether
   // to overwrite their edits (proceed) or keep them (open as a plain edit). Never a
@@ -63,7 +77,7 @@ export function ProfileTab() {
         .then((p) =>
           setEditor({ mode: "edit", editingId: id, initialPayload: (p.profile?.payload as ProfilePayload) ?? null })
         )
-        .catch(() => setNote(t("deepLinkError"))),
+        .catch(() => setNote({ text: t("deepLinkError"), tone: "info" })),
     [t]
   );
 
@@ -86,7 +100,7 @@ export function ProfileTab() {
             sourceAnalysisSlug: slug,
           });
         })
-        .catch(() => setNote(t("deepLinkError"))),
+        .catch(() => setNote({ text: t("deepLinkError"), tone: "info" })),
     [t]
   );
 
@@ -103,7 +117,7 @@ export function ProfileTab() {
           if (div?.diverged) setRebuildWarn({ slug, profileId, editedAt: div.editedAt });
           else void openFromAnalysis(slug, profileId);
         })
-        .catch(() => setNote(t("deepLinkError"))),
+        .catch(() => setNote({ text: t("deepLinkError"), tone: "info" })),
     [openFromAnalysis, t]
   );
 
@@ -168,8 +182,8 @@ export function ProfileTab() {
   return (
     <div className="space-y-5">
       {note ? (
-        <p role="status" className="rounded-md bg-red-50 p-3 text-sm text-red-700">
-          {note}
+        <p role={note.tone === "error" ? "alert" : "status"} className={`rounded-md p-3 text-sm ${NOTE_TONE[note.tone]}`}>
+          {note.text}
         </p>
       ) : null}
       <ArchetypeManager archetypes={archetypes} loading={archLoading} onChanged={reloadArchetypes} />

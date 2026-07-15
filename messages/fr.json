@@ -2795,6 +2795,7 @@
   },
   "scoreProvenance": {
     "analysis": "d'après l'analyse du CV · {date}",
+    "analysisShort": "d'après l'analyse du CV",
     "snapshot": "instantané à l'ajout"
   },
   "match": {

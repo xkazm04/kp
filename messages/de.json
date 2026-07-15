@@ -2795,6 +2795,7 @@
   },
   "scoreProvenance": {
     "analysis": "aus CV-Analyse · {date}",
+    "analysisShort": "aus CV-Analyse",
     "snapshot": "Snapshot beim Hinzufügen"
   },
   "match": {

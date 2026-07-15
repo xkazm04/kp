@@ -151,6 +151,7 @@ export function CandidateMatrix({
 
 function CandidateCell({ cand, onEditProfile }: { cand: CandidateRow; onEditProfile: (id: string) => void }) {
   const t = useTranslations("profile.matrix");
+  const tp = useTranslations("scoreProvenance");
   const router = useRouter();
   // Route by store: a profile opens the editor (the same ?edit= flow, invoked
   // directly since a same-tab query change wouldn't re-fire the mount effect); an
@@ -168,7 +169,18 @@ function CandidateCell({ cand, onEditProfile }: { cand: CandidateRow; onEditProf
     <>
       <div className="flex items-center justify-between gap-2">
         <span className="min-w-0 truncate font-semibold text-ink group-hover:text-coral">{cand.name}</span>
-        <ScoreBadge score={cand.score} />
+        {/* The number is the CV-analysis total, NOT a match score — a bare badge
+            reads as a fit score, so an analysis cell carries a compact provenance
+            cue in the app's canonical vocabulary ("from CV analysis"). Profile
+            cells have no score (em-dash) and stay a plain badge. */}
+        {!isProfile && cand.score != null ? (
+          <span className="flex shrink-0 flex-col items-end gap-0.5" title={tp("analysisShort")}>
+            <ScoreBadge score={cand.score} />
+            <span className="text-micro font-medium uppercase tracking-wide text-steel">{tp("analysisShort")}</span>
+          </span>
+        ) : (
+          <ScoreBadge score={cand.score} />
+        )}
       </div>
       <div className="mt-0.5 flex items-center justify-between gap-2">
         <p className="min-w-0 truncate text-sm capitalize text-steel">
