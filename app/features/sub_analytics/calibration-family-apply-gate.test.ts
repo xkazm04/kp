@@ -1,16 +1,17 @@
-// Guards the family-scoped calibration recommendation appliability contract.
+// Guards the calibration recommendation's APPLY contract at the source level (there
+// is no render/DOM test layer in this repo — see file-intake-gate.test.ts for the
+// idiom this follows).
 //
-// Open defect (round 3): the calibration route derives the threshold suggestion
-// from roleFamily-FILTERED pairs, but /apply-threshold re-derives from UNFILTERED
-// (all-families) pairs. When a family is selected and its suggestion differs from
-// the all-families one, the write guard fires a guaranteed 409 on an Apply button
-// that can NEVER succeed. Semantically maxMatchToReject is a single GLOBAL floor,
-// so a family-derived number targeting a global knob is wrong to apply anyway.
+// HISTORY: the per-family recommendation used to be INERT — the screening floor was
+// a single global knob, so /apply-threshold re-derived from unfiltered pairs and any
+// family-scoped apply would 409. The panel worked around it by rendering the family
+// view as informational (a "switch to all families" cue) instead of an Apply button.
 //
-// The fix: the recommendation is appliable ONLY on the unfiltered (all-families)
-// view; the family-filtered view shows it as informational with a one-click "switch
-// to all families" cue. This pins that contract at the source level (there is no
-// render/DOM test layer in this repo — see file-intake-gate.test.ts for the idiom).
+// family-floors made the floor per-family-capable, so the family view's Apply now
+// comes ALIVE: it writes that family's BOUNDED override, re-derived server-side
+// against the SAME family's live pairs (the 409 staleness guard stays honest). This
+// file pins the new contract: the suggestion is appliable in BOTH scopes and threads
+// the family scope to the write; the informational dead-end is gone.
 //
 // Runner: Node's built-in test runner with type stripping.
 //   npm run test:unit
@@ -25,39 +26,41 @@ function read(rel: string): string {
 
 const src = read("./CalibrationPanel.tsx");
 
-test("appliability is bound to the all-families (unfiltered) view", () => {
-  // The panel passes appliable={family === ""}: an apply flow only when no family
-  // filter is active. If someone rebinds this to always-true, a family-scoped
-  // number can be posted at the global floor again → the 409 dead-end returns.
+test("the recommendation threads the current family scope to the apply", () => {
+  // ThresholdSuggestion receives roleFamily={family}: "" on the all-families view
+  // (moves the global floor), a family slug under a filter (writes that family's
+  // override). If this scope stops being threaded, a family apply would silently
+  // move the global knob again.
   assert.match(
     src,
-    /appliable=\{family === ""\}/,
-    "ThresholdSuggestion must receive appliable={family === \"\"} — apply only on the all-families view",
-  );
-  // The cue is one-click: it switches the selector back to all families, where the
-  // live apply lives.
-  assert.match(
-    src,
-    /onViewAllFamilies=\{\(\)\s*=>\s*setFamily\(""\)\}/,
-    "the switch-to-all-families affordance must reset the family selector to all",
+    /roleFamily=\{family\}/,
+    'ThresholdSuggestion must receive roleFamily={family} so the apply is scoped to the shown view',
   );
 });
 
-test("the Apply write is reachable only in the appliable (all-families) branch", () => {
-  const gate = src.indexOf("appliable ?");
-  const applyClick = src.indexOf("onClick={apply}");
-  const cue = src.indexOf('t("recViewAllFamilies")');
+test("the apply POST includes roleFamily only when a family is selected", () => {
+  // The write body threads the family conditionally: a global apply posts no
+  // roleFamily (byte-identical to before), a family apply posts its slug so the route
+  // writes familyFloors[family] and re-derives the 409 guard against that scope.
+  assert.match(
+    src,
+    /\.\.\.\(roleFamily \? \{ roleFamily \} : \{\}\)/,
+    'the apply POST must spread roleFamily only when set',
+  );
+});
 
-  assert.ok(gate > 0, "the appliable ? gate must exist inside ThresholdSuggestion");
-  assert.ok(applyClick > 0, "the Apply button (onClick={apply}) must exist");
-  assert.ok(cue > 0, "the informational switch-to-all-families cue (recViewAllFamilies) must exist");
+test("the dead-end informational card is gone — no view-all-families escape hatch", () => {
+  // The old family-view fallback (recViewAllFamilies + onViewAllFamilies) existed only
+  // because a family apply could not succeed. It must not return: a family apply is now
+  // a first-class, appliable action.
+  assert.doesNotMatch(src, /onViewAllFamilies/, "the view-all-families dead-end affordance must be gone");
+  assert.doesNotMatch(src, /appliable=\{/, "there is no longer an appliable gate — both scopes can apply");
+});
 
-  // Structural pin: unfiltered view = apply present, family-filtered view = the cue
-  // instead. The Apply affordance (which triggers the /apply-threshold write) sits
-  // in the appliable-true branch, after the gate; the cue sits in the
-  // appliable-false branch, after the Apply affordance. Reorder either out of its
-  // branch and this fails — the whole point is that the write can't render under a
-  // family filter.
-  assert.ok(applyClick > gate, "the Apply button must live inside the appliable-true branch");
-  assert.ok(cue > applyClick, "the family-filtered cue must live in the appliable-false branch, after Apply");
+test("families carrying an override are surfaced as drill-in chips", () => {
+  // family-floors: the panel chips each family that carries its own floor, showing the
+  // value and drilling into that family (setFamily) to review/adjust it.
+  assert.match(src, /data\.familyFloors/, "the panel must read the familyFloors map from the payload");
+  assert.match(src, /t\("familyFloorValue"/, "each override chip must show its floor value");
+  assert.match(src, /onClick=\{\(\)\s*=>\s*setFamily\(fam\)\}/, "an override chip must drill into its family");
 });

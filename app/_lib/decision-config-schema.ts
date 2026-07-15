@@ -9,15 +9,34 @@
 // source of truth.
 
 import { DEFAULT_REGIME_ID, REGIME_IDS, type RegimeId } from "./compliance-regimes.ts";
+import { ROLE_FAMILY_SLUGS } from "./role-families.ts";
 
 // Screening auto-reject: drop the bottom `rejectBottomPercent` of a role's
 // matched candidates that are ALSO below `maxMatchToReject` match — never
 // early-career. Off by default (opt-in), like the automation clock.
+//
+// PER-FAMILY FLOORS (family-floors): per-family reliability is measured and a
+// per-family recommendation is computable, but the screening floor used to be a
+// single GLOBAL knob — so the per-family view could only inform, never act.
+// `familyFloors` is an OPTIONAL map role_family → maxMatchToReject override, each
+// bounded by the exact same 0–100 validation as the global value. ABSENT (the
+// default) means the global floor applies to every family, so the shipped default
+// is byte-identical to before this field existed (see effectiveFloor).
 export type ScreeningRule = {
   autoRejectEnabled: boolean;
   rejectBottomPercent: number; // 0–100
   maxMatchToReject: number; // 0–100 match score
+  familyFloors?: Record<string, number>; // role_family → maxMatchToReject override (0–100)
 };
+
+/** The auto-reject floor that actually applies to a candidate: the family override
+ *  when this role family carries one, else the global `maxMatchToReject`. A null /
+ *  unknown family, or a family with no override, always resolves to the global value,
+ *  so the pre-family-floors behavior is preserved byte-for-byte. Pure + total. */
+export function effectiveFloor(cfg: ScreeningRule, roleFamily: string | null | undefined): number {
+  const override = roleFamily && cfg.familyFloors ? cfg.familyFloors[roleFamily] : undefined;
+  return typeof override === "number" && Number.isFinite(override) ? override : cfg.maxMatchToReject;
+}
 
 export const SCREENING_DEFAULT: ScreeningRule = {
   autoRejectEnabled: false,
@@ -42,7 +61,7 @@ export const COMPLIANCE_DEFAULT: ComplianceRule = {
 export const KNOWN_DECISION_PHASES = ["screening", "compliance"] as const;
 export type DecisionPhase = (typeof KNOWN_DECISION_PHASES)[number];
 
-const SCREENING_KEYS = ["autoRejectEnabled", "rejectBottomPercent", "maxMatchToReject"] as const;
+const SCREENING_KEYS = ["autoRejectEnabled", "rejectBottomPercent", "maxMatchToReject", "familyFloors"] as const;
 const COMPLIANCE_KEYS = ["jurisdiction"] as const;
 
 export type DecisionConfigResult =
@@ -109,6 +128,35 @@ function validateComplianceRule(raw: Record<string, unknown>): DecisionConfigRes
   return { ok: true, phase: "compliance", config: { jurisdiction: j as RegimeId } };
 }
 
+/**
+ * Validate the OPTIONAL per-family floor map. Same trust-boundary guarantees as the
+ * global value, applied per entry: keys MUST be known role families (an unknown
+ * family is rejected, not silently kept — the map stays bounded), values MUST be
+ * finite numbers, and present out-of-range numbers are CLAMPED to 0–100 exactly like
+ * `maxMatchToReject`. An ABSENT map returns `value: undefined` so the caller omits
+ * the field entirely — keeping a plain screening rule byte-identical to before this
+ * field existed (the shipped-default deepEqual tests depend on that).
+ */
+function validateFamilyFloors(
+  raw: unknown
+): { ok: true; value: Record<string, number> | undefined } | { ok: false; error: string } {
+  if (raw === undefined) return { ok: true, value: undefined };
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
+    return { ok: false, error: "familyFloors must be a plain object mapping role family → floor." };
+  }
+  const out: Record<string, number> = {};
+  for (const [key, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (!(ROLE_FAMILY_SLUGS as readonly string[]).includes(key)) {
+      return { ok: false, error: `Unknown role family in familyFloors: "${key}". Known families: ${ROLE_FAMILY_SLUGS.join(", ")}.` };
+    }
+    if (typeof v !== "number" || !Number.isFinite(v)) {
+      return { ok: false, error: `familyFloors.${key} must be a finite number.` };
+    }
+    out[key] = clampPercent(v);
+  }
+  return { ok: true, value: out };
+}
+
 function validateScreeningRule(raw: Record<string, unknown>): DecisionConfigResult {
   const stray = Object.keys(raw).filter((k) => !(SCREENING_KEYS as readonly string[]).includes(k));
   if (stray.length > 0) {
@@ -123,15 +171,17 @@ function validateScreeningRule(raw: Record<string, unknown>): DecisionConfigResu
       return { ok: false, error: `${field} must be a finite number.` };
     }
   }
-  return {
-    ok: true,
-    phase: "screening",
-    config: {
-      autoRejectEnabled: raw.autoRejectEnabled,
-      rejectBottomPercent: clampPercent(raw.rejectBottomPercent as number),
-      maxMatchToReject: clampPercent(raw.maxMatchToReject as number),
-    },
+  const floors = validateFamilyFloors(raw.familyFloors);
+  if (!floors.ok) return { ok: false, error: floors.error };
+  const config: ScreeningRule = {
+    autoRejectEnabled: raw.autoRejectEnabled,
+    rejectBottomPercent: clampPercent(raw.rejectBottomPercent as number),
+    maxMatchToReject: clampPercent(raw.maxMatchToReject as number),
   };
+  // Only carry familyFloors when it was present — an absent map keeps the persisted
+  // JSON (and a deepEqual against SCREENING_DEFAULT) byte-identical to before.
+  if (floors.value !== undefined) config.familyFloors = floors.value;
+  return { ok: true, phase: "screening", config };
 }
 
 /**
@@ -179,6 +229,13 @@ export function validateScreeningOverride(raw: unknown): ScreeningOverrideResult
       return { ok: false, error: `${field} must be a finite number.` };
     }
     override[field] = clampPercent(v);
+  }
+  // A present familyFloors override REPLACES the saved map wholesale (partial-merge
+  // semantics are per top-level field); validated + clamped exactly like a full write.
+  if (obj.familyFloors !== undefined) {
+    const floors = validateFamilyFloors(obj.familyFloors);
+    if (!floors.ok) return { ok: false, error: floors.error };
+    if (floors.value !== undefined) override.familyFloors = floors.value;
   }
   return { ok: true, override };
 }

@@ -3620,7 +3620,12 @@
       "effectTitle": "Seit der letzten Änderung",
       "effectTooFew": "Seit der Änderung gibt es im Band {lo}–{hi} zu wenige Entscheidungen zum Messen — mindestens {min} erforderlich.",
       "effectAfterOnly": "Seitdem sind {pct} % der Kandidaten im Band {lo}–{hi} vorgerückt (n={n}). Keine früheren Entscheidungen in diesem Band zum Vergleich.",
-      "effectDelta": "Vorrückrate im Band {lo}–{hi}: {beforePct} % davor → {afterPct} % nach der Änderung (n={n} seitdem)."
+      "effectDelta": "Vorrückrate im Band {lo}–{hi}: {beforePct} % davor → {afterPct} % nach der Änderung (n={n} seitdem).",
+      "recFamilyScope": "für {family}",
+      "recAppliedFamily": "Schwelle für {family} auf {suggested} gesetzt — war {previous}. Durch erneutes Anwenden umkehrbar.",
+      "familyFloorsTitle": "Schwellen je Berufsfeld",
+      "familyFloorsBlurb": "Berufsfelder mit eigener Schwelle für automatische Ablehnung (globale Schwelle: {global}). Wählen Sie eines aus, um es zu prüfen oder anzupassen.",
+      "familyFloorValue": "Schwelle {value}"
     },
     "decisionRecords": {
       "title": "Entscheidungsprotokolle (versiegelt)",

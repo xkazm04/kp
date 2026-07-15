@@ -2,7 +2,7 @@ import { actOnPipelineEntry, listPipeline, recordAutomationEvent } from "./db";
 import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 import { getDecisionConfig, type ScreeningRule } from "./decision-config-store";
 import { sealDecisionSafe } from "./decision-record-store";
-import { DecisionConfigError, screenBottomCount, tieSafeBottomCount, validateScreeningOverride } from "./decision-config-schema";
+import { DecisionConfigError, effectiveFloor, screenBottomCount, tieSafeBottomCount, validateScreeningOverride } from "./decision-config-schema";
 import { dispatchRejection } from "./comms-dispatch";
 import { isFairnessProtected, isKnownArchetype } from "./archetypes";
 import { screenWaveApprovalToken, ScreenWaveApprovalError } from "./screen-wave-approval";
@@ -127,6 +127,17 @@ export function keepReason(
   return "match at/above threshold";
 }
 
+/** Canonical, order-independent serialization of the per-family floor overrides for
+ *  the approval-token policyVersion. Empty / absent → "" (byte-identical to the
+ *  pre-family-floors token), so a wave with no family floors signs exactly as before. */
+function familyFloorSuffix(cfg: ScreeningRule): string {
+  const ff = cfg.familyFloors;
+  if (!ff) return "";
+  const keys = Object.keys(ff).sort();
+  if (keys.length === 0) return "";
+  return `/fam:${keys.map((k) => `${k}=${ff[k]}`).join(",")}`;
+}
+
 export async function runScreenWave(
   jobId: string,
   override?: Partial<ScreeningRule>,
@@ -221,14 +232,21 @@ export async function runScreenWave(
   // below) and sign it. A dry run returns the token for the recruiter to review;
   // a commit MUST carry that token and it must still match — otherwise the adverse
   // decision would be solely automated, or would apply to a set the human never saw.
-  const policyVersion = `screen-wave/bottom${cfg.rejectBottomPercent}/maxMatch${cfg.maxMatchToReject}`;
+  // family-floors: the auto-reject floor is resolved PER CANDIDATE — a family
+  // override when this role family carries one, else the global maxMatchToReject.
+  // The approval-token policyVersion carries a canonical serialization of the family
+  // floors so that changing a family floor (even one that leaves the reject SET
+  // unchanged) forces a fresh preview+approval, never a stale rubber-stamp. Absent
+  // familyFloors → empty suffix → byte-identical to the pre-family-floors token.
+  const policyVersion = `screen-wave/bottom${cfg.rejectBottomPercent}/maxMatch${cfg.maxMatchToReject}${familyFloorSuffix(cfg)}`;
   const wouldReject = new Set<string>();
   for (let rank = 0; rank < sorted.length; rank++) {
     const e = sorted[rank];
     const inBottom = rank < effectiveBottomCount;
     // `sorted` holds only scored entries, so this threshold always compares a real
-    // measurement — an unscored candidate can never be auto-reject-eligible.
-    const belowThreshold = e.matchScore < cfg.maxMatchToReject;
+    // measurement — an unscored candidate can never be auto-reject-eligible. The
+    // floor is the candidate's EFFECTIVE floor (family override or global).
+    const belowThreshold = e.matchScore < effectiveFloor(cfg, e.roleFamily);
     if (cfg.autoRejectEnabled && inBottom && belowThreshold && !isFairnessProtected(e.archetype)) {
       wouldReject.add(e.id);
     }
@@ -276,11 +294,17 @@ export async function runScreenWave(
     // (and to sign the approval token) — read from that set so the committed set
     // can never diverge from the set the recruiter reviewed and approved.
     if (wouldReject.has(e.id)) {
+      // The floor ACTUALLY applied to this candidate — a family override when this
+      // role family carries one, else the global value. The rationale, the structured
+      // reasonParams, and the sealed policyVersion below all report THIS number, so
+      // the audit trail can never claim a floor the wave didn't use. With no family
+      // override it equals cfg.maxMatchToReject → byte-identical to before.
+      const floor = effectiveFloor(cfg, e.roleFamily);
       // Report the EFFECTIVE (tie-safe) cutoff actually applied, noting when it was
       // shrunk from the raw bottom-% so the auto-reject boundary stays reproducible.
       const tieNote = effectiveBottomCount < bottomCount ? ` (tie-adjusted from ${bottomCount} so no equal score is split)` : "";
       const verb = dryRun ? "Would auto-reject" : "Auto-rejected";
-      const rationale = `${verb} · bottom ${cfg.rejectBottomPercent}% of ${n} → ${effectiveBottomCount}${tieNote} (rank ${rank + 1}) and match ${score} < ${cfg.maxMatchToReject} threshold.`;
+      const rationale = `${verb} · bottom ${cfg.rejectBottomPercent}% of ${n} → ${effectiveBottomCount}${tieNote} (rank ${rank + 1}) and match ${score} < ${floor} threshold.`;
       // On commit the audit string names the human who approved the reviewed set,
       // so the record reads as human-approved automated screening — not a solely
       // automated adverse decision (EU AI Act / GDPR Art. 22).
@@ -293,7 +317,7 @@ export async function runScreenWave(
         count: effectiveBottomCount,
         rank: rank + 1,
         score,
-        threshold: cfg.maxMatchToReject,
+        threshold: floor,
         tieAdjusted: effectiveBottomCount < bottomCount ? bottomCount : 0,
       };
       // DEC2 preview: compute the verdict + rationale but commit NOTHING — no CAS
@@ -328,7 +352,9 @@ export async function runScreenWave(
       sealDecisionSafe({
         kind: "auto_rejected",
         actor: "auto:screen-wave",
-        policyVersion: `screen-wave/bottom${cfg.rejectBottomPercent}/maxMatch${cfg.maxMatchToReject}`,
+        // Per-record policyVersion carries the EFFECTIVE floor this candidate was
+        // judged against (family override or global) — byte-identical when none.
+        policyVersion: `screen-wave/bottom${cfg.rejectBottomPercent}/maxMatch${floor}`,
         candidateRef: e.id,
         rationale: committedRationale,
         reasonCode: "reject",

@@ -50,6 +50,7 @@ type CalibrationPayload = CalibrationResult & {
   cohorts?: CalibrationCohort[];
   recommendation?: ThresholdRecommendation | null;
   currentThreshold?: number | null;
+  familyFloors?: Record<string, number>; // family-floors: role_family → override value
 };
 
 function px(prob: number): number {
@@ -308,28 +309,25 @@ function ScoreBands({
   );
 }
 
-// Direction 3 — the recommendation. Deterministic, honesty-gated, display-only
-// until an explicit click routes the write through the existing decision-config
-// mechanism (and seals a reversible record). Never auto-applied.
+// Direction 3 + family-floors — the recommendation. Deterministic, honesty-gated,
+// display-only until an explicit click routes the write through the existing
+// decision-config mechanism (and seals a reversible record). Never auto-applied.
 //
-// APPLIABILITY: maxMatchToReject is a single GLOBAL screening floor. The route
-// derives this recommendation from the CURRENTLY-SELECTED family's pairs, but the
-// /apply-threshold write re-derives from the UNFILTERED (all-families) pairs — so
-// a family-scoped number applied to the global knob is both semantically wrong AND
-// guaranteed to trip the write guard's 409 whenever the family suggestion differs.
-// So: appliable ONLY on the all-families view. Under a family filter the very same
-// recommendation is shown as INFORMATIONAL, with a one-click cue to switch to all
-// families (where an apply that can actually succeed lives).
+// APPLIABILITY: the screening floor is now per-family-capable. On the all-families
+// view the apply moves the GLOBAL `maxMatchToReject`; under a family filter it writes
+// THAT family's bounded override (familyFloors[family]). The write is re-derived
+// server-side against the SAME scope the panel showed — so the 409 staleness guard is
+// honest in both cases and neither is a dead-end. `roleFamily` ("" = global) threads
+// straight to the route; the recommendation's `currentThreshold` already reflects the
+// scope's effective floor, so the sentence reads correctly either way.
 function ThresholdSuggestion({
   rec,
-  appliable,
+  roleFamily,
   onApplied,
-  onViewAllFamilies,
 }: {
   rec: ThresholdRecommendation;
-  appliable: boolean;
+  roleFamily: string; // "" = global floor; a family slug = that family's override
   onApplied: () => void;
-  onViewAllFamilies: () => void;
 }) {
   const t = useTranslations("analytics.calibration");
   const [phase, setPhase] = useState<"idle" | "applying" | "done" | "error">("idle");
@@ -341,7 +339,7 @@ function ThresholdSuggestion({
       const r = await fetch("/api/analytics/calibration/apply-threshold", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ suggestedThreshold: rec.suggestedThreshold }),
+        body: JSON.stringify({ suggestedThreshold: rec.suggestedThreshold, ...(roleFamily ? { roleFamily } : {}) }),
       });
       if (!r.ok) throw new Error();
       const body = (await r.json()) as { previousThreshold: number; newThreshold: number };
@@ -354,28 +352,19 @@ function ThresholdSuggestion({
   };
 
   const sentence = rec.direction === "lower" ? "recLower" : "recRaise";
-  // Family-filtered → informational (neutral) card, no live write. All-families →
-  // the actionable amber suggestion. Same recommendation text either way; only the
-  // affordance and the tone change, so the family view reads as insight, not a
-  // dead-end button that would 409.
+  // Always the actionable amber suggestion now — the family view can act on its own
+  // bounded floor, so there is no dead-end informational card any more.
   return (
-    <div
-      className={
-        appliable
-          ? "mt-5 rounded-md border border-dial-amber/40 bg-dial-amber/10 p-3"
-          : "mt-5 rounded-md border border-stone-200 bg-paper/60 p-3"
-      }
-    >
+    <div className="mt-5 rounded-md border border-dial-amber/40 bg-dial-amber/10 p-3">
       <div className="flex items-center gap-2">
-        <span
-          className={
-            appliable
-              ? "rounded bg-dial-amber/20 px-1.5 py-0.5 text-meta font-semibold uppercase tracking-wide text-ink"
-              : "rounded bg-stone-100 px-1.5 py-0.5 text-meta font-semibold uppercase tracking-wide text-steel"
-          }
-        >
+        <span className="rounded bg-dial-amber/20 px-1.5 py-0.5 text-meta font-semibold uppercase tracking-wide text-ink">
           {t("recTag")}
         </span>
+        {roleFamily ? (
+          <span className="rounded bg-stone-100 px-1.5 py-0.5 text-meta font-semibold uppercase tracking-wide text-steel">
+            {t("recFamilyScope", { family: labelize(roleFamily) })}
+          </span>
+        ) : null}
       </div>
       <p className="mt-1.5 text-base text-ink">
         {t(sentence, {
@@ -388,41 +377,27 @@ function ThresholdSuggestion({
         })}
       </p>
       <p className="mt-1 text-sm text-steel">{t("recBasis", { total: rec.totalOutcomes })}</p>
-      {appliable ? (
-        phase === "done" && applied ? (
-          <p className="mt-2 text-sm font-medium text-moss" role="status">
-            {t("recApplied", { suggested: applied.next, previous: applied.previous })}
-          </p>
-        ) : (
-          <div className="mt-2 flex flex-wrap items-center gap-3">
-            <button
-              type="button"
-              onClick={apply}
-              disabled={phase === "applying"}
-              className="focus-ring inline-flex h-8 items-center rounded-md border border-stone-300 bg-white px-3 text-sm font-semibold text-ink hover:border-coral/40 disabled:opacity-50"
-            >
-              {phase === "applying" ? t("recApplying") : t("recApply", { suggested: rec.suggestedThreshold })}
-            </button>
-            {phase === "error" ? (
-              <span className="text-sm text-coral" role="alert">
-                {t("recError")}
-              </span>
-            ) : null}
-          </div>
-        )
+      {phase === "done" && applied ? (
+        <p className="mt-2 text-sm font-medium text-moss" role="status">
+          {roleFamily
+            ? t("recAppliedFamily", { family: labelize(roleFamily), suggested: applied.next, previous: applied.previous })
+            : t("recApplied", { suggested: applied.next, previous: applied.previous })}
+        </p>
       ) : (
-        // Informational under a family filter: the floor is global, so this
-        // family-scoped number isn't appliable here. Offer the one-click switch to
-        // the all-families view, where the apply lives.
         <div className="mt-2 flex flex-wrap items-center gap-3">
-          <p className="text-sm text-steel">{t("recFamilyInfo")}</p>
           <button
             type="button"
-            onClick={onViewAllFamilies}
-            className="focus-ring inline-flex h-8 items-center rounded-md border border-stone-300 bg-white px-3 text-sm font-semibold text-ink hover:border-coral/40"
+            onClick={apply}
+            disabled={phase === "applying"}
+            className="focus-ring inline-flex h-8 items-center rounded-md border border-stone-300 bg-white px-3 text-sm font-semibold text-ink hover:border-coral/40 disabled:opacity-50"
           >
-            {t("recViewAllFamilies")}
+            {phase === "applying" ? t("recApplying") : t("recApply", { suggested: rec.suggestedThreshold })}
           </button>
+          {phase === "error" ? (
+            <span className="text-sm text-coral" role="alert">
+              {t("recError")}
+            </span>
+          ) : null}
         </div>
       )}
     </div>
@@ -724,21 +699,51 @@ export function CalibrationPanel() {
             </div>
           </div>
 
-          {/* Direction 3 — the recommendation (pipeline source only; null → no UI).
-              Appliable ONLY on the all-families view: the /apply-threshold write
-              re-derives from unfiltered pairs against the single GLOBAL floor, so a
-              family-scoped apply is wrong and would 409. Under a family filter it's
-              informational, with a one-click switch back to all families. */}
+          {/* Direction 3 + family-floors — the recommendation (pipeline source only;
+              null → no UI). Appliable in BOTH scopes now: all-families moves the global
+              floor, a family filter writes that family's bounded override. The route
+              re-derives against the shown scope, so the 409 staleness guard is honest
+              either way. */}
           {data.recommendation ? (
             <ThresholdSuggestion
               rec={data.recommendation}
-              appliable={family === ""}
+              roleFamily={family}
               onApplied={() => {
                 reload();
                 setApplyNonce((n) => n + 1);
               }}
-              onViewAllFamilies={() => setFamily("")}
             />
+          ) : null}
+
+          {/* family-floors — which families carry their own floor. Compact chips with
+              the override value; selecting one drills into that family (its
+              recommendation + its sealed history strip). Pipeline source only. */}
+          {source === "pipeline" && data.familyFloors && Object.keys(data.familyFloors).length > 0 ? (
+            <div className="mt-5 border-t border-stone-200 pt-4">
+              <p className="text-meta uppercase tracking-wide text-steel">{t("familyFloorsTitle")}</p>
+              <p className="mt-0.5 text-sm text-steel">{t("familyFloorsBlurb", { global: data.currentThreshold ?? 0 })}</p>
+              <ul className="mt-2 flex flex-wrap gap-2">
+                {Object.entries(data.familyFloors)
+                  .sort((a, b) => a[0].localeCompare(b[0]))
+                  .map(([fam, value]) => (
+                    <li key={fam}>
+                      <button
+                        type="button"
+                        onClick={() => setFamily(fam)}
+                        aria-pressed={family === fam}
+                        className={`focus-ring inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-meta hover:border-coral/40 ${
+                          family === fam ? "border-coral/50 bg-coral/10" : "border-stone-200 bg-paper/60"
+                        }`}
+                      >
+                        <span className="font-medium text-ink">{labelize(fam)}</span>
+                        <span className="rounded-full bg-stone-100 px-1.5 py-0.5 font-semibold text-steel">
+                          {t("familyFloorValue", { value })}
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+              </ul>
+            </div>
           ) : null}
 
           {/* threshold-story — the sealed floor-over-time strip + since-last-change

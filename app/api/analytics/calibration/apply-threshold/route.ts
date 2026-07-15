@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { pipelineCalibrationPairs } from "@/app/_lib/db";
 import { recommendScreeningThreshold } from "@/app/_lib/calibration";
 import { getDecisionConfig, setDecisionConfig, type ScreeningRule } from "@/app/_lib/decision-config-store";
+import { effectiveFloor } from "@/app/_lib/decision-config-schema";
+import { ROLE_FAMILY_SLUGS } from "@/app/_lib/role-families";
 import { sealDecisionSafe } from "@/app/_lib/decision-record-store";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
@@ -24,13 +26,30 @@ export async function POST(request: Request) {
   if (denied) return denied;
   try {
     const ws = await currentWorkspace();
-    const body = (await request.json().catch(() => ({}))) as { suggestedThreshold?: unknown };
+    const body = (await request.json().catch(() => ({}))) as { suggestedThreshold?: unknown; roleFamily?: unknown };
+
+    // family-floors: an optional family scope. Present → apply THAT family's override
+    // (re-derived against the SAME family's live pairs, preserving the round-8 staleness
+    // honesty); absent → the global floor path, byte-identical to before. A junk family
+    // is a 400 (never a silent global write nor an unbounded familyFloors key).
+    let roleFamily: string | null = null;
+    if (body.roleFamily !== undefined && body.roleFamily !== null && body.roleFamily !== "") {
+      if (typeof body.roleFamily !== "string" || !(ROLE_FAMILY_SLUGS as readonly string[]).includes(body.roleFamily)) {
+        return NextResponse.json({ error: "Unknown role family." }, { status: 400 });
+      }
+      roleFamily = body.roleFamily;
+    }
 
     const screening = getDecisionConfig<ScreeningRule>("screening", ws);
-    const currentThreshold = screening.maxMatchToReject;
+    // The floor the recommendation is measured against: the family's effective floor
+    // for a family-scoped apply (its override, else global), or the global floor.
+    const currentThreshold = effectiveFloor(screening, roleFamily);
     // Re-derive from the live, workspace-scoped pairs — never trust the client's
-    // number. If there's no live recommendation, there is nothing to apply.
-    const rec = recommendScreeningThreshold(pipelineCalibrationPairs(ws), currentThreshold);
+    // number — filtered to the SAME family scope the panel showed, so the write can
+    // only ever apply a number that family's own pairs defend. No rec → nothing to apply.
+    const allPairs = pipelineCalibrationPairs(ws);
+    const pairs = roleFamily ? allPairs.filter((p) => p.roleFamily === roleFamily) : allPairs;
+    const rec = recommendScreeningThreshold(pairs, currentThreshold);
     if (!rec) {
       return NextResponse.json({ error: "No calibration recommendation is available to apply." }, { status: 409 });
     }
@@ -44,25 +63,29 @@ export async function POST(request: Request) {
     }
 
     // Write through the existing mechanism (team override), leaving every other
-    // screening field untouched. Reversible: change maxMatchToReject back the
-    // same way from the Decision rules modal or this endpoint.
-    const next: ScreeningRule = { ...screening, maxMatchToReject: rec.suggestedThreshold };
+    // screening field untouched. A family-scoped apply sets ONLY that family's entry
+    // in familyFloors (merged over any existing map); a global apply moves the global
+    // maxMatchToReject exactly as before. Reversible either way from this endpoint.
+    const next: ScreeningRule = roleFamily
+      ? { ...screening, familyFloors: { ...(screening.familyFloors ?? {}), [roleFamily]: rec.suggestedThreshold } }
+      : { ...screening, maxMatchToReject: rec.suggestedThreshold };
     setDecisionConfig("screening", next, ws, "team");
 
     // Seal a tamper-evident record of the policy change (best-effort — a seal
     // failure must never fail the write). No candidate subject: the ref names the
-    // policy so the sealed-records panel shows it as a policy decision, and the
-    // rationale carries the auditable basis (band, n, observed rate, before→after).
+    // policy (and, when scoped, the family) so the sealed-records panel shows it as a
+    // policy decision, and the rationale + inputs carry the auditable basis + family.
     const approvedBy = operatorApprover();
+    const scopeLabel = roleFamily ? ` for role family "${roleFamily}"` : "";
     sealDecisionSafe(
       {
         kind: "screening_threshold_adjusted",
         actor: "human:operator",
-        policyVersion: `calibration-reco/maxMatch:${currentThreshold}->${rec.suggestedThreshold}`,
-        candidateRef: `policy:screening:${ws}`,
-        rationale: `Screening auto-reject floor ${rec.direction === "lower" ? "lowered" : "raised"} ${currentThreshold} → ${rec.suggestedThreshold} on calibration evidence: candidates scoring ${rec.band.lo}–${rec.band.hi} advanced past screening ${rec.advanceRatePct}% of the time (n=${rec.n}, overall n=${rec.totalOutcomes}). Approved by ${approvedBy}.`,
+        policyVersion: `calibration-reco/maxMatch${roleFamily ? `:${roleFamily}` : ""}:${currentThreshold}->${rec.suggestedThreshold}`,
+        candidateRef: roleFamily ? `policy:screening:${ws}:${roleFamily}` : `policy:screening:${ws}`,
+        rationale: `Screening auto-reject floor${scopeLabel} ${rec.direction === "lower" ? "lowered" : "raised"} ${currentThreshold} → ${rec.suggestedThreshold} on calibration evidence: candidates scoring ${rec.band.lo}–${rec.band.hi} advanced past screening ${rec.advanceRatePct}% of the time (n=${rec.n}, overall n=${rec.totalOutcomes}). Approved by ${approvedBy}.`,
         reasonCode: "calibrationThreshold",
-        inputs: { ...rec, previousThreshold: currentThreshold, approvedBy },
+        inputs: { ...rec, previousThreshold: currentThreshold, approvedBy, roleFamily },
       },
       // Explicit workspace: candidateRef is a policy string, not a pipeline entry, so
       // the store can't derive the team from it — pass the authenticated workspace so
@@ -70,7 +93,7 @@ export async function POST(request: Request) {
       ws
     );
 
-    return NextResponse.json({ ok: true, previousThreshold: currentThreshold, newThreshold: rec.suggestedThreshold });
+    return NextResponse.json({ ok: true, previousThreshold: currentThreshold, newThreshold: rec.suggestedThreshold, roleFamily });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Failed to apply the threshold." }, { status: 500 });
   }

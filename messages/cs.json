@@ -3556,7 +3556,12 @@
       "effectTitle": "Od poslední změny",
       "effectTooFew": "Od změny je v pásmu {lo}–{hi} příliš málo rozhodnutí k měření — je potřeba alespoň {min}.",
       "effectAfterOnly": "Od té doby postoupilo {pct} % kandidátů z pásma {lo}–{hi} (n={n}). Žádná dřívější rozhodnutí v tomto pásmu k porovnání.",
-      "effectDelta": "Míra postupu v pásmu {lo}–{hi}: {beforePct} % před → {afterPct} % po změně (n={n} od té doby)."
+      "effectDelta": "Míra postupu v pásmu {lo}–{hi}: {beforePct} % před → {afterPct} % po změně (n={n} od té doby).",
+      "recFamilyScope": "pro {family}",
+      "recAppliedFamily": "Hranice pro {family} nastavena na {suggested} — bylo {previous}. Vratné opětovným použitím.",
+      "familyFloorsTitle": "Hranice podle rodiny rolí",
+      "familyFloorsBlurb": "Rodiny rolí s vlastní hranicí automatického zamítnutí (globální hranice: {global}). Vyberte jednu k zobrazení nebo úpravě.",
+      "familyFloorValue": "hranice {value}"
     },
     "decisionRecords": {
       "title": "Záznamy rozhodnutí (zapečetěné)",

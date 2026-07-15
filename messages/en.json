@@ -3556,7 +3556,12 @@
       "effectTitle": "Since the last change",
       "effectTooFew": "Too few decisions in band {lo}–{hi} since the change to measure — need at least {min}.",
       "effectAfterOnly": "Since then, {pct}% of band {lo}–{hi} candidates advanced (n={n}). No earlier in-band decisions to compare against.",
-      "effectDelta": "Band {lo}–{hi} advance rate: {beforePct}% before → {afterPct}% after the change (n={n} since)."
+      "effectDelta": "Band {lo}–{hi} advance rate: {beforePct}% before → {afterPct}% after the change (n={n} since).",
+      "recFamilyScope": "for {family}",
+      "recAppliedFamily": "{family} floor set to {suggested} — was {previous}. Reversible by re-applying.",
+      "familyFloorsTitle": "Per-family floors",
+      "familyFloorsBlurb": "Families with their own auto-reject floor (global floor: {global}). Select one to review or adjust it.",
+      "familyFloorValue": "floor {value}"
     },
     "decisionRecords": {
       "title": "Decision records (sealed)",

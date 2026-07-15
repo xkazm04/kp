@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { calibrationPairs, pipelineCalibrationPairs } from "@/app/_lib/db";
 import { computeCalibration, computeCalibrationCohorts, recommendScreeningThreshold } from "@/app/_lib/calibration";
 import { getDecisionConfig, type ScreeningRule } from "@/app/_lib/decision-config-store";
+import { effectiveFloor } from "@/app/_lib/decision-config-schema";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { jsonError } from "@/app/_lib/api-response";
 import { createTtlCache, calibrationCacheKey } from "@/app/_lib/analytics-cache";
@@ -58,12 +59,19 @@ export async function GET(request: Request) {
       // (Display-only — the actual write lives in /apply-threshold, which is uncached.)
       let recommendation = null;
       let currentThreshold: number | null = null;
+      let familyFloors: Record<string, number> = {};
       if (source === "pipeline") {
         const screening = getDecisionConfig<ScreeningRule>("screening", ws);
-        currentThreshold = screening.maxMatchToReject;
+        // family-floors: the recommendation is measured against the EFFECTIVE floor
+        // for THIS view — the selected family's override (else global), or the global
+        // floor on the all-families view. So a family-scoped suggestion targets the
+        // family's own floor (and is now appliable), not the global knob.
+        currentThreshold = effectiveFloor(screening, family);
         recommendation = recommendScreeningThreshold(pairs, currentThreshold);
+        // Surface which families carry an override so the panel can chip them.
+        familyFloors = screening.familyFloors ?? {};
       }
-      return { ...computeCalibration(pairs), families, measures: source, cohorts, recommendation, currentThreshold };
+      return { ...computeCalibration(pairs), families, measures: source, cohorts, recommendation, currentThreshold, familyFloors };
     });
     return NextResponse.json(payload);
   } catch (error) {

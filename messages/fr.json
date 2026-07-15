@@ -3620,7 +3620,12 @@
       "effectTitle": "Depuis le dernier changement",
       "effectTooFew": "Trop peu de décisions dans la tranche {lo}–{hi} depuis le changement pour mesurer — au moins {min} requises.",
       "effectAfterOnly": "Depuis, {pct} % des candidats de la tranche {lo}–{hi} ont avancé (n={n}). Aucune décision antérieure dans cette tranche pour comparer.",
-      "effectDelta": "Taux d'avancement de la tranche {lo}–{hi} : {beforePct} % avant → {afterPct} % après le changement (n={n} depuis)."
+      "effectDelta": "Taux d'avancement de la tranche {lo}–{hi} : {beforePct} % avant → {afterPct} % après le changement (n={n} depuis).",
+      "recFamilyScope": "pour {family}",
+      "recAppliedFamily": "Seuil pour {family} fixé à {suggested} — était {previous}. Réversible en réappliquant.",
+      "familyFloorsTitle": "Seuils par famille de postes",
+      "familyFloorsBlurb": "Familles de postes avec leur propre seuil de rejet automatique (seuil global : {global}). Sélectionnez-en une pour la consulter ou l'ajuster.",
+      "familyFloorValue": "seuil {value}"
     },
     "decisionRecords": {
       "title": "Registres de décision (scellés)",
