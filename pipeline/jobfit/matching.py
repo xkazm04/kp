@@ -35,6 +35,7 @@ from .taxonomy import (
     resolve_term,
     skill_match_score,
     term_match_score,
+    unresolved_pair_score,
 )
 
 _SENIORITY_RANK = {"junior": 1, "medior": 2, "senior": 3, "lead": 4}
@@ -348,10 +349,18 @@ def _classify_unproven(cand_skill: str, req_skill: str, provenance: str | None) 
     rt = resolve_term(req_skill)
     if ct and rt:
         base = term_match_score(ct, rt)
-    else:
+    elif ct or rt:
         a = normalize_text(cand_skill or "").strip()
         b = normalize_text(req_skill or "").strip()
         base = 1.0 if a and a == b else 0.0
+    else:
+        # Neither side is modelled: mirror skill_match_score's graded token fallback
+        # so the verdict is consistent with the score that produced it. A below-
+        # threshold token overlap (0 < base < 1) reads as "adjacency" — a genuine
+        # fractional signal exists, just not enough — exactly how the TS side
+        # (MatchTypes.unprovenSkillReason) already renders a near-miss. Reusing the
+        # existing label keeps the wire vocabulary {adjacency, provenance, both}.
+        base = unresolved_pair_score(cand_skill, req_skill)
     adjacency = base < 1.0  # a related, non-exact skill (base==0 can't reach here)
     discounted = provenance_weight(provenance) < 1.0
     if adjacency and discounted:

@@ -713,6 +713,108 @@ def provenance_weight(provenance: str | None) -> float:
     return PROVENANCE_WEIGHTS.get(key, PROVENANCE_WEIGHTS["unknown"])
 
 
+# --- Graded fallback for UNRESOLVED skill pairs ----------------------------
+# When BOTH surfaces are absent from _SURFACE_TO_TERM the hierarchy has no opinion,
+# so skill_match_score historically collapsed to normalized string equality (1.0 or
+# 0.0, nothing between). That's exactly the vocabulary the taxonomy hasn't modelled
+# — creative/life-sciences/general-professional families still at zero terms, and
+# any brand-new tech term ("LangGraph") — where a token-overlap partial is the only
+# honest signal available. This gives such pairs a deterministic, BOUNDED fractional
+# score that feeds the existing additive machinery as sub-threshold, "adjacency"-
+# grade credit; it never manufactures a "matched" claim.
+
+_FALLBACK_TOKEN_RE = re.compile(r"[^\W_]+", re.UNICODE)
+
+# Generic, non-discriminative tokens: an overlap on ONLY these earns no credit, so
+# "management of X" vs "management of Y" (X≠Y) does NOT score — the distinctive
+# tokens (X, Y) carry the meaning and they differ. Deliberately small and
+# conservative: articles/prepositions/conjunctions (EN + common Czech glue) plus the
+# most generic role-noun filler. Anything OUTSIDE this set counts as a distinctive
+# token that can anchor a partial — the required shared "head".
+_FALLBACK_STOPWORDS: frozenset[str] = frozenset({
+    # English glue
+    "of", "and", "or", "the", "a", "an", "for", "to", "in", "on", "with", "at",
+    "by", "from", "as", "its", "your",
+    # Czech glue
+    "v", "ve", "na", "pro", "se", "si", "o", "z", "ze", "do", "po", "k", "u", "i", "s",
+    # generic role / skill filler (a shared "engineer"/"management" is not a skill)
+    "management", "manager", "engineer", "engineering", "developer", "development",
+    "specialist", "analyst", "coordinator", "administrator", "officer", "assistant",
+    "senior", "junior", "medior", "lead", "principal", "general", "professional",
+    "experience", "skills", "knowledge", "work", "working", "team", "support",
+})
+
+# Tokens shorter than this are too ambiguous to anchor a match: they are substrings
+# of countless words and defeat the whole-token discipline the rest of the module
+# enforces. Critically this neutralizes the short-skill hazard — "c" vs "c++" both
+# tokenize to the 1-char {"c"} and are dropped to the empty set, so they score 0.0
+# rather than a spurious 1.0.
+_FALLBACK_MIN_TOKEN_LEN = 3
+# Hard ceiling on the fallback: strictly below _SIBLING_MATCH (0.4) and matching's
+# _MATCH_THRESHOLD (0.5), so a token-overlap pair can never reach "matched" and the
+# pinned ordering exact(1.0) > specialization(0.9) > generalization(0.55) >
+# sibling(0.4) > token-fallback(≤0.3) > nothing(0.0) holds.
+_FALLBACK_CAP = 0.3
+
+
+def _fallback_tokens(surface: str) -> frozenset[str]:
+    """Distinctive, normalized token set of ``surface`` for the graded fallback:
+    :func:`normalize_text`-folded (so Czech diacritics/case fold the same way they
+    do everywhere else), split on non-word boundaries, then stripped of sub-length
+    noise and generic stopwords so only meaning-bearing tokens survive."""
+    norm = normalize_text(surface)
+    return frozenset(
+        t
+        for t in _FALLBACK_TOKEN_RE.findall(norm)
+        if len(t) >= _FALLBACK_MIN_TOKEN_LEN and t not in _FALLBACK_STOPWORDS
+    )
+
+
+@lru_cache(maxsize=16384)
+def unresolved_pair_score(candidate_skill: str | None, required_skill: str | None) -> float:
+    """Graded token-overlap score in ``[0, 1]`` for a skill pair the taxonomy CANNOT
+    resolve (NEITHER surface is in ``_SURFACE_TO_TERM``).
+
+    Applied ONLY as skill_match_score's neither-side-resolves fallback — a pair where
+    either side resolves keeps its unchanged hierarchy / string-equality outcome.
+
+    - exact normalized string match -> ``1.0`` (a real, if unmodelled, match — the
+      legacy fallback outcome, preserved; NOT capped)
+    - otherwise a Jaccard over the *distinctive* token sets, requiring at least one
+      shared distinctive ("head") token, scaled into ``(0, _FALLBACK_CAP]`` — so a
+      partial token overlap earns bounded, sub-threshold credit that classifies as
+      "adjacency", never a match
+    - no shared distinctive token -> ``0.0``
+
+    Design rationale — why token-set Jaccard with a required head token:
+    * Jaccard (|shared| / |union|) is symmetric, deterministic, and penalizes both
+      missing and extra tokens, so "apache airflow" vs "airflow" (0.15) scores below
+      a reordered near-identical pair — degree of overlap, not mere presence.
+    * The head-token requirement (a shared token that survives the stopword + min-
+      length filter) is what stops the classic false positive: "management of X" vs
+      "management of Y" share only stopwords, so the distinctive sets are disjoint
+      and the score is 0.0. It also forbids substring traps — "java" vs "javascript"
+      are distinct whole tokens (no share), and a negation like "non-relational" vs
+      "relational" keeps its "non" token in the union, dragging the score DOWN
+      rather than matching. All whole-token, never substring.
+    """
+    a = normalize_text(candidate_skill or "").strip()
+    b = normalize_text(required_skill or "").strip()
+    if not a or not b:
+        return 0.0
+    if a == b:
+        return 1.0  # exact string match of an unmodelled term — legacy 1.0 preserved
+    ca = _fallback_tokens(candidate_skill or "")
+    cb = _fallback_tokens(required_skill or "")
+    shared = ca & cb
+    if not shared:  # no distinctive token in common -> no signal (also handles the
+        return 0.0  # short-token hazard, where the filtered sets are empty)
+    jaccard = len(shared) / len(ca | cb)
+    # jaccard ∈ (0, 1] so this is structurally ≤ _FALLBACK_CAP; the min() is a
+    # belt-and-suspenders guard should the formula ever change.
+    return round(min(_FALLBACK_CAP, _FALLBACK_CAP * jaccard), 4)
+
+
 @lru_cache(maxsize=16384)
 def skill_match_score(
     candidate_skill: str,
@@ -722,19 +824,29 @@ def skill_match_score(
     """Provenance-weighted skill match between two surface forms, in ``[0, 1]``.
 
     Resolves both surfaces to taxonomy terms and scores via the hierarchy
-    (:func:`term_match_score`); when a surface is not in the taxonomy, falls back
-    to normalized string equality so non-modelled skills still match themselves.
-    The base score is then discounted by :func:`provenance_weight` so a skill
+    (:func:`term_match_score`). When NEITHER surface is modelled, falls back to
+    :func:`unresolved_pair_score` — exact string equality still yields ``1.0`` (a
+    non-modelled skill matches itself) and a token overlap earns a bounded, sub-
+    threshold partial (``≤0.3``) instead of a bare 0/1. When exactly ONE side
+    resolves the taxonomy already has an opinion on the pair, so the legacy
+    string-equality outcome is kept unchanged (no fallback credit for a half-modelled
+    pair). The base score is then discounted by :func:`provenance_weight` so a skill
     shown only in a school project counts for less than one used in production.
     """
     candidate_term = resolve_term(candidate_skill)
     required_term = resolve_term(required_skill)
     if candidate_term and required_term:
         base = term_match_score(candidate_term, required_term)
-    else:
+    elif candidate_term or required_term:
+        # Exactly one side resolves: a distinct surface vs a modelled term is 0.0,
+        # exactly as before (an equal surface would resolve to the same term and
+        # take the branch above). The graded fallback fires ONLY when neither side
+        # is modelled, so a half-modelled pair never gets token-overlap credit.
         a = _normalize(candidate_skill or "").strip()
         b = _normalize(required_skill or "").strip()
         base = 1.0 if a and a == b else 0.0
+    else:
+        base = unresolved_pair_score(candidate_skill, required_skill)
     if base <= 0.0:
         return 0.0
     return round(base * provenance_weight(provenance), 4)
