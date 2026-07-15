@@ -51,6 +51,10 @@ class CzechDefaultIsUnchangedTest(unittest.TestCase):
         # The company-adjustment band, byte-identical to the old insights.py literals.
         self.assertEqual(CZECH_MARKET.company_adjustment_max, 1.20)
         self.assertEqual(CZECH_MARKET.company_adjustment_min, 0.75)
+        # Straggler literals re-homed onto the config, byte-identical to the old
+        # salary_band.SALARY_STEP (5000) and market_salary_cli.REGION_DEFAULT.
+        self.assertEqual(CZECH_MARKET.salary_step, 5000)
+        self.assertEqual(CZECH_MARKET.region_label, "Czech Republic (Prague)")
 
 
 class ConsumersReadTheConfigTest(unittest.TestCase):
@@ -169,6 +173,54 @@ class CurrencyUnitFollowsMarketTest(unittest.TestCase):
         self.assertEqual(currency_unit("de", market=BERLIN_MARKET), "€/Monat")
         self.assertEqual(currency_unit("en", market=BERLIN_MARKET), "EUR/month")
         self.assertNotIn("CZK", currency_unit("cs", market=BERLIN_MARKET))
+
+
+class MarketSeamStragglersTest(unittest.TestCase):
+    """Round-10 stragglers: four comp/persona literals never re-homed with the seam.
+    Each is byte-identical for the Czech default and flips under a re-homed market."""
+
+    def test_group_compare_persona_names_the_active_market(self) -> None:
+        from pipeline.jobfit.group_compare import _system_prompt
+
+        # Byte-identical to the old hardcoded "_SYSTEM" for the Czech default.
+        self.assertIn("precise technical recruiter for the Czech tech market", _system_prompt())
+        self.assertIn(
+            "precise technical recruiter for the Czech tech market",
+            _system_prompt(CZECH_MARKET),
+        )
+        # A re-homed market names ITS market instead of biasing every comparison Czech.
+        berlin = _system_prompt(BERLIN_MARKET)
+        self.assertIn("German tech market", berlin)
+        self.assertNotIn("Czech", berlin)
+
+    def test_cli_region_default_follows_the_active_market(self) -> None:
+        from pipeline.jobfit import market_salary_cli
+
+        # Byte-identical region phrase for the Czech default.
+        self.assertEqual(market_salary_cli.REGION_DEFAULT, "Czech Republic (Prague)")
+        self.assertEqual(market_salary_cli.REGION_DEFAULT, ACTIVE_MARKET.region_label)
+        self.assertEqual(BERLIN_MARKET.region_label, "Germany (Berlin)")
+
+    def test_cli_fallback_currency_follows_the_market(self) -> None:
+        from pipeline.jobfit import market_salary_cli
+
+        # The deterministic fallback labels the band in the market's currency:
+        # "CZK" for the Czech default, "EUR" under the Berlin sample — never a
+        # hardcoded "CZK" applied to a euro band.
+        cz = market_salary_cli._fallback("software_engineering", "medior")
+        self.assertEqual(cz["currency"], "CZK")
+        de = market_salary_cli._fallback("software_engineering", "medior", market=BERLIN_MARKET)
+        self.assertEqual(de["currency"], "EUR")
+        # The grounded-payload repair path defaults the same way when the payload
+        # omits a currency.
+        _, _ = market_salary_cli._coerce({}, "software_engineering", "medior")
+        repaired, _ = market_salary_cli._coerce(
+            {"suggestedMinimum": 3000, "suggestedMaximum": 5000},
+            "software_engineering",
+            "medior",
+            market=BERLIN_MARKET,
+        )
+        self.assertEqual(repaired["currency"], "EUR")
 
 
 class CrossBoundarySyncTest(unittest.TestCase):

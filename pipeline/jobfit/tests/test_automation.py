@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import unittest
+from unittest import mock
 
 from pipeline.jobfit import automation
+from pipeline.jobfit.market_config import BERLIN_MARKET
 from pipeline.jobfit.matching import MatchCandidate, score_job
 
 from pipeline.jobfit.tests._helpers import mkjob as _mkjob
@@ -423,6 +425,23 @@ class OfferTest(unittest.TestCase):
         hi, _ = automation.draft_offer(strong, job, score_job(strong, job), provider=None)
         lo, _ = automation.draft_offer(weak, job, score_job(weak, job), provider=None)
         self.assertGreaterEqual(hi["recommended"], lo["recommended"])
+
+    def test_offer_currency_is_the_active_market_czk_by_default(self):
+        # Byte-identical: the Czech default labels the offer "CZK" as before.
+        job = mkjob()
+        out, _ = automation.draft_offer(BAU, job, score_job(BAU, job), provider=None)
+        self.assertEqual(out["currency"], "CZK")
+        self.assertIn("CZK", out["body"])
+
+    def test_offer_currency_follows_a_flipped_market(self):
+        # Re-homing the active market re-labels the offer in ITS currency instead of
+        # a hardcoded "CZK" — proving the literal now reads MarketConfig.
+        job = mkjob()
+        with mock.patch.object(automation, "ACTIVE_MARKET", BERLIN_MARKET):
+            out, _ = automation.draft_offer(BAU, job, score_job(BAU, job), provider=None)
+        self.assertEqual(out["currency"], "EUR")
+        self.assertIn("EUR", out["body"])
+        self.assertNotIn("CZK", out["body"])
 
     def test_offer_falls_back_to_seniority_band_without_role_band(self):
         # a role_family/seniority with no role_band still yields a usable band

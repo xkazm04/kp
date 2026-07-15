@@ -19,6 +19,7 @@ from typing import Any
 
 from . import registry
 from .jobs import Job
+from .market_config import ACTIVE_MARKET
 from .matching import MatchCandidate, ko_filter, score_job
 from .match_reasoning import generate as generate_reasoning
 from .match_reasoning import reasoning_context
@@ -876,7 +877,10 @@ def draft_offer(candidate: MatchCandidate, job: Job, m, *, lang: str | None = No
     if len(band) < 2 or band[0] <= 0 or band[1] < band[0]:
         band = _SENIORITY_DEFAULT_BAND.get((job.seniority or "medior").lower(), [65000, 95000])
     lo, hi = int(band[0]), int(band[1])
-    currency = "CZK"
+    # The offer figure is denominated in the ACTIVE market's currency, not a
+    # hardcoded "CZK" — byte-identical ("CZK") for the Czech default, but a re-homed
+    # market labels the offer in ITS own currency instead of silently mislabelling it.
+    currency = ACTIVE_MARKET.currency
 
     # Position within the band scales with match strength (match 55 -> 10%, 95 -> 90%).
     f = max(0.1, min(0.9, (m.total - 55) / 40.0))

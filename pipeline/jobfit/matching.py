@@ -249,6 +249,16 @@ def _has_language(candidate_langs: list[str], required: str) -> bool:
     req = required.strip().casefold()
     if not req:
         return True
+    # LANGUAGE_ALIASES holds a fixed set of curated buckets (12 today: english,
+    # czech, german, slovak, polish, hungarian, romanian, french, spanish, italian,
+    # dutch, ukrainian). A required language OUTSIDE that set (e.g. "portuguese") has
+    # no bucket, so ``needles`` degrades to the raw requirement string and the gate
+    # passes only on a LITERAL substring match ("portuguese" in the candidate's
+    # language blob) — no cross-lingual alias expansion (no "português", no "pt"). This
+    # is deliberate and honest: an unmodelled language is matched on its bare name
+    # rather than silently mishandled. To model a new language properly, add a bucket
+    # in data/taxonomy.json::language_aliases (config, not code). Pinned by
+    # test_whole_token_classification.UnmodelledLanguageFallsBackToSubstringTest.
     bucket = next((aliases for key, aliases in _LANG_ALIASES.items() if key in req or req in key), None)
     needles = bucket if bucket else (req,)
     blob = " ".join(candidate_langs).casefold()

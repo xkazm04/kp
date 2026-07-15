@@ -17,10 +17,15 @@ from __future__ import annotations
 
 import math
 
-from .market_config import ACTIVE_MARKET
+from .market_config import ACTIVE_MARKET, MarketConfig
 
-# Salaries round to the nearest 5000 (CZK/month gross).
-SALARY_STEP = 5000
+# Salaries round to the nearest ``salary_step`` of the ACTIVE market (5000 for the
+# CZK/month default — a 47,300-61,800 band reads as 45k-60k). The grain now lives on
+# ``MarketConfig.salary_step`` so a finer-grained currency (a EUR/month market, where
+# rounding to the nearest 5000 would erase the figure) re-homes it in lockstep with
+# the currency rather than leaving this literal stranded. For the Czech default this
+# is 5000 byte-for-byte.
+SALARY_STEP = ACTIVE_MARKET.salary_step
 
 # Plausibility ceiling for a single gross salary figure, in the ACTIVE market's
 # currency/period (the same market and period the pipeline emits by default — see
@@ -36,16 +41,20 @@ SALARY_STEP = 5000
 SALARY_PLAUSIBILITY_CEILING = ACTIVE_MARKET.plausibility_ceiling
 
 
-def round_salary(value: float) -> int:
-    """Round a salary to the nearest :data:`SALARY_STEP`."""
-    return int(round(value / SALARY_STEP) * SALARY_STEP)
+def round_salary(value: float, *, market: MarketConfig = ACTIVE_MARKET) -> int:
+    """Round a salary to the nearest ``market.salary_step`` (default: the ACTIVE
+    market's grain, 5000 for the Czech default)."""
+    step = market.salary_step
+    return int(round(value / step) * step)
 
 
 def _positive_finite(value: float) -> bool:
     return math.isfinite(value) and value > 0
 
 
-def normalize_band(minimum: float, maximum: float) -> tuple[int, int] | None:
+def normalize_band(
+    minimum: float, maximum: float, *, market: MarketConfig = ACTIVE_MARKET
+) -> tuple[int, int] | None:
     """Sanitize an untrusted ``(min, max)`` into a usable, rounded band.
 
     Swaps a reversed range and rejects non-finite / non-positive values; returns
@@ -56,7 +65,7 @@ def normalize_band(minimum: float, maximum: float) -> tuple[int, int] | None:
     if not _positive_finite(minimum) or not _positive_finite(maximum):
         return None
     lo, hi = (minimum, maximum) if minimum <= maximum else (maximum, minimum)
-    return round_salary(lo), round_salary(hi)
+    return round_salary(lo, market=market), round_salary(hi, market=market)
 
 
 def band_error(minimum: float, maximum: float) -> str | None:

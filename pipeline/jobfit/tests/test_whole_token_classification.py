@@ -128,6 +128,21 @@ class DataDrivenLanguageAliasesTest(unittest.TestCase):
         self.assertTrue(_has_language(["Portuguese C1"], "Portuguese"))
         self.assertFalse(_has_language(["English"], "Portuguese"))
 
+    def test_unmodelled_language_matches_only_a_literal_substring(self) -> None:
+        # LANGUAGE_ALIASES has 12 curated buckets; "portuguese" is NOT one of them.
+        # The honest, documented fallback (matching._has_language): the requirement
+        # matches ONLY on a literal substring of the candidate's language blob — there
+        # is NO cross-lingual alias expansion. So the native surface form ("português")
+        # and the ISO code ("pt") do NOT satisfy a "Portuguese" requirement, only the
+        # English name literally present does. This pins the behaviour as-is; modelling
+        # the language properly means adding a bucket in taxonomy.json::language_aliases,
+        # not changing this fallback.
+        self.assertNotIn("portuguese", LANGUAGE_ALIASES)
+        self.assertTrue(_has_language(["Portuguese (native)"], "Portuguese"))
+        # Native form / ISO code are unmodelled — no bucket expands them.
+        self.assertFalse(_has_language(["Português nativo"], "Portuguese"))
+        self.assertFalse(_has_language(["PT C2"], "Portuguese"))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -50,6 +50,15 @@ class MarketConfig:
       band is market-calibrated (the Czech ceiling aligns with the upper end of
       the Kitalent Prague multinational base premium), so like the salary ceiling
       it must re-home with the market rather than stay a hardcoded literal.
+    * ``salary_step`` — the rounding grain a band is snapped to (``round_salary``),
+      in ``currency`` units. Flat 5 000 for a CZK/month market reads a
+      47,300–61,800 range as 45k–60k; a EUR/month market must round on a far
+      finer grain (rounding €4,200 to the nearest €5,000 would erase the figure),
+      so the step re-homes with the currency rather than staying a stranded literal.
+    * ``region_label`` — the human region phrase the grounded-salary CLI names in
+      its research prompt (``"Czech Republic (Prague)"``); a bare
+      ``default_location`` ("Praha") is not the country-qualified phrase the prompt
+      needs, so the market carries the full label.
     """
 
     market_id: str
@@ -66,6 +75,8 @@ class MarketConfig:
     currency_symbol: str = ""
     home_lang: str = "en"
     market_descriptor: str = ""
+    salary_step: int = 5000
+    region_label: str = ""
 
 
 # The product default. These values reproduce the constants that were hardcoded in
@@ -89,6 +100,10 @@ CZECH_MARKET = MarketConfig(
     currency_symbol="Kč",
     home_lang="cs",
     market_descriptor="Czech",
+    # Byte-identical to the previously-hardcoded salary_band.SALARY_STEP (5 000) and
+    # market_salary_cli.REGION_DEFAULT ("Czech Republic (Prague)").
+    salary_step=5000,
+    region_label="Czech Republic (Prague)",
 )
 
 # A second sample market that exercises the seam end-to-end (different currency,
@@ -109,6 +124,12 @@ BERLIN_MARKET = MarketConfig(
     currency_symbol="€",
     home_lang="de",
     market_descriptor="German",
+    # NON-PRODUCTION placeholders: a EUR/month market must round on a far finer
+    # grain than CZK's 5 000 (that would erase a real euro figure), and the CLI
+    # names the country-qualified region — both prove the fields re-home, not that
+    # we hold real German calibration.
+    salary_step=500,
+    region_label="Germany (Berlin)",
 )
 
 

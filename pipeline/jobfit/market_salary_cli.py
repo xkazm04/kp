@@ -18,9 +18,14 @@ from pathlib import Path
 
 from ._cli import configure_stdio
 from .gemini import GroundedAnswer, grounded_answer, load_local_env
+from .market_config import ACTIVE_MARKET, MarketConfig
 from .taxonomy import role_band
 
-REGION_DEFAULT = "Czech Republic (Prague)"
+# Region phrase and currency default to the ACTIVE market instead of hardcoded
+# Czech/CZK literals — byte-identical ("Czech Republic (Prague)" / "CZK") for the
+# Czech default, but a re-homed market researches ITS region and labels the band in
+# ITS currency instead of asking the model for a CZK figure in Prague regardless.
+REGION_DEFAULT = ACTIVE_MARKET.region_label
 
 
 # SCOR6 — the deterministic fallback summary lands in the candidate-facing JD
@@ -33,20 +38,24 @@ _FALLBACK_SUMMARY = {
 }
 
 
-def _fallback(role_family: str, seniority: str, lang: str = "en") -> dict:
+def _fallback(
+    role_family: str, seniority: str, lang: str = "en", *, market: MarketConfig = ACTIVE_MARKET
+) -> dict:
     from .i18n import normalize_lang
 
     band = role_band(role_family, seniority) or (0, 0)
     return {
         "suggestedMinimum": int(band[0]),
         "suggestedMaximum": int(band[1]),
-        "currency": "CZK",
+        "currency": market.currency,
         "confidence": "low",
         "summary": _FALLBACK_SUMMARY[normalize_lang(lang)],
     }
 
 
-def _coerce(payload: dict, role_family: str, seniority: str, lang: str = "en") -> tuple[dict, bool]:
+def _coerce(
+    payload: dict, role_family: str, seniority: str, lang: str = "en", *, market: MarketConfig = ACTIVE_MARKET
+) -> tuple[dict, bool]:
     """Validate the grounded JSON; repair to the taxonomy band if unusable.
 
     Returns (result, grounded) where ``grounded`` is True only when the payload
@@ -55,7 +64,7 @@ def _coerce(payload: dict, role_family: str, seniority: str, lang: str = "en") -
     raising — the caller derives its source label from this flag rather than
     re-parsing the raw payload.
     """
-    fb = _fallback(role_family, seniority, lang)
+    fb = _fallback(role_family, seniority, lang, market=market)
     try:
         lo = int(payload.get("suggestedMinimum") or 0)
         hi = int(payload.get("suggestedMaximum") or 0)
@@ -69,7 +78,7 @@ def _coerce(payload: dict, role_family: str, seniority: str, lang: str = "en") -
     return {
         "suggestedMinimum": lo,
         "suggestedMaximum": hi,
-        "currency": str(payload.get("currency") or "CZK"),
+        "currency": str(payload.get("currency") or market.currency),
         "confidence": str(payload.get("confidence") or "medium"),
         "summary": str(payload.get("summary") or fb["summary"]),
     }, True
@@ -102,6 +111,9 @@ def main(argv: list[str] | None = None) -> int:
 
         from .i18n import language_name
 
+        # The currency the model is asked to price in follows the ACTIVE market
+        # ("CZK" byte-identical for the Czech default) rather than a hardcoded literal.
+        cur = ACTIVE_MARKET.currency
         prompt = (
             "You are a compensation analyst. Using current web search results, estimate the typical MONTHLY GROSS "
             f"salary range for this role in {region}.\n"
@@ -109,8 +121,8 @@ def main(argv: list[str] | None = None) -> int:
             f"- Company profile: similar to {company}\n- Key stack: {stack}\n\n"
             f"Write the summary in {language_name(args.lang)}; keep the currency code and numbers as specified.\n"
             "Respond with ONLY a JSON object (no prose, no fences):\n"
-            '{"suggestedMinimum": <int CZK/month>, "suggestedMaximum": <int CZK/month>, '
-            '"currency": "CZK", "confidence": "low|medium|high", '
+            f'{{"suggestedMinimum": <int {cur}/month>, "suggestedMaximum": <int {cur}/month>, '
+            f'"currency": "{cur}", "confidence": "low|medium|high", '
             '"summary": "<1-2 sentences of market context grounded in what you found>"}'
         )
         ans: GroundedAnswer = grounded_answer(
