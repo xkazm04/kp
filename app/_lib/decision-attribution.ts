@@ -6,6 +6,8 @@
 // comm/ack/reminder sends, manual moves, intake kinds…) and every unmapped kind
 // rendered an UNKNOWN badge and fell out of any attribution math.
 //
+import { parseRematchDetail } from "@/app/features/sub_pipeline/pipeline-rematch-link";
+
 // Attribution semantics: `auto` = the system initiated the action (policy pass,
 // fan-out, dispatched comm, sentinel); `human` = a person did (a recruiter
 // click, a candidate reply). Browser-safe pure module — no DB imports.
@@ -302,21 +304,11 @@ export function waveReasonText<T extends WaveReasonTranslator>(t: T, reason: Sea
 }
 
 // (c) Rematch counterpart. rematched/rematched_from rows carry the counterpart pipeline
-// entry id inside their detail string, but no link. The two writers format it
-// differently, so parsing is per-kind:
-//   • rematched (source side): "<srcJob> -> <tgtJob> (<targetEntryId>)" — id in the LAST parens.
-//   • rematched_from (target side): "<priorEntryId> (<priorJobId>)" — id is the leading token.
+// entry id inside their detail string, but no link. The detail wire format is OWNED by
+// pipeline-rematch-link.ts (the drawer's parser, shipped the same round) — this is a
+// thin adapter over that ONE parser so the two surfaces can never drift on the format.
 export function parseRematchCounterpartId(kind: string, detail: string | null): string | null {
-  if (!detail) return null;
-  if (kind === "rematched_from") {
-    const m = detail.match(/^(\S+)\s+\(/);
-    return m ? m[1] : null;
-  }
-  if (kind === "rematched") {
-    const m = detail.match(/\(([^)]+)\)\s*$/);
-    return m ? m[1] : null;
-  }
-  return null;
+  return parseRematchDetail(kind, detail)?.entryId ?? null;
 }
 
 export type AutomationImpact = {
