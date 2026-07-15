@@ -46,6 +46,14 @@ export function isScoreStale(scoredAt: string | null | undefined, jdEditedAt: st
   return Boolean(jdEditedAt) && Boolean(scoredAt) && (scoredAt as string) < (jdEditedAt as string);
 }
 
+// Confidence-band cutoffs for the AI's numeric self-confidence (0-100) in its OWN
+// screening verdict — the compact band on each AI review card (decision-io-diet). The
+// tone tracks wrong-click risk: at or above HIGH the advance/reject is safe (moss); at or
+// above MEDIUM it warrants a second look (amber); below MEDIUM it is the low-confidence
+// click the band exists to flag (coral). Single home so the card and any future consumer
+// (wave preview, analytics) can't drift apart on where the lines sit.
+export const SCREENING_CONFIDENCE_BAND = { high: 70, medium: 40 } as const;
+
 export const STAGES = ["Accepted", "Screened", "Interview", "Offer", "Hired"];
 export const ARCHETYPE = {
   bau: { label: "Experienced", bg: "bg-steel" },

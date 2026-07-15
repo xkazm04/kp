@@ -3,7 +3,7 @@ import { listReconsiderQueue } from "@/app/_lib/db";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { withCanonicalScores } from "@/app/_lib/match-score-resolve";
-import { listDecisionRecords } from "@/app/_lib/decision-record-store";
+import { listDecisionRecordsForRefs } from "@/app/_lib/decision-record-store";
 
 
 // Recruiter-facing "Reconsider" queue (idea-e43fa801): the auto-rejected cohort a
@@ -29,6 +29,13 @@ export async function GET() {
     items.map((i) => i.entry),
     ws
   );
+  // decision-io-diet: read every candidate's sealed records in ONE chunked query up
+  // front, instead of a per-row SELECT inside the map below (up to 50 queries per load,
+  // on every live-refresh). Per-ref semantics are byte-identical to the old per-row read.
+  const recordsByRef = listDecisionRecordsForRefs(
+    items.map(({ entry }) => entry.id),
+    { workspaceId: ws, limit: 20 }
+  );
   const projected = items.map(({ entry, rejectedAt }, idx) => {
     const canonical = scored[idx];
     // Read back the sealed auto-reject reason from the decision record store the
@@ -37,7 +44,7 @@ export async function GET() {
     // the client renders it through the same decisions.wave.reasons.* catalog the
     // screen-wave modal uses, so a Czech recruiter reads a Czech reason. Best-effort:
     // a candidate whose seal failed / predates the SoR simply shows no reason line.
-    const record = listDecisionRecords({ candidateRef: entry.id, workspaceId: ws, limit: 20 }).find(
+    const record = (recordsByRef.get(entry.id) ?? []).find(
       (r) => r.kind === "auto_rejected"
     );
     let reason: { reasonCode: string; reasonParams: Record<string, string | number> } | null = null;

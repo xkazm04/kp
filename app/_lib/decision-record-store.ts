@@ -2,6 +2,7 @@ import Database from "better-sqlite3";
 import { openStore } from "./db-path";
 import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 import { decisionContentHash, decisionContentMac } from "./decision-hash";
+import { chunk, SQL_IN_CHUNK } from "./entries-param";
 
 // Decision System of Record (moonshot D) — a tamper-evident hash chain of
 // consequential hiring decisions, stored in SQLite (a hash chain, NOT a
@@ -294,6 +295,51 @@ export function listDecisionRecords(opts?: { candidateRef?: string; limit?: numb
       : d.prepare(`SELECT * FROM decision_records WHERE workspace_id = ? ORDER BY seq DESC LIMIT ?`).all(workspaceId, limit)
   ) as DecisionRow[];
   return rows.map(rowToRecord);
+}
+
+/** Batched sibling of {@link listDecisionRecords}: read the latest records for a WHOLE
+ *  SET of candidate refs in one (chunked) query instead of one query per ref. Both the
+ *  reconsider queue and the analytics log used to call listDecisionRecords({candidateRef})
+ *  INSIDE a map over up to 50 rows — up to 50 SELECTs per load, on every live-refresh
+ *  (decision-io-diet). This collapses that to ⌈refs/SQL_IN_CHUNK⌉ queries.
+ *
+ *  SEMANTICS ARE PER-REF, byte-identical to calling listDecisionRecords once per ref:
+ *  the returned Map has one entry per requested ref (an empty array when that ref has no
+ *  records — exactly what the per-ref read returns), and each array is that ref's records
+ *  ordered `seq DESC` and capped to `limit` PER REF — the limit is NOT a global cap across
+ *  the batch. We fetch every matching row for the ref set ordered `seq DESC` and, walking
+ *  in that order, push into each ref's bucket only while it is under `limit`, which yields
+ *  the same top-`limit` slice per ref the per-ref `ORDER BY seq DESC LIMIT ?` produces. The
+ *  IN list is chunked under the SQLite variable floor (chunk/SQL_IN_CHUNK), the same idiom
+ *  entryIdsWithEvent uses; because ordering/capping happens per ref, the chunk boundary
+ *  never affects a ref's result (a ref lands wholly within one chunk — refs are de-duped). */
+export function listDecisionRecordsForRefs(
+  refs: string[],
+  opts?: { limit?: number; workspaceId?: string }
+): Map<string, DecisionRecord[]> {
+  const out = new Map<string, DecisionRecord[]>();
+  const uniqueRefs = Array.from(new Set(refs.filter(Boolean)));
+  // Pre-seed every requested ref with an empty array so map.get(ref) is always an array,
+  // matching the per-ref read's "no records → []" contract for callers.
+  for (const ref of uniqueRefs) out.set(ref, []);
+  if (uniqueRefs.length === 0) return out;
+  const d = db();
+  const limit = Math.min(Math.max(Math.trunc(opts?.limit ?? 200), 1), 1000);
+  const workspaceId = opts?.workspaceId ?? DEFAULT_WORKSPACE_ID;
+  for (const idsChunk of chunk(uniqueRefs, SQL_IN_CHUNK)) {
+    const placeholders = idsChunk.map(() => "?").join(", ");
+    const rows = d
+      .prepare(
+        `SELECT * FROM decision_records WHERE candidate_ref IN (${placeholders}) AND workspace_id = ? ORDER BY seq DESC`
+      )
+      .all(...idsChunk, workspaceId) as DecisionRow[];
+    for (const r of rows) {
+      const bucket = out.get(r.candidate_ref);
+      // Rows arrive seq DESC; take only the first `limit` per ref = the per-ref top slice.
+      if (bucket && bucket.length < limit) bucket.push(rowToRecord(r));
+    }
+  }
+  return out;
 }
 
 /** Recompute the entire chain in seq order and confirm each link's prev_hash and

@@ -6,7 +6,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { RATING_MAX } from "@/app/_lib/format";
 import { OFFER_TTL_DAYS_MIN, OFFER_TTL_DAYS_MAX, defaultOfferTtlDays } from "@/app/_lib/offer-policy";
 import { CandidateHead, MiniList, RecBadge } from "./DecisionsShared";
-import type { Entry, Offer, Scorecard, Screening } from "./DecisionsTypes";
+import { SCREENING_CONFIDENCE_BAND, type Entry, type Offer, type Scorecard, type Screening } from "./DecisionsTypes";
 
 // The 1..RATING_MAX rubric scale as an ascending array, for the per-competency
 // dot strip — derived from the single source so re-gearing the rubric reshapes
@@ -107,7 +107,14 @@ export function AiReviewCard({
   const screeningConfidence = !isOffer && !isScorecard && typeof parsed?.confidence === "number" ? Math.max(0, Math.min(100, Math.round(parsed.confidence))) : null;
   // Tone tracks how load-bearing the click is: a low-confidence advance/reject is
   // the wrong-click risk this band exists to flag. Tokens only (both themes).
-  const confidenceTone = screeningConfidence == null ? "" : screeningConfidence >= 70 ? "bg-moss" : screeningConfidence >= 40 ? "bg-amber-400" : "bg-coral";
+  const confidenceTone =
+    screeningConfidence == null
+      ? ""
+      : screeningConfidence >= SCREENING_CONFIDENCE_BAND.high
+        ? "bg-moss"
+        : screeningConfidence >= SCREENING_CONFIDENCE_BAND.medium
+          ? "bg-amber-400"
+          : "bg-coral";
 
   return (
     <article

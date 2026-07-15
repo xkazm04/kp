@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { countPipelineEvents, listPipelineEvents, listPipeline, type PipelineEvent } from "@/app/_lib/db";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
-import { listDecisionRecords } from "@/app/_lib/decision-record-store";
+import { listDecisionRecordsForRefs } from "@/app/_lib/decision-record-store";
 import {
   DECISION_META,
   GROUP_EVAL_OUTCOME_KINDS,
@@ -63,10 +63,9 @@ function enrichPage(rows: PipelineEvent[], workspaceId: string): EnrichedEvent[]
     if (r.entryId && (GROUP_EVAL_OUTCOME_KINDS.has(r.kind) || r.kind === "auto_rejected")) needsRecords.add(r.entryId);
     if (r.entryId && REMATCH_KINDS.has(r.kind)) hasRematch = true;
   }
-  const recordsByRef = new Map<string, ReturnType<typeof listDecisionRecords>>();
-  for (const ref of needsRecords) {
-    recordsByRef.set(ref, listDecisionRecords({ candidateRef: ref, workspaceId, limit: 20 }));
-  }
+  // decision-io-diet: one chunked read for every ref the page needs, replacing the
+  // per-ref SELECT loop (≤ page size queries per load). Per-ref semantics unchanged.
+  const recordsByRef = listDecisionRecordsForRefs([...needsRecords], { workspaceId, limit: 20 });
   // Counterpart resolution reuses the records-panel idiom: entry id → live board label,
   // so the deep-link uses the board's ?q=<label> search (which matches on label, not id).
   // A counterpart that no longer resolves (records outlive entries) stays plain text.
