@@ -1,6 +1,6 @@
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
-import { getJob, getProfileRecord, loadAnalysis, type JobRecord } from "./db";
+import { getJob, getProfileRecord, loadAnalysis, recordAutomationEvent, type JobRecord } from "./db";
 import { DEFAULT_WORKSPACE_ID, getWorkspaceDefaultLocale } from "./db/workspaces";
 import { runReasoning } from "./reasoning-run";
 import { getGroupEval, saveGroupEval } from "./group-eval";
@@ -537,6 +537,24 @@ export async function runGroupEval(
       reasonCode: "advisory",
       inputs: { score: lead.score, candidates: candidates.length, roleTitle, governanceMode, robustness, cohortSource: useSelection ? "selection" : "top", cohortSize: totalCandidates },
     });
+  }
+
+  // group-eval-event-anchor — write a `group_eval` pipeline event at seal time on BOTH
+  // branches (recommendation lead + advisory), keyed on the lead's entry. This is the
+  // DIRECT provenance anchor for the decision log (decision-attribution.GROUP_EVAL_EVENT_KIND):
+  // it gives an advisory/committee run — which never advances a candidate — a visible,
+  // provenance-bearing log row, and anchors the cohort chip at the eval's own moment even
+  // when the crowned lead is advanced hours later or by someone else (the two blind spots the
+  // advance-only 6h window join could not cover). The detail is an honest machine summary —
+  // cohortSource + compared/field sizes, NO candidate id (safe for the public feed's
+  // pass-through). Gated on `lead` so it mirrors the seal exactly: no lead sealed ⇒ no event.
+  if (lead) {
+    recordAutomationEvent(
+      lead.entryId,
+      "group_eval",
+      `${useSelection ? "selection" : "top"} · ${candidates.length}/${totalCandidates}`,
+      workspaceId
+    );
   }
 
   const payload: Record<string, unknown> = {

@@ -3805,7 +3805,8 @@
         "fairness_gate_blocked_reject": "Fairness pojistka: automatické zamítnutí blokováno",
         "observed_minted": "Odkaz pro pozorovatele vytvořen",
         "role_reopened": "Role znovu otevřena",
-        "reinstated": "Vrácen k novému posouzení"
+        "reinstated": "Vrácen k novému posouzení",
+        "group_eval": "Skupinové hodnocení"
       },
       "kindsQueued": {
         "outreach_sent": "Oslovení ve frontě v Outboxu (nedoručeno)",

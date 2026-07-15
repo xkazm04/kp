@@ -39,6 +39,10 @@ test("the kinds the writers produce are all mapped (the drift this module exists
     "offer_accepted", "offer_declined", "offer_expired", "onboarding_started", "onboarding_failed",
     "rematched", "rematched_from", "fairness_gate_unknown_archetype", "observed_minted",
     "ko_declined", "role_reopened", "reinstated",
+    // group-eval-event-anchor — the comparative eval seals a lead/advisory record AND
+    // writes a `group_eval` pipeline event at seal time (group-eval-run.ts). Without a
+    // DECISION_META mapping it rendered UNKNOWN in the log and fell out of the rollup.
+    "group_eval",
     // Policy-pass alert kinds — derived from the shared source the writer itself
     // consumes (not a hand-copied literal), so a NEW alert kind forces a
     // DECISION_META mapping instead of silently rendering UNKNOWN and falling out of

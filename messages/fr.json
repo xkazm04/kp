@@ -3873,7 +3873,8 @@
         "fairness_gate_blocked_reject": "Contrôle d'équité : rejet auto bloqué",
         "observed_minted": "Lien observateur généré",
         "role_reopened": "Poste rouvert",
-        "reinstated": "Réintégré pour réexamen"
+        "reinstated": "Réintégré pour réexamen",
+        "group_eval": "Évaluation de groupe"
       },
       "kindsQueued": {
         "outreach_sent": "Prise de contact en file d'attente dans la boîte d'envoi (non remise)",

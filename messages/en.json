@@ -3805,7 +3805,8 @@
         "fairness_gate_blocked_reject": "Fairness gate: auto-reject blocked",
         "observed_minted": "Observer link minted",
         "role_reopened": "Role reopened",
-        "reinstated": "Reinstated for re-review"
+        "reinstated": "Reinstated for re-review",
+        "group_eval": "Group evaluation"
       },
       "kindsQueued": {
         "outreach_sent": "Outreach queued in Outbox (not delivered)",

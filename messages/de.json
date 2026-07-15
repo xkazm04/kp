@@ -3873,7 +3873,8 @@
         "fairness_gate_blocked_reject": "Fairness-Gate: Auto-Ablehnung blockiert",
         "observed_minted": "Beobachter-Link erstellt",
         "role_reopened": "Rolle wieder geöffnet",
-        "reinstated": "Zur erneuten Prüfung reaktiviert"
+        "reinstated": "Zur erneuten Prüfung reaktiviert",
+        "group_eval": "Gruppenbewertung"
       },
       "kindsQueued": {
         "outreach_sent": "Ansprache im Postausgang eingereiht (nicht zugestellt)",

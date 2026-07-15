@@ -87,6 +87,14 @@ export const DECISION_META: Record<string, DecisionMeta> = {
   // it is. Without this it rendered UNKNOWN and the reversal vanished from the
   // audit rollups even though its inverse (auto_rejected) was counted.
   reinstated: { auto: false, tone: "text-moss" },
+  // The comparative group evaluation itself (group-eval-event-anchor): group-eval seals
+  // a group_eval_lead/advisory RECORD and now also writes a `group_eval` pipeline event
+  // at seal time, keyed on the lead's entry. The eval is SYSTEM-initiated (auto) — a
+  // background task synthesizing a ranking — so it credits the machine, not the recruiter
+  // who opened the modal. Steel (neutral-informational): it informs a decision, it is not
+  // itself an advance/reject. Without a mapping the event rendered UNKNOWN in the log and
+  // fell out of every attribution rollup.
+  group_eval: { auto: true, tone: "text-steel" },
 };
 
 // Policy-pass ALERT kinds — the aging/stale nudges evaluate_entry emits
@@ -201,14 +209,31 @@ export type CohortProvenance = { source: "selection" | "top"; compared: number; 
 const GROUP_EVAL_RECORD_KINDS: ReadonlySet<string> = new Set(["group_eval_lead", "group_eval_advisory"]);
 
 // The LOG-row kinds a group-eval decision manifests as: the crowned lead being moved
-// forward. group-eval itself writes no pipeline event, so the honest anchor for the
-// chip is the advance that followed it. Gating to these kinds means an unrelated event
-// for the same candidate can never inherit a provenance it didn't produce (never guess).
+// forward. Gating to these kinds means an unrelated event for the same candidate can
+// never inherit a provenance it didn't produce (never guess).
 export const GROUP_EVAL_OUTCOME_KINDS: ReadonlySet<string> = new Set(["advanced", "auto_advanced"]);
 
-// Proximity window for the group-eval join. The crowned lead is advanced in the same
-// review session as the eval; a wider window would risk pairing an unrelated later
-// advance with a stale eval. Nearest sealed record within the window wins.
+// group-eval-event-anchor — the DIRECT provenance anchor. group-eval now writes a
+// `group_eval` pipeline event at seal time (group-eval-run.ts, BOTH the recommendation
+// and advisory branches), keyed on the lead's entry. Because that event is written in the
+// same call as the sealed group_eval_lead/advisory record, matchCohortProvenance over the
+// event's OWN createdAt resolves the cohort at a ~0-delta match — a deterministic anchor,
+// not a time-window guess. It also gives provenance a visible log row when the lead is
+// never advanced (an advisory/committee run) or is advanced hours later by someone else —
+// the two blind spots the advance-only window join could not cover.
+//
+// PRECEDENCE (implemented in api/analytics/decisions enrichPage): a group_eval EVENT row
+// is enriched DIRECTLY from its own seal moment. An advance OUTCOME row PREFERS that direct
+// anchor — when its entry has a group_eval event, the advance row does NOT window-join
+// (the group_eval row already carries the chip; a duplicate/possibly-mismatched chip is
+// avoided). It falls back to the 6h nearest-seal window ONLY for pre-existing data: leads
+// advanced before this event kind existed, whose sole provenance signal is the old window.
+export const GROUP_EVAL_EVENT_KIND = "group_eval";
+
+// Proximity window for the group-eval FALLBACK join (pre-existing data with no direct
+// anchor). The crowned lead is advanced in the same review session as the eval; a wider
+// window would risk pairing an unrelated later advance with a stale eval. Nearest sealed
+// record within the window wins.
 export const GROUP_EVAL_JOIN_WINDOW_MS = 6 * 60 * 60 * 1000;
 
 /** Read cohort provenance out of a sealed record's payload_json, or null when the
