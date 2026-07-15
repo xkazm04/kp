@@ -4,8 +4,10 @@ import {
   computeCalibration,
   computeCalibrationCohorts,
   recommendScreeningThreshold,
+  computeThresholdEffect,
   MIN_CALIBRATION_OUTCOMES,
   MIN_CALIBRATION_BAND_OUTCOMES,
+  MIN_THRESHOLD_EFFECT_OUTCOMES,
   CALIBRATION_BIN_COUNT,
   type ScoreOutcome,
   type ScoreOutcomeAt,
@@ -215,4 +217,79 @@ test("recommendation is null when adjacent bands are unremarkable (~50/50)", () 
     ...bandPairs(50, 5, 5), // above floor — 0.5
   ];
   assert.equal(recommendScreeningThreshold(pairs, 45), null);
+});
+
+// ─── Threshold-change effect (threshold-story) ────────────────────────────────
+
+function at(score: number, outcome: 0 | 1, iso: string): ScoreOutcomeAt {
+  return { score, outcome, at: iso };
+}
+const BEFORE = "2026-01-01T00:00:00.000Z";
+const AFTER = "2026-06-01T00:00:00.000Z";
+const APPLY = "2026-03-01T00:00:00.000Z";
+
+test("effect splits a band's decisions before vs after the apply timestamp", () => {
+  const pairs: ScoreOutcomeAt[] = [
+    // before: 4 in band, 1 advanced → 25%
+    at(40, 1, BEFORE), at(41, 0, BEFORE), at(42, 0, BEFORE), at(43, 0, BEFORE),
+    // after: 8 in band (all < hi=45), 6 advanced → 75%
+    ...Array.from({ length: 6 }, () => at(40, 1, AFTER)),
+    ...Array.from({ length: 2 }, () => at(44, 0, AFTER)),
+    // out of band — never counted
+    at(80, 1, AFTER), at(10, 0, BEFORE),
+  ];
+  const eff = computeThresholdEffect(pairs, { lo: 35, hi: 45 }, APPLY);
+  assert.ok(eff);
+  assert.equal(eff!.measurable, true, "8 after ≥ the band floor");
+  assert.equal(eff!.before!.n, 4);
+  assert.equal(eff!.before!.advanceRatePct, 25);
+  assert.equal(eff!.after!.n, 8);
+  assert.equal(eff!.after!.advanceRatePct, 75);
+});
+
+test("a tiny 'after' sample is NOT measurable — never a confident tiny-n percentage", () => {
+  const pairs: ScoreOutcomeAt[] = [
+    ...Array.from({ length: 10 }, () => at(40, 1, BEFORE)), // plenty before
+    at(40, 1, AFTER), at(41, 0, AFTER), // only 2 after < MIN
+  ];
+  assert.ok(MIN_THRESHOLD_EFFECT_OUTCOMES > 2);
+  const eff = computeThresholdEffect(pairs, { lo: 35, hi: 45 }, APPLY);
+  assert.ok(eff);
+  assert.equal(eff!.measurable, false);
+  assert.equal(eff!.after!.n, 2);
+});
+
+test("no in-band decision before the apply → before is null (after-only)", () => {
+  const pairs: ScoreOutcomeAt[] = Array.from({ length: 8 }, (_, i) => at(40, i % 2 as 0 | 1, AFTER));
+  const eff = computeThresholdEffect(pairs, { lo: 35, hi: 45 }, APPLY);
+  assert.ok(eff);
+  assert.equal(eff!.before, null);
+  assert.equal(eff!.after!.n, 8);
+  assert.equal(eff!.measurable, true);
+});
+
+test("band membership mirrors the recommendation's [lo, hi): hi is exclusive", () => {
+  const pairs: ScoreOutcomeAt[] = [
+    ...Array.from({ length: 8 }, () => at(44, 1, AFTER)), // in band
+    at(45, 1, AFTER), // exactly hi → excluded
+    at(34, 1, AFTER), // below lo → excluded
+  ];
+  const eff = computeThresholdEffect(pairs, { lo: 35, hi: 45 }, APPLY);
+  assert.ok(eff);
+  assert.equal(eff!.after!.n, 8, "score 45 (== hi) and 34 (< lo) are excluded");
+});
+
+test("a pair with a malformed timestamp is dropped, never misattributed to a side", () => {
+  const pairs: ScoreOutcomeAt[] = [
+    ...Array.from({ length: 8 }, () => at(40, 1, AFTER)),
+    at(40, 0, "not-a-date"),
+  ];
+  const eff = computeThresholdEffect(pairs, { lo: 35, hi: 45 }, APPLY);
+  assert.ok(eff);
+  assert.equal(eff!.after!.n, 8, "the malformed-timestamp pair is excluded");
+});
+
+test("an unparseable apply timestamp returns null (nothing to measure against)", () => {
+  const pairs: ScoreOutcomeAt[] = [at(40, 1, AFTER)];
+  assert.equal(computeThresholdEffect(pairs, { lo: 35, hi: 45 }, "nope"), null);
 });

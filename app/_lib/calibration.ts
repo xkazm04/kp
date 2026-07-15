@@ -266,3 +266,77 @@ export function recommendScreeningThreshold(
   found.sort((a, b) => b.n - a.n || (a.direction === "lower" ? -1 : 1));
   return found[0];
 }
+
+// ─── Threshold-change effect (threshold-story) ────────────────────────────────
+// A recommendation is recommend→apply→HOPE unless the change is MEASURED. For the
+// band the last apply targeted, split that band's decisions by the apply timestamp
+// and compare the advance/reject mix BEFORE against AFTER — so an operator can see
+// whether moving the floor actually changed who advances. Honesty-gated on the
+// number of decisions that have ACCRUED SINCE the change: a tiny "after" sample
+// reads as "too few to measure yet", never a confident tiny-n percentage. Pure +
+// deterministic; the ISO timestamps already ride on every ScoreOutcomeAt pair.
+
+/** Decisions since a threshold change can't be judged until at least this many have
+ *  accrued in the affected band — below it the "after" rate is noise. Reuses the
+ *  same per-band floor the recommendation itself is gated on, so the "measure it"
+ *  bar is exactly the "recommend it" bar. */
+export const MIN_THRESHOLD_EFFECT_OUTCOMES = MIN_CALIBRATION_BAND_OUTCOMES;
+
+export type ThresholdEffectSide = {
+  n: number;
+  advanced: number;
+  advanceRatePct: number; // 0..100; 0 when n === 0 — always read ALONGSIDE n, never alone
+};
+
+export type ThresholdEffect = {
+  band: { lo: number; hi: number }; // the score band the last apply examined (0..100)
+  appliedAt: string; // ISO timestamp of the apply the effect is measured against
+  before: ThresholdEffectSide | null; // null when no in-band decision predates the apply
+  after: ThresholdEffectSide | null; // null when no in-band decision postdates it
+  // after != null && after.n >= minOutcomes — the ONLY state in which a percentage
+  // is defensible. Below it the caller shows "too few decisions since the change".
+  measurable: boolean;
+  minOutcomes: number;
+};
+
+function effectSide(pairs: ScoreOutcome[]): ThresholdEffectSide | null {
+  if (pairs.length === 0) return null;
+  const advanced = pairs.reduce((s, p) => s + (p.outcome >= 0.5 ? 1 : 0), 0);
+  return { n: pairs.length, advanced, advanceRatePct: Math.round((advanced / pairs.length) * 100) };
+}
+
+/**
+ * Measure a threshold change's effect on the band it targeted: the in-band advance
+ * rate BEFORE the apply vs AFTER it. Band membership mirrors the recommendation's
+ * own `score >= lo && score < hi`. A pair whose timestamp can't be parsed is dropped
+ * (it can't be placed either side of the apply), never misattributed. Returns null
+ * only when the apply timestamp itself is unparseable; otherwise returns both sides
+ * (null per side when that side is empty) and a `measurable` flag gated on the
+ * decisions accrued SINCE the change.
+ */
+export function computeThresholdEffect(
+  pairs: ScoreOutcomeAt[],
+  band: { lo: number; hi: number },
+  appliedAt: string,
+  minOutcomes: number = MIN_THRESHOLD_EFFECT_OUTCOMES
+): ThresholdEffect | null {
+  const applied = new Date(appliedAt).getTime();
+  if (!Number.isFinite(applied)) return null;
+  const before: ScoreOutcome[] = [];
+  const after: ScoreOutcome[] = [];
+  for (const p of pairs) {
+    if (!Number.isFinite(p.score) || p.score < band.lo || p.score >= band.hi) continue;
+    const t = new Date(p.at).getTime();
+    if (!Number.isFinite(t)) continue; // a malformed timestamp can't be placed either side
+    (t < applied ? before : after).push({ score: p.score, outcome: p.outcome });
+  }
+  const afterSide = effectSide(after);
+  return {
+    band,
+    appliedAt,
+    before: effectSide(before),
+    after: afterSide,
+    measurable: afterSide != null && afterSide.n >= minOutcomes,
+    minOutcomes,
+  };
+}

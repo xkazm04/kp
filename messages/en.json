@@ -3542,7 +3542,21 @@
       "recApplied": "Auto-reject floor set to {suggested}. Reversible from Decision rules — was {previous}.",
       "recError": "Couldn't apply the suggestion.",
       "recFamilyInfo": "This suggestion is scoped to the selected role family, but the auto-reject floor is a single, global setting — switch to all roles to apply it.",
-      "recViewAllFamilies": "View all roles to apply"
+      "recViewAllFamilies": "View all roles to apply",
+      "historyTitle": "Auto-reject floor over time",
+      "historyBlurb": "Every applied change to the screening floor — sealed, tamper-evident, and measured.",
+      "historyPoint": "Floor {previous} → {next} on {at}",
+      "historyApply": "{previous} → {next}",
+      "historyBy": "Approved by {who}.",
+      "historyDirectionLower": "lowered",
+      "historyDirectionRaise": "raised",
+      "historySealLabel": "Seal #{seq}",
+      "historyBasis": "Band {lo}–{hi} advanced {pct}% of the time (n={n}) when applied.",
+      "historyFingerprint": "sealed {hash}",
+      "effectTitle": "Since the last change",
+      "effectTooFew": "Too few decisions in band {lo}–{hi} since the change to measure — need at least {min}.",
+      "effectAfterOnly": "Since then, {pct}% of band {lo}–{hi} candidates advanced (n={n}). No earlier in-band decisions to compare against.",
+      "effectDelta": "Band {lo}–{hi} advance rate: {beforePct}% before → {afterPct}% after the change (n={n} since)."
     },
     "decisionRecords": {
       "title": "Decision records (sealed)",

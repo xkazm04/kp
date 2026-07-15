@@ -3606,7 +3606,21 @@
       "recApplied": "Schwelle für automatische Ablehnung auf {suggested} gesetzt. Über Entscheidungsregeln umkehrbar — war {previous}.",
       "recError": "Empfehlung konnte nicht angewendet werden.",
       "recFamilyInfo": "Diese Empfehlung bezieht sich nur auf das ausgewählte Berufsfeld, aber die Schwelle für automatische Ablehnung ist eine einzige, globale Einstellung — wechseln Sie zu allen Berufsfeldern, um sie anzuwenden.",
-      "recViewAllFamilies": "Alle Berufsfelder anzeigen und anwenden"
+      "recViewAllFamilies": "Alle Berufsfelder anzeigen und anwenden",
+      "historyTitle": "Schwelle für automatische Ablehnung im Zeitverlauf",
+      "historyBlurb": "Jede angewandte Änderung der Screening-Schwelle — versiegelt, manipulationssicher und gemessen.",
+      "historyPoint": "Schwelle {previous} → {next} am {at}",
+      "historyApply": "{previous} → {next}",
+      "historyBy": "Genehmigt von {who}.",
+      "historyDirectionLower": "gesenkt",
+      "historyDirectionRaise": "angehoben",
+      "historySealLabel": "Siegel Nr. {seq}",
+      "historyBasis": "Band {lo}–{hi} ist zum Zeitpunkt der Anwendung in {pct} % der Fälle vorgerückt (n={n}).",
+      "historyFingerprint": "versiegelt {hash}",
+      "effectTitle": "Seit der letzten Änderung",
+      "effectTooFew": "Seit der Änderung gibt es im Band {lo}–{hi} zu wenige Entscheidungen zum Messen — mindestens {min} erforderlich.",
+      "effectAfterOnly": "Seitdem sind {pct} % der Kandidaten im Band {lo}–{hi} vorgerückt (n={n}). Keine früheren Entscheidungen in diesem Band zum Vergleich.",
+      "effectDelta": "Vorrückrate im Band {lo}–{hi}: {beforePct} % davor → {afterPct} % nach der Änderung (n={n} seitdem)."
     },
     "decisionRecords": {
       "title": "Entscheidungsprotokolle (versiegelt)",

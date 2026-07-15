@@ -3606,7 +3606,21 @@
       "recApplied": "Seuil de rejet automatique fixé à {suggested}. Réversible depuis les Règles de décision — était {previous}.",
       "recError": "Impossible d'appliquer la suggestion.",
       "recFamilyInfo": "Cette suggestion ne concerne que la famille de postes sélectionnée, mais le seuil de rejet automatique est un réglage global unique — revenez à tous les postes pour l'appliquer.",
-      "recViewAllFamilies": "Voir tous les postes pour appliquer"
+      "recViewAllFamilies": "Voir tous les postes pour appliquer",
+      "historyTitle": "Seuil de rejet automatique dans le temps",
+      "historyBlurb": "Chaque changement appliqué au seuil de présélection — scellé, infalsifiable et mesuré.",
+      "historyPoint": "Seuil {previous} → {next} le {at}",
+      "historyApply": "{previous} → {next}",
+      "historyBy": "Approuvé par {who}.",
+      "historyDirectionLower": "abaissé",
+      "historyDirectionRaise": "relevé",
+      "historySealLabel": "Sceau n° {seq}",
+      "historyBasis": "La tranche {lo}–{hi} avait avancé dans {pct} % des cas (n={n}) au moment de l'application.",
+      "historyFingerprint": "scellé {hash}",
+      "effectTitle": "Depuis le dernier changement",
+      "effectTooFew": "Trop peu de décisions dans la tranche {lo}–{hi} depuis le changement pour mesurer — au moins {min} requises.",
+      "effectAfterOnly": "Depuis, {pct} % des candidats de la tranche {lo}–{hi} ont avancé (n={n}). Aucune décision antérieure dans cette tranche pour comparer.",
+      "effectDelta": "Taux d'avancement de la tranche {lo}–{hi} : {beforePct} % avant → {afterPct} % après le changement (n={n} depuis)."
     },
     "decisionRecords": {
       "title": "Registres de décision (scellés)",

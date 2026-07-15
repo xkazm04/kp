@@ -3542,7 +3542,21 @@
       "recApplied": "Hranice automatického zamítnutí nastavena na {suggested}. Vratné v Pravidlech rozhodování — bylo {previous}.",
       "recError": "Doporučení se nepodařilo použít.",
       "recFamilyInfo": "Toto doporučení se týká vybrané rodiny rolí, ale hranice pro automatické zamítnutí je jediné globální nastavení — pro použití přepněte na všechny role.",
-      "recViewAllFamilies": "Zobrazit všechny role a použít"
+      "recViewAllFamilies": "Zobrazit všechny role a použít",
+      "historyTitle": "Hranice automatického zamítnutí v čase",
+      "historyBlurb": "Každá provedená změna hranice screeningu — zapečetěná, odolná proti manipulaci a změřená.",
+      "historyPoint": "Hranice {previous} → {next} dne {at}",
+      "historyApply": "{previous} → {next}",
+      "historyBy": "Schválil(a) {who}.",
+      "historyDirectionLower": "sníženo",
+      "historyDirectionRaise": "zvýšeno",
+      "historySealLabel": "Pečeť č. {seq}",
+      "historyBasis": "Pásmo {lo}–{hi} v době použití postoupilo v {pct} % případů (n={n}).",
+      "historyFingerprint": "zapečetěno {hash}",
+      "effectTitle": "Od poslední změny",
+      "effectTooFew": "Od změny je v pásmu {lo}–{hi} příliš málo rozhodnutí k měření — je potřeba alespoň {min}.",
+      "effectAfterOnly": "Od té doby postoupilo {pct} % kandidátů z pásma {lo}–{hi} (n={n}). Žádná dřívější rozhodnutí v tomto pásmu k porovnání.",
+      "effectDelta": "Míra postupu v pásmu {lo}–{hi}: {beforePct} % před → {afterPct} % po změně (n={n} od té doby)."
     },
     "decisionRecords": {
       "title": "Záznamy rozhodnutí (zapečetěné)",
