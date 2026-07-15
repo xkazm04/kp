@@ -29,6 +29,23 @@ export function MatchTab() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // shortlist-to-group-eval — session ledger of pipeline entries filed FROM MATCH,
+  // keyed by jobId. Lives here (not in Results) because it must accumulate ACROSS
+  // candidates: Results remounts per candidate (key below) so its added/selected
+  // state stays candidate-scoped, while this ledger is what notices "two different
+  // candidates are now in the pipeline for the same role" and powers the
+  // "Compare N in group eval" handoff. Session-local on purpose — a fresh visit
+  // starts a fresh shortlist; the Decisions cohort itself is the durable record.
+  const [filed, setFiled] = useState<Record<string, { jobTitle: string; entryIds: string[] }>>({});
+  const recordFiled = (jobId: string, jobTitle: string, entryId: string) =>
+    setFiled((cur) => {
+      const role = cur[jobId] ?? { jobTitle, entryIds: [] };
+      // Dedup by entry id: a re-add of the same candidate (idempotent server-side)
+      // must not inflate the count toward the compare CTA.
+      if (role.entryIds.includes(entryId)) return cur;
+      return { ...cur, [jobId]: { jobTitle, entryIds: [...role.entryIds, entryId] } };
+    });
+
   const search = useSearchParams();
   const profileParam = search.get("profile");
   const analysisParam = search.get("analysis");
@@ -218,6 +235,13 @@ export function MatchTab() {
       <div className="mt-5">
         {view.kind === "results" && result ? (
           <Results
+            // Candidate-scoped remount (shortlist-to-group-eval premise fix): the
+            // added/adding/selected sets inside Results are keyed by jobId, so
+            // without this a mark from candidate A ("already added to role X")
+            // leaked onto candidate B and blocked filing a SECOND candidate into
+            // the same role. Keying by the match ref resets that state per
+            // candidate while re-weight runs of the same candidate keep it.
+            key={matchRef.profileId ?? matchRef.analysisSlug ?? "run"}
             result={result}
             matchRef={matchRef}
             loading={loading}
@@ -229,6 +253,8 @@ export function MatchTab() {
             // as a non-destructive banner rather than replacing the whole panel.
             error={view.inlineError ? t("rerankFailed", { error: view.inlineError }) : null}
             onReweight={(w) => runMatchFor(matchRef, w)}
+            filed={filed}
+            onFiled={recordFiled}
           />
         ) : view.kind === "error" ? (
           <p className="rounded-md bg-red-50 p-3 text-base text-red-700">{view.message}</p>

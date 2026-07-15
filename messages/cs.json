@@ -2910,6 +2910,9 @@
       "compareN": "Porovnat {count}",
       "clear": "Vymazat",
       "tickHint": "Zaškrtněte pozice níže a přidejte je do pipeline najednou.",
+      "groupEvalReady": "{count, plural, one {# kandidát z této relace je nyní v pipeline} few {# kandidáti z této relace jsou nyní v pipeline} many {# kandidátů z této relace je nyní v pipeline} other {# kandidátů z této relace je nyní v pipeline}}",
+      "groupEvalCta": "Porovnat {count} ve skupinovém hodnocení",
+      "groupEvalHint": "Otevře Rozhodnutí s předvyplněným výběrem — hodnocení tam zkontrolujete a spustíte sami.",
       "csv": {
         "rank": "Pořadí",
         "role": "Pozice",

@@ -676,6 +676,12 @@ export type CreatePipelineInput = {
   // E5 — campaign/creative attribution captured at intake (bounded by callers).
   sourceCampaign?: string | null;
   sourceVariant?: string | null;
+  // shortlist-to-group-eval — file the new entry as a pending KEY DECISION
+  // (Decisions tab cohort, same gate the seeded rows carry). "decision" is the
+  // only kind an add may request: the review kinds are minted by automation
+  // after the fact, never at creation. Omitted (the default) leaves the entry
+  // ungated — every non-Match add path is byte-identical to before.
+  approvalKind?: "decision" | null;
   // Applicant's locale from inbound apply (SIM3); drives downstream comm
   // language. Omitted by recruiter/Match adds ⇒ NULL ⇒ "en" at dispatch.
   locale?: string | null;
@@ -758,7 +764,7 @@ export function createPipelineEntry(input: CreatePipelineInput): { entry: Pipeli
         intake_degraded, intake_degraded_reason, contact, locale, github_json, github_handle, source_channel,
         source_campaign, source_variant, workspace_id)
      VALUES (@id, @candidate_id, @candidate_label, @archetype, @role_family, @job_id, @job_title,
-        @stage, @match_score, 'active', NULL, NULL, @now, @now, @now,
+        @stage, @match_score, 'active', @approval_kind, NULL, @now, @now, @now,
         @intake_degraded, @intake_degraded_reason, @contact, @locale, @github_json, @github_handle, @source_channel,
         @source_campaign, @source_variant, @workspace_id)`
   ).run({
@@ -771,6 +777,7 @@ export function createPipelineEntry(input: CreatePipelineInput): { entry: Pipeli
     job_title: input.jobTitle,
     stage,
     match_score: input.matchScore ?? null,
+    approval_kind: input.approvalKind ?? null,
     now,
     intake_degraded: intakeDegraded,
     intake_degraded_reason: intakeDegradedReason,

@@ -2939,6 +2939,9 @@
       "compareN": "{count} vergleichen",
       "clear": "Leeren",
       "tickHint": "Haken Sie unten Stellen an und fügen Sie sie gemeinsam zur Pipeline hinzu.",
+      "groupEvalReady": "{count, plural, one {# Kandidat aus dieser Sitzung ist jetzt in der Pipeline} other {# Kandidaten aus dieser Sitzung sind jetzt in der Pipeline}}",
+      "groupEvalCta": "{count} in der Gruppenbewertung vergleichen",
+      "groupEvalHint": "Öffnet Entscheidungen mit dieser Auswahl vorbelegt — die Gruppenbewertung prüfen und starten Sie dort selbst.",
       "csv": {
         "rank": "Rang",
         "role": "Stelle",

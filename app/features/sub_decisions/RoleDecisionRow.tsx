@@ -7,6 +7,7 @@ import { ScoreBadge } from "@/app/_components/ScoreBadge";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { canonicalScoreOf } from "@/app/_lib/match-score";
 import { GROUP_EVAL_CAP } from "@/app/_lib/group-eval-cohort";
+import { seedArmSelection } from "./group-eval-arm";
 import { styleFor, type Entry } from "./DecisionsTypes";
 
 // One row per role: its pending candidates as clickable chips (→ analysis
@@ -26,6 +27,7 @@ export function RoleDecisionRow({
   onCandidate,
   onGroupEval,
   onScreenWave,
+  initialSelection,
 }: {
   roleTitle: string;
   entries: Entry[];
@@ -34,15 +36,27 @@ export function RoleDecisionRow({
   onCandidate: (e: Entry) => void;
   onGroupEval: (selection?: string[]) => void;
   onScreenWave?: () => void;
+  // shortlist-to-group-eval — pre-arm the selection mode with these entry ids
+  // (deep-linked from the Match shortlist handoff). Consumed ONCE at mount into
+  // the row's own state — the selection stays session-local and prop-free after
+  // that, so the pre-arm is a seed, not a controlled mode. Ids outside the
+  // current pending cohort are dropped (seedArmSelection; the server re-checks).
+  initialSelection?: readonly string[];
 }) {
   const t = useTranslations("decisions.row");
   const enumLabel = useEnumLabel();
+  const canSelect = entries.length > 2;
   // Selection mode: pick an explicit subset (≤ GROUP_EVAL_CAP) to compare. Only
   // worth offering when the cohort is larger than a head-to-head pair — with ≤ 2 the
-  // whole field IS the comparison. Session-local per role.
-  const [picking, setPicking] = useState(false);
-  const [picked, setPicked] = useState<ReadonlySet<string>>(new Set());
-  const canSelect = entries.length > 2;
+  // whole field IS the comparison (so a pre-arm is also only honored under the same
+  // canSelect gate: comparing an entire 2-entry field is the default eval anyway,
+  // and arming picking without the Select/Cancel toggle would trap the mode on).
+  // Session-local per role; the deep-linked seed only sets the INITIAL state.
+  const [seeded] = useState<string[]>(() =>
+    canSelect ? seedArmSelection(initialSelection, entries.map((e) => e.id)) : []
+  );
+  const [picking, setPicking] = useState(seeded.length > 0);
+  const [picked, setPicked] = useState<ReadonlySet<string>>(new Set(seeded));
   const atCap = picked.size >= GROUP_EVAL_CAP;
 
   const togglePick = (id: string) => {

@@ -10,7 +10,9 @@ import { MatchCard } from "./MatchCard";
 import { WeightsPanel } from "./WeightsPanel";
 import { JobCompare } from "./JobCompare";
 import { buildUrl } from "@/app/features/tabs";
-import { Download, RefreshCw, Scale } from "lucide-react";
+import { ARM_PARAM, buildArmParam } from "@/app/features/sub_decisions/group-eval-arm";
+import { GROUP_EVAL_CAP } from "@/app/_lib/group-eval-cohort";
+import { Download, RefreshCw, Scale, Sparkles } from "lucide-react";
 import { PotentialBadge } from "@/app/_components/PotentialBadge";
 import { downloadFile, toCsv } from "@/app/_lib/export-utils";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
@@ -27,6 +29,8 @@ export function Results({
   error = null,
   staleness = null,
   onReweight,
+  filed,
+  onFiled,
 }: {
   result: MatchResponse;
   matchRef: MatchRef;
@@ -41,6 +45,14 @@ export function Results({
   // hand-built profiles (never stale) ⇒ no badge, no chrome.
   staleness?: { newerSlug: string; newerAnalyzedAt: string } | null;
   onReweight?: (weights?: WeightVector) => void;
+  // shortlist-to-group-eval — the cross-candidate session ledger (owned by
+  // MatchTab; this component remounts per candidate) of pipeline entries filed
+  // from Match, keyed by jobId. Roles with ≥ 2 entries surface the
+  // "Compare N in group eval" handoff banner; onFiled records each successful,
+  // decision-gated add's entry id. Both optional so Results renders unchanged
+  // where the handoff isn't wired.
+  filed?: Record<string, { jobTitle: string; entryIds: string[] }>;
+  onFiled?: (jobId: string, jobTitle: string, entryId: string) => void;
 }) {
   const t = useTranslations("match.results");
   const { assumptions: assumptionLabels } = useMatchLabels();
@@ -95,10 +107,27 @@ export function Results({
           matchScore: matchScoreForPipeline(m.total),
           stage: "Screened",
           source: "match",
+          // shortlist-to-group-eval — a Match add files the candidate as a pending
+          // KEY DECISION, so shortlisted candidates land in the Decisions cohort
+          // (RoleDecisionRow) where the group-eval comparison lives. Match is the
+          // ONLY add path that requests this; the route validates the closed set.
+          approvalKind: "decision",
         }),
       });
       if (r.ok) {
         setAdded((s) => new Set(s).add(m.jobId));
+        // Record the filed entry in the session ledger so the "Compare N in group
+        // eval" handoff can form across candidates. Only a confirmed decision-gated
+        // entry counts: an idempotent re-add can return a pre-existing entry that
+        // never entered the Decisions cohort, and counting it would promise a
+        // comparison the pre-arm would silently drop.
+        const payload = (await r.json().catch(() => null)) as {
+          entry?: { id?: unknown; approvalKind?: unknown };
+        } | null;
+        const entry = payload?.entry;
+        if (onFiled && entry && typeof entry.id === "string" && entry.approvalKind === "decision") {
+          onFiled(m.jobId, m.title, entry.id);
+        }
         return true;
       }
       const payload = await r.json().catch(() => null);
@@ -245,6 +274,43 @@ export function Results({
           onReset={() => onReweight(undefined)}
         />
       ) : null}
+
+      {/* shortlist-to-group-eval — the composition moment: once ≥ 2 candidates
+          from this session sit in the SAME role's pipeline, offer to compare them
+          in the Decisions group eval. Deep-links with the explicit selection
+          pre-armed (?job=&arm=, one-shot); the recruiter runs the (paid) eval
+          there — this button only navigates. No qualifying role → no banner:
+          a 1-candidate "comparison" is a dead affordance. */}
+      {(() => {
+        const compareReady = Object.entries(filed ?? {}).filter(([, v]) => v.entryIds.length >= 2);
+        if (compareReady.length === 0) return null;
+        return (
+          <div className="mt-4 space-y-2 rounded-md border border-moss/40 bg-moss/5 px-3 py-2">
+            {compareReady.map(([jobId, v]) => {
+              // Cap client-side like the picker does; the server re-enforces.
+              const ids = v.entryIds.slice(0, GROUP_EVAL_CAP);
+              return (
+                <div key={jobId} className="flex flex-wrap items-center gap-2">
+                  <span className="min-w-0 text-sm text-ink">
+                    <strong>{v.jobTitle}</strong>{" "}
+                    <span className="text-steel">· {t("groupEvalReady", { count: v.entryIds.length })}</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      router.push(buildUrl({ tab: "decisions", job: jobId, [ARM_PARAM]: buildArmParam(ids) }, ""))
+                    }
+                    className="focus-ring ml-auto inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md border border-moss/40 bg-white px-2.5 text-sm font-semibold text-moss hover:bg-moss/10"
+                  >
+                    <Sparkles size={14} /> {t("groupEvalCta", { count: ids.length })}
+                  </button>
+                </div>
+              );
+            })}
+            <p className="text-meta text-steel">{t("groupEvalHint")}</p>
+          </div>
+        );
+      })()}
 
       {matches.length === 0 ? (
         <div className="mt-4">

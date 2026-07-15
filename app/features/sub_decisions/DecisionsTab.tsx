@@ -22,6 +22,7 @@ import { ScreenWaveModal } from "./ScreenWaveModal";
 import { AnalysisSummaryModal } from "./AnalysisSummaryModal";
 import { Empty } from "./DecisionsShared";
 import { GroupEvalModal, type GroupEvalPayload } from "./GroupEvalModal";
+import { ARM_PARAM, parseArmParam } from "./group-eval-arm";
 import { RoleDecisionRow } from "./RoleDecisionRow";
 import { isScoreStale, type Entry } from "./DecisionsTypes";
 import { capNames, pruneSelection, selectionDriftIds } from "./selection-hygiene";
@@ -62,6 +63,29 @@ export function DecisionsTab() {
   const { startTask } = useTasks();
   // Filter the queue to one opened JD (deep-linkable via ?job=<id>).
   const [jobFilter, setJobFilter] = useState<string | null>(search.get("job"));
+  // shortlist-to-group-eval — pre-arm handoff from the Match shortlist:
+  // ?job=<jobId>&arm=<entryId,entryId,…> arms round-9's selection mode on that
+  // role's row with the ids pre-picked (the recruiter still clicks "Compare N" —
+  // a group eval is a paid LLM run, never auto-fired from a URL). Both values are
+  // captured ONCE at mount (state initializers), because the param is one-shot:
+  // the effect below strips ?arm= from the address bar so a refresh or a shared
+  // link can never re-arm a stale selection against a changed cohort. armIds is
+  // shape-validated here; membership in the live cohort is enforced at seed time
+  // (RoleDecisionRow → seedArmSelection) and again by the server.
+  const [armIds] = useState<string[] | null>(() => parseArmParam(search.get(ARM_PARAM)));
+  const [armJobId] = useState<string | null>(() => search.get("job"));
+  useEffect(() => {
+    // One-shot consumption: drop ?arm= via history.replaceState, deliberately NOT
+    // a router navigation — per buildUrl's notes a raw history write doesn't
+    // re-render useSearchParams, which is exactly right for erasing a param whose
+    // value is already captured in mount state (no re-render, no nav churn). Runs
+    // even when the param failed validation: a malformed arm is dead weight too.
+    if (!search.has(ARM_PARAM)) return;
+    const url = new URL(window.location.href);
+    url.searchParams.delete(ARM_PARAM);
+    window.history.replaceState(window.history.state, "", url.pathname + url.search + url.hash);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [rulesOpen, setRulesOpen] = useState(false);
   const [entries, setEntries] = useState<Entry[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -898,6 +922,10 @@ export function DecisionsTab() {
                   onCandidate={setSummaryEntry}
                   onGroupEval={(selection) => openGroupEval(g, false, selection)}
                   onScreenWave={g.jobId ? () => setWaveRole({ jobId: g.jobId as string, title: g.roleTitle }) : undefined}
+                  // The pre-armed selection lands only on the deep-linked role's row;
+                  // the row consumes it once at mount (a later remount re-seeds from
+                  // the same session-captured intent, never from the stripped URL).
+                  initialSelection={armIds && armJobId && g.jobId === armJobId ? armIds : undefined}
                 />
               ))}
               {visibleGroups.length === 0 ? <Empty>{t("noKeyDecisions")}</Empty> : null}

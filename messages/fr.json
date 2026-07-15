@@ -2939,6 +2939,9 @@
       "compareN": "Comparer {count}",
       "clear": "Effacer",
       "tickHint": "Cochez des postes ci-dessous, puis ajoutez-les ensemble au pipeline.",
+      "groupEvalReady": "{count, plural, one {# candidat de cette session est maintenant dans le pipeline} other {# candidats de cette session sont maintenant dans le pipeline}}",
+      "groupEvalCta": "Comparer {count} en évaluation de groupe",
+      "groupEvalHint": "Ouvre Décisions avec cette sélection préremplie — vous vérifiez et lancez l’évaluation de groupe là-bas.",
       "csv": {
         "rank": "Rang",
         "role": "Poste",

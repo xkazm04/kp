@@ -236,6 +236,12 @@ export const TAB_SCOPED_PARAM_KEYS = [
   "score",
   "source",
   "sort",
+  // shortlist-to-group-eval — the Decisions pre-armed group-eval selection
+  // (?arm=<entryId,entryId,…>, grammar in sub_decisions/group-eval-arm.ts).
+  // One-shot by design: DecisionsTab consumes it at mount then strips it via
+  // history.replaceState; tab-scoped like any selection so a bare tab switch
+  // can never carry a stale pre-arm along.
+  "arm",
 ] as const;
 
 export type TabScopedParamKey = (typeof TAB_SCOPED_PARAM_KEYS)[number];

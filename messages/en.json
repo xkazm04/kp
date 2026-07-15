@@ -2910,6 +2910,9 @@
       "compareN": "Compare {count}",
       "clear": "Clear",
       "tickHint": "Tick roles below, then add them to the pipeline together.",
+      "groupEvalReady": "{count, plural, one {# candidate} other {# candidates}} from this session now in the pipeline",
+      "groupEvalCta": "Compare {count} in group eval",
+      "groupEvalHint": "Opens Decisions with this selection pre-armed — you review and run the group evaluation there.",
       "csv": {
         "rank": "Rank",
         "role": "Role",

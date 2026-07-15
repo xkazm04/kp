@@ -36,6 +36,7 @@ export async function POST(request: NextRequest) {
       stage?: string;
       github?: unknown;
       source?: unknown;
+      approvalKind?: unknown;
     };
     if (!body.candidateId || !body.jobId) {
       return NextResponse.json({ error: "candidateId and jobId are required." }, { status: 400 });
@@ -68,6 +69,23 @@ export async function POST(request: NextRequest) {
     // never worth failing the add over.
     const source =
       typeof body.source === "string" && /^[a-z0-9_-]{1,40}$/.test(body.source) ? body.source : null;
+    // shortlist-to-group-eval — an add may request the pending KEY-DECISION gate
+    // (the Decisions tab cohort). Closed set at the boundary: "decision" is the
+    // ONLY kind an add can ask for — the review kinds are minted by automation
+    // after the fact — and, unlike `source` (a droppable annotation), a wrong
+    // value here is a client shape bug that changes decision routing, so it
+    // fails loudly. Absent/null means no gate: every other add path (outreach,
+    // rediscovery, apply, manual board add) stays byte-identical.
+    let approvalKind: "decision" | null = null;
+    if (body.approvalKind !== undefined && body.approvalKind !== null) {
+      if (body.approvalKind !== "decision") {
+        return NextResponse.json(
+          { error: `Unknown approvalKind "${String(body.approvalKind)}". Only "decision" may be requested at add time.` },
+          { status: 400 }
+        );
+      }
+      approvalKind = "decision";
+    }
     const ws = await currentWorkspace();
     const result = createPipelineEntry({
       candidateId: body.candidateId,
@@ -80,6 +98,7 @@ export async function POST(request: NextRequest) {
       stage: body.stage,
       githubJson,
       sourceChannel: source,
+      approvalKind,
       // Recruiter/Match adds carry no explicit language choice — infer it from the
       // candidate's CV languages (already on the saved profile) so downstream comms
       // speak their language; no signal stays NULL and resolves to the workspace
