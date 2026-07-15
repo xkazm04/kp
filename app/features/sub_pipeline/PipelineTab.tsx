@@ -847,6 +847,22 @@ export function PipelineTab() {
     });
     setDrawerEntry(e);
   };
+  // rematch-story-navigable / drawer-flow-friction — open a drawer for an entry by id.
+  // Unlike openActions (which has the full Entry in hand), this resolves the entry from
+  // the server, so it reaches a COUNTERPART entry that may be terminal / off the active
+  // board (a rematch link) and also serves the IN-PLACE refresh after a stage move
+  // (same id → the keyed drawer re-renders without remounting). A 404 (deleted /
+  // other-tenant / raced) is a silent no-op — never a broken drawer.
+  const openEntryById = useCallback(async (id: string) => {
+    try {
+      const r = await fetch(`/api/pipeline/${encodeURIComponent(id)}`);
+      if (!r.ok) return;
+      const d = (await r.json()) as { entry?: Entry };
+      if (d?.entry) setDrawerEntry(d.entry);
+    } catch {
+      /* network blip — leave the drawer as-is */
+    }
+  }, []);
   // Candidate name → the analyzed profile (Match view); falls back to the
   // AI-actions drawer when the entry has no linked candidate id.
   const openProfile = (e: Entry) => {
@@ -1463,7 +1479,13 @@ export function PipelineTab() {
         // key on the entry id so switching candidates remounts the drawer, resetting
         // its per-entry result/notes/busy/token-link state instead of briefly showing
         // the previous candidate's.
-        <CandidateDrawer key={drawerEntry.id} entry={drawerEntry} onClose={() => setDrawerEntry(null)} onChanged={load} />
+        <CandidateDrawer
+          key={drawerEntry.id}
+          entry={drawerEntry}
+          onClose={() => setDrawerEntry(null)}
+          onChanged={load}
+          onOpenEntry={openEntryById}
+        />
       ) : null}
     </div>
   );

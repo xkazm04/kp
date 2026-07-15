@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { clearIntakeDegraded, reinstatePipelineEntry, setEntryGithubEvidence, setEntryNotes } from "@/app/_lib/db";
+import { clearIntakeDegraded, getPipelineEntry, reinstatePipelineEntry, setEntryGithubEvidence, setEntryNotes } from "@/app/_lib/db";
 import { coerceGithubEvidenceSummary } from "@/app/_lib/github-summary";
 import { sealDecisionSafe } from "@/app/_lib/decision-record-store";
 import { safeJsonError } from "@/app/_lib/api-response";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withCanonicalScores } from "@/app/_lib/match-score-resolve";
 import { runPipelineEntryAction } from "@/app/_lib/pipeline-entry-action";
 
 
@@ -11,6 +12,26 @@ import { runPipelineEntryAction } from "@/app/_lib/pipeline-entry-action";
 // pasted call notes, tight enough that the column can't become a blob dump. The
 // drawer's textarea enforces the same cap client-side (maxLength).
 const MAX_NOTES_LENGTH = 4000;
+
+// One canonical-scored pipeline entry by id (drawer-flow-friction / rematch-story-
+// navigable). The board opens the drawer from a full Entry it already holds; this
+// answers the two cases the board list can't: a COUNTERPART entry reached from a
+// rematch link (which may be terminal, off the active board) and an IN-PLACE refresh
+// after a stage move (the drawer stays open on the same candidate). Canonical score +
+// provenance stamped so the reopened header matches the board and decisions surfaces.
+// Workspace-scoped (getPipelineEntry) — a deleted or other-tenant id answers 404,
+// which the caller treats as "no navigation", never a broken drawer.
+export async function GET(_request: NextRequest, context: { params: Promise<{ id: string }> }) {
+  try {
+    const { id } = await context.params;
+    const ws = await currentWorkspace();
+    const entry = getPipelineEntry(id, ws);
+    if (!entry) return NextResponse.json({ error: "Pipeline entry not found." }, { status: 404 });
+    return NextResponse.json({ entry: withCanonicalScores([entry], ws)[0] });
+  } catch (error) {
+    return safeJsonError(error, "api:pipeline:entry", "PIPELINE_LIST_FAILED");
+  }
+}
 
 export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;

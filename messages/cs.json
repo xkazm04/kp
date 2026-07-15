@@ -1270,7 +1270,9 @@
       "disposition_set": "rozhodnutí z analýzy zaznamenáno",
       "dispositionSetDetail": "rozhodnutí z analýzy: {detail}",
       "sim_attached": "cvičný pohovor připojen",
-      "simAttachedDetail": "cvičný pohovor připojen — {detail}"
+      "simAttachedDetail": "cvičný pohovor připojen — {detail}",
+      "rematched": "byl/a přesměrován/a na novou pozici",
+      "rematched_from": "znovu osloven/a z dřívější přihlášky"
     },
     "relTime": {
       "today": "dnes",
@@ -1454,6 +1456,8 @@
       "revokeFailed": "Odkazy se nepodařilo zneplatnit.",
       "history": "Historie",
       "via": "přes {channel}",
+      "rematchViewLinked": "Zobrazit propojenou přihlášku",
+      "rematchUnavailable": "propojená přihláška již není dostupná",
       "timeline": {
         "analysis": "Analýza CV uložena — skóre {score}",
         "analysisNoScore": "Analýza CV uložena",

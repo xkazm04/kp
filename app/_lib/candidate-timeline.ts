@@ -7,6 +7,7 @@ import { jdSlugOfJobId } from "./jd-limits";
 import { deriveCommsView } from "./comms-view";
 import { consentStatus, consentWithholdsPii, redactTranscriptForConsent, type ConsentStatus } from "./consent";
 import { getInterviewPrep } from "./interview-prep";
+import { parseRematchDetail } from "@/app/features/sub_pipeline/pipeline-rematch-link";
 import { normalizeScorecardEntities, type Scorecard, type ScorecardEntities } from "./interview-scorecard";
 import type { InterviewTelemetry } from "./interview-telemetry";
 import type { ScorecardCoverage } from "./interview-transcript";
@@ -104,6 +105,18 @@ export type CandidateConsentView = {
   events: ConsentEvent[];
 };
 
+// rematch-story-navigable — the resolved counterpart of a re-engagement event,
+// keyed by the pipeline_event id. The drawer renders the parsed detail as a link
+// ONLY when `resolved` (the counterpart entry still exists in THIS workspace); a
+// deleted / other-tenant / malformed counterpart carries resolved=false and renders
+// as honest non-link text. `candidateLabel` is the counterpart's name for the link.
+export type RematchLink = {
+  entryId: string;
+  jobId: string | null;
+  resolved: boolean;
+  candidateLabel: string | null;
+};
+
 // Everything the CandidateDrawer needs to render, in ONE call.
 export type CandidateDrawerBundle = {
   items: CandidateTimelineItem[];
@@ -112,6 +125,8 @@ export type CandidateDrawerBundle = {
   interview: InterviewOutcome | null;
   humanScorecard: Scorecard | null;
   consent: CandidateConsentView;
+  // Keyed by pipeline_event id → the navigable counterpart of a rematch event.
+  rematchLinks: Record<number, RematchLink>;
 };
 
 const ANALYSES_SCAN_LIMIT = 300;
@@ -297,12 +312,36 @@ function candidateHumanScorecard(entryId: string): Scorecard | null {
 export function candidateDrawerBundle(entryId: string, workspaceId: string = DEFAULT_WORKSPACE_ID): CandidateDrawerBundle | null {
   const entry = getPipelineEntry(entryId, workspaceId);
   if (!entry) return null;
+  const events = listPipelineEventsForEntry(entry.id, EVENTS_LIMIT, workspaceId);
   return {
     items: candidateTimelineForEntry(entry, workspaceId),
-    events: listPipelineEventsForEntry(entry.id, EVENTS_LIMIT, workspaceId),
+    events,
     comms: candidateComms(entry.id, workspaceId),
     interview: candidateInterviewOutcome(entry),
     humanScorecard: candidateHumanScorecard(entry.id),
     consent: candidateConsent(entry, workspaceId),
+    rematchLinks: resolveRematchLinks(events, workspaceId),
   };
+}
+
+// rematch-story-navigable — parse each re-engagement event's detail into its
+// counterpart reference and resolve that entry FOR EXISTENCE in this workspace
+// (getPipelineEntry is already tenant-scoped, so a deleted or other-tenant entry
+// returns null → resolved=false → the drawer renders plain text, never a broken
+// link). Only rematch-kind events with a parseable detail get an entry; every other
+// event is absent from the map. Cheap: at most one getPipelineEntry per rematch event.
+function resolveRematchLinks(events: PipelineEvent[], workspaceId: string): Record<number, RematchLink> {
+  const links: Record<number, RematchLink> = {};
+  for (const ev of events) {
+    const ref = parseRematchDetail(ev.kind, ev.detail);
+    if (!ref) continue;
+    const counterpart = getPipelineEntry(ref.entryId, workspaceId);
+    links[ev.id] = {
+      entryId: ref.entryId,
+      jobId: ref.jobId,
+      resolved: counterpart !== null,
+      candidateLabel: counterpart?.candidateLabel ?? null,
+    };
+  }
+  return links;
 }

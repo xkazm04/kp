@@ -1296,7 +1296,9 @@
       "disposition_set": "Analyse-Disposition erfasst",
       "dispositionSetDetail": "Analyse-Disposition: {detail}",
       "sim_attached": "Übungsinterview angehängt",
-      "simAttachedDetail": "Übungsinterview angehängt — {detail}"
+      "simAttachedDetail": "Übungsinterview angehängt — {detail}",
+      "rematched": "wurde einer neuen Stelle zugeordnet",
+      "rematched_from": "aus einer früheren Bewerbung reaktiviert"
     },
     "relTime": {
       "today": "heute",
@@ -1480,6 +1482,8 @@
       "revokeFailed": "Links konnten nicht widerrufen werden.",
       "history": "Verlauf",
       "via": "über {channel}",
+      "rematchViewLinked": "Verknüpfte Bewerbung anzeigen",
+      "rematchUnavailable": "verknüpfte Bewerbung nicht mehr verfügbar",
       "timeline": {
         "analysis": "CV-Analyse gespeichert — Score {score}",
         "analysisNoScore": "CV-Analyse gespeichert",

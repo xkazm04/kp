@@ -11,6 +11,7 @@ import {
   Gauge,
   Phone,
   Repeat,
+  Shuffle,
   Sparkles,
   Square,
   UserPlus,
@@ -49,6 +50,13 @@ export const EVENT_KINDS = [
   "disposition_set",
   // d95fed6d — a practice (simulator) interview noted on the record.
   "sim_attached",
+  // rematch-story-navigable — the two sides of a re-engagement link (silver-medalist
+  // rediscovery / automated rematch). `rematched` is stamped on the SOURCE entry (the
+  // person was redirected to a new role); `rematched_from` on the TARGET (they were
+  // re-engaged from an earlier application). The detail carries the counterpart entry,
+  // which the drawer renders as a navigable affordance (see pipeline-rematch-link.ts).
+  "rematched",
+  "rematched_from",
 ] as const;
 
 export type EventKind = (typeof EVENT_KINDS)[number];
@@ -81,6 +89,8 @@ export const EVENT_CATALOG: Record<EventKind, EventMeta> = {
   intake_resolved: { Icon: Wrench, tone: "text-moss" },
   disposition_set: { Icon: CheckSquare, tone: "text-steel" },
   sim_attached: { Icon: Phone, tone: "text-steel" },
+  rematched: { Icon: Shuffle, tone: "text-steel" },
+  rematched_from: { Icon: Repeat, tone: "text-steel" },
 };
 
 // One documented fallback for kinds outside the catalog. The feed (listPipelineEvents)
@@ -130,6 +140,13 @@ export function useEventVerb(): (ev: PipelineEvent) => string {
         return ev.detail ? t("dispositionSetDetail", { detail: ev.detail }) : t("disposition_set");
       case "sim_attached":
         return ev.detail ? t("simAttachedDetail", { detail: ev.detail }) : t("sim_attached");
+      // The rematch details encode the counterpart entry id (an internal handle) — the
+      // FEED shows the verb only; the drawer turns the parsed detail into a navigable
+      // link (the public projection nulls the detail for these kinds outright).
+      case "rematched":
+        return t("rematched");
+      case "rematched_from":
+        return t("rematched_from");
     }
   };
 }

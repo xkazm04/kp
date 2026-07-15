@@ -7,7 +7,8 @@ import { AlertTriangle, ArrowLeftRight, Ban, Banknote, Calendar, ClipboardList, 
 import { useTranslations } from "next-intl";
 import { useDialogA11y } from "@/app/_components/useDialogA11y";
 import { useScoreProvenanceText } from "@/app/_components/ScoreProvenanceLabel";
-import type { CandidateConsentView, CandidateTimelineItem } from "@/app/_lib/candidate-timeline";
+import type { CandidateConsentView, CandidateTimelineItem, RematchLink } from "@/app/_lib/candidate-timeline";
+import { isRematchKind } from "./pipeline-rematch-link";
 import type { InterviewTelemetry } from "@/app/_lib/interview-telemetry";
 import type { ScorecardCoverage } from "@/app/_lib/interview-transcript";
 import { talkSharePercent, formatSpokenDuration } from "@/app/_lib/voice/telemetry-format";
@@ -110,7 +111,21 @@ const LANG_LABEL_KEY = {
   indeterminate: "langIndeterminate",
 } as const;
 
-export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; onClose: () => void; onChanged: () => void }) {
+export function CandidateDrawer({
+  entry,
+  onClose,
+  onChanged,
+  onOpenEntry,
+}: {
+  entry: Entry;
+  onClose: () => void;
+  onChanged: () => void;
+  // rematch-story-navigable — open another entry's drawer by id (the counterpart of a
+  // re-engagement link, resolved server-side). Absent ⇒ the drawer renders the story
+  // read-only (the link degrades to plain text). Also reused for the in-place refresh
+  // after a stage move (drawer-flow-friction).
+  onOpenEntry?: (entryId: string) => void;
+}) {
   const router = useRouter();
   const search = useSearchParams();
   const t = useTranslations("pipeline.drawer");
@@ -178,6 +193,10 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
   // offer, joined server-side and merged chronologically into the history below.
   // Comms are excluded here — the drawer has a richer dedicated section above.
   const [extraTimeline, setExtraTimeline] = useState<CandidateTimelineItem[]>([]);
+  // rematch-story-navigable — the resolved counterpart of each re-engagement event,
+  // keyed by event id (server-side existence check), so the history can render a
+  // navigable link only when the other entry still exists in this workspace.
+  const [rematchLinks, setRematchLinks] = useState<Record<number, RematchLink>>({});
   // GDPR consent snapshot + audit trail, now IN the bundle so ConsentPanel reads it
   // from props instead of firing its own second fetch (one-call drawer).
   const [consent, setConsent] = useState<CandidateConsentView | null>(null);
@@ -217,6 +236,7 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
         }
         setHistory((d.events as PipelineEvent[]) ?? []);
         setExtraTimeline((d.items as CandidateTimelineItem[]) ?? []);
+        setRematchLinks((d.rematchLinks as Record<number, RematchLink> | undefined) ?? {});
         setComms((d.comms as typeof comms) ?? []);
         setIvOutcome((d.interview as InterviewOutcome | null) ?? null);
         setConsent((d.consent as CandidateConsentView | undefined) ?? null);
@@ -787,7 +807,16 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
                       <span className="mt-0.5">
                         <EventDot kind={row.ev.kind} />
                       </span>
-                      <span className="min-w-0 flex-1 text-ink">{eventVerb(row.ev)}</span>
+                      <span className="min-w-0 flex-1 text-ink">
+                        {eventVerb(row.ev)}
+                        {/* rematch-story-navigable — a re-engagement event carries the
+                            counterpart entry in its detail; render it as a link only
+                            when the counterpart still resolves (server-side check),
+                            else honest non-link text. */}
+                        {isRematchKind(row.ev.kind) ? (
+                          <RematchAffordance link={rematchLinks[row.ev.id]} onOpenEntry={onOpenEntry} t={t} />
+                        ) : null}
+                      </span>
                       <span className="shrink-0 text-meta text-steel">{relativeTime(row.ev.createdAt)}</span>
                     </li>
                   ) : (
@@ -1117,6 +1146,38 @@ function InterviewTelemetryStrip({
       <p className="mt-1 text-meta text-steel">{t("telemetryNote")}</p>
     </div>
   );
+}
+
+// rematch-story-navigable — the navigable tail of a re-engagement event. When the
+// counterpart entry resolved server-side AND the drawer can open entries, render a
+// link that opens the other side of the "one person, two roles" story; when it
+// parsed but no longer resolves (deleted / other tenant), render honest muted text;
+// when there's no parseable ref at all, render nothing (the verb already stands alone).
+function RematchAffordance({
+  link,
+  onOpenEntry,
+  t,
+}: {
+  link: RematchLink | undefined;
+  onOpenEntry: ((entryId: string) => void) | undefined;
+  t: ReturnType<typeof useTranslations<"pipeline.drawer">>;
+}) {
+  if (!link) return null;
+  if (link.resolved && onOpenEntry) {
+    return (
+      <>
+        {" · "}
+        <button
+          type="button"
+          onClick={() => onOpenEntry(link.entryId)}
+          className="focus-ring inline-flex items-center gap-0.5 rounded font-semibold text-coral hover:underline"
+        >
+          <ExternalLink size={11} aria-hidden /> {t("rematchViewLinked")}
+        </button>
+      </>
+    );
+  }
+  return <span className="text-steel"> · {t("rematchUnavailable")}</span>;
 }
 
 // c6524f2f — one row of the cross-store timeline chapters (analysis /

@@ -1296,7 +1296,9 @@
       "disposition_set": "décision d'analyse enregistrée",
       "dispositionSetDetail": "décision d'analyse : {detail}",
       "sim_attached": "entretien d'entraînement associé",
-      "simAttachedDetail": "entretien d'entraînement associé — {detail}"
+      "simAttachedDetail": "entretien d'entraînement associé — {detail}",
+      "rematched": "a été réorienté vers un nouveau poste",
+      "rematched_from": "recontacté depuis une candidature antérieure"
     },
     "relTime": {
       "today": "aujourd'hui",
@@ -1480,6 +1482,8 @@
       "revokeFailed": "Impossible de révoquer les liens.",
       "history": "Historique",
       "via": "via {channel}",
+      "rematchViewLinked": "Voir la candidature liée",
+      "rematchUnavailable": "candidature liée non disponible",
       "timeline": {
         "analysis": "Analyse du CV enregistrée — score {score}",
         "analysisNoScore": "Analyse du CV enregistrée",

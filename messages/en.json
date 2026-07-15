@@ -1270,7 +1270,9 @@
       "disposition_set": "analysis disposition recorded",
       "dispositionSetDetail": "analysis disposition: {detail}",
       "sim_attached": "practice interview attached",
-      "simAttachedDetail": "practice interview attached — {detail}"
+      "simAttachedDetail": "practice interview attached — {detail}",
+      "rematched": "was redirected to a new role",
+      "rematched_from": "re-engaged from an earlier application"
     },
     "relTime": {
       "today": "today",
@@ -1454,6 +1456,8 @@
       "revokeFailed": "Couldn't revoke the links.",
       "history": "History",
       "via": "via {channel}",
+      "rematchViewLinked": "View the linked application",
+      "rematchUnavailable": "linked application no longer available",
       "timeline": {
         "analysis": "CV analysis saved — score {score}",
         "analysisNoScore": "CV analysis saved",
