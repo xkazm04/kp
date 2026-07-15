@@ -7,8 +7,48 @@ import { Meter } from "@/app/_components/Meter";
 import { Skeleton } from "@/app/_components/Skeleton";
 import { scoreTone, scoreToneColor } from "@/app/_lib/format";
 import { useReducedMotion } from "@/app/_lib/useReducedMotion";
-import type { KoReason, MatchResponse, Reasoning, ReasoningState, ScoreDimension } from "./MatchTypes";
+import type { Confidence, KoReason, LabelCode, MatchResponse, Reasoning, ReasoningState, ScoreDimension } from "./MatchTypes";
 import { isEarlyCareer } from "./MatchTypes";
+
+// Shared resolver for the four Python-emitted, code-carried labels (localize-python-
+// seam): drivers, assumptions, KO clauses, and score-breakdown dimension names. Python
+// is locale-blind and ships stable CODES + params (matching.py); this renders the
+// session language from the match.* catalog, always with the legacy English string as
+// the back-compat fallback so an older/codeless cached payload never renders blank.
+// One hook so every match surface (card, results, compare) localizes identically.
+// A code-keyed catalog is dynamic by nature (the key is a runtime string from the
+// wire), so we read each scoped translator through a loose signature — has(code)
+// then t(code, params) — rather than the literal-key type next-intl infers for
+// static keys. i18n:check + the en.json Messages augmentation still guarantee the
+// keys exist across locales; this only relaxes the compile-time key literal.
+type LooseTranslator = { (key: string, values?: Record<string, string | number>): string; has: (key: string) => boolean };
+
+export function useMatchLabels() {
+  const tDrivers = useTranslations("match.drivers") as unknown as LooseTranslator;
+  const tAssume = useTranslations("match.assumptions") as unknown as LooseTranslator;
+  const tKo = useTranslations("match.koClause") as unknown as LooseTranslator;
+  const tDims = useTranslations("match.dims") as unknown as LooseTranslator;
+
+  // Zip parallel [codes] with their [englishFallback], localizing each code and
+  // falling back index-for-index (then to the raw code) when a catalog lacks it.
+  const zip = (t: LooseTranslator, codes: LabelCode[] | undefined, fallback: string[]): string[] => {
+    if (!codes?.length) return fallback;
+    return codes.map((c, i) => (t.has(c.code) ? t(c.code, c.params) : (fallback[i] ?? c.code)));
+  };
+
+  return {
+    /** Localized confidence-band drivers (match.drivers.*), English drivers as fallback. */
+    drivers: (c: Confidence): string[] => zip(tDrivers, c.driverCodes, c.drivers ?? []),
+    /** Localized candidate assumptions (match.assumptions.*), English strings as fallback. */
+    assumptions: (codes: LabelCode[] | undefined, fallback: string[]): string[] =>
+      zip(tAssume, codes, fallback),
+    /** Localized KO-clause label (match.koClause.<key>), server `label` as fallback. */
+    koLabel: (r: KoReason): string => (tKo.has(r.key) ? tKo(r.key) : r.label),
+    /** Localized score-breakdown dimension name (match.dims.<labelCode>), `label` fallback. */
+    dimLabel: (d: ScoreDimension): string =>
+      d.labelCode && tDims.has(d.labelCode) ? tDims(d.labelCode) : d.label,
+  };
+}
 
 // "Explain fit" runs as a background task, so the panel below the card swaps
 // between three async states. The outer wrapper is a polite live region so a
@@ -171,9 +211,10 @@ export function Bar({ label, value }: { label: string; value: number }) {
 // and no 0-1 vs 0-100 scale guessing — the bug this replaces.
 export function ScoreBreakdown({ dims, total }: { dims: ScoreDimension[]; total: number }) {
   const t = useTranslations("match.shared");
+  const { dimLabel } = useMatchLabels();
   const remainder = Math.max(0, 100 - total);
   const detail = dims
-    .map((d) => t("dimContribution", { label: d.label, contribution: Math.round(d.contribution), weight: d.weight }))
+    .map((d) => t("dimContribution", { label: dimLabel(d), contribution: Math.round(d.contribution), weight: d.weight }))
     .join(", ");
   return (
     <div className="mt-2 max-w-md">
@@ -199,7 +240,7 @@ export function ScoreBreakdown({ dims, total }: { dims: ScoreDimension[]; total:
               style={{ backgroundColor: scoreToneColor(scoreTone(d.percent)) }}
               aria-hidden
             />
-            <span className="uppercase">{d.label}</span>
+            <span className="uppercase">{dimLabel(d)}</span>
             <span className="tabular-nums tracking-tight text-ink">{d.percent}</span>
             <span className="tabular-nums tracking-tight">{t("weightPercent", { weight: d.weight })}</span>
           </div>
@@ -213,12 +254,13 @@ export function ScoreBreakdown({ dims, total }: { dims: ScoreDimension[]; total:
 // one "{n} roles {clause}" line per blocker, counts first so the worst gate reads first.
 function KoReasonList({ reasons }: { reasons: KoReason[] }) {
   const t = useTranslations("match.shared");
+  const { koLabel } = useMatchLabels();
   return (
     <ul className="mt-2 space-y-1 text-left">
       {reasons.map((r) => (
         <li key={r.key} className="flex gap-2 text-sm text-steel">
           <span className="shrink-0 font-semibold tabular-nums text-ink">{t("roleCount", { count: r.count })}</span>
-          <span>{r.label}</span>
+          <span>{koLabel(r)}</span>
         </li>
       ))}
     </ul>
@@ -263,12 +305,13 @@ export function NoMatchesExplainer({ meta, archetype }: { meta: MatchResponse["m
 // blocker inline above the (short) list rather than leaving the gap unexplained.
 export function KoReasonsNote({ koFiltered, reasons }: { koFiltered: number; reasons: KoReason[] }) {
   const t = useTranslations("match.shared");
+  const { koLabel } = useMatchLabels();
   if (!koFiltered || !reasons.length) return null;
   return (
     <p className="mt-2 text-sm text-steel">
       {t.rich("koReasonsNote", {
         count: koFiltered,
-        reason: reasons[0].label,
+        reason: koLabel(reasons[0]),
         b: (chunks) => <span className="font-semibold text-ink">{chunks}</span>,
       })}
     </p>

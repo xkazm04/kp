@@ -4,8 +4,9 @@ import { X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { ConfidenceBandBadge, ConfidenceRange, FitTierBadge } from "@/app/_components/Badge";
 import { scoreTone, scoreToneColor } from "@/app/_lib/format";
-import { formatBandCompact, type MatchResult } from "./MatchTypes";
+import { formatBandCompact, type MatchResult, type ScoreDimension } from "./MatchTypes";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
+import { useMatchLabels } from "./MatchShared";
 
 // Compare-jobs-for-one-candidate (MAT5): the role-for-candidate mirror of the
 // candidate-for-role compare. Given 2–4 selected matches, render a transposed
@@ -16,15 +17,16 @@ import { useEnumLabel } from "@/app/_lib/use-enum-label";
 export function JobCompare({ matches, onClose }: { matches: MatchResult[]; onClose: () => void }) {
   const t = useTranslations("match.jobCompare");
   const enumLabel = useEnumLabel();
+  const { dimLabel, drivers: driverLabels } = useMatchLabels();
   // Dimension rows: union of breakdown keys across the selected roles, labelled
-  // from the first that carries each (archetype-aware labels), aligned by key.
-  const dims: { key: string; label: string }[] = [];
+  // from the first that carries each (archetype-aware, localized), aligned by key.
+  const dims: ScoreDimension[] = [];
   const seen = new Set<string>();
   for (const m of matches) {
     for (const d of m.scoreBreakdown ?? []) {
       if (!seen.has(d.key)) {
         seen.add(d.key);
-        dims.push({ key: d.key, label: d.label });
+        dims.push(d);
       }
     }
   }
@@ -75,8 +77,8 @@ export function JobCompare({ matches, onClose }: { matches: MatchResult[]; onClo
               {matches.map((m) => (
                 <td key={m.jobId} className="p-2">
                   <span className="inline-flex items-center gap-1.5">
-                    <ConfidenceRange low={m.confidence.low} high={m.confidence.high} drivers={m.confidence.drivers} className="nums text-steel" />
-                    <ConfidenceBandBadge level={m.confidence.level} drivers={m.confidence.drivers} />
+                    <ConfidenceRange low={m.confidence.low} high={m.confidence.high} drivers={driverLabels(m.confidence)} className="nums text-steel" />
+                    <ConfidenceBandBadge level={m.confidence.level} drivers={driverLabels(m.confidence)} />
                   </span>
                 </td>
               ))}
@@ -86,7 +88,7 @@ export function JobCompare({ matches, onClose }: { matches: MatchResult[]; onClo
               const lead = leader(vals.filter((v) => v >= 0));
               return (
                 <tr key={d.key} className="border-t border-stone-100">
-                  <th scope="row" className="sticky left-0 bg-white p-2 text-left text-steel">{d.label}</th>
+                  <th scope="row" className="sticky left-0 bg-white p-2 text-left text-steel">{dimLabel(d)}</th>
                   {matches.map((m) => {
                     const pct = pctOf(m, d.key);
                     return (

@@ -6,7 +6,7 @@ import { useTasks, useTaskResult } from "@/app/features/tasks/TasksProvider";
 import { ConfidenceBandBadge, confidenceBandTitle } from "@/app/_components/Badge";
 import type { MatchRef, MatchResult, Reasoning, ReasoningState } from "./MatchTypes";
 import { formatBandCompact, isEarlyCareer, provLabel } from "./MatchTypes";
-import { Bar, ReasoningPanel, ScoreBreakdown } from "./MatchShared";
+import { Bar, ReasoningPanel, ScoreBreakdown, useMatchLabels } from "./MatchShared";
 import { FitTierBadge } from "@/app/_components/Badge";
 import { Checkbox } from "@/app/_components/Checkbox";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
@@ -46,6 +46,11 @@ export function MatchCard({
   // params (the detached task can't read the cookie).
   const locale = useLocale();
   const enumLabel = useEnumLabel();
+  const matchLabels = useMatchLabels();
+  // Localized confidence-band drivers (English fallback baked in) — reused by the
+  // badge tooltip, the score-column title, and the inline "why this band" line so
+  // all three read the same language.
+  const driverLabels = matchLabels.drivers(m.confidence);
   const { startTask } = useTasks();
   const [reasoning, setReasoning] = useState<ReasoningState | null>(null);
   const [taskId, setTaskId] = useState<string | null>(null);
@@ -85,7 +90,7 @@ export function MatchCard({
       <div className="flex items-start gap-4">
         <div className="w-16 shrink-0 text-center tabular-nums tracking-tight">
           <div className="font-serif text-2xl text-ink">{m.total}</div>
-          <div className="text-sm text-steel" title={confidenceBandTitle(m.confidence.drivers)}>
+          <div className="text-sm text-steel" title={confidenceBandTitle(driverLabels)}>
             {m.confidence.low}–{m.confidence.high}
           </div>
           <div className="mt-0.5 text-sm uppercase text-steel">#{index + 1}</div>
@@ -100,7 +105,7 @@ export function MatchCard({
                 {t("card.entryEligible")}
               </span>
             ) : null}
-            <ConfidenceBandBadge level={m.confidence.level} drivers={m.confidence.drivers} />
+            <ConfidenceBandBadge level={m.confidence.level} drivers={driverLabels} />
             <div className="ml-auto flex items-center gap-1.5">
               {selectable && canAdd && !added ? (
                 <Checkbox
@@ -163,9 +168,9 @@ export function MatchCard({
           {/* A non-tight band's WHY belongs in plain sight, not in a tooltip — a
               recruiter reading "34–62" must see "early-career, thinner record"
               without knowing to hover. Tight bands stay quiet. */}
-          {m.confidence.level !== "tight" && m.confidence.drivers.length > 0 ? (
+          {m.confidence.level !== "tight" && driverLabels.length > 0 ? (
             <p className="mt-1.5 text-sm text-steel">
-              <span className="font-medium text-ink">{t("card.whyBandLabel")}</span> {m.confidence.drivers.join(" · ")}
+              <span className="font-medium text-ink">{t("card.whyBandLabel")}</span> {driverLabels.join(" · ")}
             </p>
           ) : null}
 

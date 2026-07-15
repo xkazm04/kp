@@ -2831,6 +2831,29 @@
       "potential": "Potenzial",
       "fit": "Eignung"
     },
+    "drivers": {
+      "earlyCareerObserved": "Berufseinsteiger, aber einige Skills wurden direkt beobachtet (Live-Case/Interview)",
+      "earlyCareerThin": "Berufseinsteiger: dünnere, schwerer überprüfbare Erfahrung",
+      "fewSkills": "Weniger als 3 Skills angegeben",
+      "eduUnknown": "Bildungsniveau unbekannt",
+      "noLanguages": "Keine Sprachen angegeben",
+      "missesMusts": "Es fehlen {count, plural, one {# Muss-Skill} other {# Muss-Skills}}"
+    },
+    "assumptions": {
+      "eduUnknown": "Bildungsniveau unbekannt — nicht bestraft (fehlender Nachweis, kein Durchfallen).",
+      "noLanguages": "Keine Sprachen angegeben — Sprach-KO übersprungen statt nicht bestanden.",
+      "earlyCareer": "Berufseinsteiger: Potenzial ersetzt Berufsjahre; nur einstiegsgeeignete Stellen werden berücksichtigt.",
+      "selfDeclared": "Einige Skills sind selbst angegeben — abgewertet; im Interview überprüfen.",
+      "observed": "Einige Skills wurden direkt beobachtet (Live-Case / Interview) — hohe Sicherheit, nicht selbst berichtet.",
+      "thinProfile": "Dünnes Skill-Profil — Scores tragen ein breites Konfidenzband."
+    },
+    "koClause": {
+      "language": "eine Sprache verlangten, die nicht im Profil steht",
+      "seniority": "außerhalb des Senioritätsbereichs des Kandidaten lagen",
+      "early_career": "nicht für Berufseinsteiger offen waren",
+      "education": "ein höheres Bildungsniveau verlangten",
+      "work_mode": "nicht zur Arbeitsmodus-Präferenz passten"
+    },
     "shared": {
       "generatingReasoning": "Eignungs-Begründung wird erstellt…",
       "reasoning": "Begründung",

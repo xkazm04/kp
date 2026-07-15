@@ -12,25 +12,38 @@ export type ProfileRow = {
   completeness: number | null;
 };
 
+// A localizable label the Python engine emits as a stable CODE + render params
+// rather than prose (localize-python-seam): the TS side renders the actual language
+// from a next-intl catalog, keyed by `code`, interpolating `params`. Every carrier
+// also keeps a parallel English string, so an older codeless payload still renders.
+export type LabelCode = { code: string; params?: Record<string, string | number> };
+
 // One row of the weight-aware score breakdown, all on a single 0-100 scale so the
 // bars render with zero client-side math (server: matching.build_score_breakdown).
 // percent = the dimension's own score; weight = its share of the total (the three
 // sum to 100); contribution = the points it adds to `total` (the three sum to ~total).
+// `label` is the archetype-aware English display name; `labelCode` is the
+// locale-independent catalog slug (match.dims.*) the UI localizes, label as fallback.
 export type ScoreDimension = {
   key: string;
   label: string;
+  labelCode?: string;
   percent: number;
   weight: number;
   contribution: number;
 };
 
 export type ConfidenceLevel = "tight" | "moderate" | "wide";
-/** Score band + the human reasons behind its width (matching.py `Confidence`). */
+/** Score band + the human reasons behind its width (matching.py `Confidence`).
+ *  `drivers` are the legacy English strings; `driverCodes` are their parallel
+ *  locale-independent codes (match.drivers.*) the UI localizes, zipping index-for-
+ *  index with `drivers` as the fallback. Absent driverCodes -> render `drivers`. */
 export type Confidence = {
   low: number;
   high: number;
   level: ConfidenceLevel;
   drivers: string[];
+  driverCodes?: LabelCode[];
 };
 
 export type MatchResult = {
@@ -136,6 +149,9 @@ export type MatchResponse = {
     transferableSkills?: string[] | null;
     domainDistance?: string | null;
     assumptions?: string[];
+    // Locale-independent codes parallel to `assumptions` (match.assumptions.*); the
+    // UI localizes these, zipping with `assumptions` as the fallback string.
+    assumptionCodes?: LabelCode[];
     // MAT1: the weight vector actually used + the archetype's allowed [min,max]
     // per dimension, so the UI seeds bounded sliders at the values in effect.
     weights?: WeightVector;

@@ -2802,6 +2802,29 @@
       "potential": "Potenciál",
       "fit": "Soulad"
     },
+    "drivers": {
+      "earlyCareerObserved": "Junior, ale některé dovednosti byly přímo pozorovány (živá případovka/pohovor)",
+      "earlyCareerThin": "Junior: tenčí a hůře ověřitelná historie",
+      "fewSkills": "Uvedeny méně než 3 dovednosti",
+      "eduUnknown": "Neznámá úroveň vzdělání",
+      "noLanguages": "Neuvedeny žádné jazyky",
+      "missesMusts": "Chybí {count, plural, one {# povinná dovednost} few {# povinné dovednosti} other {# povinných dovedností}}"
+    },
+    "assumptions": {
+      "eduUnknown": "Úroveň vzdělání není známa — bez postihu (chybějící důkaz, nikoli selhání).",
+      "noLanguages": "Neuvedeny žádné jazyky — jazykové KO přeskočeno, nikoli neúspěšné.",
+      "earlyCareer": "Junior: potenciál nahrazuje roky praxe; zvažují se pouze pozice vhodné pro začátečníky.",
+      "selfDeclared": "Některé dovednosti jsou vlastním prohlášením — zohledněno se srážkou; ověřte je při pohovoru.",
+      "observed": "Některé dovednosti byly přímo pozorovány (živá případovka / pohovor) — vysoká důvěra, nikoli sebehodnocení.",
+      "thinProfile": "Tenký profil dovedností — skóre nese široké pásmo spolehlivosti."
+    },
+    "koClause": {
+      "language": "vyžadovaly jazyk, který v profilu není",
+      "seniority": "byly mimo rozsah seniority kandidáta",
+      "early_career": "nebyly otevřené juniorům",
+      "education": "vyžadovaly vyšší úroveň vzdělání",
+      "work_mode": "neodpovídaly preferovanému režimu práce"
+    },
     "shared": {
       "generatingReasoning": "Generování zdůvodnění vhodnosti…",
       "reasoning": "Zdůvodnění",

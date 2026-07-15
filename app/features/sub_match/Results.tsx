@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import type { MatchRef, MatchResponse, MatchResult } from "./MatchTypes";
 import { archetypeDisplayKey, isEarlyCareer, matchScoreForPipeline } from "./MatchTypes";
-import { Chip, KoReasonsNote, NoMatchesExplainer } from "./MatchShared";
+import { Chip, KoReasonsNote, NoMatchesExplainer, useMatchLabels } from "./MatchShared";
 import { MatchCard } from "./MatchCard";
 import { WeightsPanel } from "./WeightsPanel";
 import { JobCompare } from "./JobCompare";
@@ -43,6 +43,7 @@ export function Results({
   onReweight?: (weights?: WeightVector) => void;
 }) {
   const t = useTranslations("match.results");
+  const { assumptions: assumptionLabels } = useMatchLabels();
   const enumLabel = useEnumLabel();
   const router = useRouter();
   const { candidate, meta, matches } = result;
@@ -229,7 +230,8 @@ export function Results({
       ) : null}
       {candidate.assumptions?.length ? (
         <p className="mt-1 text-sm text-steel">
-          <span className="font-semibold uppercase">{t("assumptions")}</span> {candidate.assumptions.join(" · ")}
+          <span className="font-semibold uppercase">{t("assumptions")}</span>{" "}
+          {assumptionLabels(candidate.assumptionCodes, candidate.assumptions).join(" · ")}
         </p>
       ) : null}
 

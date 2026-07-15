@@ -140,6 +140,21 @@ class MatchCandidate(_Base):
         return max(0.0, min(1.0, v))
 
 
+class LabelCode(_Base):
+    """A localizable label emitted as a stable CODE plus render params, not prose.
+
+    The Python engine is locale-blind: it names WHICH message to show (``code``)
+    and the values to interpolate (``params``), and the TS side renders the actual
+    language from a next-intl catalog (the localize-python-seam pattern). Every
+    surface that carries a ``LabelCode`` also keeps its legacy English string in a
+    parallel field, so an older cached/stored payload without codes — or a code a
+    catalog hasn't caught up to yet — still renders instead of going blank.
+    """
+
+    code: str
+    params: dict[str, Any] = Field(default_factory=dict)
+
+
 class ScoreDimension(_Base):
     """One row of the weight-aware score breakdown (see build_score_breakdown).
 
@@ -153,11 +168,15 @@ class ScoreDimension(_Base):
       so the highest-weighted, best-scoring dimension reads as visually dominant.
 
     ``key`` is the stable slot id (skills / career / personal); ``label`` is the
-    archetype-aware display name (see DIMENSION_LABELS).
+    archetype-aware English display name (see DIMENSION_LABELS); ``label_code`` is
+    the locale-independent catalog slug (skills/career/personal for BAU,
+    foundation/potential/fit for early-career) the UI localizes via match.dims.*,
+    falling back to ``label`` when absent.
     """
 
     key: str
     label: str
+    label_code: str = ""
     percent: int
     weight: int
     contribution: float
@@ -177,7 +196,12 @@ class Confidence(_Base):
     low: int = 0
     high: int = 0
     level: str = "tight"  # tight | moderate | wide
+    # Legacy English driver strings (back-compat) + their locale-independent codes.
+    # The two arrays are parallel (same order/length by construction), so the UI can
+    # zip them: localize driver_codes[i] via match.drivers.*, falling back to
+    # drivers[i] for a code a catalog hasn't translated (or an older codeless payload).
     drivers: list[str] = Field(default_factory=list)
+    driver_codes: list[LabelCode] = Field(default_factory=list)
 
 
 class MatchResult(_Base):
@@ -569,12 +593,24 @@ def build_score_breakdown(
         ScoreDimension(
             key=key,
             label=labels[key],
+            label_code=_dim_label_code(archetype, key),
             percent=round(100 * scores[key]),
             weight=round(100 * w[key]),
             contribution=round(100 * w[key] * scores[key], 1),
         )
         for key in _DIMENSION_KEYS
     ]
+
+
+# Early-career renames the three slots (career -> Potential, personal -> Fit,
+# skills -> Foundation); BAU keeps the slot id. The code is the locale-independent
+# catalog slug the UI localizes via match.dims.*, so the archetype-aware DISPLAY
+# label is chosen language-side, not hard-coded English in the payload.
+_DIM_SLUG_EARLY = {"skills": "foundation", "career": "potential", "personal": "fit"}
+
+
+def _dim_label_code(archetype: str, key: str) -> str:
+    return _DIM_SLUG_EARLY[key] if archetype in _EARLY_CAREER else key
 
 
 # --- Dynamic weighting (bounded; hybrid + fairness-matrix) -----------------
@@ -683,34 +719,41 @@ def _confidence(candidate: MatchCandidate, total: int, missing_musts: list[str])
     """
     spread = 4
     drivers: list[str] = []
+    driver_codes: list[LabelCode] = []
+
+    def add(text: str, code: str, **params: Any) -> None:
+        drivers.append(text)
+        driver_codes.append(LabelCode(code=code, params=params))
+
     has_observed = any(p == "observed" for p in candidate.skill_provenance.values())
     if candidate.archetype in _EARLY_CAREER:
         if has_observed:
             # Directly observed skills (live case / interview) de-risk the thin
             # paper trail — the early-career band stays tighter than a CV-only one.
             spread += 2
-            drivers.append("Early-career, but some skills were directly observed (live case/interview)")
+            add("Early-career, but some skills were directly observed (live case/interview)", "earlyCareerObserved")
         else:
             spread += 6  # thinner, less-verifiable evidence -> wider honest band
-            drivers.append("Early-career: thinner, less-verifiable track record")
+            add("Early-career: thinner, less-verifiable track record", "earlyCareerThin")
     if len(candidate.skills) < 3:
         spread += 6
-        drivers.append("Fewer than 3 skills listed")
+        add("Fewer than 3 skills listed", "fewSkills")
     if candidate.education_level == "unknown":
         spread += 4
-        drivers.append("Education level unknown")
+        add("Education level unknown", "eduUnknown")
     if not candidate.languages:
         spread += 4
-        drivers.append("No languages listed")
+        add("No languages listed", "noLanguages")
     if len(missing_musts) > 2:
         spread += 5
-        drivers.append(f"Misses {len(missing_musts)} must-have skills")
+        add(f"Misses {len(missing_musts)} must-have skills", "missesMusts", count=len(missing_musts))
     level = "wide" if spread >= _BAND_WIDE_AT else "moderate" if spread >= _BAND_MODERATE_AT else "tight"
     return Confidence(
         low=max(0, total - spread),
         high=min(100, total + spread),
         level=level,
         drivers=drivers,
+        driver_codes=driver_codes,
     )
 
 
@@ -841,22 +884,40 @@ def fairness_matrix(pairs: list[tuple[MatchCandidate, dict[str, float] | None]],
     }
 
 
+def _candidate_assumption_pairs(candidate: MatchCandidate) -> list[tuple[str, LabelCode]]:
+    """The single source for candidate assumptions: each is an English string (the
+    legacy/back-compat form) paired with its locale-independent code (match.assumptions.*).
+    candidate_assumptions returns the strings; candidate_assumption_codes returns the
+    codes — same order, so the UI can zip them and fall back string->code cleanly."""
+    out: list[tuple[str, LabelCode]] = []
+
+    def add(text: str, code: str) -> None:
+        out.append((text, LabelCode(code=code)))
+
+    if candidate.education_level == "unknown":
+        add("Education level unknown — not penalized (absence of evidence, not a fail).", "eduUnknown")
+    if not candidate.languages:
+        add("No languages listed — language KO skipped rather than failed.", "noLanguages")
+    if candidate.archetype in _EARLY_CAREER:
+        add("Early-career: potential replaces years of experience; only entry-eligible roles are considered.", "earlyCareer")
+        if "self_declared" in set(candidate.skill_provenance.values()):
+            add("Some skills are self-declared — discounted; validate them in interview.", "selfDeclared")
+    if any(p == "observed" for p in candidate.skill_provenance.values()):
+        add("Some skills were directly observed (live case / interview) — high-confidence, not self-reported.", "observed")
+    if len(candidate.skills) < 3:
+        add("Thin skill profile — scores carry a wide confidence band.", "thinProfile")
+    return out
+
+
 def candidate_assumptions(candidate: MatchCandidate) -> list[str]:
     """Imputations / uncertainties the recruiter should see to judge a score fairly."""
-    out: list[str] = []
-    if candidate.education_level == "unknown":
-        out.append("Education level unknown — not penalized (absence of evidence, not a fail).")
-    if not candidate.languages:
-        out.append("No languages listed — language KO skipped rather than failed.")
-    if candidate.archetype in _EARLY_CAREER:
-        out.append("Early-career: potential replaces years of experience; only entry-eligible roles are considered.")
-        if "self_declared" in set(candidate.skill_provenance.values()):
-            out.append("Some skills are self-declared — discounted; validate them in interview.")
-    if any(p == "observed" for p in candidate.skill_provenance.values()):
-        out.append("Some skills were directly observed (live case / interview) — high-confidence, not self-reported.")
-    if len(candidate.skills) < 3:
-        out.append("Thin skill profile — scores carry a wide confidence band.")
-    return out
+    return [text for text, _ in _candidate_assumption_pairs(candidate)]
+
+
+def candidate_assumption_codes(candidate: MatchCandidate) -> list[LabelCode]:
+    """The assumptions as locale-independent codes (match.assumptions.*), parallel
+    to candidate_assumptions so the UI localizes language-side with a string fallback."""
+    return [code for _, code in _candidate_assumption_pairs(candidate)]
 
 
 # Candidate-facing clause shown after "{n} role(s)" for each KO category. The
@@ -941,6 +1002,10 @@ def match(
             "transferableSkills": candidate.transferable_skills,
             "domainDistance": candidate.domain_distance,
             "assumptions": candidate_assumptions(candidate),
+            # Locale-independent codes parallel to `assumptions` (localize-python-seam):
+            # the UI renders match.assumptions.* in the session locale, falling back to
+            # the English string above for an older payload or an un-translated code.
+            "assumptionCodes": [{"code": c.code, "params": c.params} for c in candidate_assumption_codes(candidate)],
             # MAT1: the weights actually used + the bounds the UI must respect.
             "weights": resolved,
             "weightBounds": {k: list(v) for k, v in weight_bounds(candidate.archetype).items()},

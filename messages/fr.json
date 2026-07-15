@@ -2831,6 +2831,29 @@
       "potential": "Potentiel",
       "fit": "Correspondance"
     },
+    "drivers": {
+      "earlyCareerObserved": "Débutant, mais certaines compétences ont été observées directement (cas pratique/entretien)",
+      "earlyCareerThin": "Débutant : historique plus mince et moins vérifiable",
+      "fewSkills": "Moins de 3 compétences indiquées",
+      "eduUnknown": "Niveau d'études inconnu",
+      "noLanguages": "Aucune langue indiquée",
+      "missesMusts": "Il manque {count, plural, one {# compétence indispensable} other {# compétences indispensables}}"
+    },
+    "assumptions": {
+      "eduUnknown": "Niveau d'études inconnu — non pénalisé (absence de preuve, pas un échec).",
+      "noLanguages": "Aucune langue indiquée — KO linguistique ignoré plutôt qu'échoué.",
+      "earlyCareer": "Débutant : le potentiel remplace les années d'expérience ; seuls les postes accessibles aux débutants sont considérés.",
+      "selfDeclared": "Certaines compétences sont auto-déclarées — décotées ; à valider en entretien.",
+      "observed": "Certaines compétences ont été observées directement (cas pratique / entretien) — haute confiance, non auto-déclarées.",
+      "thinProfile": "Profil de compétences mince — les scores portent une large fourchette de confiance."
+    },
+    "koClause": {
+      "language": "exigeaient une langue absente du profil",
+      "seniority": "se situaient hors de la fourchette de séniorité du candidat",
+      "early_career": "n'étaient pas ouverts aux débutants",
+      "education": "exigeaient un niveau d'études supérieur",
+      "work_mode": "ne correspondaient pas à la préférence de mode de travail"
+    },
     "shared": {
       "generatingReasoning": "Génération du raisonnement de correspondance…",
       "reasoning": "Raisonnement",

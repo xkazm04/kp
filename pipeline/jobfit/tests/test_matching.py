@@ -7,6 +7,8 @@ from pipeline.jobfit.matching import (
     MatchCandidate,
     aggregate_ko_reasons,
     build_score_breakdown,
+    candidate_assumption_codes,
+    candidate_assumptions,
     ko_filter,
     match,
     score_career,
@@ -237,6 +239,15 @@ class ScoreBreakdownTest(unittest.TestCase):
         self.assertEqual(bau, ["Skills", "Career", "Personal"])
         self.assertEqual(student, ["Foundation", "Potential", "Fit"])
 
+    def test_label_codes_are_locale_independent_slugs(self) -> None:
+        # localize-python-seam: each dimension carries a stable, English-free code the
+        # UI localizes via match.dims.* — the slot slug for BAU, the renamed slug for
+        # early-career — so the archetype-aware DISPLAY name is chosen language-side.
+        bau = [d.label_code for d in build_score_breakdown("bau", 0.5, 0.5, 0.5)]
+        student = [d.label_code for d in build_score_breakdown("student", 0.5, 0.5, 0.5)]
+        self.assertEqual(bau, ["skills", "career", "personal"])
+        self.assertEqual(student, ["foundation", "potential", "fit"])
+
 
 class ScorePersonalOverlapTest(unittest.TestCase):
     """Description overlap is counted on whole WORDS (word boundaries), never raw
@@ -362,6 +373,29 @@ class MatchTest(unittest.TestCase):
         self.assertEqual(m.confidence.level, "wide")
         self.assertIn("Education level unknown", m.confidence.drivers)
         self.assertIn("No languages listed", m.confidence.drivers)
+        # localize-python-seam: the same drivers ride as locale-independent codes,
+        # PARALLEL to the English strings (same order/length), so the UI localizes
+        # them and can still fall back index-for-index to the English text.
+        self.assertEqual(len(m.confidence.driver_codes), len(m.confidence.drivers))
+        codes = [c.code for c in m.confidence.driver_codes]
+        self.assertIn("eduUnknown", codes)
+        self.assertIn("noLanguages", codes)
+
+    def test_parametrized_driver_carries_render_params(self) -> None:
+        # A count-bearing driver ("Misses N must-have skills") ships the count as a
+        # param, not baked into prose, so the UI pluralizes it in its own language.
+        cand = MatchCandidate(skills=["Python"], seniority="senior", education_level="master", languages=["English"])
+        job = mkjob(
+            seniority="senior",
+            languages=["English"],
+            requirements=[
+                {"skill": s, "kind": "must_have", "hardness": "prerequisite"}
+                for s in ("Go", "Rust", "Elixir", "Haskell")
+            ],
+        )
+        m = match(cand, [job], limit=1).matches[0]
+        misses = next(c for c in m.confidence.driver_codes if c.code == "missesMusts")
+        self.assertEqual(misses.params.get("count"), 4)
 
     def test_confidence_band_is_tight_with_no_drivers(self) -> None:
         strong = MatchCandidate(
@@ -375,6 +409,25 @@ class MatchTest(unittest.TestCase):
         m = resp.matches[0]
         self.assertEqual(m.confidence.level, "tight")
         self.assertEqual(m.confidence.drivers, [])
+        self.assertEqual(m.confidence.driver_codes, [])
+
+    def test_assumption_codes_parallel_the_english_assumptions(self) -> None:
+        # localize-python-seam: assumptions ride BOTH as English strings (back-compat)
+        # and as parallel locale-independent codes (match.assumptions.*), so the UI
+        # localizes them while an older codeless payload still renders the strings.
+        cand = MatchCandidate(
+            skills=["Python"], archetype="student", education_level="unknown",
+            languages=[], skill_provenance={"Python": "self_declared"},
+        )
+        strings = candidate_assumptions(cand)
+        codes = [c.code for c in candidate_assumption_codes(cand)]
+        self.assertEqual(len(strings), len(codes))
+        for c in ("eduUnknown", "noLanguages", "earlyCareer", "selfDeclared", "thinProfile"):
+            self.assertIn(c, codes)
+        # match() surfaces the codes on the candidate block for the client.
+        resp = match(cand, [mkjob(seniority="junior", description="Graduates welcome.")], limit=1)
+        emitted = [c["code"] for c in resp.candidate["assumptionCodes"]]
+        self.assertEqual(emitted, codes)
 
     def test_empty_result_explains_itself_via_ko_reasons(self) -> None:
         # SENIOR_PY (Czech/English) is KO'd from a German-only role -> 0 matches.

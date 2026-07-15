@@ -2802,6 +2802,29 @@
       "potential": "Potential",
       "fit": "Fit"
     },
+    "drivers": {
+      "earlyCareerObserved": "Early-career, but some skills were directly observed (live case/interview)",
+      "earlyCareerThin": "Early-career: thinner, less-verifiable track record",
+      "fewSkills": "Fewer than 3 skills listed",
+      "eduUnknown": "Education level unknown",
+      "noLanguages": "No languages listed",
+      "missesMusts": "Misses {count, plural, one {# must-have skill} other {# must-have skills}}"
+    },
+    "assumptions": {
+      "eduUnknown": "Education level unknown — not penalized (absence of evidence, not a fail).",
+      "noLanguages": "No languages listed — language KO skipped rather than failed.",
+      "earlyCareer": "Early-career: potential replaces years of experience; only entry-eligible roles are considered.",
+      "selfDeclared": "Some skills are self-declared — discounted; validate them in interview.",
+      "observed": "Some skills were directly observed (live case / interview) — high-confidence, not self-reported.",
+      "thinProfile": "Thin skill profile — scores carry a wide confidence band."
+    },
+    "koClause": {
+      "language": "required a language not in the profile",
+      "seniority": "sat outside the candidate's seniority range",
+      "early_career": "weren't open to early-career candidates",
+      "education": "required a higher education level",
+      "work_mode": "didn't match the work-mode preference"
+    },
     "shared": {
       "generatingReasoning": "Generating fit reasoning…",
       "reasoning": "Reasoning",
