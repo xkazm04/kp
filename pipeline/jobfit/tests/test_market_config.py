@@ -260,8 +260,21 @@ class CrossBoundarySyncTest(unittest.TestCase):
         # so a market can never advertise bands in a currency its config disowns.
         benchmarks = json.loads(BENCHMARKS_JSON.read_text(encoding="utf-8"))
         markets = benchmarks.get("markets")
-        if not isinstance(markets, dict):
-            self.skipTest("legacy flat benchmarks file — covered by the active-block guard above")
+        # A flat (non-keyed) file can hold only ONE market, so with >1 MarketConfig
+        # configured it silently DROPS the rest — the exact data loss the old
+        # apply-market-salaries.mjs flat write caused (it clobbered the keyed file with
+        # a CZ-only block, dropping de-berlin). The Python LOADER still tolerates flat
+        # at runtime (documented legacy fallback), but the SOURCE file must be keyed so
+        # no configured market vanishes. This assertion makes that VISIBLE instead of
+        # the old silent skipTest that let the hole go unnoticed. Regenerate keyed via
+        # `npm run market:apply` (writes markets{<id>}, preserving siblings).
+        configured = sorted({CZECH_MARKET.market_id, BERLIN_MARKET.market_id})
+        self.assertIsInstance(
+            markets,
+            dict,
+            f"data/salary_benchmarks.json is FLAT but {len(configured)} markets are configured "
+            f"({configured}); a flat file drops all but one. Regenerate keyed via `npm run market:apply`.",
+        )
         config_by_id = {m.market_id: m for m in (CZECH_MARKET, BERLIN_MARKET)}
         for market_id, block in markets.items():
             cfg = config_by_id.get(market_id)
@@ -273,6 +286,60 @@ class CrossBoundarySyncTest(unittest.TestCase):
                 cfg.currency,
                 f"benchmark block {market_id!r} currency drifted from MarketConfig {market_id!r}.",
             )
+
+
+class MarketApplyRoundTripTest(unittest.TestCase):
+    """Pins scripts/apply-market-salaries.mjs write-safety against the KEYED file:
+    regenerating the cz block must PRESERVE every sibling market (de-berlin) and
+    never emit the legacy flat shape. Runs the real script against an isolated COPY
+    (the repo data file is never touched). Skipped when node is unavailable."""
+
+    def _run(self, tmp: Path, *args: str) -> dict:
+        import shutil
+        import subprocess
+
+        node = shutil.which("node")
+        if node is None:
+            self.skipTest("node not on PATH — integration round-trip skipped")
+        (tmp / "scripts").mkdir(parents=True, exist_ok=True)
+        (tmp / "data").mkdir(parents=True, exist_ok=True)
+        script = REPO_ROOT / "scripts" / "apply-market-salaries.mjs"
+        shutil.copy(script, tmp / "scripts" / script.name)
+        for name in ("salary_benchmarks.json", "salary_benchmarks.manual.json", "market_pulse.json"):
+            shutil.copy(REPO_ROOT / "data" / name, tmp / "data" / name)
+        subprocess.run(
+            [node, str(tmp / "scripts" / script.name), *args],
+            check=True,
+            capture_output=True,
+            cwd=str(tmp),
+        )
+        return json.loads((tmp / "data" / "salary_benchmarks.json").read_text(encoding="utf-8"))
+
+    def test_default_cz_run_preserves_de_berlin_and_stays_keyed(self):
+        import tempfile
+
+        original = json.loads(BENCHMARKS_JSON.read_text(encoding="utf-8"))
+        with tempfile.TemporaryDirectory() as td:
+            out = self._run(Path(td))
+        # Never the flat shape (the data-loss bug): keyed, no top-level roles.
+        self.assertIn("markets", out)
+        self.assertNotIn("roles", out)
+        # de-berlin SURVIVES the cz regeneration, byte-for-byte.
+        self.assertIn("de-berlin", out["markets"])
+        self.assertEqual(out["markets"]["de-berlin"], original["markets"]["de-berlin"])
+        # cz is regenerated with ISPV provenance and its config currency.
+        cz = out["markets"]["cz"]
+        self.assertEqual(cz["currency"], CZECH_MARKET.currency)
+        self.assertTrue(any("ispv_median" in r for r in cz["roles"]))
+
+    def test_market_arg_targets_a_named_block_and_preserves_the_rest(self):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as td:
+            out = self._run(Path(td), "--market", "cz")
+        # An explicit --market cz behaves like the default and keeps de-berlin.
+        self.assertIn("cz", out["markets"])
+        self.assertIn("de-berlin", out["markets"])
 
 
 if __name__ == "__main__":
