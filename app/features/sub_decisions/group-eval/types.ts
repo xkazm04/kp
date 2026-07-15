@@ -139,4 +139,14 @@ export type GroupEvalPayload = {
   // and on evals saved before this field existed.
   selection?: { count: number; total: number } | null;
   evaluatedLabels?: string[];
+  // selection-memory-rerun — stable entry ids alongside the display labels, so drift
+  // detection and the in-modal Re-run key on IDENTITY (not the non-unique label, which
+  // mishandles two same-named candidates). Both ADDITIVE: a payload saved before these
+  // fields renders exactly as today (drift falls back to labels; Re-run to top-N).
+  //   • evaluatedIds — the FULL role cohort at eval time (parallel to evaluatedLabels),
+  //     used for id-based pool-drift.
+  //   • comparedIds — the entry ids actually COMPARED (post validation/cap). For a
+  //     selection-launched eval this is the recruiter's selection, replayed on Re-run.
+  evaluatedIds?: string[];
+  comparedIds?: string[];
 };

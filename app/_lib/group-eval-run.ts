@@ -11,7 +11,7 @@ import { poolEntryFromAnalysis, type CandidatePoolEntry } from "./candidate-pool
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "./python-runner";
 import { rankPoolForJob } from "./recruiter-run";
 import { computeDifferentiators } from "./group-eval-differentiators";
-import { hasComparableCohort, GROUP_EVAL_CAP } from "./group-eval-cohort";
+import { hasComparableCohort, GROUP_EVAL_CAP, GROUP_EVAL_MIN_COHORT } from "./group-eval-cohort";
 import { compareByMatchScoreDesc, compareScoreDesc } from "./match-score";
 import { sealDecisionSafe } from "./decision-record-store";
 import { buildEligibilityList, governanceNote, normalizeGovernanceMode, resolveGovernanceMode, sealsLead } from "./group-eval-governance";
@@ -288,7 +288,16 @@ export async function runGroupEval(
   // cross-role) falls back to the default top-N rather than evaluating an empty field.
   const cohortIds = new Set(cohort.map(idOf));
   const validatedSelection = hasSelectionParam ? requested.filter((c) => cohortIds.has(idOf(c))) : requested;
-  const useSelection = hasSelectionParam && validatedSelection.length > 0;
+  // selection-memory-rerun — a selection is honored only when it validates to at least a
+  // head-to-head pair (GROUP_EVAL_MIN_COHORT). This matters on a Re-run that REPLAYS a
+  // saved selection whose members have since left the cohort: with ≥2 survivors the eval
+  // proceeds over the survivors (coverage discloses "your selection of {survivors} of
+  // {total}"); with fewer than 2 it falls back to the default top-N over the full cohort
+  // rather than an "insufficient sample" single-candidate selection — the more useful,
+  // still-honest result, and the coverage disclosure then reads as the top-N that ran.
+  // (Fresh selections are UI-gated to ≥2 — RoleDecisionRow.canCompare — so this only
+  // changes the degenerate replay/bypass case, never a normal first-run selection.)
+  const useSelection = hasSelectionParam && validatedSelection.length >= GROUP_EVAL_MIN_COHORT;
   const preCap = useSelection ? validatedSelection : cohort;
   // Governance mode (P1-3): "recommendation" (default — AI synthesizes + seals a
   // single lead) vs "committee" / "eligibility_list" (the AI is ADVISORY only — it
@@ -584,6 +593,12 @@ export async function runGroupEval(
     // this against the role's current pending entries to warn about pool drift
     // (anchored to the whole cohort, not just a narrowed selection).
     evaluatedLabels: cohort.map((c) => c.label),
+    // selection-memory-rerun — stable ids alongside the labels. evaluatedIds mirrors
+    // evaluatedLabels (the FULL cohort) for id-based drift; comparedIds is the field
+    // actually compared (post validation/cap/dedupe), replayed as the selection on a
+    // selection-launched eval's Re-run. Both additive — legacy payloads simply omit them.
+    evaluatedIds: cohort.map((c) => c.entryId),
+    comparedIds: input.map((c) => c.entryId),
     topPick: lead
       ? {
           label: lead.label,

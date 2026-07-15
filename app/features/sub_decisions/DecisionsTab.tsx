@@ -525,17 +525,29 @@ export function DecisionsTab() {
 
   const evalGroup = evalRole ? groups.find((g) => g.roleKey === evalRole.roleKey) ?? null : null;
 
-  // Pool drift: how many candidates were added/removed from this role's pending
-  // pool since the cached evaluation ran. Compared by label against the pre-cap
-  // set the eval was computed over, so a stale comparison prompts a re-run.
+  // Pool drift: how many candidates were added/removed from this role's pending pool
+  // since the cached evaluation ran, so a stale comparison prompts a re-run. Compared
+  // against the FULL cohort the eval was computed over. selection-memory-rerun: prefer
+  // stable ENTRY IDS when the payload carries them (evaluatedIds) so two same-named
+  // candidates are counted distinctly; fall back to labels only for legacy payloads
+  // saved before ids were persisted.
   const evalDrift = (() => {
-    if (!evalData?.evaluatedLabels || !evalGroup) return 0;
-    const evaluatedSet = new Set(evalData.evaluatedLabels);
-    const currentSet = new Set(evalGroup.entries.map((e) => e.candidateLabel));
-    let changed = 0;
-    for (const l of evaluatedSet) if (!currentSet.has(l)) changed += 1;
-    for (const l of currentSet) if (!evaluatedSet.has(l)) changed += 1;
-    return changed;
+    if (!evalGroup) return 0;
+    const countDrift = (evaluated: string[], current: string[]): number => {
+      const evaluatedSet = new Set(evaluated);
+      const currentSet = new Set(current);
+      let changed = 0;
+      for (const k of evaluatedSet) if (!currentSet.has(k)) changed += 1;
+      for (const k of currentSet) if (!evaluatedSet.has(k)) changed += 1;
+      return changed;
+    };
+    if (evalData?.evaluatedIds && evalData.evaluatedIds.length > 0) {
+      return countDrift(evalData.evaluatedIds, evalGroup.entries.map((e) => e.id));
+    }
+    if (evalData?.evaluatedLabels) {
+      return countDrift(evalData.evaluatedLabels, evalGroup.entries.map((e) => e.candidateLabel));
+    }
+    return 0;
   })();
 
   return (
@@ -1017,7 +1029,17 @@ export function DecisionsTab() {
             setEvalTaskId(null);
             setEvalError(null);
           }}
-          onRerun={() => evalGroup && openGroupEval(evalGroup, true)}
+          onRerun={() => {
+            if (!evalGroup) return;
+            // selection-memory-rerun — replay the original explicit selection when this
+            // eval was selection-launched (payload.selection present + persisted
+            // comparedIds). openGroupEval filters those ids against the CURRENT cohort, so
+            // members who left are dropped; the server re-validates membership + cap and
+            // compares the survivors (falling back to top-N when fewer than a comparable
+            // pair survive). A default top-N eval (no selection) simply re-runs as top-N.
+            const savedSelection = evalData?.selection != null ? evalData?.comparedIds : undefined;
+            void openGroupEval(evalGroup, true, savedSelection);
+          }}
           onDecide={(identity, action) => {
             // Resolve the eval candidate back to the live pipeline entry by stable id
             // (candIdentity = entry id, label fallback), then reuse act() — same
