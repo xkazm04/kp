@@ -15,7 +15,7 @@ Per-role-family coverage of `data/taxonomy.json`. A term counts toward every fam
 | `operations_logistics` | 40 (floor 40) | 45 | 42% | 45 (100%) | 45 (100%) |
 | `frontline_service` | 33 (floor 33) | 37 | 73% | 37 (100%) | 37 (100%) |
 | `sales_marketing` | 39 (floor 39) | 41 | 37% | 41 (100%) | 41 (100%) |
-| `finance_accounting` | 54 (floor 46) | 57 | 61% | 57 (100%) | 57 (100%) |
+| `finance_accounting` | 54 (floor 54) | 57 | 61% | 57 (100%) | 57 (100%) |
 | `legal_compliance` | 46 (floor 46) | 48 | 79% | 47 (98%) | 48 +1 exempt (100%) |
 | `hr_people` | 48 (floor 48) | 49 | 76% | 49 (100%) | 49 (100%) |
 | `education_academic` | 37 (floor 37) | 38 | 82% | 38 (100%) | 38 (100%) |

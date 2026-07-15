@@ -81,6 +81,18 @@ KNOWN_CATEGORIES: frozenset[str] = frozenset(
 # "skill" and which votes for the family. The coverage gate asserts the live count
 # never drops below these — Direction 2 RAISES the four bank-relevant families.
 # Regenerate the printed numbers with `python -m pipeline.jobfit.taxonomy_check`.
+#
+# Convention (enforced by tests/test_role_family_parity.py):
+#   * A NONZERO floor is an EXACT pin — it must equal the live skill count for that
+#     family. The >= gate in test_taxonomy_coverage_gate catches a between-commit
+#     REGRESSION; the == guard here forbids silent SLACK, so any commit that changes
+#     a built-out family's vocabulary must re-pin its floor in the SAME commit. (This
+#     closes the finance_accounting hole: it sat at 46 while the live count was 54,
+#     which would have permitted silently deleting 8 finance terms.)
+#   * A ZERO floor marks a "not yet built out" family (creative_design,
+#     life_sciences_research, general_professional carry only cross-voting terms) and
+#     is held as a pure minimum — a placeholder, exempt from the == pin so the family
+#     can be grown later without a floor bump gating unrelated work.
 SKILL_COVERAGE_FLOORS: dict[str, int] = {
     "software_engineering": 83,
     "data_ai": 38,  # ml merged into machine_learning (one-side-resolves honesty) — one fewer skill term
@@ -91,7 +103,7 @@ SKILL_COVERAGE_FLOORS: dict[str, int] = {
     "operations_logistics": 40,
     "frontline_service": 33,
     "sales_marketing": 39,
-    "finance_accounting": 46,
+    "finance_accounting": 54,  # exact pin re-synced to live (was a slack 46) — guard-the-families
     "legal_compliance": 46,
     "hr_people": 48,
     "education_academic": 37,
