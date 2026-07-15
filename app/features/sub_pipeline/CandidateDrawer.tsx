@@ -199,6 +199,10 @@ export function CandidateDrawer({
   // screened → advanced → scheduled → moved → … — so a recruiter opening a
   // candidate sees the story of how they got here, not just the latest state.
   const [history, setHistory] = useState<PipelineEvent[] | null>(null);
+  // single-entry-authz-parity: the /api/pipeline/[id] surfaces are operator-gated now,
+  // so a demo/non-operator session gets a 401/403. Surface an honest, localized line
+  // instead of a blank drawer (timeline) or the server's raw "Unauthorized" (actions).
+  const [timelineErr, setTimelineErr] = useState<string | null>(null);
   // c6524f2f — the rest of the candidate's story: analyses, interview, invites,
   // offer, joined server-side and merged chronologically into the history below.
   // Comms are excluded here — the drawer has a richer dedicated section above.
@@ -241,7 +245,14 @@ export function CandidateDrawer({
   useEffect(() => {
     let alive = true;
     fetch(`/api/pipeline/${encodeURIComponent(entry.id)}/timeline`)
-      .then((r) => (r.ok ? r.json() : null))
+      .then((r) => {
+        // Don't leave the timeline silently blank on a permission refusal — the whole
+        // bundle (history, comms, interview, scorecard) is gated together, so name it;
+        // any other response clears a stale refusal. Set inside the async callback (not
+        // synchronously in the effect body) so it lands after render, not during it.
+        if (alive) setTimelineErr(r.status === 401 || r.status === 403 ? t("notPermitted") : null);
+        return r.ok ? r.json() : null;
+      })
       .then((d) => {
         if (!alive) return;
         if (!d) {
@@ -269,7 +280,9 @@ export function CandidateDrawer({
     // entry.stage rides the deps so an IN-PLACE stage move (drawer-flow-friction —
     // same id, new stage, no remount) re-pulls the bundle: the new move event lands in
     // the history and staleSince is recomputed. A neighbor swap changes entry.id.
-  }, [entry.id, entry.stage]);
+    // `t` is a stable next-intl binding (per namespace/locale) — listed for the lint
+    // rule; it can't churn the fetch.
+  }, [entry.id, entry.stage, t]);
 
   // The unified story: pipeline events + the cross-store chapters, time-ordered.
   const mergedHistory = useMemo(() => {
@@ -328,6 +341,11 @@ export function CandidateDrawer({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "resolve_intake" }),
       });
+      if (res.status === 401 || res.status === 403) {
+        setIntakeErr(t("notPermitted"));
+        setResolvingIntake(false);
+        return;
+      }
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || `resolve failed (${res.status})`);
       // The flag is cleared server-side; reload the board and close (this entry is now stale).
@@ -353,6 +371,9 @@ export function CandidateDrawer({
     setMoveErr(null);
     try {
       const res = await postPipelineAction(entry.id, { action: "set_stage", toStage, expectedStage: entry.stage });
+      // A gated deploy refuses a non-operator here (single-entry-authz-parity) — show
+      // the localized permission line, not the server's raw "Unauthorized".
+      if (res.status === 401 || res.status === 403) throw new Error(t("notPermitted"));
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || `Move failed (${res.status})`);
       onChanged();
@@ -409,6 +430,7 @@ export function CandidateDrawer({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "set_github", github: summary }),
       });
+      if (save.status === 401 || save.status === 403) throw new Error(t("notPermitted"));
       if (!save.ok) throw new Error(t("githubRunFailed"));
       setGhRun(summary);
       onChanged(); // the entry now carries evidence — reload the board behind the drawer
@@ -870,6 +892,10 @@ export function CandidateDrawer({
               </ul>
             </div>
           ) : null}
+
+          {/* single-entry-authz-parity — a permission refusal on the bundle fetch
+              would otherwise leave the timeline silently empty; name it instead. */}
+          {timelineErr ? <p role="alert" className="text-sm text-red-700">{timelineErr}</p> : null}
 
           {mergedHistory.length > 0 ? (
             <div>

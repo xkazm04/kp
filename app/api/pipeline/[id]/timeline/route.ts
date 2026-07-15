@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { candidateDrawerBundle } from "@/app/_lib/candidate-timeline";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { safeJsonError } from "@/app/_lib/api-response";
 
 
@@ -10,9 +11,17 @@ import { safeJsonError } from "@/app/_lib/api-response";
 // outcome and the human scorecard. The drawer used to fire FIVE independent
 // fetches on open; this collapses them to one round trip. Entry-keyed recruiter
 // context, same exposure class as GET /api/pipeline and the drawer's prior
-// per-entry reads (full labels; consent-gated interview synthesis; an auth layer
-// is the open follow-up tracked in pipeline-events-public.ts).
+// per-entry reads (full labels; consent-gated interview synthesis).
+//
+// AUTH (single-entry-authz-parity): the prior in-file "auth is the open follow-up"
+// TODO is now closed — this bundle exposes full labels, the candidate's comms
+// letters and the human scorecard, the same recruiter PII class the sibling
+// /api/pipeline/[id] GET/POST gate. requireOperator runs first: open mode (no
+// KP_OPERATOR_PASSWORD) is a no-op (local dev + the guided sim unaffected), a valid
+// operator session passes, and the anonymous demo-workspace session is refused (401).
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const denied = await requireOperator();
+  if (denied) return denied;
   try {
     const { id } = await params;
     const bundle = candidateDrawerBundle(id, await currentWorkspace());

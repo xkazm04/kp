@@ -1453,6 +1453,7 @@
       "markCaptured": "Mark intake captured",
       "clearsFlagNote": "Clears the flag once you've added the candidate's real profile.",
       "clearFlagFailed": "Couldn't clear the flag.",
+      "notPermitted": "You don't have permission for this action — sign in as an operator to continue.",
       "interviewOutcome": "Interview outcome",
       "fixedRubric": "Fixed rubric · {anchor}",
       "voiceFeedsNote": "A voice 1st-round interview now feeds this candidate's scorecard review and assessment.",

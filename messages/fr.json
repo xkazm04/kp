@@ -1479,6 +1479,7 @@
       "markCaptured": "Marquer la réception comme saisie",
       "clearsFlagNote": "Retire le signalement une fois le profil réel du candidat ajouté.",
       "clearFlagFailed": "Impossible de retirer le signalement.",
+      "notPermitted": "Vous n'avez pas l'autorisation d'effectuer cette action — connectez-vous en tant qu'opérateur pour continuer.",
       "interviewOutcome": "Résultat de l'entretien",
       "fixedRubric": "Grille fixe · {anchor}",
       "voiceFeedsNote": "Un entretien vocal de premier tour alimente désormais l'examen du scorecard et l'évaluation de ce candidat.",

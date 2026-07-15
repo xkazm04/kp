@@ -1453,6 +1453,7 @@
       "markCaptured": "Označit příjem za zadaný",
       "clearsFlagNote": "Zruší příznak, jakmile přidáte skutečný profil kandidáta.",
       "clearFlagFailed": "Příznak se nepodařilo zrušit.",
+      "notPermitted": "K této akci nemáte oprávnění — pokračujte přihlášením jako operátor.",
       "interviewOutcome": "Výsledek pohovoru",
       "fixedRubric": "Pevná rubrika · {anchor}",
       "voiceFeedsNote": "Hlasový pohovor prvního kola nyní vstupuje do posouzení hodnoticí karty a hodnocení tohoto kandidáta.",

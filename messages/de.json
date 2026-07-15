@@ -1479,6 +1479,7 @@
       "markCaptured": "Erfassung als abgeschlossen markieren",
       "clearsFlagNote": "Entfernt die Markierung, sobald Sie das echte Profil hinzugefügt haben.",
       "clearFlagFailed": "Markierung konnte nicht entfernt werden.",
+      "notPermitted": "Sie haben keine Berechtigung für diese Aktion — melden Sie sich als Operator an, um fortzufahren.",
       "interviewOutcome": "Interview-Ergebnis",
       "fixedRubric": "Festes Bewertungsraster · {anchor}",
       "voiceFeedsNote": "Ein Voice-Interview der ersten Runde fließt jetzt in die Scorecard-Prüfung und Bewertung ein.",

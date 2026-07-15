@@ -4,9 +4,24 @@ import { coerceGithubEvidenceSummary } from "@/app/_lib/github-summary";
 import { sealDecisionSafe } from "@/app/_lib/decision-record-store";
 import { safeJsonError } from "@/app/_lib/api-response";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { withCanonicalScores } from "@/app/_lib/match-score-resolve";
 import { runPipelineEntryAction } from "@/app/_lib/pipeline-entry-action";
 
+
+// AUTH (single-entry-authz-parity): the per-card single-entry surface is gated in
+// lock-step with the workspace-wide bulk surfaces (/api/pipeline/batch,
+// /api/pipeline/command), closing the last ungated adverse-action path — POST
+// accept/reject extends candidate-facing rejection comms and reinstate reverses a
+// sealed decision, exactly the class the batch/command bars operator-gate, and a
+// demo session could otherwise drive them one card at a time. The GET (one
+// canonical-scored entry: full label + score + provenance) and the sibling
+// /timeline GET (full labels, comms letters, scorecard) expose the same recruiter
+// PII, so all three are gated the SAME way. Semantics match requireOperator exactly:
+// open mode (no KP_OPERATOR_PASSWORD) is a no-op, so local dev and the guided sim
+// (already gated at its own /api/decisions/screen-wave step — it runs open-mode or
+// under a real operator) are unaffected; a valid operator session passes; the
+// anonymous demo-workspace session the proxy waves through is refused (401).
 
 // Upper bound for the persistent recruiter note (set_notes). Generous enough for
 // pasted call notes, tight enough that the column can't become a blob dump. The
@@ -22,6 +37,8 @@ const MAX_NOTES_LENGTH = 4000;
 // Workspace-scoped (getPipelineEntry) — a deleted or other-tenant id answers 404,
 // which the caller treats as "no navigation", never a broken drawer.
 export async function GET(_request: NextRequest, context: { params: Promise<{ id: string }> }) {
+  const denied = await requireOperator();
+  if (denied) return denied;
   try {
     const { id } = await context.params;
     const ws = await currentWorkspace();
@@ -34,6 +51,8 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ id
 }
 
 export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+  const denied = await requireOperator();
+  if (denied) return denied;
   const { id } = await context.params;
   const ws = await currentWorkspace();
   try {
