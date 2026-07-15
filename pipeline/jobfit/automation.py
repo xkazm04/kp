@@ -19,7 +19,7 @@ from typing import Any
 
 from . import registry
 from .jobs import Job
-from .market_config import ACTIVE_MARKET
+from .market_config import ACTIVE_MARKET, MarketConfig
 from .matching import MatchCandidate, ko_filter, score_job
 from .match_reasoning import generate as generate_reasoning
 from .match_reasoning import reasoning_context
@@ -82,10 +82,18 @@ RECOMMENDATION_CHOICES = "|".join(RECOMMENDATIONS)
 # Mirrors SCREEN_ROUTES on the TS side.
 SCREEN_ROUTES: tuple[str, ...] = ("advance", "hold")
 
-_SYSTEM = (
-    "You are an HR automation assistant for the Czech tech market. Be concise, specific, fair, and "
-    "grounded only in the supplied facts. Write in the requested language. Output strict JSON only."
-)
+def _system_prompt(market: MarketConfig = ACTIVE_MARKET) -> str:
+    """The HR-automation system persona, with the target market named from config
+    instead of a hardcoded "Czech" — the last automation reasoning persona still
+    biased Czech after campaign.py (round 9) and group_compare.py (round 10) were
+    de-Czech'd. For the Czech default (descriptor "Czech") this is byte-identical to
+    the "_SYSTEM" literal it replaced, so every screening/letter task is unchanged for
+    the pilot; a re-homed market tells the model the RIGHT market on every task."""
+    market_phrase = market.market_descriptor or ACTIVE_MARKET.market_descriptor
+    return (
+        f"You are an HR automation assistant for the {market_phrase} tech market. Be concise, specific, fair, and "
+        "grounded only in the supplied facts. Write in the requested language. Output strict JSON only."
+    )
 
 
 def coerce_recommendation(value: Any, default: str = RECOMMENDATION_FALLBACK) -> str:
@@ -107,7 +115,7 @@ def _generate(provider: Any | None, prompt: str, deterministic, coerce) -> tuple
     if provider is None:
         return deterministic(), "deterministic"
     try:
-        payload = provider.complete_json(prompt, system=_SYSTEM)
+        payload = provider.complete_json(prompt, system=_system_prompt())
         result = coerce(payload)
         return result, "llm"
     except Exception:
@@ -120,9 +128,51 @@ def _str_list(value: Any, limit: int = 8) -> list[str]:
     return [str(x).strip() for x in value if str(x).strip()][:limit]
 
 
-def _candidate_lang(candidate: MatchCandidate) -> str:
+# Candidate-DECLARED language name -> app locale code, for the best-effort letter
+# language guess when no explicit comms locale is supplied. Only the app LOCALES
+# (en/cs/de/fr — the set i18n.LANG_NAMES models) are resolvable; any other declared
+# language is not a locale we can write in and is ignored (English stays the
+# fallback). Diacritic-free spellings are included so an ASCII-folded CV ("cesky",
+# "francais", "nemcina") still resolves. This is the only place a *free-text* language
+# name is mapped to a locale; an explicit --lang code goes through normalize_lang.
+_DECLARED_LANG_TO_LOCALE: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("cs", ("czech", "česk", "češ", "cesk", "ceš", "cest")),
+    ("de", ("german", "deutsch", "němč", "nemc")),
+    ("fr", ("french", "français", "francais")),
+    ("en", ("english", "anglič", "anglic")),
+)
+
+
+def _candidate_lang(candidate: MatchCandidate, *, market: MarketConfig = ACTIVE_MARKET) -> str:
+    """Best-effort English NAME of the language a candidate-facing letter should
+    render in, guessed from the candidate's DECLARED spoken languages
+    (``candidate.languages``) when no explicit comms locale is supplied.
+
+    Extended from the original hardcoded Czech/English binary to the full app LOCALE
+    set (en/cs/de/fr) via i18n's ``LANG_NAMES`` — so a candidate who lists only German
+    or French no longer silently collapses to an English letter.
+
+    LIMITATION — honest by design: ``candidate.languages`` lists what the person
+    SPEAKS, not their preferred correspondence locale, so a multilingual candidate is
+    inherently ambiguous. The reliable signal is an explicit locale field, which
+    :func:`_letter_lang` prefers over this guess (the TS seam passes the entry's
+    resolved comms locale in real flows); this function is only the fallback for direct
+    CLI / older callers. To stay conservative we resolve by priority: the active
+    market's home language wins when the candidate declares it (a Czech-market Czech
+    speaker → Czech), else English when declared (the lingua-franca tiebreak, so a
+    "German, English" speaker still gets English exactly as before), else the first
+    declared app locale, else English. This keeps every cs/en outcome byte-identical
+    and only ADDS detection for candidates who speak neither Czech nor English."""
+    from .i18n import DEFAULT_LANG, language_name
+
     blob = " ".join(candidate.languages).casefold()
-    return "Czech" if ("czech" in blob or "česk" in blob or "cesk" in blob) else "English"
+    declared = [code for code, aliases in _DECLARED_LANG_TO_LOCALE if any(a in blob for a in aliases)]
+    if not declared:
+        return language_name(DEFAULT_LANG)
+    for preferred in (market.home_lang, "en"):
+        if preferred in declared:
+            return language_name(preferred)
+    return language_name(declared[0])
 
 
 def _letter_lang(candidate: MatchCandidate, lang: str | None) -> str:

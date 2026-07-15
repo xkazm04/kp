@@ -145,9 +145,11 @@ class _CaptureProvider:
     def __init__(self, payload):
         self.payload = payload
         self.prompt = None
+        self.system = None
 
     def complete_json(self, prompt, system=None):
         self.prompt = prompt
+        self.system = system
         return self.payload
 
 
@@ -199,6 +201,89 @@ class RecommendationContractTest(unittest.TestCase):
         cap = _CaptureProvider({"ratings": [], "summary": "s", "recommendation": "🤷 maybe"})
         result, _ = automation.interview_scorecard(BAU, job, "notes", provider=cap)
         self.assertEqual(result["recommendation"], "hold")
+
+
+class MarketPersonaTest(unittest.TestCase):
+    """The HR-automation system persona is MarketConfig-driven (mirrors campaign.py
+    round 9 / group_compare.py round 10), not a hardcoded "Czech tech market"
+    literal. Byte-identical for the Czech default; a re-homed market names ITS market."""
+
+    def test_czech_default_is_byte_identical(self):
+        # The exact bytes of the old "_SYSTEM" literal.
+        expected = (
+            "You are an HR automation assistant for the Czech tech market. Be concise, specific, fair, and "
+            "grounded only in the supplied facts. Write in the requested language. Output strict JSON only."
+        )
+        self.assertEqual(automation._system_prompt(), expected)
+        from pipeline.jobfit.market_config import CZECH_MARKET
+
+        self.assertEqual(automation._system_prompt(CZECH_MARKET), expected)
+
+    def test_berlin_flip_names_the_active_market(self):
+        # A re-homed market names ITS market instead of biasing every task Czech.
+        berlin = automation._system_prompt(BERLIN_MARKET)
+        self.assertIn("German tech market", berlin)
+        self.assertNotIn("Czech", berlin)
+
+    def test_persona_reaches_the_model(self):
+        # The derived persona is what the provider is actually handed as `system`.
+        job = mkjob()
+        cap = _CaptureProvider({"recommendation": "advance", "confidence": 90})
+        automation.screen_candidate(BAU, job, score_job(BAU, job), provider=cap)
+        self.assertEqual(cap.system, automation._system_prompt())
+
+
+class CandidateLangTest(unittest.TestCase):
+    """`_candidate_lang` covers the app LOCALES (en/cs/de/fr) via i18n.LANG_NAMES,
+    not just the old Czech/English binary. cs/en outcomes stay byte-identical; de/fr
+    speakers are newly detected instead of silently collapsing to an English letter."""
+
+    @staticmethod
+    def _cand(*langs):
+        return MatchCandidate(
+            skills=["Python"], seniority="senior", role_family="software_engineering",
+            languages=list(langs), archetype="bau",
+        )
+
+    def test_czech_and_english_are_unchanged(self):
+        # Byte-identical to the old binary under the Czech default market.
+        self.assertEqual(automation._candidate_lang(self._cand("Czech", "English")), "Czech")
+        self.assertEqual(automation._candidate_lang(self._cand("English")), "English")
+        self.assertEqual(automation._candidate_lang(self._cand("Čeština")), "Czech")
+        # No modelled language declared → English fallback (as before).
+        self.assertEqual(automation._candidate_lang(self._cand()), "English")
+        self.assertEqual(automation._candidate_lang(self._cand("Spanish")), "English")
+
+    def test_english_wins_the_tiebreak_over_a_third_language(self):
+        # A "German, English" speaker still gets English (the conservative lingua-franca
+        # tiebreak), exactly as the old binary did — we don't regress multilingual CVs.
+        self.assertEqual(automation._candidate_lang(self._cand("German", "English")), "English")
+
+    def test_de_and_fr_only_speakers_are_newly_detected(self):
+        # The whole point: a candidate who speaks NEITHER Czech nor English is no
+        # longer silently written to in English.
+        self.assertEqual(automation._candidate_lang(self._cand("German")), "German")
+        self.assertEqual(automation._candidate_lang(self._cand("Deutsch")), "German")
+        self.assertEqual(automation._candidate_lang(self._cand("Français")), "French")
+        self.assertEqual(automation._candidate_lang(self._cand("Francais")), "French")
+
+    def test_home_language_wins_under_a_rehomed_market(self):
+        from pipeline.jobfit.market_config import CZECH_MARKET
+
+        # Czech market: a Czech+German speaker gets Czech (home lang wins).
+        self.assertEqual(
+            automation._candidate_lang(self._cand("Czech", "German"), market=CZECH_MARKET), "Czech"
+        )
+        # Berlin market (home_lang=de): the SAME candidate now gets German.
+        self.assertEqual(
+            automation._candidate_lang(self._cand("Czech", "German"), market=BERLIN_MARKET), "German"
+        )
+
+    def test_letter_lang_prefers_an_explicit_locale_over_the_guess(self):
+        # The reliable signal still wins: an explicit --lang overrides the heuristic.
+        cand = self._cand("German")
+        self.assertEqual(automation._letter_lang(cand, "fr"), "French")
+        self.assertEqual(automation._letter_lang(cand, None), "German")
 
 
 class GithubEvidenceBlockTest(unittest.TestCase):
