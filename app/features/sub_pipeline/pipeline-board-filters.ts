@@ -216,6 +216,11 @@ export type SavedView = {
   source?: string[];
   sort?: SortKey;
   stage?: string | null;
+  // views-earn-their-name: at most one view carries this flag — it opens on a bare
+  // visit (no explicit URL filter params). Optional so a view persisted before this
+  // direction (no flag) hydrates fine. The collection-level logic (enforce-one,
+  // default precedence) lives in pipeline-views.ts.
+  isDefault?: boolean;
 };
 
 // A saved view normalized to full state — every legacy gap filled with an honest

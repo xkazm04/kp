@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { AlertTriangle, BookmarkPlus, CalendarClock, CheckSquare, Link2, Mail, Play, Timer, X } from "lucide-react";
+import { AlertTriangle, BookmarkPlus, CalendarClock, CheckSquare, Link2, Mail, Pencil, Play, Star, Timer, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { buildUrl, clearedTabScopedParams } from "@/app/features/tabs";
 import { useSimulation } from "@/app/features/simulation/SimulationProvider";
@@ -14,7 +14,8 @@ import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { ChainEmptyState } from "@/app/_components/ChainEmptyState";
 import { Select } from "@/app/_components/Select";
 import { TextInput } from "@/app/_components/TextInput";
-import { CHIP_TOGGLE, EYEBROW, INTRO, PAGE_HEADER, SECTION, STAT, STAT_LABEL, STAT_VALUE, TITLE_DISPLAY } from "@/app/_components/ui/recipes";
+import { Checkbox } from "@/app/_components/Checkbox";
+import { BTN_GHOST, BTN_PRIMARY, CHIP_TOGGLE, EYEBROW, INTRO, PAGE_HEADER, SECTION, STAT, STAT_LABEL, STAT_VALUE, TITLE_DISPLAY } from "@/app/_components/ui/recipes";
 import { CandidateDrawer } from "./CandidateDrawer";
 import { PipelineBoard } from "./PipelineBoard";
 import { boardSignature, eventsSignature } from "./pipeline-render-diet";
@@ -39,7 +40,17 @@ import {
   type ScoreBandKey,
   type SortKey,
 } from "./pipeline-board-filters";
+import {
+  normalizeStoredViews,
+  defaultViewId,
+  defaultViewToApply,
+  withDefault,
+  upsertViewByName,
+  renameStoredView,
+  nameCollides,
+} from "./pipeline-views";
 import { bulkConfirmReducer } from "./pipeline-bulk-confirm";
+import { Modal } from "@/app/_components/Modal";
 import { EventDot, useEventVerb, useRelativeTime } from "./PipelineShared";
 import { TodayRail } from "./TodayRail";
 import { recordRecent } from "@/app/features/recents";
@@ -99,6 +110,23 @@ function groupPositions(entries: Entry[]): Position[] {
 // can never diverge from what a card renders. This file wires them to state + URL.
 const PIPELINE_VIEWS_KEY = "kp.pipelineViews";
 const PIPELINE_SLA_KEY = "kp.pipelineStageSla"; // per-stage aging overrides (PIPE4)
+
+// The URL params that encode a shared/deep board view. Their PRESENCE means the
+// visitor followed an explicit link (a pasted share link or an analytics deep link),
+// which always WINS over a saved default (views-earn-their-name): a bare visit falls
+// back to the default, a linked visit opens exactly what the link encodes.
+const VIEW_PARAM_KEYS = ["q", "quick", "score", "source", "sort", "stage"] as const;
+
+// A stable, opaque id for a NEW saved view — decoupled from the name so a rename
+// preserves the view's identity (its default marking, its place in the list).
+function newViewId(): string {
+  try {
+    if (typeof crypto !== "undefined" && crypto.randomUUID) return `v-${crypto.randomUUID()}`;
+  } catch {
+    /* crypto unavailable — fall through to the timestamp id */
+  }
+  return `v-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
 
 // Read the server's OWN explanation from a failed pipeline action response — the
 // 409 "changed since you opened it" (a concurrent actor moved them) vs the 422
@@ -200,18 +228,9 @@ export function PipelineTab() {
   // Saved board views (PIPE5): named {search + quick-filter} presets a recruiter
   // returns to, persisted in localStorage (single board, client-only — no schema).
   const [views, setViews] = useState<SavedView[]>([]);
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(PIPELINE_VIEWS_KEY);
-      // localStorage is client-only, so hydrating it in a mount effect is the SSR-safe path:
-      // reading it during render / in a lazy initializer would mismatch the server's empty
-      // HTML. This one-time mount set isn't the cascading-render case the rule targets.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      if (raw) setViews(JSON.parse(raw) as SavedView[]);
-    } catch {
-      /* corrupt/absent — start empty */
-    }
-  }, []);
+  // views-earn-their-name — hydration + default application live together in one mount
+  // effect defined AFTER applyView (below), so a marked default can open on a bare
+  // visit while an explicit shared link still wins.
   const persistViews = (next: SavedView[]) => {
     setViews(next);
     try {
@@ -591,26 +610,52 @@ export function PipelineTab() {
         nv.stage === stageFilter
       );
     })?.id ?? null;
-  const saveView = () => {
-    const suggested = query.trim() || (quicks.size ? [...quicks][0] : "view");
-    const name = window.prompt(t("saveViewPrompt"), suggested)?.trim();
+  // views-earn-their-name — save/rename run through the app's Modal idiom (no more
+  // window.prompt, the board's last blocking native dialog). One dialog state serves
+  // both: `save` names+captures the current combo (with an optional "open by default"
+  // toggle); `rename` relabels an existing view, keeping its identity.
+  const [viewDialog, setViewDialog] = useState<
+    | { mode: "save"; name: string; asDefault: boolean }
+    | { mode: "rename"; id: string; name: string }
+    | null
+  >(null);
+  const openSaveView = () =>
+    setViewDialog({ mode: "save", name: query.trim() || (quicks.size ? [...quicks][0] : ""), asDefault: false });
+  const openRenameView = (v: SavedView) => setViewDialog({ mode: "rename", id: v.id, name: v.name });
+  const commitViewDialog = () => {
+    if (!viewDialog) return;
+    const name = viewDialog.name.trim();
     if (!name) return;
-    // Capture the WHOLE active combo — every facet the recruiter is looking at, so
-    // the view reopens the same board. `quick` (single) is written too for forward
-    // back-compat with any older reader.
-    const view: SavedView = {
-      id: name,
-      name,
-      query,
-      quicks: [...quicks],
-      quick: quicks.size ? [...quicks][0] : null,
-      score: [...scoreBands],
-      source: [...sources],
-      sort,
-      stage: stageFilter,
-    };
-    persistViews([...views.filter((v) => v.name !== name), view]);
+    if (viewDialog.mode === "rename") {
+      persistViews(renameStoredView(views, viewDialog.id, name));
+    } else {
+      // Capture the WHOLE active combo — every facet the recruiter is looking at, so
+      // the view reopens the same board. `quick` (single) is written too for forward
+      // back-compat with any older reader. A fresh opaque id decouples the view from
+      // its name (a later rename keeps identity). Saving under an existing name
+      // overwrites (upsertByName) — the modal makes that explicit.
+      const view: SavedView = {
+        id: newViewId(),
+        name,
+        query,
+        quicks: [...quicks],
+        quick: quicks.size ? [...quicks][0] : null,
+        score: [...scoreBands],
+        source: [...sources],
+        sort,
+        stage: stageFilter,
+        isDefault: viewDialog.asDefault ? true : undefined,
+      };
+      let next = upsertViewByName(views, view);
+      if (viewDialog.asDefault) next = withDefault(next, view.id);
+      persistViews(next);
+    }
+    setViewDialog(null);
   };
+  // Toggle the DEFAULT marking on a view — the one that opens on a bare visit. Clicking
+  // the current default clears it (so a board can have no default again).
+  const toggleDefaultView = (v: SavedView) =>
+    persistViews(withDefault(views, defaultViewId(views) === v.id ? null : v.id));
   const applyView = (v: SavedView) => {
     const nv = normalizeView(v);
     const quicksSet = new Set(nv.quicks);
@@ -625,6 +670,30 @@ export function PipelineTab() {
     writeFiltersToUrl({ q: nv.query, quicks: quicksSet, scoreBands: bandsSet, sources: sourcesSet, sort: nv.sort, stage: nv.stage });
   };
   const deleteView = (id: string) => persistViews(views.filter((v) => v.id !== id));
+
+  // Mount hydration + default application (views-earn-their-name). localStorage is
+  // client-only, so this reads it in a mount effect (the SSR-safe path — a lazy
+  // initializer would mismatch the server's empty HTML). normalizeStoredViews migrates
+  // the legacy bare-array shape and enforces one default. PRECEDENCE: an explicit
+  // shared/deep link (any VIEW_PARAM_KEYS present) WINS — only a bare visit applies the
+  // marked default, so a pasted link opens exactly what it encodes, never overridden.
+  // A one-time mount set isn't the cascading-render case the set-state rule targets.
+  useEffect(() => {
+    let loaded: SavedView[] = [];
+    try {
+      const raw = localStorage.getItem(PIPELINE_VIEWS_KEY);
+      loaded = raw ? normalizeStoredViews(JSON.parse(raw)) : [];
+    } catch {
+      loaded = []; // corrupt/absent — start empty
+    }
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setViews(loaded);
+    const hasExplicit = VIEW_PARAM_KEYS.some((k) => search.get(k) != null);
+    const def = defaultViewToApply(loaded, hasExplicit);
+    if (def) applyView(def);
+    // Mount-only: hydrate + apply once. applyView/search are intentionally excluded.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // PIPE1 — bulk move. ONE batch POST, each item carrying its OWN expectedStage
   // (the stage the board showed for THAT card) — a per-id 409 means a concurrent
@@ -1109,7 +1178,7 @@ export function PipelineTab() {
             {filtering && !activeViewId ? (
               <button
                 type="button"
-                onClick={saveView}
+                onClick={openSaveView}
                 className="focus-ring inline-flex items-center gap-1 rounded-full border border-stone-200 bg-white px-2.5 py-0.5 text-sm font-semibold text-steel hover:border-coral/40 hover:text-ink"
               >
                 <BookmarkPlus size={13} /> {t("saveView")}
@@ -1421,15 +1490,40 @@ export function PipelineTab() {
           {views.length > 0 ? (
             <div className="flex flex-wrap items-center gap-1.5">
               <span className="text-meta uppercase tracking-wide text-steel">{t("views")}</span>
-              {views.map((v) => (
+              {views.map((v) => {
+                const isDefault = Boolean(v.isDefault);
+                return (
                 <span
                   key={v.id}
                   className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-sm font-semibold ${
                     activeViewId === v.id ? "border-coral bg-coral/10 text-coral" : "border-stone-200 bg-white text-steel"
                   }`}
                 >
+                  {/* views-earn-their-name: mark the view that opens on a bare visit.
+                      A filled star = the current default; clicking it clears it. */}
+                  <button
+                    type="button"
+                    onClick={() => toggleDefaultView(v)}
+                    aria-pressed={isDefault}
+                    aria-label={isDefault ? t("unsetDefaultView", { name: v.name }) : t("setDefaultView", { name: v.name })}
+                    title={isDefault ? t("defaultViewTitle") : t("setDefaultViewTitle")}
+                    className={`focus-ring -ml-0.5 rounded ${isDefault ? "text-coral" : "text-steel hover:text-ink"}`}
+                  >
+                    <Star size={11} fill={isDefault ? "currentColor" : "none"} aria-hidden />
+                  </button>
                   <button type="button" onClick={() => applyView(v)} className="focus-ring rounded hover:text-ink" title={t("applyView")}>
                     {v.name}
+                  </button>
+                  {/* views-earn-their-name: rename keeps the view's identity (same
+                      encoded filters, same default marking — share links unaffected). */}
+                  <button
+                    type="button"
+                    onClick={() => openRenameView(v)}
+                    aria-label={t("renameView", { name: v.name })}
+                    title={t("renameViewTitle")}
+                    className="focus-ring rounded text-steel hover:text-ink"
+                  >
+                    <Pencil size={11} aria-hidden />
                   </button>
                   {/* PIPE3: the view as a pasteable link — localStorage views
                       can't travel; the URL can. */}
@@ -1452,8 +1546,71 @@ export function PipelineTab() {
                     <X size={11} />
                   </button>
                 </span>
-              ))}
+                );
+              })}
             </div>
+          ) : null}
+
+          {/* views-earn-their-name — save/rename dialog (the app's Modal idiom,
+              replacing window.prompt). A save under an existing name overwrites,
+              made explicit inline; the "open by default" toggle marks the view that
+              opens on a bare visit. */}
+          {viewDialog ? (
+            <Modal
+              title={viewDialog.mode === "rename" ? t("renameViewModalTitle") : t("saveViewModalTitle")}
+              subtitle={viewDialog.mode === "rename" ? t("renameViewModalSubtitle") : t("saveViewModalSubtitle")}
+              size="md"
+              onClose={() => setViewDialog(null)}
+              footer={
+                <>
+                  <button type="button" className={`${BTN_GHOST} px-3 py-1.5 text-sm`} onClick={() => setViewDialog(null)}>
+                    {t("viewDialogCancel")}
+                  </button>
+                  <button
+                    type="button"
+                    className={`${BTN_PRIMARY} px-3 py-1.5 text-sm`}
+                    disabled={!viewDialog.name.trim()}
+                    onClick={commitViewDialog}
+                  >
+                    {viewDialog.mode === "rename" ? t("renameViewSubmit") : t("saveViewSubmit")}
+                  </button>
+                </>
+              }
+            >
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  commitViewDialog();
+                }}
+                className="flex flex-col gap-3"
+              >
+                <label className="flex flex-col gap-1 text-sm font-medium text-ink">
+                  {t("viewNameLabel")}
+                  <TextInput
+                    value={viewDialog.name}
+                    autoFocus
+                    maxLength={60}
+                    placeholder={t("viewNamePlaceholder")}
+                    onChange={(e) => setViewDialog((d) => (d ? { ...d, name: e.target.value } : d))}
+                  />
+                </label>
+                {viewDialog.mode === "save" ? (
+                  <Checkbox
+                    checked={viewDialog.asDefault}
+                    onChange={(e) => setViewDialog((d) => (d && d.mode === "save" ? { ...d, asDefault: e.target.checked } : d))}
+                    label={t("viewSetDefaultLabel")}
+                    hint={t("viewSetDefaultHint")}
+                  />
+                ) : null}
+                {/* Explicit overwrite warning — a save/rename onto an existing name
+                    replaces that view, so the recruiter is told before committing. */}
+                {nameCollides(views, viewDialog.name, viewDialog.mode === "rename" ? viewDialog.id : undefined) ? (
+                  <p className="rounded-md border border-amber-300 bg-amber-50 px-2.5 py-1.5 text-sm text-amber-700">
+                    {t("viewNameOverwrite", { name: viewDialog.name.trim() })}
+                  </p>
+                ) : null}
+              </form>
+            </Modal>
           ) : null}
 
           {filtering && filteredEntries.length === 0 ? (
