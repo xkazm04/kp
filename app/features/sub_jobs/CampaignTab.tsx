@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { AlertTriangle, Check, Copy, Loader2, Sparkles } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { AlertTriangle, ArrowRight, Check, Copy, Loader2, Sparkles } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
+import { buildUrl } from "@/app/features/tabs";
 import { isLocale, LOCALES, type Locale } from "@/i18n/locales";
 import { SkelBar } from "./JobsShared";
 
@@ -13,7 +15,17 @@ import { SkelBar } from "./JobsShared";
 // (warning CODES from the wire, localized here).
 
 type VideoScript = { hook: string; offer: string; proof: string; cta: string };
-type Variant = { hookType: string; hook: string; adCopy: string; videoScript: VideoScript };
+// variantId/applyUrl are written by campaign.py (E5 per-variant &v= attribution).
+// Both are optional so packs generated BEFORE per-variant links existed still type
+// and render (no tracked-link row, no broken URL).
+type Variant = {
+  hookType: string;
+  hook: string;
+  adCopy: string;
+  videoScript: VideoScript;
+  variantId?: string;
+  applyUrl?: string;
+};
 type Pack = { variants?: Variant[]; warnings?: string[]; applyUrl?: string; language?: string };
 type PackRecord = { jobId: string; lang: string; payload: Pack; source: string; createdAt: string };
 
@@ -45,6 +57,8 @@ function isHookType(v: string): v is keyof typeof HOOK_LABEL_KEY {
 export function CampaignTab({ jobId }: { jobId: string }) {
   const t = useTranslations("jobs.campaign");
   const appLocale = useLocale();
+  const router = useRouter();
+  const search = useSearchParams();
   const [lang, setLang] = useState<Locale>(isLocale(appLocale) ? appLocale : "en");
   const [record, setRecord] = useState<PackRecord | null>(null);
   const [loading, setLoading] = useState(true);
@@ -128,6 +142,10 @@ export function CampaignTab({ jobId }: { jobId: string }) {
           `## ${i + 1} · ${label}`,
           "",
           v.adCopy,
+          // Per-variant &v= link so a recruiter pasting the Markdown keeps
+          // attribution even if they never copy the ad body itself. Absent on
+          // pre-E5 packs → the line is simply skipped (filtered below).
+          ...(v.applyUrl ? ["", `${t("trackedLink")}: ${v.applyUrl}`] : []),
           "",
           `### ${t("scriptTitle")}`,
           ...BEATS.map(([beat, key]) => `- **${t(key)}**: ${v.videoScript?.[beat] ?? ""}`),
@@ -254,9 +272,44 @@ export function CampaignTab({ jobId }: { jobId: string }) {
                     ))}
                   </dl>
                 </div>
+
+                {/* E5 — this variant's OWN &v= apply link, surfaced (not only
+                    buried inside the ad body) so copying it here keeps
+                    attribution. Absent on pre-E5 packs → no row. */}
+                {v.applyUrl ? (
+                  <div className="mt-3 flex items-center gap-2">
+                    <div className="min-w-0">
+                      <p className="text-meta uppercase text-steel">{t("trackedLink")}</p>
+                      <p className="truncate font-mono text-sm text-coral" title={v.applyUrl}>
+                        {v.applyUrl}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => copyText(`url${i}`, v.applyUrl!)}
+                      className="focus-ring ml-auto inline-flex shrink-0 items-center gap-1 rounded-md border border-stone-200 px-2.5 py-1 text-sm font-semibold text-ink hover:border-coral/40"
+                    >
+                      {copied === `url${i}` ? <Check size={13} /> : <Copy size={13} />}{" "}
+                      {copied === `url${i}` ? t("copied") : t("copyLink")}
+                    </button>
+                  </div>
+                ) : null}
               </div>
             ))}
           </div>
+
+          {/* Forward the recruiter to the per-variant performance table (the
+              analytics tab owns byVariant; ?tab=analytics is the closest the URL
+              grammar lands). Only offered once any variant carries a tracked link. */}
+          {variants.some((v) => v.applyUrl) ? (
+            <button
+              type="button"
+              onClick={() => router.push(buildUrl({ tab: "analytics" }, search.toString()))}
+              className="focus-ring mt-3 inline-flex items-center gap-1 text-sm font-semibold text-coral hover:underline"
+            >
+              {t("analyticsCue")} <ArrowRight size={13} />
+            </button>
+          ) : null}
 
           {pack?.applyUrl ? (
             <p className="mt-3 text-sm text-steel">
