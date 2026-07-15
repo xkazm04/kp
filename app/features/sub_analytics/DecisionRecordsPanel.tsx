@@ -7,6 +7,7 @@ import { ShieldCheck, ShieldAlert, Download } from "lucide-react";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
 import { downloadFile } from "@/app/_lib/export-utils";
 import { buildUrl, clearedTabScopedParams } from "@/app/features/tabs";
+import { waveReasonText } from "@/app/_lib/decision-attribution";
 // `import type` only — decision-record-store has server imports; types are erased.
 import type { DecisionRecord, ChainVerdict } from "@/app/_lib/decision-record-store";
 
@@ -50,13 +51,9 @@ export function DecisionRecordsPanel() {
     } catch {
       return r.rationale;
     }
-    if (r.reasonCode === "reject") {
-      if (!tReasons.has("reasons.rejectDid")) return r.rationale;
-      const tie = Number(params.tieAdjusted) > 0 ? ` ${tReasons("reasons.tieAdjustedNote", { from: Number(params.tieAdjusted) })}` : "";
-      return tReasons("reasons.rejectDid", params) + tie;
-    }
-    const key = `reasons.${r.reasonCode}` as Parameters<typeof tReasons>[0];
-    return tReasons.has(key) ? tReasons(key, params) : r.rationale;
+    // The ONE shared resolver (waveReasonText) the reconsider queue + decision log also
+    // use; an unmapped code returns null → fall back to the byte-stable English rationale.
+    return waveReasonText(tReasons, { reasonCode: r.reasonCode, reasonParams: params }) ?? r.rationale;
   };
 
   function exportDossier() {

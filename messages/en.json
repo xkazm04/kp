@@ -3733,6 +3733,12 @@
       "csvCandidate": "Candidate",
       "csvRole": "Role",
       "csvDetail": "Detail",
+      "csvCohort": "Cohort",
+      "cohortSelection": "over your selection of {compared} of {field}",
+      "cohortTop": "over top {compared} of {field}",
+      "csvRematchCounterpart": "Re-matched · {name}",
+      "rematchTo": "Re-matched to <link></link>",
+      "rematchFrom": "Re-matched from <link></link>",
       "attribution": { "auto": "AUTO", "human": "HUMAN", "unknown": "UNKNOWN" },
       "kinds": {
         "advanced": "Auto-advanced",

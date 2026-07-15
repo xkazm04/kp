@@ -3797,6 +3797,12 @@
       "csvCandidate": "Candidat",
       "csvRole": "Poste",
       "csvDetail": "Détail",
+      "csvCohort": "Cohorte",
+      "cohortSelection": "parmi votre sélection de {compared} sur {field}",
+      "cohortTop": "parmi le top {compared} sur {field}",
+      "csvRematchCounterpart": "Rematché · {name}",
+      "rematchTo": "Rematché vers <link></link>",
+      "rematchFrom": "Rematché depuis <link></link>",
       "attribution": {
         "auto": "AUTO",
         "human": "HUMAIN",

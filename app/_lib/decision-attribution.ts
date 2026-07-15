@@ -181,6 +181,144 @@ export function kindLabel<T extends KindTranslator>(
   return kind.replace(/_/g, " ");
 }
 
+// ---- log-tells-the-whole-story: sealed-record joins for the decision log ----------
+//
+// Three structural blind spots in the decision log are closed by JOINING the log's
+// pipeline_events rows to the sealed decision-record store (per candidateRef), never
+// by adding event columns. These pure helpers hold the join/parse/localize logic so
+// the route stays a thin DB-orchestration shell and the honesty rules are unit-pinned.
+
+// (a) Group-eval cohort provenance. group-eval seals a `group_eval_lead` /
+// `group_eval_advisory` record (candidateRef = the crowned lead's entry id) whose
+// inputs carry cohortSource ("selection" | "top") + cohortSize (the full field) and
+// `candidates` (the compared cohort). A lead crowned over a recruiter-picked four ≠
+// one crowned over the whole fit-ranked field — this makes that provenance visible.
+export type CohortProvenance = { source: "selection" | "top"; compared: number; field: number };
+
+// The sealed record kinds that carry cohort provenance.
+const GROUP_EVAL_RECORD_KINDS: ReadonlySet<string> = new Set(["group_eval_lead", "group_eval_advisory"]);
+
+// The LOG-row kinds a group-eval decision manifests as: the crowned lead being moved
+// forward. group-eval itself writes no pipeline event, so the honest anchor for the
+// chip is the advance that followed it. Gating to these kinds means an unrelated event
+// for the same candidate can never inherit a provenance it didn't produce (never guess).
+export const GROUP_EVAL_OUTCOME_KINDS: ReadonlySet<string> = new Set(["advanced", "auto_advanced"]);
+
+// Proximity window for the group-eval join. The crowned lead is advanced in the same
+// review session as the eval; a wider window would risk pairing an unrelated later
+// advance with a stale eval. Nearest sealed record within the window wins.
+export const GROUP_EVAL_JOIN_WINDOW_MS = 6 * 60 * 60 * 1000;
+
+/** Read cohort provenance out of a sealed record's payload_json, or null when the
+ *  shape is absent/invalid (older seals, non-eval kinds) — so a malformed record shows
+ *  nothing rather than a fabricated cohort. */
+export function parseCohortProvenance(payloadJson: string): CohortProvenance | null {
+  let inputs: unknown;
+  try {
+    inputs = (JSON.parse(payloadJson) as { inputs?: unknown }).inputs;
+  } catch {
+    return null;
+  }
+  if (!inputs || typeof inputs !== "object") return null;
+  const o = inputs as Record<string, unknown>;
+  const source = o.cohortSource;
+  if (source !== "selection" && source !== "top") return null;
+  const field = Number(o.cohortSize);
+  const compared = Number(o.candidates);
+  if (!Number.isFinite(field) || field <= 0) return null;
+  if (!Number.isFinite(compared) || compared <= 0) return null;
+  return { source, compared, field };
+}
+
+// The minimal structural shape of a sealed record this module needs — declared
+// locally so this pure module never imports the server-side decision-record-store.
+type SealedRecordLike = { kind: string; reasonCode: string; createdAt: string; payloadJson: string };
+
+/** Nearest group-eval record (by |Δt|) to an event, within `windowMs`, or null. Pure
+ *  over (eventCreatedAt, records) so the join is testable without a DB. */
+export function matchCohortProvenance(
+  eventCreatedAt: string,
+  records: readonly SealedRecordLike[],
+  windowMs: number = GROUP_EVAL_JOIN_WINDOW_MS
+): CohortProvenance | null {
+  const et = Date.parse(eventCreatedAt);
+  if (Number.isNaN(et)) return null;
+  let best: CohortProvenance | null = null;
+  let bestDelta = Infinity;
+  for (const r of records) {
+    if (!GROUP_EVAL_RECORD_KINDS.has(r.kind)) continue;
+    const rt = Date.parse(r.createdAt);
+    if (Number.isNaN(rt)) continue;
+    const delta = Math.abs(rt - et);
+    if (delta > windowMs || delta >= bestDelta) continue;
+    const prov = parseCohortProvenance(r.payloadJson);
+    if (!prov) continue;
+    best = prov;
+    bestDelta = delta;
+  }
+  return best;
+}
+
+// (b) The sealed auto-reject reason. The screen wave seals an `auto_rejected` record
+// carrying reasonCode "reject" + the decisive numbers (reasonParams). The reconsider
+// queue already reads this; the log row saw only the free-text detail.
+export type SealedReason = { reasonCode: string; reasonParams: Record<string, string | number> };
+
+/** The latest sealed reason for `forKind` among a candidate's records (records arrive
+ *  seq-DESC, so the first match is the most recent), or null. Same read the reconsider
+ *  route does — reasonCode + the record's inputs as the interpolation params. */
+export function sealedReasonOf(records: readonly SealedRecordLike[], forKind: string): SealedReason | null {
+  const rec = records.find((r) => r.kind === forKind);
+  if (!rec) return null;
+  let params: Record<string, string | number> = {};
+  try {
+    const inputs = (JSON.parse(rec.payloadJson) as { inputs?: unknown }).inputs;
+    if (inputs && typeof inputs === "object") params = inputs as Record<string, string | number>;
+  } catch {
+    /* unreadable payload — fall back to the bare code with no interpolation */
+  }
+  return { reasonCode: rec.reasonCode, reasonParams: params };
+}
+
+// A next-intl translator scoped to "decisions.wave" (loosely typed so this pure module
+// stays free of a next-intl import — kindLabel uses the same trick).
+type WaveReasonTranslator = { (key: never, params?: never): string; has(key: never): boolean };
+
+/** Localize a sealed screening reason through the decisions.wave.reasons.* catalog —
+ *  the ONE resolver shared by the reconsider queue (DecisionsTab), the decision-records
+ *  panel, and the decision log, so all three read a sealed reason identically. A sealed
+ *  record is always committed, so "reject" uses the "did" phrasing + the tie note; an
+ *  unmapped code returns null so the caller falls back (plain text / English rationale). */
+export function waveReasonText<T extends WaveReasonTranslator>(t: T, reason: SealedReason): string | null {
+  const p = reason.reasonParams;
+  if (reason.reasonCode === "reject") {
+    if (!t.has("reasons.rejectDid" as never)) return null;
+    const base = t("reasons.rejectDid" as never, p as never);
+    const tie = Number(p.tieAdjusted) > 0 ? ` ${t("reasons.tieAdjustedNote" as never, { from: Number(p.tieAdjusted) } as never)}` : "";
+    return base + tie;
+  }
+  const key = `reasons.${reason.reasonCode}`;
+  return t.has(key as never) ? t(key as never, p as never) : null;
+}
+
+// (c) Rematch counterpart. rematched/rematched_from rows carry the counterpart pipeline
+// entry id inside their detail string, but no link. The two writers format it
+// differently, so parsing is per-kind:
+//   • rematched (source side): "<srcJob> -> <tgtJob> (<targetEntryId>)" — id in the LAST parens.
+//   • rematched_from (target side): "<priorEntryId> (<priorJobId>)" — id is the leading token.
+export function parseRematchCounterpartId(kind: string, detail: string | null): string | null {
+  if (!detail) return null;
+  if (kind === "rematched_from") {
+    const m = detail.match(/^(\S+)\s+\(/);
+    return m ? m[1] : null;
+  }
+  if (kind === "rematched") {
+    const m = detail.match(/\(([^)]+)\)\s*$/);
+    return m ? m[1] : null;
+  }
+  return null;
+}
+
 export type AutomationImpact = {
   autoCount: number;
   humanCount: number;

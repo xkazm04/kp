@@ -10,10 +10,11 @@ import { useInfiniteScroll, type InfinitePage } from "@/app/_lib/useInfiniteScro
 import { formatRelativeTime } from "@/app/_lib/format";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { toCsv, downloadFile } from "@/app/_lib/export-utils";
-import { DECISION_META, kindLabel } from "@/app/_lib/decision-attribution";
+import { DECISION_META, kindLabel, waveReasonText, type CohortProvenance, type SealedReason } from "@/app/_lib/decision-attribution";
 import { useDeliveryCapability } from "@/app/features/useDeliveryCapability";
 import { buildUrl as buildTabUrl, clearedTabScopedParams } from "@/app/features/tabs";
 import { Select } from "@/app/_components/Select";
+import { CHIP_QUIET } from "@/app/_components/ui/recipes";
 
 type Decision = {
   id: number;
@@ -28,6 +29,11 @@ type Decision = {
   toStage: string | null;
   detail: string | null;
   createdAt: string;
+  // log-tells-the-whole-story — the three sealed-record joins the route attaches per
+  // page (each present only when a reliable match exists, never guessed):
+  cohort?: CohortProvenance | null; // group-eval cohort provenance (advance rows)
+  reason?: SealedReason | null; // sealed structured auto-reject reason (auto_rejected rows)
+  counterpart?: { label: string } | null; // rematch counterpart, resolved to a live board label
 };
 
 type DecisionPage = {
@@ -126,9 +132,20 @@ function DecisionLogList({
   setKind: (k: string) => void;
 }) {
   const t = useTranslations("analytics.log");
+  // Sealed auto-reject reasons localize through the SAME decisions.wave.reasons.*
+  // catalog the reconsider queue + records panel use (via the shared waveReasonText),
+  // so a Czech recruiter reads a Czech reason and the three surfaces can never drift.
+  const tWave = useTranslations("decisions.wave");
   const enumLabel = useEnumLabel();
   const reduced = useReducedMotion();
   const search = useSearchParams();
+
+  // Compact, localized cohort-provenance chip text for a group-eval advance row: a lead
+  // crowned over a recruiter-picked selection reads differently from one over top-N.
+  const cohortText = (c: CohortProvenance): string =>
+    t(c.source === "selection" ? "cohortSelection" : "cohortTop", { compared: c.compared, field: c.field });
+  // The localized sealed auto-reject reason for a row, or null (unmapped / no seal).
+  const reasonText = (d: Decision): string | null => (d.reason ? waveReasonText(tWave, d.reason) : null);
   // Direction 2 — reuse the board deep-link idiom (buildUrl + cleared tab-scoped
   // params, ?q=<label>) the funnel/by-role links use, so a log row opens the
   // board filtered to that candidate. Only entry-scoped rows carry a subject.
@@ -160,14 +177,18 @@ function DecisionLogList({
   // set), via the shared toolkit. Localized labels — the file mirrors the log.
   const exportCsv = () => {
     const rows: (string | number | null)[][] = [
-      [t("csvTime"), t("csvAttribution"), t("csvKind"), t("csvCandidate"), t("csvRole"), t("csvDetail")],
+      [t("csvTime"), t("csvAttribution"), t("csvKind"), t("csvCandidate"), t("csvRole"), t("csvCohort"), t("csvDetail")],
       ...items.map((d) => [
         d.createdAt,
         t(`attribution.${decisionMeta(d.kind).attribution}` as Parameters<typeof t>[0]),
         kindLabel(t, d.kind, { relayConfigured }),
         d.candidateLabel,
         d.jobTitle,
-        d.detail,
+        // The new Cohort column mirrors the on-screen chip; empty when the row carries none.
+        d.cohort ? cohortText(d.cohort) : null,
+        // Detail mirrors the row: the localized sealed reason (auto-reject), the resolved
+        // rematch counterpart, else the raw event detail — so the file says what the log says.
+        reasonText(d) ?? (d.counterpart ? t("csvRematchCounterpart", { name: d.counterpart.label }) : d.detail),
       ]),
     ];
     downloadFile("kp-decision-log.csv", toCsv(rows), "text/csv");
@@ -276,8 +297,10 @@ function DecisionLogList({
                         {t("stageTransition", { from: enumLabel("stage", d.fromStage), to: enumLabel("stage", d.toStage) })}
                       </span>
                     ) : null}
+                    {/* Group-eval cohort provenance chip — over a chosen selection vs top-N */}
+                    {d.cohort ? <span className={`ml-2 align-middle ${CHIP_QUIET}`}>{cohortText(d.cohort)}</span> : null}
                   </p>
-                  {d.detail ? <p className="truncate text-sm text-steel">{d.detail}</p> : null}
+                  <DecisionDetail d={d} reason={reasonText(d)} boardHref={boardHref} viewLabel={t("viewCandidate")} />
                 </div>
                 <span className="shrink-0 text-sm text-steel">{timeAgo(d.createdAt)}</span>
               </li>
@@ -320,6 +343,45 @@ function DecisionLogList({
       ) : null}
     </div>
   );
+}
+
+// The second line of a log row. Precedence, all honest:
+//   1. a localized sealed auto-reject reason (reconsider-earns-keep parity), else
+//   2. a rematch counterpart deep-link (the board's ?q=<label> idiom) when the detail
+//      parsed AND the counterpart still resolves to a live board entry, else
+//   3. the raw event detail (honest plain text), else nothing.
+function DecisionDetail({
+  d,
+  reason,
+  boardHref,
+  viewLabel,
+}: {
+  d: Decision;
+  reason: string | null;
+  boardHref: (q: string) => string;
+  viewLabel: string;
+}) {
+  const t = useTranslations("analytics.log");
+  if (reason) return <p className="truncate text-sm text-steel">{reason}</p>;
+  if (d.counterpart) {
+    const label = d.counterpart.label;
+    return (
+      <p className="truncate text-sm text-steel">
+        {t.rich(d.kind === "rematched_from" ? "rematchFrom" : "rematchTo", {
+          link: () => (
+            <Link
+              href={boardHref(label)}
+              title={viewLabel}
+              className="focus-ring rounded underline-offset-2 hover:text-coral hover:underline"
+            >
+              {label}
+            </Link>
+          ),
+        })}
+      </p>
+    );
+  }
+  return d.detail ? <p className="truncate text-sm text-steel">{d.detail}</p> : null;
 }
 
 function SkeletonRow() {

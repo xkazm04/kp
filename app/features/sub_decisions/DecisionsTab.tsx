@@ -15,6 +15,7 @@ import { useTasks, useTaskResult } from "@/app/features/tasks/TasksProvider";
 import { useDeliveryCapability } from "@/app/features/useDeliveryCapability";
 import { useLiveRefresh } from "@/app/features/live-refresh";
 import { ScoreProvenanceLabel } from "@/app/_components/ScoreProvenanceLabel";
+import { waveReasonText } from "@/app/_lib/decision-attribution";
 import type { MatchScoreProvenance } from "@/app/_lib/match-score";
 import { AiReviewCard } from "./AiReviewCard";
 import { DecisionRulesModal } from "./DecisionRulesModal";
@@ -56,6 +57,7 @@ export function DecisionsTab() {
   const router = useRouter();
   const search = useSearchParams();
   const t = useTranslations("decisions");
+  const tWave = useTranslations("decisions.wave"); // shared sealed-reason resolver scope
   const locale = useLocale(); // PREP2 — prep pack language
   // REC-10 — "Offer sent" is only claimed when a relay delivers; without one
   // the letter is a terminal outbox row and the recruiter must hand over the link.
@@ -211,20 +213,10 @@ export function DecisionsTab() {
   const fmtDate = (iso: string) => new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(new Date(iso));
 
   // reconsider-earns-keep — localize the sealed reject reason through the SAME
-  // decisions.wave.reasons.* catalog the screen-wave modal renders (see
-  // ScreenWaveModal.reasonText), so the audit reads in the recruiter's language.
-  // A committed reject always used "did" phrasing; the tie-adjustment note is
-  // appended when the cutoff was shrunk. Unmapped codes → no line (never a raw code).
-  const reconsiderReasonText = (r: ReconsiderReason): string | null => {
-    const p = r.reasonParams;
-    if (r.reasonCode === "reject") {
-      const base = t("wave.reasons.rejectDid", p);
-      const tie = Number(p.tieAdjusted) > 0 ? ` ${t("wave.reasons.tieAdjustedNote", { from: Number(p.tieAdjusted) })}` : "";
-      return base + tie;
-    }
-    const key = `wave.reasons.${r.reasonCode}` as Parameters<typeof t>[0];
-    return t.has(key) ? t(key, p) : null;
-  };
+  // decisions.wave.reasons.* catalog the screen-wave modal renders, now via the ONE
+  // shared resolver (waveReasonText) the records panel + decision log also call, so the
+  // audit reads in the recruiter's language and the surfaces can never drift.
+  const reconsiderReasonText = (r: ReconsiderReason): string | null => waveReasonText(tWave, r);
 
   const pending = (entries ?? []).filter((e) => e.approvalKind && e.status === "active");
   const keyDecisions = pending.filter((e) => e.approvalKind === "decision");
