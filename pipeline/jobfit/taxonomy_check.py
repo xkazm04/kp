@@ -358,9 +358,20 @@ def lint_taxonomy(
             # Bilingual coverage is a WARNING, not an error: many legitimate terms
             # are proper nouns identical across languages (python, kubernetes). The
             # coverage table quantifies it; Direction 2's own tests enforce the
-            # >=2-surface-form rule for its new bilingual vocabulary.
-            if len([f for f in normed if f]) < 2:
+            # >=2-surface-form rule for its new bilingual vocabulary. A term flagged
+            # `bilingual_exempt` declares itself monolingual-by-nature, so it is NOT
+            # warned — but a multi-form term carrying the flag is contradictory.
+            n_forms = len([f for f in normed if f])
+            exempt = term.get("bilingual_exempt")
+            if n_forms < 2 and not exempt:
                 result.warnings.append(f"{where}: single surface form — not bilingual")
+            if exempt is not None and not isinstance(exempt, bool):
+                result.errors.append(f"{where}: bilingual_exempt must be a boolean")
+            if exempt and n_forms >= 2:
+                result.errors.append(
+                    f"{where}: bilingual_exempt set on a term with {n_forms} surface forms "
+                    "(exemption is only for genuinely monolingual proper nouns)"
+                )
 
         for cat in term.get("categories", []) or []:
             if cat not in KNOWN_CATEGORIES:
@@ -392,6 +403,13 @@ class FamilyCoverage:
     total_terms: int
     with_parents: int
     bilingual: int
+    # Terms marked ``bilingual_exempt`` — proper nouns / product & tool / language
+    # names that are written identically in Czech and English JDs (python, docker,
+    # kubernetes, tableau). They carry a single surface form by nature, so they are
+    # bilingual-BY-NATURE rather than missing a translation; the parity metric below
+    # counts them as covered. The flag is explicit per-term (never inferred), so no
+    # number can be gamed by silently exempting a term that DOES have a Czech surface.
+    bilingual_exempt: int = 0
 
     @property
     def pct_parents(self) -> float:
@@ -400,6 +418,15 @@ class FamilyCoverage:
     @property
     def pct_bilingual(self) -> float:
         return 100.0 * self.bilingual / self.total_terms if self.total_terms else 0.0
+
+    @property
+    def bilingual_parity(self) -> int:
+        """Terms at bilingual parity: a real >=2-surface term OR a proper-noun exempt."""
+        return self.bilingual + self.bilingual_exempt
+
+    @property
+    def pct_parity(self) -> float:
+        return 100.0 * self.bilingual_parity / self.total_terms if self.total_terms else 0.0
 
 
 def coverage_by_family(taxonomy: dict[str, Any]) -> list[FamilyCoverage]:
@@ -418,7 +445,7 @@ def coverage_by_family(taxonomy: dict[str, Any]) -> list[FamilyCoverage]:
             if fam not in fam_order:
                 fam_order.append(fam)
     for fam in fam_order:
-        skill = total = parents = bilingual = 0
+        skill = total = parents = bilingual = exempt = 0
         for t in terms:
             if fam not in (t.get("role_family_votes") or {}):
                 continue
@@ -430,7 +457,10 @@ def coverage_by_family(taxonomy: dict[str, Any]) -> list[FamilyCoverage]:
             forms = {_norm(f) for f in t.get("match", []) if isinstance(f, str) and f.strip()}
             if len(forms) >= 2:
                 bilingual += 1
-        rows.append(FamilyCoverage(fam, skill, total, parents, bilingual))
+            elif t.get("bilingual_exempt"):
+                # Monolingual by nature (proper noun) — counts toward parity, not bilingual.
+                exempt += 1
+        rows.append(FamilyCoverage(fam, skill, total, parents, bilingual, exempt))
     return rows
 
 
@@ -441,15 +471,17 @@ def skill_counts_by_family(taxonomy: dict[str, Any]) -> dict[str, int]:
 def render_coverage_table(taxonomy: dict[str, Any]) -> str:
     rows = coverage_by_family(taxonomy)
     lines = [
-        "| Role family | Skill terms | Total terms | % with parents | Bilingual (>=2 forms) |",
-        "| --- | ---: | ---: | ---: | ---: |",
+        "| Role family | Skill terms | Total terms | % with parents | Bilingual (>=2 forms) | Bilingual parity |",
+        "| --- | ---: | ---: | ---: | ---: | ---: |",
     ]
     for r in rows:
         floor = SKILL_COVERAGE_FLOORS.get(r.family)
         floor_note = f" (floor {floor})" if floor else ""
+        exempt_note = f" +{r.bilingual_exempt} exempt" if r.bilingual_exempt else ""
         lines.append(
             f"| `{r.family}` | {r.skill_terms}{floor_note} | {r.total_terms} "
-            f"| {r.pct_parents:.0f}% | {r.bilingual} ({r.pct_bilingual:.0f}%) |"
+            f"| {r.pct_parents:.0f}% | {r.bilingual} ({r.pct_bilingual:.0f}%) "
+            f"| {r.bilingual_parity}{exempt_note} ({r.pct_parity:.0f}%) |"
         )
     total_terms = len(taxonomy.get("terms") or [])
     lines.append("")
@@ -468,8 +500,14 @@ def render_coverage_report(taxonomy: dict[str, Any]) -> str:
         "vocabulary `score_skills` and role-family classification consume). "
         "`% with parents` is the share of a family's terms carrying a `parents` "
         "edge (partial-credit hierarchy); _bilingual_ counts terms with >=2 "
-        "distinct surface forms. The `floor N` annotations are the regression "
-        "floors enforced by `tests/test_taxonomy_coverage_gate.py`.\n\n"
+        "distinct surface forms. _Bilingual parity_ additionally counts terms flagged "
+        "`bilingual_exempt` — proper nouns / product, tool and language names "
+        "(python, docker, kubernetes, tableau) written identically in Czech and "
+        "English JDs, so they are bilingual-by-nature rather than missing a "
+        "translation. The flag is explicit per-term (never inferred), so the parity "
+        "number cannot be gamed by exempting a term that has a real Czech surface. "
+        "The `floor N` annotations are the regression floors enforced by "
+        "`tests/test_taxonomy_coverage_gate.py`.\n\n"
         + render_coverage_table(taxonomy)
         + "\n"
     )

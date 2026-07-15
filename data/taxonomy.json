@@ -83,7 +83,8 @@
       ],
       "role_family_votes": {
         "software_engineering": 1
-      }
+      },
+      "bilingual_exempt": true
     },
     {
       "id": "typescript",
@@ -96,7 +97,8 @@
       ],
       "role_family_votes": {
         "software_engineering": 1
-      }
+      },
+      "bilingual_exempt": true
     },
     {
       "id": "javascript",
@@ -109,7 +111,8 @@
       ],
       "role_family_votes": {
         "software_engineering": 1
-      }
+      },
+      "bilingual_exempt": true
     },
     {
       "id": "java",
@@ -122,7 +125,8 @@
       ],
       "role_family_votes": {
         "software_engineering": 1
-      }
+      },
+      "bilingual_exempt": true
     },
     {
       "id": "csharp",
@@ -165,7 +169,8 @@
       ],
       "role_family_votes": {
         "software_engineering": 1
-      }
+      },
+      "bilingual_exempt": true
     },
     {
       "id": "kotlin",
@@ -178,7 +183,8 @@
       ],
       "role_family_votes": {
         "software_engineering": 1
-      }
+      },
+      "bilingual_exempt": true
     },
     {
       "id": "swift",
@@ -191,7 +197,8 @@
       ],
       "role_family_votes": {
         "software_engineering": 1
-      }
+      },
+      "bilingual_exempt": true
     },
     {
       "id": "react",
@@ -251,7 +258,8 @@
       ],
       "role_family_votes": {
         "software_engineering": 1
-      }
+      },
+      "bilingual_exempt": true
     },
     {
       "id": "svelte",
@@ -330,7 +338,8 @@
       },
       "parents": [
         "python"
-      ]
+      ],
+      "bilingual_exempt": true
     },
     {
       "id": "django",
@@ -346,7 +355,8 @@
       },
       "parents": [
         "python"
-      ]
+      ],
+      "bilingual_exempt": true
     },
     {
       "id": "flask",
@@ -362,7 +372,8 @@
       },
       "parents": [
         "python"
-      ]
+      ],
+      "bilingual_exempt": true
     },
     {
       "id": "spring",
@@ -392,7 +403,8 @@
       ],
       "role_family_votes": {
         "software_engineering": 1
-      }
+      },
+      "bilingual_exempt": true
     },
     {
       "id": "rest_api",
@@ -510,7 +522,8 @@
       ],
       "role_family_votes": {
         "software_engineering": 1
-      }
+      },
+      "bilingual_exempt": true
     },
     {
       "id": "postgresql",
@@ -537,7 +550,8 @@
       "role_family_votes": {
         "software_engineering": 0.7,
         "data_ai": 0.3
-      }
+      },
+      "bilingual_exempt": true
     },
     {
       "id": "mongodb",
@@ -563,7 +577,8 @@
       ],
       "role_family_votes": {
         "software_engineering": 1
-      }
+      },
+      "bilingual_exempt": true
     },
     {
       "id": "oracle_db",
@@ -592,7 +607,8 @@
       "role_family_votes": {
         "software_engineering": 1
       },
-      "salary_signal": "devops"
+      "salary_signal": "devops",
+      "bilingual_exempt": true
     },
     {
       "id": "kubernetes",
@@ -626,7 +642,8 @@
       "salary_signal": "devops",
       "parents": [
         "kubernetes"
-      ]
+      ],
+      "bilingual_exempt": true
     },
     {
       "id": "terraform",
@@ -641,7 +658,8 @@
       "role_family_votes": {
         "software_engineering": 1
       },
-      "salary_signal": "cloud"
+      "salary_signal": "cloud",
+      "bilingual_exempt": true
     },
     {
       "id": "ansible",
@@ -655,7 +673,8 @@
       "role_family_votes": {
         "software_engineering": 1
       },
-      "salary_signal": "devops"
+      "salary_signal": "devops",
+      "bilingual_exempt": true
     },
     {
       "id": "gitops",
@@ -735,7 +754,8 @@
       "role_family_votes": {
         "software_engineering": 0.7,
         "data_ai": 0.3
-      }
+      },
+      "bilingual_exempt": true
     },
     {
       "id": "grafana",
@@ -749,7 +769,8 @@
       "role_family_votes": {
         "software_engineering": 0.7,
         "data_ai": 0.3
-      }
+      },
+      "bilingual_exempt": true
     },
     {
       "id": "spravce_it",
@@ -1020,7 +1041,8 @@
       "salary_signal": "regulated_industry",
       "parents": [
         "data_protection"
-      ]
+      ],
+      "bilingual_exempt": true
     },
     {
       "id": "qa",
@@ -1072,7 +1094,8 @@
       },
       "parents": [
         "test_automation"
-      ]
+      ],
+      "bilingual_exempt": true
     },
     {
       "id": "cypress",
@@ -1088,7 +1111,8 @@
       },
       "parents": [
         "test_automation"
-      ]
+      ],
+      "bilingual_exempt": true
     },
     {
       "id": "playwright",
@@ -1104,7 +1128,8 @@
       },
       "parents": [
         "test_automation"
-      ]
+      ],
+      "bilingual_exempt": true
     },
     {
       "id": "appium",
@@ -1120,7 +1145,8 @@
       },
       "parents": [
         "test_automation"
-      ]
+      ],
+      "bilingual_exempt": true
     },
     {
       "id": "junit",
@@ -1136,7 +1162,8 @@
       },
       "parents": [
         "test_automation"
-      ]
+      ],
+      "bilingual_exempt": true
     },
     {
       "id": "testing",
@@ -1172,7 +1199,8 @@
       ],
       "role_family_votes": {
         "software_engineering": 1
-      }
+      },
+      "bilingual_exempt": true
     },
     {
       "id": "ios",
@@ -1185,7 +1213,8 @@
       ],
       "role_family_votes": {
         "software_engineering": 1
-      }
+      },
+      "bilingual_exempt": true
     },
     {
       "id": "flutter",
@@ -1198,7 +1227,8 @@
       ],
       "role_family_votes": {
         "software_engineering": 1
-      }
+      },
+      "bilingual_exempt": true
     },
     {
       "id": "react_native",
@@ -1214,7 +1244,8 @@
       },
       "parents": [
         "react"
-      ]
+      ],
+      "bilingual_exempt": true
     },
     {
       "id": "jetpack_compose",
@@ -1230,7 +1261,8 @@
       },
       "parents": [
         "kotlin"
-      ]
+      ],
+      "bilingual_exempt": true
     },
     {
       "id": "swiftui",
@@ -1246,7 +1278,8 @@
       },
       "parents": [
         "swift"
-      ]
+      ],
+      "bilingual_exempt": true
     },
     {
       "id": "machine_learning",
@@ -1273,12 +1306,15 @@
       "role_family_votes": {
         "data_ai": 1.5
       },
-      "salary_signal": "ai"
+      "salary_signal": "ai",
+      "bilingual_exempt": true
     },
     {
       "id": "ai",
       "match": [
-        "ai"
+        "ai",
+        "artificial intelligence",
+        "umělá inteligence"
       ],
       "categories": [
         "skill"
@@ -1291,7 +1327,9 @@
     {
       "id": "llm",
       "match": [
-        "llm"
+        "llm",
+        "large language model",
+        "velké jazykové modely"
       ],
       "categories": [
         "skill"
@@ -1315,12 +1353,15 @@
       "salary_signal": "ai",
       "parents": [
         "llm"
-      ]
+      ],
+      "bilingual_exempt": true
     },
     {
       "id": "nlp",
       "match": [
-        "nlp"
+        "nlp",
+        "natural language processing",
+        "zpracování přirozeného jazyka"
       ],
       "categories": [
         "skill"
@@ -1344,7 +1385,8 @@
       "salary_signal": "ai",
       "parents": [
         "llm"
-      ]
+      ],
+      "bilingual_exempt": true
     },
     {
       "id": "openai",
@@ -1360,12 +1402,15 @@
       "salary_signal": "ai",
       "parents": [
         "llm"
-      ]
+      ],
+      "bilingual_exempt": true
     },
     {
       "id": "analytics",
       "match": [
-        "analytics"
+        "analytics",
+        "data analytics",
+        "datová analytika"
       ],
       "categories": [
         "skill"
@@ -1387,7 +1432,8 @@
       },
       "parents": [
         "python"
-      ]
+      ],
+      "bilingual_exempt": true
     },
     {
       "id": "data_engineer",
@@ -1432,7 +1478,8 @@
     {
       "id": "scientist",
       "match": [
-        "scientist"
+        "scientist",
+        "vědec"
       ],
       "categories": [
         "skill"
@@ -1444,7 +1491,9 @@
     {
       "id": "model",
       "match": [
-        "model"
+        "model",
+        "predictive modeling",
+        "prediktivní modelování"
       ],
       "categories": [
         "skill"
@@ -1476,7 +1525,8 @@
       ],
       "role_family_votes": {
         "data_ai": 1
-      }
+      },
+      "bilingual_exempt": true
     },
     {
       "id": "databricks",
@@ -1488,7 +1538,8 @@
       ],
       "role_family_votes": {
         "data_ai": 1
-      }
+      },
+      "bilingual_exempt": true
     },
     {
       "id": "airflow",
@@ -1500,7 +1551,8 @@
       ],
       "role_family_votes": {
         "data_ai": 1
-      }
+      },
+      "bilingual_exempt": true
     },
     {
       "id": "dbt",
@@ -1512,7 +1564,8 @@
       ],
       "role_family_votes": {
         "data_ai": 1
-      }
+      },
+      "bilingual_exempt": true
     },
     {
       "id": "spark",
@@ -1538,7 +1591,8 @@
       "role_family_votes": {
         "data_ai": 0.6,
         "software_engineering": 0.4
-      }
+      },
+      "bilingual_exempt": true
     },
     {
       "id": "bigquery",
@@ -1550,7 +1604,8 @@
       ],
       "role_family_votes": {
         "data_ai": 1
-      }
+      },
+      "bilingual_exempt": true
     },
     {
       "id": "redshift",
@@ -1562,7 +1617,8 @@
       ],
       "role_family_votes": {
         "data_ai": 1
-      }
+      },
+      "bilingual_exempt": true
     },
     {
       "id": "synapse",
@@ -1574,7 +1630,8 @@
       ],
       "role_family_votes": {
         "data_ai": 1
-      }
+      },
+      "bilingual_exempt": true
     },
     {
       "id": "power_bi",
@@ -1605,7 +1662,8 @@
       },
       "parents": [
         "analytics"
-      ]
+      ],
+      "bilingual_exempt": true
     },
     {
       "id": "looker",
@@ -1620,7 +1678,8 @@
       },
       "parents": [
         "analytics"
-      ]
+      ],
+      "bilingual_exempt": true
     },
     {
       "id": "sap",
@@ -1651,7 +1710,8 @@
       "role_family_votes": {
         "software_engineering": 0.5,
         "product_project": 0.5
-      }
+      },
+      "bilingual_exempt": true
     },
     {
       "id": "servicenow",
@@ -1664,7 +1724,8 @@
       "role_family_votes": {
         "software_engineering": 0.5,
         "product_project": 0.5
-      }
+      },
+      "bilingual_exempt": true
     },
     {
       "id": "dynamics_365",
@@ -1697,7 +1758,9 @@
     {
       "id": "product",
       "match": [
-        "product"
+        "product",
+        "product management",
+        "produktový management"
       ],
       "categories": [
         "skill"
@@ -1783,7 +1846,8 @@
       ],
       "role_family_votes": {
         "product_project": 1
-      }
+      },
+      "bilingual_exempt": true
     },
     {
       "id": "safe_agile",
@@ -1842,7 +1906,9 @@
     {
       "id": "rizeni_projektu",
       "match": [
-        "řízení projektu"
+        "řízení projektu",
+        "project management",
+        "projektové řízení"
       ],
       "categories": [
         "skill"
@@ -1854,7 +1920,9 @@
     {
       "id": "delivery",
       "match": [
-        "delivery"
+        "delivery",
+        "project delivery",
+        "dodání projektu"
       ],
       "categories": [
         "skill"
@@ -1866,7 +1934,9 @@
     {
       "id": "stakeholder",
       "match": [
-        "stakeholder"
+        "stakeholder",
+        "stakeholder management",
+        "řízení zainteresovaných stran"
       ],
       "categories": [
         "skill"
@@ -1878,7 +1948,9 @@
     {
       "id": "manager",
       "match": [
-        "manager"
+        "manager",
+        "manažer",
+        "vedoucí"
       ],
       "categories": [
         "skill"

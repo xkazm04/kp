@@ -87,6 +87,24 @@ class LintCatchesDefectsTest(unittest.TestCase):
         self.assertFalse(res.ok)
         self.assertTrue(any("its own parent" in e for e in res.errors), res.errors)
 
+    def test_bilingual_exempt_suppresses_single_form_warning(self) -> None:
+        # A proper-noun term declares itself monolingual-by-nature; no bilingual warning.
+        res = _lint([_good_term("kubernetes", match=["kubernetes"], bilingual_exempt=True)])
+        self.assertTrue(res.ok, res.errors)
+        self.assertEqual(res.warnings, [])
+
+    def test_bilingual_exempt_on_multiform_term_is_caught(self) -> None:
+        # The flag is only for genuinely monolingual terms; a >=2-form exempt term is
+        # a contradiction (someone gaming the parity number) and must error.
+        res = _lint([_good_term("alpha", match=["alpha", "alfa"], bilingual_exempt=True)])
+        self.assertFalse(res.ok)
+        self.assertTrue(any("bilingual_exempt" in e and "surface forms" in e for e in res.errors), res.errors)
+
+    def test_bilingual_exempt_must_be_boolean(self) -> None:
+        res = _lint([_good_term("alpha", match=["alpha"], bilingual_exempt="yes")])
+        self.assertFalse(res.ok)
+        self.assertTrue(any("bilingual_exempt must be a boolean" in e for e in res.errors), res.errors)
+
 
 def _tax(terms):
     return {"terms": terms}
