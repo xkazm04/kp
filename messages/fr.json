@@ -2947,7 +2947,10 @@
       "rebuildWarnBody": "Vous avez modifié ce profil à la main le {date}, après sa création à partir de l’analyse du CV. La reconstruction remplace le formulaire par l’analyse la plus récente : ces modifications seront donc écrasées. Vous pourrez tout revoir avant d’enregistrer.",
       "rebuildWarnBodyNoDate": "Vous avez modifié ce profil à la main après sa création à partir de l’analyse du CV. La reconstruction remplace le formulaire par l’analyse la plus récente : ces modifications seront donc écrasées. Vous pourrez tout revoir avant d’enregistrer.",
       "rebuildWarnProceed": "Reconstruire depuis l’analyse",
-      "rebuildWarnKeep": "Conserver mes modifications"
+      "rebuildWarnKeep": "Conserver mes modifications",
+      "projectionLabel": "Vue des candidats",
+      "projectionList": "Liste",
+      "projectionMatrix": "Matrice"
     },
     "matrix": {
       "eyebrow": "Candidats",

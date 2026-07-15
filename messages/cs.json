@@ -2918,7 +2918,10 @@
       "rebuildWarnBody": "Tento profil jste ručně upravili {date}, poté co byl sestaven z analýzy životopisu. Přestavba nahradí formulář nejnovější analýzou, takže tyto úpravy budou přepsány. Před uložením si vše ještě zkontrolujete.",
       "rebuildWarnBodyNoDate": "Tento profil jste ručně upravili poté, co byl sestaven z analýzy životopisu. Přestavba nahradí formulář nejnovější analýzou, takže tyto úpravy budou přepsány. Před uložením si vše ještě zkontrolujete.",
       "rebuildWarnProceed": "Přestavět z analýzy",
-      "rebuildWarnKeep": "Ponechat mé úpravy"
+      "rebuildWarnKeep": "Ponechat mé úpravy",
+      "projectionLabel": "Zobrazení kandidátů",
+      "projectionList": "Seznam",
+      "projectionMatrix": "Matice"
     },
     "matrix": {
       "eyebrow": "Kandidáti",

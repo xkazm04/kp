@@ -4,8 +4,11 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { AlertTriangle } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
 import { buildUrl } from "@/app/features/tabs";
 import { Modal } from "@/app/_components/Modal";
+import { SegmentedControl } from "@/app/_components/SegmentedControl";
+import { useReducedMotion } from "@/app/_lib/useReducedMotion";
 import type { ArchetypeDef, ProfilePayload } from "./ProfileTypes";
 import { ArchetypeManager } from "./ArchetypeManager";
 import { CandidateMatrix } from "./CandidateMatrix";
@@ -40,8 +43,16 @@ export function ProfileTab() {
   // silent clobber.
   const [rebuildWarn, setRebuildWarn] = useState<{ slug: string; profileId: string; editedAt: string | null } | null>(null);
   // Bumped when the roster changes (a delete) so the matrix, a sibling that fetches
-  // the same union, refetches instead of showing a just-deleted profile.
+  // the same union, refetches instead of showing a just-deleted profile. Only one
+  // projection is mounted at a time, so a switch to Matrix always remounts and
+  // refetches fresh; the key keeps the two in sync if they ever coexist.
   const [dataRev, setDataRev] = useState(0);
+  // One candidate population, two projections behind a List | Matrix toggle (was a
+  // stacked ProfileRoster + CandidateMatrix rendering the same population twice).
+  // Default List; only the active projection is mounted, so exactly one data read
+  // runs at a time. Local state, matching the sibling AnalyzeWorkspace toggle.
+  const [projection, setProjection] = useState<"list" | "matrix">("list");
+  const reduced = useReducedMotion();
 
   // Open the editor for a saved profile id — the single "?edit= flow" reused by both
   // the pipeline deep link (below) and the roster's Edit action.
@@ -162,17 +173,42 @@ export function ProfileTab() {
         </p>
       ) : null}
       <ArchetypeManager archetypes={archetypes} loading={archLoading} onChanged={reloadArchetypes} />
-      <ProfileRoster
-        onEdit={(id) => void openEditor(id)}
-        onChanged={() => setDataRev((v) => v + 1)}
-        archivedArchetypeIds={archetypes.filter((a) => a.archived).map((a) => a.id)}
-      />
-      <CandidateMatrix
-        archetypes={archetypes}
-        reloadKey={dataRev}
-        onEditProfile={(id) => void openEditor(id)}
-        onNewProfile={() => setEditor({ mode: "create", editingId: null, initialPayload: null })}
-      />
+
+      <div className="space-y-3">
+        <SegmentedControl
+          label={t("projectionLabel")}
+          value={projection}
+          onChange={setProjection}
+          options={[
+            { value: "list", label: t("projectionList") },
+            { value: "matrix", label: t("projectionMatrix") },
+          ]}
+        />
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={projection}
+            initial={reduced ? { opacity: 0 } : { opacity: 0, x: 8 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: reduced ? 0.12 : 0.18, ease: "easeOut" }}
+          >
+            {projection === "list" ? (
+              <ProfileRoster
+                onEdit={(id) => void openEditor(id)}
+                onChanged={() => setDataRev((v) => v + 1)}
+                archivedArchetypeIds={archetypes.filter((a) => a.archived).map((a) => a.id)}
+              />
+            ) : (
+              <CandidateMatrix
+                archetypes={archetypes}
+                reloadKey={dataRev}
+                onEditProfile={(id) => void openEditor(id)}
+                onNewProfile={() => setEditor({ mode: "create", editingId: null, initialPayload: null })}
+              />
+            )}
+          </motion.div>
+        </AnimatePresence>
+      </div>
 
       {rebuildWarn ? (
         <Modal
