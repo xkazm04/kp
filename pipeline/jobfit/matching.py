@@ -30,6 +30,7 @@ from .models import _Base
 from .taxonomy import (
     DEFAULT_PROVENANCE,
     LANGUAGE_ALIASES,
+    _one_side_fallback_score,
     normalize_text,
     provenance_weight,
     resolve_term,
@@ -374,9 +375,18 @@ def _classify_unproven(cand_skill: str, req_skill: str, provenance: str | None) 
     if ct and rt:
         base = term_match_score(ct, rt)
     elif ct or rt:
+        # Exactly one side resolves: mirror skill_match_score's one-side bounded token
+        # fallback so the verdict matches the score. A below-threshold token overlap
+        # (0 < base < 1) reads as "adjacency" — a modelled term vs its unmodelled
+        # variant is a genuine fractional signal, not an exact-but-discounted claim.
         a = normalize_text(cand_skill or "").strip()
         b = normalize_text(req_skill or "").strip()
-        base = 1.0 if a and a == b else 0.0
+        if a and a == b:
+            base = 1.0
+        else:
+            resolved_id = ct or rt
+            unresolved_surface = req_skill if ct else cand_skill
+            base = _one_side_fallback_score(resolved_id, unresolved_surface or "")
     else:
         # Neither side is modelled: mirror skill_match_score's graded token fallback
         # so the verdict is consistent with the score that produced it. A below-

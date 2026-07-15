@@ -770,6 +770,29 @@ def _fallback_tokens(surface: str) -> frozenset[str]:
     )
 
 
+def _token_overlap_score(candidate_surface: str, required_surface: str) -> float:
+    """Capped Jaccard over the two surfaces' *distinctive* token sets — the shared
+    core of BOTH the neither-side and the one-side fallbacks.
+
+    Requires at least one shared distinctive ("head") token; scales
+    ``|shared| / |union|`` into ``(0, _FALLBACK_CAP]`` so a partial overlap earns
+    bounded, sub-threshold credit and no shared head earns ``0.0``. It NEVER returns
+    the exact-match ``1.0`` — that outcome is owned by the callers (literal string
+    equality for a wholly unmodelled pair; hierarchy resolution when a surface is
+    modelled), so no fallback path can manufacture a full match. All the hazard
+    discipline lives in :func:`_fallback_tokens` (head token, stopwords, min length),
+    so both fallbacks inherit it identically."""
+    ca = _fallback_tokens(candidate_surface or "")
+    cb = _fallback_tokens(required_surface or "")
+    shared = ca & cb
+    if not shared:  # no distinctive token in common -> no signal (also handles the
+        return 0.0  # short-token hazard, where the filtered sets are empty)
+    jaccard = len(shared) / len(ca | cb)
+    # jaccard ∈ (0, 1] so this is structurally ≤ _FALLBACK_CAP; the min() is a
+    # belt-and-suspenders guard should the formula ever change.
+    return round(min(_FALLBACK_CAP, _FALLBACK_CAP * jaccard), 4)
+
+
 @lru_cache(maxsize=16384)
 def unresolved_pair_score(candidate_skill: str | None, required_skill: str | None) -> float:
     """Graded token-overlap score in ``[0, 1]`` for a skill pair the taxonomy CANNOT
@@ -804,15 +827,33 @@ def unresolved_pair_score(candidate_skill: str | None, required_skill: str | Non
         return 0.0
     if a == b:
         return 1.0  # exact string match of an unmodelled term — legacy 1.0 preserved
-    ca = _fallback_tokens(candidate_skill or "")
-    cb = _fallback_tokens(required_skill or "")
-    shared = ca & cb
-    if not shared:  # no distinctive token in common -> no signal (also handles the
-        return 0.0  # short-token hazard, where the filtered sets are empty)
-    jaccard = len(shared) / len(ca | cb)
-    # jaccard ∈ (0, 1] so this is structurally ≤ _FALLBACK_CAP; the min() is a
-    # belt-and-suspenders guard should the formula ever change.
-    return round(min(_FALLBACK_CAP, _FALLBACK_CAP * jaccard), 4)
+    return _token_overlap_score(candidate_skill or "", required_skill or "")
+
+
+@lru_cache(maxsize=16384)
+def _one_side_fallback_score(resolved_term_id: str, unresolved_surface: str) -> float:
+    """Bounded token-overlap credit for a pair where EXACTLY ONE surface is modelled.
+
+    The unresolved surface is scored against the resolved term's FULL alias set
+    (``match[]``), taking the MAX over aliases — so an unmodelled variant of a
+    modelled term (e.g. "data science" vs the ``data_scientist`` alias "data
+    scientist") earns the same capped, sub-threshold ``≤_FALLBACK_CAP`` adjacency
+    credit the neither-side fallback gives, instead of a false hard zero. It can
+    never reach the match threshold and never returns ``1.0``: an exact surface
+    would have RESOLVED, so the pair would not be one-sided in the first place.
+
+    Keyed on ``resolved_term_id`` (NOT the alias list) so the cache key stays small
+    and hashable; the aliases are derived from the immutable ``_TERM_BY_ID`` built at
+    import, so the id fully determines them (the direction's cache-key caveat)."""
+    term = _TERM_BY_ID.get(resolved_term_id)
+    if not term:
+        return 0.0
+    best = 0.0
+    for alias in term.get("match", ()):  # max token overlap over the term's surfaces
+        best = max(best, _token_overlap_score(unresolved_surface, alias))
+        if best >= _FALLBACK_CAP:  # already at the ceiling — no alias can beat it
+            break
+    return best
 
 
 @lru_cache(maxsize=16384)
@@ -828,23 +869,34 @@ def skill_match_score(
     :func:`unresolved_pair_score` — exact string equality still yields ``1.0`` (a
     non-modelled skill matches itself) and a token overlap earns a bounded, sub-
     threshold partial (``≤0.3``) instead of a bare 0/1. When exactly ONE side
-    resolves the taxonomy already has an opinion on the pair, so the legacy
-    string-equality outcome is kept unchanged (no fallback credit for a half-modelled
-    pair). The base score is then discounted by :func:`provenance_weight` so a skill
-    shown only in a school project counts for less than one used in production.
+    resolves the same bounded token fallback applies via
+    :func:`_one_side_fallback_score` — the unresolved surface is scored against the
+    resolved term's alias set, so a modelled term vs its own unmodelled variant
+    ("data scientist" vs "data science") earns capped, sub-threshold adjacency credit
+    instead of a false hard zero; it can never reach "matched". The base score is
+    then discounted by :func:`provenance_weight` so a skill shown only in a school
+    project counts for less than one used in production.
     """
     candidate_term = resolve_term(candidate_skill)
     required_term = resolve_term(required_skill)
     if candidate_term and required_term:
         base = term_match_score(candidate_term, required_term)
     elif candidate_term or required_term:
-        # Exactly one side resolves: a distinct surface vs a modelled term is 0.0,
-        # exactly as before (an equal surface would resolve to the same term and
-        # take the branch above). The graded fallback fires ONLY when neither side
-        # is modelled, so a half-modelled pair never gets token-overlap credit.
+        # Exactly one side resolves. An exact surface match is impossible here — an
+        # equal surface would resolve to the SAME term and take the branch above — so
+        # the legacy outcome was a hard 0.0, a FALSE ZERO for a modelled term vs its
+        # own unmodelled variant. Extend the bounded token fallback to this branch:
+        # score the UNRESOLVED surface against the RESOLVED term's alias set, capped
+        # ≤_FALLBACK_CAP, never "matched". (The a==b guard is defensive/unreachable
+        # while resolve_term stays deterministic.)
         a = _normalize(candidate_skill or "").strip()
         b = _normalize(required_skill or "").strip()
-        base = 1.0 if a and a == b else 0.0
+        if a and a == b:
+            base = 1.0
+        else:
+            resolved_id = candidate_term or required_term
+            unresolved_surface = required_skill if candidate_term else candidate_skill
+            base = _one_side_fallback_score(resolved_id, unresolved_surface or "")
     else:
         base = unresolved_pair_score(candidate_skill, required_skill)
     if base <= 0.0:

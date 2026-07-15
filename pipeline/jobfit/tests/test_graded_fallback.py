@@ -112,9 +112,26 @@ class TotalOrderingTest(unittest.TestCase):
         self.assertLess(_FALLBACK_CAP, tax._SIBLING_MATCH)
         self.assertLess(_FALLBACK_CAP, _MATCH_THRESHOLD)
 
+    def test_one_side_fallback_shares_the_same_ceiling(self) -> None:
+        # The one-side fallback occupies the SAME band as the neither-side token
+        # fallback: below sibling(0.4), above nothing(0.0). So the full ordering
+        # exact > specialization > generalization > sibling > one-side/token-fallback
+        # (≤0.3) > 0 holds with both fallback flavors on the same rung.
+        sibling = term_match_score("seo", "ppc")                          # 0.4
+        one_side = skill_match_score("data science", "data scientist", STRONG)  # ≤0.3
+        token = unresolved_pair_score("langgraph agent", "agent langgraph")    # ≤0.3
+        nothing = skill_match_score("python", "quokka runtime", STRONG)        # 0.0
+        self.assertGreater(sibling, one_side)
+        self.assertLessEqual(one_side, _FALLBACK_CAP)
+        self.assertLessEqual(token, _FALLBACK_CAP)
+        self.assertGreater(one_side, nothing)
+        self.assertEqual(nothing, 0.0)
+
 
 class ResolvedPairRegressionTest(unittest.TestCase):
-    """ZERO change when either side resolves — the fallback must not leak."""
+    """BOTH-resolve behavior is unchanged (the fallback must not leak into a pair the
+    hierarchy already scores); the ONE-side case now earns bounded, sub-threshold
+    credit instead of a false hard zero (one-side-resolves honesty)."""
 
     def test_both_resolve_unrelated_stays_zero(self) -> None:
         # react and python both resolve; no hierarchy edge -> 0.0, as before. If the
@@ -125,16 +142,68 @@ class ResolvedPairRegressionTest(unittest.TestCase):
     def test_both_resolve_exact_is_full(self) -> None:
         self.assertEqual(skill_match_score("python", "python", STRONG), 1.0)
 
-    def test_exactly_one_resolves_gets_no_fallback_credit(self) -> None:
-        # "python" resolves, "python framework thing" does not. Even though they share
-        # the distinctive token "python", the taxonomy already has an opinion on the
-        # modelled side, so the pair keeps its legacy string-equality outcome: 0.0.
-        self.assertEqual(skill_match_score("python", "python framework thing", STRONG), 0.0)
-        self.assertEqual(skill_match_score("python framework thing", "python", STRONG), 0.0)
+    def test_exactly_one_resolves_earns_capped_subthreshold_credit(self) -> None:
+        # "python" resolves, "python framework thing" does not. They share the
+        # distinctive token "python", so the one-side fallback now scores the
+        # unresolved surface against python's alias set — bounded ≤_FALLBACK_CAP,
+        # symmetric, and strictly below the match threshold. NO longer a false 0.0.
+        for a, b in (("python", "python framework thing"), ("python framework thing", "python")):
+            s = skill_match_score(a, b, STRONG)
+            self.assertGreater(s, 0.0, (a, b))
+            self.assertLessEqual(s, _FALLBACK_CAP, (a, b))
+            from pipeline.jobfit.matching import _MATCH_THRESHOLD
+            self.assertLess(s, _MATCH_THRESHOLD, (a, b))
+
+    def test_one_side_no_shared_token_stays_zero(self) -> None:
+        # "python" resolves, "quokka runtime" does not, and they share no distinctive
+        # token -> a true 0.0. The one-side fallback only rescues a genuine overlap.
+        self.assertEqual(skill_match_score("python", "quokka runtime", STRONG), 0.0)
+
+    def test_one_side_fallback_never_reaches_matched(self) -> None:
+        # Even maximal one-side overlap is capped below sibling/threshold: the credit
+        # is adjacency, never a "matched" claim.
+        self.assertLessEqual(skill_match_score("python", "python python", STRONG), _FALLBACK_CAP)
 
     def test_hierarchy_partials_unchanged(self) -> None:
         self.assertAlmostEqual(skill_match_score("swiftui", "swift", STRONG), 0.9)
         self.assertAlmostEqual(skill_match_score("seo", "ppc", STRONG), 0.4)
+
+
+class OneSideFalseZeroTest(unittest.TestCase):
+    """The false-zero class the one-side fallback closes: a MODELLED term vs its own
+    UNMODELLED surface variant. "data scientist" resolves (data_scientist); "data
+    science" does not — before, the pair scored a hard 0.0 despite the shared "data"
+    head. Now it earns capped, sub-threshold adjacency credit, classified honestly."""
+
+    def test_modelled_term_vs_unmodelled_variant_is_graded_adjacency(self) -> None:
+        self.assertIsNotNone(tax.resolve_term("data scientist"))
+        self.assertIsNone(tax.resolve_term("data science"))
+        s = skill_match_score("data science", "data scientist", STRONG)
+        self.assertGreater(s, 0.0)
+        self.assertLessEqual(s, _FALLBACK_CAP)
+
+    def test_score_skills_classifies_it_unproven_adjacency(self) -> None:
+        cand = MatchCandidate(
+            skills=["data science"],
+            seniority="senior", role_family="data_ai",
+            languages=["English"], years_experience=6,
+        )
+        job = mkjob(
+            role_family="data_ai",
+            requirements=[
+                {"skill": "data scientist", "kind": "must_have", "hardness": "prerequisite"},
+            ],
+        )
+        score, matched, missing, _strength, unproven = score_skills(cand, job)
+        # NOT matched, NOT missing — it lives in the honest middle bucket, tagged
+        # adjacency (a related, non-exact skill), and it lifted the sub-score off 0.
+        self.assertNotIn("data scientist", matched)
+        self.assertNotIn("data scientist", missing)
+        self.assertIn("data scientist", unproven)
+        self.assertEqual(unproven["data scientist"]["reason"], "adjacency")
+        self.assertGreater(unproven["data scientist"]["score"], 0.0)
+        self.assertLessEqual(unproven["data scientist"]["score"], _FALLBACK_CAP)
+        self.assertGreater(score, 0.0)
 
 
 class HazardTest(unittest.TestCase):

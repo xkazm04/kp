@@ -73,11 +73,11 @@ class EnglishResolutionUnchangedTest(unittest.TestCase):
             "python": "python",
             "react": "react",
             "kubernetes": "kubernetes",
-            "machine learning": "machine_learning",  # NOT `ml`
+            "machine learning": "machine_learning",
             "strojové učení": "machine_learning",
-            "data scientist": "data_scientist",       # NOT `scientist`
+            "ml": "machine_learning",                  # merged: "ML" IS machine_learning
+            "data scientist": "data_scientist",       # NOT `scientist` (kept separate)
             "datový vědec": "data_scientist",
-            "ml": "ml",
             "docker": "docker",
             "tableau": "tableau",
         }

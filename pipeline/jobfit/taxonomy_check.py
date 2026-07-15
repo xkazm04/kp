@@ -83,7 +83,7 @@ KNOWN_CATEGORIES: frozenset[str] = frozenset(
 # Regenerate the printed numbers with `python -m pipeline.jobfit.taxonomy_check`.
 SKILL_COVERAGE_FLOORS: dict[str, int] = {
     "software_engineering": 83,
-    "data_ai": 39,
+    "data_ai": 38,  # ml merged into machine_learning (one-side-resolves honesty) — one fewer skill term
     "product_project": 28,
     "healthcare_clinical": 44,
     "life_sciences_research": 0,

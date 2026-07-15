@@ -1285,19 +1285,7 @@
       "id": "machine_learning",
       "match": [
         "machine learning",
-        "strojové učení"
-      ],
-      "categories": [
-        "skill"
-      ],
-      "role_family_votes": {
-        "data_ai": 1.5
-      },
-      "salary_signal": "ai"
-    },
-    {
-      "id": "ml",
-      "match": [
+        "strojové učení",
         "ml"
       ],
       "categories": [
@@ -1306,8 +1294,7 @@
       "role_family_votes": {
         "data_ai": 1.5
       },
-      "salary_signal": "ai",
-      "bilingual_exempt": true
+      "salary_signal": "ai"
     },
     {
       "id": "ai",
