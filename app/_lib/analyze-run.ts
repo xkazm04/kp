@@ -55,20 +55,32 @@ type ProgressFn = (done: number, total: number, msg?: string) => void;
 // variant can't reject the whole batch (Direction 2 — "one bad CV never kills the
 // batch"): with settled semantics, N−1 good variants still produce a result.
 export type VariantOk = { label: string; ok: true; analysis: Analysis; cached: boolean };
-export type VariantFail = { label: string; ok: false; error: string; status: number };
+// `error` is engine/server text (Python stderr etc.) kept for logs + verbatim
+// display. `code` is set ONLY when the reason is our own generic fallback (no
+// engine text) — it tells the client to localize instead of showing an English
+// literal. Engine failures carry `error` and NO code.
+export type VariantFail = { label: string; ok: false; error: string; code?: string; status: number };
 export type VariantResult = VariantOk | VariantFail;
+
+// The single stable code for "this variant failed and we had no engine text to
+// explain it" — the client maps it to a localized generic line (analyze.partialFailureGeneric).
+export const ANALYZE_GENERIC_FAIL_CODE = "analyzeVariantFailed";
 
 // The named failures that rode alongside a delivered (partial) result — surfaced
 // on the return payload so the UI can say WHICH variant failed and why, not just
 // the logs. Declared on the analyze schema (nullish) so it survives the client parse.
-export type VariantFailureNote = { label: string; error: string };
+export type VariantFailureNote = { label: string; error: string; code?: string };
 
 // The settled delivery decision over a batch of variant outcomes (Direction 2).
 // Pure + exported so the winner-picking + failure-naming is unit-tested without
 // spawning Python: N−1 successes still DELIVER (the failed variant is named in
 // partialFailures); only a TOTAL wipeout THROWS with the first failure's error.
 export type SettleDecision =
-  | { kind: "throw"; error: string; status: number }
+  // `error` is the client-facing string (engine text, or EMPTY when the failure was
+  // our own coded generic — an empty task.error makes the client show its localized
+  // "did not complete" line instead of an English literal). `logError` keeps a
+  // non-empty detail for the server log regardless.
+  | { kind: "throw"; error: string; logError: string; status: number }
   | { kind: "deliver"; successes: VariantOk[]; partialFailures: VariantFailureNote[]; allCached: boolean };
 
 export function settleVariants(results: VariantResult[]): SettleDecision {
@@ -76,15 +88,23 @@ export function settleVariants(results: VariantResult[]): SettleDecision {
   const failures = results.filter((r): r is VariantFail => !r.ok);
   // Total wipeout is the only throw. A single-CV run lands here on its one
   // variant's failure (behavior unchanged); a multi-CV run throws only when EVERY
-  // variant failed, surfacing the first failure's error + status.
+  // variant failed, surfacing the first failure's error + status. A coded failure
+  // (our own generic fallback, no engine text) throws with an EMPTY client string so
+  // the client localizes; engine text passes through verbatim.
   if (successes.length === 0) {
     const first = failures[0];
-    return { kind: "throw", error: first?.error ?? "Analysis failed.", status: first?.status ?? 500 };
+    const engineText = first && !first.code ? first.error : "";
+    return {
+      kind: "throw",
+      error: engineText,
+      logError: first?.error || first?.code || "analyze failed",
+      status: first?.status ?? 500,
+    };
   }
   return {
     kind: "deliver",
     successes,
-    partialFailures: failures.map((f) => ({ label: f.label, error: f.error })),
+    partialFailures: failures.map((f) => ({ label: f.label, error: f.error, ...(f.code ? { code: f.code } : {}) })),
     // Cache-hit accounting over the DELIVERED successes only: bill one unit unless
     // every success was cached (no new work). A failed variant adds no second debit.
     allCached: successes.every((r) => r.cached),
@@ -187,17 +207,22 @@ export async function runAnalyze(p: AnalyzeParams, onProgress?: ProgressFn, sign
             payload = parsePythonJson<unknown>(stdout, stderr);
           } catch (parseError) {
             onProgress?.(++done, total, ANALYZE_PHASE.analyzing);
+            // parseError.message is engine text (shown verbatim); the fallback is our
+            // own literal → carry a code so the client localizes instead.
+            const engineMsg = parseError instanceof Error ? parseError.message : null;
             return {
               label,
               ok: false,
-              error: parseError instanceof Error ? parseError.message : `Pipeline returned non-JSON output for "${label}".`,
+              error: engineMsg ?? `Pipeline returned non-JSON output for "${label}".`,
+              ...(engineMsg ? {} : { code: ANALYZE_GENERIC_FAIL_CODE }),
               status: 502,
             };
           }
           const parsed = analysisSchema.safeParse(payload);
           if (!parsed.success) {
             onProgress?.(++done, total, ANALYZE_PHASE.analyzing);
-            return { label, ok: false, error: `Pipeline returned an unexpected payload for "${label}".`, status: 502 };
+            // Our own literal (no engine text) → coded so the client localizes it.
+            return { label, ok: false, error: `Pipeline returned an unexpected payload for "${label}".`, code: ANALYZE_GENERIC_FAIL_CODE, status: 502 };
           }
           storeCachedAnalysis(cacheKey, parsed.data);
           onProgress?.(++done, total, ANALYZE_PHASE.analyzing);
@@ -208,10 +233,14 @@ export async function runAnalyze(p: AnalyzeParams, onProgress?: ProgressFn, sign
           // the whole Promise.all — otherwise one bad variant discards its good
           // siblings. A real cancellation is still honored below (signal.aborted).
           onProgress?.(Math.min(done + 1, total), total, ANALYZE_PHASE.analyzing);
+          // caught.message is engine text (shown verbatim); the fallback is our own
+          // literal → carry a code so the client localizes instead of leaking English.
+          const engineMsg = caught instanceof Error ? caught.message : null;
           return {
             label,
             ok: false,
-            error: caught instanceof Error ? caught.message : `Analysis failed for "${label}".`,
+            error: engineMsg ?? `Analysis failed for "${label}".`,
+            ...(engineMsg ? {} : { code: ANALYZE_GENERIC_FAIL_CODE }),
             status: 500,
           };
         }
@@ -223,7 +252,10 @@ export async function runAnalyze(p: AnalyzeParams, onProgress?: ProgressFn, sign
     // runOne marks the task 'canceled', preserving the pre-change SIGKILL
     // semantics. (The captured-failure catch above would otherwise turn an aborted
     // child into a "failed variant" and let a stray success deliver.)
-    if (signal?.aborted) throw new AnalyzeError("Analysis canceled.", 499);
+    // An empty client-facing message: 'canceled' is the real signal (runOne marks the
+    // task canceled), and an empty task.error makes the client render its localized
+    // message rather than an English literal. The log below keeps a fixed marker.
+    if (signal?.aborted) throw new AnalyzeError("", 499);
 
     const settled = settleVariants(results);
     if (settled.kind === "throw") {
@@ -233,7 +265,7 @@ export async function runAnalyze(p: AnalyzeParams, onProgress?: ProgressFn, sign
         variant_count: total,
         cache_hit: false,
         status: "error",
-        error: settled.error,
+        error: settled.logError,
       });
       throw new AnalyzeError(settled.error, settled.status);
     }

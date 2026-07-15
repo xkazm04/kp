@@ -84,7 +84,14 @@ export function AnalyzeTab() {
           </p>
           <ul className="mt-1 space-y-0.5 text-sm">
             {result.analysis.partialFailures.map((f) => (
-              <li key={f.label}>{t("partialFailureItem", { label: f.label, error: f.error })}</li>
+              // A coded failure had no engine text — show a localized generic line;
+              // an uncoded one carries engine/server English (Python stderr), shown
+              // verbatim in the localized frame (the honest "shown in English" case).
+              <li key={f.label}>
+                {f.code
+                  ? t("partialFailureGeneric", { label: f.label })
+                  : t("partialFailureItem", { label: f.label, error: f.error })}
+              </li>
             ))}
           </ul>
         </div>

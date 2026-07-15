@@ -12,6 +12,7 @@ import { githubAnalysisSchema, type Analysis, type GithubAnalysis } from "@/app/
 import { isDuplicateCvVariant } from "@/app/_lib/cv-variant";
 import {
   MAX_CV_VARIANTS,
+  type AnalyzeErrorInfo,
   type ColumnStatus,
   type GithubStatus,
 } from "./AnalyzeTypes";
@@ -212,6 +213,19 @@ export function useAnalyzeForm() {
     setIsCompleting(false);
   };
 
+  // Resolve a run's localizable failure/notice descriptor to display text. Engine
+  // or server-owned English (serverText) is preferred verbatim — the honest
+  // "shown in English" disclosure on this operator surface — otherwise the stable
+  // code maps to the localized `analyze` catalog (falling back to the generic
+  // failure line for an unknown code). Single-sourced so every onError/onWarning
+  // resolves identically.
+  const resolveAnalyzeMessage = (info: AnalyzeErrorInfo): string => {
+    const server = info.serverText?.trim();
+    if (server) return server;
+    const code = info.code;
+    return code && t.has(code) ? t(code) : t("errFailed");
+  };
+
   const buildCallbacks = (runId: number) => {
     const current = () => runId === analysisRunIdRef.current;
     return {
@@ -236,9 +250,9 @@ export function useAnalyzeForm() {
         setIsCompleting(false);
         clearStoredTask();
       },
-      onError: (message: string) => {
+      onError: (error: AnalyzeErrorInfo) => {
         if (!current()) return;
-        setError(message);
+        setError(resolveAnalyzeMessage(error));
         setIsLoading(false);
         setIsCompleting(false);
         clearStoredTask();
@@ -371,13 +385,13 @@ export function useAnalyzeForm() {
         setGithubAnalysis(result);
         setGithubStatus("done");
       },
-      onWarning: (message) => {
+      onWarning: (warning: AnalyzeErrorInfo) => {
         if (!isCurrentGithubRun()) return; // a newer run superseded this one
-        setGithubWarning(message);
+        setGithubWarning(resolveAnalyzeMessage(warning));
       },
-      onError: (message) => {
+      onError: (error: AnalyzeErrorInfo) => {
         if (!isCurrentGithubRun()) return; // a newer run superseded this one
-        setGithubError(message);
+        setGithubError(resolveAnalyzeMessage(error));
         // A hard failure replaces any JD-dropped warning — there's no result
         // for the warning to qualify.
         setGithubWarning(null);

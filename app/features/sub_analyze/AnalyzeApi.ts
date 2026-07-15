@@ -1,9 +1,29 @@
 import { analysisSchema, type Analysis } from "@/app/_lib/schemas";
 import type { StageStatus } from "@/app/_components/AnalysisProgress";
 import { asAnalyzePhase } from "@/app/_lib/analyze-phases";
-import type { ProgressEmitter } from "./AnalyzeTypes";
+import type { AnalyzeErrorCode, ProgressEmitter } from "./AnalyzeTypes";
 
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+// A client-side analyze failure that carries a stable `code` (a key in the
+// `analyze` message namespace) so the surface can localize it — these modules
+// aren't components and have no translator of their own (the repo's API-helper
+// pattern: throw/return a code, the component maps it, mirroring useErrorMessage).
+// `serverText` is engine/server-owned English (Python stderr, a route's operator
+// message) that can't be coded — the component prefers it verbatim (the honest
+// "shown in English" disclosure on this operator-facing surface) and otherwise
+// falls back to the localized code.
+export class AnalyzeClientError extends Error {
+  code: AnalyzeErrorCode;
+  serverText?: string;
+  constructor(code: AnalyzeErrorCode, serverText?: unknown) {
+    const text = typeof serverText === "string" && serverText.trim() ? serverText.trim() : undefined;
+    super(text ?? code);
+    this.name = "AnalyzeClientError";
+    this.code = code;
+    this.serverText = text;
+  }
+}
 
 // POST the upload; the server persists it and starts a background `analyze`
 // task, returning its id. The actual run is tracked + refresh-safe via /api/tasks.
@@ -31,9 +51,9 @@ export async function submitAnalysis(
 
   const response = await fetch("/api/analyze", { method: "POST", body: form });
   const payload = await response.json();
-  if (!response.ok) throw new Error(payload.error ?? "Analysis failed.");
+  if (!response.ok) throw new AnalyzeClientError("errFailed", payload.error);
   const taskId = payload.task?.id as string | undefined;
-  if (!taskId) throw new Error("Analysis did not start.");
+  if (!taskId) throw new AnalyzeClientError("errNotStarted");
   return taskId;
 }
 
@@ -78,7 +98,7 @@ export async function watchAnalysis(
   // single-sourced.
   const softFail = () => {
     if ((consecutiveErrors += 1) >= MAX_CONSECUTIVE_ERRORS) {
-      throw new Error("Lost track of the analysis — please retry.");
+      throw new AnalyzeClientError("errLostTrack");
     }
   };
   const aborted = () => signal?.aborted ?? false;
@@ -97,7 +117,7 @@ export async function watchAnalysis(
     }
     // 404 = the task is gone (reaped / lost to a restart); it will never reach a
     // terminal success, so stop now rather than poll a vanished task forever.
-    if (r.status === 404) throw new Error("The analysis is no longer available — please retry.");
+    if (r.status === 404) throw new AnalyzeClientError("errUnavailable");
     if (!r.ok) {
       softFail();
       continue;
@@ -126,10 +146,13 @@ export async function watchAnalysis(
     if (task.status === "succeeded") {
       const parsed = analysisSchema.safeParse(task.result);
       if (parsed.success) return parsed.data;
-      throw new Error("Analysis returned an unexpected payload.");
+      throw new AnalyzeClientError("errBadPayload");
     }
     if (task.status === "failed" || task.status === "canceled" || task.status === "interrupted") {
-      throw new Error(task.error ?? "Analysis did not complete.");
+      // task.error is engine/server text (Python stderr, or empty when the server
+      // only had a generic coded fallback). Prefer it verbatim when present;
+      // otherwise the localized "did not complete" message shows.
+      throw new AnalyzeClientError("errIncomplete", task.error);
     }
   }
 }
@@ -143,11 +166,13 @@ export async function extractFileText(file: File): Promise<string> {
   const response = await fetch("/api/extract-text", { method: "POST", body: form });
   const payload = await response.json().catch(() => null);
   if (!response.ok || !payload || typeof payload.text !== "string") {
-    throw new Error(payload?.error ?? "Text extraction failed.");
+    throw new AnalyzeClientError("errExtractionFailed", payload?.error);
   }
   return payload.text;
 }
 
+// Not dead: consumed by AnalyzeFileDropZone.tsx and AnalyzeProfileInput.tsx to
+// label an attached file's size. (Direction 2 audited it — kept, not removed.)
 export function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;

@@ -91,7 +91,11 @@ export const analysisSchema = analysisResultSchema.extend({
   // failed variant(s) are NAMED here (which file, what error) so the client can
   // surface them in the result UI, not bury them in logs. Attached by analyze-run
   // only on a partial run; absent on a clean or single-CV run.
-  partialFailures: z.array(z.object({ label: z.string(), error: z.string() })).nullish(),
+  // `error` is engine/server-owned text (Python stderr) shown verbatim; `code`, when
+  // present, marks a failure whose reason was OUR OWN generic fallback (not engine
+  // text), so the client renders a localized generic line instead of leaking an
+  // English literal into the localized frame. Absent code ⇒ show `error` verbatim.
+  partialFailures: z.array(z.object({ label: z.string(), error: z.string(), code: z.string().nullish() })).nullish(),
   // True when the delivered run did NO new engine work — every surviving variant
   // was served from the analyze cache (a re-run / duplicate). The live Analyze
   // result reads this to show a "served from cache, no new cost" note.

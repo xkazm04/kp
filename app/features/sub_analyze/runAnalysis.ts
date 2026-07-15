@@ -10,10 +10,21 @@ import {
   type Analysis,
   type GithubAnalysis,
 } from "@/app/_lib/schemas";
-import { extractFileText, submitAnalysis, watchAnalysis, type VariantProgress } from "./AnalyzeApi";
+import { AnalyzeClientError, extractFileText, submitAnalysis, watchAnalysis, type VariantProgress } from "./AnalyzeApi";
+import type { AnalyzeErrorCode, AnalyzeErrorInfo } from "./AnalyzeTypes";
 
 type ProgressStage = Parameters<typeof applyStageEvent>[1];
 type ProgressStatus = Parameters<typeof applyStageEvent>[2];
+
+// Turn a caught failure into the localizable descriptor the surface maps. Only an
+// AnalyzeClientError carries a mappable code + optional server-English text; any
+// other throw (a Zod parse blob, a bare network error, an unexpected reject) has
+// no user-safe English, so it degrades to the caller's stable fallback code —
+// never leaking an internal message into the toast.
+function toErrorInfo(caught: unknown, fallback: AnalyzeErrorCode): AnalyzeErrorInfo {
+  if (caught instanceof AnalyzeClientError) return { code: caught.code, serverText: caught.serverText };
+  return { code: fallback };
+}
 
 export type AnalysisInputs = {
   cvFiles: File[];
@@ -34,7 +45,7 @@ export type AnalysisCallbacks = {
   onProgress: (stage: ProgressStage, status: ProgressStatus) => void;
   onFinalize: () => void;
   onResult: (analysis: Analysis) => void;
-  onError: (message: string) => void;
+  onError: (error: AnalyzeErrorInfo) => void;
   /** Fired with the background task id once it starts (used to survive refresh). */
   onTaskStarted?: (taskId: string) => void;
   /**
@@ -63,7 +74,7 @@ async function settleAnalysis(taskId: string, callbacks: AnalysisCallbacks, sign
     window.setTimeout(() => callbacks.onResult(parsed), 320);
   } catch (caught) {
     if (isAbort(signal, caught)) return;
-    callbacks.onError(caught instanceof Error ? caught.message : "Analysis failed.");
+    callbacks.onError(toErrorInfo(caught, "errFailed"));
   }
 }
 
@@ -79,7 +90,7 @@ export async function executeAnalysis(
     callbacks.onTaskStarted?.(taskId);
   } catch (caught) {
     if (isAbort(signal, caught)) return;
-    callbacks.onError(caught instanceof Error ? caught.message : "Analysis failed.");
+    callbacks.onError(toErrorInfo(caught, "errFailed"));
     return;
   }
   await settleAnalysis(taskId, callbacks, signal);
@@ -100,14 +111,14 @@ export function finalizeStages(prev: StageState): StageState {
 export type GithubCallbacks = {
   onLoading: () => void;
   onResult: (analysis: GithubAnalysis) => void;
-  onError: (message: string) => void;
+  onError: (error: AnalyzeErrorInfo) => void;
   /**
    * A non-fatal degradation note: the deep-dive still produced a result, but it
    * ran with less than the user supplied (e.g. JD-blind because the attached JD
    * couldn't be read). Surfaced as a warning, not an error, so the result still
    * shows alongside it.
    */
-  onWarning?: (message: string) => void;
+  onWarning?: (warning: AnalyzeErrorInfo) => void;
 };
 
 // The JD as the form holds it: textarea/library text plus the optional uploaded
@@ -142,9 +153,7 @@ export async function executeGithubAnalysis(
     // dropped instead of showing a result that quietly ignored it.
     const jdSupplied = Boolean(jd.jobDescriptionFile) || jd.jobDescriptionText.trim().length > 0;
     if (jdSupplied && !jobDescriptionText) {
-      callbacks.onWarning?.(
-        "Couldn't read the job description, so it's excluded from the GitHub analysis."
-      );
+      callbacks.onWarning?.({ code: "githubJdDropped" });
     }
     const response = await fetch("/api/github-analysis", {
       method: "POST",
@@ -156,11 +165,13 @@ export async function executeGithubAnalysis(
     // is optional and the route returns 200 + { error } to keep the browser
     // console clean when GitHub rate-limits us.
     if (payload && typeof payload === "object" && typeof payload.error === "string") {
-      throw new Error(payload.error);
+      // Server-owned English (e.g. "GitHub rate-limited us") — carried as the
+      // preferred verbatim text alongside the localized fallback code.
+      throw new AnalyzeClientError("errGithubFailed", payload.error);
     }
-    if (!response.ok) throw new Error("GitHub analysis failed.");
+    if (!response.ok) throw new AnalyzeClientError("errGithubFailed");
     callbacks.onResult(githubAnalysisSchema.parse(payload));
   } catch (caught) {
-    callbacks.onError(caught instanceof Error ? caught.message : "GitHub analysis failed.");
+    callbacks.onError(toErrorInfo(caught, "errGithubFailed"));
   }
 }
