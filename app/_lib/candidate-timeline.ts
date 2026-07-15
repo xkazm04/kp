@@ -1,12 +1,14 @@
-import { getPipelineEntry, latestInterviewByEntry, listAnalyses, listConsentEvents, listOutboxFiltered, listPipelineEventsForEntry, type ConsentEvent, type PipelineEvent } from "./db";
+import { getPipelineEntry, jdLastEditedAt, latestInterviewByEntry, listAnalyses, listConsentEvents, listOutboxFiltered, listPipelineEventsForEntry, type ConsentEvent, type PipelineEvent } from "./db";
 import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 import { listScheduleInvites } from "./schedule-store";
 import { isScheduleInviteExpired, INVITE_LINK_TTL_DAYS } from "./schedule-slots";
 import { listOffersForEntry } from "./offers-store";
 import { jdSlugOfJobId } from "./jd-limits";
+import { withCanonicalScores } from "./match-score-resolve";
 import { deriveCommsView } from "./comms-view";
 import { consentStatus, consentWithholdsPii, redactTranscriptForConsent, type ConsentStatus } from "./consent";
 import { getInterviewPrep } from "./interview-prep";
+import { isScoreStale } from "@/app/features/sub_decisions/DecisionsTypes";
 import { parseRematchDetail } from "@/app/features/sub_pipeline/pipeline-rematch-link";
 import { normalizeScorecardEntities, type Scorecard, type ScorecardEntities } from "./interview-scorecard";
 import type { InterviewTelemetry } from "./interview-telemetry";
@@ -127,6 +129,12 @@ export type CandidateDrawerBundle = {
   consent: CandidateConsentView;
   // Keyed by pipeline_event id → the navigable counterpart of a rematch event.
   rematchLinks: Record<number, RematchLink>;
+  // drawer-staleness-parity — the JD's last content-edit instant WHEN the entry's
+  // canonical (analysis) score predates it, else null. Same isScoreStale rule the
+  // decisions queue / library roster / wave preview use; the drawer header renders the
+  // same amber "JD edited {date}" History chip. Null for fresh / unscored / snapshot-
+  // only / corpus-job entries — informs, never blocks.
+  staleSince: string | null;
 };
 
 const ANALYSES_SCAN_LIMIT = 300;
@@ -321,7 +329,27 @@ export function candidateDrawerBundle(entryId: string, workspaceId: string = DEF
     humanScorecard: candidateHumanScorecard(entry.id),
     consent: candidateConsent(entry, workspaceId),
     rematchLinks: resolveRematchLinks(events, workspaceId),
+    staleSince: deriveStaleSince(entry, workspaceId),
   };
+}
+
+// drawer-staleness-parity — is this entry's canonical score older than the JD's last
+// content edit? Derived ONCE per drawer open, server-side, using the EXACT isScoreStale
+// rule (and the same jdEditedAt / scoreProvenance.at inputs) the decisions surfaces use
+// — NOT a fork. jdEditedAt is the JD-backed job's last revision (null for a corpus job
+// or never-edited JD); scoredAt is the canonical analysis timestamp (a snapshot-only or
+// unscored entry has none, so it's never stale). Returns the JD edit instant when
+// stale, else null.
+function deriveStaleSince(
+  entry: NonNullable<ReturnType<typeof getPipelineEntry>>,
+  workspaceId: string
+): string | null {
+  const jdSlug = jdSlugOfJobId(entry.jobId);
+  const jdEditedAt = jdSlug ? jdLastEditedAt(jdSlug, workspaceId) : null;
+  if (!jdEditedAt) return null;
+  const [scored] = withCanonicalScores([entry], workspaceId);
+  const scoredAt = scored.scoreProvenance?.source === "analysis" ? scored.scoreProvenance.at : null;
+  return isScoreStale(scoredAt, jdEditedAt) ? jdEditedAt : null;
 }
 
 // rematch-story-navigable — parse each re-engagement event's detail into its

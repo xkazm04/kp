@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AlertTriangle, ArrowLeftRight, Ban, Banknote, Calendar, ClipboardList, ExternalLink, FileText, GitBranch, History, Mail, NotebookPen, Pencil, Phone, Shuffle, Sparkles, UserCheck, Wrench, X } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useDialogA11y } from "@/app/_components/useDialogA11y";
 import { useScoreProvenanceText } from "@/app/_components/ScoreProvenanceLabel";
 import type { CandidateConsentView, CandidateTimelineItem, RematchLink } from "@/app/_lib/candidate-timeline";
@@ -141,6 +141,7 @@ export function CandidateDrawer({
     return tChannels.has(key) ? tChannels(key) : channel;
   };
   const enumLabel = useEnumLabel();
+  const locale = useLocale();
   const eventVerb = useEventVerb();
   const relativeTime = useRelativeTime();
   // Canonical match-score provenance label (REC-01), shared wording with the
@@ -197,6 +198,10 @@ export function CandidateDrawer({
   // keyed by event id (server-side existence check), so the history can render a
   // navigable link only when the other entry still exists in this workspace.
   const [rematchLinks, setRematchLinks] = useState<Record<number, RematchLink>>({});
+  // drawer-staleness-parity — the JD's last content-edit instant when this entry's
+  // score predates it (server-derived in the bundle, same isScoreStale rule Decisions
+  // uses). Null ⇒ fresh / unscored / snapshot / corpus — no chip.
+  const [staleSince, setStaleSince] = useState<string | null>(null);
   // GDPR consent snapshot + audit trail, now IN the bundle so ConsentPanel reads it
   // from props instead of firing its own second fetch (one-call drawer).
   const [consent, setConsent] = useState<CandidateConsentView | null>(null);
@@ -237,6 +242,7 @@ export function CandidateDrawer({
         setHistory((d.events as PipelineEvent[]) ?? []);
         setExtraTimeline((d.items as CandidateTimelineItem[]) ?? []);
         setRematchLinks((d.rematchLinks as Record<number, RematchLink> | undefined) ?? {});
+        setStaleSince((d.staleSince as string | null | undefined) ?? null);
         setComms((d.comms as typeof comms) ?? []);
         setIvOutcome((d.interview as InterviewOutcome | null) ?? null);
         setConsent((d.consent as CandidateConsentView | undefined) ?? null);
@@ -552,6 +558,18 @@ export function CandidateDrawer({
               {/* d95fed6d — provenance: which surface/channel filed this person. */}
               {entry.sourceChannel ? <> · {t("via", { channel: channelName(entry.sourceChannel) })}</> : null}
             </p>
+            {/* drawer-staleness-parity — the SAME amber "JD edited {date}" History chip
+                Decisions shows, so this surface (where advance/reject fires) can no
+                longer read a stale score as fresh. Server-derived (isScoreStale);
+                informs, never blocks. Absent for fresh/unscored/snapshot/corpus. */}
+            {staleSince ? (
+              <span
+                className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-amber-50 px-1.5 py-0.5 text-meta font-semibold text-amber-800"
+                title={t("jdEditedTitle", { date: new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(new Date(staleSince)) })}
+              >
+                <History size={11} aria-hidden /> {t("jdEditedBadge", { date: new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(new Date(staleSince)) })}
+              </span>
+            ) : null}
           </div>
           {/* Canonical match score (REC-01 / OO-L2-10): the SAME number the board
               and the decisions queue show, with its provenance named — so this
