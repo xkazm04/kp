@@ -25,6 +25,7 @@ import {
   resolveCandidatePoolEntry,
   type CandidatePoolEntry,
 } from "./candidate-pool.ts";
+import { DEFAULT_ROLE_FAMILY } from "./role-families.ts";
 
 after(() => cleanupUnitDb());
 
@@ -73,6 +74,15 @@ test("a legacy analysis (no v2Profile) folds to the honest 'unknown' archetype, 
   const entry = buildCandidatePool(WS_A).entries.find((e) => e.label === "NoV2.pdf");
   assert.ok(entry && "candidate" in entry, "a v2-less analysis becomes a flat `candidate` entry");
   assert.equal(entry.candidate.archetype, "unknown", "the fallback is the honest sentinel, not 'bau'");
+  // Seniority + role-family fail closed to the same neutral sentinels the matcher's
+  // own resolver uses — NOT a fabricated "medior"/"software_engineering" that would
+  // rank a nurse or electrician as a mid-level SWE.
+  assert.equal(entry.candidate.seniority, "unknown", "legacy seniority fails closed to 'unknown', not 'medior'");
+  assert.equal(
+    entry.candidate.roleFamily,
+    DEFAULT_ROLE_FAMILY,
+    "legacy role-family routes through the single-source neutral default, not 'software_engineering'"
+  );
 });
 
 test("resolveCandidatePoolEntry resolves within a workspace and NOT across tenants", () => {
