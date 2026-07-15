@@ -52,18 +52,23 @@ const METER_LABELS: Record<Meter, string> = {
  *  and collectively overrun a hard cap. Callers count the in-flight reservations and
  *  MUST leave no `await` between that count and the reservation's creation (the task-row
  *  insert), so under better-sqlite3's synchronous writes no request interleaves in the
- *  gap. A null (unlimited) allowance always proceeds. */
+ *  gap. A null (unlimited) allowance always proceeds.
+ *
+ *  `workspace` scopes the meter read to the requesting tenant (tenancy arc). Omitted
+ *  (or the default workspace) reads exactly the row it read before — byte-identical for
+ *  the single-tenant path — so this only starts to differ once per-tenant billing exists. */
 export function meterGate(
   meter: Meter,
-  opts: { now?: Date; minUnits?: number; inFlight?: number } = {}
+  opts: { now?: Date; minUnits?: number; inFlight?: number; workspace?: string } = {}
 ): QuotaVerdict | null {
   const now = opts.now ?? new Date();
   const minUnits = Math.max(1, Math.floor(opts.minUnits ?? 1));
   const inFlight = Math.max(0, Math.floor(opts.inFlight ?? 0));
   // Resolve the entitled plan ONCE: the allowance check and the verdict's plan
   // label both read it, and a single billing_state read also can't observe two
-  // different rows under a concurrent webhook write.
-  const plan = entitledPlan(getBillingState(), now);
+  // different rows under a concurrent webhook write. Scoped to the requesting
+  // workspace (defaulting to the single tenant when unset).
+  const plan = entitledPlan(getBillingState(opts.workspace), now);
   const remaining = meterOverview(meter, plan, now).remaining;
   if (remaining === null || remaining - inFlight >= minUnits) return null;
   return {

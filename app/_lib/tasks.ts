@@ -1,5 +1,6 @@
 import {
   createTask,
+  DEFAULT_WORKSPACE_ID,
   finishTask,
   getActiveTaskByDedupe,
   getTask,
@@ -269,7 +270,15 @@ export function isKnownKind(kind: string): boolean {
   return kind in HANDLERS;
 }
 
-export function startTask(kind: string, params: Record<string, unknown>): TaskRecord {
+export function startTask(
+  kind: string,
+  params: Record<string, unknown>,
+  // Tenant (P2): the workspace this run belongs to. Stamped on the task row so
+  // per-tenant reads (the reservation gate that counts in-flight runs, the /api/tasks
+  // poll) scope to the right team instead of lumping every tenant under the default.
+  // Defaults to the single workspace, so the single-tenant path is byte-identical.
+  workspaceId: string = DEFAULT_WORKSPACE_ID
+): TaskRecord {
   ensureRecovered();
   runMaintenance(); // throttled reap + retention prune, piggy-backed on submissions
   const spec = HANDLERS[kind];
@@ -278,14 +287,16 @@ export function startTask(kind: string, params: Record<string, unknown>): TaskRe
   // params were missing/empty, so we must NOT dedupe — merging on a collapsed
   // constant like `analyze:undefined` would hand this caller an unrelated
   // candidate's task and result (idea-5e38b9ad). Reuse only with a real identity.
+  // Dedup is scoped to THIS workspace so one tenant's run never coalesces onto
+  // another's identical key.
   const stableKey = buildDedupeKey(kind, params);
   if (stableKey) {
-    const existing = getActiveTaskByDedupe(stableKey);
+    const existing = getActiveTaskByDedupe(stableKey, workspaceId);
     if (existing) return existing;
   }
   const id = randomId("t");
   const dedupeKey = stableKey ?? `${kind}:nodedupe:${id}`; // guaranteed-unique; never merges
-  const rec = createTask(id, kind, dedupeKey, spec.label(params), params);
+  const rec = createTask(id, kind, dedupeKey, spec.label(params), params, workspaceId);
   queue.push(id);
   pump();
   return rec;

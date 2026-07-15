@@ -1,9 +1,13 @@
 import { ensureDb } from "./core";
+import { DEFAULT_WORKSPACE_ID } from "./workspaces";
 
 // ---- Payment gate (docs/BILLING.md) ----------------------------------------
 // Plain row accessors only; plan catalog, entitlement math, gateway calls, and
 // webhook reduction live in app/_lib/billing/ so this file stays a dumb store.
-// Single-workspace model: billing_state has exactly one row (id='workspace').
+// Single-workspace model: billing_state has exactly one row, keyed by the default
+// workspace id ('workspace'). The read accepts a workspace scope (tenancy arc) so
+// the gate can pass the requesting tenant; until per-tenant billing rows exist,
+// the default id reads the same single row as before (byte-identical).
 
 export type BillingStateRow = {
   plan: string;
@@ -18,9 +22,13 @@ export type BillingStateRow = {
 
 const WORKSPACE = "workspace";
 
-export function getBillingState(): BillingStateRow | null {
+export function getBillingState(workspaceId: string = DEFAULT_WORKSPACE_ID): BillingStateRow | null {
   const db = ensureDb();
-  const r = db.prepare(`SELECT * FROM billing_state WHERE id = ?`).get(WORKSPACE) as
+  // billing_state is keyed by workspace id; the single seeded row uses the default
+  // workspace id, so the no-arg default reads exactly the row it read before. A
+  // non-default tenant reads its own row (none yet → null → the free plan), which
+  // is the per-tenant seam this parameter opens without touching pricing math.
+  const r = db.prepare(`SELECT * FROM billing_state WHERE id = ?`).get(workspaceId) as
     | Record<string, unknown>
     | undefined;
   if (!r) return null;
