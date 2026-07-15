@@ -2619,7 +2619,9 @@
       "tabCoach": "Kouč",
       "tabCandidates": "Kandidáti",
       "tabRediscover": "Znovuobjevení",
-      "tabCompare": "Porovnání"
+      "tabCompare": "Porovnání",
+      "createCampaignPack": "Vytvořit balíček kampaně",
+      "viewCampaignPack": "Zobrazit balíček kampaně"
     },
     "coach": {
       "loadFailed": "Roli se nepodařilo vyhodnotit.",

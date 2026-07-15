@@ -2619,7 +2619,9 @@
       "tabCampaign": "Campaign",
       "tabCandidates": "Candidates",
       "tabRediscover": "Rediscover",
-      "tabCompare": "Compare"
+      "tabCompare": "Compare",
+      "createCampaignPack": "Create campaign pack",
+      "viewCampaignPack": "View campaign pack"
     },
     "coach": {
       "loadFailed": "Couldn't grade this role.",

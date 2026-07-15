@@ -2648,7 +2648,9 @@
       "tabCampaign": "Kampagne",
       "tabCandidates": "Kandidat/innen",
       "tabRediscover": "Wiederentdecken",
-      "tabCompare": "Vergleichen"
+      "tabCompare": "Vergleichen",
+      "createCampaignPack": "Kampagnenpaket erstellen",
+      "viewCampaignPack": "Kampagnenpaket ansehen"
     },
     "coach": {
       "loadFailed": "Diese Stelle konnte nicht bewertet werden.",

@@ -81,6 +81,12 @@ export function JobPostingModal({
   // transitions on top of the server-decorated job.status.
   const [publishing, setPublishing] = useState(false);
   const [published, setPublished] = useState(false);
+  // pack-on-publish — after a successful publish, point the recruiter at the
+  // campaign pack (the thing they'd post the role WITH). null = not checked yet
+  // (no CTA), false = no pack for this job/lang (→ "Create"), true = one exists
+  // (→ "View"). The publish response carries no pack info, so we settle it with
+  // one lightweight GET on success — the cheapest honest existence check.
+  const [packExists, setPackExists] = useState<boolean | null>(null);
   // tone "quota" = hit the plan's active-job cap (402 quota_exceeded): a monetization
   // moment, rendered as an upgrade path, NOT the amber "sourcing broke" warning.
   const [publishNote, setPublishNote] = useState<{ text: string; tone: "ok" | "warn" | "quota" } | null>(null);
@@ -114,6 +120,14 @@ export function JobPostingModal({
       setPublished(true);
       // Publish AND reopen both land the role at 'published' — refresh the table row.
       onChanged?.("published");
+      // Settle the pack-on-publish CTA: does a campaign pack already exist for
+      // the language the Campaign tab opens on? Fire-and-forget — a failed/slow
+      // check just leaves the CTA hidden, never blocks the publish result.
+      const campaignLang = isLocale(appLocale) ? appLocale : "en";
+      void fetch(`/api/jobs/${encodeURIComponent(job.id)}/campaign?lang=${campaignLang}`)
+        .then((cr) => cr.json())
+        .then((cd: { pack?: unknown }) => setPackExists(Boolean(cd?.pack)))
+        .catch(() => setPackExists(null));
       setPublishNote(
         p.sourcingWarning
           ? { text: td("publishedButFailed", { warning: p.sourcingWarning }), tone: "warn" }
@@ -249,6 +263,18 @@ export function JobPostingModal({
                 {publishNote.text}
               </span>
             )
+          ) : null}
+          {published && packExists !== null ? (
+            // pack-on-publish — the natural next step after going live: build (or
+            // open) the campaign pack you'd post the role WITH. No auto-generation
+            // — generating spends an LLM call, so it stays a human click on the tab.
+            <button
+              type="button"
+              onClick={() => setTab("campaign")}
+              className="focus-ring inline-flex h-9 items-center gap-1 rounded-md border border-coral/40 px-3 text-sm font-semibold text-coral hover:bg-coral/5"
+            >
+              <Megaphone size={14} /> {packExists ? t("viewCampaignPack") : t("createCampaignPack")}
+            </button>
           ) : null}
           {isDraft ? (
             // A draft's apply pages 404 — offering its links ships a campaign

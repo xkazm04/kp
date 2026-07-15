@@ -2648,7 +2648,9 @@
       "tabCampaign": "Campagne",
       "tabCandidates": "Candidats",
       "tabRediscover": "Redécouvrir",
-      "tabCompare": "Comparer"
+      "tabCompare": "Comparer",
+      "createCampaignPack": "Créer le pack de campagne",
+      "viewCampaignPack": "Voir le pack de campagne"
     },
     "coach": {
       "loadFailed": "Impossible d'évaluer ce poste.",
