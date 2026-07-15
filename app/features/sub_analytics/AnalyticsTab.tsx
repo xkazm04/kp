@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { ArrowRight, Download, PauseCircle, Target } from "lucide-react";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
 import { downloadFile, toCsv } from "@/app/_lib/export-utils";
+import { formatMoney } from "@/app/_lib/format";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
 import { useEnumLabel, labelOr } from "@/app/_lib/use-enum-label";
 import { momentumWeekLabel, type MomentumWeek } from "@/app/_lib/analytics-momentum";
@@ -36,6 +37,14 @@ type Analytics = {
   avgTimeToHireDays: number | null;
   // UAT M7 — blended overall cost per hire (Σ channel spend ÷ hires), all-time only.
   costPerHireCzk: number | null;
+  // compute-cost-per-hire — account-wide LLM compute cost from the usage ledger (USD,
+  // read-only). Null when the window holds no metered calls. See the DB type note.
+  computeCost: {
+    costUsd: number;
+    calls: number;
+    unpricedCalls: number;
+    costPerHireUsd: number | null;
+  } | null;
   avgAgeDays: number | null;
   bottleneck: { stage: string; avgDaysInStage: number; entryCount: number } | null;
   stageDwell: { stage: string; avgDays: number; count: number }[];
@@ -349,6 +358,13 @@ export function AnalyticsTab() {
         windowed={data.windowDays != null}
       />
 
+      <ComputeCostPanel
+        computeCost={data.computeCost}
+        costPerHireCzk={data.costPerHireCzk}
+        hired={data.hired}
+        windowed={data.windowDays != null}
+      />
+
       <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
         <div className="flex items-baseline justify-between gap-2">
           <h3 className="font-serif text-h2 text-ink">{t("byRole")}</h3>
@@ -590,6 +606,75 @@ function RoiLedger({
             >
               <Download size={13} /> {t("export")}
             </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// compute-cost-per-hire — surface the (read-only) LLM usage ledger beside the
+// recruiter-entered channel spend. HONEST by construction: the ledger has no
+// workspace_id (account-wide — the panel says so), prices in USD not the app currency
+// (labelled USD, never fake-converted), unpriced calls are flagged (a "$0" that means
+// "cost unknown"), and the blended per-hire shows manual (CZK) and compute (USD)
+// side by side WITHOUT summing across currencies. The manual leg keeps the CPA
+// windowing discipline (all-time only; "—" + note in a windowed view).
+function ComputeCostPanel({
+  computeCost,
+  costPerHireCzk,
+  hired,
+  windowed,
+}: {
+  computeCost: Analytics["computeCost"];
+  costPerHireCzk: number | null;
+  hired: number;
+  windowed: boolean;
+}) {
+  const t = useTranslations("analytics.compute");
+  const format = useFormatter();
+  const usd = (n: number) => format.number(n, { style: "currency", currency: "USD", maximumFractionDigits: 2 });
+  return (
+    <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
+      <div className="flex items-baseline justify-between gap-2">
+        <h3 className="font-serif text-h2 text-ink">{t("title")}</h3>
+        <span className="rounded-full border border-stone-200 px-2 py-0.5 text-meta uppercase tracking-wide text-steel">
+          {t("estimate")}
+        </span>
+      </div>
+      <p className="mt-1 max-w-3xl text-sm text-steel">{t("intro")}</p>
+
+      {computeCost == null ? (
+        <p className="mt-3 rounded-md bg-paper p-3 text-base text-steel">{t("empty")}</p>
+      ) : (
+        <>
+          <p className="mt-3 font-serif text-display leading-none text-ink">{usd(computeCost.costUsd)}</p>
+          <p className="mt-1 text-sm text-steel">{t("basis", { calls: computeCost.calls })}</p>
+          <p className="mt-0.5 text-sm text-steel">{t("accountScope")}</p>
+          {computeCost.unpricedCalls > 0 ? (
+            <p className="mt-0.5 text-sm text-dial-amber">{t("unpriced", { count: computeCost.unpricedCalls })}</p>
+          ) : null}
+
+          {/* Blended cost per hire — two currencies, side by side, never summed (no FX). */}
+          <div className="mt-4 border-t border-stone-200 pt-3">
+            <h4 className="text-meta uppercase tracking-wide text-steel">{t("perHireTitle")}</h4>
+            <dl className="mt-2 grid grid-cols-2 gap-3 rounded-md bg-paper p-3">
+              <div>
+                <dt className="text-meta uppercase tracking-wide text-steel">{t("computePerHire")}</dt>
+                <dd className="mt-0.5 font-serif text-h3 text-ink">
+                  {computeCost.costPerHireUsd != null ? `${usd(computeCost.costPerHireUsd)} ${t("perHireUnit")}` : "—"}
+                </dd>
+                <dd className="text-xs text-steel">{hired > 0 ? t("perHireHires", { hired }) : t("noHires")}</dd>
+              </div>
+              <div>
+                <dt className="text-meta uppercase tracking-wide text-steel">{t("manualPerHire")}</dt>
+                <dd className="mt-0.5 font-serif text-h3 text-ink">
+                  {costPerHireCzk != null ? `${formatMoney(costPerHireCzk)} ${t("perHireUnit")}` : "—"}
+                </dd>
+                <dd className="text-xs text-steel">{windowed ? t("manualWindowed") : t("manualAllTime")}</dd>
+              </div>
+            </dl>
+            <p className="mt-2 text-sm text-steel">{t("perHireNote")}</p>
           </div>
         </>
       )}

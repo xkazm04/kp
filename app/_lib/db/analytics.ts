@@ -48,6 +48,22 @@ export type PipelineAnalytics = {
   // hires), all-time only (windowed = null, mirroring the per-channel rule); the
   // single cost figure for the leadership readout.
   costPerHireCzk: number | null;
+  // compute-cost-per-hire — the LLM compute that produced these hires, read from the
+  // existing usage ledger (the llm_usage table insertLlmUsage writes). READ-ONLY: no
+  // new metering, no writes. HONEST SCOPE LIMITS surfaced by the UI: (1) llm_usage has
+  // NO workspace_id, so this is an ACCOUNT-WIDE total, not workspace-scoped; (2) the
+  // ledger prices in USD (cost_usd), NOT the app currency (CZK), so the tile is
+  // labelled in USD, never fake-converted; (3) `unpricedCalls` are NULL-cost rows
+  // (Azure/unknown model) that sum to 0 — surfaced so "$0" ≠ "nothing spent".
+  // costPerHireUsd divides the WINDOWED cost by the WINDOWED hire count (both scoped to
+  // the same window — an honest per-hire figure), null when there's no hire to divide
+  // by. Null overall when the window holds no metered calls.
+  computeCost: {
+    costUsd: number;
+    calls: number;
+    unpricedCalls: number;
+    costPerHireUsd: number | null;
+  } | null;
   avgAgeDays: number | null;
   bottleneck: Bottleneck | null;
   // Per-stage average dwell time across ALL active stages (Sloneek "time spent in
@@ -507,6 +523,16 @@ export function pipelineAnalytics(
   const totalSpendCzk = [...spendByChannel.values()].reduce((sum, v) => sum + (v ?? 0), 0);
   const costPerHireCzk = !cutoffIso && totalSpendCzk > 0 && hired > 0 ? Math.round(totalSpendCzk / hired) : null;
 
+  // compute-cost-per-hire — surface the (read-only) LLM usage ledger alongside the
+  // recruiter-entered channel spend. Windowed to match the cohort; per-hire divides
+  // the windowed cost by the windowed hire count (both same-window → honest, unlike
+  // the lifetime channel spend). Null when the window holds no metered calls.
+  const compute = computeCostWindow(windowDays, opts?.endMs);
+  const computeCost =
+    compute.calls > 0
+      ? { ...compute, costPerHireUsd: hired > 0 ? Math.round((compute.costUsd / hired) * 100) / 100 : null }
+      : null;
+
   return {
     total,
     active,
@@ -533,6 +559,7 @@ export function pipelineAnalytics(
     variantRecommendations,
     targets: analyticsTargets(workspaceId),
     costPerHireCzk,
+    computeCost,
     // b39992b1 — value of the automation over this window, at the stored (or
     // default) recruiter hourly rate, from the same kindCounts the rollup uses.
     // `hired` anchors the per-hire baseline framing (UAT M7).
@@ -667,6 +694,50 @@ export function pipelineAnalyticsPrior(
     .sort((a, b) => b.total - a.total);
 
   return { total, hired, avgTimeToHireDays, funnel, bySource, byChannel };
+}
+
+// compute-cost-per-hire — read-only windowed aggregate of the LLM usage ledger (the
+// llm_usage table insertLlmUsage writes; NOT a new meter and NOT a write). Scope
+// caveats the callers/UI surface honestly: the table has NO workspace_id (so this is
+// an ACCOUNT-WIDE total), and cost_usd is priced in USD, not the app currency. Sums
+// cost over PRICED rows only; `unpricedCalls` counts the NULL-cost rows (Azure /
+// unknown model) that would otherwise sum to a misleading $0. Windowed by `ts` (which
+// is indexed) to match the cohort window; `endMs` upper-bounds it for parity with a
+// prior-window cohort. A null/absent window sums all time.
+export function computeCostWindow(
+  windowDays?: number | null,
+  endMs?: number
+): { costUsd: number; calls: number; unpricedCalls: number } {
+  const db = ensureDb();
+  const end = endMs ?? Date.now();
+  const cutoffIso = windowDays ? new Date(end - windowDays * 86_400_000).toISOString() : null;
+  const upperIso = endMs != null && windowDays ? new Date(end).toISOString() : null;
+  const clauses: string[] = [];
+  const args: string[] = [];
+  if (cutoffIso) {
+    clauses.push("ts >= ?");
+    args.push(cutoffIso);
+  }
+  if (upperIso) {
+    clauses.push("ts < ?");
+    args.push(upperIso);
+  }
+  const where = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
+  const row = db
+    .prepare(
+      `SELECT COUNT(*) AS calls,
+              COALESCE(SUM(cost_usd), 0) AS cost_usd,
+              SUM(CASE WHEN cost_usd IS NULL THEN 1 ELSE 0 END) AS unpriced
+         FROM llm_usage ${where}`
+    )
+    .get(...args) as { calls: number; cost_usd: number; unpriced: number | null };
+  return {
+    // Cents precision — the ledger prices sub-dollar per call; integer rounding would
+    // collapse a real spend to "$0".
+    costUsd: Math.round((row.cost_usd ?? 0) * 100) / 100,
+    calls: Number(row.calls ?? 0),
+    unpricedCalls: Number(row.unpriced ?? 0),
+  };
 }
 
 // 82c2b8e8 — recruiter-set analytics goals (small key/value table, mirroring the
