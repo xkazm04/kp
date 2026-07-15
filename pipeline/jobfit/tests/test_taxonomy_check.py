@@ -150,27 +150,50 @@ class CorpusCollisionScanTest(unittest.TestCase):
         self.assertEqual([c for c in coll if c.surface == "hr"], [])
 
 
+# Non-tech families whose SKILL vocabulary was authored THROUGH the collision scan.
+# Phase 2 seeded legal_compliance + hr_people; phase 3 (care/trades/frontline)
+# adds the four biggest unmodelled verticals. Every SKILL surface these families
+# introduce must be collision-clean against the representative seeded corpus.
+_AUTHORED_NONTECH_FAMILIES: frozenset[str] = frozenset(
+    {
+        "legal_compliance",
+        "hr_people",
+        "healthcare_clinical",
+        "skilled_trades",
+        "frontline_service",
+        "education_academic",
+    }
+)
+
+
 class LiveNonTechCollisionGateTest(unittest.TestCase):
-    """The legal_compliance + hr_people vocabulary was authored THROUGH the scan:
-    every surface these two families introduce must be collision-clean against the
-    representative seeded corpus (jobs + candidates, incl. the non-tech slice)."""
+    """The authored non-tech SKILL vocabulary was written THROUGH the scan: every
+    surface these families introduce must be collision-clean against the
+    representative seeded corpus (jobs + candidates, incl. the non-tech slice).
+
+    Scoped to the ``skill`` category on purpose — that is the vocabulary these
+    directions author. Grandfathered ``role_title`` terms (e.g. the bare "waiter"
+    surface on ``role_food_service``) predate the scan and are out of scope; the
+    skill graph never resolves through them."""
 
     def test_new_nontech_families_are_collision_clean(self) -> None:
         taxonomy = tc.load_taxonomy()
         corpus = tc.seed_corpus()
-        # Terms that vote ONLY the two new families (i.e. surfaces authored here, not
-        # grandfathered finance/tech terms merely cross-voted in).
+        # Skill terms that vote ONLY the authored non-tech families (i.e. surfaces
+        # authored here, not grandfathered finance/tech terms merely cross-voted in,
+        # nor role_title classifier terms).
         new_ids = {
             t["id"]
             for t in taxonomy["terms"]
-            if set((t.get("role_family_votes") or {}))
-            and set((t.get("role_family_votes") or {})) <= {"legal_compliance", "hr_people"}
+            if "skill" in (t.get("categories") or [])
+            and set((t.get("role_family_votes") or {}))
+            and set((t.get("role_family_votes") or {})) <= _AUTHORED_NONTECH_FAMILIES
         }
-        self.assertGreater(len(new_ids), 60, "expected the authored legal+HR vocabulary")
+        self.assertGreater(len(new_ids), 200, "expected the authored non-tech skill vocabulary")
         coll = tc.scan_corpus_collisions(taxonomy, corpus, term_ids=new_ids, categories=None)
         self.assertEqual(
             coll, [],
-            "authored legal/HR surfaces collide with the seed corpus:\n  "
+            "authored non-tech skill surfaces collide with the seed corpus:\n  "
             + "\n  ".join(c.describe() for c in coll),
         )
 

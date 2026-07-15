@@ -6611,6 +6611,2525 @@
       "parents": [
         "recruiting"
       ]
+    },
+    {
+      "id": "nursing_practice",
+      "match": [
+        "nursing",
+        "ošetřovatelství",
+        "ošetřovatelská péče"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "healthcare_clinical": 1
+      }
+    },
+    {
+      "id": "clinical_care",
+      "match": [
+        "clinical care",
+        "klinická péče"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "healthcare_clinical": 1
+      }
+    },
+    {
+      "id": "patient_care_skill",
+      "match": [
+        "patient care",
+        "péče o pacienta"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "healthcare_clinical": 1
+      }
+    },
+    {
+      "id": "allied_health_practice",
+      "match": [
+        "allied health",
+        "nelékařský zdravotnický obor"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "healthcare_clinical": 1
+      }
+    },
+    {
+      "id": "icu_nursing",
+      "match": [
+        "intensive care nursing",
+        "intenzivní péče",
+        "intenzivní ošetřovatelská péče"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "healthcare_clinical": 1
+      },
+      "parents": [
+        "nursing_practice"
+      ]
+    },
+    {
+      "id": "emergency_nursing",
+      "match": [
+        "emergency nursing",
+        "urgentní péče",
+        "ošetřovatelství na urgentním příjmu"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "healthcare_clinical": 1
+      },
+      "parents": [
+        "nursing_practice"
+      ]
+    },
+    {
+      "id": "pediatric_nursing",
+      "match": [
+        "pediatric nursing",
+        "dětské ošetřovatelství",
+        "ošetřovatelská péče o děti"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "healthcare_clinical": 1
+      },
+      "parents": [
+        "nursing_practice"
+      ]
+    },
+    {
+      "id": "perioperative_nursing",
+      "match": [
+        "perioperative nursing",
+        "perioperační péče",
+        "práce na operačním sále"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "healthcare_clinical": 1
+      },
+      "parents": [
+        "nursing_practice"
+      ]
+    },
+    {
+      "id": "geriatric_nursing",
+      "match": [
+        "geriatric nursing",
+        "geriatrické ošetřovatelství"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "healthcare_clinical": 1
+      },
+      "parents": [
+        "nursing_practice"
+      ]
+    },
+    {
+      "id": "oncology_nursing",
+      "match": [
+        "oncology nursing",
+        "onkologické ošetřovatelství"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "healthcare_clinical": 1
+      },
+      "parents": [
+        "nursing_practice"
+      ]
+    },
+    {
+      "id": "psychiatric_nursing",
+      "match": [
+        "psychiatric nursing",
+        "psychiatrické ošetřovatelství"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "healthcare_clinical": 1
+      },
+      "parents": [
+        "nursing_practice"
+      ]
+    },
+    {
+      "id": "community_nursing",
+      "match": [
+        "community nursing",
+        "komunitní ošetřovatelství",
+        "terénní ošetřovatelská péče"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "healthcare_clinical": 1
+      },
+      "parents": [
+        "nursing_practice"
+      ]
+    },
+    {
+      "id": "patient_assessment",
+      "match": [
+        "patient assessment",
+        "vyšetření pacienta",
+        "posouzení stavu pacienta"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "healthcare_clinical": 1
+      },
+      "parents": [
+        "clinical_care"
+      ]
+    },
+    {
+      "id": "vital_signs_monitoring",
+      "match": [
+        "vital signs monitoring",
+        "měření vitálních funkcí",
+        "sledování životních funkcí"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "healthcare_clinical": 1
+      },
+      "parents": [
+        "clinical_care"
+      ]
+    },
+    {
+      "id": "medication_administration",
+      "match": [
+        "medication administration",
+        "podávání léků",
+        "aplikace léčiv"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "healthcare_clinical": 1
+      },
+      "parents": [
+        "clinical_care"
+      ]
+    },
+    {
+      "id": "iv_therapy",
+      "match": [
+        "intravenous therapy",
+        "infuzní terapie",
+        "nitrožilní terapie"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "healthcare_clinical": 1
+      },
+      "parents": [
+        "clinical_care"
+      ]
+    },
+    {
+      "id": "venipuncture",
+      "match": [
+        "venipuncture",
+        "odběr krve",
+        "žilní odběr"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "healthcare_clinical": 1
+      },
+      "parents": [
+        "clinical_care"
+      ]
+    },
+    {
+      "id": "wound_care",
+      "match": [
+        "wound care",
+        "péče o rány",
+        "ošetřování ran",
+        "hojení ran"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "healthcare_clinical": 1
+      },
+      "parents": [
+        "clinical_care"
+      ]
+    },
+    {
+      "id": "infection_control",
+      "match": [
+        "infection control",
+        "prevence infekcí",
+        "kontrola nozokomiálních nákaz"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "healthcare_clinical": 1
+      },
+      "parents": [
+        "clinical_care"
+      ]
+    },
+    {
+      "id": "patient_triage",
+      "match": [
+        "patient triage",
+        "třídění pacientů",
+        "triáž pacientů"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "healthcare_clinical": 1
+      },
+      "parents": [
+        "clinical_care"
+      ]
+    },
+    {
+      "id": "catheterization",
+      "match": [
+        "catheterization",
+        "katetrizace",
+        "cévkování"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "healthcare_clinical": 1
+      },
+      "parents": [
+        "clinical_care"
+      ]
+    },
+    {
+      "id": "patient_monitoring",
+      "match": [
+        "patient monitoring",
+        "monitorování pacienta",
+        "monitorace pacienta"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "healthcare_clinical": 1
+      },
+      "parents": [
+        "clinical_care"
+      ]
+    },
+    {
+      "id": "electrocardiography",
+      "match": [
+        "electrocardiography",
+        "elektrokardiografie",
+        "snímání ekg"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "healthcare_clinical": 1
+      },
+      "parents": [
+        "clinical_care"
+      ]
+    },
+    {
+      "id": "mechanical_ventilation",
+      "match": [
+        "mechanical ventilation",
+        "umělá plicní ventilace",
+        "ventilace pacienta"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "healthcare_clinical": 1
+      },
+      "parents": [
+        "clinical_care"
+      ]
+    },
+    {
+      "id": "instrument_sterilization",
+      "match": [
+        "instrument sterilization",
+        "sterilizace nástrojů",
+        "dekontaminace nástrojů"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "healthcare_clinical": 1
+      },
+      "parents": [
+        "clinical_care"
+      ]
+    },
+    {
+      "id": "basic_life_support",
+      "match": [
+        "basic life support",
+        "základní neodkladná resuscitace",
+        "kardiopulmonální resuscitace"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "healthcare_clinical": 1
+      },
+      "parents": [
+        "clinical_care"
+      ]
+    },
+    {
+      "id": "advanced_life_support",
+      "match": [
+        "advanced life support",
+        "rozšířená neodkladná resuscitace"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "healthcare_clinical": 1
+      },
+      "parents": [
+        "basic_life_support"
+      ]
+    },
+    {
+      "id": "elderly_care",
+      "match": [
+        "elderly care",
+        "péče o seniory"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "healthcare_clinical": 1
+      },
+      "parents": [
+        "patient_care_skill"
+      ]
+    },
+    {
+      "id": "palliative_care",
+      "match": [
+        "palliative care",
+        "paliativní péče",
+        "hospicová péče"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "healthcare_clinical": 1
+      },
+      "parents": [
+        "patient_care_skill"
+      ]
+    },
+    {
+      "id": "home_nursing_care",
+      "match": [
+        "home care",
+        "domácí péče",
+        "domácí ošetřovatelská péče"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "healthcare_clinical": 1
+      },
+      "parents": [
+        "patient_care_skill"
+      ]
+    },
+    {
+      "id": "rehabilitation_care",
+      "match": [
+        "rehabilitation nursing",
+        "rehabilitační péče",
+        "rehabilitační ošetřovatelství"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "healthcare_clinical": 1
+      },
+      "parents": [
+        "patient_care_skill"
+      ]
+    },
+    {
+      "id": "personal_hygiene_care",
+      "match": [
+        "personal hygiene care",
+        "hygienická péče",
+        "péče o hygienu pacienta"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "healthcare_clinical": 1
+      },
+      "parents": [
+        "patient_care_skill"
+      ]
+    },
+    {
+      "id": "physiotherapy",
+      "match": [
+        "physiotherapy",
+        "fyzioterapie"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "healthcare_clinical": 1
+      },
+      "parents": [
+        "allied_health_practice"
+      ]
+    },
+    {
+      "id": "occupational_therapy",
+      "match": [
+        "occupational therapy",
+        "ergoterapie"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "healthcare_clinical": 1
+      },
+      "parents": [
+        "allied_health_practice"
+      ]
+    },
+    {
+      "id": "speech_therapy",
+      "match": [
+        "speech therapy",
+        "logopedie"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "healthcare_clinical": 1
+      },
+      "parents": [
+        "allied_health_practice"
+      ]
+    },
+    {
+      "id": "radiography",
+      "match": [
+        "radiography",
+        "radiologie",
+        "zobrazovací metody"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "healthcare_clinical": 1
+      },
+      "parents": [
+        "allied_health_practice"
+      ]
+    },
+    {
+      "id": "pharmacy_dispensing",
+      "match": [
+        "medicine dispensing",
+        "výdej léčiv",
+        "expedice léků"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "healthcare_clinical": 1
+      },
+      "parents": [
+        "allied_health_practice"
+      ]
+    },
+    {
+      "id": "laboratory_diagnostics",
+      "match": [
+        "laboratory diagnostics",
+        "laboratorní diagnostika",
+        "laboratorní vyšetření"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "healthcare_clinical": 1
+      },
+      "parents": [
+        "allied_health_practice"
+      ]
+    },
+    {
+      "id": "clinical_nutrition",
+      "match": [
+        "clinical nutrition",
+        "nutriční terapie",
+        "klinická výživa"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "healthcare_clinical": 1
+      },
+      "parents": [
+        "allied_health_practice"
+      ]
+    },
+    {
+      "id": "electronic_health_records",
+      "match": [
+        "electronic health records",
+        "elektronická zdravotní dokumentace",
+        "nemocniční informační systém"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "healthcare_clinical": 1
+      },
+      "parents": [
+        "clinical_care"
+      ]
+    },
+    {
+      "id": "clinical_documentation",
+      "match": [
+        "clinical documentation",
+        "zdravotnická dokumentace",
+        "vedení zdravotnické dokumentace"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "healthcare_clinical": 1
+      },
+      "parents": [
+        "electronic_health_records"
+      ]
+    },
+    {
+      "id": "medical_terminology",
+      "match": [
+        "medical terminology",
+        "lékařská terminologie"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "healthcare_clinical": 1
+      },
+      "parents": [
+        "clinical_care"
+      ]
+    },
+    {
+      "id": "pharmacology_knowledge",
+      "match": [
+        "pharmacology",
+        "farmakologie",
+        "znalost léčiv"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "healthcare_clinical": 1
+      },
+      "parents": [
+        "clinical_care"
+      ]
+    },
+    {
+      "id": "anatomy_physiology",
+      "match": [
+        "anatomy and physiology",
+        "anatomie a fyziologie"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "healthcare_clinical": 1
+      },
+      "parents": [
+        "clinical_care"
+      ]
+    },
+    {
+      "id": "electrical_work",
+      "match": [
+        "electrical work",
+        "elektroinstalace",
+        "elektrikářské práce"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "skilled_trades": 1
+      }
+    },
+    {
+      "id": "welding",
+      "match": [
+        "welding",
+        "svařování"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "skilled_trades": 1
+      }
+    },
+    {
+      "id": "plumbing",
+      "match": [
+        "plumbing",
+        "instalatérství",
+        "vodoinstalace"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "skilled_trades": 1
+      }
+    },
+    {
+      "id": "hvac_systems",
+      "match": [
+        "hvac",
+        "vzduchotechnika",
+        "topení a klimatizace"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "skilled_trades": 1
+      }
+    },
+    {
+      "id": "machining",
+      "match": [
+        "machining",
+        "obrábění kovů"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "skilled_trades": 1
+      }
+    },
+    {
+      "id": "carpentry",
+      "match": [
+        "carpentry",
+        "truhlářství",
+        "tesařství"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "skilled_trades": 1
+      }
+    },
+    {
+      "id": "construction_craft",
+      "match": [
+        "construction work",
+        "stavební práce",
+        "práce ve stavebnictví"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "skilled_trades": 1
+      }
+    },
+    {
+      "id": "mechanical_maintenance",
+      "match": [
+        "mechanical maintenance",
+        "údržba strojů",
+        "strojní údržba"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "skilled_trades": 1
+      }
+    },
+    {
+      "id": "automotive_repair",
+      "match": [
+        "automotive repair",
+        "opravy vozidel",
+        "autoopravárenství"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "skilled_trades": 1
+      }
+    },
+    {
+      "id": "industrial_wiring",
+      "match": [
+        "industrial wiring",
+        "průmyslová elektroinstalace"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "skilled_trades": 1
+      },
+      "parents": [
+        "electrical_work"
+      ]
+    },
+    {
+      "id": "electrical_installation",
+      "match": [
+        "electrical installation",
+        "montáž elektroinstalace",
+        "silnoproud"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "skilled_trades": 1
+      },
+      "parents": [
+        "electrical_work"
+      ]
+    },
+    {
+      "id": "plc_programming",
+      "match": [
+        "plc programming",
+        "programování plc",
+        "programování řídicích systémů"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "skilled_trades": 1
+      },
+      "parents": [
+        "electrical_work"
+      ]
+    },
+    {
+      "id": "switchgear_assembly",
+      "match": [
+        "switchgear assembly",
+        "montáž rozvaděčů",
+        "výroba rozvaděčů"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "skilled_trades": 1
+      },
+      "parents": [
+        "electrical_work"
+      ]
+    },
+    {
+      "id": "electrical_troubleshooting",
+      "match": [
+        "electrical troubleshooting",
+        "diagnostika elektro závad",
+        "hledání závad v elektroinstalaci"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "skilled_trades": 1
+      },
+      "parents": [
+        "electrical_work"
+      ]
+    },
+    {
+      "id": "mig_welding",
+      "match": [
+        "mig welding",
+        "svařování mig",
+        "svařování v ochranné atmosféře"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "skilled_trades": 1
+      },
+      "parents": [
+        "welding"
+      ]
+    },
+    {
+      "id": "tig_welding",
+      "match": [
+        "tig welding",
+        "svařování tig",
+        "svařování wolframovou elektrodou"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "skilled_trades": 1
+      },
+      "parents": [
+        "welding"
+      ]
+    },
+    {
+      "id": "arc_welding",
+      "match": [
+        "arc welding",
+        "obloukové svařování"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "skilled_trades": 1
+      },
+      "parents": [
+        "welding"
+      ]
+    },
+    {
+      "id": "gas_welding",
+      "match": [
+        "gas welding",
+        "plamenové svařování"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "skilled_trades": 1
+      },
+      "parents": [
+        "welding"
+      ]
+    },
+    {
+      "id": "welding_certification",
+      "match": [
+        "welding certificate",
+        "svářečský průkaz",
+        "svářečská zkouška"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "skilled_trades": 1
+      },
+      "parents": [
+        "welding"
+      ]
+    },
+    {
+      "id": "pipe_fitting",
+      "match": [
+        "pipe fitting",
+        "montáž potrubí",
+        "potrubářské práce"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "skilled_trades": 1
+      },
+      "parents": [
+        "plumbing"
+      ]
+    },
+    {
+      "id": "heating_installation",
+      "match": [
+        "heating installation",
+        "montáž topení",
+        "topenářství"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "skilled_trades": 1
+      },
+      "parents": [
+        "plumbing"
+      ]
+    },
+    {
+      "id": "sanitary_installation",
+      "match": [
+        "sanitary installation",
+        "montáž zdravotechniky",
+        "montáž sanity"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "skilled_trades": 1
+      },
+      "parents": [
+        "plumbing"
+      ]
+    },
+    {
+      "id": "cnc_machining",
+      "match": [
+        "cnc machining",
+        "cnc obrábění",
+        "obrábění na cnc"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "skilled_trades": 1
+      },
+      "parents": [
+        "machining"
+      ]
+    },
+    {
+      "id": "lathe_operation",
+      "match": [
+        "lathe operation",
+        "soustružení",
+        "obsluha soustruhu"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "skilled_trades": 1
+      },
+      "parents": [
+        "machining"
+      ]
+    },
+    {
+      "id": "milling",
+      "match": [
+        "milling",
+        "frézování"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "skilled_trades": 1
+      },
+      "parents": [
+        "machining"
+      ]
+    },
+    {
+      "id": "grinding",
+      "match": [
+        "surface grinding",
+        "broušení kovů"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "skilled_trades": 1
+      },
+      "parents": [
+        "machining"
+      ]
+    },
+    {
+      "id": "technical_drawing_reading",
+      "match": [
+        "technical drawing reading",
+        "čtení technické dokumentace",
+        "čtení výkresů"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "skilled_trades": 1
+      },
+      "parents": [
+        "machining"
+      ]
+    },
+    {
+      "id": "dimensional_measurement",
+      "match": [
+        "dimensional measurement",
+        "měření rozměrů",
+        "kontrola rozměrů"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "skilled_trades": 1
+      },
+      "parents": [
+        "machining"
+      ]
+    },
+    {
+      "id": "cabinetmaking",
+      "match": [
+        "cabinetmaking",
+        "výroba nábytku",
+        "nábytkářství"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "skilled_trades": 1
+      },
+      "parents": [
+        "carpentry"
+      ]
+    },
+    {
+      "id": "flooring_installation",
+      "match": [
+        "flooring installation",
+        "podlahářství",
+        "pokládka podlah"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "skilled_trades": 1
+      },
+      "parents": [
+        "carpentry"
+      ]
+    },
+    {
+      "id": "roofing",
+      "match": [
+        "roofing",
+        "pokrývačství",
+        "montáž střech"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "skilled_trades": 1
+      },
+      "parents": [
+        "construction_craft"
+      ]
+    },
+    {
+      "id": "bricklaying",
+      "match": [
+        "bricklaying",
+        "zednictví",
+        "zednické práce"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "skilled_trades": 1
+      },
+      "parents": [
+        "construction_craft"
+      ]
+    },
+    {
+      "id": "concreting",
+      "match": [
+        "concreting",
+        "betonářství",
+        "betonování"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "skilled_trades": 1
+      },
+      "parents": [
+        "construction_craft"
+      ]
+    },
+    {
+      "id": "plastering",
+      "match": [
+        "plastering",
+        "omítkářství",
+        "štukatérské práce"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "skilled_trades": 1
+      },
+      "parents": [
+        "construction_craft"
+      ]
+    },
+    {
+      "id": "scaffolding",
+      "match": [
+        "scaffolding",
+        "lešenářství",
+        "montáž lešení"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "skilled_trades": 1
+      },
+      "parents": [
+        "construction_craft"
+      ]
+    },
+    {
+      "id": "preventive_maintenance",
+      "match": [
+        "preventive maintenance",
+        "preventivní údržba",
+        "plánovaná údržba"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "skilled_trades": 1
+      },
+      "parents": [
+        "mechanical_maintenance"
+      ]
+    },
+    {
+      "id": "hydraulic_systems",
+      "match": [
+        "hydraulic systems",
+        "hydraulika",
+        "hydraulické systémy"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "skilled_trades": 1
+      },
+      "parents": [
+        "mechanical_maintenance"
+      ]
+    },
+    {
+      "id": "pneumatic_systems",
+      "match": [
+        "pneumatic systems",
+        "pneumatika",
+        "pneumatické systémy"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "skilled_trades": 1
+      },
+      "parents": [
+        "mechanical_maintenance"
+      ]
+    },
+    {
+      "id": "engine_repair",
+      "match": [
+        "engine repair",
+        "opravy motorů",
+        "motorářské práce"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "skilled_trades": 1
+      },
+      "parents": [
+        "automotive_repair"
+      ]
+    },
+    {
+      "id": "vehicle_diagnostics",
+      "match": [
+        "vehicle diagnostics",
+        "diagnostika vozidel",
+        "autodiagnostika"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "skilled_trades": 1
+      },
+      "parents": [
+        "automotive_repair"
+      ]
+    },
+    {
+      "id": "retail_operations",
+      "match": [
+        "retail operations",
+        "provoz prodejny",
+        "maloobchodní provoz"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "frontline_service": 1
+      }
+    },
+    {
+      "id": "cash_handling",
+      "match": [
+        "cash handling",
+        "manipulace s hotovostí",
+        "práce s hotovostí"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "frontline_service": 1
+      }
+    },
+    {
+      "id": "point_of_sale_operation",
+      "match": [
+        "point of sale operation",
+        "obsluha pokladního systému",
+        "práce s pokladním systémem"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "frontline_service": 1
+      }
+    },
+    {
+      "id": "food_service_operations",
+      "match": [
+        "food service operations",
+        "stravovací služby",
+        "provoz gastro provozu"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "frontline_service": 1
+      }
+    },
+    {
+      "id": "hospitality_service",
+      "match": [
+        "hospitality service",
+        "pohostinské služby",
+        "hotelové služby"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "frontline_service": 1
+      }
+    },
+    {
+      "id": "front_office_operations",
+      "match": [
+        "front office operations",
+        "recepční služby",
+        "provoz recepce"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "frontline_service": 1
+      }
+    },
+    {
+      "id": "merchandising",
+      "match": [
+        "merchandising",
+        "vystavení zboží",
+        "merchandising zboží"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "frontline_service": 1
+      },
+      "parents": [
+        "retail_operations"
+      ]
+    },
+    {
+      "id": "stock_replenishment",
+      "match": [
+        "stock replenishment",
+        "doplňování zboží",
+        "doplňování regálů"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "frontline_service": 1
+      },
+      "parents": [
+        "retail_operations"
+      ]
+    },
+    {
+      "id": "planogram_compliance",
+      "match": [
+        "planogram compliance",
+        "dodržování planogramu",
+        "rozmístění zboží dle planogramu"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "frontline_service": 1
+      },
+      "parents": [
+        "retail_operations"
+      ]
+    },
+    {
+      "id": "stock_taking",
+      "match": [
+        "stock taking",
+        "inventura",
+        "inventarizace zboží"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "frontline_service": 1
+      },
+      "parents": [
+        "retail_operations"
+      ]
+    },
+    {
+      "id": "loss_prevention",
+      "match": [
+        "loss prevention",
+        "prevence ztrát",
+        "ochrana zboží proti krádeži"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "frontline_service": 1
+      },
+      "parents": [
+        "retail_operations"
+      ]
+    },
+    {
+      "id": "product_advising",
+      "match": [
+        "product advising",
+        "poradenství o zboží",
+        "prodejní poradenství"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "frontline_service": 1
+      },
+      "parents": [
+        "retail_operations"
+      ]
+    },
+    {
+      "id": "visual_display",
+      "match": [
+        "visual display",
+        "aranžování výlohy",
+        "aranžérské práce"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "frontline_service": 1
+      },
+      "parents": [
+        "retail_operations"
+      ]
+    },
+    {
+      "id": "cash_register_operation",
+      "match": [
+        "cash register operation",
+        "obsluha pokladny",
+        "účtování na pokladně"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "frontline_service": 1
+      },
+      "parents": [
+        "cash_handling"
+      ]
+    },
+    {
+      "id": "card_payment_processing",
+      "match": [
+        "card payment processing",
+        "platby kartou",
+        "bezhotovostní platby"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "frontline_service": 1
+      },
+      "parents": [
+        "cash_handling"
+      ]
+    },
+    {
+      "id": "cash_reconciliation",
+      "match": [
+        "cash reconciliation",
+        "uzávěrka pokladny",
+        "vyúčtování tržby"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "frontline_service": 1
+      },
+      "parents": [
+        "cash_handling"
+      ]
+    },
+    {
+      "id": "suggestive_selling",
+      "match": [
+        "suggestive selling",
+        "aktivní nabídka doplňkového prodeje",
+        "doprodej u pokladny"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "frontline_service": 1
+      },
+      "parents": [
+        "point_of_sale_operation"
+      ]
+    },
+    {
+      "id": "complaint_handling",
+      "match": [
+        "customer complaint handling",
+        "vyřizování reklamací",
+        "řešení stížností zákazníků"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "frontline_service": 1
+      },
+      "parents": [
+        "point_of_sale_operation"
+      ]
+    },
+    {
+      "id": "customer_greeting",
+      "match": [
+        "customer greeting",
+        "vítání zákazníků",
+        "uvítání hostů"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "frontline_service": 1
+      },
+      "parents": [
+        "point_of_sale_operation"
+      ]
+    },
+    {
+      "id": "food_preparation",
+      "match": [
+        "food preparation",
+        "příprava jídel",
+        "příprava pokrmů"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "frontline_service": 1
+      },
+      "parents": [
+        "food_service_operations"
+      ]
+    },
+    {
+      "id": "table_service",
+      "match": [
+        "table service",
+        "obsluha u stolu",
+        "roznos jídel"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "frontline_service": 1
+      },
+      "parents": [
+        "food_service_operations"
+      ]
+    },
+    {
+      "id": "bartending",
+      "match": [
+        "bartending",
+        "barmanství",
+        "příprava míchaných nápojů"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "frontline_service": 1
+      },
+      "parents": [
+        "food_service_operations"
+      ]
+    },
+    {
+      "id": "barista_skills",
+      "match": [
+        "barista skills",
+        "příprava kávy",
+        "baristické dovednosti"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "frontline_service": 1
+      },
+      "parents": [
+        "food_service_operations"
+      ]
+    },
+    {
+      "id": "food_safety_hygiene",
+      "match": [
+        "food safety",
+        "haccp",
+        "hygienické minimum",
+        "bezpečnost potravin"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "frontline_service": 1
+      },
+      "parents": [
+        "food_service_operations"
+      ]
+    },
+    {
+      "id": "banquet_service",
+      "match": [
+        "banquet service",
+        "rautová obsluha",
+        "cateringová obsluha"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "frontline_service": 1
+      },
+      "parents": [
+        "food_service_operations"
+      ]
+    },
+    {
+      "id": "wine_service",
+      "match": [
+        "wine service",
+        "someliérství",
+        "nabídka a servis vín"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "frontline_service": 1
+      },
+      "parents": [
+        "food_service_operations"
+      ]
+    },
+    {
+      "id": "housekeeping_service",
+      "match": [
+        "housekeeping operations",
+        "úklidové služby",
+        "úklid pokojů"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "frontline_service": 1
+      },
+      "parents": [
+        "hospitality_service"
+      ]
+    },
+    {
+      "id": "guest_relations",
+      "match": [
+        "guest relations",
+        "péče o hosty",
+        "starost o spokojenost hostů"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "frontline_service": 1
+      },
+      "parents": [
+        "hospitality_service"
+      ]
+    },
+    {
+      "id": "reservation_handling",
+      "match": [
+        "reservation handling",
+        "správa rezervací",
+        "obsluha rezervačního systému"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "frontline_service": 1
+      },
+      "parents": [
+        "hospitality_service"
+      ]
+    },
+    {
+      "id": "room_service",
+      "match": [
+        "room service",
+        "pokojová služba"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "frontline_service": 1
+      },
+      "parents": [
+        "hospitality_service"
+      ]
+    },
+    {
+      "id": "guest_check_in",
+      "match": [
+        "guest check-in",
+        "odbavení hostů",
+        "ubytování hostů"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "frontline_service": 1
+      },
+      "parents": [
+        "front_office_operations"
+      ]
+    },
+    {
+      "id": "concierge_service",
+      "match": [
+        "concierge service",
+        "concierge služby",
+        "informační služby pro hosty"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "frontline_service": 1
+      },
+      "parents": [
+        "front_office_operations"
+      ]
+    },
+    {
+      "id": "switchboard_operation",
+      "match": [
+        "switchboard operation",
+        "obsluha telefonní ústředny",
+        "spojovatelské služby"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "frontline_service": 1
+      },
+      "parents": [
+        "front_office_operations"
+      ]
+    },
+    {
+      "id": "teaching_practice",
+      "match": [
+        "teaching",
+        "výuka",
+        "pedagogická činnost"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "education_academic": 1
+      }
+    },
+    {
+      "id": "curriculum_development",
+      "match": [
+        "curriculum development",
+        "tvorba kurikula",
+        "tvorba vzdělávacího programu"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "education_academic": 1
+      }
+    },
+    {
+      "id": "pedagogy",
+      "match": [
+        "pedagogy",
+        "pedagogika"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "education_academic": 1
+      }
+    },
+    {
+      "id": "student_assessment",
+      "match": [
+        "student assessment",
+        "hodnocení žáků",
+        "klasifikace žáků"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "education_academic": 1
+      }
+    },
+    {
+      "id": "classroom_management",
+      "match": [
+        "classroom management",
+        "vedení třídy",
+        "řízení třídy"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "education_academic": 1
+      }
+    },
+    {
+      "id": "academic_research_practice",
+      "match": [
+        "academic research",
+        "akademický výzkum",
+        "vědecko-výzkumná činnost"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "education_academic": 1
+      }
+    },
+    {
+      "id": "lesson_planning",
+      "match": [
+        "lesson planning",
+        "příprava výuky",
+        "plánování vyučovacích hodin"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "education_academic": 1
+      },
+      "parents": [
+        "teaching_practice"
+      ]
+    },
+    {
+      "id": "lecturing",
+      "match": [
+        "lecturing",
+        "přednášení",
+        "vedení přednášek"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "education_academic": 1
+      },
+      "parents": [
+        "teaching_practice"
+      ]
+    },
+    {
+      "id": "tutoring",
+      "match": [
+        "tutoring",
+        "doučování",
+        "individuální výuka"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "education_academic": 1
+      },
+      "parents": [
+        "teaching_practice"
+      ]
+    },
+    {
+      "id": "differentiated_instruction",
+      "match": [
+        "differentiated instruction",
+        "diferencovaná výuka",
+        "individualizace výuky"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "education_academic": 1
+      },
+      "parents": [
+        "teaching_practice"
+      ]
+    },
+    {
+      "id": "blended_learning",
+      "match": [
+        "blended learning",
+        "kombinovaná výuka",
+        "hybridní výuka"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "education_academic": 1
+      },
+      "parents": [
+        "teaching_practice"
+      ]
+    },
+    {
+      "id": "online_teaching",
+      "match": [
+        "online teaching",
+        "online výuka",
+        "distanční výuka"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "education_academic": 1
+      },
+      "parents": [
+        "teaching_practice"
+      ]
+    },
+    {
+      "id": "special_needs_education",
+      "match": [
+        "special needs education",
+        "speciální pedagogika",
+        "výuka žáků se speciálními potřebami"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "education_academic": 1
+      },
+      "parents": [
+        "teaching_practice"
+      ]
+    },
+    {
+      "id": "educational_technology",
+      "match": [
+        "educational technology",
+        "vzdělávací technologie",
+        "digitální nástroje ve výuce"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "education_academic": 1
+      },
+      "parents": [
+        "teaching_practice"
+      ]
+    },
+    {
+      "id": "syllabus_design",
+      "match": [
+        "syllabus design",
+        "tvorba sylabu",
+        "návrh studijních osnov"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "education_academic": 1
+      },
+      "parents": [
+        "curriculum_development"
+      ]
+    },
+    {
+      "id": "learning_outcomes_design",
+      "match": [
+        "learning outcomes design",
+        "tvorba výukových cílů",
+        "definování vzdělávacích výstupů"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "education_academic": 1
+      },
+      "parents": [
+        "curriculum_development"
+      ]
+    },
+    {
+      "id": "teaching_materials_creation",
+      "match": [
+        "teaching materials creation",
+        "tvorba výukových materiálů",
+        "příprava učebních pomůcek"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "education_academic": 1
+      },
+      "parents": [
+        "curriculum_development"
+      ]
+    },
+    {
+      "id": "didactics",
+      "match": [
+        "didactics",
+        "didaktika",
+        "oborová didaktika"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "education_academic": 1
+      },
+      "parents": [
+        "pedagogy"
+      ]
+    },
+    {
+      "id": "educational_psychology",
+      "match": [
+        "educational psychology",
+        "pedagogická psychologie"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "education_academic": 1
+      },
+      "parents": [
+        "pedagogy"
+      ]
+    },
+    {
+      "id": "inclusive_education",
+      "match": [
+        "inclusive education",
+        "inkluzivní vzdělávání",
+        "inkluze ve vzdělávání"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "education_academic": 1
+      },
+      "parents": [
+        "pedagogy"
+      ]
+    },
+    {
+      "id": "montessori_method",
+      "match": [
+        "montessori method",
+        "montessori pedagogika"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "education_academic": 1
+      },
+      "parents": [
+        "pedagogy"
+      ]
+    },
+    {
+      "id": "exam_design",
+      "match": [
+        "exam design",
+        "tvorba testů",
+        "příprava zkoušek"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "education_academic": 1
+      },
+      "parents": [
+        "student_assessment"
+      ]
+    },
+    {
+      "id": "formative_assessment",
+      "match": [
+        "formative assessment",
+        "formativní hodnocení"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "education_academic": 1
+      },
+      "parents": [
+        "student_assessment"
+      ]
+    },
+    {
+      "id": "student_feedback",
+      "match": [
+        "student feedback",
+        "zpětná vazba žákům",
+        "poskytování zpětné vazby"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "education_academic": 1
+      },
+      "parents": [
+        "student_assessment"
+      ]
+    },
+    {
+      "id": "behaviour_management",
+      "match": [
+        "behaviour management",
+        "zvládání kázně",
+        "řešení kázeňských situací"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "education_academic": 1
+      },
+      "parents": [
+        "classroom_management"
+      ]
+    },
+    {
+      "id": "student_motivation",
+      "match": [
+        "student motivation",
+        "motivace žáků"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "education_academic": 1
+      },
+      "parents": [
+        "classroom_management"
+      ]
+    },
+    {
+      "id": "parent_communication",
+      "match": [
+        "parent communication",
+        "komunikace s rodiči",
+        "spolupráce s rodiči"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "education_academic": 1
+      },
+      "parents": [
+        "classroom_management"
+      ]
+    },
+    {
+      "id": "grant_writing",
+      "match": [
+        "grant writing",
+        "psaní grantů",
+        "příprava grantových žádostí"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "education_academic": 1
+      },
+      "parents": [
+        "academic_research_practice"
+      ]
+    },
+    {
+      "id": "academic_publishing",
+      "match": [
+        "academic publishing",
+        "publikační činnost",
+        "odborné publikování"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "education_academic": 1
+      },
+      "parents": [
+        "academic_research_practice"
+      ]
+    },
+    {
+      "id": "thesis_supervision",
+      "match": [
+        "thesis supervision",
+        "vedení závěrečných prací",
+        "vedení diplomových prací"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "education_academic": 1
+      },
+      "parents": [
+        "academic_research_practice"
+      ]
+    },
+    {
+      "id": "literature_review",
+      "match": [
+        "literature review",
+        "rešerše literatury",
+        "přehled odborné literatury"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "education_academic": 1
+      },
+      "parents": [
+        "academic_research_practice"
+      ]
+    },
+    {
+      "id": "peer_review",
+      "match": [
+        "peer review",
+        "recenzní řízení",
+        "oponentské řízení"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "education_academic": 1
+      },
+      "parents": [
+        "academic_research_practice"
+      ]
+    },
+    {
+      "id": "language_teaching",
+      "match": [
+        "language teaching",
+        "výuka jazyků",
+        "jazyková výuka"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "education_academic": 1
+      },
+      "parents": [
+        "teaching_practice"
+      ]
+    },
+    {
+      "id": "early_childhood_education",
+      "match": [
+        "early childhood education",
+        "předškolní vzdělávání",
+        "výchova v mateřské škole"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "education_academic": 1
+      },
+      "parents": [
+        "teaching_practice"
+      ]
+    },
+    {
+      "id": "vocational_training",
+      "match": [
+        "vocational training",
+        "odborný výcvik",
+        "odborné vzdělávání a příprava"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "education_academic": 1
+      },
+      "parents": [
+        "teaching_practice"
+      ]
+    },
+    {
+      "id": "adult_education",
+      "match": [
+        "adult education",
+        "vzdělávání dospělých",
+        "andragogika"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "education_academic": 1
+      },
+      "parents": [
+        "teaching_practice"
+      ]
+    },
+    {
+      "id": "academic_advising",
+      "match": [
+        "academic advising",
+        "studijní poradenství",
+        "poradenství pro studenty"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "education_academic": 1
+      },
+      "parents": [
+        "teaching_practice"
+      ]
     }
   ],
   "company_adjustments": {

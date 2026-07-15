@@ -168,5 +168,127 @@ class HrPeopleGraduatedCreditTest(unittest.TestCase):
         self.assertEqual(tax.resolve_term("odměňování a benefity"), "compensation_benefits")
 
 
+class HealthcareGraduatedCreditTest(unittest.TestCase):
+    """Phase 3: the healthcare_clinical skill graph grants graduated credit and the
+    unproven-reason machinery reports 'adjacency' for a near-miss sibling."""
+
+    def test_hierarchy_edges_exist(self) -> None:
+        # Authored chains: icu/emergency nursing -> nursing_practice;
+        # advanced_life_support -> basic_life_support -> clinical_care.
+        self.assertIn("nursing_practice", tax.ancestors("icu_nursing"))
+        self.assertIn("basic_life_support", tax.ancestors("advanced_life_support"))
+
+    def test_specialization_scores_high_partial(self) -> None:
+        # Candidate ran ICU nursing; role wants (broader) nursing practice.
+        self.assertAlmostEqual(tax.term_match_score("icu_nursing", "nursing_practice"), 0.9)
+
+    def test_bilingual_surface_forms_resolve(self) -> None:
+        self.assertEqual(tax.resolve_term("intenzivní péče"), "icu_nursing")
+        self.assertEqual(tax.resolve_term("urgentní péče"), "emergency_nursing")
+        self.assertEqual(tax.resolve_term("podávání léků"), "medication_administration")
+
+    def test_sibling_near_miss_scores_0_4_and_classifies_adjacency(self) -> None:
+        # CV: ICU nurse (Czech surface). JD: emergency nursing must-have — a sibling
+        # under nursing_practice, so it scores the documented 0.4 (below threshold)
+        # and lands in the unproven bucket tagged "adjacency", NOT "missing".
+        self.assertAlmostEqual(tax.term_match_score("icu_nursing", "emergency_nursing"), 0.4)
+        cand = MatchCandidate(
+            skills=["intenzivní péče"],  # icu_nursing
+            seniority="senior", role_family="healthcare_clinical",
+            languages=["Czech", "English"], years_experience=7,
+        )
+        job = mkjob(
+            role_family="healthcare_clinical",
+            requirements=[{"skill": "emergency nursing", "kind": "must_have", "hardness": "prerequisite"}],
+        )
+        score, matched, missing, strength, unproven = score_skills(cand, job)
+        self.assertAlmostEqual(score, 0.4)
+        self.assertNotIn("emergency nursing", matched)
+        self.assertNotIn("emergency nursing", strength)
+        self.assertNotIn("emergency nursing", missing)  # near-miss, not a true gap
+        self.assertEqual(unproven["emergency nursing"]["reason"], "adjacency")
+
+    def test_specialization_earns_graduated_credit(self) -> None:
+        cand = MatchCandidate(
+            skills=["intenzivní péče"],  # icu_nursing, a specialization
+            seniority="senior", role_family="healthcare_clinical",
+            languages=["Czech", "English"], years_experience=7,
+        )
+        job = mkjob(
+            role_family="healthcare_clinical",
+            requirements=[{"skill": "nursing", "kind": "must_have", "hardness": "prerequisite"}],
+        )
+        score, matched, missing, strength, _unproven = score_skills(cand, job)
+        self.assertGreater(score, 0.0)
+        self.assertLess(score, 1.0)
+        self.assertIn("nursing", matched)
+        self.assertNotIn("nursing", missing)
+        self.assertLess(strength["nursing"], 1.0)
+
+    def test_unrelated_clinical_skill_is_a_true_miss(self) -> None:
+        cand = MatchCandidate(
+            skills=["fyzioterapie"],  # physiotherapy — no claim to nursing
+            seniority="senior", role_family="healthcare_clinical",
+            languages=["Czech"], years_experience=7,
+        )
+        job = mkjob(
+            role_family="healthcare_clinical",
+            requirements=[{"skill": "icu_nursing", "kind": "must_have", "hardness": "prerequisite"}],
+        )
+        score, _matched, missing, _strength, _unproven = score_skills(cand, job)
+        self.assertEqual(score, 0.0)
+        self.assertIn("icu_nursing", missing)
+
+
+class SkilledTradesGraduatedCreditTest(unittest.TestCase):
+    """Phase 3: the skilled_trades skill graph grants graduated credit and reports
+    'adjacency' for a near-miss sibling."""
+
+    def test_hierarchy_edges_exist(self) -> None:
+        # mig/tig/arc welding are siblings under welding; cnc_machining -> machining.
+        self.assertIn("welding", tax.ancestors("mig_welding"))
+        self.assertIn("machining", tax.ancestors("cnc_machining"))
+
+    def test_bilingual_surface_forms_resolve(self) -> None:
+        self.assertEqual(tax.resolve_term("svařování mig"), "mig_welding")
+        self.assertEqual(tax.resolve_term("elektroinstalace"), "electrical_work")
+        self.assertEqual(tax.resolve_term("frézování"), "milling")
+
+    def test_sibling_near_miss_scores_0_4_and_classifies_adjacency(self) -> None:
+        # CV: MIG welder (Czech surface). JD: TIG welding must-have — a sibling under
+        # welding, scoring 0.4 and classified "adjacency".
+        self.assertAlmostEqual(tax.term_match_score("mig_welding", "tig_welding"), 0.4)
+        cand = MatchCandidate(
+            skills=["svařování mig"],  # mig_welding
+            seniority="medior", role_family="skilled_trades",
+            languages=["Czech"], years_experience=5,
+        )
+        job = mkjob(
+            role_family="skilled_trades",
+            requirements=[{"skill": "tig welding", "kind": "must_have", "hardness": "prerequisite"}],
+        )
+        score, matched, missing, strength, unproven = score_skills(cand, job)
+        self.assertAlmostEqual(score, 0.4)
+        self.assertNotIn("tig welding", matched)
+        self.assertNotIn("tig welding", missing)
+        self.assertEqual(unproven["tig welding"]["reason"], "adjacency")
+
+    def test_specialization_earns_graduated_credit(self) -> None:
+        cand = MatchCandidate(
+            skills=["cnc obrábění"],  # cnc_machining, a specialization of machining
+            seniority="medior", role_family="skilled_trades",
+            languages=["Czech"], years_experience=5,
+        )
+        job = mkjob(
+            role_family="skilled_trades",
+            requirements=[{"skill": "machining", "kind": "must_have", "hardness": "prerequisite"}],
+        )
+        score, matched, _missing, strength, _unproven = score_skills(cand, job)
+        self.assertGreater(score, 0.0)
+        self.assertLess(score, 1.0)
+        self.assertIn("machining", matched)
+        self.assertLess(strength["machining"], 1.0)
+
+
 if __name__ == "__main__":
     unittest.main()
