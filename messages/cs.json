@@ -1460,6 +1460,9 @@
       "rematchUnavailable": "propojená přihláška již není dostupná",
       "jdEditedBadge": "Inzerát upraven {date}",
       "jdEditedTitle": "Inzerát byl upraven {date}, až po ohodnocení tohoto kandidáta — skóre odráží dřívější text. Pro aktualizaci spusťte analýzu znovu.",
+      "prevCandidate": "Předchozí kandidát",
+      "nextCandidate": "Další kandidát",
+      "cohortPosition": "{index} z {total}",
       "timeline": {
         "analysis": "Analýza CV uložena — skóre {score}",
         "analysisNoScore": "Analýza CV uložena",

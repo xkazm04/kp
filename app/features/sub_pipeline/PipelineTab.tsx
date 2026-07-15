@@ -532,6 +532,22 @@ export function PipelineTab() {
     setStageFilter(null);
     writeFiltersToUrl({ q: "", ...empty, sort, stage: null });
   };
+  // drawer-flow-friction — the degraded/needs-intake chip ARMS the board's existing
+  // `intake` quick filter (reused, not forked) so the whole stub cohort is isolated,
+  // then opens the first one; the drawer's prev/next then walks the now-filtered
+  // cohort (filteredEntries) stub-by-stub instead of the old open-degraded[0]-only
+  // dead end. Clears the other facets so the board shows exactly the needs-intake set.
+  const focusDegradedCohort = () => {
+    const quicksSet = new Set<QuickFilter>(["intake"]);
+    const empty = { scoreBands: new Set<ScoreBandKey>(), sources: new Set<string>() };
+    setQuery("");
+    setQuicks(quicksSet);
+    setScoreBands(empty.scoreBands);
+    setSources(empty.sources);
+    setStageFilter(null);
+    writeFiltersToUrl({ q: "", quicks: quicksSet, ...empty, sort, stage: null });
+    if (degraded.length > 0) setDrawerEntry(degraded[0]);
+  };
   // PIPE3 — a saved view as a pasteable link: built from a CLEAN query string
   // (not the current one) so the share never drags along unrelated params.
   const [copiedViewId, setCopiedViewId] = useState<string | null>(null);
@@ -917,7 +933,7 @@ export function PipelineTab() {
                 label={t("statNeedsIntake")}
                 value={degradedCount}
                 tone="red"
-                onClick={() => setDrawerEntry(degraded[0])}
+                onClick={focusDegradedCohort}
               />
             ) : null}
             <StatChip
@@ -984,7 +1000,7 @@ export function PipelineTab() {
           {degradedCount > 0 ? (
             <button
               type="button"
-              onClick={() => setDrawerEntry(degraded[0])}
+              onClick={focusDegradedCohort}
               className="focus-ring flex w-full items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-left hover:bg-red-100"
             >
               <span className="flex min-w-0 items-center gap-2 text-base text-ink">
@@ -1485,6 +1501,8 @@ export function PipelineTab() {
           onClose={() => setDrawerEntry(null)}
           onChanged={load}
           onOpenEntry={openEntryById}
+          cohort={filteredEntries}
+          onNavigate={setDrawerEntry}
         />
       ) : null}
     </div>

@@ -1460,6 +1460,9 @@
       "rematchUnavailable": "linked application no longer available",
       "jdEditedBadge": "JD edited {date}",
       "jdEditedTitle": "The JD was edited {date}, after this candidate was scored — the score reflects the earlier text. Re-run the analysis to refresh it.",
+      "prevCandidate": "Previous candidate",
+      "nextCandidate": "Next candidate",
+      "cohortPosition": "{index} of {total}",
       "timeline": {
         "analysis": "CV analysis saved — score {score}",
         "analysisNoScore": "CV analysis saved",

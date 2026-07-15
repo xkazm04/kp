@@ -1486,6 +1486,9 @@
       "rematchUnavailable": "candidature liée non disponible",
       "jdEditedBadge": "Offre modifiée le {date}",
       "jdEditedTitle": "L'offre a été modifiée le {date}, après l'évaluation de ce candidat — le score reflète le texte antérieur. Relancez l'analyse pour l'actualiser.",
+      "prevCandidate": "Candidat précédent",
+      "nextCandidate": "Candidat suivant",
+      "cohortPosition": "{index} sur {total}",
       "timeline": {
         "analysis": "Analyse du CV enregistrée — score {score}",
         "analysisNoScore": "Analyse du CV enregistrée",

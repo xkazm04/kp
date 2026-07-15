@@ -1486,6 +1486,9 @@
       "rematchUnavailable": "verknüpfte Bewerbung nicht mehr verfügbar",
       "jdEditedBadge": "Stellenanzeige {date} geändert",
       "jdEditedTitle": "Die Stellenanzeige wurde am {date} geändert, nach der Bewertung dieser Kandidatin bzw. dieses Kandidaten — der Score spiegelt den früheren Text wider. Führen Sie die Analyse erneut aus, um ihn zu aktualisieren.",
+      "prevCandidate": "Vorherige Person",
+      "nextCandidate": "Nächste Person",
+      "cohortPosition": "{index} von {total}",
       "timeline": {
         "analysis": "CV-Analyse gespeichert — Score {score}",
         "analysisNoScore": "CV-Analyse gespeichert",

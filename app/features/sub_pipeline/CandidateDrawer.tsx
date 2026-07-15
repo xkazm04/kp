@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { AlertTriangle, ArrowLeftRight, Ban, Banknote, Calendar, ClipboardList, ExternalLink, FileText, GitBranch, History, Mail, NotebookPen, Pencil, Phone, Shuffle, Sparkles, UserCheck, Wrench, X } from "lucide-react";
+import { AlertTriangle, ArrowLeftRight, Ban, Banknote, Calendar, ChevronLeft, ChevronRight, ClipboardList, ExternalLink, FileText, GitBranch, History, Mail, NotebookPen, Pencil, Phone, Shuffle, Sparkles, UserCheck, Wrench, X } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { useDialogA11y } from "@/app/_components/useDialogA11y";
 import { useScoreProvenanceText } from "@/app/_components/ScoreProvenanceLabel";
@@ -29,7 +29,7 @@ import { useTokenLink, TokenLinkPanel } from "./TokenLink";
 import { InterviewTranscriptModal } from "@/app/features/sub_schedule/InterviewTranscriptModal";
 import type { SchedEntry } from "@/app/features/sub_schedule/ScheduleTypes";
 import { type Entry, type Result, type TaskId } from "./CandidateDrawerTypes";
-import { styleFor, type PipelineEvent } from "./PipelineTypes";
+import { styleFor, type Entry as BoardEntry, type PipelineEvent } from "./PipelineTypes";
 import { EventDot, useEventVerb, useRelativeTime } from "./PipelineShared";
 import { moveStageSelectValues } from "./pipeline-move-targets";
 import { SCREENING_STAGES } from "@/app/_lib/pipeline-stages";
@@ -116,6 +116,8 @@ export function CandidateDrawer({
   onClose,
   onChanged,
   onOpenEntry,
+  cohort,
+  onNavigate,
 }: {
   entry: Entry;
   onClose: () => void;
@@ -125,6 +127,13 @@ export function CandidateDrawer({
   // read-only (the link degrades to plain text). Also reused for the in-place refresh
   // after a stage move (drawer-flow-friction).
   onOpenEntry?: (entryId: string) => void;
+  // drawer-flow-friction — the board's CURRENTLY-FILTERED entry list, so the drawer can
+  // walk prev/next through exactly the cohort the recruiter filtered to (e.g. the
+  // needs-intake stubs). Derived from the board's state — no new store. onNavigate
+  // swaps the open entry to a neighbor. Typed against the full board Entry (the drawer's
+  // own `entry` prop is a narrower pick) so the neighbor round-trips to setDrawerEntry.
+  cohort?: BoardEntry[];
+  onNavigate?: (entry: BoardEntry) => void;
 }) {
   const router = useRouter();
   const search = useSearchParams();
@@ -257,7 +266,10 @@ export function CandidateDrawer({
     return () => {
       alive = false;
     };
-  }, [entry.id]);
+    // entry.stage rides the deps so an IN-PLACE stage move (drawer-flow-friction —
+    // same id, new stage, no remount) re-pulls the bundle: the new move event lands in
+    // the history and staleSince is recomputed. A neighbor swap changes entry.id.
+  }, [entry.id, entry.stage]);
 
   // The unified story: pipeline events + the cross-store chapters, time-ordered.
   const mergedHistory = useMemo(() => {
@@ -274,6 +286,14 @@ export function CandidateDrawer({
 
   const a = styleFor(entry.archetype);
   const monogram = initials(entry.candidateLabel);
+  // drawer-flow-friction — prev/next WITHIN the board's currently-filtered cohort
+  // (derived from the passed list, no store). Present only when this entry is IN the
+  // cohort and there's more than one to walk; a counterpart opened off-board (rematch
+  // link, terminal entry) simply isn't in the cohort, so the nav hides for it.
+  const cohortIndex = cohort ? cohort.findIndex((e) => e.id === entry.id) : -1;
+  const prevEntry = cohort && cohortIndex > 0 ? cohort[cohortIndex - 1] : null;
+  const nextEntry = cohort && cohortIndex >= 0 && cohortIndex < cohort.length - 1 ? cohort[cohortIndex + 1] : null;
+  const showCohortNav = Boolean(onNavigate) && cohort != null && cohortIndex >= 0 && cohort.length > 1;
   const actions = ACTIONS.filter((act) => act.stages === "all" || act.stages.includes(entry.stage)).filter(
     (act) => entry.status === "active" || act.id === "rematch"
   );
@@ -321,8 +341,12 @@ export function CandidateDrawer({
 
   // Manually move the candidate to a chosen stage. Sends expectedStage so a move
   // decided against this (possibly stale) drawer view 409s instead of clobbering a
-  // concurrent change. On success the entry is stale (new stage), so reload + close
-  // — same pattern as resolveIntake.
+  // concurrent change. drawer-flow-friction: a stage move CORRECTS a miscategorization
+  // — it doesn't remove the candidate from the board — so on success the board reloads
+  // behind the drawer AND the drawer refreshes IN PLACE (onOpenEntry re-reads the same
+  // id → the id-keyed drawer re-renders without remounting), instead of ejecting the
+  // recruiter from the candidate they were reading. Only genuinely terminal actions
+  // (resolve_intake, which drops the entry from its degraded cohort) still close.
   const moveStage = async (toStage: string) => {
     if (toStage === entry.stage || movingStage) return;
     setMovingStage(true);
@@ -332,7 +356,9 @@ export function CandidateDrawer({
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || `Move failed (${res.status})`);
       onChanged();
-      onClose();
+      if (onOpenEntry) onOpenEntry(entry.id);
+      else onClose();
+      setMovingStage(false);
     } catch (caught) {
       // Surface the server's own explanation verbatim (the 422 "route through
       // Offer → extend an offer" guidance, the 409 "changed since you opened it"
@@ -583,6 +609,38 @@ export function CandidateDrawer({
                 {provenanceText(provenanceOf(entry))}
               </span>
             </span>
+          ) : null}
+          {/* drawer-flow-friction — walk the filtered cohort without closing the
+              drawer between candidates: a stub-by-stub path through a needs-intake
+              wave (or any filtered lane) instead of one-and-done. */}
+          {showCohortNav ? (
+            <div className="flex shrink-0 flex-col items-center gap-0.5">
+              <div className="flex items-center gap-0.5">
+                <button
+                  type="button"
+                  onClick={() => prevEntry && onNavigate!(prevEntry)}
+                  disabled={!prevEntry}
+                  aria-label={t("prevCandidate")}
+                  title={t("prevCandidate")}
+                  className="focus-ring rounded-md p-1 text-steel hover:bg-stone-100 disabled:opacity-30"
+                >
+                  <ChevronLeft size={18} aria-hidden />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => nextEntry && onNavigate!(nextEntry)}
+                  disabled={!nextEntry}
+                  aria-label={t("nextCandidate")}
+                  title={t("nextCandidate")}
+                  className="focus-ring rounded-md p-1 text-steel hover:bg-stone-100 disabled:opacity-30"
+                >
+                  <ChevronRight size={18} aria-hidden />
+                </button>
+              </div>
+              <span className="text-meta text-steel nums" aria-live="polite">
+                {t("cohortPosition", { index: cohortIndex + 1, total: cohort!.length })}
+              </span>
+            </div>
           ) : null}
           <button type="button" onClick={onClose} className="focus-ring rounded-md p-1 text-steel hover:bg-stone-100">
             <X size={18} />
