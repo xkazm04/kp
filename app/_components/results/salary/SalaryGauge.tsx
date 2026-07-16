@@ -53,6 +53,21 @@ export function SalaryGauge({ minimum, maximum, midpoint, confidence, target: ta
   const barRef = useRef<HTMLDivElement>(null);
   const [hover, setHover] = useState<{ x: number; value: number } | null>(null);
 
+  // The value the readout reflects right now: the scrubbed point, or the midpoint
+  // as the resting position (what a freshly-focused keyboard user lands on). Also
+  // feeds the slider's aria-valuenow/valuetext so AT hears the same figure the
+  // floating readout shows to sighted users.
+  const readoutValue = hover?.value ?? midpoint;
+
+  // Place the readout at a money value: mirror the mouse path by parking the
+  // floating chip at that value's x and storing the value for the label + aria.
+  const scrubTo = (value: number) => {
+    const rect = barRef.current?.getBoundingClientRect();
+    const clamped = Math.max(gaugeMin, Math.min(gaugeMax, value));
+    const ratio = range === 0 ? 0 : (clamped - gaugeMin) / range;
+    setHover({ x: ratio * (rect?.width ?? 0), value: clamped });
+  };
+
   const handleMove = (event: React.MouseEvent<HTMLDivElement>) => {
     if (degenerate) return;
     const rect = barRef.current?.getBoundingClientRect();
@@ -60,6 +75,39 @@ export function SalaryGauge({ minimum, maximum, midpoint, confidence, target: ta
     const x = Math.max(0, Math.min(rect.width, event.clientX - rect.left));
     const ratio = rect.width === 0 ? 0 : x / rect.width;
     setHover({ x, value: gaugeMin + ratio * range });
+  };
+
+  // Keyboard parity for the mouse readout: arrows scrub in ~2% steps (10% with
+  // Shift), Home/End jump to the ends, Escape clears. Same value+position the
+  // mouse produces, so keyboard and touch users get the per-point figure the
+  // aria summary alone never carried.
+  const handleKeyScrub = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (degenerate) return;
+    const step = event.shiftKey ? range / 10 : range / 50;
+    let value = readoutValue;
+    switch (event.key) {
+      case "ArrowRight":
+      case "ArrowUp":
+        value += step;
+        break;
+      case "ArrowLeft":
+      case "ArrowDown":
+        value -= step;
+        break;
+      case "Home":
+        value = gaugeMin;
+        break;
+      case "End":
+        value = gaugeMax;
+        break;
+      case "Escape":
+        setHover(null);
+        return;
+      default:
+        return;
+    }
+    event.preventDefault();
+    scrubTo(value);
   };
 
   return (
@@ -75,7 +123,13 @@ export function SalaryGauge({ minimum, maximum, midpoint, confidence, target: ta
 
       <div
         ref={barRef}
-        role="img"
+        // Interactive when scrubbable → a slider (focusable, arrow-scrubbable) so
+        // keyboard/touch users reach the per-point value; degenerate → a static
+        // image. Either way the aria-label keeps the full min/max/mid/target
+        // summary (the slider's name), so the summary is never degraded — the
+        // slider only ADDS aria-valuenow/valuetext for the scrubbed figure.
+        role={degenerate ? "img" : "slider"}
+        tabIndex={degenerate ? undefined : 0}
         aria-label={t("salary.gaugeAria", {
           min: formatGrouped(minimum),
           max: formatGrouped(maximum),
@@ -84,10 +138,19 @@ export function SalaryGauge({ minimum, maximum, midpoint, confidence, target: ta
           growth: growthLabel,
           target: formatGrouped(target),
         })}
+        aria-valuemin={degenerate ? undefined : Math.round(gaugeMin)}
+        aria-valuemax={degenerate ? undefined : Math.round(gaugeMax)}
+        aria-valuenow={degenerate ? undefined : Math.round(readoutValue)}
+        aria-valuetext={degenerate ? undefined : formatMoney(readoutValue, currency)}
         title={emphasis.known ? undefined : t("salary.confidenceUnknownTitle")}
         className={`relative h-3 w-full rounded-full bg-stone-200 ${degenerate ? "cursor-default" : "cursor-crosshair"}`}
         onMouseMove={handleMove}
         onMouseLeave={() => setHover(null)}
+        onKeyDown={handleKeyScrub}
+        onFocus={() => {
+          if (!degenerate && !hover) scrubTo(midpoint);
+        }}
+        onBlur={() => setHover(null)}
       >
         <motion.div
           className="absolute top-0 h-full rounded-full"
