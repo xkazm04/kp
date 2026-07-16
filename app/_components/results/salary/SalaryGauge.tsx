@@ -15,12 +15,13 @@ interface SalaryGaugeProps {
   // The +30% growth target, rounded once by the caller. Passed in so the dashed marker and
   // the aria-label use the SAME figure the card text shows, instead of a third unrounded one.
   target?: number;
-  // Currency code for the aria-label (the bar + tick labels are number-only). The
-  // analysis is no longer CZK-only, so the screen-reader figure must name the real one.
-  currency?: string;
+  // Currency code for the aria-label + hover tooltip (the bar + tick labels are
+  // number-only). The analysis is no longer CZK-only, so this is REQUIRED — a default
+  // would silently mislabel a EUR/USD salary as CZK to screen-reader users.
+  currency: string;
 }
 
-export function SalaryGauge({ minimum, maximum, midpoint, confidence, target: targetProp, currency = "CZK" }: SalaryGaugeProps) {
+export function SalaryGauge({ minimum, maximum, midpoint, confidence, target: targetProp, currency }: SalaryGaugeProps) {
   const t = useTranslations("report");
   const target = targetProp ?? midpoint * 1.3;
   // bug-ui-scan-2026-07-09 (analysis-result-panels #4): derive the growth caption

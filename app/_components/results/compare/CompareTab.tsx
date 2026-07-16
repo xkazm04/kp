@@ -83,6 +83,21 @@ export function CompareTab({ analysis }: { analysis: Analysis }) {
   const winnerIndex = resolveWinnerIndex(comparison.variants);
   const baseline = comparison.variants[0];
 
+  // Variant labels aren't unique (two CVs can share a filename), and duplicate columns
+  // are otherwise indistinguishable except by the crown. Number ONLY the colliding
+  // ones — "1", "2" among same-labeled columns — so unique labels stay noise-free.
+  const columnBadges: (number | null)[] = (() => {
+    const totals = new Map<string, number>();
+    for (const v of comparison.variants) totals.set(v.label, (totals.get(v.label) ?? 0) + 1);
+    const seen = new Map<string, number>();
+    return comparison.variants.map((v) => {
+      if ((totals.get(v.label) ?? 0) < 2) return null;
+      const n = (seen.get(v.label) ?? 0) + 1;
+      seen.set(v.label, n);
+      return n;
+    });
+  })();
+
   const mr = comparison.mergedRecommendation;
 
   // Localize a structured driver entry (CompareDriver) at render; the metric/component
@@ -193,6 +208,16 @@ export function CompareTab({ analysis }: { analysis: Analysis }) {
                         <span className="truncate" title={variant.label}>
                           {variant.label}
                         </span>
+                        {/* Duplicate-label disambiguator (Direction 2 #d): only rendered
+                            when this label collides with another column's. */}
+                        {columnBadges[index] != null ? (
+                          <span
+                            className="shrink-0 rounded-full bg-stone-100 px-1.5 text-meta font-semibold text-steel"
+                            title={t("compare.columnBadge", { n: columnBadges[index]! })}
+                          >
+                            {columnBadges[index]}
+                          </span>
+                        ) : null}
                         {/* #5: convey "winner" beyond color-only (text-coral +
                             bg) — WCAG 1.4.1 — so SR/color-blind users get it too. */}
                         {index === winnerIndex ? <span className="sr-only">{t("compare.winnerLabel")}</span> : null}

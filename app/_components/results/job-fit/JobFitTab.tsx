@@ -128,7 +128,7 @@ function KeywordCoverageBlock({ coverage }: { coverage: KeywordCoverage }) {
       </div>
       {/* Shared Meter (fixed "strong" tone — coverage is a more-is-better bar): gives
           progressbar a11y + reduced-motion that the old bespoke bar lacked. */}
-      <Meter value={coverage.coveragePercent} tone="strong" className="mt-3" aria-label="Keyword coverage" />
+      <Meter value={coverage.coveragePercent} tone="strong" className="mt-3" aria-label={t("panel.keywordCoverage")} />
 
       {hits.length ? (
         <>
@@ -220,7 +220,7 @@ function KeywordRow({ hit }: { hit: KeywordCoverage["hits"][number] }) {
     <div className={`flex items-center justify-between gap-3 rounded-md border px-3 py-2 text-base ${KEYWORD_STATUS_CLS[hit.status]}`}>
       <span className="truncate font-medium">{hit.keyword}</span>
       <span className="shrink-0 text-sm font-semibold uppercase tracking-wide text-steel">
-        JD {hit.inJd} · CV {hit.inCv} · {t(KEYWORD_STATUS_KEY[hit.status] as Parameters<typeof t>[0])}
+        {t("panel.kwJdCv", { jd: hit.inJd, cv: hit.inCv })} · {t(KEYWORD_STATUS_KEY[hit.status] as Parameters<typeof t>[0])}
       </span>
     </div>
   );

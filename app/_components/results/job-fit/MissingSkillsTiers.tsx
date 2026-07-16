@@ -24,15 +24,20 @@ const TIER_LABEL_KEY: Record<Tier, string> = {
   bonus: "panel.tierBonus",
 };
 
+// A NEUTRAL emphasis scale, not a severity scale. `missingSkills` carries no
+// model-emitted criticality (see the note above), so a coral "danger" must-tier
+// over-claimed importance the engine never expressed. These tiers now read as a
+// descending PROMINENCE ramp in the ink→stone→paper neutrals: top-listed gaps sit
+// darkest (ink), the rest fade back — position, not deal-breaker.
 const TIER_BADGE_PALETTES: Record<Tier, string> = {
-  must: "border-coral/40 bg-coral/10 text-coral",
-  nice: "border-stone-300 bg-stone-100 text-ink",
+  must: "border-ink/20 bg-ink/5 text-ink",
+  nice: "border-stone-300 bg-stone-100 text-steel",
   bonus: "border-stone-200 bg-paper text-steel",
 };
 
 const TIER_CHIP_PALETTES: Record<Tier, string> = {
-  must: "bg-coral/10 text-coral",
-  nice: "bg-stone-100 text-ink",
+  must: "bg-ink/5 text-ink border border-ink/10",
+  nice: "bg-stone-100 text-steel",
   bonus: "bg-paper text-steel border border-stone-200",
 };
 

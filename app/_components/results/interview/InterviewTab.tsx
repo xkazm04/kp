@@ -176,7 +176,7 @@ function QuestionCard({ question, index }: { question: InterviewQuestion; index:
             <Icon className="h-3 w-3" aria-hidden />
             {label}
           </span>
-          <span className="text-sm font-medium text-steel">Q{index + 1}</span>
+          <span className="text-sm font-medium text-steel">{t("panel.questionNumber", { n: index + 1 })}</span>
         </div>
       </div>
       <p className="mt-3 text-base font-semibold leading-6 text-ink">{question.question}</p>
