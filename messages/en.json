@@ -52,6 +52,18 @@
       "excellent": "Excellent"
     },
     "scoreAria": "Score {score} out of 100, {band}",
+    "verdict": {
+      "heading": "Overall verdict",
+      "outOf": "/ 100",
+      "jobFit": "Job fit {score}/100",
+      "winner": "Winner: {label}",
+      "aria": "Overall verdict: {score} out of 100, {band}",
+      "ariaUnscored": "Overall verdict: not enough data to score",
+      "framingStrong": "Strong overall fit on the evidence extracted from the CV.",
+      "framingMid": "A partial fit — real strengths alongside gaps worth probing.",
+      "framingWeak": "A weak fit on the evidence — notable gaps against the role.",
+      "framingNone": "Not enough was extracted from the CV to score this candidate."
+    },
     "compare": {
       "emptyTitle": "CV Variants",
       "emptyBody": "Upload 2-3 CV variants to score each against the same job in one run, see the score delta per component, and get a merged best variant recommendation.",

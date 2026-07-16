@@ -9,6 +9,7 @@ import { reconcileScoreTotal } from "@/app/_lib/format";
 import { AddToPipelineButton, type PipelineRef } from "./AddToPipelineButton";
 import { ArchetypeBanner } from "./ArchetypeBanner";
 import { QualityStrip } from "./QualityStrip";
+import { VerdictBanner } from "./VerdictBanner";
 import type { Analysis, GithubAnalysis } from "@/app/_lib/schemas";
 import { CompareIcon, ExtractionIcon, InterviewIcon, JobFitIcon, SalaryIcon } from "../icons";
 import { CompareTab } from "./compare/CompareTab";
@@ -190,6 +191,12 @@ export function ResultPanel({ analysis, github, onGithubRetry, pipelineRef, runC
 
   return (
     <section className="animate-fade-in space-y-5">
+      {/* Direction 1 — the report LEADS with the verdict (the eval-report standard),
+          so the reconciled overall score + band is above the fold instead of buried
+          in the Extraction tab's dial. On a multi-variant run (which defaults to the
+          Compare tab) it shows the winner's verdict. Both consumers — live Analyze
+          and the saved report — render the same banner. */}
+      <VerdictBanner analysis={analysis} />
       {pipelineRef ? (
         <div className="flex items-start justify-end">
           <AddToPipelineButton

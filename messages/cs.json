@@ -52,6 +52,18 @@
       "excellent": "Vynikající"
     },
     "scoreAria": "Skóre {score} ze 100, {band}",
+    "verdict": {
+      "heading": "Celkový verdikt",
+      "outOf": "/ 100",
+      "jobFit": "Vhodnost na roli {score}/100",
+      "winner": "Vítěz: {label}",
+      "aria": "Celkový verdikt: {score} ze 100, {band}",
+      "ariaUnscored": "Celkový verdikt: nedostatek dat pro hodnocení",
+      "framingStrong": "Celkově silná shoda na základě údajů získaných z životopisu.",
+      "framingMid": "Částečná shoda – skutečné silné stránky vedle mezer, které stojí za prověření.",
+      "framingWeak": "Slabá shoda na základě dostupných údajů – výrazné mezery vůči roli.",
+      "framingNone": "Z životopisu se nepodařilo získat dost údajů pro ohodnocení kandidáta."
+    },
     "compare": {
       "emptyTitle": "Varianty CV",
       "emptyBody": "Nahrajte 2–3 varianty CV, abyste je v jednom běhu ohodnotili proti stejné pozici, viděli rozdíl skóre po složkách a dostali doporučení sloučené nejlepší varianty.",

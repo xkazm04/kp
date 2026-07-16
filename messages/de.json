@@ -52,6 +52,18 @@
       "excellent": "Ausgezeichnet"
     },
     "scoreAria": "Bewertung {score} von 100, {band}",
+    "verdict": {
+      "heading": "Gesamturteil",
+      "outOf": "/ 100",
+      "jobFit": "Job-Fit {score}/100",
+      "winner": "Sieger: {label}",
+      "aria": "Gesamturteil: {score} von 100, {band}",
+      "ariaUnscored": "Gesamturteil: nicht genug Daten für eine Bewertung",
+      "framingStrong": "Insgesamt starke Passung auf Basis der aus dem Lebenslauf gewonnenen Angaben.",
+      "framingMid": "Teilweise Passung – echte Stärken neben Lücken, die eine Prüfung wert sind.",
+      "framingWeak": "Schwache Passung auf Basis der Angaben – deutliche Lücken gegenüber der Rolle.",
+      "framingNone": "Aus dem Lebenslauf konnten nicht genug Angaben für eine Bewertung gewonnen werden."
+    },
     "compare": {
       "emptyTitle": "CV-Varianten",
       "emptyBody": "Laden Sie 2–3 CV-Varianten hoch, um jede in einem Durchlauf gegen dieselbe Stelle zu bewerten, das Score-Delta je Komponente zu sehen und eine zusammengeführte Empfehlung für die beste Variante zu erhalten.",

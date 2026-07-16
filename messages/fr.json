@@ -52,6 +52,18 @@
       "excellent": "Excellent"
     },
     "scoreAria": "Score {score} sur 100, {band}",
+    "verdict": {
+      "heading": "Verdict global",
+      "outOf": "/ 100",
+      "jobFit": "Adéquation au poste {score}/100",
+      "winner": "Gagnant : {label}",
+      "aria": "Verdict global : {score} sur 100, {band}",
+      "ariaUnscored": "Verdict global : données insuffisantes pour évaluer",
+      "framingStrong": "Bonne adéquation globale au vu des éléments extraits du CV.",
+      "framingMid": "Adéquation partielle – de réelles forces à côté de lacunes à explorer.",
+      "framingWeak": "Faible adéquation au vu des éléments – lacunes notables par rapport au poste.",
+      "framingNone": "Le CV ne fournit pas assez d'éléments pour évaluer ce candidat."
+    },
     "compare": {
       "emptyTitle": "Variantes de CV",
       "emptyBody": "Importez 2 à 3 variantes de CV pour les évaluer face au même poste en une seule passe, comparer l'écart de score par composant et obtenir la recommandation d'une meilleure variante fusionnée.",
