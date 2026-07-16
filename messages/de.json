@@ -1155,6 +1155,7 @@
     "ariaLabel": "Arbeitsbereich",
     "attentionBadge": "{count} benötigen Aufmerksamkeit",
     "attentionBadgeGo": "{count} benötigen Aufmerksamkeit — anzeigen",
+    "tabSwitched": "Zu {tab} gewechselt",
     "recent": "Zuletzt",
     "brandMark": "K",
     "brandName": "KandiDate",

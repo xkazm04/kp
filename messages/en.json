@@ -1129,6 +1129,7 @@
     "ariaLabel": "Workspace",
     "attentionBadge": "{count} need attention",
     "attentionBadgeGo": "{count} need attention — view them",
+    "tabSwitched": "Switched to {tab}",
     "recent": "Recent",
     "brandMark": "K",
     "brandName": "KandiDate",

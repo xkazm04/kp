@@ -1129,6 +1129,7 @@
     "ariaLabel": "Pracovní plocha",
     "attentionBadge": "{count} vyžaduje pozornost",
     "attentionBadgeGo": "{count} vyžaduje pozornost — zobrazit",
+    "tabSwitched": "Přepnuto na {tab}",
     "recent": "Nedávné",
     "brandMark": "K",
     "brandName": "KandiDate",

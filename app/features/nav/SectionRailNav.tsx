@@ -103,9 +103,11 @@ export function SectionRailNav({
       {/* ── Level 2 — items of the selected group ── */}
       <div className="flex min-w-0 flex-1 flex-col bg-paper">
         {panelHeader}
-        <p className="px-3 pb-1.5 pt-3 text-sm font-semibold uppercase tracking-[0.12em] text-steel/70">
+        {/* A real heading (not a styled <p>) so the panel's group name lands in the
+            AT heading map; the <nav> below is labelled by the same text. */}
+        <h2 className="px-3 pb-1.5 pt-3 text-sm font-semibold uppercase tracking-[0.12em] text-steel/70">
           {shownGroup ? groupLabel(shownGroup) : null}
-        </p>
+        </h2>
         <nav
           key={shown}
           aria-label={shownGroup ? groupLabel(shownGroup) : undefined}

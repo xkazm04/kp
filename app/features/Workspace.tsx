@@ -151,6 +151,26 @@ export function Workspace() {
     [router, search, setMobileNavOpen]
   );
 
+  // a11y — on a tab switch, move focus to the <main> landmark (reusing the
+  // skip-link target) and announce the newly active tab through a polite live
+  // region, so an AT user isn't left with a silently swapped page after a sidebar
+  // click or a g-chord (both route through selectTab → navActive). The prevNavActive
+  // comparison fires the effect ONLY on a real tab change: the very first render
+  // (initial load / deep link) sees prevNavActive === navActive and skips — so we
+  // never steal focus on load — and unrelated re-renders (attention counts, drawer
+  // toggles) don't re-announce.
+  const mainRef = useRef<HTMLElement>(null);
+  const [tabAnnouncement, setTabAnnouncement] = useState("");
+  const prevNavActive = useRef(navActive);
+  useEffect(() => {
+    if (prevNavActive.current === navActive) return;
+    prevNavActive.current = navActive;
+    mainRef.current?.focus();
+    setTabAnnouncement(t("tabSwitched", { tab: navText(`tabs.${navActive}`, navActive) }));
+    // navText/t are derived from the same render; navActive is the sole trigger.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [navActive]);
+
   // Close the mobile drawer on ANY in-shell navigation, not just a sidebar tab pick.
   // The badge-slice pill (onSliceNav) and the command palette (which has no access to
   // mobileNavOpen) navigate through separate entry points that selectTab's own close
@@ -179,6 +199,12 @@ export function Workspace() {
       >
         {t("skipToContent")}
       </a>
+
+      {/* Polite live region: announces the active tab on a switch (focus is moved to
+          <main> in the effect above). Visually hidden; updated once per real switch. */}
+      <div aria-live="polite" role="status" className="sr-only">
+        {tabAnnouncement}
+      </div>
 
       {/* Mobile top bar (brand + hamburger) — hidden at md+ where the rail is permanent. */}
       <div className="flex items-center justify-between border-b border-stone-300 bg-paper px-4 py-3 md:hidden">
@@ -278,7 +304,7 @@ export function Workspace() {
 
       {/* While the mobile drawer is open, the rest of the page is inert so focus can't
           leak behind the scrim (the actual focus trap). Never inert at md+. */}
-      <main id="main" tabIndex={-1} inert={isMainInert(isMobile, mobileNavOpen)} className="min-w-0 flex-1 bg-paper focus:outline-none">
+      <main ref={mainRef} id="main" tabIndex={-1} inert={isMainInert(isMobile, mobileNavOpen)} className="min-w-0 flex-1 bg-paper focus:outline-none">
         {/* pb-24 keeps content clear of the fixed simulation bar. The boundary
             contains a single tab's render crash to this panel (sidebar + sim bar
             survive) and clears itself when resetKey/navActive changes on a tab

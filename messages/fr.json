@@ -1155,6 +1155,7 @@
     "ariaLabel": "Espace de travail",
     "attentionBadge": "{count} à traiter",
     "attentionBadgeGo": "{count} à traiter — voir",
+    "tabSwitched": "Basculé vers {tab}",
     "recent": "Récent",
     "brandMark": "K",
     "brandName": "KandiDate",
