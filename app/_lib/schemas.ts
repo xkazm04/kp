@@ -33,6 +33,37 @@ const comparisonVariantSchema = z.object({
   yearsExperience: z.number()
 });
 
+// Structured, language-neutral narrative entries (Direction: compare-speaks-your-
+// language). buildComparison emits these ALONGSIDE the English strings so CompareTab
+// can localize the compare narrative at render instead of painting TS-emitted English
+// inside fully-localized chrome. Every field is a stable code or a raw param — no
+// display text — so the same payload renders in any locale. All ADDITIVE + optional:
+// a payload persisted before this seam existed simply omits them, and the UI falls
+// back to the English strings (never blank).
+const compareMetricSchema = z.enum(["overall", "jobFit"]);
+
+const compareDriverSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("tie"), best: z.string(), other: z.string(), metric: compareMetricSchema, score: z.number() }),
+  z.object({
+    kind: z.literal("delta"),
+    best: z.string(),
+    other: z.string(),
+    dir: z.enum(["lead", "trail"]),
+    amount: z.number(),
+    metric: compareMetricSchema,
+    bestScore: z.number(),
+    otherScore: z.number()
+  }),
+  z.object({ kind: z.literal("driver"), component: z.string(), dir: z.enum(["win", "loss"]), amount: z.number(), other: z.string() }),
+  z.object({ kind: z.literal("uniqueBest"), best: z.string(), skills: z.array(z.string()) }),
+  z.object({ kind: z.literal("uniqueOther"), other: z.string(), skills: z.array(z.string()) })
+]);
+
+// Stable, non-display section keys — they double as React keys in CompareTab, so
+// they must NOT change across locales (unlike the human-facing `section` label).
+export const COMPARE_SECTION_KEYS = ["headline", "summary", "bullets", "skillsLine"] as const;
+const compareSectionKeySchema = z.enum(COMPARE_SECTION_KEYS);
+
 // THE minimum-variant contract for a comparison (idea-38a6fd70). A comparison
 // exists to contrast CV variants against one another, so it is only meaningful
 // with at least two of them. Pinned here once so the four paths that used to
@@ -51,16 +82,43 @@ export const comparisonSchema = z.object({
   variants: z.array(comparisonVariantSchema).min(MIN_COMPARISON_VARIANTS),
   bestLabel: z.string(),
   driverInsights: z.array(z.string()),
+  // Structured mirror of driverInsights (see compareDriverSchema). Optional: old
+  // payloads omit it and CompareTab renders the English driverInsights strings.
+  driverInsightItems: z.array(compareDriverSchema).optional(),
   mergedRecommendation: z.object({
     summary: z.string(),
+    // Which summary sentence to build at render — "allSame" (one variant wins every
+    // section) or "split" (graft the strongest sections). Optional → English fallback.
+    summaryKind: z.enum(["allSame", "split"]).optional(),
     headline: z.string(),
+    // The enum slugs + skills the headline is composed from, so CompareTab can render
+    // it through the localized enum catalog (seniority/family) instead of the English
+    // slug words baked in at analysis time. Optional/nullable → English fallback.
+    headlineParams: z
+      .object({ seniority: z.string(), roleFamily: z.string(), skills: z.array(z.string()) })
+      .nullable()
+      .optional(),
     skillsLine: z.string(),
     bullets: z.array(z.string()),
     sectionPicks: z.array(
       z.object({
         section: z.string(),
+        // Stable per-section key (React key + label/reason lookup). Optional → the UI
+        // keys off `section` and renders the English `reason` string (old payloads).
+        key: compareSectionKeySchema.optional(),
         sourceLabel: z.string(),
-        reason: z.string()
+        reason: z.string(),
+        // Numeric params the localized reason sentence interpolates. Which ones are
+        // present depends on `key` (headline→pts; summary→pts,yrs; bullets→score;
+        // skillsLine→pts,count).
+        reasonParams: z
+          .object({
+            pts: z.number().optional(),
+            yrs: z.number().optional(),
+            score: z.number().optional(),
+            count: z.number().optional()
+          })
+          .optional()
       })
     )
   })

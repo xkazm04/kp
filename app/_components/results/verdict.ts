@@ -1,5 +1,5 @@
 import type { Analysis } from "@/app/_lib/schemas";
-import { hasRenderableComparison, primaryScore } from "@/app/_lib/comparison";
+import { hasRenderableComparison, resolveWinnerIndex } from "@/app/_lib/comparison";
 import { reconcileScoreTotal } from "@/app/_lib/format";
 
 // Direction 1 (verdict-above-the-fold) — the ONE resolution behind the leading
@@ -29,15 +29,10 @@ export type Verdict = {
 export function resolveVerdict(analysis: Analysis): Verdict {
   const comparison = analysis.comparison;
   if (hasRenderableComparison(comparison)) {
-    // The winner by INDEX via max primary score — the exact rule (and import) the
-    // compare grid uses to crown its column, so the two can't pick different winners.
-    let winnerIndex = 0;
-    for (let i = 1; i < comparison.variants.length; i++) {
-      if (primaryScore(comparison.variants[i]) > primaryScore(comparison.variants[winnerIndex])) {
-        winnerIndex = i;
-      }
-    }
-    const winner = comparison.variants[winnerIndex];
+    // The winner by INDEX via max primary score — the ONE shared resolver (imported
+    // from comparison.ts) the compare grid crowns its column with, so the banner and
+    // the crowned column can't pick different winners.
+    const winner = comparison.variants[resolveWinnerIndex(comparison.variants)];
     const overall = reconcileScoreTotal(winner.score);
     return {
       overall: Number.isFinite(overall) ? overall : null,

@@ -18,6 +18,12 @@ type ComponentKey = ScoreComponentKey;
 
 const COMPONENT_LABELS: Record<ComponentKey, string> = SCORE_COMPONENT_LABELS;
 
+// Structured narrative shapes — derived from the persisted schema so comparison.ts
+// (the producer) and CompareTab (the localizing consumer) can never disagree about
+// their fields. These carry stable codes + raw params only, no display text.
+export type CompareDriver = NonNullable<ComparisonPayload["driverInsightItems"]>[number];
+type SectionPick = ComparisonPayload["mergedRecommendation"]["sectionPicks"][number];
+
 /**
  * True when an analysis carries a comparison that meets the minimum-variant
  * contract (>= MIN_COMPARISON_VARIANTS). This is the SINGLE gate the UI consults:
@@ -68,19 +74,34 @@ export function buildComparison(inputs: ComparisonInput[]): ComparisonPayload {
     yearsExperience: analysis.candidate.yearsExperience
   }));
 
-  const ranked = [...variants].sort((a, b) => primaryScore(b) - primaryScore(a));
-  const best = ranked[0];
+  const best = variants[resolveWinnerIndex(variants)];
   const bestLabel = best.label;
 
-  const driverInsights = computeDriverInsights(variants, best);
+  const { insights: driverInsights, items: driverInsightItems } = computeDriverInsights(variants, best);
   const mergedRecommendation = buildMergedRecommendation(inputs, variants, best);
 
   return {
     variants,
     bestLabel,
     driverInsights,
+    driverInsightItems,
     mergedRecommendation
   };
+}
+
+// THE winner-by-index rule, in one place. The winning variant is the one with the
+// max `primaryScore`; a strict `>` keeps the EARLIEST column on a tie, matching the
+// stable order variants are stored in. buildComparison crowns `bestLabel` with it,
+// and BOTH the compare grid (which highlights a column) and the verdict banner (which
+// headlines the winner) import it — so a label collision or a tie can never make the
+// three surfaces disagree about who won. Returns an index (not a label) because labels
+// aren't unique: two CV variants can share a filename.
+export function resolveWinnerIndex(variants: ComparisonVariant[]): number {
+  let winner = 0;
+  for (let i = 1; i < variants.length; i++) {
+    if (primaryScore(variants[i]) > primaryScore(variants[winner])) winner = i;
+  }
+  return winner;
 }
 
 // The single "which score ranks this variant" rule: the job-fit score when present,
@@ -94,25 +115,46 @@ export function primaryScore(variant: ComparisonVariant): number {
   return variant.score.total;
 }
 
-function computeDriverInsights(variants: ComparisonVariant[], best: ComparisonVariant): string[] {
+function computeDriverInsights(
+  variants: ComparisonVariant[],
+  best: ComparisonVariant
+): { insights: string[]; items: CompareDriver[] } {
   // buildComparison guarantees >= MIN_COMPARISON_VARIANTS, so `others` is never
   // empty and there is always a real comparison to describe.
   const others = variants.filter((variant) => variant.label !== best.label);
   const insights: string[] = [];
+  // The structured mirror of `insights`, built in lockstep so the localized render
+  // and the English fallback describe the exact same drivers in the same order.
+  const items: CompareDriver[] = [];
 
   const bestPrimary = primaryScore(best);
   for (const other of others) {
     const otherPrimary = primaryScore(other);
     const totalDelta = bestPrimary - otherPrimary;
-    const tag = best.jobFitScore != null && other.jobFitScore != null ? "job-fit score" : "overall score";
+    // "overall score" vs "job-fit score" is a code (CompareDriver.metric), localized
+    // at render; the English word only survives in the fallback string below.
+    const metric: "overall" | "jobFit" =
+      best.jobFitScore != null && other.jobFitScore != null ? "jobFit" : "overall";
+    const metricWord = metric === "jobFit" ? "job-fit score" : "overall score";
     if (totalDelta === 0) {
-      insights.push(`"${best.label}" ties "${other.label}" on ${tag} (${bestPrimary.toFixed(0)}).`);
+      insights.push(`"${best.label}" ties "${other.label}" on ${metricWord} (${bestPrimary.toFixed(0)}).`);
+      items.push({ kind: "tie", best: best.label, other: other.label, metric, score: Math.round(bestPrimary) });
       continue;
     }
     const direction = totalDelta > 0 ? "leads" : "trails";
     insights.push(
-      `"${best.label}" ${direction} "${other.label}" by ${Math.abs(totalDelta).toFixed(0)} on ${tag} (${bestPrimary.toFixed(0)} vs ${otherPrimary.toFixed(0)}).`
+      `"${best.label}" ${direction} "${other.label}" by ${Math.abs(totalDelta).toFixed(0)} on ${metricWord} (${bestPrimary.toFixed(0)} vs ${otherPrimary.toFixed(0)}).`
     );
+    items.push({
+      kind: "delta",
+      best: best.label,
+      other: other.label,
+      dir: totalDelta > 0 ? "lead" : "trail",
+      amount: Math.round(Math.abs(totalDelta)),
+      metric,
+      bestScore: Math.round(bestPrimary),
+      otherScore: Math.round(otherPrimary)
+    });
 
     const componentDeltas = COMPONENT_KEYS.map((key) => ({
       key,
@@ -127,6 +169,13 @@ function computeDriverInsights(variants: ComparisonVariant[], best: ComparisonVa
       insights.push(
         `Driver: ${COMPONENT_LABELS[topDriver.key]} (${driverDir} ${Math.abs(topDriver.delta).toFixed(0)} pts vs "${other.label}").`
       );
+      items.push({
+        kind: "driver",
+        component: topDriver.key,
+        dir: topDriver.delta > 0 ? "win" : "loss",
+        amount: Math.round(Math.abs(topDriver.delta)),
+        other: other.label
+      });
     }
 
     const skillsExclusiveToBest = (best.matchingSkills ?? []).filter(
@@ -136,18 +185,19 @@ function computeDriverInsights(variants: ComparisonVariant[], best: ComparisonVa
       (skill) => !(best.matchingSkills ?? []).includes(skill)
     );
     if (skillsExclusiveToBest.length) {
-      insights.push(
-        `"${best.label}" surfaces unique matches: ${skillsExclusiveToBest.slice(0, 4).join(", ")}.`
-      );
+      const skills = skillsExclusiveToBest.slice(0, 4);
+      insights.push(`"${best.label}" surfaces unique matches: ${skills.join(", ")}.`);
+      items.push({ kind: "uniqueBest", best: best.label, skills });
     }
     if (skillsExclusiveToOther.length) {
-      insights.push(
-        `"${other.label}" still proves: ${skillsExclusiveToOther.slice(0, 4).join(", ")} — worth merging into the winner.`
-      );
+      const skills = skillsExclusiveToOther.slice(0, 4);
+      insights.push(`"${other.label}" still proves: ${skills.join(", ")} — worth merging into the winner.`);
+      items.push({ kind: "uniqueOther", other: other.label, skills });
     }
   }
 
-  return insights.slice(0, 8);
+  // Cap both views identically so the localized render and the fallback stay aligned.
+  return { insights: insights.slice(0, 8), items: items.slice(0, 8) };
 }
 
 function buildMergedRecommendation(
@@ -158,46 +208,71 @@ function buildMergedRecommendation(
   const byLabel = new Map(inputs.map((input) => [input.label, input.analysis] as const));
   const bestAnalysis = byLabel.get(best.label);
 
-  const sectionPicks: ComparisonPayload["mergedRecommendation"]["sectionPicks"] = [];
+  const sectionPicks: SectionPick[] = [];
 
   const headlinePick = pickByMaxComponent(variants, "roleSeniority");
   const summaryPick = pickByMaxComponent(variants, "experience");
   const bulletsPick = best;
   const skillsPick = pickByMaxComponent(variants, "skills");
 
+  // `section` (English label) + `reason` (English sentence) stay for the fallback;
+  // `key` + `reasonParams` are the structured pair CompareTab localizes at render.
   sectionPicks.push({
     section: "Headline",
+    key: "headline",
     sourceLabel: headlinePick.label,
-    reason: `Top role-seniority signal (${headlinePick.score.roleSeniority.toFixed(0)} pts).`
+    reason: `Top role-seniority signal (${headlinePick.score.roleSeniority.toFixed(0)} pts).`,
+    reasonParams: { pts: Math.round(headlinePick.score.roleSeniority) }
   });
   sectionPicks.push({
     section: "Summary",
+    key: "summary",
     sourceLabel: summaryPick.label,
-    reason: `Strongest experience framing (${summaryPick.score.experience.toFixed(0)} pts, ${summaryPick.yearsExperience} yrs surfaced).`
+    reason: `Strongest experience framing (${summaryPick.score.experience.toFixed(0)} pts, ${summaryPick.yearsExperience} yrs surfaced).`,
+    reasonParams: { pts: Math.round(summaryPick.score.experience), yrs: summaryPick.yearsExperience }
   });
   sectionPicks.push({
     section: "Bullets",
+    key: "bullets",
     sourceLabel: bulletsPick.label,
-    reason: `Highest overall fit (${primaryScore(bulletsPick).toFixed(0)}).`
+    reason: `Highest overall fit (${primaryScore(bulletsPick).toFixed(0)}).`,
+    reasonParams: { score: Math.round(primaryScore(bulletsPick)) }
   });
   sectionPicks.push({
     section: "Skills line",
+    key: "skillsLine",
     sourceLabel: skillsPick.label,
-    reason: `Best skills coverage (${skillsPick.score.skills.toFixed(0)} pts, ${skillsPick.skillsCount} skills indexed).`
+    reason: `Best skills coverage (${skillsPick.score.skills.toFixed(0)} pts, ${skillsPick.skillsCount} skills indexed).`,
+    reasonParams: { pts: Math.round(skillsPick.score.skills), count: skillsPick.skillsCount }
   });
 
   const headlineCandidate =
     byLabel.get(headlinePick.label)?.candidate ?? bestAnalysis?.candidate;
-  const headline = headlineCandidate
-    ? `${headlineCandidate.currentSeniority.replace("_", " ")} ${headlineCandidate.roleFamily.replace("_", " ")} — ${headlineCandidate.skills.slice(0, 3).join(", ")}`
+  // Keep the English `headline` string for the fallback, but also emit the enum slugs
+  // (seniority/roleFamily) + skills so CompareTab renders the words through the
+  // localized enum catalog instead of the analysis-time English slug words.
+  const headlineParams = headlineCandidate
+    ? {
+        seniority: headlineCandidate.currentSeniority,
+        roleFamily: headlineCandidate.roleFamily,
+        skills: headlineCandidate.skills.slice(0, 3)
+      }
+    : null;
+  const headline = headlineParams
+    ? `${headlineParams.seniority.replace("_", " ")} ${headlineParams.roleFamily.replace("_", " ")} — ${headlineParams.skills.join(", ")}`
     : "";
   const skillsLine = (byLabel.get(skillsPick.label)?.candidate.skills ?? []).slice(0, 12).join(" • ");
 
   const bullets = mergeBestBullets(inputs, variants);
 
+  const summaryKind: "allSame" | "split" =
+    new Set(sectionPicks.map((pick) => pick.sourceLabel)).size === 1 ? "allSame" : "split";
+
   return {
     summary: buildMergedSummary(best, sectionPicks),
+    summaryKind,
     headline,
+    headlineParams,
     skillsLine,
     bullets,
     sectionPicks

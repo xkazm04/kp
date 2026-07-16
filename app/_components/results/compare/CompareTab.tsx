@@ -4,8 +4,9 @@ import { useTranslations } from "next-intl";
 import { ArrowDownRight, ArrowUpRight, Crown, Minus } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { Analysis } from "@/app/_lib/schemas";
-import { hasRenderableComparison, primaryScore } from "@/app/_lib/comparison";
+import { hasRenderableComparison, resolveWinnerIndex, type CompareDriver } from "@/app/_lib/comparison";
 import { reconcileScoreTotal, SCORE_COMPONENT_KEYS } from "@/app/_lib/format";
+import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { BulletList } from "../shared";
 
 type ComparisonPayload = NonNullable<Analysis["comparison"]>;
@@ -25,9 +26,20 @@ const COMPONENT_LABEL_KEY = {
   traits: "factorTraits",
 } as const;
 
+// Stable section key → localized label / reason message. Keyed off the persisted
+// non-display `key` (see COMPARE_SECTION_KEYS) so the merged-recommendation section
+// names localize while their React keys stay constant across locales.
+const SECTION_LABEL_KEY = {
+  headline: "compare.sectionHeadline",
+  summary: "compare.sectionSummary",
+  bullets: "compare.sectionBullets",
+  skillsLine: "compare.sectionSkillsLine",
+} as const;
+
 export function CompareTab({ analysis }: { analysis: Analysis }) {
   const comparison = analysis.comparison;
   const t = useTranslations("report");
+  const enumLabel = useEnumLabel();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollRight, setCanScrollRight] = useState(false);
 
@@ -64,16 +76,82 @@ export function CompareTab({ analysis }: { analysis: Analysis }) {
     );
   }
 
-  // Resolve the winner by INDEX via max primary score, not by `findIndex(label === bestLabel)`.
-  // Variant labels aren't unique (two CV variants can share a filename / "CV"), so a label
-  // match returns the FIRST same-named column and could crown the wrong one. primaryScore is
-  // the SAME rule buildComparison ranks by (imported, not re-derived); strict `>` keeps the
-  // earliest on a tie — matching its stable sort.
-  let winnerIndex = 0;
-  for (let i = 1; i < comparison.variants.length; i++) {
-    if (primaryScore(comparison.variants[i]) > primaryScore(comparison.variants[winnerIndex])) winnerIndex = i;
-  }
+  // Resolve the winner by INDEX via the ONE shared resolver (resolveWinnerIndex,
+  // imported from comparison.ts — the exact rule buildComparison crowns bestLabel by).
+  // Not `findIndex(label === bestLabel)`: variant labels aren't unique (two CV variants
+  // can share a filename / "CV"), so a label match could crown the wrong column.
+  const winnerIndex = resolveWinnerIndex(comparison.variants);
   const baseline = comparison.variants[0];
+
+  const mr = comparison.mergedRecommendation;
+
+  // Localize a structured driver entry (CompareDriver) at render; the metric/component
+  // words resolve through the same report catalog the rest of the table uses.
+  const componentLabel = (component: string) => {
+    const key = COMPONENT_LABEL_KEY[component as keyof typeof COMPONENT_LABEL_KEY];
+    return key ? t(key) : component;
+  };
+  const metricLabel = (metric: "overall" | "jobFit") =>
+    t(metric === "jobFit" ? "compare.metricJobFitProse" : "compare.metricOverall");
+  const driverText = (item: CompareDriver): string => {
+    switch (item.kind) {
+      case "tie":
+        return t("compare.narrativeTie", { best: item.best, other: item.other, metric: metricLabel(item.metric), score: item.score });
+      case "delta":
+        return t("compare.narrativeDelta", {
+          best: item.best,
+          other: item.other,
+          dir: item.dir,
+          amount: item.amount,
+          metric: metricLabel(item.metric),
+          bestScore: item.bestScore,
+          otherScore: item.otherScore,
+        });
+      case "driver":
+        return t("compare.narrativeDriver", { component: componentLabel(item.component), dir: item.dir, amount: item.amount, other: item.other });
+      case "uniqueBest":
+        return t("compare.narrativeUniqueBest", { best: item.best, skills: item.skills.join(", ") });
+      case "uniqueOther":
+        return t("compare.narrativeUniqueOther", { other: item.other, skills: item.skills.join(", ") });
+    }
+  };
+  // Prefer the structured items (localized); fall back to the persisted English strings
+  // for payloads saved before the codes seam existed — additive, never blank.
+  const driverInsights = comparison.driverInsightItems
+    ? comparison.driverInsightItems.map(driverText)
+    : comparison.driverInsights;
+
+  const sectionLabel = (pick: (typeof mr.sectionPicks)[number]) =>
+    pick.key ? t(SECTION_LABEL_KEY[pick.key]) : pick.section;
+  const sectionReason = (pick: (typeof mr.sectionPicks)[number]): string => {
+    const p = pick.reasonParams;
+    if (!pick.key || !p) return pick.reason;
+    switch (pick.key) {
+      case "headline":
+        return t("compare.reasonHeadline", { pts: p.pts ?? 0 });
+      case "summary":
+        return t("compare.reasonSummary", { pts: p.pts ?? 0, yrs: p.yrs ?? 0 });
+      case "bullets":
+        return t("compare.reasonBullets", { score: p.score ?? 0 });
+      case "skillsLine":
+        return t("compare.reasonSkillsLine", { pts: p.pts ?? 0, count: p.count ?? 0 });
+    }
+  };
+  // The merged-recommendation summary, rebuilt in the reader's language from summaryKind
+  // + the localized section labels; the persisted English `summary` is the fallback.
+  const mergedSummary = !mr.summaryKind
+    ? mr.summary
+    : mr.summaryKind === "allSame"
+      ? t("compare.mergedSummaryAllSame", { best: comparison.bestLabel })
+      : t("compare.mergedSummarySplit", {
+          splits: mr.sectionPicks.map((pick) => t("compare.mergedSplitFragment", { section: sectionLabel(pick), source: pick.sourceLabel })).join(", "),
+          best: comparison.bestLabel,
+        });
+  // Headline: recompose from the enum slugs through the localized catalog when present,
+  // else render the persisted English headline string.
+  const headlineText = mr.headlineParams
+    ? `${enumLabel("seniority", mr.headlineParams.seniority)} ${enumLabel("family", mr.headlineParams.roleFamily)} — ${mr.headlineParams.skills.join(", ")}`.trim()
+    : mr.headline;
 
   return (
     <div className="space-y-5">
@@ -176,7 +254,7 @@ export function CompareTab({ analysis }: { analysis: Analysis }) {
         <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
           <h3 className="font-serif text-h3 text-ink">{t("compare.driversTitle")}</h3>
           <BulletList
-            items={comparison.driverInsights}
+            items={driverInsights}
             listClassName="mt-3 space-y-2 text-base leading-6 text-ink"
             itemClassName="rounded-md bg-paper p-3"
             empty={<p className="mt-3 text-base leading-6 text-steel">{t("compare.driversEmpty")}</p>}
@@ -185,14 +263,14 @@ export function CompareTab({ analysis }: { analysis: Analysis }) {
 
         <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
           <h3 className="font-serif text-h3 text-ink">{t("compare.mergedTitle")}</h3>
-          <p className="mt-3 text-base leading-6 text-ink">{comparison.mergedRecommendation.summary}</p>
+          <p className="mt-3 text-base leading-6 text-ink">{mergedSummary}</p>
           <ul className="mt-3 space-y-2 text-base leading-6 text-ink">
-            {comparison.mergedRecommendation.sectionPicks.map((pick) => (
-              <li key={pick.section} className="rounded-md bg-paper p-3">
-                <span className="font-semibold text-ink">{pick.section}</span>{" "}
+            {mr.sectionPicks.map((pick) => (
+              <li key={pick.key ?? pick.section} className="rounded-md bg-paper p-3">
+                <span className="font-semibold text-ink">{sectionLabel(pick)}</span>{" "}
                 <span className="text-steel">{t("compare.fromLabel")}</span>{" "}
                 <span className="font-medium text-coral">{pick.sourceLabel}</span>
-                <p className="mt-1 text-sm text-steel">{pick.reason}</p>
+                <p className="mt-1 text-sm text-steel">{sectionReason(pick)}</p>
               </li>
             ))}
           </ul>
@@ -202,16 +280,16 @@ export function CompareTab({ analysis }: { analysis: Analysis }) {
       <div className="grid gap-5 lg:grid-cols-2">
         <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
           <h3 className="font-serif text-h3 text-ink">{t("compare.headlineSkillsTitle")}</h3>
-          {comparison.mergedRecommendation.headline ? (
+          {headlineText ? (
             <div className="mt-3 rounded-md bg-paper p-3">
               <p className="text-sm font-semibold uppercase tracking-wide text-steel">{t("compare.headlineLabel")}</p>
-              <p className="mt-1 text-base leading-6 text-ink">{comparison.mergedRecommendation.headline}</p>
+              <p className="mt-1 text-base leading-6 text-ink">{headlineText}</p>
             </div>
           ) : null}
-          {comparison.mergedRecommendation.skillsLine ? (
+          {mr.skillsLine ? (
             <div className="mt-3 rounded-md bg-paper p-3">
               <p className="text-sm font-semibold uppercase tracking-wide text-steel">{t("compare.skillsLineLabel")}</p>
-              <p className="mt-1 text-base leading-6 text-ink">{comparison.mergedRecommendation.skillsLine}</p>
+              <p className="mt-1 text-base leading-6 text-ink">{mr.skillsLine}</p>
             </div>
           ) : null}
         </div>
