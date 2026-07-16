@@ -231,3 +231,25 @@ export function statusCounts(rows: JdRow[]): Record<StatusFilter, number> {
 export function shortDate(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
 }
+
+// winnability-apply — why a captured coach handoff (?coachEdit=<…slug…>) can't be
+// staged into the editor right now, so the ledger renders an HONEST, dismissible
+// trace note instead of dropping the suggestion silently (the param is one-shot and
+// already spent by the time we get here). Given the target slug and the loaded rows:
+//   - null        → nothing to trace: no handoff, still loading, OR the target is
+//                   editable and the modal auto-opens with the staged suggestion
+//   - "notFound"  → no JD row matches the slug (e.g. a corpus job with no saved JD)
+//   - "analyzing" → the target's backgrounded build is still running (edit blocked)
+//   - "failed"    → the target's build failed (edit stays blocked)
+// Pure + derived so it re-evaluates every render: the moment the analyzing poll flips
+// the row to ready this returns null, the auto-open path takes over, and the note is
+// replaced by the editor's own staged banner (arm-late, at zero extra machinery).
+export type CoachHandoffBlock = "notFound" | "analyzing" | "failed";
+export function coachHandoffBlock(slug: string | null | undefined, rows: JdRow[] | null): CoachHandoffBlock | null {
+  if (!slug || !rows) return null;
+  const row = rows.find((r) => r.slug === slug);
+  if (!row) return "notFound";
+  if (row.analysis_status === "analyzing") return "analyzing";
+  if (row.analysis_status === "failed") return "failed";
+  return null;
+}

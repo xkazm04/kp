@@ -6,7 +6,7 @@
 //   npm run test:unit
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { jdStatusChip, statusCategory, statusCounts, type JdRow } from "./jd-library.ts";
+import { coachHandoffBlock, jdStatusChip, statusCategory, statusCounts, type JdRow } from "./jd-library.ts";
 
 const row = (over: Partial<JdRow> = {}): JdRow => ({ slug: "s", title: "T", preview: "", created_at: "2026-01-01", ...over });
 
@@ -43,4 +43,34 @@ test("statusCounts tallies analyzing rows separately", () => {
   assert.equal(c.analyzing, 2);
   assert.equal(c.draft, 1);
   assert.equal(c.live, 1);
+});
+
+test("coachHandoffBlock classifies why a coach handoff can't stage", () => {
+  const rows = [
+    row({ slug: "ready-1", analysis_status: "ready" }),
+    row({ slug: "linked-1", jobStatus: "published" }),
+    row({ slug: "build-1", analysis_status: "analyzing" }),
+    row({ slug: "boom-1", analysis_status: "failed" }),
+  ];
+  // Editable targets (ready / linked / plain) → null: the modal auto-opens, no note.
+  assert.equal(coachHandoffBlock("ready-1", rows), null);
+  assert.equal(coachHandoffBlock("linked-1", rows), null);
+  // Blocked builds are worded per cause.
+  assert.equal(coachHandoffBlock("build-1", rows), "analyzing");
+  assert.equal(coachHandoffBlock("boom-1", rows), "failed");
+  // A slug with no matching row → notFound (e.g. a corpus job with no saved JD).
+  assert.equal(coachHandoffBlock("ghost", rows), "notFound");
+  // Still loading (rows null) or no handoff (no slug) → nothing to trace.
+  assert.equal(coachHandoffBlock("build-1", null), null);
+  assert.equal(coachHandoffBlock(null, rows), null);
+  assert.equal(coachHandoffBlock(undefined, rows), null);
+});
+
+test("coachHandoffBlock re-derives to null once an analyzing target flips ready (arm-late)", () => {
+  // The parent polls `rows`; this pure derivation flips from a note to auto-open with
+  // no extra machinery — the honest arm-late path the direction prefers.
+  const analyzing = [row({ slug: "j", analysis_status: "analyzing" })];
+  const ready = [row({ slug: "j", analysis_status: "ready" })];
+  assert.equal(coachHandoffBlock("j", analyzing), "analyzing");
+  assert.equal(coachHandoffBlock("j", ready), null);
 });
