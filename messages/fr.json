@@ -52,6 +52,8 @@
       "excellent": "Excellent"
     },
     "scoreAria": "Score {score} sur 100, {band}",
+    "jdEditedBadge": "Offre modifiée le {date}",
+    "jdEditedTitle": "L'offre a été modifiée le {date}, après l'évaluation de ce candidat — le score reflète le texte antérieur. Relancez l'analyse pour l'actualiser.",
     "verdict": {
       "heading": "Verdict global",
       "outOf": "/ 100",
@@ -130,7 +132,8 @@
     "importToPrep": "Ajouter ces questions à la préparation de l'entretien",
     "importToPrepBusy": "Ajout à la préparation…",
     "importToPrepDone": "Ajouté à la préparation de l'entretien",
-    "importToPrepNoPrep": "Générez d'abord la préparation de l'entretien (onglet Planification).",
+    "importToPrepNoPrep": "Ce candidat n'a pas encore de préparation d'entretien —",
+    "importToPrepGoTo": "générez-la dans Planification",
     "importToPrepFailed": "Impossible d'ajouter à la préparation — réessayez.",
     "yourDecision": "Votre décision",
     "dispAdvance": "Faire avancer",

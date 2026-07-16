@@ -52,6 +52,8 @@
       "excellent": "Vynikající"
     },
     "scoreAria": "Skóre {score} ze 100, {band}",
+    "jdEditedBadge": "Inzerát upraven {date}",
+    "jdEditedTitle": "Inzerát byl upraven {date}, až po ohodnocení tohoto kandidáta — skóre odráží dřívější text. Pro aktualizaci spusťte analýzu znovu.",
     "verdict": {
       "heading": "Celkový verdikt",
       "outOf": "/ 100",
@@ -130,7 +132,8 @@
     "importToPrep": "Přidat tyto otázky do přípravy pohovoru",
     "importToPrepBusy": "Přidávání do přípravy…",
     "importToPrepDone": "Přidáno do přípravy pohovoru",
-    "importToPrepNoPrep": "Nejprve vygenerujte přípravu pohovoru (záložka Plánování).",
+    "importToPrepNoPrep": "Tento kandidát zatím nemá přípravu na pohovor —",
+    "importToPrepGoTo": "vytvořte ji v Plánování",
     "importToPrepFailed": "Nepodařilo se přidat do přípravy — zkuste to znovu.",
     "yourDecision": "Vaše rozhodnutí",
     "dispAdvance": "Posunout",

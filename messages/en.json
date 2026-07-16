@@ -52,6 +52,8 @@
       "excellent": "Excellent"
     },
     "scoreAria": "Score {score} out of 100, {band}",
+    "jdEditedBadge": "JD edited {date}",
+    "jdEditedTitle": "The JD was edited {date}, after this candidate was scored — the score reflects the earlier text. Re-run the analysis to refresh it.",
     "verdict": {
       "heading": "Overall verdict",
       "outOf": "/ 100",
@@ -130,7 +132,8 @@
     "importToPrep": "Add these questions to interview prep",
     "importToPrepBusy": "Adding to prep…",
     "importToPrepDone": "Added to interview prep",
-    "importToPrepNoPrep": "Generate the interview prep first (Schedule tab).",
+    "importToPrepNoPrep": "This candidate has no prep pack yet —",
+    "importToPrepGoTo": "generate one in Schedule",
     "importToPrepFailed": "Couldn't add to the prep pack — try again.",
     "yourDecision": "Your decision",
     "dispAdvance": "Advance",

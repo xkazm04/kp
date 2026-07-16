@@ -1,12 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getTranslations } from "next-intl/server";
+import { History } from "lucide-react";
+import { getLocale, getTranslations } from "next-intl/server";
 import { ResultPanel } from "@/app/_components/results/ResultPanel";
 import { ReportActions } from "@/app/_components/results/ReportActions";
 import { DispositionEditor } from "@/app/_components/results/DispositionEditor";
 import { WorkspaceShell } from "@/app/features/WorkspaceNav";
 import { RecordRecent } from "@/app/features/RecordRecent";
-import { findActiveEntriesByCandidateLabel, hasLabelCollision, listAnalysesByCvHash, loadAnalysis, parseStoredGithubAnalysis, type PipelineEntry } from "@/app/_lib/db";
+import { findActiveEntriesByCandidateLabel, hasLabelCollision, jdLastEditedAt, listAnalysesByCvHash, loadAnalysis, parseStoredGithubAnalysis, type PipelineEntry } from "@/app/_lib/db";
+import { isScoreStale } from "@/app/features/sub_decisions/DecisionsTypes";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { analysisSchema } from "@/app/_lib/schemas";
 import type { ResultPanelGithub } from "@/app/_components/results/ResultPanel";
@@ -111,6 +113,29 @@ export default async function HistoryDetailPage({
     console.error(`[history] identity lookup failed for "${slug}"`, error);
   }
 
+  // Direction 2 (saved-report-whole-truth) — "JD edited since this analysis" cue.
+  // Server-derived (this is a Server Component; no client fetch): the SAME shared
+  // rule the decisions cards / pipeline drawer use — a score computed strictly
+  // BEFORE the JD's last content edit reflects the earlier text. Best-effort like
+  // every other lookup on this page: a store fault hides the chip, never breaks the
+  // report. Only meaningful when the analysis was run against a saved JD.
+  const locale = await getLocale();
+  let jdEditedAt: string | null = null;
+  try {
+    if (found.row.jd_slug) jdEditedAt = jdLastEditedAt(found.row.jd_slug, ws);
+  } catch (error) {
+    console.error(`[history] jd-edit lookup failed for "${slug}"`, error);
+  }
+  const scoreStale = isScoreStale(found.row.created_at, jdEditedAt);
+  const staleDate = jdEditedAt ? new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(new Date(jdEditedAt)) : "";
+
+  // Direction 2 (a) — the honest disabled-reason the LIVE tab shows. The saved
+  // report can only be JD-less (it always persisted), so the sole reason here is
+  // "board lanes are keyed by a job". Reuse the analyze catalog's wording (single
+  // source) instead of a second copy, mirroring deriveAnalyzePipelineAffordance's
+  // "jdless" branch.
+  const tAnalyze = await getTranslations("analyze");
+
   return (
     <WorkspaceShell active="analyze">
       {/* SHELL3: visiting the saved report IS opening the entity — record it. */}
@@ -167,6 +192,14 @@ export default async function HistoryDetailPage({
             ))}
           </p>
         ) : null}
+        {scoreStale ? (
+          <span
+            className="inline-flex w-fit items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-sm font-semibold text-amber-800"
+            title={t("jdEditedTitle", { date: staleDate })}
+          >
+            <History size={12} aria-hidden /> {t("jdEditedBadge", { date: staleDate })}
+          </span>
+        ) : null}
         {labelCollision ? (
           <p className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800">
             {t("labelCollision")}
@@ -206,6 +239,11 @@ export default async function HistoryDetailPage({
                 }
               : undefined
           }
+          // Direction 2 (a) — a JD-less saved report now shows the SAME honest
+          // disabled-reason note the live tab does, instead of a silent blank where
+          // the add affordance would be. Ignored by ResultPanel when pipelineRef is
+          // present (the button wins).
+          pipelineDisabledReason={found.row.jd_slug ? undefined : tAnalyze("addToPipelineJdless")}
         />
       </div>
     </WorkspaceShell>

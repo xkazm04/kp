@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { MessagesSquare, Wrench, ShieldAlert, HelpCircle, Filter, Check, ClipboardCheck, Loader2 } from "lucide-react";
+import { MessagesSquare, Wrench, ShieldAlert, HelpCircle, Filter, Check, ClipboardCheck, CalendarPlus, Loader2 } from "lucide-react";
 import type { Analysis } from "@/app/_lib/schemas";
+import { tabHref } from "@/app/features/tabs";
 import { dedupe } from "@/app/_lib/dedupe";
 import { SoftSignalsSection } from "./SoftSignalsSection";
 import {
@@ -256,9 +258,20 @@ function ImportToPrepButton({ entryId, questions }: { entryId: string; questions
         )}
         {done ? t("importToPrepDone") : state === "importing" ? t("importToPrepBusy") : t("importToPrep")}
       </button>
+      {/* Direction 2 (saved-report-whole-truth) — a 404 means the prep pack hasn't
+          been generated yet. Instead of a dead-end hint, offer the honest next step:
+          a deep-link to the Schedule tab (the prep-pack generation home), reusing the
+          shared tabHref grammar. No auto-generation — the recruiter acts there. */}
       {state === "noprep" ? (
-        <span role="status" className="text-sm text-steel">
-          {t("importToPrepNoPrep")}
+        <span role="status" className="inline-flex flex-wrap items-center gap-1.5 text-sm text-steel">
+          {t("importToPrepNoPrep")}{" "}
+          <Link
+            href={tabHref("schedule")}
+            className="focus-ring inline-flex items-center gap-1 font-semibold text-coral hover:underline"
+          >
+            <CalendarPlus className="h-3.5 w-3.5" aria-hidden />
+            {t("importToPrepGoTo")}
+          </Link>
         </span>
       ) : null}
       {state === "error" ? (

@@ -52,6 +52,8 @@
       "excellent": "Ausgezeichnet"
     },
     "scoreAria": "Bewertung {score} von 100, {band}",
+    "jdEditedBadge": "Stellenanzeige {date} geändert",
+    "jdEditedTitle": "Die Stellenanzeige wurde am {date} geändert, nach der Bewertung dieser Kandidatin bzw. dieses Kandidaten — der Score spiegelt den früheren Text wider. Führen Sie die Analyse erneut aus, um ihn zu aktualisieren.",
     "verdict": {
       "heading": "Gesamturteil",
       "outOf": "/ 100",
@@ -130,7 +132,8 @@
     "importToPrep": "Diese Fragen zur Interviewvorbereitung hinzufügen",
     "importToPrepBusy": "Wird hinzugefügt…",
     "importToPrepDone": "Zur Interviewvorbereitung hinzugefügt",
-    "importToPrepNoPrep": "Erstellen Sie zuerst die Interviewvorbereitung (Tab „Planung“).",
+    "importToPrepNoPrep": "Für diese Person gibt es noch keine Interviewvorbereitung —",
+    "importToPrepGoTo": "in „Planung“ erstellen",
     "importToPrepFailed": "Hinzufügen zur Vorbereitung fehlgeschlagen — bitte erneut versuchen.",
     "yourDecision": "Ihre Entscheidung",
     "dispAdvance": "Weiterleiten",
