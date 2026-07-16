@@ -6,6 +6,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { Modal } from "@/app/_components/Modal";
 import { Checkbox } from "@/app/_components/Checkbox";
 import { SCREENING_DEFAULT } from "@/app/_lib/decision-config-schema";
+import { rowEffectiveFloor, familyOverrideRejectCount } from "./floor-disclosure";
 
 // One decision in the wave (mirrors ScreenDecision in screen-wave.ts). DEC4 —
 // `reasonCode`/`reasonParams` are the locale-renderable mirror of the English
@@ -65,6 +66,22 @@ export function ScreenWaveModal({
         <History size={10} aria-hidden /> {t("jdEditedBadge", { date: shortDate(d.staleSince) })}
       </span>
     ) : null;
+  // floors-tell-the-truth — a reject row whose EFFECTIVE floor (reasonParams.threshold,
+  // threaded by screen-wave.ts) differs from the global slider was decided against a
+  // per-family override. Surface that floor so the recruiter sees why a row above the
+  // slider value still moved (or below it didn't). Informs; never blocks.
+  const floorChip = (d: Decision) => {
+    const floor = rowEffectiveFloor(d.reasonParams);
+    if (floor == null || floor === maxMatch) return null;
+    return (
+      <span
+        className="ml-1.5 inline-flex items-center gap-1 rounded-full border border-stone-200 bg-white px-1.5 py-0.5 text-meta font-semibold text-steel"
+        title={t("familyFloorTitle", { floor })}
+      >
+        {t("familyFloorBadge", { floor })}
+      </span>
+    );
+  };
   const [enabled, setEnabled] = useState(true);
   const [bottomPercent, setBottomPercent] = useState(SCREENING_DEFAULT.rejectBottomPercent);
   const [maxMatch, setMaxMatch] = useState(SCREENING_DEFAULT.maxMatchToReject);
@@ -162,6 +179,9 @@ export function ScreenWaveModal({
   const view = committed ?? preview;
   const rejects = view?.decisions.filter((d) => d.action === "reject") ?? [];
   const keeps = view?.decisions.filter((d) => d.action === "keep") ?? [];
+  // floors-tell-the-truth — how many rejects were decided against a family floor
+  // that differs from the global slider (drives the summary line below the count).
+  const overrideRejects = view ? familyOverrideRejectCount(view.decisions, maxMatch) : 0;
 
   // Why the commit button is disabled — surfaced in an aria-live line beside the
   // button (finding SD-5), not just a `title` invisible to screen readers / touch.
@@ -194,6 +214,11 @@ export function ScreenWaveModal({
         <p className="text-meta uppercase tracking-wide text-coral">
           {committed ? t("rejectedHeading", { count: rejects.length }) : t("wouldRejectHeading")}
         </p>
+        {overrideRejects > 0 ? (
+          // floors-tell-the-truth — why some rows moved against a floor that isn't the
+          // slider value: a per-family override was in effect for them.
+          <p className="mt-1 text-meta text-steel">{t("familyOverrideSummary", { count: overrideRejects })}</p>
+        ) : null}
         <ul className="mt-1.5 space-y-1">
           {rejects.map((d) => (
             <li key={d.entryId} className="rounded-md border border-coral/30 bg-coral/5 px-2.5 py-1.5 text-sm">
@@ -205,6 +230,7 @@ export function ScreenWaveModal({
                 </span>
               ) : null}
               {staleChip(d)}
+              {floorChip(d)}
               <span className="mt-0.5 block text-meta text-steel">{reasonText(d)}</span>
             </li>
           ))}

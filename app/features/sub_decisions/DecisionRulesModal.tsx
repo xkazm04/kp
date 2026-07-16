@@ -7,7 +7,9 @@ import { Modal } from "@/app/_components/Modal";
 import { Checkbox } from "@/app/_components/Checkbox";
 import { TextInput } from "@/app/_components/TextInput";
 import { SCREENING_DEFAULT as FALLBACK, type ScreeningRule } from "@/app/_lib/decision-config-schema";
+import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { ComplianceSection } from "./ComplianceSection";
+import { familyFloorEntries, familyFloorSummaryList } from "./floor-disclosure";
 
 // Type + default come from the pure decision-config-schema module — the same
 // source the API validates writes against — so the client clamps and the server
@@ -18,6 +20,7 @@ import { ComplianceSection } from "./ComplianceSection";
 // — that fairness gate is enforced in code, not configurable.
 export function DecisionRulesModal({ onClose }: { onClose: () => void }) {
   const t = useTranslations("decisions.rules");
+  const enumLabel = useEnumLabel();
   const [rule, setRule] = useState<ScreeningRule | null>(null);
   const [saving, setSaving] = useState(false);
   const [note, setNote] = useState<string | null>(null);
@@ -117,15 +120,49 @@ export function DecisionRulesModal({ onClose }: { onClose: () => void }) {
             </label>
           </div>
 
-          <p id="screening-rule-sentence" className="rounded-md bg-paper p-3 text-sm text-ink">
-            {t.rich("ruleSentence", {
-              pct: rule.rejectBottomPercent,
-              max: rule.maxMatchToReject,
-              b: (chunks) => <strong>{chunks}</strong>,
-            })}
-            {rule.rejectBottomPercent > 0 ? t.rich("ruleWeakest", { b: (chunks) => <strong>{chunks}</strong> }) : null}
-            {t("ruleLog")}
-          </p>
+          {(() => {
+            // floors-tell-the-truth — the saved per-family overrides ARE in effect at
+            // screening (effectiveFloor merges them), so the plain-English rule must name
+            // them instead of implying the single global floor governs every family.
+            const floors = familyFloorEntries(rule.familyFloors, rule.maxMatchToReject, (slug) => enumLabel("family", slug));
+            return (
+              <>
+                <p id="screening-rule-sentence" className="rounded-md bg-paper p-3 text-sm text-ink">
+                  {t.rich("ruleSentence", {
+                    pct: rule.rejectBottomPercent,
+                    max: rule.maxMatchToReject,
+                    b: (chunks) => <strong>{chunks}</strong>,
+                  })}
+                  {floors.length > 0
+                    ? t.rich("ruleFamilyAppend", {
+                        count: floors.length,
+                        list: familyFloorSummaryList(floors),
+                        b: (chunks) => <strong>{chunks}</strong>,
+                      })
+                    : null}
+                  {rule.rejectBottomPercent > 0 ? t.rich("ruleWeakest", { b: (chunks) => <strong>{chunks}</strong> }) : null}
+                  {t("ruleLog")}
+                </p>
+                {floors.length > 0 ? (
+                  // Read-only chips — the value lives here for review; editing belongs to the
+                  // calibration surface (the hint below points there), so the two never diverge.
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="text-meta uppercase tracking-wide text-steel">{t("familyOverridesLabel")}</span>
+                    {floors.map((f) => (
+                      <span
+                        key={f.family}
+                        className="inline-flex items-center gap-1 rounded-full border border-stone-200 bg-white px-2 py-0.5 text-meta text-ink"
+                      >
+                        <span className="font-semibold">{f.label}</span>
+                        <span className="nums text-steel">{t("familyFloorChip", { floor: f.floor })}</span>
+                      </span>
+                    ))}
+                    <span className="w-full text-meta text-steel">{t("familyEditHint")}</span>
+                  </div>
+                ) : null}
+              </>
+            );
+          })()}
           <p className="text-sm text-steel">
             <span className="font-semibold text-moss">{t("fairnessLabel")}</span>{" "}
             {t.rich("fairnessBody", { b: (chunks) => <strong>{chunks}</strong> })}
