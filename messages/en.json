@@ -1161,6 +1161,13 @@
       "devExtension": "Dev extension",
       "insights": "Insights",
       "settings": "Settings"
+    },
+    "tasks": {
+      "label": "Background tasks",
+      "startErrorTitle": "Couldn't start the task",
+      "dismiss": "Dismiss",
+      "failedSince": "{count, plural, one {# background task failed since you last looked} other {# background tasks failed since you last looked}}",
+      "running": "{count, plural, one {# background task running} other {# background tasks running}}"
     }
   },
   "enums": {

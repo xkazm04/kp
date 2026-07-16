@@ -1161,6 +1161,13 @@
       "devExtension": "Rozšíření pro vývoj",
       "insights": "Přehledy",
       "settings": "Nastavení"
+    },
+    "tasks": {
+      "label": "Úlohy na pozadí",
+      "startErrorTitle": "Úlohu se nepodařilo spustit",
+      "dismiss": "Zavřít",
+      "failedSince": "{count, plural, one {# úloha na pozadí selhala od vašeho posledního pohledu} few {# úlohy na pozadí selhaly od vašeho posledního pohledu} other {# úloh na pozadí selhalo od vašeho posledního pohledu}}",
+      "running": "{count, plural, one {# úloha na pozadí běží} few {# úlohy na pozadí běží} other {# úloh na pozadí běží}}"
     }
   },
   "enums": {

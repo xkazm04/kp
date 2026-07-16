@@ -292,7 +292,7 @@ export function Workspace() {
           }
           onSliceNav={(href) => router.replace(href, { scroll: false })}
           railTop={
-            <div className="mb-1 flex justify-center py-1">
+            <div className="mb-1 hidden justify-center py-1 md:flex">
               {logoUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element -- external brand logo URL, not a bundled asset
                 <img src={logoUrl} alt="" className="h-8 w-8 rounded-lg object-contain" />

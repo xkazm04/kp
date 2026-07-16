@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Activity, AlertTriangle, Loader2, X } from "lucide-react";
 import { useTasks } from "./TasksProvider";
 import { navItemClass } from "../tabs";
@@ -16,6 +17,7 @@ const FAILED_SEEN_KEY = "kp.tasksFailedSeenAt";
 // start-failure alert, and an unseen-failures badge — visible from any tab.
 export function TasksIndicator({ active, onOpen }: { active: boolean; onOpen: () => void }) {
   const { tasks, running, startError, clearStartError } = useTasks();
+  const t = useTranslations("nav.tasks");
   const [seenAt, setSeenAt] = useState("");
   useEffect(() => {
     try {
@@ -55,13 +57,13 @@ export function TasksIndicator({ active, onOpen }: { active: boolean; onOpen: ()
         <div role="alert" className="mb-2 flex items-start gap-1.5 rounded-md border border-coral/40 bg-coral/5 p-2">
           <AlertTriangle size={13} className="mt-0.5 shrink-0 text-coral" />
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold text-coral">Couldn&apos;t start the task</p>
+            <p className="text-sm font-semibold text-coral">{t("startErrorTitle")}</p>
             <p className="break-words text-sm text-steel">{startError.message}</p>
           </div>
           <button
             type="button"
             onClick={clearStartError}
-            title="Dismiss"
+            title={t("dismiss")}
             className="focus-ring rounded p-0.5 text-steel hover:bg-stone-100 hover:text-coral"
           >
             <X size={12} />
@@ -80,20 +82,20 @@ export function TasksIndicator({ active, onOpen }: { active: boolean; onOpen: ()
         ) : (
           <Activity size={14} aria-hidden className="shrink-0 text-steel" />
         )}
-        <span>Background tasks</span>
+        <span>{t("label")}</span>
         {/* aria-live so a screen reader hears the running count tick up/down — the whole
             point of this always-at-a-glance signal, previously announced visual-only. */}
         {unseenFailed > 0 ? (
           <span
             aria-live="polite"
-            aria-label={`${unseenFailed} background task${unseenFailed === 1 ? "" : "s"} failed since you last looked`}
+            aria-label={t("failedSince", { count: unseenFailed })}
             className="ml-auto inline-flex items-center gap-1 rounded-full bg-coral/10 px-1.5 text-sm font-semibold text-coral"
           >
             <AlertTriangle size={10} aria-hidden /> {unseenFailed}
           </span>
         ) : null}
         {running.length > 0 ? (
-          <span aria-live="polite" aria-label={`${running.length} background task${running.length === 1 ? "" : "s"} running`} className={`${unseenFailed > 0 ? "ml-1" : "ml-auto"} rounded-full bg-coral px-1.5 text-sm font-semibold text-white`}>{running.length}</span>
+          <span aria-live="polite" aria-label={t("running", { count: running.length })} className={`${unseenFailed > 0 ? "ml-1" : "ml-auto"} rounded-full bg-coral px-1.5 text-sm font-semibold text-white`}>{running.length}</span>
         ) : tasks.length > 0 && unseenFailed === 0 ? (
           <span className="ml-auto text-sm text-steel">{tasks.length}</span>
         ) : null}

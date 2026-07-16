@@ -1187,6 +1187,13 @@
       "devExtension": "Dev-Erweiterung",
       "insights": "Insights",
       "settings": "Einstellungen"
+    },
+    "tasks": {
+      "label": "Hintergrundaufgaben",
+      "startErrorTitle": "Aufgabe konnte nicht gestartet werden",
+      "dismiss": "Schließen",
+      "failedSince": "{count, plural, one {# Hintergrundaufgabe ist seit Ihrem letzten Blick fehlgeschlagen} other {# Hintergrundaufgaben sind seit Ihrem letzten Blick fehlgeschlagen}}",
+      "running": "{count, plural, one {# Hintergrundaufgabe läuft} other {# Hintergrundaufgaben laufen}}"
     }
   },
   "enums": {

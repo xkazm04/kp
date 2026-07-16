@@ -1187,6 +1187,13 @@
       "devExtension": "Extension dev",
       "insights": "Aperçus",
       "settings": "Paramètres"
+    },
+    "tasks": {
+      "label": "Tâches en arrière-plan",
+      "startErrorTitle": "Impossible de démarrer la tâche",
+      "dismiss": "Fermer",
+      "failedSince": "{count, plural, one {# tâche en arrière-plan a échoué depuis votre dernière consultation} other {# tâches en arrière-plan ont échoué depuis votre dernière consultation}}",
+      "running": "{count, plural, one {# tâche en arrière-plan en cours} other {# tâches en arrière-plan en cours}}"
     }
   },
   "enums": {
