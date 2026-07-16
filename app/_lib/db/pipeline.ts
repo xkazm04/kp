@@ -402,10 +402,15 @@ export function listPipeline(workspaceId: string = DEFAULT_WORKSPACE_ID): Pipeli
       // render attached evidence and offer the on-demand deep-dive for an
       // inbound applicant who shared a handle at apply (both bounded at the
       // rowToEntry read boundary). notes rides it too — the drawer's persistent
-      // scratchpad hydrates from the entry it was opened with.
+      // scratchpad hydrates from the entry it was opened with. source_channel /
+      // source_campaign / source_variant ride it so the drawer's origin line renders
+      // the channel AND its campaign/creative attribution (variant-reaches-the-drawer)
+      // straight from the board-opened entry — the [id] GET already carried them via
+      // SELECT *, so this closes the gap for the primary (board) open path.
       `SELECT id, candidate_id, candidate_label, archetype, role_family, job_id, job_title,
               stage, match_score, status, approval_kind, approval_detail, created_at, stage_changed_at,
-              intake_degraded, intake_degraded_reason, github_json, github_handle, notes
+              intake_degraded, intake_degraded_reason, github_json, github_handle, notes,
+              source_channel, source_campaign, source_variant
        FROM pipeline_entries WHERE status NOT IN ${TERMINAL_STATUS_SQL_LIST} AND workspace_id = ?
        ORDER BY job_title, match_score DESC`
     )

@@ -602,8 +602,20 @@ export function CandidateDrawer({
             <p id="drawer-title" className="truncate font-serif text-lg text-ink">{entry.candidateLabel}</p>
             <p className="truncate text-sm text-steel">
               {enumLabel("archetype", entry.archetype)} · {entry.jobTitle} · <span className="text-ink">{enumLabel("stage", entry.stage)}</span>
-              {/* d95fed6d — provenance: which surface/channel filed this person. */}
-              {entry.sourceChannel ? <> · {t("via", { channel: channelName(entry.sourceChannel) })}</> : null}
+              {/* d95fed6d — provenance: which surface/channel filed this person.
+                  variant-reaches-the-drawer — append the campaign then the creative
+                  variant when the entry carries them, so campaign attribution ("via
+                  Boards · summer-2026 · variant-b") is visible where advance/reject
+                  fires. Both absent ⇒ the line reads exactly as before ("via {channel}").
+                  Gated on sourceChannel: a variant never renders without its channel. */}
+              {entry.sourceChannel ? (
+                <>
+                  {" · "}
+                  {t("via", { channel: channelName(entry.sourceChannel) })}
+                  {entry.sourceCampaign ? <> · {entry.sourceCampaign}</> : null}
+                  {entry.sourceVariant ? <> · {entry.sourceVariant}</> : null}
+                </>
+              ) : null}
             </p>
             {/* drawer-staleness-parity — the SAME amber "JD edited {date}" History chip
                 Decisions shows, so this surface (where advance/reject fires) can no

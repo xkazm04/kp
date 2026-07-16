@@ -36,6 +36,12 @@ export type Entry = {
   // "analyze", "sourcing", "devcase", or a webhook channel id). Null on legacy
   // and unattributed entries. Rendered as the drawer's origin chip.
   sourceChannel?: string | null;
+  // variant-reaches-the-drawer — E5 campaign/creative attribution (utm_campaign /
+  // utm_content-style), persisted on the entry and aggregated in analytics. Surfaced
+  // in the drawer's origin line so campaign attribution is visible where advance/
+  // reject decisions happen. Null when the source carried none (the common case).
+  sourceCampaign?: string | null;
+  sourceVariant?: string | null;
   // Canonical match-score read path (REC-01 / OO-L2-10) — stamped by
   // GET /api/pipeline (match-score-resolve.ts): THE score to display (freshest
   // job-matched analysis > matchScore snapshot > null) plus where it came from.
