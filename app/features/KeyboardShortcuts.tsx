@@ -4,12 +4,14 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Modal, isAnyModalOpen } from "@/app/_components/Modal";
 import { KBD } from "@/app/_components/ui/recipes";
-import { navLabel, NAV_GROUPS, type WorkspaceTabId } from "./tabs";
+import { navLabel, type WorkspaceTabId } from "./tabs";
+import { deriveChords, isChordPrefix, matchChord } from "./chords";
 
 // SHELL4 — global keyboard navigation: `g` then a mnemonic key jumps to a tab
-// (g p → Pipeline, g d → Decisions, …), `?` opens this reference overlay. With
-// 14 tabs, the sidebar round-trip is the app's highest-frequency interaction;
-// chords are the standard power-user contract for a tool used all day.
+// (g p → Pipeline, g d → Decisions, …), `?` opens this reference overlay. Every
+// tab gets a chord: single letters where free, else a two-key `g <prefix><y>`
+// sequence (see chords.ts). The sidebar round-trip is the app's highest-frequency
+// interaction; chords are the standard power-user contract for a tool used all day.
 //
 // Suppression rules: never while typing (input/textarea/select/contenteditable)
 // and never under an open modal (isAnyModalOpen — the dialog's own key handling
@@ -18,21 +20,8 @@ import { navLabel, NAV_GROUPS, type WorkspaceTabId } from "./tabs";
 
 const CHORD_TIMEOUT_MS = 1500;
 
-// Deterministic mnemonics: each tab takes its first not-yet-taken letter, in
-// NAV_GROUPS order — so the high-frequency first group gets the obvious keys
-// (p/c/d/s) and later collisions degrade predictably (profile → r). Derived,
-// never hand-listed: a new tab gets a chord (and an overlay row) for free.
-function deriveChords(): { id: WorkspaceTabId; fallbackLabel: string; key: string }[] {
-  const taken = new Set<string>();
-  const out: { id: WorkspaceTabId; fallbackLabel: string; key: string }[] = [];
-  for (const def of NAV_GROUPS.flatMap((g) => g.items)) {
-    const key = [...def.id].find((c) => /[a-z]/.test(c) && !taken.has(c));
-    if (!key) continue; // every letter taken — the tab simply has no chord
-    taken.add(key);
-    out.push({ id: def.id, fallbackLabel: def.label, key });
-  }
-  return out;
-}
+// Derived once from NAV_GROUPS, never hand-listed: a new tab gets a chord (and an
+// overlay row) for free. Collision-free by construction (see chords.ts).
 const CHORDS = deriveChords();
 
 function isEditableTarget(target: EventTarget | null): boolean {
@@ -46,9 +35,11 @@ export function KeyboardShortcuts({ onSelectTab }: { onSelectTab: (id: Workspace
   const t = useTranslations("shortcuts");
   const nav = useTranslations("nav");
   const [open, setOpen] = useState(false);
-  // The armed `g` prefix — a ref (read inside the one document listener) with
-  // a timeout so an abandoned chord can't fire minutes later.
+  // The armed `g` prefix — a timeout ref (so an abandoned chord can't fire minutes
+  // later) plus the keys pressed after `g` (seqRef), which accumulate for a two-key
+  // chord. Both live in refs, read inside the one document listener.
   const pendingRef = useRef<number | null>(null);
+  const seqRef = useRef<string[]>([]);
   const onSelectTabRef = useRef(onSelectTab);
   useEffect(() => {
     onSelectTabRef.current = onSelectTab;
@@ -60,6 +51,16 @@ export function KeyboardShortcuts({ onSelectTab }: { onSelectTab: (id: Workspace
         window.clearTimeout(pendingRef.current);
         pendingRef.current = null;
       }
+      seqRef.current = [];
+    };
+    // Arm / re-arm the chord window: the same timeout resets between the `g` and each
+    // subsequent key, so a two-key chord gets the same per-key grace a single one had.
+    const arm = () => {
+      if (pendingRef.current != null) window.clearTimeout(pendingRef.current);
+      pendingRef.current = window.setTimeout(() => {
+        pendingRef.current = null;
+        seqRef.current = [];
+      }, CHORD_TIMEOUT_MS);
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey) return; // chords are bare keys
@@ -70,19 +71,30 @@ export function KeyboardShortcuts({ onSelectTab }: { onSelectTab: (id: Workspace
         setOpen(true);
         return;
       }
+      // Armed: fold the next key into the sequence. An exact match fires; a proper
+      // prefix keeps waiting (re-armed); anything else abandons the chord — so an
+      // unmatched key or Escape cancels, same as the single-key version timed out.
       if (pendingRef.current != null) {
-        disarm();
-        const chord = CHORDS.find((c) => c.key === e.key.toLowerCase());
+        const seq = [...seqRef.current, e.key.toLowerCase()];
+        const chord = matchChord(CHORDS, seq);
         if (chord) {
           e.preventDefault();
+          disarm();
           onSelectTabRef.current(chord.id);
+          return;
         }
+        if (isChordPrefix(CHORDS, seq)) {
+          e.preventDefault();
+          seqRef.current = seq;
+          arm();
+          return;
+        }
+        disarm();
         return;
       }
       if (e.key.toLowerCase() === "g" && !e.shiftKey) {
-        pendingRef.current = window.setTimeout(() => {
-          pendingRef.current = null;
-        }, CHORD_TIMEOUT_MS);
+        seqRef.current = [];
+        arm();
       }
     };
     document.addEventListener("keydown", onKey);
@@ -106,7 +118,11 @@ export function KeyboardShortcuts({ onSelectTab }: { onSelectTab: (id: Workspace
             <span className="text-ink">{tabLabel(c.id, c.fallbackLabel)}</span>
             <span className="flex items-center gap-1">
               <kbd className={`${KBD} text-sm`}>g</kbd>
-              <kbd className={`${KBD} text-sm`}>{c.key}</kbd>
+              {c.keys.map((k, i) => (
+                <kbd key={i} className={`${KBD} text-sm`}>
+                  {k}
+                </kbd>
+              ))}
             </span>
           </li>
         ))}
