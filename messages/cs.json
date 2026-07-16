@@ -1542,8 +1542,6 @@
       "candidateNotesSaving": "Ukládám…",
       "candidateNotesSaved": "Uloženo",
       "candidateNotesSaveFailed": "Poznámku se nepodařilo uložit.",
-      "notesLabel": "Poznámky z pohovoru (pro hodnoticí kartu)",
-      "notesPlaceholder": "Vložte sem hrubé poznámky tazatele a klikněte na Sestavit hodnoticí kartu.",
       "voiceScreen": "Hlasový screening (1. kolo)",
       "voiceScreenHelp": "Vytvoří odkaz pro kandidáta s otázkami vycházejícími z této shody. Po hovoru se hodnoticí karta automaticky objeví v Rozhodnutích.",
       "creating": "Vytvářím…",

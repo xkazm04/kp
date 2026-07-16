@@ -28,7 +28,7 @@ import { useTokenLink, TokenLinkPanel } from "./TokenLink";
 // the drawer's entry below — the modal itself is untouched.
 import { InterviewTranscriptModal } from "@/app/features/sub_schedule/InterviewTranscriptModal";
 import type { SchedEntry } from "@/app/features/sub_schedule/ScheduleTypes";
-import { type Entry, type Result, type TaskId } from "./CandidateDrawerTypes";
+import { scorecardTaskNotes, type Entry, type Result, type TaskId } from "./CandidateDrawerTypes";
 import { styleFor, type Entry as BoardEntry, type PipelineEvent } from "./PipelineTypes";
 import { EventDot, useEventVerb, useRelativeTime } from "./PipelineShared";
 import { moveStageSelectValues } from "./pipeline-move-targets";
@@ -160,10 +160,6 @@ export function CandidateDrawer({
   const [busy, setBusy] = useState<TaskId | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [result, setResult] = useState<Result | null>(null);
-  // Transient fuel for the scorecard task — pre-filled from the persisted
-  // per-candidate note (below) so the AI synthesis starts from the call facts
-  // already captured, not a blank box. Edits here stay local to the task run.
-  const [notes, setNotes] = useState(entry.notes ?? "");
   const [error, setError] = useState<string | null>(null);
 
   // Voice 1st-round screen and self-scheduling both mint a tokenized candidate link.
@@ -321,7 +317,10 @@ export function CandidateDrawer({
     const started = await startTask("automation", {
       entryId: entry.id,
       task,
-      notes: task === "scorecard" ? notes : undefined,
+      // note-truth-unification — the scorecard synthesis consumes the CURRENT
+      // persistent candidate note (candNote, incl. unsaved edits), not a stale
+      // transient copy. Every other task sends none (scorecardTaskNotes).
+      notes: scorecardTaskNotes(task, candNote),
       entryLabel: entry.candidateLabel,
     });
     if (!started) {
@@ -1012,20 +1011,6 @@ export function CandidateDrawer({
               ))}
             </div>
           </div>
-
-          {actions.some((act) => act.id === "scorecard") ? (
-            <div>
-              <label className="text-sm font-semibold uppercase tracking-wide text-steel">{t("notesLabel")}</label>
-              <TextArea
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                rows={3}
-                placeholder={t("notesPlaceholder")}
-                sizeVariant="sm"
-                className="mt-1"
-              />
-            </div>
-          ) : null}
 
           {showLinks ? (
             <div className="rounded-md border border-stone-200 bg-white p-3">

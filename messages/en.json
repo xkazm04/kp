@@ -1542,8 +1542,6 @@
       "candidateNotesSaving": "Saving…",
       "candidateNotesSaved": "Saved",
       "candidateNotesSaveFailed": "Couldn't save the note.",
-      "notesLabel": "Interview notes (for scorecard)",
-      "notesPlaceholder": "Paste raw interviewer notes here, then click Synthesize scorecard.",
       "voiceScreen": "Voice screen (1st round)",
       "voiceScreenHelp": "Creates a candidate link with questions grounded in this match. After the call, the scorecard lands in Decisions automatically.",
       "creating": "Creating…",

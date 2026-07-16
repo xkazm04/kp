@@ -27,6 +27,18 @@ export type Entry = Pick<
 
 export type TaskId = "screen" | "outreach" | "rejection" | "prep" | "scorecard" | "rematch" | "offer";
 
+// note-truth-unification — the notes payload the automation task carries. ONE source
+// of truth: only the "Synthesize scorecard" task consumes the recruiter's persistent
+// candidate note, fed its LIVE value at click time (the drawer passes `candNote`, which
+// includes unsaved edits); every other task sends none. Previously a SECOND, transient
+// textarea seeded from entry.notes at mount fuelled this — so a recruiter typing call
+// facts into the visible persistent box had the AI synthesize from the stale transient
+// copy. Pure so the "scorecard consumes the note, nothing else does" contract is
+// unit-pinned without rendering the drawer.
+export function scorecardTaskNotes(task: TaskId, note: string): string | undefined {
+  return task === "scorecard" ? note : undefined;
+}
+
 export type Result = { task: TaskId; data: Record<string, unknown>; source: string; applied: string };
 
 export const APPLIED_LABEL: Record<string, string> = {

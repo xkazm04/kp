@@ -1568,8 +1568,6 @@
       "candidateNotesSaving": "Wird gespeichert…",
       "candidateNotesSaved": "Gespeichert",
       "candidateNotesSaveFailed": "Notiz konnte nicht gespeichert werden.",
-      "notesLabel": "Interview-Notizen (für Scorecard)",
-      "notesPlaceholder": "Fügen Sie hier die rohen Interviewer-Notizen ein und klicken Sie dann auf „Scorecard erstellen“.",
       "voiceScreen": "Voice-Screening (1. Runde)",
       "voiceScreenHelp": "Erstellt einen Kandidaten-Link mit Fragen, die auf diesem Match basieren. Nach dem Gespräch landet die Scorecard automatisch in den Entscheidungen.",
       "creating": "Wird erstellt…",

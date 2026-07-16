@@ -1568,8 +1568,6 @@
       "candidateNotesSaving": "Enregistrement…",
       "candidateNotesSaved": "Enregistré",
       "candidateNotesSaveFailed": "Impossible d'enregistrer la note.",
-      "notesLabel": "Notes d'entretien (pour le scorecard)",
-      "notesPlaceholder": "Collez ici les notes brutes de l'interviewer, puis cliquez sur Synthétiser le scorecard.",
       "voiceScreen": "Présélection vocale (premier tour)",
       "voiceScreenHelp": "Crée un lien candidat avec des questions ancrées dans cette correspondance. Après l'appel, le scorecard arrive automatiquement dans Décisions.",
       "creating": "Création…",
