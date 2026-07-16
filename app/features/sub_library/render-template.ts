@@ -26,6 +26,13 @@ export const TEMPLATE_PLACEHOLDERS = [
   "niceToHaves",
 ] as const;
 
+// The seeded "Company standard" template. Its filler must LINT CLEAN — a JD
+// rendered from it is surfaced through JdLintPanel (the Ledger read-view + the
+// editor), and the old "Competitive pay…" offer line was exactly the boilerplate
+// jd-lint's VAGUE_PATTERNS flags, so the seeded standard contradicted its own
+// linter. Keep the offer/apply filler concrete (no "competitive/attractive pay",
+// no coded language) and keep a work-mode word ("hybrid") so the posting also
+// carries a place-of-work signal.
 export const DEFAULT_TEMPLATE_BODY = `# {{title}}
 **{{company}}** · {{seniority}} · {{salary}}
 
@@ -42,7 +49,7 @@ export const DEFAULT_TEMPLATE_BODY = `# {{title}}
 {{niceToHaves}}
 
 ## What we offer
-- Competitive pay, hybrid working, meaningful ownership, and room to grow.
+- Hybrid working, meaningful ownership, and room to grow.
 
 ## How to apply
 - Apply via the link — a short conversation, then a first-round interview.`;

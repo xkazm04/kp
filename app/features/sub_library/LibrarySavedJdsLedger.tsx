@@ -51,6 +51,7 @@ import { dedupeBy } from "@/app/_lib/dedupe";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { useIngestJob, useJdDetail, useJdLibrary } from "./jd-hooks";
 import {
+  builderLintFindings,
   facetCounts,
   filterAndSortJds,
   isUnlinked,
@@ -65,6 +66,7 @@ import {
 } from "./jd-library";
 import { parseCoachEditParam, COACH_EDIT_PARAM, type CoachEdit } from "@/app/features/sub_jobs/coach-apply";
 import { JdCandidateList } from "./JdCandidateList";
+import { JdLintPanel } from "./JdLintPanel";
 import { JdModalEditor } from "./JdModalEditor";
 import { LibraryGeneratePanel } from "./LibraryGeneratePanel";
 import { switchTab, duplicateToBuilder, nextMenuIndex, type LedgerNavState } from "./ledger-nav";
@@ -876,9 +878,18 @@ function LedgerDetailModal({
             <div className="space-y-4">
               {artifacts?.salary ? <SalaryCard salary={artifacts.salary} sources={artifacts.salarySources} source={artifacts.salarySource} /> : null}
               {jd.body.trim() ? (
-                <article className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
-                  <Markdown content={jd.body} />
-                </article>
+                <>
+                  <article className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
+                    <Markdown content={jd.body} />
+                  </article>
+                  {/* lint-the-artifact — a Generated JD publishes UNLINTED (JdBuilder lints
+                      only the recruiter's PROMPT). The primary read-view now runs the SAME
+                      advisory specificity/inclusivity engine the editor uses over the
+                      rendered body, threading the same salary-suppression seam (a grounded
+                      market band ⇒ don't flag missing salary). The all-clear state renders
+                      too, so a clean JD says so. */}
+                  <JdLintPanel findings={builderLintFindings(jd.body, { marketResearch })} />
+                </>
               ) : (
                 <p className="text-sm italic text-steel">{t("noDescriptionYet")}</p>
               )}
