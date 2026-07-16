@@ -1166,7 +1166,7 @@
       "label": "Úlohy na pozadí",
       "startErrorTitle": "Úlohu se nepodařilo spustit",
       "dismiss": "Zavřít",
-      "failedSince": "{count, plural, one {# úloha na pozadí selhala od vašeho posledního pohledu} few {# úlohy na pozadí selhaly od vašeho posledního pohledu} other {# úloh na pozadí selhalo od vašeho posledního pohledu}}",
+      "failedSince": "{count, plural, one {# úloha na pozadí selhala od vaší poslední návštěvy} few {# úlohy na pozadí selhaly od vaší poslední návštěvy} other {# úloh na pozadí selhalo od vaší poslední návštěvy}}",
       "running": "{count, plural, one {# úloha na pozadí běží} few {# úlohy na pozadí běží} other {# úloh na pozadí běží}}"
     }
   },
@@ -2415,7 +2415,7 @@
       "coachStageMustHave": "Zvažte přesun <b>{value}</b> z nezbytných požadavků mezi výhody. {delta, plural, =0 {Přesuňte jej v textu níže a uložte.} one {Do užšího výběru by se tím mohl dostat až <b>+{delta}</b> další kandidát — přesuňte jej v textu níže a uložte.} few {Do užšího výběru by se tím mohli dostat až <b>+{delta}</b> další kandidáti — přesuňte jej v textu níže a uložte.} other {Do užšího výběru by se tím mohlo dostat až <b>+{delta}</b> dalších kandidátů — přesuňte jej v textu níže a uložte.}}",
       "coachTraceAnalyzing": "Navrhovaná úprava od kouče pro {title} zatím není připravena — sestavení stále probíhá. Otevře se k úpravě ve chvíli, kdy sestavení skončí.",
       "coachTraceFailed": "Navrhovanou úpravu od kouče pro {title} nešlo připravit — sestavení pomocí AI selhalo. Zopakujte sestavení u dané role a poté návrh z kouče odešlete znovu.",
-      "coachTraceNotFound": "Navrhovanou úpravu od kouče nešlo připravit — žádný uložený inzerát neodpovídá „{slug}“. Možná zatím nebyl vygenerován do vaší knihovny.",
+      "coachTraceNotFound": "Navrhovanou úpravu od kouče nešlo připravit — žádný uložený popis pozice neodpovídá „{slug}“. Možná zatím nebyl vygenerován do vaší knihovny.",
       "coachTraceDismiss": "Skrýt",
       "editHistory": "Historie",
       "editHideHistory": "Skrýt historii",
@@ -2723,13 +2723,13 @@
         "qualified": "Do výběru"
       },
       "loosenHeading": "Uvolněte a rozšiřte nábor",
-      "gateLanguage": "Požadavek na <b>{value}</b> vyřazuje <b>{n}</b> jinak vhodných {n, plural, one {kandidáta} few {kandidáty} other {kandidátů}} — udělejte z něj výhodu.",
+      "gateLanguage": "Požadavek na <b>{value}</b> vyřazuje <b>{n}</b> {n, plural, one {jinak vhodného kandidáta} few {jinak vhodné kandidáty} other {jinak vhodných kandidátů}} — udělejte z něj výhodu.",
       "gateEducation": "Minimální vzdělání <b>{value}</b> vyřazuje <b>{n}</b> {n, plural, one {kandidáta} few {kandidáty} other {kandidátů}} — zrušte je a rozšiřte fond.",
-      "mustHave": "<b>{missing}</b> vhodným {missing, plural, one {kandidátovi chybí} few {kandidátům chybí} other {kandidátům chybí}} <b>{skill}</b> — přesuňte mezi výhody.",
+      "mustHave": "<b>{missing}</b> {missing, plural, one {vhodnému kandidátovi chybí} few {vhodným kandidátům chybí} other {vhodným kandidátům chybí}} <b>{skill}</b> — přesuňte mezi výhody.",
       "salaryBelow": "Mzda <b>{job}</b> je pod tržním pásmem <b>{market}</b> pro tuto roli — zvyšte ji, abyste byli konkurenceschopní.",
       "salaryOk": "Mzda odpovídá tržnímu pásmu <b>{market}</b> pro tuto roli.",
       "salaryUnset": "(pásmo neuvedeno)",
-      "notAssessed": "{n, plural, one {# kandidáta se nepodařilo ohodnotit} few {# kandidáty se nepodařilo ohodnotit} other {# kandidátů se nepodařilo ohodnotit}} a {n, plural, one {není} other {nejsou}} započítáni výše — zkontrolujte jejich profil.",
+      "notAssessed": "{n, plural, one {# kandidáta se nepodařilo ohodnotit} few {# kandidáty se nepodařilo ohodnotit} other {# kandidátů se nepodařilo ohodnotit}} a {n, plural, one {není započítán} few {nejsou započítáni} other {nejsou započítáni}} výše — zkontrolujte jejich profil.",
       "footnote": "Odhady znovu spouští živý skórovací engine kp proti vašim uloženým kandidátům — odpovídají tomu, co by ukázala publikace.",
       "stageEdit": "Připravit úpravu",
       "stageEditAria": "Otevřít editor popisu s připravenou úpravou pro {value}"

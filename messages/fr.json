@@ -1270,7 +1270,7 @@
       "ko_decline": "Refus (éliminé)",
       "offer": "Offre",
       "interview_confirmation": "Confirmation d'entretien",
-      "interviewer_brief": "Brief pour l'examinateur",
+      "interviewer_brief": "Brief de l'intervieweur",
       "schedule_invite": "Invitation à planifier",
       "interview_reminder": "Rappel d'entretien",
       "interview_invite": "Invitation à l'entretien",
@@ -2444,7 +2444,7 @@
       "coachStageMustHave": "Envisagez de rétrograder <b>{value}</b> d'exigence indispensable à souhaitable. {delta, plural, =0 {Déplacez-le dans le texte ci-dessous, puis enregistrez.} one {Cela pourrait présélectionner jusqu'à <b>+{delta}</b> candidat de plus — déplacez-le dans le texte ci-dessous, puis enregistrez.} other {Cela pourrait présélectionner jusqu'à <b>+{delta}</b> candidats de plus — déplacez-le dans le texte ci-dessous, puis enregistrez.}}",
       "coachTraceAnalyzing": "La modification suggérée par le coach pour {title} n'est pas encore préparée — sa génération est toujours en cours. Elle s'ouvrira pour édition dès que la génération sera terminée.",
       "coachTraceFailed": "La modification suggérée par le coach pour {title} n'a pas pu être préparée — sa génération par l'IA a échoué. Relancez la génération depuis le poste, puis renvoyez la suggestion depuis le coach.",
-      "coachTraceNotFound": "La modification suggérée par le coach n'a pas pu être préparée — aucune fiche de poste enregistrée ne correspond à « {slug} ». Elle n'a peut-être pas encore été générée dans votre bibliothèque.",
+      "coachTraceNotFound": "La modification suggérée par le coach n'a pas pu être préparée — aucune fiche de poste enregistrée ne correspond à « {slug} ». Elle n'a peut-être pas encore été générée dans votre bibliothèque.",
       "coachTraceDismiss": "Fermer",
       "editHistory": "Historique",
       "editHideHistory": "Masquer l'historique",
@@ -2758,10 +2758,10 @@
       "salaryBelow": "Le salaire <b>{job}</b> est en dessous de la fourchette du marché <b>{market}</b> pour ce poste — augmentez-le pour rester compétitif.",
       "salaryOk": "Le salaire est aligné sur la fourchette du marché <b>{market}</b> pour ce poste.",
       "salaryUnset": "(aucune fourchette définie)",
-      "notAssessed": "{n, plural, one {# candidat n'a pas pu être évalué} other {# candidats n'ont pas pu être évalués}} et {n, plural, one {n'est} other {ne sont}} pas comptés ci-dessus — vérifiez leur profil.",
+      "notAssessed": "{n, plural, one {# candidat n'a pas pu être évalué} other {# candidats n'ont pas pu être évalués}} et {n, plural, one {n'est pas compté} other {ne sont pas comptés}} ci-dessus — vérifiez leur profil.",
       "footnote": "Les projections réexécutent le moteur de scoring en direct de kp sur vos candidats enregistrés — elles reflètent ce que la publication ferait ressortir.",
       "stageEdit": "Préparer cette modification",
-      "stageEditAria": "Ouvrir l'éditeur de description avec la modification pour {value} préparée"
+      "stageEditAria": "Ouvrir l'éditeur de description avec la modification préparée pour {value}"
     },
     "campaign": {
       "intro": "Des accroches publicitaires prêtes pour les fils d'actualité et des scripts vidéo de 15 secondes pour ce poste — la formule en 4 temps (accroche · offre · preuve · CTA), fondée uniquement sur les faits déclarés du poste. Chaque CTA renvoie au formulaire de candidature express de 30 secondes.",
