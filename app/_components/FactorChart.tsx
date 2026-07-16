@@ -1,12 +1,8 @@
 "use client";
 
-import { useTranslations } from "next-intl";
-import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import dynamic from "next/dynamic";
 import type { Analysis } from "@/app/_lib/schemas";
-import { scoreTone, scoreToneColor } from "@/app/_lib/format";
-import { DARK, INK, STEEL } from "@/app/_lib/brand";
-import { useTheme } from "@/app/_components/ui/useTheme";
-import { factorPoints, FACTOR_DOMAIN, type FactorId } from "@/app/_lib/factor-points";
+import { Skeleton } from "@/app/_components/Skeleton";
 
 // Re-exported so existing importers keep working; the contract lives in _lib so it can be
 // unit-tested without loading recharts.
@@ -16,83 +12,24 @@ type FactorChartProps = {
   score: Analysis["score"];
 };
 
-// Localized axis-label key per factor id (i18n preserved from the prior wave).
-// `as const` matters: next-intl's `t()` rejects a widened `string` key, so the map's
-// values must stay a literal union (the repo's standing template-literal-key gotcha).
-const FACTOR_LABEL_KEYS = {
-  experience: "factorExperience",
-  skills: "factorSkills",
-  role: "factorRole",
-  education: "factorEducation",
-  traits: "factorTraits",
-} as const satisfies Record<FactorId, string>;
-
-// Mirror the score->color language used by ScoreBadge and ScoreDial so a bar's
-// height AND hue both encode fit: weak when a factor fills little of its max, mid
-// in the middle, strong when it lands near the top. The fill resolves through the
-// shared --color-score-* scale (scoreTone owns the 75/50 cutoffs) and recharts
-// passes it straight to the SVG fill attribute, which accepts the var() — so the
-// bars are guaranteed to match the badge/dial instead of tracking a parallel hex.
-function barColor(ratio: number): string {
-  return scoreToneColor(scoreTone(ratio * 100));
-}
-
-// Recharts wants literal color strings for its chrome (grid, ticks, tooltip),
-// so the chart can't ride the CSS token seam like the bar fills do — it forks
-// on useTheme() instead (the behavioral-fork layer in docs/DESIGN.md). Values
-// mirror the light beiges / dark hairlines the rest of the UI resolves to.
-const CHROME = {
-  light: { grid: "#ded6c6", tick: STEEL, cursor: "#f0ebe1", tooltipBg: "#ffffff", tooltipText: INK },
-  dark: { grid: DARK.GRID, tick: DARK.STEEL, cursor: DARK.FILL, tooltipBg: DARK.SURFACE, tooltipText: DARK.INK },
-} as const;
+// The score-breakdown chart lives on ExtractionTab, the DEFAULT tab of every non-comparison
+// report — so recharts (the panel's heaviest dep) used to ship in the first report paint.
+// The recharts-consuming body is split into FactorChartBody and loaded via `next/dynamic`,
+// keeping recharts out of the initially-loaded client chunk. SSR is left ON (the default):
+// the chart already prerendered as a client component, so this is a pure client code-split
+// with no behavior change — recharts just arrives in its own on-demand chunk.
+//
+// The fallback mirrors the chart container's box (aspect-ratio 5/2, min-height 200) so the
+// swap holds its space and never shifts layout; the Skeleton primitive owns the shimmer +
+// reduced-motion + dual-theme treatment, so this reads correctly in both themes.
+const FactorChartBody = dynamic(() => import("@/app/_components/FactorChartBody"), {
+  loading: () => (
+    <div style={{ aspectRatio: "5 / 2", minHeight: 200 }} className="w-full">
+      <Skeleton className="h-full w-full rounded-lg" />
+    </div>
+  ),
+});
 
 export function FactorChart({ score }: FactorChartProps) {
-  const chrome = CHROME[useTheme()];
-  const t = useTranslations("report");
-  // Stable `id` keys the Cells (locale-independent); `factor` is the localized axis
-  // label; `ratio` (value/max in [0,1]) is what the bar height encodes so bars are
-  // comparable across factors AND across candidates. Raw `value`/`max` ride along
-  // for the tooltip.
-  const data = factorPoints(score).map((p) => ({ ...p, factor: t(FACTOR_LABEL_KEYS[p.id]) }));
-
-  // Recharts logs a "width(-1) / height(-1)" warning on the first render pass
-  // before its internal ResizeObserver has measured the parent. We've tried
-  // explicit min dims, aspect prop, deferred mount, and aspect-ratio parent —
-  // none silence it because it fires before our parent measurement reaches
-  // the chart. The warning is dev-mode-only and the chart renders correctly.
-  return (
-    <div style={{ aspectRatio: "5 / 2", minHeight: 200 }} className="w-full nums">
-      <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-        <BarChart data={data} margin={{ top: 8, right: 4, left: -24, bottom: 0 }}>
-          <CartesianGrid stroke={chrome.grid} vertical={false} />
-          <XAxis dataKey="factor" tick={{ fill: chrome.tick, fontSize: 12 }} tickLine={false} axisLine={false} />
-          <YAxis
-            domain={[FACTOR_DOMAIN[0], FACTOR_DOMAIN[1]]}
-            ticks={[0, 0.25, 0.5, 0.75, 1]}
-            tickFormatter={(v: number) => `${Math.round(v * 100)}%`}
-            tick={{ fill: chrome.tick, fontSize: 12 }}
-            tickLine={false}
-            axisLine={false}
-          />
-          <Tooltip
-            cursor={{ fill: chrome.cursor }}
-            contentStyle={{
-              border: `1px solid ${chrome.grid}`,
-              borderRadius: 8,
-              color: chrome.tooltipText,
-              backgroundColor: chrome.tooltipBg
-            }}
-            // Bars encode the ratio, but the tooltip shows the TRUE raw figure "N/max"
-            // (from the payload), so height/color and the number tell one story.
-            formatter={(_value, _name, item) => [`${item.payload.value}/${item.payload.max}`, t("factorPoints")]}
-          />
-          <Bar dataKey="ratio" radius={[6, 6, 0, 0]}>
-            {data.map((d) => (
-              <Cell key={d.id} fill={barColor(d.ratio)} />
-            ))}
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
-    </div>
-  );
+  return <FactorChartBody score={score} />;
 }
