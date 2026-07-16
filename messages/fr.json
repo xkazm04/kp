@@ -1234,6 +1234,21 @@
       "hybrid": "Hybride",
       "onsite": "Sur site"
     },
+    "commKind": {
+      "acknowledgement": "Accusé de réception",
+      "outreach": "Prise de contact",
+      "rejection": "Refus",
+      "ko_decline": "Refus (éliminé)",
+      "offer": "Offre",
+      "interview_confirmation": "Confirmation d'entretien",
+      "interviewer_brief": "Brief pour l'examinateur",
+      "schedule_invite": "Invitation à planifier",
+      "interview_reminder": "Rappel d'entretien",
+      "interview_invite": "Invitation à l'entretien",
+      "onboarding": "Intégration",
+      "onboarding_reminder": "Rappel d'intégration",
+      "offer_reminder": "Rappel d'offre"
+    },
     "provenance": {
       "observed": "observé",
       "professional": "pro",

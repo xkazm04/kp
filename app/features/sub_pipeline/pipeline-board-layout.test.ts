@@ -4,7 +4,7 @@
 // that replaced the per-cell `lane.filter(...)`.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { bucketLaneEntries } from "./pipeline-board-layout.ts";
+import { bucketLaneEntries, boardVisibleOrder } from "./pipeline-board-layout.ts";
 import { STAGES, type Entry, type Position } from "./PipelineTypes.ts";
 
 const pos = (id: string): Position => ({ id, title: id, family: "", count: 0 });
@@ -56,4 +56,36 @@ test("every lane gets a full STAGES-length cell array even with no entries", () 
   const cells = bucketLaneEntries([pos("empty")], []);
   assert.equal(cells.get("empty")!.length, STAGES.length);
   assert.ok(cells.get("empty")!.every((c) => c.length === 0));
+});
+
+test("boardVisibleOrder walks lane by lane, then stage column by column, then within-cell order", () => {
+  // Two lanes, entries deliberately given in a scrambled input order and across
+  // stages so the global input order differs from the board's reading order.
+  const positions = [pos("job-a"), pos("job-b")];
+  const entries = [
+    entry("b-interview", "job-b", "Interview"),
+    entry("a-accepted-2", "job-a", "Accepted"),
+    entry("a-interview", "job-a", "Interview"),
+    entry("b-accepted", "job-b", "Accepted"),
+    entry("a-accepted-1", "job-a", "Accepted"),
+  ];
+  // Expected: lane job-a (all its stage columns in STAGES order, within-cell input
+  // order) fully before lane job-b. Accepted precedes Interview in STAGES.
+  assert.deepEqual(
+    boardVisibleOrder(positions, entries).map((e) => e.id),
+    ["a-accepted-2", "a-accepted-1", "a-interview", "b-accepted", "b-interview"]
+  );
+});
+
+test("boardVisibleOrder drops entries whose lane isn't rendered, mirroring the board", () => {
+  const positions = [pos("job-a")]; // job-b filtered out of the visible board
+  const order = boardVisibleOrder(positions, [entry("a1", "job-a", "Accepted"), entry("b1", "job-b", "Accepted")]);
+  assert.deepEqual(order.map((e) => e.id), ["a1"]);
+});
+
+test("boardVisibleOrder folds an unmapped stage into column 0 (still walked, not lost)", () => {
+  const positions = [pos("job-a")];
+  const order = boardVisibleOrder(positions, [entry("legacy", "job-a", "LegacyStage"), entry("acc", "job-a", "Accepted")]);
+  // Both land in column 0 (Accepted is index 0), input order preserved.
+  assert.deepEqual(order.map((e) => e.id), ["legacy", "acc"]);
 });

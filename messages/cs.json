@@ -1208,6 +1208,21 @@
       "hybrid": "Hybridně",
       "onsite": "Na místě"
     },
+    "commKind": {
+      "acknowledgement": "Potvrzení přijetí",
+      "outreach": "Oslovení",
+      "rejection": "Zamítnutí",
+      "ko_decline": "Odmítnutí (vyřazení)",
+      "offer": "Nabídka",
+      "interview_confirmation": "Potvrzení pohovoru",
+      "interviewer_brief": "Podklady pro tazatele",
+      "schedule_invite": "Pozvánka k naplánování",
+      "interview_reminder": "Připomenutí pohovoru",
+      "interview_invite": "Pozvánka na pohovor",
+      "onboarding": "Nástup",
+      "onboarding_reminder": "Připomenutí nástupu",
+      "offer_reminder": "Připomenutí nabídky"
+    },
     "provenance": {
       "observed": "ověřeno",
       "professional": "praxe",

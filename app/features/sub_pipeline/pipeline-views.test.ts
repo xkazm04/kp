@@ -89,6 +89,20 @@ test("upsertViewByName: a new name appends (insertion order)", () => {
   assert.deepEqual(next.map((v) => v.id), ["a", "b"]);
 });
 
+test("upsertViewByName: overwriting keeps the view's POSITION (map-replace, not drop-to-end)", () => {
+  const views = [view({ id: "a", name: "A" }), view({ id: "b", name: "B" }), view({ id: "c", name: "C" })];
+  const next = upsertViewByName(views, view({ id: "b2", name: "B", quick: "aging" }));
+  assert.deepEqual(next.map((v) => v.name), ["A", "B", "C"], "B stays in the middle, not moved to the end");
+  assert.equal(next[1].id, "b2", "the middle slot now holds the overwriting view");
+  assert.equal(next[1].quick, "aging", "…with its new contents");
+});
+
+test("upsertViewByName: a stray same-named duplicate collapses into the first slot", () => {
+  const views = [view({ id: "a", name: "Dup" }), view({ id: "b", name: "B" }), view({ id: "c", name: "Dup" })];
+  const next = upsertViewByName(views, view({ id: "d", name: "Dup" }));
+  assert.deepEqual(next.map((v) => v.id), ["d", "b"], "both duplicates collapse into the first position");
+});
+
 test("renameStoredView: keeps identity — same id, filters, and default marking", () => {
   const views = [view({ id: "keep", name: "Old", quick: "aging", isDefault: true, stage: "Interview" })];
   const next = renameStoredView(views, "keep", "  New name  ");

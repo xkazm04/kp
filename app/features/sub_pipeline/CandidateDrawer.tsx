@@ -886,7 +886,7 @@ export function CandidateDrawer({
                     <details>
                       <summary className="focus-ring flex cursor-pointer flex-wrap items-center gap-x-2 gap-y-0.5 text-sm">
                         <span className="rounded-full bg-stone-100 px-1.5 py-0.5 text-meta font-semibold uppercase text-steel">
-                          {(m.kind ?? "").replace(/_/g, " ")}
+                          {enumLabel("commKind", m.kind)}
                         </span>
                         <span className={`text-meta font-semibold uppercase ${m.status === "failed" ? "text-red-700" : m.status === "sent" ? "text-moss" : "text-steel"}`}>
                           {m.status === "queued" ? (m.channel ?? m.status) : m.status}

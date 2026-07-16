@@ -1208,6 +1208,21 @@
       "hybrid": "Hybrid",
       "onsite": "On-site"
     },
+    "commKind": {
+      "acknowledgement": "Acknowledgement",
+      "outreach": "Outreach",
+      "rejection": "Rejection",
+      "ko_decline": "Declined (screened out)",
+      "offer": "Offer",
+      "interview_confirmation": "Interview confirmation",
+      "interviewer_brief": "Interviewer brief",
+      "schedule_invite": "Scheduling invite",
+      "interview_reminder": "Interview reminder",
+      "interview_invite": "Interview invite",
+      "onboarding": "Onboarding",
+      "onboarding_reminder": "Onboarding reminder",
+      "offer_reminder": "Offer reminder"
+    },
     "provenance": {
       "observed": "observed",
       "professional": "prod",

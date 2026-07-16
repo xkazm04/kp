@@ -74,12 +74,27 @@ export function withDefault(views: readonly SavedView[], id: string | null): Sav
  *  name — a save under an existing name replaces it, matching the modal's explicit
  *  "replaces the existing view" note. The overwritten slot's default marking is
  *  carried onto the incoming view unless the caller already set one, so re-saving the
- *  default view keeps it default. Appends when the name is new (insertion order). */
+ *  default view keeps it default. Overwriting keeps the view's POSITION in the list
+ *  (map-replace, not drop-to-end) so re-saving under a name doesn't reshuffle the
+ *  recruiter's view order; a genuinely new name appends (insertion order). Any
+ *  stray same-named duplicate (a hand-edited store) collapses into the first slot. */
 export function upsertViewByName(views: readonly SavedView[], view: SavedView): SavedView[] {
   const name = view.name.trim();
   const prior = views.find((v) => v.name === name);
   const merged: SavedView = { ...view, name, isDefault: view.isDefault ?? prior?.isDefault };
-  return [...views.filter((v) => v.name !== name), merged];
+  if (!prior) return [...views, merged];
+  let replaced = false;
+  const out: SavedView[] = [];
+  for (const v of views) {
+    if (v.name !== name) {
+      out.push(v);
+    } else if (!replaced) {
+      out.push(merged); // replace in place, at the existing view's position
+      replaced = true;
+    }
+    // any later same-named duplicate is dropped, collapsing into the first slot
+  }
+  return out;
 }
 
 /** Rename the view with `id` to `name` (trimmed), KEEPING its identity — same id,

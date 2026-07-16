@@ -28,3 +28,22 @@ export function bucketLaneEntries(positions: Position[], entries: Entry[]): Map<
   }
   return map;
 }
+
+/** Flatten the board grid into the recruiter's VISIBLE reading sequence:
+ *  lane by lane (in `positions` order — the board's rendered lane order), and
+ *  within each lane column by column (STAGES order), preserving each cell's own
+ *  within-cell order. This is exactly what `bucketLaneEntries` lays out, read
+ *  top-to-bottom / left-to-right, so the drawer's prev/next walks what the eye
+ *  walks instead of the global filtered sort (which crosses stage boundaries
+ *  mid-column-review). Entries whose lane isn't among `positions` are dropped,
+ *  matching the board — the same fold `bucketLaneEntries` applies. */
+export function boardVisibleOrder(positions: Position[], entries: Entry[]): Entry[] {
+  const cells = bucketLaneEntries(positions, entries);
+  const out: Entry[] = [];
+  for (const pos of positions) {
+    const laneCells = cells.get(pos.id);
+    if (!laneCells) continue;
+    for (const cell of laneCells) for (const e of cell) out.push(e);
+  }
+  return out;
+}

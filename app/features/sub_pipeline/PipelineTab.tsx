@@ -49,6 +49,7 @@ import {
   renameStoredView,
   nameCollides,
 } from "./pipeline-views";
+import { boardVisibleOrder } from "./pipeline-board-layout";
 import { bulkConfirmReducer } from "./pipeline-bulk-confirm";
 import { Modal } from "@/app/_components/Modal";
 import { EventDot, useEventVerb, useRelativeTime } from "./PipelineShared";
@@ -451,6 +452,12 @@ export function PipelineTab() {
     [selectedIds, entries]
   );
   const boardPositions = useMemo(() => groupPositions(filteredEntries), [filteredEntries]);
+  // drawer-loop-hygiene — the drawer's prev/next cohort is the board's VISIBLE
+  // sequence (lane by lane, stage column by column, within-cell order), not the
+  // global filtered sort — so "next" walks the column the recruiter is reading
+  // instead of jumping across stages. Derived from the same boardPositions +
+  // filteredEntries the board renders, so it can never diverge from what's on screen.
+  const cohortOrder = useMemo(() => boardVisibleOrder(boardPositions, filteredEntries), [boardPositions, filteredEntries]);
   const filtering =
     Boolean(query.trim()) || quicks.size > 0 || scoreBands.size > 0 || sources.size > 0 || stageFilter !== null;
 
@@ -554,7 +561,7 @@ export function PipelineTab() {
   // drawer-flow-friction — the degraded/needs-intake chip ARMS the board's existing
   // `intake` quick filter (reused, not forked) so the whole stub cohort is isolated,
   // then opens the first one; the drawer's prev/next then walks the now-filtered
-  // cohort (filteredEntries) stub-by-stub instead of the old open-degraded[0]-only
+  // cohort (cohortOrder) stub-by-stub instead of the old open-degraded[0]-only
   // dead end. Clears the other facets so the board shows exactly the needs-intake set.
   const focusDegradedCohort = () => {
     const quicksSet = new Set<QuickFilter>(["intake"]);
@@ -565,7 +572,20 @@ export function PipelineTab() {
     setSources(empty.sources);
     setStageFilter(null);
     writeFiltersToUrl({ q: "", quicks: quicksSet, ...empty, sort, stage: null });
-    if (degraded.length > 0) setDrawerEntry(degraded[0]);
+    // drawer-loop-hygiene — single-source the opened entry: derive it from the SAME
+    // predicate + array the board is about to show (the intake-filtered set, in the
+    // board's visible order) rather than the separate unfiltered `degraded` list. So
+    // "open" and prev/next walk one cohort — the opened stub is genuinely cohort[0].
+    const cohort = (entries ?? []).filter((e) =>
+      entryMatchesFilters(
+        e,
+        { query: "", quicks: quicksSet, scoreBands: empty.scoreBands, sources: empty.sources, stage: null },
+        { overrides: slaOverrides }
+      )
+    );
+    const sorted = sortFilteredEntries(cohort, sort);
+    const ordered = boardVisibleOrder(groupPositions(sorted), sorted);
+    if (ordered.length > 0) setDrawerEntry(ordered[0]);
   };
   // PIPE3 — a saved view as a pasteable link: built from a CLEAN query string
   // (not the current one) so the share never drags along unrelated params.
@@ -1678,7 +1698,7 @@ export function PipelineTab() {
           onClose={() => setDrawerEntry(null)}
           onChanged={load}
           onOpenEntry={openEntryById}
-          cohort={filteredEntries}
+          cohort={cohortOrder}
           onNavigate={setDrawerEntry}
         />
       ) : null}

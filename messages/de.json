@@ -1234,6 +1234,21 @@
       "hybrid": "Hybrid",
       "onsite": "Vor Ort"
     },
+    "commKind": {
+      "acknowledgement": "Eingangsbestätigung",
+      "outreach": "Ansprache",
+      "rejection": "Absage",
+      "ko_decline": "Absage (Ausschluss)",
+      "offer": "Angebot",
+      "interview_confirmation": "Interviewbestätigung",
+      "interviewer_brief": "Interviewer-Briefing",
+      "schedule_invite": "Terminplanungseinladung",
+      "interview_reminder": "Interview-Erinnerung",
+      "interview_invite": "Interview-Einladung",
+      "onboarding": "Onboarding",
+      "onboarding_reminder": "Onboarding-Erinnerung",
+      "offer_reminder": "Angebotserinnerung"
+    },
     "provenance": {
       "observed": "beobachtet",
       "professional": "beruflich",
