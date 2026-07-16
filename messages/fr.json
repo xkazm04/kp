@@ -3803,6 +3803,7 @@
       "perHireUnit": "/ recrutement",
       "perHireHires": "sur {hired} recrutés",
       "noHires": "aucun recrutement pour l'instant",
+      "perHireMultiWorkspace": "Impossible d'attribuer le calcul par espace de travail — le registre d'utilisation couvre tout le compte, donc un coût par recrutement mélangerait les dépenses de tous les espaces de travail.",
       "manualWindowed": "vue Tout l'historique uniquement",
       "manualAllTime": "tout l'historique",
       "perHireNote": "Affiché dans la devise propre à chaque source — le registre facture en USD, les dépenses de canaux en CZK ; les deux ne sont jamais converties ni additionnées."

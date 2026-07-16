@@ -3739,6 +3739,7 @@
       "perHireUnit": "/ nábor",
       "perHireHires": "na {hired} přijatých",
       "noHires": "zatím žádné nábory",
+      "perHireMultiWorkspace": "Náklady na výpočet nelze přiřadit k jednotlivým pracovním prostorům — evidence spotřeby je vedena za celý účet, takže hodnota na nábor by míchala útratu všech pracovních prostorů.",
       "manualWindowed": "pouze pohled za celé období",
       "manualAllTime": "za celé období",
       "perHireNote": "Zobrazeno v původní měně každého zdroje — evidence oceňuje v USD, útrata za kanály v CZK; obě se nikdy nepřevádějí ani nesčítají."

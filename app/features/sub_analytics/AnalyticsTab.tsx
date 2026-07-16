@@ -44,6 +44,9 @@ type Analytics = {
     calls: number;
     unpricedCalls: number;
     costPerHireUsd: number | null;
+    // >1 when multiple workspaces share the workspace-blind ledger — the per-hire
+    // figure is suppressed in that case (mixed scope). 1 in a single-workspace account.
+    workspaceCount: number;
   } | null;
   avgAgeDays: number | null;
   bottleneck: { stage: string; avgDaysInStage: number; entryCount: number } | null;
@@ -661,10 +664,19 @@ function ComputeCostPanel({
             <dl className="mt-2 grid grid-cols-2 gap-3 rounded-md bg-paper p-3">
               <div>
                 <dt className="text-meta uppercase tracking-wide text-steel">{t("computePerHire")}</dt>
-                <dd className="mt-0.5 font-serif text-h3 text-ink">
-                  {computeCost.costPerHireUsd != null ? `${usd(computeCost.costPerHireUsd)} ${t("perHireUnit")}` : "—"}
-                </dd>
-                <dd className="text-xs text-steel">{hired > 0 ? t("perHireHires", { hired }) : t("noHires")}</dd>
+                {computeCost.workspaceCount > 1 ? (
+                  // Tenant-scope honesty: the ledger is account-wide (no workspace_id)
+                  // but hires are this workspace's — a per-hire ratio would inflate ~by
+                  // the number of active workspaces, so it's suppressed rather than faked.
+                  <dd className="mt-0.5 text-sm text-steel">{t("perHireMultiWorkspace")}</dd>
+                ) : (
+                  <>
+                    <dd className="mt-0.5 font-serif text-h3 text-ink">
+                      {computeCost.costPerHireUsd != null ? `${usd(computeCost.costPerHireUsd)} ${t("perHireUnit")}` : "—"}
+                    </dd>
+                    <dd className="text-xs text-steel">{hired > 0 ? t("perHireHires", { hired }) : t("noHires")}</dd>
+                  </>
+                )}
               </div>
               <div>
                 <dt className="text-meta uppercase tracking-wide text-steel">{t("manualPerHire")}</dt>

@@ -3739,6 +3739,7 @@
       "perHireUnit": "/ hire",
       "perHireHires": "over {hired} hired",
       "noHires": "no hires yet",
+      "perHireMultiWorkspace": "Can't attribute compute per workspace — the usage ledger is account-wide, so a per-hire figure would mix every workspace's spend.",
       "manualWindowed": "all-time view only",
       "manualAllTime": "all-time",
       "perHireNote": "Shown in each source's own currency — the ledger prices in USD, channel spend in CZK, and the two are never converted or summed."

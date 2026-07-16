@@ -3803,6 +3803,7 @@
       "perHireUnit": "/ Einstellung",
       "perHireHires": "auf {hired} Einstellungen",
       "noHires": "noch keine Einstellungen",
+      "perHireMultiWorkspace": "Compute lässt sich nicht je Arbeitsbereich zuordnen — das Nutzungs-Ledger gilt kontoweit, daher würde ein Wert pro Einstellung die Ausgaben aller Arbeitsbereiche vermischen.",
       "manualWindowed": "nur in der Gesamtansicht",
       "manualAllTime": "gesamter Zeitraum",
       "perHireNote": "In der jeweiligen Währung der Quelle dargestellt — das Ledger rechnet in USD, Kanalausgaben in CZK; beide werden nie umgerechnet oder summiert."

@@ -55,14 +55,19 @@ export type PipelineAnalytics = {
   // ledger prices in USD (cost_usd), NOT the app currency (CZK), so the tile is
   // labelled in USD, never fake-converted; (3) `unpricedCalls` are NULL-cost rows
   // (Azure/unknown model) that sum to 0 — surfaced so "$0" ≠ "nothing spent".
-  // costPerHireUsd divides the WINDOWED cost by the WINDOWED hire count (both scoped to
-  // the same window — an honest per-hire figure), null when there's no hire to divide
-  // by. Null overall when the window holds no metered calls.
+  // costPerHireUsd divides the WINDOWED cost by the WINDOWED hire count. TENANT-SCOPE
+  // CAVEAT: the numerator is ACCOUNT-WIDE (llm_usage has no workspace_id) while the
+  // denominator is THIS workspace's hires — so the ratio is only an honest per-hire
+  // figure in a single-workspace account. `workspaceCount` reports how many workspaces
+  // share the workspace-blind ledger; when >1 the UI suppresses the per-hire figure
+  // (it would inflate ~by the number of active workspaces). Null when there's no hire
+  // to divide by. Null overall when the window holds no metered calls.
   computeCost: {
     costUsd: number;
     calls: number;
     unpricedCalls: number;
     costPerHireUsd: number | null;
+    workspaceCount: number;
   } | null;
   avgAgeDays: number | null;
   bottleneck: Bottleneck | null;
@@ -528,9 +533,14 @@ export function pipelineAnalytics(
   // the windowed cost by the windowed hire count (both same-window → honest, unlike
   // the lifetime channel spend). Null when the window holds no metered calls.
   const compute = computeCostWindow(windowDays, opts?.endMs);
+  // Tenant-scope honesty: the compute numerator is account-wide (llm_usage is
+  // workspace-blind) while `hired` is scoped to THIS workspace, so a per-hire ratio is
+  // only honest in a single-workspace account. Count the workspaces sharing the ledger
+  // (1 today) so the UI can suppress the figure when it would mix scopes.
+  const workspaceCount = Number((db.prepare(`SELECT COUNT(*) AS n FROM workspaces`).get() as { n: number }).n) || 1;
   const computeCost =
     compute.calls > 0
-      ? { ...compute, costPerHireUsd: hired > 0 ? Math.round((compute.costUsd / hired) * 100) / 100 : null }
+      ? { ...compute, costPerHireUsd: hired > 0 ? Math.round((compute.costUsd / hired) * 100) / 100 : null, workspaceCount }
       : null;
 
   return {
