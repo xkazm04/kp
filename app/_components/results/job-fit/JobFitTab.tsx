@@ -47,6 +47,13 @@ export function JobFitTab({ analysis }: { analysis: Analysis }) {
               evidence={analysis.evidenceTrace?.skills}
             />
           </div>
+          {(analysis.jobFit.unprovenSkills?.length ?? 0) > 0 ? (
+            <UnprovenSkillsBlock
+              skills={analysis.jobFit.unprovenSkills ?? []}
+              strength={analysis.jobFit.unprovenSkillStrength ?? {}}
+              reason={analysis.jobFit.unprovenSkillReason ?? {}}
+            />
+          ) : null}
         </div>
 
         {analysis.keywordCoverage ? (
@@ -97,6 +104,57 @@ export function JobFitTab({ analysis }: { analysis: Analysis }) {
         {analysis.jobFit.recommendations.length > 0 ? (
           <ListBlock title={t("panel.recommendations")} items={analysis.jobFit.recommendations} />
         ) : null}
+      </div>
+    </div>
+  );
+}
+
+// Claimed-but-UNPROVEN bucket for the analyze surface — the SHIPPED idiom from
+// AnalysisSummaryModal (amber chips + a reason label), reusing the SAME
+// decisions.summary vocabulary so the analyze and recruiter honesty surfaces never
+// drift. The engine emits this deterministically (matching.score_job over the JD's
+// DETECTED skills, each treated as a DEFAULTED must-have/prerequisite — a uniform
+// assumption, not something the ad stated): it reclassifies a skill the LLM called
+// "missing" as an ADJACENCY near-miss (a sibling/specialization) or a
+// provenance-discounted claim. A prompt to probe, NEVER a second overall score —
+// there is intentionally no number here, only chips, so the analyze surface gains
+// honesty without ever showing a competing headline.
+function UnprovenSkillsBlock({
+  skills,
+  strength,
+  reason,
+}: {
+  skills: string[];
+  strength: Record<string, number>;
+  reason: Record<string, string>;
+}) {
+  // The unproven vocabulary lives in decisions.summary (first shipped there); reuse
+  // it verbatim rather than forking the same six strings into the report namespace.
+  const t = useTranslations("decisions.summary");
+  // Map the reason code to its honest label key; an unknown/absent code degrades to
+  // the neutral "claimed" label rather than asserting a distinction we can't back.
+  const unprovenLabelKey = (
+    r: string | undefined,
+  ): "unprovenAdjacency" | "unprovenProvenance" | "unprovenBoth" | "unprovenClaimed" =>
+    r === "adjacency" ? "unprovenAdjacency" : r === "provenance" ? "unprovenProvenance" : r === "both" ? "unprovenBoth" : "unprovenClaimed";
+  return (
+    <div className="mt-4">
+      <p className="text-meta uppercase tracking-wide text-steel">{t("unprovenTitle")}</p>
+      <p className="mt-0.5 text-sm text-steel">{t("unprovenHelp")}</p>
+      <div className="mt-1.5 flex flex-wrap gap-1.5">
+        {skills.map((s) => {
+          const st = strength[s];
+          return (
+            <span
+              key={`u-${s}`}
+              className="inline-flex items-center gap-1 rounded bg-amber-50 px-1.5 py-0.5 text-sm text-amber-800"
+              title={st != null ? t("unprovenStrengthTitle", { pct: Math.round(st * 100) }) : undefined}
+            >
+              {s}
+              <span className="rounded bg-amber-100 px-1 text-[10px] uppercase text-amber-800">{t(unprovenLabelKey(reason[s]))}</span>
+            </span>
+          );
+        })}
       </div>
     </div>
   );

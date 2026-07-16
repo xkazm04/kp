@@ -192,6 +192,28 @@ class JobFitResult(_Base):
     must_prove_evidence: list[str] = Field(default_factory=list)
     negotiation_angle: str = ""
     recruiter_risk_flags: list[str] = Field(default_factory=list)
+    # Analyze-surface HONESTY cross-check (Direction: analyze-emits-honesty-fields).
+    # The Gemini job_fit above emits FLAT matching/missing skill lists that cannot
+    # express what the matching engine proves: a skill the model called "missing"
+    # may be an ADJACENCY near-miss (the candidate holds a sibling/specialization)
+    # or a provenance-discounted claim — not a true gap. These additive fields carry
+    # matching.score_job's unproven bucket (names mirror MatchResult's), computed by
+    # re-scoring the SAME candidate against the JD's DETECTED skills — each wrapped as
+    # a DEFAULTED must_have/prerequisite JobRequirement (a uniform deterministic
+    # assumption, NOT something the ad stated). It is a cross-check over detected JD
+    # skills, NEVER a second headline score: the synthesized matching total + its
+    # confidence band are discarded, only this bucket surfaces.
+    # ``unproven_skill_reason`` values: "adjacency" | "provenance" | "both".
+    #
+    # NULLABLE (not default_factory like MatchResult's twins): JobFitResult is
+    # embedded in the DB-cached AnalysisResult and RE-VALIDATED on read (codegen →
+    # .nullish()), so a required key would fail the zod parse of analyses cached
+    # before this field existed — the CandidateProfile.credentials/publications/links
+    # precedent. ``None`` on such old rows (and on a JD-less or empty cross-check);
+    # a fresh JD-backed run with adjacency/provenance findings populates them.
+    unproven_skills: list[str] | None = None
+    unproven_skill_strength: dict[str, float] | None = None
+    unproven_skill_reason: dict[str, str] | None = None
 
 
 class DeterministicEvidence(_Base):

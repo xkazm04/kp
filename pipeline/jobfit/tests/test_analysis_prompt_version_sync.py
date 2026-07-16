@@ -89,8 +89,17 @@ TAXONOMY_JSON = REPO_ROOT / "data" / "taxonomy.json"
 # still does. The fingerprint below was re-recorded ONCE for this split; because the
 # hashed prompt-feeding content is byte-identical to before, PROMPT_VERSION is NOT
 # bumped (no cached analysis output changed).
+# NOTE (matching-engine — analyze-emits-honesty-fields): the fingerprint was
+# re-recorded when models.py gained JobFitResult's `unproven_skills` /
+# `unproven_skill_strength` / `unproven_skill_reason` fields. The whole-module
+# Pydantic hash is deliberately conservative, so it trips on these additive OUTPUT
+# fields — but they are a DETERMINISTIC post-Gemini cross-check (matching.score_job
+# over the JD's detected skills), never read by the Gemini prompt or
+# ANALYSIS_RESPONSE_SCHEMA, and they are NULLABLE so a prior cached analysis simply
+# lacks them (the analyze report shows no unproven bucket, no wrong result). No
+# cached analysis OUTPUT changed, so PROMPT_VERSION is intentionally NOT bumped.
 EXPECTED_PROMPT_VERSION = "v5-2026-06-09-lang-cachekey"
-EXPECTED_ANALYSIS_FINGERPRINT = "a1e42c1bde740e0d8610600ed7b5bba0064f594e7244f87e2e9607aafd033cc4"
+EXPECTED_ANALYSIS_FINGERPRINT = "f50c8631bf24338dc2285294a900bb0734fdd9c0dcecdc2842fcc62ee30d76d1"
 
 
 def _strip_ts_comments(text: str) -> str:

@@ -352,6 +352,25 @@ def analyze_cv(
             else:
                 v2_profile, archetype_checks, v2_obj = routing
                 sanity_checks.extend(archetype_checks)
+                # Analyze-surface HONESTY cross-check (Direction: analyze-emits-
+                # honesty-fields). The Gemini job_fit lists are flat; re-score the
+                # SAME candidate (the v2 profile just built) against the JD's
+                # detected-skill universe so an LLM-"missing" skill that is really an
+                # adjacency near-miss or a provenance-discounted claim surfaces in its
+                # own bucket. Own _softly umbrella + gated on both a JD and a job_fit:
+                # a bug degrades to None + a skip note, never sinks the paid analysis.
+                if job_fit is not None and job_description_text:
+                    crosscheck = _softly(
+                        "Analyze honesty cross-check",
+                        lambda: _honesty_crosscheck(v2_obj, job_description_text),
+                        sanity_checks,
+                    )
+                    if crosscheck is not None:
+                        (
+                            job_fit.unproven_skills,
+                            job_fit.unproven_skill_strength,
+                            job_fit.unproven_skill_reason,
+                        ) = crosscheck
                 # Antipattern / hidden-strength hypotheses with interview probes
                 # (soft_signals.py — built+tested but previously never called).
                 # Own _softly umbrella: a panel bug degrades to None + a skip
@@ -873,6 +892,62 @@ def _job_fit_from_payload(raw: Any) -> JobFitResult | None:
         must_prove_evidence=_string_list(raw.get("must_prove_evidence")),
         negotiation_angle=str(raw.get("negotiation_angle") or ""),
         recruiter_risk_flags=_string_list(raw.get("recruiter_risk_flags")),
+    )
+
+
+def _honesty_crosscheck(
+    v2_obj: Any, job_description_text: str
+) -> tuple[list[str], dict[str, float], dict[str, str]] | None:
+    """Deterministic honesty cross-check for the ANALYZE surface (no extra LLM call).
+
+    The Gemini analysis emits FLAT job_fit matching/missing skill lists that cannot
+    express what the matching engine proves: a skill the model called "missing" may
+    be an ADJACENCY near-miss (the candidate holds a sibling/specialization) or a
+    provenance-discounted claim, not a true gap. This re-scores the SAME candidate
+    (``transform.build_match_candidate`` over the already-built v2 profile) against
+    the JD's DETECTED-skill universe via ``matching.score_job`` and returns the
+    engine's unproven bucket, so the analyze report can surface the same honest
+    distinction the recruiter surface already does.
+
+    DISCLOSURE: the JD skill universe is the deterministic taxonomy pre-pass
+    (``detected_skills`` over the JD text); each detected skill is wrapped as a
+    JobRequirement with DEFAULTED kind="must_have"/hardness="prerequisite" — a
+    uniform assumption, NOT a per-skill judgement the ad actually stated. This is a
+    cross-check over detected JD skills, NEVER a second headline score: only the
+    unproven bucket is returned; the synthesized matching total and its confidence
+    band are deliberately discarded so no second overall number can reach the UI.
+
+    Returns ``None`` when the JD yields no detected skills or the cross-check finds
+    nothing unproven (so the caller leaves the fields absent rather than empty).
+    """
+    from .jobs import Job, JobRequirement
+    from .matching import score_job
+    from .transform import build_match_candidate
+
+    jd_skills = detected_skills(job_description_text)
+    if not jd_skills:
+        return None
+    # DEFAULTED kind/hardness (see docstring): uniform must_have/prerequisite, not
+    # stated per skill — score_skills reads only ``skill`` + ``kind`` here.
+    requirements = [
+        JobRequirement(skill=skill, kind="must_have", hardness="prerequisite")
+        for skill in jd_skills
+    ]
+    job = Job(
+        id="analyze-honesty-crosscheck",
+        title="",
+        company="",
+        location="",
+        description=job_description_text,
+        requirements=requirements,
+    )
+    result = score_job(build_match_candidate(v2_obj), job)
+    if not result.unproven_skills:
+        return None
+    return (
+        result.unproven_skills,
+        result.unproven_skill_strength,
+        result.unproven_skill_reason,
     )
 
 

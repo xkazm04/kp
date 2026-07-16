@@ -67,7 +67,10 @@ export const analysisResultSchema = z.object({
     cvRewriteSuggestions: z.array(z.string()),
     mustProveEvidence: z.array(z.string()),
     negotiationAngle: z.string(),
-    recruiterRiskFlags: z.array(z.string())
+    recruiterRiskFlags: z.array(z.string()),
+    unprovenSkills: z.array(z.string()).nullish(),
+    unprovenSkillStrength: z.record(z.string(), z.number()).nullish(),
+    unprovenSkillReason: z.record(z.string(), z.string()).nullish()
   }).nullish(),
   metadata: z.object({
     analysisEngine: z.string(),
