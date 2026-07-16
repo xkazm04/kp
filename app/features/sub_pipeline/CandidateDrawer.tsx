@@ -231,6 +231,16 @@ export function CandidateDrawer({
     { id: string; kind: string | null; status: string; channel: string | null; subject: string | null; body: string | null; createdAt: string }[] | null
   >(null);
 
+  // drawer-note-fresh-hydration — the recruiter note as it stands ON THE SERVER,
+  // carried on the one-call bundle. The board prop (entry.notes) that seeds candNote
+  // at mount can be STALE: set_notes writes only `notes` + `updated_at`, neither of
+  // which is in entrySignature (render-diet doctrine covers exactly what a board CARD
+  // shows, not the note), so the board's close-refresh sees an identical signature and
+  // keeps the pre-edit prop — a just-saved note then reverts on reopen. This holds the
+  // server truth; the reconcile effect below hydrates candNote from it. Null until the
+  // bundle lands.
+  const [bundleNotes, setBundleNotes] = useState<string | null>(null);
+
   // One-call drawer load (perfect-board): the entry's WHOLE story in a SINGLE
   // request to the enriched /timeline endpoint — pipeline events, the cross-store
   // timeline items, the full comms letters, the latest interview outcome and the
@@ -256,6 +266,10 @@ export function CandidateDrawer({
           return;
         }
         setHistory((d.events as PipelineEvent[]) ?? []);
+        // drawer-note-fresh-hydration — the recruiter note rides the bundle as SERVER
+        // TRUTH. Stash it in state here (no ref touched during the fetch effect); a
+        // dedicated effect below reconciles it into candNote once the note refs exist.
+        setBundleNotes((d.notes as string | null | undefined) ?? "");
         setExtraTimeline((d.items as CandidateTimelineItem[]) ?? []);
         setRematchLinks((d.rematchLinks as Record<number, RematchLink> | undefined) ?? {});
         setStaleSince((d.staleSince as string | null | undefined) ?? null);
@@ -553,6 +567,18 @@ export function CandidateDrawer({
   useEffect(() => {
     latestNoteRef.current = candNote;
   }, [candNote]);
+
+  // drawer-note-fresh-hydration — reconcile candNote with the SERVER-truth note that
+  // rode the bundle. The rule: overwrite candNote from the bundle ONLY when the user
+  // hasn't edited in THIS open (noteDirtyRef still clean). That heals the stale-prop
+  // seed (a note saved in a prior open, close→reopen, whose board prop never refreshed
+  // because notes aren't in entrySignature) without ever clobbering in-progress typing —
+  // so an in-place re-pull (a stage move) or the 30s poll can't wipe an unsaved edit.
+  // Reading noteDirtyRef here (after its declaration, like the unmount flush) — never in
+  // the fetch effect above — keeps the immutability rule satisfied.
+  useEffect(() => {
+    if (bundleNotes !== null && !noteDirtyRef.current) setCandNote(bundleNotes);
+  }, [bundleNotes]);
 
   // Flush a pending edit on unmount (drawer close). The debounce effect's
   // cleanup cancels an in-flight 600ms timer, so closing right after typing the

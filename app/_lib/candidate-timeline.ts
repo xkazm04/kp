@@ -129,6 +129,15 @@ export type CandidateDrawerBundle = {
   consent: CandidateConsentView;
   // Keyed by pipeline_event id → the navigable counterpart of a rematch event.
   rematchLinks: Record<number, RematchLink>;
+  // drawer-note-fresh-hydration — the entry's persistent recruiter note, carried on
+  // the bundle so a just-saved note survives close→reopen in the same session. The
+  // set_notes write touches only `notes` + `updated_at`, and NEITHER is in
+  // entrySignature (render-diet doctrine — it covers exactly the fields a board CARD
+  // renders, and notes is not one), so the board's close-refresh sees an identical
+  // signature and keeps the stale entry prop. The drawer therefore hydrates candNote
+  // from THIS server-truth field on bundle arrival, not from the (possibly stale)
+  // board prop. Null when the entry has no note.
+  notes: string | null;
   // drawer-staleness-parity — the JD's last content-edit instant WHEN the entry's
   // canonical (analysis) score predates it, else null. Same isScoreStale rule the
   // decisions queue / library roster / wave preview use; the drawer header renders the
@@ -336,6 +345,9 @@ export function candidateDrawerBundle(entryId: string, workspaceId: string = DEF
     consent: candidateConsent(entry, workspaceId),
     rematchLinks: resolveRematchLinks(events, workspaceId),
     staleSince: deriveStaleSince(entry, workspaceId),
+    // Server truth for the recruiter note (drawer-note-fresh-hydration) — the entry
+    // is already resolved above, so this is free. Normalized to null for an empty note.
+    notes: entry.notes ?? null,
   };
 }
 

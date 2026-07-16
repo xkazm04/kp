@@ -9,7 +9,7 @@
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { cleanupUnitDb } from "./testing/unit-db.ts";
-import { createPipelineEntry, recordEntryConsent } from "./db/pipeline.ts";
+import { createPipelineEntry, recordEntryConsent, setEntryNotes } from "./db/pipeline.ts";
 import { saveAnalysis } from "./db/analyses.ts";
 import { recordOutbox } from "./db/devcase.ts";
 import { createInterviewSession, completeInterviewSession } from "./db/interviews.ts";
@@ -258,4 +258,30 @@ test("the bundle carries every drawer section in one payload", () => {
   assert.equal(bundle!.humanScorecard, null, "no human scorecard yet");
   assert.equal(bundle!.consent.consent.status, "none", "consent rides the bundle (none until granted)");
   assert.equal(candidateDrawerBundle("does-not-exist"), null, "an unknown entry is null (route → 404)");
+});
+
+// ── drawer-note-fresh-hydration: the recruiter note rides the bundle as server truth ──
+// A just-saved note used to REVERT on close→reopen: set_notes touches only `notes`
+// (NOT in entrySignature by render-diet doctrine), so the board's close-refresh sees
+// an identical signature and keeps the stale entry prop, and the remounted drawer
+// re-seeds candNote from it. The fix carries `notes` on the bundle so the drawer
+// hydrates candNote from server truth. This pins the bundle as that source.
+test("the recruiter note rides the bundle as server truth (drawer-note-fresh-hydration)", () => {
+  const e = createPipelineEntry({ candidateId: "cand-note", candidateLabel: "Nora Note", jobId: "jd-frontend", jobTitle: "Frontend Engineer" });
+  // A fresh entry has no note yet — normalized to null on the bundle.
+  assert.equal(candidateDrawerBundle(e.entry.id)!.notes, null, "no note yet ⇒ bundle carries null");
+
+  // Save a note (the set_notes write path). The bundle must now carry the FRESH value —
+  // this is the source the drawer hydrates candNote from, so a close→reopen sees the
+  // saved note, not the stale pre-edit prop.
+  setEntryNotes(e.entry.id, "wants 80k, available August, hybrid");
+  assert.equal(
+    candidateDrawerBundle(e.entry.id)!.notes,
+    "wants 80k, available August, hybrid",
+    "a saved note rides the bundle — the drawer's hydration source"
+  );
+
+  // Clearing the note (null) is faithfully reflected, never a stale non-empty value.
+  setEntryNotes(e.entry.id, null);
+  assert.equal(candidateDrawerBundle(e.entry.id)!.notes, null, "a cleared note reads null on the bundle");
 });
