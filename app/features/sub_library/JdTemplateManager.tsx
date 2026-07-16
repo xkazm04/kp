@@ -6,7 +6,7 @@ import { useTranslations } from "next-intl";
 import { Modal } from "@/app/_components/Modal";
 import { RichTextEditor } from "@/app/_components/RichTextEditor";
 import { TextInput } from "@/app/_components/TextInput";
-import { DEFAULT_TEMPLATE_BODY, fetchTemplates, findUnknownPlaceholders, TEMPLATE_BODY_MAX_LENGTH, TEMPLATE_NAME_MAX_LENGTH, TEMPLATE_PLACEHOLDERS, unknownPlaceholderMessage, validateTemplateFields, type Template, type TemplateData } from "./render-template";
+import { DEFAULT_TEMPLATE_BODY, fetchTemplates, findUnknownPlaceholders, formatTokens, SUPPORTED_PLACEHOLDER_LIST, TEMPLATE_BODY_MAX_LENGTH, TEMPLATE_LOCALIZED_TOKENS, TEMPLATE_NAME_MAX_LENGTH, TEMPLATE_PLACEHOLDERS, validateTemplateFields, type Template, type TemplateData, type TemplateFieldError } from "./render-template";
 
 type Editing = { id?: string; name: string; body: string; scope: Template["scope"] };
 
@@ -28,6 +28,24 @@ export function JdTemplateManager({ onClose, onChanged }: { onClose: () => void;
     load();
   }, []);
 
+  // one-language-jd — the validators emit stable CODES; the manager maps each to a
+  // localized string (the server keeps the English `error` for API consumers). One
+  // switch mirrors render-template's templateErrorMessage so the two can't drift.
+  const localizeTemplateError = (reason: TemplateFieldError): string => {
+    switch (reason.code) {
+      case "bothRequired":
+        return t("errBothRequired");
+      case "nameEmpty":
+        return t("errNameEmpty");
+      case "bodyEmpty":
+        return t("errBodyEmpty");
+      case "tooLong":
+        return reason.field === "name" ? t("errNameTooLong", { max: reason.max }) : t("errBodyTooLong", { max: reason.max });
+      case "unknownTokens":
+        return t("errUnknownTokens", { count: reason.tokens.length, tokens: formatTokens(reason.tokens), supported: SUPPORTED_PLACEHOLDER_LIST });
+    }
+  };
+
   // Unknown {{tokens}} in the body being edited — the same check the API enforces
   // (render-template.ts), surfaced live so the author fixes a typo before saving
   // rather than discovering it as raw text on a published JD.
@@ -40,13 +58,13 @@ export function JdTemplateManager({ onClose, onChanged }: { onClose: () => void;
     // whitespace-only name — instead of a round-trip 400.
     const fields = validateTemplateFields(editing.name, editing.body);
     if (!fields.ok) {
-      setError(fields.error);
+      setError(localizeTemplateError(fields.reason));
       return;
     }
     // Belt-and-suspenders: the Save button is disabled while tokens are unknown,
     // but never let a bad body reach the API (which would 400 anyway).
     if (unknownTokens.length) {
-      setError(unknownPlaceholderMessage(unknownTokens));
+      setError(localizeTemplateError({ code: "unknownTokens", tokens: unknownTokens }));
       return;
     }
     setBusy(true);
@@ -134,17 +152,26 @@ export function JdTemplateManager({ onClose, onChanged }: { onClose: () => void;
             ariaLabel={t("bodyAria")}
             minHeight="18rem"
           />
-          <div className="flex items-center justify-between gap-2">
-            <p className="text-sm text-steel">
-              {t("placeholders")}{TEMPLATE_PLACEHOLDERS.map((p) => <code key={p} className="mr-1 rounded bg-paper px-1 text-coral">{`{{${p}}}`}</code>)}
-            </p>
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0 space-y-1">
+              <p className="text-sm text-steel">
+                {t("placeholders")}{TEMPLATE_PLACEHOLDERS.map((p) => <code key={p} className="mr-1 rounded bg-paper px-1 text-coral">{`{{${p}}}`}</code>)}
+              </p>
+              {/* one-language-jd — the opt-in localization tokens: heading/filler that
+                  render in the JD's OUTPUT language (the seeded default uses them). A
+                  custom template's own literal headings are the author's choice and are
+                  never machine-translated; these are here for authors who want to match. */}
+              <p className="text-sm text-steel">
+                {t("localizedTokens")}{TEMPLATE_LOCALIZED_TOKENS.map((p) => <code key={p} className="mr-1 rounded bg-paper px-1 text-moss">{`{{${p}}}`}</code>)}
+              </p>
+            </div>
             <p className={`shrink-0 text-sm tabular-nums ${editing.body.length >= TEMPLATE_BODY_MAX_LENGTH * 0.9 ? "text-coral" : "text-steel"}`}>
               {editing.body.length.toLocaleString("en-US")} / {TEMPLATE_BODY_MAX_LENGTH.toLocaleString("en-US")}
             </p>
           </div>
           {unknownTokens.length ? (
             <p className="animate-fade-in rounded-md bg-amber-50 p-2.5 text-sm text-amber-800" role="alert">
-              {unknownPlaceholderMessage(unknownTokens)}
+              {localizeTemplateError({ code: "unknownTokens", tokens: unknownTokens })}
             </p>
           ) : null}
           {!editing.id ? (

@@ -2535,6 +2535,13 @@
       "saveAsDraft": "Save as draft"
     },
     "templates": {
+      "errBothRequired": "Template name and body are both required.",
+      "errNameEmpty": "Template name can't be empty.",
+      "errBodyEmpty": "Template body can't be empty.",
+      "errNameTooLong": "Template name must be {max, number} characters or fewer.",
+      "errBodyTooLong": "Template body must be {max, number} characters or fewer.",
+      "errUnknownTokens": "{count, plural, one {Unknown placeholder: {tokens}.} other {Unknown placeholders: {tokens}.}} Use only the supported placeholders: {supported}.",
+      "localizedTokens": "Localized to the output language: ",
       "title": "Company JD templates",
       "subtitle": "Manage the formats your job descriptions are built from",
       "namePlaceholder": "Template name",
@@ -4480,6 +4487,10 @@
     }
   },
   "jdPublic": {
+    "copyMarkdown": "Copy as Markdown",
+    "copied": "Copied",
+    "copiedToClipboard": "Copied to clipboard",
+    "noDescriptionYet": "This role doesn't have a description yet.",
     "loadError": "This job description couldn't be loaded right now. Please refresh in a moment.",
     "eyebrow": "Job description",
     "savedAt": "Saved {date}",

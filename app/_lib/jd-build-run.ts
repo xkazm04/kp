@@ -269,15 +269,22 @@ export async function runJdBuild(params: Record<string, unknown>, progress?: Pro
         ? // Render through the chosen company template (same data the client preview
           // fed renderTemplate): the salary slot gets the market label, placeholders
           // the role's fields; unfilled sections collapse per renderTemplate's rules.
-          renderTemplate(templateBody, {
-            title,
-            company: input.company?.trim(),
-            seniority: input.seniority || spec.seniority || "medior",
-            salary: marketSalaryLabel(salaryBand),
-            responsibilities: spec.responsibilities ?? [],
-            mustHaves: spec.mustHaves ?? [],
-            niceToHaves: spec.niceToHaves ?? [],
-          })
+          // `lang` localizes the template's structural scaffolding (the seeded default's
+          // heading/filler tokens) so a cs build isn't Czech content under English
+          // headings — matching composeMarkdown's localized headings on the other path.
+          renderTemplate(
+            templateBody,
+            {
+              title,
+              company: input.company?.trim(),
+              seniority: input.seniority || spec.seniority || "medior",
+              salary: marketSalaryLabel(salaryBand),
+              responsibilities: spec.responsibilities ?? [],
+              mustHaves: spec.mustHaves ?? [],
+              niceToHaves: spec.niceToHaves ?? [],
+            },
+            lang
+          )
         : composeMarkdown(spec, { company: input.company, location: input.location, salary: salaryBand, lang });
     }
 

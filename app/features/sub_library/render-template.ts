@@ -26,33 +26,94 @@ export const TEMPLATE_PLACEHOLDERS = [
   "niceToHaves",
 ] as const;
 
-// The seeded "Company standard" template. Its filler must LINT CLEAN — a JD
-// rendered from it is surfaced through JdLintPanel (the Ledger read-view + the
-// editor), and the old "Competitive pay…" offer line was exactly the boilerplate
-// jd-lint's VAGUE_PATTERNS flags, so the seeded standard contradicted its own
-// linter. Keep the offer/apply filler concrete (no "competitive/attractive pay",
-// no coded language) and keep a work-mode word ("hybrid") so the posting also
-// carries a place-of-work signal.
+// ── Output-language localization tokens (one-language-jd) ────────────────────
+// composeMarkdown localizes its section headings for cs, but a template-rendered
+// build used the template's OWN static headings — so a cs generate through the
+// (English) seeded default produced Czech role content under English headings
+// ("About us / The role / What we offer"). The fix: LANG-AWARE tokens resolved
+// per OUTPUT language at render time (renderTemplate's 3rd arg). The SEEDED
+// default (DEFAULT_TEMPLATE_BODY) uses them so it localizes end-to-end; a
+// USER-authored template keeps its literal headings — the author's choice, never
+// machine-translated — but MAY opt into these tokens. Two example-filler tokens
+// (offer_note/apply_note) localize the seeded default's sample bullets too, so a
+// cs build from the default is single-language throughout. These are NOT data
+// placeholders (they take no value from `data`); they resolve from the map below.
+export const TEMPLATE_LOCALIZED_TOKENS = [
+  "heading_about",
+  "heading_role",
+  "heading_requirements",
+  "heading_nice",
+  "heading_offer",
+  "heading_apply",
+  "offer_note",
+  "apply_note",
+] as const;
+
+type LocalizedToken = (typeof TEMPLATE_LOCALIZED_TOKENS)[number];
+
+// EN + CS resolutions. The role CONTENT (responsibilities/skills) is generated in
+// the output language by the design chain; only this structural scaffolding + the
+// seeded sample filler is templated here. The filler is deliberately concrete and
+// coded-language-free so a JD rendered from the default still LINTS CLEAN (jd-lint);
+// each language keeps a work-mode word ("hybrid"/"hybridní") for the place signal.
+const LOCALIZED_STRINGS: Record<"en" | "cs", Record<LocalizedToken, string>> = {
+  en: {
+    heading_about: "About us",
+    heading_role: "The role",
+    heading_requirements: "What we're looking for",
+    heading_nice: "Nice to have",
+    heading_offer: "What we offer",
+    heading_apply: "How to apply",
+    offer_note: "Hybrid working, meaningful ownership, and room to grow.",
+    apply_note: "Apply via the link — a short conversation, then a first-round interview.",
+  },
+  cs: {
+    heading_about: "O nás",
+    heading_role: "Pozice",
+    heading_requirements: "Koho hledáme",
+    heading_nice: "Výhodou",
+    heading_offer: "Co nabízíme",
+    heading_apply: "Jak se přihlásit",
+    offer_note: "Hybridní režim práce, smysluplná zodpovědnost a prostor k růstu.",
+    apply_note: "Přihlaste se přes odkaz — krátký rozhovor a poté první kolo pohovoru.",
+  },
+};
+
+function localizedStrings(lang?: string): Record<LocalizedToken, string> {
+  return LOCALIZED_STRINGS[lang === "cs" ? "cs" : "en"];
+}
+
+// Every token the renderer knows (data placeholders + localization tokens) — the
+// single source both findUnknownPlaceholders and the supported-list message read,
+// so the validator can never flag a token the renderer actually substitutes.
+const ALL_KNOWN_TOKENS: readonly string[] = [...TEMPLATE_PLACEHOLDERS, ...TEMPLATE_LOCALIZED_TOKENS];
+
+// The seeded "Company standard" template. Headings + sample filler are LANG-AWARE
+// tokens (TEMPLATE_LOCALIZED_TOKENS) resolved per output language at render, so a
+// cs build reads single-language instead of Czech content under English headings.
+// The filler (offer_note/apply_note in LOCALIZED_STRINGS) must LINT CLEAN — a JD
+// rendered from this is surfaced through JdLintPanel (Ledger read-view + editor),
+// and the old "Competitive pay…" line was exactly the boilerplate jd-lint flags.
 export const DEFAULT_TEMPLATE_BODY = `# {{title}}
 **{{company}}** · {{seniority}} · {{salary}}
 
-## About us
+## {{heading_about}}
 {{about}}
 
-## The role
+## {{heading_role}}
 {{responsibilities}}
 
-## What we're looking for
+## {{heading_requirements}}
 {{mustHaves}}
 
-## Nice to have
+## {{heading_nice}}
 {{niceToHaves}}
 
-## What we offer
-- Hybrid working, meaningful ownership, and room to grow.
+## {{heading_offer}}
+- {{offer_note}}
 
-## How to apply
-- Apply via the link — a short conversation, then a first-round interview.`;
+## {{heading_apply}}
+- {{apply_note}}`;
 
 // The middot separator used by the default template's `**company** · seniority ·
 // salary` header line. Kept as a named constant so the collapse contract below
@@ -92,7 +153,13 @@ const PLACEHOLDER_RE = /\{\{(\w+)\}\}/g;
 //     templates; this version only collapses separator↔empty-marker pairs.)
 //
 // These cases are pinned by render-template.test.ts.
-export function renderTemplate(body: string, data: TemplateData): string {
+//
+// `lang` (one-language-jd) selects the resolution for TEMPLATE_LOCALIZED_TOKENS
+// (heading_*/offer_note/apply_note) so the SEEDED default's structural scaffolding
+// renders in the JD's output language; anything but "cs" resolves to English. It
+// does not touch data placeholders or a user template's literal headings.
+export function renderTemplate(body: string, data: TemplateData, lang?: string): string {
+  const localized = localizedStrings(lang);
   const bullets = (arr?: string[]) => (arr && arr.length ? arr.map((s) => `- ${s}`).join("\n") : "- —");
   const map: Record<string, string> = {
     title: data.title?.trim() || "Role title",
@@ -114,6 +181,10 @@ export function renderTemplate(body: string, data: TemplateData): string {
   const substituted = body
     .replaceAll(EMPTY_MARK, "")
     .replace(PLACEHOLDER_RE, (_, key: string) => {
+      // Localization tokens resolve per output language (never empty), so after this
+      // pass the intermediate string is identical to a literal-heading template — the
+      // separator/section-collapse below then behaves exactly as before.
+      if (key in localized) return localized[key as LocalizedToken];
       if (!(key in map)) return `{{${key}}}`;
       return map[key] === "" ? EMPTY_MARK : map[key];
     });
@@ -159,7 +230,7 @@ export function renderTemplate(body: string, data: TemplateData): string {
  *  tokens are valid. Matches exactly the tokens renderTemplate would substitute
  *  (same PLACEHOLDER_RE), so it flags precisely what would otherwise ship raw. */
 export function findUnknownPlaceholders(body: string): string[] {
-  const known = new Set<string>(TEMPLATE_PLACEHOLDERS);
+  const known = new Set<string>(ALL_KNOWN_TOKENS);
   const seen = new Set<string>();
   const unknown: string[] = [];
   for (const [, key] of body.matchAll(PLACEHOLDER_RE)) {
@@ -171,11 +242,55 @@ export function findUnknownPlaceholders(body: string): string[] {
   return unknown;
 }
 
-/** Human-readable message for a non-empty list of unknown tokens, shared by the
- *  manager warning and the API 400 so the wording lives in one place. */
+/** `{{a}}, {{b}}` for a token-name list — shared by the English message below and
+ *  the manager's localized one so both render tokens identically. */
+export function formatTokens(tokens: string[]): string {
+  return tokens.map((k) => `{{${k}}}`).join(", ");
+}
+
+/** The full supported-token list as `{{title}}, {{company}}, …` (data placeholders
+ *  + localization tokens), for both the English message and the localized one. */
+export const SUPPORTED_PLACEHOLDER_LIST = formatTokens([...ALL_KNOWN_TOKENS]);
+
+/** Human-readable (English) message for a non-empty list of unknown tokens — the
+ *  API-400 / consumer fallback. The manager localizes via `localizeTemplateError`
+ *  ({ code: "unknownTokens" }); both read the same formatTokens/SUPPORTED list so
+ *  they can't drift on which tokens are named. */
 export function unknownPlaceholderMessage(unknown: string[]): string {
-  const tokens = unknown.map((k) => `{{${k}}}`).join(", ");
-  return `Unknown placeholder${unknown.length === 1 ? "" : "s"}: ${tokens}. Use only the supported placeholders: ${TEMPLATE_PLACEHOLDERS.map((p) => `{{${p}}}`).join(", ")}.`;
+  return `Unknown placeholder${unknown.length === 1 ? "" : "s"}: ${formatTokens(unknown)}. Use only the supported placeholders: ${SUPPORTED_PLACEHOLDER_LIST}.`;
+}
+
+// ---- Stable validation-error codes (one-language-jd) -----------------------
+//
+// The validators return raw English in `error` — fine for API consumers (the
+// route forwards it) but wrong for the manager, which renders in the recruiter's
+// locale. So every failure now ALSO carries a stable `reason` CODE (+ any
+// interpolation values); the manager maps the code → a localized string (4
+// locales) while the server keeps the English `error` untouched. One switch
+// (templateErrorMessage) is the English source; the manager mirrors it with t().
+export type TemplateFieldError =
+  | { code: "bothRequired" }
+  | { code: "nameEmpty" }
+  | { code: "bodyEmpty" }
+  | { code: "tooLong"; field: "name" | "body"; max: number }
+  | { code: "unknownTokens"; tokens: string[] };
+
+/** The English rendering of a validation-error code — the API/consumer fallback,
+ *  kept wording-identical to the pre-codes messages so existing consumers + tests
+ *  are unchanged. The manager localizes the SAME codes via next-intl. */
+export function templateErrorMessage(reason: TemplateFieldError): string {
+  switch (reason.code) {
+    case "bothRequired":
+      return "Template name and body are both required.";
+    case "nameEmpty":
+      return "Template name can't be empty.";
+    case "bodyEmpty":
+      return "Template body can't be empty.";
+    case "tooLong":
+      return `Template ${reason.field} must be ${reason.max.toLocaleString("en-US")} characters or fewer.`;
+    case "unknownTokens":
+      return unknownPlaceholderMessage(reason.tokens);
+  }
 }
 
 // ---- Template field length caps & validation ------------------------------
@@ -192,15 +307,21 @@ export function unknownPlaceholderMessage(unknown: string[]): string {
 export const TEMPLATE_NAME_MAX_LENGTH = 200;
 export const TEMPLATE_BODY_MAX_LENGTH = 20000;
 
-// Single source for the over-cap wording, shared by both validators below so the
-// create and edit paths can't drift on the message. Returns null when in bounds.
-function templateTooLong(label: "name" | "body", value: string, max: number): string | null {
-  return value.length > max ? `Template ${label} must be ${max.toLocaleString("en-US")} characters or fewer.` : null;
+// Single source for the over-cap check, shared by both validators below so the
+// create and edit paths can't drift. Returns the tooLong CODE, or null in bounds.
+function templateTooLong(field: "name" | "body", value: string, max: number): TemplateFieldError | null {
+  return value.length > max ? { code: "tooLong", field, max } : null;
+}
+
+// A failure result carrying BOTH the English `error` (API/consumer + route) and
+// the stable `reason` code (manager localizes it). One helper so the two never drift.
+function fail(reason: TemplateFieldError): { ok: false; error: string; reason: TemplateFieldError } {
+  return { ok: false, error: templateErrorMessage(reason), reason };
 }
 
 export type TemplateFieldsResult =
   | { ok: true; name: string; body: string }
-  | { ok: false; error: string };
+  | { ok: false; error: string; reason: TemplateFieldError };
 
 /** Required-and-length validation for a NEW template's name/body (POST
  *  /api/templates) — the single source for both the caps AND the exact error
@@ -212,15 +333,15 @@ export type TemplateFieldsResult =
 export function validateTemplateFields(name: unknown, body: unknown): TemplateFieldsResult {
   const n = typeof name === "string" ? name.trim() : "";
   const b = typeof body === "string" ? body.trim() : "";
-  if (!n || !b) return { ok: false, error: "Template name and body are both required." };
+  if (!n || !b) return fail({ code: "bothRequired" });
   const lenError = templateTooLong("name", n, TEMPLATE_NAME_MAX_LENGTH) ?? templateTooLong("body", b, TEMPLATE_BODY_MAX_LENGTH);
-  if (lenError) return { ok: false, error: lenError };
+  if (lenError) return fail(lenError);
   return { ok: true, name: n, body: b };
 }
 
 export type TemplateUpdateResult =
   | { ok: true; name?: string; body?: string }
-  | { ok: false; error: string };
+  | { ok: false; error: string; reason: TemplateFieldError };
 
 /** Partial validation for an in-place template edit (PUT /api/templates/[id]),
  *  where name and body are each optional (a rename-only or body-only edit; a
@@ -232,16 +353,16 @@ export function validateTemplateUpdate(input: { name?: unknown; body?: unknown }
   const out: { name?: string; body?: string } = {};
   if (input.name !== undefined) {
     const n = typeof input.name === "string" ? input.name.trim() : "";
-    if (!n) return { ok: false, error: "Template name can't be empty." };
+    if (!n) return fail({ code: "nameEmpty" });
     const e = templateTooLong("name", n, TEMPLATE_NAME_MAX_LENGTH);
-    if (e) return { ok: false, error: e };
+    if (e) return fail(e);
     out.name = n;
   }
   if (input.body !== undefined) {
     const b = typeof input.body === "string" ? input.body.trim() : "";
-    if (!b) return { ok: false, error: "Template body can't be empty." };
+    if (!b) return fail({ code: "bodyEmpty" });
     const e = templateTooLong("body", b, TEMPLATE_BODY_MAX_LENGTH);
-    if (e) return { ok: false, error: e };
+    if (e) return fail(e);
     out.body = b;
   }
   return { ok: true, ...out };

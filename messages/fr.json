@@ -2564,6 +2564,13 @@
       "saveAsDraft": "Enregistrer comme brouillon"
     },
     "templates": {
+      "errBothRequired": "Le nom et le corps du modèle sont tous deux obligatoires.",
+      "errNameEmpty": "Le nom du modèle ne peut pas être vide.",
+      "errBodyEmpty": "Le corps du modèle ne peut pas être vide.",
+      "errNameTooLong": "Le nom du modèle ne doit pas dépasser {max, number} caractères.",
+      "errBodyTooLong": "Le corps du modèle ne doit pas dépasser {max, number} caractères.",
+      "errUnknownTokens": "{count, plural, one {Paramètre inconnu : {tokens}.} other {Paramètres inconnus : {tokens}.}} Utilisez uniquement les paramètres pris en charge : {supported}.",
+      "localizedTokens": "Localisé selon la langue de sortie : ",
       "title": "Modèles de fiches de poste d'entreprise",
       "subtitle": "Gérez les formats à partir desquels vos fiches de poste sont construites",
       "namePlaceholder": "Nom du modèle",
@@ -4548,6 +4555,10 @@
     }
   },
   "jdPublic": {
+    "copyMarkdown": "Copier au format Markdown",
+    "copied": "Copié",
+    "copiedToClipboard": "Copié dans le presse-papiers",
+    "noDescriptionYet": "Ce poste n'a pas encore de description.",
     "loadError": "Impossible de charger cette description de poste pour le moment. Veuillez actualiser dans un instant.",
     "eyebrow": "Description de poste",
     "savedAt": "Enregistré le {date}",

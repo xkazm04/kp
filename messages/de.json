@@ -2564,6 +2564,13 @@
       "saveAsDraft": "Als Entwurf speichern"
     },
     "templates": {
+      "errBothRequired": "Name und Inhalt der Vorlage sind beide erforderlich.",
+      "errNameEmpty": "Der Vorlagenname darf nicht leer sein.",
+      "errBodyEmpty": "Der Vorlageninhalt darf nicht leer sein.",
+      "errNameTooLong": "Der Vorlagenname darf höchstens {max, number} Zeichen lang sein.",
+      "errBodyTooLong": "Der Vorlageninhalt darf höchstens {max, number} Zeichen lang sein.",
+      "errUnknownTokens": "{count, plural, one {Unbekannter Platzhalter: {tokens}.} other {Unbekannte Platzhalter: {tokens}.}} Verwenden Sie nur die unterstützten Platzhalter: {supported}.",
+      "localizedTokens": "An die Ausgabesprache angepasst: ",
       "title": "Unternehmensvorlagen für Stellenbeschreibungen",
       "subtitle": "Verwalten Sie die Formate, aus denen Ihre Stellenbeschreibungen erstellt werden",
       "namePlaceholder": "Name der Vorlage",
@@ -4548,6 +4555,10 @@
     }
   },
   "jdPublic": {
+    "copyMarkdown": "Als Markdown kopieren",
+    "copied": "Kopiert",
+    "copiedToClipboard": "In die Zwischenablage kopiert",
+    "noDescriptionYet": "Diese Stelle hat noch keine Beschreibung.",
     "loadError": "Diese Stellenbeschreibung konnte gerade nicht geladen werden. Bitte in einem Moment neu laden.",
     "eyebrow": "Stellenbeschreibung",
     "savedAt": "Gespeichert {date}",

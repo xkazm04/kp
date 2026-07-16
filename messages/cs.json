@@ -2535,6 +2535,13 @@
       "saveAsDraft": "Uložit jako koncept"
     },
     "templates": {
+      "errBothRequired": "Název i tělo šablony jsou povinné.",
+      "errNameEmpty": "Název šablony nesmí být prázdný.",
+      "errBodyEmpty": "Tělo šablony nesmí být prázdné.",
+      "errNameTooLong": "Název šablony smí mít nejvýše {max, number} znaků.",
+      "errBodyTooLong": "Tělo šablony smí mít nejvýše {max, number} znaků.",
+      "errUnknownTokens": "{count, plural, one {Neznámý zástupný symbol: {tokens}.} few {Neznámé zástupné symboly: {tokens}.} other {Neznámé zástupné symboly: {tokens}.}} Používejte pouze podporované zástupné symboly: {supported}.",
+      "localizedTokens": "Lokalizováno podle výstupního jazyka: ",
       "title": "Firemní šablony popisů pozic",
       "subtitle": "Spravujte formáty, ze kterých se sestavují vaše popisy pozic",
       "namePlaceholder": "Název šablony",
@@ -4480,6 +4487,10 @@
     }
   },
   "jdPublic": {
+    "copyMarkdown": "Kopírovat jako Markdown",
+    "copied": "Zkopírováno",
+    "copiedToClipboard": "Zkopírováno do schránky",
+    "noDescriptionYet": "Tato pozice zatím nemá popis.",
     "loadError": "Tento popis pozice se nyní nepodařilo načíst. Zkuste to prosím za chvíli obnovit.",
     "eyebrow": "Popis pozice",
     "savedAt": "Uloženo {date}",
