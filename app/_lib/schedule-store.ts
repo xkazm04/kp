@@ -349,6 +349,26 @@ export function listScheduleInvites(limit = 200, workspaceId: string = DEFAULT_W
   return rows.map(rowTo);
 }
 
+/** The invites for ONE entry (drawer-open-diet). The candidate drawer used to pull up
+ *  to 500 workspace invites via listScheduleInvites and JS-filter to the single entry —
+ *  a full workspace scan on every drawer open (and every in-place stage-move refresh).
+ *  schedule_invites has an entry_id column (indexed: idx_sched_entry), so scope the read
+ *  in SQL instead. Byte-identical to `listScheduleInvites(...).filter(i => i.entryId ===
+ *  entryId)`: same LEFT JOIN (entry_status/entry_stage), same workspace scope, same
+ *  ORDER BY — only the WHERE narrows to this entry (pinned by schedule-store.test.ts). */
+export function listScheduleInvitesForEntry(entryId: string, workspaceId: string = DEFAULT_WORKSPACE_ID): ScheduleInvite[] {
+  const rows = db()
+    .prepare(
+      `SELECT s.*, p.status AS entry_status, p.stage AS entry_stage
+         FROM schedule_invites s
+         LEFT JOIN pipeline_entries p ON p.id = s.entry_id
+        WHERE s.workspace_id = ? AND s.entry_id = ?
+        ORDER BY (s.slot_at IS NULL) ASC, s.slot_at ASC, s.created_at DESC`
+    )
+    .all(workspaceId, entryId) as Record<string, unknown>[];
+  return rows.map(rowTo);
+}
+
 export type ConfirmResult =
   | { ok: true; invite: ScheduleInvite }
   | { ok: false; reason: "not_found" | "taken"; invite: ScheduleInvite | null };

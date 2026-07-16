@@ -19,6 +19,8 @@ import {
   declineScheduleInvite,
   markScheduleInviteNoShow,
   setScheduleInviteProposals,
+  listScheduleInvites,
+  listScheduleInvitesForEntry,
 } from "./schedule-store.ts";
 import { UNIT_DB_PATH } from "./testing/unit-db.ts";
 import Database from "better-sqlite3";
@@ -220,6 +222,29 @@ test("a live pending/confirmed invite is unchanged (no terminal item)", () => {
   const inv = createScheduleInvite({ entryId: ec.entry.id });
   confirmScheduleInvite(inv.token, "Wed 15 Jan · 14:00", "2030-01-15T14:00:00.000Z");
   assert.deepEqual(inviteStatuses(ec.entry.id), ["sent", "confirmed"], "a confirmed booking stays sent + confirmed");
+});
+
+// ── drawer-open-diet: the entry-scoped invite read is byte-identical to filtering ──
+test("listScheduleInvitesForEntry equals the filtered workspace scan (entry with invites among others')", () => {
+  // Three entries, each with invites, in various states — so the workspace scan holds
+  // a mix and the entry-scoped read must return EXACTLY this entry's rows, in order.
+  const mine = createPipelineEntry({ candidateId: "cand-mine", candidateLabel: "Mine Invited", jobId: "jd-frontend", jobTitle: "Frontend Engineer" });
+  const other1 = createPipelineEntry({ candidateId: "cand-o1", candidateLabel: "Other One", jobId: "jd-backend", jobTitle: "Backend Engineer" });
+  const other2 = createPipelineEntry({ candidateId: "cand-o2", candidateLabel: "Other Two", jobId: "jd-backend", jobTitle: "Backend Engineer" });
+
+  // This entry gets a CONFIRMED invite (has a slot_at, so it sorts ahead of pending).
+  const mineInv = createScheduleInvite({ entryId: mine.entry.id });
+  confirmScheduleInvite(mineInv.token, "Wed 15 Jan · 09:00", "2030-01-15T09:00:00.000Z");
+  // Others get their own invites, interleaved in the workspace scan.
+  createScheduleInvite({ entryId: other1.entry.id });
+  const o2Inv = createScheduleInvite({ entryId: other2.entry.id });
+  confirmScheduleInvite(o2Inv.token, "Thu 16 Jan · 09:00", "2030-01-16T09:00:00.000Z");
+
+  const scoped = listScheduleInvitesForEntry(mine.entry.id);
+  const filtered = listScheduleInvites(500).filter((i) => i.entryId === mine.entry.id);
+  assert.deepEqual(scoped, filtered, "entry-scoped read is byte-identical to the filtered workspace scan");
+  assert.equal(scoped.length, 1, "and returns only this entry's invite, none of the others'");
+  assert.equal(scoped[0].entryId, mine.entry.id);
 });
 
 test("the bundle carries every drawer section in one payload", () => {

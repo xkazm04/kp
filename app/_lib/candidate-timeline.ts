@@ -1,6 +1,6 @@
 import { getPipelineEntry, jdLastEditedAt, latestInterviewByEntry, listAnalyses, listConsentEvents, listOutboxFiltered, listPipelineEventsForEntry, type ConsentEvent, type PipelineEvent } from "./db";
 import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
-import { listScheduleInvites } from "./schedule-store";
+import { listScheduleInvitesForEntry } from "./schedule-store";
 import { isScheduleInviteExpired, INVITE_LINK_TTL_DAYS } from "./schedule-slots";
 import { listOffersForEntry } from "./offers-store";
 import { jdSlugOfJobId } from "./jd-limits";
@@ -137,9 +137,14 @@ export type CandidateDrawerBundle = {
   staleSince: string | null;
 };
 
+// ANALYSES_SCAN_LIMIT is the drawer bundle's KNOWN read floor (drawer-open-diet):
+// analyses carry NO entry/candidate foreign key — only a free-text candidate_label
+// and a jd_slug — so there is no indexed column to scope this read the way the invite
+// and comms reads are entry-scoped. The label↔jd_slug identity join therefore runs
+// over a bounded workspace scan (this cap) and filters in JS. Closing this floor needs
+// a schema change (an entry/candidate FK on analyses); intentionally out of scope here.
 const ANALYSES_SCAN_LIMIT = 300;
 const COMMS_LIMIT = 200;
-const INVITES_SCAN_LIMIT = 500;
 const EVENTS_LIMIT = 50;
 
 export function candidateTimeline(entryId: string, workspaceId: string = DEFAULT_WORKSPACE_ID): CandidateTimelineItem[] | null {
@@ -188,8 +193,9 @@ function candidateTimelineForEntry(
     if (interview.endedAt) items.push({ at: interview.endedAt, kind: "interview", status: "completed" });
   }
 
-  for (const invite of listScheduleInvites(INVITES_SCAN_LIMIT, workspaceId)) {
-    if (invite.entryId !== entry.id) continue;
+  // drawer-open-diet — an entry-scoped read (WHERE entry_id = ?, indexed) instead of
+  // scanning up to 500 workspace invites and JS-filtering to this one entry.
+  for (const invite of listScheduleInvitesForEntry(entry.id, workspaceId)) {
     items.push({ at: invite.createdAt, kind: "invite", status: "sent" });
     if (invite.confirmedAt) items.push({ at: invite.confirmedAt, kind: "invite", status: "confirmed", slot: invite.slot });
     // The candidate proposed alternative times the recruiter hasn't actioned yet — a
