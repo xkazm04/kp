@@ -1,6 +1,6 @@
 ---
 name: perfect
-description: Session-after-session product perfection loop. The strongest available model (Fable) directs — it walks the repo's context map context-by-context, proposes 5 challenged, high-value directions per context (features, design elevations, significant optimizations), gates them with the user until 10 are accepted, then orchestrates one Opus builder subagent per context in isolated worktrees while making every review/merge decision itself. All state lives in a linked Obsidian vault so any future session resumes the loop exactly where the last one stopped. Invoke with `/perfect [init|propose|build|status|reflect] [context-name]`.
+description: Session-after-session product perfection loop. The strongest available model (Fable) directs — it walks the repo's context map context-by-context, proposes challenged, high-value directions per context (features, design elevations, significant optimizations), gates each round's slate with the user, then orchestrates one Opus builder subagent per context in isolated worktrees while making every review/merge decision itself. All state lives in a linked Obsidian vault so any future session resumes the loop exactly where the last one stopped. Invoke with `/perfect [init|propose|build|status|reflect] [context-name]`.
 ---
 
 # Perfect — the direction-and-delivery loop (kp edition)
@@ -29,7 +29,8 @@ done
 Perfect/
   Perfect.md               # HOME / Map-of-Content — always reflects current truth:
                            #   mission, the scored context QUEUE with the CURSOR,
-                           #   the ACCEPTED POOL (n/10), shipped ledger headline, link to last session
+                           #   the ACCEPTED POOL (current round's slate; hard cap 10),
+                           #   shipped ledger headline, link to last session
   config.md                # per-repo overlay: gates to run, worktree recipe, wave size,
                            #   direction sizing rules, cooldown, + ## User taste + ## Skill improvement log
   contexts/<name>.md       # one per context-map context (long-lived, updated in place)
@@ -79,19 +80,20 @@ Every invocation starts the same way; the vault decides which phase runs.
 1. Read `Perfect.md` (+ last session's `next:` pointer). If missing → run **init** (below).
 2. Read `context-map.json`; diff against `contexts/*` — new contexts get notes + a queue slot, removed ones get archived (`status: retired` in frontmatter).
 3. Repo rituals: make sure you're working from `main` (builds fork from and merge to `main` — if the session starts on a stray branch, note it and base worktrees on `main`). Scan MEMORY.md signals that veto directions (e.g. features already planned elsewhere, "removed — don't re-suggest" notes, the industry-locked finding).
-4. Announce the resumption point in one sentence, then go where the state machine points: pool < 10 → **Propose**; pool ≥ 10 (or user said `build`) → **Build**.
+4. Announce the resumption point in one sentence, then go where the state machine points: no gated slate pending → **Propose**; a gated slate awaits (or user said `build`) → **Build**. The unit of work is the **round**: propose for 1–3 contexts, gate, build that slate immediately (the owner can say "hold" at the wave-plan gate). The pool never accumulates past 10 (hard cap), but at steady state a round's slate ships the same session it was gated.
 
 ### Init (first run only)
 1. Scaffold the vault tree + `config.md` (record: gates = `npm run typecheck`, `npm run test:unit`, `npm run lint`, plus `npm run i18n:check` when `messages/*.json` or user-facing strings are touched and `npm run test:python` when `pipeline/` is touched; wave size = 3; cooldown = 2 rounds).
 2. Score every context 0-10 for **opportunity** = user-facing reach × headroom (distance from "perfect", judged from context-map metadata, `docs/*`, and memory) × strategic fit (active arcs in memory — e.g. V2 matching platform, enterprise readiness, multi-market unlock). Write the ranked **queue** into `Perfect.md` with the cursor at the top. Don't deep-read code yet — scoring is refined per-context at proposal time.
 3. Write session note; proceed straight into Propose.
 
-### Phase P — Propose (context by context, until the pool holds 10)
-Loop while `pool < 10` and the user hasn't said stop:
+### Phase P — Propose (context by context, until the round's slate is gated)
+Pick 1–3 contexts for the round (thin is fine); loop over them unless the user says stop:
 
-1. **Cursor** = highest-opportunity context not on cooldown. **Prefetch**: before presenting context *k*, launch the scout for context *k+1* in the background.
+1. **Cursor** = highest-opportunity context not on cooldown; **at equal opportunity, prefer the least-recently-slated context, and a never-slated context outranks any re-visit** (fresh contexts keep yielding full slates while twice-visited ones go thin). **Prefetch**: before presenting context *k*, launch the scout for context *k+1* in the background — one ahead, never two (staleness risk).
 2. **Scout** (Explore, "very thorough", read-only): given the context's `filePaths`, `apiRoutes`, description → return a current-state brief: what exists, what's rough, dead ends, UX seams, perf smells, with `file:line` evidence.
-3. **Draft 5 directions** — one per lens by default: **feature** (new user value), **ux** (design/flow elevation), **optimization** (perf/cost/significant simplification), **robustness** (failure modes, observability, architecture), **wildcard** (the non-obvious idea a great PM would pitch). Each sized to ONE builder session; a bigger vision ships as its phase-1 slice.
+   **2b. Delta re-scout (contexts with prior ships).** Brief the scout to (a) verify the prior rounds' ships still cohere AND delivered their downstream payoff — "did it work", not just "did it merge" (this is how a fully-dead board facet's revival was confirmed); (b) re-verify parked follow-ups against today's code (they drift); (c) walk the user's daily loop for honest residuals. State explicitly that **"near-polished, N small residuals" is a perfectly good verdict** — this phrasing reliably produces zero manufactured findings.
+3. **Draft up to 5 directions** — the count is what the evidence honestly supports, **never pad** (thin slates of 1–3 keep winning at the gate; a near-polished context may honestly yield one bugfix). Lens spread as a starting point: **feature** (new user value), **ux** (design/flow elevation), **optimization** (perf/cost/significant simplification), **robustness** (failure modes, observability, architecture), **wildcard** (the non-obvious idea a great PM would pitch). Each sized to ONE builder session; a bigger vision ships as its phase-1 slice.
    **Weight the slate by `config.md → ## User taste`** — the lens spread is a starting point, not a quota. Default depth is the *engine*, not the chrome: for any context with backend/algorithmic substance, most directions should be architecture-level (data model, algorithms, lifecycle, prompt/scoring paths, cost structure); UI surfacing appears at most once-twice unless the user steers otherwise. Scout prompts must match this depth (trace the full pipeline, not just the components).
 4. **Challenge before presenting** (the Director argues against itself; a direction that fails any check is replaced, not presented):
    - Does it already exist in code? (scout evidence, not assumption)
@@ -99,12 +101,14 @@ Loop while `pool < 10` and the user hasn't said stop:
    - Does it conflict with an active arc or a "removed, don't re-suggest" memory?
    - Is the value claim concrete — can I name the user moment it improves?
    - Can one Opus session genuinely ship it behind the acceptance criteria?
-5. **Present** the 5 in chat — numbered, each: title · lens · size · one-paragraph why · evidence · acceptance criteria. Then gate with **AskUserQuestion (multiSelect)** — the tool caps options at 4 per question, so use TWO questions in one call: Q1 = directions 1–3, Q2 = directions 4–5 (labels = `N · short title`, description = one-line value claim + size). The user can annotate via "Other" (e.g. `edit 2: …`, `stop`); selecting nothing in both = none accepted.
+   - **Data-path rule** (two premise failures + a three-round projection blind spot earned this): any "surface X gains signal Y from Z" direction requires the scout to have verified the payload actually carries Y at **EVERY read site that should show it** — list projection, detail/drawer, route — not just Y's existence at the write path or one primary reader. A parity claim without a verified data path is not presentable.
+5. **Present** the slate in chat — numbered, each: title · lens · size · one-paragraph why · evidence · acceptance criteria. Then gate with **AskUserQuestion (multiSelect)** — the tool caps options at 4 per question AND requires ≥2 options per question, so: ≤4 directions fit one question; 5 split as Q1 = 1–3, Q2 = 4–5; a single-direction slate needs a second option (a rider or an explicit "skip") to be valid (labels = `N · short title`, description = one-line value claim + size). The user can annotate via "Other" (e.g. `edit 2: …`, `stop`); selecting nothing in both = none accepted.
 6. Record outcomes in the vault (rejected ones too, with the user's implied reason — rejections steer future proposals). Accepted → `directions/<slug>.md` with `status: accepted`, pool counter++, context gets `cooldown_until`. Update `Perfect.md` after every context, not at session end — a killed session must lose nothing.
 7. **A `none` gate that carries a steer** (the user says what they wanted instead) is a re-scout order, not a rejection of the context: promote the steer to `config.md → ## User taste` if it generalizes, re-scout at the steered depth/angle, and re-propose the SAME context once before advancing the cursor. Never re-present any rejected direction.
 
 ### Phase B — Build (one Opus builder per context, Fable decides everything)
 1. **Wave plan**: group the pool's accepted directions by context → one builder per context, ≤ `config.wave_size` (default 3) concurrent, and **≤ 3 directions per builder brief** (a 4-direction brief exceeded one agent-session budget — split a bigger context into two sequential builders). Present the wave plan in one screen; on user go (or when invoked as `/perfect build`), execute.
+   **Coordination rules (these bought five consecutive zero-integration-fix rounds — keep them in every wave):** (a) when two same-wave directions consume the SAME wire/payload format, name the **format owner** in both briefs — the other builder consumes a frozen interface; (b) when two directions touch the same file in the SAME region, **sequence** — fork the dependent builder's worktree only after the dependency merges; different regions of a shared file may run parallel and resolve at merge.
 2. **Worktree per builder** — prepared by the Director, NOT via Agent-tool isolation (those worktrees lack `node_modules`):
    ```bash
    git worktree add .claude/worktrees/perfect-<ctx> -b worktree-perfect-<ctx> main
@@ -124,6 +128,9 @@ Loop while `pool < 10` and the user hasn't said stop:
 7. **Doc-sync in the same turn**: user-visible changes update the mapped doc under `docs/` when one exists for that feature area.
 8. **Cleanup**: per worktree — `cmd //c rmdir` the node_modules **junction FIRST**, then `git worktree remove`, then delete the branch once its commits are on `main`.
 
+### Phase V — Visual pass (every ~3 rounds, before proposing)
+Shipped client UI must eventually be SEEN. Every ~3 rounds, before the next propose, drive the accumulated UI changes in the browser — both themes, at least one non-en locale. **Kill and recreate tabs between route hops** (rapid mid-hydration navigations can wedge a Chrome tab; a wedged tab once produced a false P0). **Plan B when the browser is unavailable:** the SSR smoke pass — `curl` the touched routes (with `-H "Cookie: NEXT_LOCALE=cs"` for locale checks) and grep for the new surface's markers — is a sanctioned substitute for the server-rendered half; the INTERACTIVE half stays owed and is tracked in the `Perfect.md` cursor until a browser session clears it. The dev port is volatile — probe candidate ports for a `<title>` starting "KP" rather than assuming.
+
 ### Phase W — Wrap (every session, even interrupted ones)
 1. Update every touched vault note; write the session note with the **`next:` pointer** (e.g. `next: propose — cursor at pipeline-simulation, pool 7/10` or `next: build wave 2 — <ctx-a> + <ctx-b> remain`).
 2. `Perfect.md` headline refreshed: pool count, queue cursor, shipped-total, last-session link.
@@ -136,6 +143,7 @@ Loop while `pool < 10` and the user hasn't said stop:
 - **One-session-shippable**: ≲15 files, no cross-context schema breaks; else slice it.
 - **Novel to the vault**: not shipped, not pending, not previously rejected (unless the world changed — say so).
 - **Lens-diverse**: default one per lens; substituting a second entry in one lens requires the Director to say why.
+- **Bugfixes stand alone**: a live defect is NEVER bundled into an enhancement direction — a rejection of the enhancement would strand the defect. Present the fix as its own (usually S) direction; standalone re-presentation of a previously-bundled fix has been accepted instantly, twice.
 
 ## Builder brief template
 
@@ -155,7 +163,14 @@ direction in progress, not everything.
 
 FOREGROUND ONLY: run every compile/test as a blocking foreground command and
 wait for it — NEVER spawn a background run and "wait for the notification"
-(you will idle forever and the Director has to nudge you).
+(you will idle forever and the Director has to nudge you). If a command is
+expected to take >10 minutes, poll it in a foreground loop instead.
+
+NEVER run `next dev` in this worktree — Turbopack rejects the node_modules
+junction. Verify at lib/test level and report what needs a live check.
+
+If you restructure or move a file, grep for source-guard tests asserting its
+literals/paths and update them IN the same commit.
 
 SEARCH BEFORE BUILDING: before implementing any new mechanism, grep for an
 existing implementation of the same concept and LAYER ON it rather than
@@ -177,9 +192,9 @@ Repo law (non-negotiable):
 - Respect context-map.json scoping; read it before editing.
 - Verify before claiming done: `npm run typecheck`, `npm run test:unit` (targeted
   where possible), `npm run lint`, `npm run i18n:check` if strings touched,
-  `npm run test:python` if pipeline/ touched, and drive the actual flow when a
-  dev server is available (kp runs on :3001, NOT :3000 — that's Vibeman);
-  report what you COULD NOT verify honestly.
+  `npm run test:python` if pipeline/ touched; report what you COULD NOT
+  verify honestly. (The kp dev port is volatile — :3000 is Vibeman, kp lands
+  elsewhere; only the Director drives live flows, from the main checkout.)
 
 If a product decision is ambiguous, STOP that direction and return `DECISION NEEDED: <question>`
 with your recommendation — never guess. Final report format:
@@ -190,7 +205,7 @@ per direction → status (done|blocked|decision-needed), commits, files, verific
 
 - **`/perfect`** — resume the loop wherever the vault says it stopped (the default; covers init on first run).
 - **`/perfect propose [context]`** — force a proposal pass (optionally jump the cursor to a named context).
-- **`/perfect build`** — build now with the current pool even if < 10.
+- **`/perfect build`** — build now with whatever the pool holds (the per-round norm; the pool rarely holds more than one round's slate).
 - **`/perfect status`** — read-only: queue, cursor, pool, in-flight builds, shipped ledger, last session. No agents.
 - **`/perfect reflect`** — read `config.md → Skill improvement log` + last sessions and propose concrete edits to THIS skill file.
 
