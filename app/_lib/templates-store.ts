@@ -105,7 +105,9 @@ export function getTemplate(id: string, workspaceId: string = DEFAULT_WORKSPACE_
 
 /** Create a template. Default scope is TEAM-private (the recruiter's own draft); scope
  *  'org' publishes it to the shared company library (workspace_id NULL) — an
- *  org-affecting act the route should gate on a manage capability. */
+ *  org-affecting act. The route (POST /api/templates) is operator-gated today; a
+ *  finer-grained "manage templates" capability is still future work once per-role
+ *  RBAC lands. */
 export function createTemplate(
   input: { name: string; body: string; scope?: TemplateScope },
   workspaceId: string = DEFAULT_WORKSPACE_ID

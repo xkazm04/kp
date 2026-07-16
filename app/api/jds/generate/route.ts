@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { insertAnalyzingJd, setJdAnalysisTask } from "@/app/_lib/db";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { startTask } from "@/app/_lib/tasks";
 import { getTemplate } from "@/app/_lib/templates-store";
 import { validateJdBuildInput } from "@/app/_lib/jd-limits";
@@ -24,6 +25,12 @@ function readOptions(raw: unknown): { description: boolean; marketResearch: bool
 }
 
 export async function POST(request: Request) {
+  // A Generate spawns a 1–2 minute PAID AI build the moment it's accepted, so the
+  // gate must run before any body read or DB write — a demo/non-operator session
+  // the proxy waved through can't burn tokens here. Open mode (no
+  // KP_OPERATOR_PASSWORD) is a no-op, so dev/sim are unaffected.
+  const denied = await requireOperator();
+  if (denied) return denied;
   let body: unknown;
   try {
     body = await request.json();

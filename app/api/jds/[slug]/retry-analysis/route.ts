@@ -4,6 +4,7 @@ import { startTask } from "@/app/_lib/tasks";
 import { getTemplate } from "@/app/_lib/templates-store";
 import { safeJsonError } from "@/app/_lib/api-response";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { requireOperator } from "@/app/_lib/auth/require-operator";
 
 // Reconstruct the jd_build params from the JD row's persisted intent — the
 // row-fallback replay path when the original task record has been pruned. Mirrors
@@ -41,6 +42,11 @@ function paramsFromIntent(title: string, raw: string | null | undefined): Record
 // a fallback. Only a legacy row with NEITHER a live task nor stored intent still
 // dead-ends at the 400.
 export async function POST(_request: Request, context: { params: Promise<{ slug: string }> }) {
+  // A retry REPLAYS the paid 1–2 minute AI build, so it carries the same
+  // token-spend exposure as generate — gate before params or any DB read. Open
+  // mode is a no-op.
+  const denied = await requireOperator();
+  if (denied) return denied;
   const { slug } = await context.params;
   try {
     const jd = loadJd(slug, await currentWorkspace());

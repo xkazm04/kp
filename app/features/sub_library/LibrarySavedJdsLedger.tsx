@@ -762,6 +762,9 @@ function LedgerDetailModal({
     setRetryError(null);
     try {
       const r = await fetch(`/api/jds/${encodeURIComponent(row.slug)}/retry-analysis`, { method: "POST" });
+      // A retry replays the paid AI build, so the route is operator-gated — surface
+      // the refusal honestly rather than a generic "couldn't retry".
+      if (r.status === 401 || r.status === 403) throw new Error(t("notPermitted"));
       if (!r.ok) {
         const p = await r.json().catch(() => ({}));
         throw new Error(p.error ?? t("retryFailed"));

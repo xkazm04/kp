@@ -140,6 +140,9 @@ export function JdBuilder({ onSaved, prefill }: { onSaved: () => void; prefill?:
           options,
         }),
       });
+      // The generate route is operator-gated (a paid AI run) — surface the refusal
+      // honestly rather than a generic "generation failed".
+      if (r.status === 401 || r.status === 403) throw new Error(t("notPermitted"));
       if (!r.ok) {
         const p = await r.json().catch(() => ({}));
         throw new Error(p.error ?? t("generateFailedStatus", { status: r.status }));
@@ -187,6 +190,8 @@ export function JdBuilder({ onSaved, prefill }: { onSaved: () => void; prefill?:
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title: fields.title, body: fields.body }),
       });
+      // POST /api/jds is operator-gated too — same honest refusal line.
+      if (r.status === 401 || r.status === 403) throw new Error(t("notPermitted"));
       if (!r.ok) {
         const p = await r.json().catch(() => ({}));
         throw new Error(p.error ?? t("saveDraftFailedStatus", { status: r.status }));

@@ -62,6 +62,9 @@ export function JdTemplateManager({ onClose, onChanged }: { onClose: () => void;
           editing.id ? { name: fields.name, body: fields.body } : { name: fields.name, body: fields.body, scope: editing.scope }
         ),
       });
+      // Template writes are operator-gated (create can publish org-shared) — surface
+      // the refusal honestly rather than a generic "save failed".
+      if (r.status === 401 || r.status === 403) throw new Error(t("notPermitted"));
       const p = await r.json();
       if (!r.ok) throw new Error(p.error ?? t("saveFailed"));
       setEditing(null);
@@ -78,6 +81,10 @@ export function JdTemplateManager({ onClose, onChanged }: { onClose: () => void;
     setError(null);
     setConfirmingId(null);
     const r = await fetch(`/api/templates/${id}`, { method: "DELETE" });
+    if (r.status === 401 || r.status === 403) {
+      setError(t("notPermitted"));
+      return;
+    }
     if (!r.ok) {
       const p = await r.json();
       setError(p.error ?? t("deleteFailed"));
@@ -94,6 +101,10 @@ export function JdTemplateManager({ onClose, onChanged }: { onClose: () => void;
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ isDefault: true }),
     });
+    if (r.status === 401 || r.status === 403) {
+      setError(t("notPermitted"));
+      return;
+    }
     if (!r.ok) {
       const p = await r.json();
       setError(p.error ?? t("setDefaultFailed"));

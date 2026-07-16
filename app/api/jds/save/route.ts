@@ -3,6 +3,7 @@ import { loadJd, saveJd } from "@/app/_lib/db";
 import { jdJobId, validateJdFields } from "@/app/_lib/jd-limits";
 import { safeJsonError } from "@/app/_lib/api-response";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { ingestStructuredJob } from "./ingest-job";
 
 export const maxDuration = 60;
@@ -20,6 +21,11 @@ export const maxDuration = 60;
 // The builder reads this flag and offers a retry (re-POST with `slug`) rather
 // than letting the user click into that dead end. See docs/JD_LIFECYCLE.md.
 export async function POST(request: NextRequest) {
+  // Saving a generated JD as a draft (and ingesting its Job) is a recruiter write,
+  // so it shares the same operator gate as POST /api/jds. The guided sim drives this
+  // route under the operator's own session (or open mode), so it's unaffected.
+  const denied = await requireOperator();
+  if (denied) return denied;
   try {
     const body = (await request.json()) as {
       title?: string;

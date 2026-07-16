@@ -4,6 +4,7 @@ import { ingestJobAd } from "@/app/_lib/job-ingest";
 import { jdJobId } from "@/app/_lib/jd-limits";
 import { safeJsonError } from "@/app/_lib/api-response";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { requireOperator } from "@/app/_lib/auth/require-operator";
 
 // One LLM parse of the JD body — same budget class as the jobs-tab ingest.
 export const maxDuration = 60;
@@ -16,6 +17,10 @@ export const maxDuration = 60;
 // jobId "jd-<slug>" makes JD and Job share identity, so the W8-2 apply CTA
 // and the analyses sidebar line up in both directions.
 export async function POST(_request: Request, context: { params: Promise<{ slug: string }> }) {
+  // Making a JD matchable runs one LLM parse — a paid write, recruiter-only. Gate
+  // before resolving params or touching the DB. Open mode is a no-op.
+  const denied = await requireOperator();
+  if (denied) return denied;
   const { slug } = await context.params;
   try {
     const jd = loadJd(slug, await currentWorkspace());

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { deleteTemplate, getTemplate, setDefaultTemplate, updateTemplate } from "@/app/_lib/templates-store";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { safeJsonError } from "@/app/_lib/api-response";
 import { findUnknownPlaceholders, unknownPlaceholderMessage, validateTemplateUpdate } from "@/app/features/sub_library/render-template";
 
@@ -17,6 +18,11 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ id
 }
 
 export async function PUT(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+  // Editing a template or promoting it to the org default mutates shared library
+  // state — recruiter-only. Gate before params/body (GET above stays open). Open
+  // mode is a no-op.
+  const denied = await requireOperator();
+  if (denied) return denied;
   const { id } = await context.params;
   try {
     const ws = await currentWorkspace();
@@ -50,6 +56,10 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
 }
 
 export async function DELETE(_request: NextRequest, context: { params: Promise<{ id: string }> }) {
+  // Deleting a template — including an org-shared one every team can see — is
+  // recruiter-only. Gate before params/DB. Open mode is a no-op.
+  const denied = await requireOperator();
+  if (denied) return denied;
   const { id } = await context.params;
   try {
     const result = deleteTemplate(id, await currentWorkspace());
