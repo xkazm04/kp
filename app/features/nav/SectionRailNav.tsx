@@ -11,22 +11,40 @@
  * and a real tab switch snaps the panel back to the active group. Re-skinned into
  * KandiDate's token system (Studio Light + Spark Dark) — no hardcoded colors, coral
  * as the active accent, the ink/steel/paper neutrals, the sticker idiom in dark.
+ *
+ * ONE renderer, two modes. `mode="select"` (the interactive SPA shell) drives tabs
+ * through the onSelect/onSliceNav callbacks; `mode="link"` (server-rendered deep-link
+ * pages — /jds/[slug], /history/[slug]) renders the SAME structure but with items as
+ * real anchors to /?tab=<id>, so following a deep link no longer swaps the nav
+ * STRUCTURE mid-flow. i18n and the badge-slice hrefs resolve INTERNALLY (via
+ * useTranslations + the tabs.ts href helpers) so the link-mode wrapper can be a plain
+ * server component — a Server Component can't hand a client component callbacks, only
+ * serializable props + the chrome slots below.
  */
 
 import { useState, type ReactNode } from "react";
+import Link from "next/link";
+import { useTranslations } from "next-intl";
 import type { AttentionCounts } from "@/app/features/useAttention";
-import { navItemClass, type NavGroup, type WorkspaceTabDef, type WorkspaceTabId } from "@/app/features/tabs";
+import {
+  buildUrl,
+  clearedTabScopedParams,
+  navItemClass,
+  navLabel,
+  tabHref,
+  type NavGroup,
+  type WorkspaceTabDef,
+  type WorkspaceTabId,
+} from "@/app/features/tabs";
 import { HIRING_FALLBACK_LABEL, PINNED_SECTION, SECTION_ICON, sectionOf, TAB_ICON } from "./nav-meta";
 
 export function SectionRailNav({
   groups,
   navActive,
-  onSelect,
   attention,
-  navText,
-  attentionLabel,
-  attentionGoLabel,
-  sliceHrefFor,
+  search,
+  mode = "select",
+  onSelect,
   onSliceNav,
   railTop,
   panelHeader,
@@ -34,19 +52,36 @@ export function SectionRailNav({
 }: {
   groups: NavGroup[];
   navActive: WorkspaceTabId;
-  onSelect: (id: WorkspaceTabId) => void;
   attention: AttentionCounts | null;
-  /** translate a nav key (groups.<section> / tabs.<id>) with an English fallback */
-  navText: (key: string, fallback: string) => string;
-  attentionLabel: (count: number) => string;
-  attentionGoLabel: (count: number) => string;
-  /** the pre-filtered-slice href for a badged item, or null (no second target) */
-  sliceHrefFor: (item: WorkspaceTabDef) => string | null;
-  onSliceNav: (href: string) => void;
+  /** the React-tracked query string (buildUrl composes the badge-slice href off it);
+   *  the deep-link pages pass "" — a detail page carries no live tab query. */
+  search: string;
+  /** "select" drives tabs through the callbacks (interactive SPA); "link" renders
+   *  the items as real anchors to /?tab=<id> for server-rendered deep-link pages. */
+  mode?: "select" | "link";
+  /** select mode only — switch to a tab (ignored in link mode). */
+  onSelect?: (id: WorkspaceTabId) => void;
+  /** select mode only — open the badge's pre-filtered slice (ignored in link mode). */
+  onSliceNav?: (href: string) => void;
   railTop?: ReactNode;
   panelHeader?: ReactNode;
   panelFooter?: ReactNode;
 }) {
+  const isLink = mode === "link";
+  // i18n resolves here (not via a passed navText) so the link-mode wrapper stays a
+  // plain Server Component — it can hand this client renderer serializable props and
+  // the chrome slots, but never a function. Same nav catalog + has-fallback contract
+  // as the SPA (navLabel in tabs.ts), so labels/badges can't drift between the two.
+  const t = useTranslations("nav");
+  const navText = (key: string, fallback: string): string => navLabel(t, key, fallback);
+  const attentionLabel = (count: number): string => t("attentionBadge", { count });
+  const attentionGoLabel = (count: number): string => t("attentionBadgeGo", { count });
+  // The pre-filtered-slice href for a badged item (composed off `search`), or null when
+  // the item declared no distinct slice — a second click target landing on the exact
+  // counted cohort instead of the bare tab.
+  const sliceHrefFor = (item: WorkspaceTabDef): string | null =>
+    item.badgeParams ? buildUrl({ tab: item.id, ...clearedTabScopedParams(), ...item.badgeParams }, search) : null;
+
   // The group that owns the active tab — the panel's default.
   const activeGroup = groups.find((g) => g.items.some((it) => it.id === navActive)) ?? groups[0];
   const activeSection = activeGroup ? sectionOf(activeGroup) : "";
@@ -120,45 +155,68 @@ export function SectionRailNav({
             const badge = item.badgeKey && attention ? attention[item.badgeKey] : 0;
             // Items with badgeParams get a second click target: the badge opens the
             // tab pre-filtered to the counted slice. Rendered as a SIBLING of the row
-            // button (a button may not nest interactive content), overlaid on the
+            // (a button/anchor may not nest interactive content), overlaid on the
             // space the row reserves via padding.
             const sliceHref = badge > 0 ? sliceHrefFor(item) : null;
-            return (
-              <div key={item.id} className={sliceHref ? "relative" : "contents"}>
-                <button
-                  type="button"
-                  aria-current={isActive ? "page" : undefined}
-                  onClick={() => onSelect(item.id)}
-                  className={`group focus-ring relative flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-base font-medium transition-colors ${navItemClass(isActive)} ${sliceHref ? "pr-9" : ""}`}
-                >
-                  {isActive ? (
-                    <span className="absolute inset-y-1.5 left-0 w-0.5 rounded-full bg-coral" aria-hidden />
-                  ) : null}
-                  {Icon ? (
-                    <Icon size={17} aria-hidden className={`shrink-0 ${isActive ? "text-coral" : "text-steel group-hover:text-ink"}`} />
-                  ) : (
-                    <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${isActive ? "bg-coral" : "bg-stone-300"}`} aria-hidden />
-                  )}
-                  <span className="min-w-0 flex-1 truncate text-left">{navText(`tabs.${item.id}`, item.label)}</span>
-                  {badge > 0 && !sliceHref ? (
-                    <span
-                      aria-label={attentionLabel(badge)}
-                      className="shrink-0 rounded-full bg-coral/10 px-1.5 py-0.5 text-sm font-semibold leading-none text-coral"
-                    >
-                      {badge}
-                    </span>
-                  ) : null}
-                </button>
-                {sliceHref ? (
-                  <button
-                    type="button"
-                    title={attentionGoLabel(badge)}
-                    aria-label={attentionGoLabel(badge)}
-                    onClick={() => onSliceNav(sliceHref)}
-                    className="focus-ring absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-coral/10 px-1.5 py-0.5 text-sm font-semibold leading-none text-coral hover:bg-coral/20"
+            const rowClass = `group focus-ring relative flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-base font-medium transition-colors ${navItemClass(isActive)} ${sliceHref ? "pr-9" : ""}`;
+            const rowInner = (
+              <>
+                {isActive ? (
+                  <span className="absolute inset-y-1.5 left-0 w-0.5 rounded-full bg-coral" aria-hidden />
+                ) : null}
+                {Icon ? (
+                  <Icon size={17} aria-hidden className={`shrink-0 ${isActive ? "text-coral" : "text-steel group-hover:text-ink"}`} />
+                ) : (
+                  <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${isActive ? "bg-coral" : "bg-stone-300"}`} aria-hidden />
+                )}
+                <span className="min-w-0 flex-1 truncate text-left">{navText(`tabs.${item.id}`, item.label)}</span>
+                {badge > 0 && !sliceHref ? (
+                  <span
+                    aria-label={attentionLabel(badge)}
+                    className="shrink-0 rounded-full bg-coral/10 px-1.5 py-0.5 text-sm font-semibold leading-none text-coral"
                   >
                     {badge}
+                  </span>
+                ) : null}
+              </>
+            );
+            return (
+              <div key={item.id} className={sliceHref ? "relative" : "contents"}>
+                {isLink ? (
+                  <Link href={tabHref(item.id)} aria-current={isActive ? "page" : undefined} className={rowClass}>
+                    {rowInner}
+                  </Link>
+                ) : (
+                  <button
+                    type="button"
+                    aria-current={isActive ? "page" : undefined}
+                    onClick={() => onSelect?.(item.id)}
+                    className={rowClass}
+                  >
+                    {rowInner}
                   </button>
+                )}
+                {sliceHref ? (
+                  isLink ? (
+                    <Link
+                      href={sliceHref}
+                      title={attentionGoLabel(badge)}
+                      aria-label={attentionGoLabel(badge)}
+                      className="focus-ring absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-coral/10 px-1.5 py-0.5 text-sm font-semibold leading-none text-coral hover:bg-coral/20"
+                    >
+                      {badge}
+                    </Link>
+                  ) : (
+                    <button
+                      type="button"
+                      title={attentionGoLabel(badge)}
+                      aria-label={attentionGoLabel(badge)}
+                      onClick={() => onSliceNav?.(sliceHref)}
+                      className="focus-ring absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-coral/10 px-1.5 py-0.5 text-sm font-semibold leading-none text-coral hover:bg-coral/20"
+                    >
+                      {badge}
+                    </button>
+                  )
                 ) : null}
               </div>
             );

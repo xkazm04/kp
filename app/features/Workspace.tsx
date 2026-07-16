@@ -27,8 +27,6 @@ import { SimulationProvider, useSimulation } from "./simulation/SimulationProvid
 import {
   ABOUT_TAB_IN_NAV,
   buildTabSwitchUrl,
-  buildUrl,
-  clearedTabScopedParams,
   DEFAULT_TAB,
   isWorkspaceTabId,
   navLabel,
@@ -282,14 +280,12 @@ export function Workspace() {
         <SectionRailNav
           groups={NAV_GROUPS}
           navActive={navActive}
-          onSelect={selectTab}
           attention={attention}
-          navText={navText}
-          attentionLabel={(count) => t("attentionBadge", { count })}
-          attentionGoLabel={(count) => t("attentionBadgeGo", { count })}
-          sliceHrefFor={(item) =>
-            item.badgeParams ? buildUrl({ tab: item.id, ...clearedTabScopedParams(), ...item.badgeParams }, search) : null
-          }
+          // The React-tracked query string — SectionRailNav composes the badge-slice
+          // hrefs off it (i18n + href helpers now resolve inside the shared renderer,
+          // so the link-mode deep-link wrapper can be a plain Server Component).
+          search={search}
+          onSelect={selectTab}
           onSliceNav={(href) => router.replace(href, { scroll: false })}
           railTop={
             <div className="mb-1 hidden justify-center py-1 md:flex">
