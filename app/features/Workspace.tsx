@@ -23,13 +23,7 @@ import { navKey, shouldCloseDrawerOnNav } from "./nav/drawer-nav-close";
 import { useAttention } from "./useAttention";
 import { TasksIndicator } from "./tasks/TasksIndicator";
 import { TasksProvider } from "./tasks/TasksProvider";
-import { SimulationProvider } from "./simulation/SimulationProvider";
-import { SimBar } from "./simulation/SimBar";
-import { SimSpotlight } from "./simulation/SimSpotlight";
-import { SimExplainDrawer } from "./simulation/SimExplainDrawer";
-import { SimOfferFrame } from "./simulation/SimOfferFrame";
-import { SimGroupEval } from "./simulation/SimGroupEval";
-import { SimDecisionWave } from "./simulation/SimDecisionWave";
+import { SimulationProvider, useSimulation } from "./simulation/SimulationProvider";
 import {
   ABOUT_TAB_IN_NAV,
   buildTabSwitchUrl,
@@ -80,6 +74,47 @@ const ModelsTab = dynamic(() => import("./sub_models/ModelsTab").then((m) => ({ 
 const WorkspaceTab = dynamic(() => import("./sub_workspace/WorkspaceTab").then((m) => ({ default: m.WorkspaceTab })), { loading });
 const OrganizationTab = dynamic(() => import("./sub_organization/OrganizationTab").then((m) => ({ default: m.OrganizationTab })), { loading });
 const BrandingTab = dynamic(() => import("./sub_branding/BrandingTab").then((m) => ({ default: m.BrandingTab })), { loading });
+
+// The simulation surfaces are code-split too: the five overlays (below) mount only
+// while a demo is engaged, so their chunks — and the heavy modals/diagrams they
+// pull in (GroupEvalModal, PlantUml diagrams, the screening-wave Modal) — never
+// load in an idle workspace. SimBar always mounts (it's the persistent control
+// center), so its chunk still loads on every workspace, but as a separate async
+// chunk that no longer weighs down the initial shell bundle. No `ssr:false`: these
+// are client components that render null when idle, so they SSR to nothing and
+// hydrate without a mismatch.
+const SimSpotlight = dynamic(() => import("./simulation/SimSpotlight").then((m) => ({ default: m.SimSpotlight })));
+const SimExplainDrawer = dynamic(() => import("./simulation/SimExplainDrawer").then((m) => ({ default: m.SimExplainDrawer })));
+const SimOfferFrame = dynamic(() => import("./simulation/SimOfferFrame").then((m) => ({ default: m.SimOfferFrame })));
+const SimGroupEval = dynamic(() => import("./simulation/SimGroupEval").then((m) => ({ default: m.SimGroupEval })));
+const SimDecisionWave = dynamic(() => import("./simulation/SimDecisionWave").then((m) => ({ default: m.SimDecisionWave })));
+const SimBar = dynamic(() => import("./simulation/SimBar").then((m) => ({ default: m.SimBar })));
+
+// Gate for the code-split simulation surfaces. The five overlays each render null
+// unless their slice of sim state is set; mounting them only while the sim is
+// engaged keeps their chunks out of an idle workspace. `running` covers the
+// spotlight's lead time — it flips true synchronously in start() (before run()
+// patches the first spotlight), so the dynamic import resolves well before the
+// first coachmark needs to paint. SimBar/ControlDock is the always-present control
+// center + a start affordance (guided-tour tile, command bar) — never gated.
+function SimSurfaces() {
+  const { running, explainOpen, spotlight, frame, groupEval, screenWave } = useSimulation();
+  const active = running || explainOpen || Boolean(spotlight || frame || groupEval || screenWave);
+  return (
+    <>
+      {active ? (
+        <>
+          <SimSpotlight />
+          <SimExplainDrawer />
+          <SimOfferFrame />
+          <SimGroupEval />
+          <SimDecisionWave />
+        </>
+      ) : null}
+      <SimBar />
+    </>
+  );
+}
 
 // Mounted ONLY while the mobile drawer is open (never on desktop, where the rail is
 // permanent). Reuses the shared dialog machinery on the <aside>: move focus inside on
@@ -339,12 +374,7 @@ export function Workspace() {
           </ErrorBoundary>
         </div>
       </main>
-      <SimSpotlight />
-      <SimExplainDrawer />
-      <SimOfferFrame />
-      <SimGroupEval />
-      <SimDecisionWave />
-      <SimBar />
+      <SimSurfaces />
     </div>
     </SimulationProvider>
     </TasksProvider>
