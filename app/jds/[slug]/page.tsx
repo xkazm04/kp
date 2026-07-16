@@ -9,6 +9,7 @@ import { getJob, loadJd, type JdRow } from "@/app/_lib/db";
 import { getJobStatus, isJobOpenForApplications } from "@/app/_lib/job-ingest";
 import { jdJobId } from "@/app/_lib/jd-limits";
 import { isOperator } from "@/app/_lib/auth/require-operator";
+import { jdMarketResearchAvailable } from "@/app/features/sub_library/jd-library";
 import { JdActions } from "./JdActions";
 import { JdBody } from "./JdBody";
 
@@ -105,6 +106,21 @@ export default async function JdDetailPage({
   // PATCH/revisions routes enforce the same gate server-side.
   const canManage = await isOperator();
 
+  // The lint's salary-suppression seam (JdActions' editor now runs the same live
+  // lint as the ledger). This page loads the JD's stored build artifacts
+  // (analysis_json), so the input is HONEST — a grounded market band or a ticked
+  // market-research build suppresses the missing-salary advisory exactly as the
+  // ledger does; a plain draft (no artifacts) lints without suppression.
+  let marketResearch = false;
+  try {
+    const artifacts = jd.analysis_json ? (JSON.parse(jd.analysis_json) as unknown) : null;
+    marketResearch = jdMarketResearchAvailable(
+      artifacts as { options?: { marketResearch?: boolean }; salary?: unknown } | null
+    );
+  } catch {
+    marketResearch = false;
+  }
+
   return (
     <WorkspaceShell active="library">
       {/* SHELL3: visiting the detail page IS opening the entity — record it. */}
@@ -155,7 +171,7 @@ export default async function JdDetailPage({
       ) : null}
 
       {canManage ? (
-        <JdActions slug={slug} title={jd.title} body={jd.body} archived={Boolean(jd.archived_at)} />
+        <JdActions slug={slug} title={jd.title} body={jd.body} archived={Boolean(jd.archived_at)} marketResearch={marketResearch} />
       ) : null}
 
       <div className="mt-6">

@@ -56,6 +56,7 @@ import {
   facetCounts,
   filterAndSortJds,
   isUnlinked,
+  jdMarketResearchAvailable,
   jdStatusChip,
   seniorityMeta,
   shortDate,
@@ -808,7 +809,7 @@ function LedgerDetailModal({
   // Edit is offered only for a settled JD (never mid-build / failed) once the body
   // has loaded. A grounded market band feeds the lint's salary-suppression seam.
   const canEdit = Boolean(jd) && !analyzing && !failed && status === "ready";
-  const marketResearch = Boolean(artifacts?.options?.marketResearch) || normalizeMarketSalary(artifacts?.salary).available;
+  const marketResearch = jdMarketResearchAvailable(artifacts);
 
   // winnability-apply — the coach handoff auto-enters edit mode by DERIVATION (no
   // effect-set state): the staged session is live while a suggestion is present, the

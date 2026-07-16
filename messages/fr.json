@@ -4602,6 +4602,9 @@
     "saving": "Enregistrement…",
     "cancel": "Annuler",
     "saveFailed": "Échec de l'enregistrement.",
-    "linkedNote": "Les modifications mettent aussi à jour le poste lié (son statut actif/brouillon est préservé)."
+    "linkedNote": "Les modifications mettent aussi à jour le poste lié (son statut actif/brouillon est préservé).",
+    "editGateReason": "La modification est réservée aux opérateurs.",
+    "editConflict": "Cette description a changé depuis que vous l'avez ouverte. Rechargez la dernière version, puis réappliquez votre modification.",
+    "editReload": "Recharger la dernière version"
   }
 }

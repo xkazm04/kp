@@ -4602,6 +4602,9 @@
     "saving": "Speichern…",
     "cancel": "Abbrechen",
     "saveFailed": "Speichern fehlgeschlagen.",
-    "linkedNote": "Änderungen aktualisieren auch die verknüpfte Stelle (ihr Status aktiv/Entwurf bleibt erhalten)."
+    "linkedNote": "Änderungen aktualisieren auch die verknüpfte Stelle (ihr Status aktiv/Entwurf bleibt erhalten).",
+    "editGateReason": "Bearbeiten ist nur für Operatoren möglich.",
+    "editConflict": "Diese Beschreibung hat sich geändert, seit Sie sie geöffnet haben. Laden Sie die neueste Version und wenden Sie Ihre Änderung erneut an.",
+    "editReload": "Neueste laden"
   }
 }

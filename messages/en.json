@@ -4534,6 +4534,9 @@
     "saving": "Saving…",
     "cancel": "Cancel",
     "saveFailed": "Save failed.",
-    "linkedNote": "Edits update the linked role too (its live/draft status is preserved)."
+    "linkedNote": "Edits update the linked role too (its live/draft status is preserved).",
+    "editGateReason": "Editing is available to operators only.",
+    "editConflict": "This description changed since you opened it. Reload to get the latest, then re-apply your edit.",
+    "editReload": "Reload latest"
   }
 }

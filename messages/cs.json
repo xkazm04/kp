@@ -4534,6 +4534,9 @@
     "saving": "Ukládání…",
     "cancel": "Zrušit",
     "saveFailed": "Uložení se nezdařilo.",
-    "linkedNote": "Úpravy aktualizují i propojenou pozici (její stav aktivní/koncept zůstává zachován)."
+    "linkedNote": "Úpravy aktualizují i propojenou pozici (její stav aktivní/koncept zůstává zachován).",
+    "editGateReason": "Úpravy jsou dostupné pouze operátorům.",
+    "editConflict": "Tento popis se od okamžiku, kdy jste ho otevřeli, změnil. Načtěte nejnovější verzi a poté svou úpravu proveďte znovu.",
+    "editReload": "Načíst nejnovější"
   }
 }

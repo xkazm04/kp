@@ -1,22 +1,23 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
-import { Check, History, Lightbulb, RotateCcw, X } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Check, History, Lightbulb, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { TextInput } from "@/app/_components/TextInput";
 import { TextArea } from "@/app/_components/TextArea";
 import type { CoachEdit } from "@/app/features/sub_jobs/coach-apply";
 import { builderLintFindings } from "./jd-library";
 import { JdLintPanel } from "./JdLintPanel";
-
-type JdRevision = { id: number; title: string; body: string; created_at: string };
+import { JdRevisionList } from "./JdRevisionList";
+import { useJdEditor } from "./useJdEditor";
 
 // Direction 1 — "edit where you work": in-place JD editing INSIDE the Ledger's
 // detail modal, so a recruiter never has to leave for the public /jds/[slug]
 // page to fix wording. It drives the SAME machinery the public JdActions uses —
-// PATCH /api/jds/[slug] (content-CAS via baseBody) and the /revisions history +
-// revert endpoint — and reuses the wired lint seam (builderLintFindings +
-// JdLintPanel).
+// now the literal same one: both share `useJdEditor` (PATCH /api/jds/[slug] with
+// content-CAS via baseBody + the /revisions history/revert route + the honest
+// 401 operator gate). This surface adds the coach staged-suggestion banner and
+// the live lint panel (builderLintFindings + JdLintPanel) on top.
 //
 // Operator gate (branch reality): the PATCH/revert routes are requireOperator-
 // gated server-side. In this app "operator" means: open mode (KP_OPERATOR_PASSWORD
@@ -26,8 +27,9 @@ type JdRevision = { id: number; title: string; body: string; created_at: string 
 // is an anonymous demo session viewing the workspace — that PATCH 401s. There is
 // no client-side operator signal (the whole workspace is client-rendered and the
 // list API is read-only for this context), so rather than invent a new probe
-// endpoint we surface the gate HONESTLY on the 401: the controls latch into a
-// disabled state carrying the reason, never a silently-failing button.
+// endpoint we surface the gate HONESTLY on the 401 (useJdEditor's gate latch): the
+// controls latch into a disabled state carrying the reason, never a
+// silently-failing button.
 export function JdModalEditor({
   slug,
   initialTitle,
@@ -56,108 +58,28 @@ export function JdModalEditor({
   const [draftTitle, setDraftTitle] = useState(initialTitle);
   const [draftBody, setDraftBody] = useState(initialBody);
   const [suggestionDismissed, setSuggestionDismissed] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [conflict, setConflict] = useState(false);
-  // Latched by a 401 — the honest operator gate (see the component note).
-  const [gateBlocked, setGateBlocked] = useState(false);
 
-  const [historyOpen, setHistoryOpen] = useState(false);
-  const [revisions, setRevisions] = useState<JdRevision[] | null>(null);
-  const [revLoading, setRevLoading] = useState(false);
-  const [reverting, setReverting] = useState<number | null>(null);
-  const [expanded, setExpanded] = useState<number | null>(null);
+  // The ONE shared edit client — fetch / baseBody CAS / 401 gate latch / 409
+  // conflict / revisions / revert. A successful save or revert reloads the detail
+  // and leaves edit mode (onDone).
+  const editor = useJdEditor({
+    slug,
+    baseBody: initialBody,
+    copy: {
+      gateReason: t("editGateReason"),
+      conflict: t("editConflict"),
+      saveError: t("editSaveError"),
+      revertError: t("editRevertError"),
+    },
+    onSaved: onDone,
+    onReverted: onDone,
+  });
 
   // Live advisory lint over the edited body — the SAME engine + threshold the
   // builder uses (hidden below the min-body length, so a short draft isn't nagged).
   const lintFindings = useMemo(() => builderLintFindings(draftBody, { marketResearch }), [draftBody, marketResearch]);
 
-  const loadRevisions = useCallback(async () => {
-    setRevLoading(true);
-    try {
-      const p = (await fetch(`/api/jds/${encodeURIComponent(slug)}/revisions`).then((r) => r.json())) as {
-        revisions?: JdRevision[];
-      };
-      setRevisions(p.revisions ?? []);
-    } catch {
-      setRevisions([]);
-    } finally {
-      setRevLoading(false);
-    }
-  }, [slug]);
-
-  const toggleHistory = () => {
-    const next = !historyOpen;
-    setHistoryOpen(next);
-    if (next && revisions === null && !revLoading) void loadRevisions();
-  };
-
-  const save = async () => {
-    setBusy(true);
-    setError(null);
-    setConflict(false);
-    try {
-      const r = await fetch(`/api/jds/${encodeURIComponent(slug)}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        // Content-CAS: send the body we loaded so a concurrent edit 409s rather
-        // than being silently clobbered.
-        body: JSON.stringify({ title: draftTitle, body: draftBody, baseBody: initialBody }),
-      });
-      if (r.status === 401) {
-        setGateBlocked(true);
-        setError(t("editGateReason"));
-        return;
-      }
-      const p = (await r.json().catch(() => null)) as { error?: string; code?: string } | null;
-      if (r.status === 409 || p?.code === "conflict") {
-        setConflict(true);
-        setError(t("editConflict"));
-        return;
-      }
-      if (!r.ok) throw new Error(p?.error ?? t("editSaveError"));
-      onDone();
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : t("editSaveError"));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const revert = async (id: number) => {
-    setReverting(id);
-    setError(null);
-    setConflict(false);
-    try {
-      const r = await fetch(`/api/jds/${encodeURIComponent(slug)}/revisions`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        // Send the body we loaded so a revert can't bury an edit made meanwhile.
-        body: JSON.stringify({ revisionId: id, baseBody: initialBody }),
-      });
-      if (r.status === 401) {
-        setGateBlocked(true);
-        setError(t("editGateReason"));
-        return;
-      }
-      const p = (await r.json().catch(() => null)) as { error?: string; code?: string } | null;
-      if (r.status === 409 || p?.code === "conflict") {
-        setConflict(true);
-        setError(t("editConflict"));
-        return;
-      }
-      if (!r.ok) throw new Error(p?.error ?? t("editRevertError"));
-      // A successful revert replaces the live JD — reload the detail so the modal
-      // shows the restored wording (and the editor re-seeds from it).
-      onDone();
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : t("editRevertError"));
-    } finally {
-      setReverting(null);
-    }
-  };
-
-  const disabled = busy || gateBlocked;
+  const disabled = editor.busy || editor.gateBlocked;
 
   const bannerKey =
     stagedSuggestion?.kind === "language"
@@ -198,7 +120,7 @@ export function JdModalEditor({
           <TextInput
             value={draftTitle}
             onChange={(e) => setDraftTitle(e.target.value)}
-            disabled={gateBlocked}
+            disabled={editor.gateBlocked}
             className="mt-1"
           />
         </label>
@@ -207,7 +129,7 @@ export function JdModalEditor({
           <TextArea
             value={draftBody}
             onChange={(e) => setDraftBody(e.target.value)}
-            disabled={gateBlocked}
+            disabled={editor.gateBlocked}
             rows={16}
             sizeVariant="sm"
             className="mt-1 font-mono"
@@ -220,12 +142,12 @@ export function JdModalEditor({
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
-            onClick={save}
+            onClick={() => editor.save(draftTitle, draftBody)}
             disabled={disabled}
-            title={gateBlocked ? t("editGateReason") : undefined}
+            title={editor.gateBlocked ? t("editGateReason") : undefined}
             className="focus-ring inline-flex items-center gap-1.5 rounded-md bg-ink px-3 py-1.5 text-sm font-semibold text-white hover:bg-steel disabled:opacity-50"
           >
-            <Check size={13} aria-hidden /> {busy ? t("editSaving") : t("editSave")}
+            <Check size={13} aria-hidden /> {editor.busy ? t("editSaving") : t("editSave")}
           </button>
           <button
             type="button"
@@ -236,19 +158,19 @@ export function JdModalEditor({
           </button>
           <button
             type="button"
-            onClick={toggleHistory}
-            aria-expanded={historyOpen}
+            onClick={editor.toggleHistory}
+            aria-expanded={editor.historyOpen}
             className="focus-ring inline-flex items-center gap-1.5 rounded-md border border-stone-200 px-3 py-1.5 text-sm font-semibold text-steel hover:text-ink"
           >
-            <History size={13} aria-hidden /> {historyOpen ? t("editHideHistory") : t("editHistory")}
+            <History size={13} aria-hidden /> {editor.historyOpen ? t("editHideHistory") : t("editHistory")}
           </button>
           <span className="text-sm text-steel">{t("editLinkedNote")}</span>
         </div>
 
-        {error ? (
+        {editor.error ? (
           <p role="alert" className="text-sm text-red-700">
-            {error}
-            {conflict ? (
+            {editor.error}
+            {editor.conflict ? (
               <>
                 {" "}
                 <button type="button" onClick={onDone} className="focus-ring font-semibold text-coral hover:underline">
@@ -260,44 +182,24 @@ export function JdModalEditor({
         ) : null}
       </div>
 
-      {historyOpen ? (
+      {editor.historyOpen ? (
         <div className="rounded-lg border border-stone-200 bg-paper/40 p-4">
-          {revLoading && revisions === null ? (
+          {editor.revLoading && editor.revisions === null ? (
             <p className="text-sm text-steel">{t("editHistoryLoading")}</p>
-          ) : !revisions || revisions.length === 0 ? (
+          ) : !editor.revisions || editor.revisions.length === 0 ? (
             <p className="text-sm text-steel">{t("editHistoryEmpty")}</p>
           ) : (
-            <ul className="space-y-2">
-              {revisions.map((rev) => (
-                <li key={rev.id} className="rounded-md border border-stone-100 bg-white px-3 py-2 text-sm">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-semibold text-ink">{rev.title}</span>
-                    <span className="text-steel">· {new Date(rev.created_at).toLocaleString()}</span>
-                    <button
-                      type="button"
-                      onClick={() => setExpanded(expanded === rev.id ? null : rev.id)}
-                      className="focus-ring font-semibold text-coral hover:underline"
-                    >
-                      {expanded === rev.id ? t("editRevisionHide") : t("editRevisionView")}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => revert(rev.id)}
-                      disabled={reverting !== null || gateBlocked}
-                      title={gateBlocked ? t("editGateReason") : undefined}
-                      className="focus-ring ml-auto inline-flex items-center gap-1 rounded-md border border-coral/40 bg-white px-2 py-0.5 font-semibold text-coral hover:bg-coral/5 disabled:opacity-50"
-                    >
-                      <RotateCcw size={12} aria-hidden /> {reverting === rev.id ? t("editReverting") : t("editRevert")}
-                    </button>
-                  </div>
-                  {expanded === rev.id ? (
-                    <pre className="mt-2 max-h-60 overflow-auto whitespace-pre-wrap rounded bg-stone-50 p-2 font-mono text-xs text-ink">
-                      {rev.body}
-                    </pre>
-                  ) : null}
-                </li>
-              ))}
-            </ul>
+            <JdRevisionList
+              revisions={editor.revisions}
+              reverting={editor.reverting}
+              gateBlocked={editor.gateBlocked}
+              onRevert={editor.revert}
+              gateReason={t("editGateReason")}
+              viewLabel={t("editRevisionView")}
+              hideLabel={t("editRevisionHide")}
+              revertLabel={t("editRevert")}
+              revertingLabel={t("editReverting")}
+            />
           )}
         </div>
       ) : null}

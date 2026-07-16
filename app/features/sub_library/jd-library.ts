@@ -6,7 +6,21 @@
 import type { LucideIcon } from "lucide-react";
 import { AlertTriangle, CircleDot, Crown, FileText, Loader2, Lock, PencilRuler, Radio, Sprout, Star, TrendingUp } from "lucide-react";
 import { lintJd, type JdLintFinding } from "@/app/_lib/jd-lint";
+import { normalizeMarketSalary } from "@/app/_lib/salary-band";
 import type { BadgeTone } from "@/app/_components/Badge";
+
+// Whether the JD's stored build artifacts ground a market-salary figure — the
+// ONE rule that feeds the lint's `salaryAvailable` suppression seam on every
+// surface (the ledger modal, the ledger read-view, AND the public page's
+// editor). A ticked "market research" build option OR a usable normalized band
+// counts. Kept here (pure, artifact-shaped) so those surfaces can't disagree on
+// when a role "has a salary".
+export function jdMarketResearchAvailable(
+  artifacts: { options?: { marketResearch?: boolean }; salary?: unknown } | null | undefined
+): boolean {
+  if (!artifacts) return false;
+  return Boolean(artifacts.options?.marketResearch) || normalizeMarketSalary(artifacts.salary).available;
+}
 
 // Below this many characters the "describe the need" body is too thin to lint
 // usefully — every short draft would trip missing-salary/place, which reads as
