@@ -64,7 +64,7 @@ export async function respondToOffer(token: string, response: "accept" | "declin
       // actOnPipelineEntry now refuses to advance a TERMINAL entry, so a stale
       // offer link accepted after the candidate was rejected/closed elsewhere
       // returns null instead of resurrecting them to Hired + firing onboarding.
-      const hired = actOnPipelineEntry(offer.entryId, "accept", undefined, { actor: "system" });
+      const hired = actOnPipelineEntry(offer.entryId, "accept", undefined, { actor: "system" }, offer.workspaceId);
       // Only stamp the accept on the timeline when it actually advanced (mirrors the
       // decline path's conditional event), so a closed entry can't grow a phantom
       // offer_accepted; record the conflict instead so a recruiter can see it.
@@ -145,7 +145,7 @@ export async function respondToOffer(token: string, response: "accept" | "declin
     // reports whether the entry actually transitioned. Only stamp the decline on
     // the entry's timeline when it did, so a Hired candidate's history can't grow a
     // phantom `offer_declined` (recordAutomationEvent logs the entry's CURRENT stage).
-    const transitioned = markEntryStatus(offer.entryId, "declined");
+    const transitioned = markEntryStatus(offer.entryId, "declined", offer.workspaceId);
     if (transitioned) recordAutomationEvent(offer.entryId, "offer_declined", offer.jobTitle ?? "");
   }
   return { ok: true, status: "declined", alreadyResponded: false, jobTitle: offer.jobTitle, candidateLabel: offer.candidateLabel };
