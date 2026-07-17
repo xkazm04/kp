@@ -62,6 +62,23 @@ def _norm(s: str) -> str:
     return s.strip().casefold()
 
 
+def _whole_token_overlap(a: str, b: str) -> bool:
+    """True when ``a`` and ``b`` share a whole-token match in either direction, on
+    normalize_text-folded surfaces. Replaces the old bidirectional ``in`` substring
+    test (live_case #1): that credited a short/generic must-have like "R" or "Go" as
+    *observed* off any transfer containing those letters — "r" is a substring of
+    "Strong framing", so a language was minted at the engine's highest-trust
+    provenance off a dimension label the candidate never demonstrated. Whole-token
+    matching (the discipline the taxonomy module enforces everywhere) means a
+    must-have only matches when it appears as a standalone token."""
+    from .taxonomy import contains_whole_token, normalize_text
+
+    na, nb = normalize_text(a), normalize_text(b)
+    if not na or not nb:
+        return False
+    return contains_whole_token(na, nb) or contains_whole_token(nb, na)
+
+
 def _credited_skills(role: RoleSpec, transfer: TransferAssessment) -> list[str]:
     """The role's must-haves the assessment actually says transferred. Original
     casing preserved, order kept, de-duplicated.
@@ -79,10 +96,10 @@ def _credited_skills(role: RoleSpec, transfer: TransferAssessment) -> list[str]:
     musts = [m for m in role.must_haves if m and m.strip()]
     if not musts:
         return []
-    transfers = [_norm(t) for t in transfer.transfers if t and t.strip()]
-    gaps = [_norm(g) for g in transfer.gaps if g and g.strip()]
-    matched = [m for m in musts if any(_norm(m) in t or t in _norm(m) for t in transfers)]
-    return [m for m in matched if not any(_norm(m) in g or g in _norm(m) for g in gaps)]
+    transfers = [t for t in transfer.transfers if t and t.strip()]
+    gaps = [g for g in transfer.gaps if g and g.strip()]
+    matched = [m for m in musts if any(_whole_token_overlap(m, t) for t in transfers)]
+    return [m for m in matched if not any(_whole_token_overlap(m, g) for g in gaps)]
 
 
 def _level(score: int) -> str:

@@ -60,6 +60,26 @@ class ObservedEvidenceTest(unittest.TestCase):
         self.assertEqual(ev.skills, ["Python", "SQL"])  # only the must-haves that transferred
         self.assertGreater(ev.confidence, 0.7)
 
+    def test_short_must_have_not_credited_off_substring_of_a_dimension_label(self):
+        # live_case #1: "R" is a SUBSTRING of "Strong framing" but not a whole token.
+        # The old bidirectional `in` test minted "R"/"Go" as OBSERVED (highest trust)
+        # off deterministic transfer labels the candidate never demonstrated. Whole-
+        # token matching must credit nothing here.
+        role = RoleSpec(title="Analyst", role_family="software_engineering", seniority="junior",
+                        must_haves=["R", "Go"])
+        transfer = TransferAssessment(transfer_score=80, transfers=["Strong framing", "Clear communication"], confidence=0.8)
+        self.assertIsNone(observed_evidence(role, CaseScenario(), CaseEvaluation(summary="Did well."), transfer))
+
+    def test_short_must_have_still_credited_as_a_whole_token(self):
+        # The fix does not over-correct: "Go"/"R" appearing as standalone tokens in a
+        # transfer are legitimately credited.
+        role = RoleSpec(title="Analyst", role_family="software_engineering", seniority="junior",
+                        must_haves=["Go", "R"])
+        transfer = TransferAssessment(transfer_score=80, transfers=["Used Go for the service", "Ran R for the analysis"], confidence=0.8)
+        ev = observed_evidence(role, CaseScenario(), CaseEvaluation(summary="Did well."), transfer)
+        self.assertIsNotNone(ev)
+        self.assertEqual(sorted(ev.skills), ["Go", "R"])
+
     def test_weak_performance_adds_nothing(self):
         role = RoleSpec(must_haves=["Python"], role_family="software_engineering", seniority="junior")
         # Confidence is healthy on purpose — this pins the SCORE gate, not the confidence one.
