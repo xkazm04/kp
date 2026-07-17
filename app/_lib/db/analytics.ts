@@ -44,6 +44,10 @@ export type PipelineAnalytics = {
   declined: number;
   funnel: { stage: string; reached: number; current: number; conversionPct: number | null }[];
   avgTimeToHireDays: number | null;
+  // The MEDIAN of the same time-to-hire samples (avgTimeToHireDays is the mean). The
+  // ROI ledger tile is labeled "median" and reads this, so an audit-grade leadership
+  // readout states the statistic it claims (analytics-calibration-dashboards #1).
+  medianTimeToHireDays: number | null;
   // UAT M7 — blended overall cost per hire (Σ recruiter-entered channel spend ÷
   // hires), all-time only (windowed = null, mirroring the per-channel rule); the
   // single cost figure for the leadership readout.
@@ -144,6 +148,17 @@ export type ChannelEconomics = {
   costPerHireCzk: number | null;
 };
 
+// Rounded median of a numeric sample (empty → null). The average of the two
+// middle values on an even-length sample, matching the OrgBenchmarkPanel's
+// median contract so the two "median time-to-hire" surfaces agree.
+function medianRounded(values: number[]): number | null {
+  if (values.length === 0) return null;
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  const median = sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
+  return Math.round(median);
+}
+
 // ANA2 — `windowDays` scopes the snapshot metrics to the COHORT of entries
 // created in the last N days (entries with no created_at drop out of a windowed
 // view); omitted/null keeps the historical all-time behavior. Cohort-by-entry —
@@ -228,6 +243,7 @@ export function pipelineAnalytics(
     .map((r) => (Date.parse(r.stage_changed_at as string) - Date.parse(r.created_at as string)) / 86_400_000)
     .filter((d) => d >= 0);
   const avgTimeToHireDays = tth.length ? Math.round(tth.reduce((a, b) => a + b, 0) / tth.length) : null;
+  const medianTimeToHireDays = medianRounded(tth);
 
   const ages = rows
     .filter((r) => r.status === "active" && r.created_at)
@@ -551,6 +567,7 @@ export function pipelineAnalytics(
     declined,
     funnel,
     avgTimeToHireDays,
+    medianTimeToHireDays,
     avgAgeDays,
     bottleneck,
     stageDwell,

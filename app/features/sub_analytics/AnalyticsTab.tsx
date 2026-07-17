@@ -35,6 +35,9 @@ type Analytics = {
   declined: number;
   funnel: Funnel[];
   avgTimeToHireDays: number | null;
+  // Median of the same time-to-hire samples — the ROI ledger's "median"-labeled tile
+  // reads this (analytics-calibration-dashboards #1).
+  medianTimeToHireDays: number | null;
   // UAT M7 — blended overall cost per hire (Σ channel spend ÷ hires), all-time only.
   costPerHireCzk: number | null;
   // compute-cost-per-hire — account-wide LLM compute cost from the usage ledger (USD,
@@ -331,7 +334,7 @@ export function AnalyticsTab() {
             impact={data.automation}
             roi={data.automationRoi}
             costPerHireCzk={data.costPerHireCzk}
-            timeToHireDays={data.avgTimeToHireDays}
+            timeToHireDays={data.medianTimeToHireDays}
             onSaved={reload}
             decisionsHref={buildUrl({ ...clearedTabScopedParams(), tab: "decisions" }, search.toString())}
           />
@@ -582,6 +585,8 @@ function RoiLedger({
             <div>
               <dt className="text-meta uppercase tracking-wide text-steel">{t("rdTimeToHire")}</dt>
               <dd className="mt-0.5 font-serif text-h3 text-ink">{timeToHireDays != null ? t("daysValue", { n: timeToHireDays }) : "—"}</dd>
+              {/* Labeled "median" — so the ROI ledger is now fed the true
+                  medianTimeToHireDays, not the mean (analytics-calibration-dashboards #1). */}
               <dd className="text-xs text-steel">{t("rdMedian")}</dd>
             </div>
           </dl>
