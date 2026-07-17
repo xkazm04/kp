@@ -29,7 +29,19 @@ export function getAtsRecord(entryId: string): AtsCandidateRecord | null {
   if (!entry) return null;
   const job = entry.jobId ? getJob(entry.jobId) : null;
   const latest = listDecisionRecords({ candidateRef: entryId, limit: 1 })[0] ?? null;
-  const offer = getOpenOfferForEntry(entryId) ?? listOffersForEntry(entryId)[0] ?? null;
+  // Which offer's comp the record carries: the offer that actually caused the
+  // hire, not the oldest on file. getOpenOfferForEntry only matches status
+  // 'extended', so at candidate.hired time (offer already 'accepted') it returns
+  // null and the old fallback listOffersForEntry(entryId)[0] shipped the OLDEST
+  // offer (created_at ASC) — wrong salary AND a contradictory 'declined' status
+  // inside a hired event on any re-extended entry. Prefer the most-recent accepted
+  // offer, then any still-open one, then the most-recent offer overall.
+  const offers = listOffersForEntry(entryId); // created_at ASC
+  const offer =
+    [...offers].reverse().find((o) => o.status === "accepted") ??
+    getOpenOfferForEntry(entryId) ??
+    offers.at(-1) ??
+    null;
   return buildAtsRecord({
     entry,
     job: job ? { id: job.id, title: job.title ?? null, company: job.company ?? null } : null,
