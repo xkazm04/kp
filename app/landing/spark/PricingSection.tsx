@@ -96,7 +96,7 @@ export default function PricingSection() {
                     password mode → the /login form). Enterprise is a sales mailto. */}
                 <button
                   type="button"
-                  onClick={() => void enterWorkspace()}
+                  onClick={() => void enterWorkspace(tier.id)}
                   className={`${BTN} mt-6 w-full justify-center ${tier.btnClass}`}
                 >
                   {t(`pricing.tiers.${tier.id}.cta`)}
