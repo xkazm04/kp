@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { closeEntriesByJobId, getJob } from "@/app/_lib/db";
 import { getJobStatus, setJobStatus } from "@/app/_lib/job-ingest";
+import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 
 
 // W8-1 (JOB1) — retire a role. The lifecycle was a one-way ratchet (NULL/draft
@@ -9,6 +10,12 @@ import { getJobStatus, setJobStatus } from "@/app/_lib/job-ingest";
 // Idempotent mirror of /publish; the apply page + API gate on the status.
 export async function POST(_request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
+  // Tenancy (job-postings-lifecycle #1): mirror /publish, which scopes its entry
+  // operations to the caller's workspace. Without this, closeEntriesByJobId fell to
+  // DEFAULT_WORKSPACE_ID and withdrew NONE of a non-default team's in-flight
+  // candidates — the close "succeeded" with withdrawn:0 while the funnel kept
+  // chasing a retired role.
+  const ws = await currentWorkspace();
   try {
     const job = getJob(id);
     if (!job) return NextResponse.json({ error: "Job not found." }, { status: 404 });
@@ -21,7 +28,7 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
       // candidate is left active. Best-effort: the close already committed, so a
       // withdrawal failure is logged, not surfaced as a failed close.
       try {
-        withdrawn = closeEntriesByJobId(id);
+        withdrawn = closeEntriesByJobId(id, ws);
       } catch (e) {
         console.error(`[api:jobs/close] job ${id} closed but withdrawing its entries failed:`, e);
       }
