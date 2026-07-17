@@ -5,6 +5,25 @@ import { CODE_REVIEW_STATUSES } from "./code-review-status.ts";
 export { analysisResultSchema };
 export type { AnalysisResult } from "./schemas.generated.ts";
 
+// A URL string that is rendered as an `<a href={...}>` (the GitHub profile link
+// and each repo link in the recruiter console). The live /api/github-analysis
+// path feeds these from GitHub's API, but the persisted-report path
+// (PATCH /api/analyses/[slug]) accepts client-supplied values, so a `javascript:`
+// or `data:` scheme would be stored XSS in the recruiter console. Length is not
+// sanitization — the scheme must be vetted. This transform blanks anything that
+// isn't a well-formed http(s) URL (a blank href is inert), mirroring
+// github-summary.ts's safeLinkUrl so every producer/consumer of the schema
+// inherits the guard at this single choke point.
+const _HTTP_LINK_SCHEMES = new Set(["http:", "https:"]);
+const httpUrlOrBlank = z.string().transform((value) => {
+  try {
+    const u = new URL(value);
+    return _HTTP_LINK_SCHEMES.has(u.protocol) ? u.href : "";
+  } catch {
+    return ""; // relative/scheme-less/malformed
+  }
+});
+
 // Mirrors the `score` breakdown on `analysisResultSchema` (above, generated from
 // pipeline/jobfit/models.py::ScoreBreakdown). Contract: `total` is DEFINED as the
 // sum of the five components (experience/skills/roleSeniority/education/traits,
@@ -188,7 +207,7 @@ export const codeReviewSchema = z.object({
 
 export const githubAnalysisSchema = z.object({
   username: z.string(),
-  profileUrl: z.string(),
+  profileUrl: httpUrlOrBlank,
   summary: z.string(),
   analyzedAt: z.string(),
   metrics: z.object({
@@ -210,7 +229,7 @@ export const githubAnalysisSchema = z.object({
   topRepositories: z.array(
     z.object({
       name: z.string(),
-      url: z.string(),
+      url: httpUrlOrBlank,
       description: z.string().nullable(),
       primaryLanguage: z.string().nullable(),
       stars: z.number(),
