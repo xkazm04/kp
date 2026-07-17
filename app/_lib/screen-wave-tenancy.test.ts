@@ -11,6 +11,7 @@ import assert from "node:assert/strict";
 import { createPipelineEntry, getPipelineEntry } from "./db/pipeline.ts";
 import { runScreenWave } from "./screen-wave.ts";
 import { listDecisionRecords, verifyDecisionChain } from "./decision-record-store.ts";
+import { setDecisionConfig } from "./decision-config-store.ts";
 
 after(() => cleanupUnitDb());
 
@@ -90,4 +91,36 @@ test("a committed wave in a non-default workspace rejects THAT team's cohort and
     "the auto-rejection is absent from the default team's chain"
   );
   assert.ok(verifyDecisionChain("team-a").ok, "team-a's chain verifies independently");
+});
+
+test("the wave reads its SAVED screening config (familyFloors) from the caller's team, not the default", async () => {
+  // familyFloors are never part of the modal override, so they come from the SAVED
+  // config — the one read the wave used to fetch WITHOUT a workspace (fell to the
+  // default team). team-b saves an aggressive software_engineering floor; the
+  // default team has none. A wave for team-b must judge against team-b's floor.
+  const jobId = "swt-job-famfloor";
+  setDecisionConfig(
+    "screening",
+    { autoRejectEnabled: true, rejectBottomPercent: 100, maxMatchToReject: 45, familyFloors: { software_engineering: 70 } },
+    "team-b",
+    "team",
+  );
+  const { entry } = createPipelineEntry({
+    candidateId: "swt-ff-b", candidateLabel: "SE 60 (team-b)", jobId, jobTitle: "Screen Wave Tenancy Role",
+    stage: "Screened", matchScore: 60, archetype: "bau", roleFamily: "software_engineering",
+    contact: "swt-ff-b@example.com", workspaceId: "team-b",
+  });
+  // Override carries ONLY the three global fields the rules modal sends — familyFloors
+  // must resolve from team-b's saved row.
+  const wave = await runScreenWave(
+    jobId,
+    { autoRejectEnabled: true, rejectBottomPercent: 100, maxMatchToReject: 45 },
+    { dryRun: true },
+    "team-b",
+  );
+  const row = wave.decisions.find((d) => d.entryId === entry.id)!;
+  // Pre-fix: config read from the DEFAULT team (no floor) → 60 ≥ global 45 → keep.
+  // Post-fix: team-b's saved floor 70 applies → 60 < 70 → reject.
+  assert.equal(row.action, "reject", "team-b's saved software_engineering floor (70) must apply, not the default team's");
+  assert.equal(row.reasonParams.threshold, 70, "the sealed floor is team-b's, not the default 45");
 });

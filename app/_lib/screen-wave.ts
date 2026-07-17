@@ -181,7 +181,12 @@ export async function runScreenWave(
   // DecisionConfigError, which the route maps to a 400.
   const checked = validateScreeningOverride(override);
   if (!checked.ok) throw new DecisionConfigError(checked.error);
-  const cfg: ScreeningRule = { ...getDecisionConfig<ScreeningRule>("screening"), ...checked.override };
+  // Read the screening rule for THIS team (tenancy): every other read in this
+  // wave threads workspaceId, but this first config read omitted it and fell to
+  // DEFAULT_WORKSPACE_ID — so a non-default team's saved familyFloors (never part
+  // of the modal override) came from the wrong tenant, and the sealed record's
+  // policyVersion attested to a floor the team never set.
+  const cfg: ScreeningRule = { ...getDecisionConfig<ScreeningRule>("screening", workspaceId), ...checked.override };
   const cohort = listPipeline(workspaceId).filter((e) => e.jobId === jobId && e.status === "active" && e.stage === "Screened");
   // Direction 2 (queue-staleness) — derive, ONCE per wave, whether each candidate's
   // score predates the JD's last content edit, using the exact isScoreStale rule the
