@@ -2,6 +2,7 @@
 // of the (client) ProfileEditor component so it has ONE home and can be unit
 // tested without a React/JSX runtime.
 import type { SkillRow, EvidenceRow, ProfilePayload } from "./ProfileTypes";
+import { DEFAULT_ROLE_FAMILY } from "@/app/_lib/role-families";
 
 // Which archetype-conditional Basics fields a given archetype exposes. This is the
 // SINGLE SOURCE OF TRUTH that both rendering (ProfileEditor decides whether to show
@@ -80,10 +81,10 @@ export type HydratedForm = ReturnType<typeof hydrate>;
 //
 // Hydration is therefore identical for create / edit / duplicate / applied-AI-draft:
 // an absent field maps to an honest neutral (educationLevel "unknown" — a real
-// level; languages / seniority empty). The lone fallback is roleFamily: the select
-// has no neutral option and the backend defaults an unset one to software_engineering
-// too, so it invents nothing — and it is not a completeness check, so it cannot
-// inflate the score.
+// level; languages / seniority empty). The lone fallback is roleFamily, which seeds
+// the honest neutral DEFAULT_ROLE_FAMILY ("general_professional") — the matcher DOES
+// score roleFamily, so the old software_engineering default silently biased non-tech
+// profiles; it is not a completeness check, so it cannot inflate the score.
 //
 // Intake signals (isEnrolled / wantsDomainChange / …) are NOT stored on the
 // payload — they only feed auto-detection — so on edit we pin `choice` to the
@@ -92,11 +93,14 @@ export function hydrate(payload: ProfilePayload | null) {
   return {
     choice: payload?.archetype || "auto",
     displayName: payload?.displayName ?? "",
-    // role family is a select with no neutral option, and a normalized payload
-    // always carries it (the backend defaults an unset one to software_engineering
-    // too), so this fallback only ever fires for the blank form — it invents nothing
-    // and is not scored, so unlike education/languages it cannot inflate completeness.
-    roleFamily: payload?.roleFamily ?? "software_engineering",
+    // roleFamily IS scored by the matcher (matching.py: family = 1.0 on a match else
+    // 0.35/0.3), so a blank form must NOT default to "software_engineering" — that
+    // biased every hand-built non-tech profile toward SWE roles and away from its true
+    // family (candidate-profile-job-matching #2). Seed the honest neutral
+    // DEFAULT_ROLE_FAMILY ("general_professional"), matching the analysis path's
+    // "Never assume software" policy (role-families.ts / match-candidate.ts). It's a
+    // real select option, not a completeness field, so it still can't inflate the score.
+    roleFamily: payload?.roleFamily ?? DEFAULT_ROLE_FAMILY,
     // "unknown" is a real education level: a blank or absent value round-trips
     // honestly instead of being upgraded to a "bachelor" the candidate never claimed.
     educationLevel: payload?.educationLevel ?? "unknown",

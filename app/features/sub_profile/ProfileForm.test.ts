@@ -17,10 +17,11 @@ import type { ProfilePayload } from "./ProfileTypes.ts";
 
 test("blank create form starts honest — no unchosen education/languages/seniority", () => {
   // idea-fa7d5360: pre-filled defaults must not inflate completeness, so a blank
-  // intake reflects real input. roleFamily keeps its structural fallback (the select
-  // has no neutral option and is not a completeness check, so it cannot inflate).
+  // intake reflects real input. roleFamily seeds the honest neutral (candidate-profile
+  // -job-matching #2): the matcher scores roleFamily, so a blank form must NOT default
+  // to software_engineering and bias every non-tech profile toward SWE roles.
   const f = hydrate(null);
-  assert.equal(f.roleFamily, "software_engineering");
+  assert.equal(f.roleFamily, "general_professional", "blank form seeds the neutral family, not software_engineering");
   assert.equal(f.educationLevel, "unknown");
   assert.equal(f.seniority, "");
   assert.equal(f.languages, "");
