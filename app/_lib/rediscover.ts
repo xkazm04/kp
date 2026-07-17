@@ -223,7 +223,8 @@ export async function raiseForJobBounded(
   parentSignal: AbortSignal | undefined,
   opts: {
     timeoutMs?: number;
-    raise?: (jobId: string, o: { signal?: AbortSignal }) => Promise<number>;
+    workspaceId?: string;
+    raise?: (jobId: string, o: { signal?: AbortSignal; workspaceId?: string }) => Promise<number>;
   } = {}
 ): Promise<number> {
   const timeoutMs = opts.timeoutMs ?? SWEEP_JOB_TIMEOUT_MS;
@@ -236,7 +237,7 @@ export async function raiseForJobBounded(
   }
   const timer = setTimeout(() => ac.abort(), timeoutMs);
   try {
-    return await raise(jobId, { signal: ac.signal });
+    return await raise(jobId, { signal: ac.signal, workspaceId: opts.workspaceId });
   } finally {
     clearTimeout(timer);
     parentSignal?.removeEventListener("abort", onParentAbort);
@@ -251,13 +252,17 @@ export type SweepDeps = {
   raiseForJob: (jobId: string, signal: AbortSignal | undefined) => Promise<number>;
 };
 
-function defaultSweepDeps(): SweepDeps {
+// The on-demand sweep is triggered from a specific team's Refresh, so it must run
+// on THAT team's catalog (rediscovery-alerts #1): list only the caller's published
+// roles and rank/persist against the caller's workspace. Omitting workspaceId keeps
+// the prior default-tenant behavior for any non-request caller.
+function defaultSweepDeps(workspaceId?: string): SweepDeps {
   return {
     listPublishedJobIds: () =>
-      Object.entries(listJobStatuses())
+      Object.entries(listJobStatuses(workspaceId))
         .filter(([, status]) => status === "published")
         .map(([jobId]) => jobId),
-    raiseForJob: (jobId, signal) => raiseForJobBounded(jobId, signal),
+    raiseForJob: (jobId, signal) => raiseForJobBounded(jobId, signal, { workspaceId }),
   };
 }
 
@@ -269,8 +274,8 @@ function defaultSweepDeps(): SweepDeps {
  *  injectable for tests. Returns the roles actually swept, the newly-surfaced
  *  count, and how many roles were deferred (`truncated`). */
 export async function sweepRediscoveryAlerts(
-  opts: { signal?: AbortSignal } = {},
-  deps: SweepDeps = defaultSweepDeps()
+  opts: { signal?: AbortSignal; workspaceId?: string } = {},
+  deps: SweepDeps = defaultSweepDeps(opts.workspaceId)
 ): Promise<{ jobsSwept: number; newAlerts: number; truncated: number }> {
   const publishedIds = deps.listPublishedJobIds();
   const roles = publishedIds.slice(0, SWEEP_MAX_ROLES);

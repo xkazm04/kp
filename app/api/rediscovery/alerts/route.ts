@@ -64,8 +64,12 @@ export async function PATCH(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const { jobsSwept, newAlerts, truncated } = await sweepRediscoveryAlerts({ signal: request.signal });
-    const alerts = relevantAlerts(await currentWorkspace());
+    // Sweep the CALLER's catalog, not the default tenant's (rediscovery-alerts #1):
+    // this POST is the feed's Refresh, fired from one team's session, so the roles
+    // swept and the alerts raised must match the feed the same request returns below.
+    const ws = await currentWorkspace();
+    const { jobsSwept, newAlerts, truncated } = await sweepRediscoveryAlerts({ signal: request.signal, workspaceId: ws });
+    const alerts = relevantAlerts(ws);
     return NextResponse.json({ alerts, count: alerts.length, jobsSwept, newAlerts, truncated });
   } catch (error) {
     return safeJsonError(error, "api:rediscovery-alerts", "REDISCOVERY_ALERTS_FAILED");
