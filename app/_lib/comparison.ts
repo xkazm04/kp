@@ -74,11 +74,16 @@ export function buildComparison(inputs: ComparisonInput[]): ComparisonPayload {
     yearsExperience: analysis.candidate.yearsExperience
   }));
 
-  const best = variants[resolveWinnerIndex(variants)];
-  const bestLabel = best.label;
+  // INDEX, not label, is the identity everywhere below: labels aren't unique (two
+  // CV variants can share a filename), so keying the driver narrative or the merged
+  // recommendation by label silently drops a real column or attributes one CV's
+  // content to another (analysis-result-panels #1). variants and inputs are the same
+  // list in the same order, so the winner index addresses both.
+  const winnerIndex = resolveWinnerIndex(variants);
+  const bestLabel = variants[winnerIndex].label;
 
-  const { insights: driverInsights, items: driverInsightItems } = computeDriverInsights(variants, best);
-  const mergedRecommendation = buildMergedRecommendation(inputs, variants, best);
+  const { insights: driverInsights, items: driverInsightItems } = computeDriverInsights(variants, winnerIndex);
+  const mergedRecommendation = buildMergedRecommendation(inputs, variants, winnerIndex);
 
   return {
     variants,
@@ -117,11 +122,14 @@ export function primaryScore(variant: ComparisonVariant): number {
 
 function computeDriverInsights(
   variants: ComparisonVariant[],
-  best: ComparisonVariant
+  winnerIndex: number
 ): { insights: string[]; items: CompareDriver[] } {
+  const best = variants[winnerIndex];
   // buildComparison guarantees >= MIN_COMPARISON_VARIANTS, so `others` is never
-  // empty and there is always a real comparison to describe.
-  const others = variants.filter((variant) => variant.label !== best.label);
+  // empty. Filter by INDEX, not label: a distinct variant that happens to share the
+  // winner's filename must still appear in the driver narrative (was excluded by the
+  // old `label !== best.label` filter).
+  const others = variants.filter((_, i) => i !== winnerIndex);
   const insights: string[] = [];
   // The structured mirror of `insights`, built in lockstep so the localized render
   // and the English fallback describe the exact same drivers in the same order.
@@ -203,17 +211,25 @@ function computeDriverInsights(
 function buildMergedRecommendation(
   inputs: ComparisonInput[],
   variants: ComparisonVariant[],
-  best: ComparisonVariant
+  winnerIndex: number
 ): ComparisonPayload["mergedRecommendation"] {
-  const byLabel = new Map(inputs.map((input) => [input.label, input.analysis] as const));
-  const bestAnalysis = byLabel.get(best.label);
+  // Address the analysis by INDEX (inputs and variants are positionally aligned):
+  // a label→analysis map silently collapses duplicate-filename variants to the last
+  // one, so `byLabel.get(pick.label)` could pull headline/skills from a different CV
+  // than the one credited as sourceLabel (analysis-result-panels #1).
+  const best = variants[winnerIndex];
+  const bestAnalysis = inputs[winnerIndex]?.analysis;
 
   const sectionPicks: SectionPick[] = [];
 
-  const headlinePick = pickByMaxComponent(variants, "roleSeniority");
-  const summaryPick = pickByMaxComponent(variants, "experience");
-  const bulletsPick = best;
-  const skillsPick = pickByMaxComponent(variants, "skills");
+  const headlineIdx = pickIndexByMaxComponent(variants, "roleSeniority");
+  const summaryIdx = pickIndexByMaxComponent(variants, "experience");
+  const bulletsIdx = winnerIndex;
+  const skillsIdx = pickIndexByMaxComponent(variants, "skills");
+  const headlinePick = variants[headlineIdx];
+  const summaryPick = variants[summaryIdx];
+  const bulletsPick = variants[bulletsIdx];
+  const skillsPick = variants[skillsIdx];
 
   // `section` (English label) + `reason` (English sentence) stay for the fallback;
   // `key` + `reasonParams` are the structured pair CompareTab localizes at render.
@@ -247,7 +263,7 @@ function buildMergedRecommendation(
   });
 
   const headlineCandidate =
-    byLabel.get(headlinePick.label)?.candidate ?? bestAnalysis?.candidate;
+    inputs[headlineIdx]?.analysis.candidate ?? bestAnalysis?.candidate;
   // Keep the English `headline` string for the fallback, but also emit the enum slugs
   // (seniority/roleFamily) + skills so CompareTab renders the words through the
   // localized enum catalog instead of the analysis-time English slug words.
@@ -261,12 +277,14 @@ function buildMergedRecommendation(
   const headline = headlineParams
     ? `${headlineParams.seniority.replace("_", " ")} ${headlineParams.roleFamily.replace("_", " ")} — ${headlineParams.skills.join(", ")}`
     : "";
-  const skillsLine = (byLabel.get(skillsPick.label)?.candidate.skills ?? []).slice(0, 12).join(" • ");
+  const skillsLine = (inputs[skillsIdx]?.analysis.candidate.skills ?? []).slice(0, 12).join(" • ");
 
   const bullets = mergeBestBullets(inputs, variants);
 
+  // "allSame" iff every section was won by the SAME variant — keyed by index so two
+  // distinct duplicate-label variants aren't miscounted as one.
   const summaryKind: "allSame" | "split" =
-    new Set(sectionPicks.map((pick) => pick.sourceLabel)).size === 1 ? "allSame" : "split";
+    new Set([headlineIdx, summaryIdx, bulletsIdx, skillsIdx]).size === 1 ? "allSame" : "split";
 
   return {
     summary: buildMergedSummary(best, sectionPicks),
@@ -279,31 +297,29 @@ function buildMergedRecommendation(
   };
 }
 
-function pickByMaxComponent(variants: ComparisonVariant[], key: ComponentKey): ComparisonVariant {
-  return [...variants].sort((a, b) => b.score[key] - a.score[key])[0];
+// The INDEX of the variant with the highest score[key]; strict `>` keeps the
+// earliest column on a tie (matching resolveWinnerIndex). Returns an index, not a
+// variant, so the caller can address the aligned inputs[] by the same index —
+// labels aren't unique.
+function pickIndexByMaxComponent(variants: ComparisonVariant[], key: ComponentKey): number {
+  return variants.reduce((bestI, v, i) => (v.score[key] > variants[bestI].score[key] ? i : bestI), 0);
 }
 
 function mergeBestBullets(inputs: ComparisonInput[], variants: ComparisonVariant[]): string[] {
   const seen = new Set<string>();
   const merged: string[] = [];
-  const ordered = [...variants].sort((a, b) => primaryScore(b) - primaryScore(a));
+  // Order INDICES by score (not variant objects), so a duplicate label can't collide
+  // when we pull each variant's bullets from its own aligned input.
+  const orderedIdx = variants.map((_, i) => i).sort((a, b) => primaryScore(variants[b]) - primaryScore(variants[a]));
   // Pull bullets from interviewTalkingPoints (when JD-bound) or strengths (otherwise);
   // both surface concrete evidence the candidate could lead a CV rewrite with.
-  const bulletsByLabel = new Map(
-    inputs.map(
-      (input) =>
-        [
-          input.label,
-          [
-            ...(input.analysis.jobFit?.interviewTalkingPoints ?? []),
-            ...input.analysis.strengths,
-          ],
-        ] as const
-    )
-  );
+  const bulletsByIndex = inputs.map((input) => [
+    ...(input.analysis.jobFit?.interviewTalkingPoints ?? []),
+    ...input.analysis.strengths,
+  ]);
 
-  for (const variant of ordered) {
-    const bullets = bulletsByLabel.get(variant.label) ?? [];
+  for (const idx of orderedIdx) {
+    const bullets = bulletsByIndex[idx] ?? [];
     for (const bullet of bullets) {
       const key = bullet.trim().toLowerCase();
       if (!key || seen.has(key)) continue;

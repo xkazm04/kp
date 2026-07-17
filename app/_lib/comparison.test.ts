@@ -207,3 +207,34 @@ test("hasRenderableComparison is false for absent / 0 / 1 variants, true at 2", 
   assert.equal(hasRenderableComparison({ ...valid, variants: valid.variants.slice(0, 1) }), false);
   assert.equal(hasRenderableComparison(valid), true);
 });
+
+// ── Duplicate-label identity (analysis-result-panels #1) ──────────────────────
+// Labels aren't unique (two CV variants can share a filename). The driver narrative
+// and merged recommendation must key by INDEX, not label, or a distinct same-label
+// variant is dropped from the drivers and the merged recommendation attributes one
+// CV's content to another. resolveWinnerIndex already keys by index; these pin the
+// narrative half.
+test("a distinct variant sharing the winner's label is still compared (not label-filtered out)", () => {
+  // v0 (winner) and v1 share the filename "dup.pdf"; v2 is distinct.
+  const v0 = { label: "dup.pdf", analysis: analysisWith({ total: 90, experience: 22, skills: 28, roleSeniority: 20, education: 15, traits: 15, yearsExperience: 10, skillList: ["alphaonly"] }) };
+  const v1 = { label: "dup.pdf", analysis: analysisWith({ total: 60, experience: 12, skills: 14, roleSeniority: 10, education: 10, traits: 12, yearsExperience: 4, skillList: ["betaonly"] }) };
+  const v2 = { label: "unique.pdf", analysis: analysisWith({ total: 55, experience: 11, skills: 12, roleSeniority: 9, education: 9, traits: 11, yearsExperience: 3, skillList: ["gammaonly"] }) };
+  const payload = buildComparison([v0, v1, v2]);
+
+  // Both non-winner variants (v1 shares the winner's label, v2 doesn't) get a
+  // top-level comparison. Pre-fix the label filter excluded v1 too, leaving 1.
+  const topLevel = payload.driverInsightItems.filter((it) => it.kind === "delta" || it.kind === "tie").length;
+  assert.equal(topLevel, 2, "both non-winner variants are compared, including the one sharing the winner's label");
+});
+
+test("the merged recommendation pulls each section from the index-matched CV, not the label-collision last one", () => {
+  const v0 = { label: "dup.pdf", analysis: analysisWith({ total: 90, experience: 22, skills: 28, roleSeniority: 20, education: 15, traits: 15, yearsExperience: 10, skillList: ["alphaonly", "shared"] }) };
+  const v1 = { label: "dup.pdf", analysis: analysisWith({ total: 60, experience: 12, skills: 14, roleSeniority: 10, education: 10, traits: 12, yearsExperience: 4, skillList: ["betaonly"] }) };
+  const payload = buildComparison([v0, v1]);
+
+  // v0 wins the skills component (28 > 14). Pre-fix byLabel.get("dup.pdf") collapsed
+  // to the LAST analysis (v1), so the skills line showed v1's "betaonly".
+  const skillsLine = payload.mergedRecommendation.skillsLine;
+  assert.ok(skillsLine.includes("alphaonly"), `skills line must use the winner's own skills, got: ${skillsLine}`);
+  assert.ok(!skillsLine.includes("betaonly"), `skills line must NOT pull the colliding variant's skills, got: ${skillsLine}`);
+});
