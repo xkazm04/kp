@@ -324,16 +324,25 @@ export function DevTab() {
     if (!design?.role || !design?.case) return;
     setApproving(true);
     try {
-      const r = await fetch("/api/devcase", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ need: viewedNeed, analysis: result?.analysis, role: design.role, case: design.case }),
-      });
-      const p = await r.json();
-      if (r.ok) {
-        setApprovedId(p.id);
-        loadCases();
-      }
+      // Route through the shared runAction error surface like every other write on
+      // this tab (dev-case-authoring-publishing #2). approve() previously did a bare
+      // fetch that only acted `if (r.ok)`, so a probe-gate block (enforceProbeGate
+      // returns a structured error + code + verdict) spun and then did nothing — no
+      // banner, no explanation, a dead button. Now the server's message lands in the
+      // actionError banner.
+      await runAction(
+        "Approve",
+        () =>
+          fetch("/api/devcase", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ need: viewedNeed, analysis: result?.analysis, role: design.role, case: design.case }),
+          }),
+        (body) => {
+          setApprovedId((body as { id?: string } | null)?.id ?? null);
+          loadCases();
+        }
+      );
     } finally {
       setApproving(false);
     }
