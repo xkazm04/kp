@@ -326,16 +326,27 @@ function normalizeMeetingUrl(raw: unknown): string | null {
   }
 }
 
-// PATCH → recruiter attaches (or clears) an interview join link on an invite. Same
-// no-auth-layer posture as POST /api/schedule/invite (rate-limited per IP); the
-// candidate never reaches this route (they use the token route).
+// PATCH → recruiter attaches (or clears) an interview join link on an invite. The
+// meeting link is rendered as the trusted "Join" button on the recruiter agenda
+// and baked into both calendar events, so writing it is a RECRUITER capability:
+// the route is workspace-authenticated (like POST /api/schedule) and a token that
+// belongs to another team — or is merely the candidate's own token — must 404
+// before any write. (The candidate's token route keeps a read-only view of
+// meetingUrl.) Rate-limited per IP as an additional backstop.
 export async function PATCH(request: Request) {
   try {
     if (!rateLimit(`sched-meet:${clientIpFrom(request.headers)}`, { limit: 60, windowMs: 60_000 })) {
       return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
     }
+    const ws = await currentWorkspace();
     const body = (await request.json().catch(() => ({}))) as { token?: string; meetingUrl?: string | null };
     if (!body.token) return NextResponse.json({ error: "token is required" }, { status: 400 });
+    // Refuse a token outside this team's calendar before writing — mirrors the
+    // POST handler's invite.workspaceId !== ws check.
+    const invite = getScheduleInviteByToken(body.token);
+    if (!invite || invite.workspaceId !== ws) {
+      return NextResponse.json({ error: "invite not found" }, { status: 404 });
+    }
     const raw = typeof body.meetingUrl === "string" ? body.meetingUrl.trim() : "";
     let url: string | null = null;
     if (raw) {
