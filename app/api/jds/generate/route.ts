@@ -61,11 +61,21 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "A role title is required." }, { status: 400 });
   }
 
-  // Resolve the chosen company template server-side so the build renders through it
-  // (an unknown/empty id ⇒ the AI-default format). Loaded here, not in the task, so
-  // the handler stays storage-agnostic.
+  // Resolve the chosen company template server-side so the build renders through it.
+  // Loaded here, not in the task, so the handler stays storage-agnostic. Scope the
+  // lookup to the caller's workspace (tenancy): getTemplate has a defaulted
+  // workspaceId, so an unscoped call read the DEFAULT team's templates — silently
+  // discarding a non-default team's private choice AND letting any team read a
+  // default-team private template by id. A non-empty id that no longer resolves is
+  // an explicit-choice-gone-missing, so 400 rather than silently using AI-default.
+  const ws = await currentWorkspace();
   const templateId = typeof record.templateId === "string" ? record.templateId : "";
-  const templateBody = templateId ? getTemplate(templateId)?.body : undefined;
+  let templateBody: string | undefined = undefined;
+  if (templateId) {
+    const template = getTemplate(templateId, ws);
+    if (!template) return NextResponse.json({ error: "That template is no longer available." }, { status: 400 });
+    templateBody = template.body;
+  }
 
   // The recruiter's original intent, persisted on the JD row so Duplicate re-seeds
   // the PROMPT (not the rendered markdown) and Retry can replay even after the task
@@ -83,7 +93,7 @@ export async function POST(request: Request) {
 
   try {
     // 1. Placeholder JD (appears in the Ledger as "Analyzing" right away).
-    const { slug } = insertAnalyzingJd({ title: cleanTitle, options, buildInput }, await currentWorkspace());
+    const { slug } = insertAnalyzingJd({ title: cleanTitle, options, buildInput }, ws);
     // 2. Detached build that fills it in (survives navigation). jdSlug makes the
     //    task's dedupe identity the JD itself, so each Generate is its own run.
     const task = startTask("jd_build", {

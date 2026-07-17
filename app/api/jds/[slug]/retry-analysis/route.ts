@@ -11,7 +11,7 @@ import { requireOperator } from "@/app/_lib/auth/require-operator";
 // the shape POST /api/jds/generate hands startTask, re-resolving templateBody from
 // the stored templateId (which is durable; the resolved body isn't). NULL/blank
 // intent ⇒ null (a legacy row with neither task nor intent → the 400 below).
-function paramsFromIntent(title: string, raw: string | null | undefined): Record<string, unknown> | null {
+function paramsFromIntent(title: string, raw: string | null | undefined, workspaceId: string): Record<string, unknown> | null {
   if (!raw) return null;
   let intent: JdBuildIntent;
   try {
@@ -19,8 +19,11 @@ function paramsFromIntent(title: string, raw: string | null | undefined): Record
   } catch {
     return null;
   }
+  // Resolve the stored template in the JD's OWN workspace (tenancy): getTemplate
+  // has a defaulted workspaceId, so an unscoped call replayed against the DEFAULT
+  // team's templates — dropping a non-default team's format on every retry.
   const templateBody =
-    typeof intent.templateId === "string" && intent.templateId ? getTemplate(intent.templateId)?.body : undefined;
+    typeof intent.templateId === "string" && intent.templateId ? getTemplate(intent.templateId, workspaceId)?.body : undefined;
   return {
     title,
     company: intent.company,
@@ -49,7 +52,8 @@ export async function POST(_request: Request, context: { params: Promise<{ slug:
   if (denied) return denied;
   const { slug } = await context.params;
   try {
-    const jd = loadJd(slug, await currentWorkspace());
+    const ws = await currentWorkspace();
+    const jd = loadJd(slug, ws);
     if (!jd) return NextResponse.json({ error: "JD not found." }, { status: 404 });
     if (jd.analysis_status !== "failed") {
       return NextResponse.json({ error: "This JD isn't in a failed state." }, { status: 409 });
@@ -58,7 +62,7 @@ export async function POST(_request: Request, context: { params: Promise<{ slug:
     // Task-first (exact params), then the durable row intent, else nothing to replay.
     const replayParams = oldTask
       ? ((oldTask.params as Record<string, unknown>) ?? {})
-      : paramsFromIntent(jd.title, jd.build_input_json);
+      : paramsFromIntent(jd.title, jd.build_input_json, ws);
     if (!replayParams) return NextResponse.json({ error: "No build to retry." }, { status: 400 });
 
     markJdAnalyzing(slug);
