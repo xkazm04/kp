@@ -159,6 +159,18 @@ class ValidationTest(unittest.TestCase):
             with self.assertRaises(LLMError):
                 resolve_provider("cv_analysis")
 
+    def test_cv_analysis_raises_for_text_only_adapters(self) -> None:
+        # llm-provider-layer #1: openai/anthropic/gemini adapters in this layer are
+        # text-only (the real multimodal path lives in gemini.py), so routing the
+        # file-input cv_analysis case to them must fail loud, not silently drop the CV
+        # and analyze an empty prompt. Previously they advertised file_input and were
+        # waved through.
+        for provider in ("openai", "anthropic", "gemini", "azure_openai"):
+            with self.subTest(provider=provider):
+                with llm_config({"useCases": {"cv_analysis": {"provider": provider}}}):
+                    with self.assertRaises(LLMError):
+                        resolve_provider("cv_analysis")
+
     def test_wildcard_cannot_silently_degrade_multimodal(self) -> None:
         with llm_config({"useCases": {"*": {"provider": "claude_cli"}}}):
             with self.assertRaises(LLMError):
