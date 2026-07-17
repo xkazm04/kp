@@ -10,6 +10,11 @@ banking employer. Names, archetypes, seniority, education, languages, and prior
 evidence titles are PRESERVED — these are applicants to ČS, not ČS staff — only
 their demonstrated skill stack is aligned to what the bank actually hires for.
 
+Scope: only the three TECH families with a ČS track (software_engineering,
+data_ai, product_project) are aligned. Candidates in a non-tech family
+(finance_accounting, sales_marketing, …) are LEFT UNTOUCHED — they exist to
+exercise the non-tech taxonomy and must keep their own coherent skill stack.
+
     python -m pipeline.jobfit.align_candidates_csas            # rewrites candidates.json
     python -m pipeline.jobfit.align_candidates_csas --dry-run  # print the distribution only
 
@@ -105,7 +110,16 @@ def _aspirations(track: Track, archetype: str, seniority: str | None) -> list[st
 
 
 def align_record(record: dict[str, Any], idx: int) -> dict[str, Any]:
-    family = record.get("roleFamily") if record.get("roleFamily") in TRACKS else "software_engineering"
+    # Only the three tech families have ČS tracks here. A non-tech family
+    # (finance_accounting, operations_logistics, sales_marketing, customer_support)
+    # is left UNTOUCHED — the old fallback coerced it onto software_engineering,
+    # overwriting its skillClaims/evidence/aspirations/targetRole with a Java stack
+    # while leaving roleFamily unchanged, minting internally-inconsistent records
+    # that the non-tech jobs then had no coherent candidates to match
+    # (evaluation-fairness-seed-data #1).
+    family = record.get("roleFamily")
+    if family not in TRACKS:
+        return record
     tracks = TRACKS[family]
     track = tracks[idx % len(tracks)]
     archetype = str(record.get("archetype") or "bau")
@@ -160,17 +174,26 @@ def main(argv: list[str] | None = None) -> int:
 
     aligned: list[dict[str, Any]] = []
     targets: Counter[str] = Counter()
+    aligned_count = 0
+    skipped_count = 0
     for idx, rec in enumerate(records):
         if not isinstance(rec, dict):
             continue
+        fam = rec.get("roleFamily")
         out = align_record(dict(rec), idx)
         aligned.append(out)
-        fam = rec.get("roleFamily") if rec.get("roleFamily") in TRACKS else "software_engineering"
-        targets[TRACKS[fam][idx % len(TRACKS[fam])]["target"]] += 1
+        if fam in TRACKS:
+            aligned_count += 1
+            targets[TRACKS[fam][idx % len(TRACKS[fam])]["target"]] += 1
+        else:
+            # Preserved unchanged (non-tech family) — see align_record.
+            skipped_count += 1
 
-    print(f"Aligned {len(aligned)} candidates onto ČS tracks:", file=sys.stderr)
+    print(f"Aligned {aligned_count} candidates onto ČS tracks:", file=sys.stderr)
     for target, n in targets.most_common():
         print(f"  {n:2}  {target}", file=sys.stderr)
+    if skipped_count:
+        print(f"Left {skipped_count} non-tech candidate(s) untouched (no ČS track for their family).", file=sys.stderr)
 
     if args.dry_run:
         print("(dry run — candidates.json not written)", file=sys.stderr)
