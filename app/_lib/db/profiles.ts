@@ -297,7 +297,22 @@ export function deleteProfile(id: string, workspaceId: string = DEFAULT_WORKSPAC
 
 export type MatrixProfile = { id: string; label: string; archetype: string | null; payload: unknown };
 
-export function listMatrixProfiles(limit = 200, workspaceId: string = DEFAULT_WORKSPACE_ID): MatrixProfile[] {
+// Hard ceiling on how many candidates the Fit Matrix scores per request. The grid
+// is an O(N*M) Python spawn, so an unbounded pool would blow the request budget on
+// a large workspace. The route surfaces the unclamped total (countMatrixProfiles)
+// alongside this cap so the UI can say "Showing 200 of N" rather than silently
+// omitting rows past the cap (skill-matrix-coverage #1).
+export const MATRIX_POOL_CAP = 200;
+
+/** How many candidate profiles the workspace has (unclamped) — so the matrix route
+ *  can report the true pool size against MATRIX_POOL_CAP. */
+export function countMatrixProfiles(workspaceId: string = DEFAULT_WORKSPACE_ID): number {
+  const db = ensureDb();
+  const row = db.prepare(`SELECT COUNT(*) AS n FROM profiles WHERE workspace_id = ?`).get(workspaceId) as { n: number };
+  return row.n;
+}
+
+export function listMatrixProfiles(limit = MATRIX_POOL_CAP, workspaceId: string = DEFAULT_WORKSPACE_ID): MatrixProfile[] {
   const db = ensureDb();
   const rows = db
     .prepare(`SELECT id, label, archetype, payload_json FROM profiles WHERE workspace_id = ? ORDER BY created_at ASC LIMIT ?`)

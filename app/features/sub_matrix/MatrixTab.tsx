@@ -32,6 +32,11 @@ type Matrix = {
   // so the grid never quietly omits a row, the symmetric counterpart to `missing`.
   missingCandidates: { id: string; label: string; error: string }[];
   placements: Record<string, { stage: string; status: string }>;
+  // Unclamped candidate-pool size vs the per-request cap. When poolTotal > poolCap
+  // the grid scored only the first poolCap candidates; surfaced so the pool cap is
+  // no longer a silent omission (skill-matrix-coverage #1).
+  poolTotal?: number;
+  poolCap?: number;
 };
 
 // Dot colours are pure presentation, keyed by the canonical archetype id. The id set and
@@ -596,6 +601,19 @@ export function MatrixTab() {
             </button>
           ))}
         </div>
+      ) : null}
+
+      {data && data.poolTotal != null && data.poolCap != null && data.poolTotal > data.poolCap ? (
+        <p
+          role="status"
+          className="flex items-center gap-1.5 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900"
+          title={`${data.poolCap} of ${data.poolTotal} candidates scored`}
+        >
+          <AlertTriangle size={15} className="shrink-0 text-amber-700" aria-hidden />
+          {/* Reuses the existing ofCount key ("{shown} of {total}") so the pool cap
+              is visible without a new i18n string. */}
+          <span>{t("ofCount", { shown: data.poolCap, total: data.poolTotal })}</span>
+        </p>
       ) : null}
 
       {data && data.missing.length > 0 ? (

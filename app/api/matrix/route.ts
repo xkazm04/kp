@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createHash } from "node:crypto";
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
-import { getJobsByIds, listMatrixProfiles, listOpenPositions, pipelinePlacements } from "@/app/_lib/db";
+import { countMatrixProfiles, getJobsByIds, listMatrixProfiles, listOpenPositions, MATRIX_POOL_CAP, pipelinePlacements } from "@/app/_lib/db";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "@/app/_lib/python-runner";
 
@@ -39,10 +39,13 @@ export async function GET(request: NextRequest) {
   let workdir: string | null = null;
   try {
     const ws = await currentWorkspace();
-    const profiles = listMatrixProfiles(200, ws);
+    const profiles = listMatrixProfiles(MATRIX_POOL_CAP, ws);
+    // The unclamped pool size, so the grid can say "Showing 200 of N" instead of
+    // silently omitting candidates past the cap (skill-matrix-coverage #1).
+    const poolTotal = countMatrixProfiles(ws);
     const positions = listOpenPositions(ws);
     if (profiles.length === 0 || positions.length === 0) {
-      return NextResponse.json({ candidates: [], positions: [], cells: [], missing: [], missingCandidates: [], placements: {} });
+      return NextResponse.json({ candidates: [], positions: [], cells: [], missing: [], missingCandidates: [], placements: {}, poolTotal, poolCap: MATRIX_POOL_CAP });
     }
 
     const profilesJson = JSON.stringify(profiles);
@@ -67,6 +70,10 @@ export async function GET(request: NextRequest) {
         // profile payload itself) — pass straight through (defaulting for older CLI output).
         missingCandidates: matrix.missingCandidates ?? [],
         placements: pipelinePlacements(ws),
+        // Pool-size signal (fresh each response, outside the scored-grid cache) so
+        // the UI can flag a truncated pool alongside the missing/missingCandidates banners.
+        poolTotal,
+        poolCap: MATRIX_POOL_CAP,
         cached,
       });
 
