@@ -35,6 +35,23 @@ export type ScorecardRating = {
   offRubric?: boolean;
 };
 
+// The cross-language "no real assessment" sentinel. The Python synthesis emits
+// several spellings of the auto-synthesis-unavailable placeholder (e.g. "Not
+// assessed.", "Not assessed (auto-synthesis unavailable)."), and its own guards
+// key on the PREFIX contract `startswith("Not assessed")` (automation.py,
+// live_case.py). This is the single TS mirror of that contract — matching the
+// prefix, not one exact spelling, so a placeholder never leaks into a surface that
+// renders `evidence` as if it were a verbatim quote (interview-simulation
+// -comparison #2). Mirrors the interview-recommendation.ts single-source pattern.
+const PLACEHOLDER_EVIDENCE_PREFIX = "Not assessed";
+
+/** True when a rating's `evidence` is the placeholder emitted for an unassessed
+ *  axis (any "Not assessed…" spelling), so callers can filter it out of an
+ *  evidence/quote list instead of showing boilerplate as a real quote. */
+export function isPlaceholderEvidence(evidence: string | null | undefined): boolean {
+  return !evidence || evidence.startsWith(PLACEHOLDER_EVIDENCE_PREFIX);
+}
+
 /** The structured outcome of the closing READ-BACK exchange (scorecard-v5): the
  *  voice agent reads back the technologies it heard and the candidate confirms or
  *  corrects them, so a recruiter sees that "Rust" in the raw transcript actually

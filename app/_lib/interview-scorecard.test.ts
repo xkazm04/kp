@@ -11,7 +11,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { normalizeScorecardEntities } from "./interview-scorecard.ts";
+import { normalizeScorecardEntities, isPlaceholderEvidence } from "./interview-scorecard.ts";
 
 test("a read-back with a correction survives coercion, trimming and dropping junk", () => {
   const out = normalizeScorecardEntities({
@@ -61,4 +61,22 @@ test("no read-back normalizes to null (absent, empty, and non-object all yield n
   ]) {
     assert.equal(normalizeScorecardEntities(raw), null, JSON.stringify(raw ?? null));
   }
+});
+
+// isPlaceholderEvidence mirrors the Python "Not assessed…" PREFIX contract
+// (interview-simulation-comparison #2): the compare grid filters these out so a
+// placeholder never renders as a real evidence quote. The old TS filter matched
+// only the exact "Not assessed." spelling, letting the "(auto-synthesis
+// unavailable)" variant leak through as a rating-3 quote.
+test("isPlaceholderEvidence matches every 'Not assessed…' spelling (prefix contract)", () => {
+  assert.equal(isPlaceholderEvidence("Not assessed."), true);
+  assert.equal(isPlaceholderEvidence("Not assessed (auto-synthesis unavailable)."), true, "the variant the exact-match filter missed");
+  assert.equal(isPlaceholderEvidence(""), true, "empty evidence is not a real quote");
+  assert.equal(isPlaceholderEvidence(undefined), true);
+  assert.equal(isPlaceholderEvidence(null), true);
+});
+
+test("isPlaceholderEvidence keeps genuine evidence quotes", () => {
+  assert.equal(isPlaceholderEvidence("Walked through a real migration they led."), false);
+  assert.equal(isPlaceholderEvidence("Assessed the candidate's system-design tradeoffs."), false, "'Assessed…' is not the 'Not assessed' prefix");
 });

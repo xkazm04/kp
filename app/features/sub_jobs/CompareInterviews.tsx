@@ -5,7 +5,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
 import { rubricLabel, RUBRIC_CS } from "@/app/_lib/interview-rubric";
 import type { InterviewRecommendation } from "@/app/_lib/interview-recommendation";
-import type { Scorecard, ScorecardRating } from "@/app/_lib/interview-scorecard";
+import { isPlaceholderEvidence, type Scorecard, type ScorecardRating } from "@/app/_lib/interview-scorecard";
 import type { InterviewTelemetry } from "@/app/_lib/interview-telemetry";
 import { talkSharePercent, formatSpokenDuration } from "@/app/_lib/voice/telemetry-format";
 import { EmptyState } from "./JobsShared";
@@ -266,7 +266,7 @@ export function CompareInterviews({ jobId }: { jobId: string }) {
               {/* Every evidenced rating, visibly — the quotes ARE the scorecard's
                   accountability, so they must not hide behind hover tooltips. */}
               {c.ratings
-                .filter((r) => r.evidence && r.evidence !== "Not assessed.")
+                .filter((r) => !isPlaceholderEvidence(r.evidence))
                 .map((r, j) => (
                   <li key={j} className="flex items-baseline gap-1.5 text-sm text-ink">
                     <span
