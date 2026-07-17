@@ -6,7 +6,7 @@ import { useTranslations } from "next-intl";
 
 type PreviewRow = { id: string; label: string; score: number | null; jobTitle: string | null; stage: string };
 type CommandResult =
-  | { phase: "preview"; kind: string; description: string; mutating: boolean; preview: PreviewRow[]; total: number | null }
+  | { phase: "preview"; kind: string; description: string; mutating: boolean; preview: PreviewRow[]; total: number | null; matchedIds: string[] }
   | { phase: "info"; description: string }
   | {
       phase: "done";
@@ -35,13 +35,15 @@ export function CommandBar({ onExecuted }: { onExecuted: () => void }) {
   const post = async (confirm: boolean) => {
     setBusy(true);
     try {
-      // bug-ui pipeline #3 — a reject_below confirm carries the EXACT id set the
-      // recruiter just reviewed in the preview, so the server rejects only those
-      // (still-matching) candidates and can never email a rejection to someone who
-      // slipped below the line after the preview was shown.
+      // bug-ui pipeline #3 — a reject_below confirm carries the id set the recruiter
+      // reviewed, so the server rejects only still-matching candidates and never
+      // emails someone who slipped below the line after the preview. Bind to the FULL
+      // matched set (matchedIds), not the 50 RENDERED rows: the preview says "affects
+      // N" and confirming must act on all N, not silently stop at the render cap
+      // (pipeline-board-candidate-drawer #2).
       const confirmIds =
         confirm && result?.phase === "preview" && result.kind === "reject_below"
-          ? result.preview.map((row) => row.id)
+          ? result.matchedIds
           : undefined;
       const r = await fetch("/api/pipeline/command", {
         method: "POST",
@@ -57,7 +59,7 @@ export function CommandBar({ onExecuted }: { onExecuted: () => void }) {
       } else if (p.kind === "help" || p.kind === "unknown") {
         setResult({ phase: "info", description: p.description });
       } else {
-        setResult({ phase: "preview", kind: p.kind, description: p.description, mutating: p.mutating, preview: p.preview ?? [], total: p.total });
+        setResult({ phase: "preview", kind: p.kind, description: p.description, mutating: p.mutating, preview: p.preview ?? [], total: p.total, matchedIds: p.matchedIds ?? [] });
       }
     } finally {
       setBusy(false);

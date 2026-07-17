@@ -57,7 +57,14 @@ export async function POST(request: NextRequest) {
       const hits = cmd.kind === "run_policy" ? [] : affected(cmd, listPipeline(ws));
       const rows = hits.slice(0, PREVIEW_CAP).map(toRow);
       const total = cmd.kind === "run_policy" ? null : hits.length;
-      return NextResponse.json({ kind: cmd.kind, description, mutating: isMutating(cmd), preview: rows, total });
+      // matchedIds is the FULL previewed id set — only the RENDERED rows are capped
+      // at PREVIEW_CAP, ids are cheap (pipeline-board-candidate-drawer #2). The
+      // reject_below confirm binds to this (not the 50 rendered ids), so confirming
+      // "reject below N%" on a 120-match cohort rejects all 120 the recruiter was
+      // told it "affects", not just the first 50 — while resolveRejectTargets still
+      // drops any id that stopped matching between preview and confirm.
+      const matchedIds = cmd.kind === "run_policy" ? [] : hits.map((e) => e.id);
+      return NextResponse.json({ kind: cmd.kind, description, mutating: isMutating(cmd), preview: rows, total, matchedIds });
     }
 
     // Execute.
