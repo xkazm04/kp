@@ -445,22 +445,48 @@ export function setTaskDone(runId: string, taskId: string, done: boolean): Onboa
 
 const INTAKE_VALUE_MAX = 500;
 
-/** Persist the pre-boarding questionnaire (last write wins). Bounds every value;
- *  keys are taken as-is from the validated form. */
+/** Persist the pre-boarding questionnaire by MERGING this request's non-blank
+ *  answers over whatever is already stored. Bounds every value; keys are taken
+ *  as-is from the validated form.
+ *
+ *  Merge (not replace) is load-bearing (candidate-onboarding-hand-off #1): the
+ *  recruiter form initializes its answers to `{}` at mount, and its blur handler
+ *  fires an "intake" PATCH with that stale snapshot — a wholesale replace then
+ *  silently destroyed the candidate's already-submitted intake (emergency
+ *  contact, licence, …). Blank values are ignored, never used to delete an
+ *  existing answer. An all-empty result is a no-op: an empty intake row both
+ *  falsely flips `intakeSubmitted` and permanently suppresses the one-shot
+ *  pre-boarding reminder, so we mirror the candidate path's empty-submit no-op. */
 export function saveIntake(runId: string, answers: Record<string, unknown>): OnboardingRunDetail | null {
   const d = db();
   // Tenant (P1): intake inherits its run's workspace (by-id read of the run).
   const run = d.prepare(`SELECT workspace_id FROM onboarding_runs WHERE id = ?`).get(runId) as { workspace_id?: string } | undefined;
   if (!run) return null;
   const workspaceId = run.workspace_id ?? DEFAULT_WORKSPACE_ID;
-  const clean: Record<string, string> = {};
+  const incoming: Record<string, string> = {};
   for (const [k, v] of Object.entries(answers)) {
-    if (typeof v === "string" && v.trim()) clean[k.slice(0, 64)] = v.trim().slice(0, INTAKE_VALUE_MAX);
+    if (typeof v === "string" && v.trim()) incoming[k.slice(0, 64)] = v.trim().slice(0, INTAKE_VALUE_MAX);
   }
+  // Layer this request's non-blank keys over the existing row.
+  const existingRow = d.prepare(`SELECT answers_json FROM onboarding_intake WHERE run_id = ?`).get(runId) as
+    | { answers_json: string }
+    | undefined;
+  let existing: Record<string, string> = {};
+  if (existingRow) {
+    try {
+      const parsed = JSON.parse(existingRow.answers_json);
+      if (parsed && typeof parsed === "object") existing = parsed as Record<string, string>;
+    } catch {
+      /* corrupt row → treat as empty rather than let a parse error block the write */
+    }
+  }
+  const merged = { ...existing, ...incoming };
+  // Nothing to persist (empty request AND no prior row): don't mint an empty row.
+  if (Object.keys(merged).length === 0) return getRunDetail(runId);
   d.prepare(
     `INSERT INTO onboarding_intake (run_id, answers_json, submitted_at, workspace_id) VALUES (?, ?, ?, ?)
      ON CONFLICT(run_id) DO UPDATE SET answers_json = excluded.answers_json, submitted_at = excluded.submitted_at`
-  ).run(runId, JSON.stringify(clean), new Date().toISOString(), workspaceId);
+  ).run(runId, JSON.stringify(merged), new Date().toISOString(), workspaceId);
   return getRunDetail(runId);
 }
 

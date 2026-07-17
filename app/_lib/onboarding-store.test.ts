@@ -82,6 +82,31 @@ test("saveIntake keeps only non-blank string answers and bounds every value", ()
   assert.equal(saveIntake("obr-nope", {}), null);
 });
 
+test("saveIntake MERGES over the existing row and never blanks it (candidate-onboarding-hand-off #1)", () => {
+  const run = startRun({ entryId: "ob-entry-merge" });
+  // Candidate submits their intake.
+  saveIntake(run.id, { emergencyContact: "Pat 555-0101", licenceNo: "AB-1234" });
+  // Recruiter opens the run (form answers initialized to {}), tabs through a field
+  // without changing anything → blur fires an intake PATCH with the stale {} snapshot.
+  let detail = saveIntake(run.id, {})!;
+  assert.equal(detail.intake!.emergencyContact, "Pat 555-0101", "an empty PATCH must NOT wipe the submitted intake");
+  assert.equal(detail.intake!.licenceNo, "AB-1234", "unrelated keys survive an empty PATCH");
+  // Recruiter edits one field → only that key changes; the rest is preserved.
+  detail = saveIntake(run.id, { emergencyContact: "Jordan 555-0199" })!;
+  assert.equal(detail.intake!.emergencyContact, "Jordan 555-0199", "the edited key updates");
+  assert.equal(detail.intake!.licenceNo, "AB-1234", "keys the recruiter didn't touch are preserved");
+});
+
+test("saveIntake does not mint an empty intake row (keeps the pre-boarding nudge alive)", () => {
+  const run = startRun({ entryId: "ob-entry-empty" });
+  const detail = saveIntake(run.id, { blank: "   ", nope: 7 as unknown as string })!;
+  assert.equal(detail.intake, null, "an all-blank first save creates no intake row");
+  assert.ok(
+    new Set(duePreboardingReminders(FUTURE).map((r) => r.id)).has(run.id),
+    "the run is still due for the one-shot pre-boarding reminder",
+  );
+});
+
 test("the pre-boarding nudge is due only for active, unsubmitted, un-reminded runs — and claims once", () => {
   const run = startRun({ entryId: "ob-entry-4" });
   const dueIds = () => new Set(duePreboardingReminders(FUTURE).map((r) => r.id));

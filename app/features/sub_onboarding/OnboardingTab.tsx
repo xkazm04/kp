@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Check, ChevronRight, FileSignature, ListChecks, Plus, Trash2, UserPlus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { ONBOARDING_PRESETS, type OnboardingTask, type OnboardingTaskState, type QuestionnaireField } from "@/app/_lib/onboarding";
@@ -360,6 +360,11 @@ function RunDetailView({ runId, onBack }: { runId: string; onBack: () => void })
   const t = useTranslations("onboarding");
   const [detail, setDetail] = useState<RunDetail | null>(null);
   const [answers, setAnswers] = useState<Record<string, string>>({});
+  // The intake snapshot as last persisted by the server, so a field blur only
+  // PATCHes the key that actually changed (candidate-onboarding-hand-off #1). An
+  // unconditional blur PATCH re-stamps submitted_at and, before the store learned
+  // to merge, could overwrite the candidate's answers with a stale form snapshot.
+  const savedAnswersRef = useRef<Record<string, string>>({});
   const [doc, setDoc] = useState("");
   const [error, setError] = useState<string | null>(null);
 
@@ -381,6 +386,7 @@ function RunDetailView({ runId, onBack }: { runId: string; onBack: () => void })
       const p = (await r.json()) as RunDetail;
       setDetail(p);
       setAnswers(p.intake ?? {});
+      savedAnswersRef.current = p.intake ?? {};
       setError(null);
     })();
     return () => {
@@ -472,7 +478,14 @@ function RunDetailView({ runId, onBack }: { runId: string; onBack: () => void })
                 type="text"
                 value={answers[field.key] ?? ""}
                 onChange={(e) => setAnswers((a) => ({ ...a, [field.key]: e.target.value }))}
-                onBlur={() => void patch({ action: "intake", answers })}
+                onBlur={() => {
+                  // Only persist when THIS field changed since the last save; send
+                  // just the changed key (the store merges it into the stored row).
+                  const current = answers[field.key] ?? "";
+                  if ((savedAnswersRef.current[field.key] ?? "") === current) return;
+                  savedAnswersRef.current = { ...savedAnswersRef.current, [field.key]: current };
+                  void patch({ action: "intake", answers: { [field.key]: current } });
+                }}
                 sizeVariant="sm"
                 className="mt-1"
               />
