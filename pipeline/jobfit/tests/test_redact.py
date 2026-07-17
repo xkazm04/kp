@@ -53,6 +53,21 @@ class RedactPiiTest(unittest.TestCase):
         self.assertIsNone(r.detected_name)
         self.assertEqual(r.text, plain)
 
+    def test_name_detected_flag_tracks_the_name_category(self) -> None:
+        # cv-extraction-pipeline #1: an explicit fail-open signal. When a name is
+        # found, name_detected is True and "name" is in categories; when it isn't
+        # (so the real name would still reach the model), name_detected is False so
+        # the caller can refuse to claim "identity redacted".
+        with_name = redact_pii(CV)
+        self.assertTrue(with_name.name_detected)
+        self.assertIn("name", with_name.categories)
+
+        # A single-token name slips past _guess_name_line's 2-4-token heuristic.
+        no_name = redact_pii("Madonna\nSenior engineer with 8 years in Go.\nmadonna@example.com")
+        self.assertFalse(no_name.name_detected, "an undetected name must flag name_detected=False")
+        self.assertNotIn("name", no_name.categories)
+        self.assertIsNone(no_name.detected_name)
+
     def test_english_preposition_on_is_not_redacted(self) -> None:
         # Czech "on" (he) used to be in the pronoun list, so \bon\b shredded every
         # English "on" — corrupting the blind-scored text. It must survive verbatim.

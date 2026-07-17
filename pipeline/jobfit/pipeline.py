@@ -128,11 +128,24 @@ def analyze_cv(
             # redaction.text is empty — emitting the redacted note would be a LIE, and
             # the gemini call below now fails closed rather than uploading the original
             # (identity-bearing) file. Surface the honest degraded state instead.
-            if (redaction.text or "").strip():
+            if (redaction.text or "").strip() and redaction.name_detected:
                 note = "Blind screening active — identity redacted before scoring"
                 if redaction.categories:
                     note += f" ({', '.join(redaction.categories)})"
                 repairs.append(note + ".")
+            elif (redaction.text or "").strip():
+                # Text redacted, but NO candidate name was detected (a single-token,
+                # very long, lowercase, non-Latin, or below-the-fold name slips past
+                # _guess_name_line), so the real name is still in the blind_text the
+                # model sees. NEVER claim "identity redacted" here — that is a false
+                # fairness/compliance statement (cv-extraction-pipeline #1). Say so
+                # honestly so the recruiter can verify and doesn't misread the missing
+                # name below as "anonymous candidate" rather than "redaction miss".
+                cats = ", ".join(redaction.categories) if redaction.categories else "none"
+                repairs.append(
+                    "Blind screening PARTIAL — no candidate name detected to redact "
+                    f"(redacted: {cats}); the name may have reached the model. Verify manually."
+                )
             else:
                 repairs.append(
                     "Blind screening could not run: no extractable text to redact "
