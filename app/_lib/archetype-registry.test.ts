@@ -5,7 +5,7 @@
 // — so the test never mutates the shared archetypes.json on disk.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { validateArchetype, setArchetypeArchived } from "./archetype-registry.ts";
+import { validateArchetype, setArchetypeArchived, updateArchetype } from "./archetype-registry.ts";
 
 const valid = {
   label: "Returner",
@@ -41,4 +41,21 @@ test("setArchetypeArchived refuses a built-in archetype with an honest reason (n
   assert.ok("error" in result, "built-in archetypes are protected");
   assert.equal(result.error.code, "archive_builtin");
   assert.equal(result.error.params?.id, "bau");
+});
+
+// A built-in's fairness shield can't be edited away (candidate-profile-job-matching
+// #1). These hit the guard which returns BEFORE any registry write (the rejection
+// path), so like the archive test they never mutate archetypes.json. "student" is a
+// built-in, fairness-protected, early_career archetype in the committed registry.
+test("updateArchetype refuses to strip a built-in's fairnessProtected flag (no disk write)", async () => {
+  const result = await updateArchetype("student", { fairnessProtected: false });
+  assert.ok("error" in result, "the fairness shield edit is refused");
+  assert.equal(result.error.code, "edit_builtin_shield");
+  assert.equal(result.error.params?.id, "student");
+});
+
+test("updateArchetype refuses to change a built-in's scoringModel (no disk write)", async () => {
+  const result = await updateArchetype("student", { scoringModel: "experienced" });
+  assert.ok("error" in result, "re-ranking students on the experienced model is refused");
+  assert.equal(result.error.code, "edit_builtin_shield");
 });

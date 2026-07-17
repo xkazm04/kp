@@ -156,9 +156,31 @@ export async function updateArchetype(
     const reg = await readRegistry();
     const idx = reg.archetypes.findIndex((a) => a.id === id);
     if (idx === -1) return { error: { code: "not_found", message: "Archetype not found." } };
+    const current = reg.archetypes[idx];
+    const editable = pickEditable(patch);
+    // A built-in's fairness shield can't be edited away (candidate-profile-job-matching
+    // #1). setArchetypeArchived already refuses to retire built-ins because that would
+    // strip the shield — but updateArchetype had no such guard, so unticking the
+    // fairness checkbox (or a raw PUT of fairnessProtected/scoringModel) silently
+    // disabled the "early-career candidates are never auto-rejected" guarantee, or
+    // re-ranked students on the experienced model. Reject those two changes for
+    // built-ins (label/badge/weights edits still go through); mirrors archive_builtin.
+    if (
+      BUILT_IN.has(id) &&
+      (("fairnessProtected" in editable && editable.fairnessProtected !== current.fairnessProtected) ||
+        ("scoringModel" in editable && editable.scoringModel !== current.scoringModel))
+    ) {
+      return {
+        error: {
+          code: "edit_builtin_shield",
+          message: `'${id}' is a built-in archetype; its fairness protection and scoring model can't be changed.`,
+          params: { id },
+        },
+      };
+    }
     // pickEditable omits `archived`, so a normal edit never flips retirement — only the
     // explicit archive endpoint touches it, and the flag survives weight/label edits.
-    const merged = { ...reg.archetypes[idx], ...pickEditable(patch) };
+    const merged = { ...current, ...editable };
     const err = validateArchetype(merged);
     if (err) return { error: err };
     reg.archetypes[idx] = merged;
