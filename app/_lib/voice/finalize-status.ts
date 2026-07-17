@@ -31,8 +31,14 @@ export type InterviewEndSignals = {
   errored: boolean;
   /** The call reached the live phase (ElevenLabs onConnect / OpenAI answer applied). */
   reachedLive: boolean;
-  /** Number of real transcript turns captured during the call. */
+  /** Number of real transcript turns captured during the call (any role). */
   turnCount: number;
+  /** Number of turns spoken by the CANDIDATE. A call where only the AI interviewer
+   *  spoke (silent-mic / VAD never triggered) has candidateTurnCount === 0 and must
+   *  NOT count as a real interview (voice-interview #1) — the agent always opens, so
+   *  turnCount alone is satisfied by the greeting even when the candidate said
+   *  nothing. */
+  candidateTurnCount: number;
 };
 
 export type InterviewFinalStatus = "completed" | "failed";
@@ -50,7 +56,14 @@ export const SUBSTANTIVE_TURNS = 6;
  *  (>= SUBSTANTIVE_TURNS turns) before the error — so a late blip on a real
  *  interview is still scored. Everything else is "failed". */
 export function interviewFinalStatus(signals: InterviewEndSignals): InterviewFinalStatus {
-  const hadRealConversation = signals.reachedLive && signals.turnCount > 0;
+  // A "real conversation" requires the CANDIDATE to have spoken at least once, not
+  // merely a turn of any role (voice-interview #1). The interviewer always opens
+  // ("Tell me about your recent work…"), so a silent-mic call — hardware fault, OS
+  // mute, VAD never firing — would otherwise satisfy turnCount > 0 with the greeting
+  // alone and finalize "completed": the session goes terminal (candidate locked out),
+  // minutes are billed, and the scorecard that feeds the Interview→Offer gate is
+  // computed from a transcript with zero candidate words.
+  const hadRealConversation = signals.reachedLive && signals.candidateTurnCount > 0;
   if (!hadRealConversation) return "failed";
   // bug-ui-scan-2026-07-09 (voice-interview #2): an error only fails a call that
   // hadn't yet become a substantive conversation; past the threshold the captured

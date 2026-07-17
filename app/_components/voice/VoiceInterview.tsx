@@ -527,6 +527,7 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
       errored: erroredRef.current,
       reachedLive: reachedLiveRef.current,
       turnCount: turnsRef.current.length,
+      candidateTurnCount: turnsRef.current.filter((t) => t.role === "candidate").length,
     });
 
   const conversation = useConversation({
@@ -615,6 +616,7 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
               errored: erroredRef.current,
               reachedLive: reachedLiveRef.current,
               turnCount: turnsRef.current.length,
+              candidateTurnCount: turnsRef.current.filter((t) => t.role === "candidate").length,
             });
             const blob = new Blob(
               [JSON.stringify({ token: tok, sessionId: sid, transcript: turnsRef.current, status })],

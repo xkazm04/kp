@@ -104,7 +104,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const status = body.status === "failed" ? "failed" : "completed";
+    // Defense in depth (voice-interview #1): `status` is client-supplied, and the
+    // AI interviewer always opens, so a silent-mic call (hardware fault, OS mute,
+    // VAD never firing) can arrive here as "completed" with a transcript that holds
+    // only interviewer turns. Never score such a call: downgrade to "failed" so
+    // scoring is skipped, minutes stay unbilled, and the candidate keeps access to
+    // their link instead of being locked out of an empty interview.
+    const candidateTurns = transcript.filter((t) => t.role === "candidate").length;
+    const status = body.status === "failed" || candidateTurns === 0 ? "failed" : "completed";
 
     // Never replace a persisted non-empty transcript with an empty one
     // (idea-beb71894): a stray empty/failed finalize after a real one (e.g. a
