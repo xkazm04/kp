@@ -7,6 +7,7 @@ import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { cleanupUnitDb } from "./testing/unit-db.ts";
 import {
+  cancelRun,
   duePreboardingReminders,
   ensureDefaultTemplate,
   getRunDetail,
@@ -176,4 +177,23 @@ test("startRun is conflict-tolerant — one run per entry, a re-provision return
   // Exactly one row exists for the entry — the UNIQUE(entry_id) invariant holds.
   const runs = listRuns().filter((r) => r.entryId === "ob-race");
   assert.equal(runs.length, 1, "never two runs for one entry");
+});
+
+test("a cancelled run is a tombstone — every mutator no-ops and never resurrects it (candidate-onboarding-hand-off #2)", () => {
+  const run = startRun({ entryId: "ob-entry-tombstone" });
+  const tasks = getRunDetail(run.id)!.tasks;
+  // Revoke: the documented erase tombstone. startRun can't re-provision; the token
+  // bridge won't resolve; the PII is meant to stop re-accreting.
+  assert.equal(cancelRun(run.id), true);
+  assert.equal(getRunDetail(run.id)!.run.status, "cancelled");
+
+  // Every mutator must refuse (return null) and leave the status 'cancelled'.
+  assert.equal(setTaskDone(run.id, tasks[0].id, true), null, "ticking a checkbox on a tombstone is a no-op");
+  assert.equal(saveIntake(run.id, { preferredName: "Ghost" }), null, "intake cannot re-accrete on a tombstone");
+  assert.equal(requestSignature(run.id, "NDA"), null, "no signature request against a tombstone");
+  assert.equal(markSigned(run.id, "obs-anything", "Nobody"), null, "no signing against a tombstone");
+
+  const after = getRunDetail(run.id)!;
+  assert.equal(after.run.status, "cancelled", "the tombstone status is intact after all mutation attempts");
+  assert.equal(after.intake, null, "no intake row was written");
 });

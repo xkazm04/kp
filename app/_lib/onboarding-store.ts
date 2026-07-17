@@ -422,12 +422,28 @@ export function getRunDetail(runId: string): OnboardingRunDetail | null {
 
 /** Toggle a checklist task; auto-completes the run when the last one is checked
  *  (and re-opens it if a task is later unchecked). Returns the fresh detail. */
+/** The run's workspace for a mutation, or null when the run is missing OR
+ *  CANCELLED. cancelRun is a revoke/erase tombstone (candidate-onboarding-hand-off
+ *  #2): once cancelled, startRun can't re-provision and the candidate token bridge
+ *  refuses to resolve. But the mutators below keyed only on run EXISTENCE, and
+ *  setTaskDone rewrites status back to active/complete from progress — so one
+ *  accidental checkbox click on a cancelled run (which renders like an active one)
+ *  overwrote the tombstone and let the purged PII re-accrete. Routing every mutator
+ *  through this guard makes `cancelled` terminal. */
+function mutableRunWorkspace(runId: string): string | null {
+  const run = db().prepare(`SELECT workspace_id, status FROM onboarding_runs WHERE id = ?`).get(runId) as
+    | { workspace_id?: string; status?: string }
+    | undefined;
+  if (!run || run.status === "cancelled") return null;
+  return run.workspace_id ?? DEFAULT_WORKSPACE_ID;
+}
+
 export function setTaskDone(runId: string, taskId: string, done: boolean): OnboardingRunDetail | null {
   const d = db();
-  // Tenant (P1): a task state inherits its run's workspace (by-id read of the run).
-  const run = d.prepare(`SELECT workspace_id FROM onboarding_runs WHERE id = ?`).get(runId) as { workspace_id?: string } | undefined;
-  if (!run) return null;
-  const workspaceId = run.workspace_id ?? DEFAULT_WORKSPACE_ID;
+  // Tenant (P1): a task state inherits its run's workspace. null ⇒ missing or a
+  // cancelled tombstone — no-op either way (never flip a tombstone back to active).
+  const workspaceId = mutableRunWorkspace(runId);
+  if (workspaceId === null) return null;
   const now = new Date().toISOString();
   d.prepare(
     `INSERT INTO onboarding_task_states (run_id, task_id, done, done_at, workspace_id) VALUES (?, ?, ?, ?, ?)
@@ -459,10 +475,10 @@ const INTAKE_VALUE_MAX = 500;
  *  pre-boarding reminder, so we mirror the candidate path's empty-submit no-op. */
 export function saveIntake(runId: string, answers: Record<string, unknown>): OnboardingRunDetail | null {
   const d = db();
-  // Tenant (P1): intake inherits its run's workspace (by-id read of the run).
-  const run = d.prepare(`SELECT workspace_id FROM onboarding_runs WHERE id = ?`).get(runId) as { workspace_id?: string } | undefined;
-  if (!run) return null;
-  const workspaceId = run.workspace_id ?? DEFAULT_WORKSPACE_ID;
+  // Tenant (P1): intake inherits its run's workspace. null ⇒ missing or cancelled
+  // tombstone — a cancelled run must not re-accrete purged PII.
+  const workspaceId = mutableRunWorkspace(runId);
+  if (workspaceId === null) return null;
   const incoming: Record<string, string> = {};
   for (const [k, v] of Object.entries(answers)) {
     if (typeof v === "string" && v.trim()) incoming[k.slice(0, 64)] = v.trim().slice(0, INTAKE_VALUE_MAX);
@@ -495,10 +511,10 @@ export function saveIntake(runId: string, answers: Record<string, unknown>): Onb
  *  it records a 'requested' row that markSigned resolves. */
 export function requestSignature(runId: string, document: string): OnboardingRunDetail | null {
   const d = db();
-  // Tenant (P1): a signature request inherits its run's workspace (by-id read of the run).
-  const run = d.prepare(`SELECT workspace_id FROM onboarding_runs WHERE id = ?`).get(runId) as { workspace_id?: string } | undefined;
-  if (!run) return null;
-  const workspaceId = run.workspace_id ?? DEFAULT_WORKSPACE_ID;
+  // Tenant (P1): a signature request inherits its run's workspace. null ⇒ missing
+  // or cancelled tombstone — no new signature request against a revoked run.
+  const workspaceId = mutableRunWorkspace(runId);
+  if (workspaceId === null) return null;
   d.prepare(
     `INSERT INTO onboarding_signatures (id, run_id, document, status, requested_at, workspace_id) VALUES (?, ?, ?, 'requested', ?, ?)`
   ).run(randomId("obs"), runId, document.trim().slice(0, 200) || "Document", new Date().toISOString(), workspaceId);
@@ -518,6 +534,8 @@ export function requestSignature(runId: string, document: string): OnboardingRun
  *  exist) returns null → 404, and the run detail returned is always `runId`'s own. */
 export function markSigned(runId: string, signatureId: string, signer: string): OnboardingRunDetail | null {
   const d = db();
+  // A cancelled run is a tombstone — refuse to sign against it (no PII re-accretion).
+  if (mutableRunWorkspace(runId) === null) return null;
   const row = d.prepare(`SELECT id FROM onboarding_signatures WHERE id = ? AND run_id = ?`).get(signatureId, runId) as
     | { id: string }
     | undefined;
