@@ -58,9 +58,18 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ u
     // The override the desired set implies vs the member's (possibly just-changed) role.
     const override = overrideFromDesired(membership.role, desired);
     // Delegation: the actor may only GRANT capabilities they hold themselves
-    // (org:manage is already non-grantable). Revokes are unrestricted.
+    // (org:manage is already non-grantable). Revokes are unrestricted. But the
+    // client re-sends the WHOLE desired set, so `override.grant` recomputes grants
+    // for capabilities the actor never touched — including pre-existing ones the
+    // member already had. Cap delegation to the DELTA the actor is actually
+    // introducing: a grant survives if the actor can delegate it OR it already
+    // existed on the member. Otherwise a partial delegate toggling one unrelated
+    // switch would silently strip a teammate's pre-existing (undelegatable) grant.
     const actorCaps = new Set<Capability>(await callerCapabilities());
-    const filtered = override ? { grant: override.grant.filter((c) => actorCaps.has(c)), revoke: override.revoke } : null;
+    const preExistingGrants = new Set<Capability>(membership.overrides?.grant ?? []);
+    const filtered = override
+      ? { grant: override.grant.filter((c) => actorCaps.has(c) || preExistingGrants.has(c)), revoke: override.revoke }
+      : null;
     const effective = filtered && (filtered.grant.length || filtered.revoke.length) ? filtered : null;
     const r = setMemberPermissions(userId, workspaceId, effective);
     if (!r.ok) return NextResponse.json({ error: r.reason }, { status: opStatus(r.reason) });
