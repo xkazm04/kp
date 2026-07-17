@@ -30,12 +30,17 @@ function CandidateHeader({ c, rank, isLead }: { c: EvalCandidate; rank: number; 
       <Avatar label={c.label} archetype={c.archetype} size="sm" />
       <div className="min-w-0">
         <div className="truncate font-semibold text-ink">{c.label}</div>
-        {isLead ? (
+        {/* KO takes precedence over the crown (group-evaluation-fairness #1): a
+            KO-failed candidate must never be shown as the lead, and the crown must
+            never suppress the KO pill. isLead is only ever true when the server
+            actually crowned a lead (see `hasLead`), so a legitimate lead never hits
+            the KO branch. */}
+        {c.koPassed === false ? (
+          <Pill tone="coral">{t("ko")}</Pill>
+        ) : isLead ? (
           <Pill tone="moss">
             <Crown size={12} /> {t("lead")}
           </Pill>
-        ) : c.koPassed === false ? (
-          <Pill tone="coral">{t("ko")}</Pill>
         ) : null}
       </div>
     </div>
@@ -114,11 +119,17 @@ export function ComparisonTable({
   skillRows,
   mustRows,
   roleBand,
+  hasLead,
 }: {
   candidates: EvalCandidate[];
   skillRows: { skill: string; mustHave: boolean }[];
   mustRows: string[];
   roleBand: number[];
+  // Did the server actually crown a lead (topPick)? When false — an all-KO field or
+  // a sub-min-cohort sample — NO column gets the "Lead" crown, matching the summary
+  // and the sealed record (group-evaluation-fairness #1). The lead, when present, is
+  // always the rank-1 (first) column.
+  hasLead: boolean;
 }) {
   const t = useTranslations("decisions.groupEval");
   const cols = candidates.length + 1;
@@ -178,7 +189,7 @@ export function ComparisonTable({
               </th>
               {candidates.map((c, i) => (
                 <th key={candIdentity(c)} scope="col" className="sticky top-0 z-20 border-b border-stone-200 bg-paper px-3 py-2 text-left align-bottom font-normal">
-                  <CandidateHeader c={c} rank={i + 1} isLead={i === 0} />
+                  <CandidateHeader c={c} rank={i + 1} isLead={hasLead && i === 0} />
                 </th>
               ))}
             </tr>
