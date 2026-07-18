@@ -12,6 +12,7 @@ import { provLabel } from "@/app/features/sub_match/MatchTypes";
 import { useConfidenceBandCopy, useFitTierLabels } from "@/app/features/sub_match/MatchShared";
 import { EmptyState, SkippedCandidatesNote } from "./JobsShared";
 import { downloadFile, toCsv } from "@/app/_lib/export-utils";
+import { FIT_PROMISING_FLOOR } from "@/app/_lib/fit-thresholds";
 import { useAddToPipeline } from "@/app/_lib/useAddToPipeline";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { useReachOut } from "@/app/_lib/useReachOut";
@@ -138,9 +139,10 @@ export function RecruiterCandidates({
 
   const eligible = data.candidates.filter((c) => c.koPassed);
   // A "pool fit" = eligible, promising (≥ the rediscover SCORE_FLOOR), and NOT yet
-  // in this role's pipeline — the strong matches sitting unused in the pool.
-  const POOL_FIT_FLOOR = 55;
-  const isPoolFit = (c: CandRow) => !c.inPipeline && c.result.total >= POOL_FIT_FLOOR;
+  // in this role's pipeline — the strong matches sitting unused in the pool. Shares
+  // the exact rediscovery admission floor via fit-thresholds.ts, so tuning one
+  // surface can't silently drift from the other (sourcing-campaigns-rediscovery #3).
+  const isPoolFit = (c: CandRow) => !c.inPipeline && c.result.total >= FIT_PROMISING_FLOOR;
   const poolFitCount = eligible.filter(isPoolFit).length;
   // When the filter is on, both columns narrow to the pool-fit subset.
   const shown = poolFitOnly ? eligible.filter(isPoolFit) : eligible;

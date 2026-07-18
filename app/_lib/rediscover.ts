@@ -1,4 +1,5 @@
 import { candidateOutcomes, getJob, getJobWorkspace, type CandidateOutcome } from "./db";
+import { FIT_PROMISING_FLOOR } from "./fit-thresholds";
 import { buildCandidatePool } from "./candidate-pool";
 import { listJobStatuses } from "./job-ingest";
 import { rankPoolForJob } from "./recruiter-run";
@@ -16,9 +17,12 @@ export { filterRelevantAlerts } from "./rediscovery-relevance";
 // elsewhere (or parked in another role) who clear the bar for this one and aren't
 // already in it.
 
-// Minimum match total (0-100) a rediscovered candidate must clear. 55 mirrors
-// matching.FIT_PROMISING_THRESHOLD — at/above "promising" fit.
-export const SCORE_FLOOR = 55;
+// Minimum match total (0-100) a rediscovered candidate must clear — at/above
+// "promising" fit. Single-sourced in fit-thresholds.ts so the Candidates "Pool fit"
+// filter (a client component that can't import this db-bound module) shares the
+// exact same bar (sourcing-campaigns-rediscovery #3). Re-exported name kept for
+// back-compat with existing SCORE_FLOOR callers.
+export const SCORE_FLOOR = FIT_PROMISING_FLOOR;
 // Max rediscovered candidates returned (ranked, so top-N). `more` reports how many
 // eligible were dropped so the cap never reads as "this is everyone".
 export const REDISCOVER_LIMIT = 20;
