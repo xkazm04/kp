@@ -15,7 +15,7 @@ import { cellClass, ColumnStats, MatrixLegend, type Cell } from "./MatrixShared"
 import { ChainEmptyState } from "@/app/_components/ChainEmptyState";
 import { Skeleton } from "@/app/_components/Skeleton";
 import { CompletionCta } from "@/app/_components/CompletionCta";
-import { STRONG_THRESHOLD } from "./matrix-stats";
+import { STRONG_THRESHOLD, MIN_FIT_FLOORS } from "./matrix-stats";
 import { orderMatrixRows } from "./matrix-rows";
 import { computePopoverPosition } from "./matrix-popover";
 
@@ -453,7 +453,7 @@ export function MatrixTab() {
             {data && data.candidates.length > 0 ? (
               <div className="inline-flex items-center overflow-hidden rounded-md border border-stone-200 bg-white text-sm font-semibold">
                 <span className="px-2 py-1 text-steel">{t("minFit")}</span>
-                {[0, 55, 70].map((lvl) => (
+                {MIN_FIT_FLOORS.map((lvl) => (
                   <button
                     key={lvl}
                     type="button"

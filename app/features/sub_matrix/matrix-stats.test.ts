@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { columnStats, STRONG_THRESHOLD } from "./matrix-stats.ts";
+import { columnStats, STRONG_THRESHOLD, MIN_FIT_FLOORS, MATRIX_BANDS } from "./matrix-stats.ts";
 
 // MAT2 — per-role column distribution stats for the Fit Matrix.
 
@@ -33,4 +33,12 @@ test("band boundaries are inclusive-low (edge scores climb to the next band)", (
   assert.deepEqual(columnStats([85]).buckets, [0, 0, 0, 0, 1]);
   assert.equal(columnStats([STRONG_THRESHOLD]).strong, 1);
   assert.equal(columnStats([STRONG_THRESHOLD - 1]).strong, 0);
+});
+
+test("min-fit floors are derived from the bands, so the filter aligns with the heatmap (skill-matrix-coverage #3)", () => {
+  // off, the amber floor (first non-coral band), and "strong".
+  assert.deepEqual([...MIN_FIT_FLOORS], [0, MATRIX_BANDS[1].min, STRONG_THRESHOLD]);
+  // "≥strong" must equal the moss/strong band start, not a mid-band 70.
+  assert.equal(MIN_FIT_FLOORS[MIN_FIT_FLOORS.length - 1], STRONG_THRESHOLD);
+  assert.equal(MIN_FIT_FLOORS.includes(55 as never), false, "the old mid-band 55 literal is gone");
 });

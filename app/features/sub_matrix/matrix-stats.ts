@@ -20,6 +20,13 @@ export const MATRIX_BANDS = [
 
 // "Strong" fit boundary — the moss threshold cellClass uses (band index 3's floor).
 export const STRONG_THRESHOLD = MATRIX_BANDS[3].min; // 72
+
+// Min-fit filter offered floors, DERIVED from the bands so they line up with the
+// heatmap the recruiter reads (skill-matrix-coverage #3): "off" (0), the amber
+// floor (45, the first non-coral band), and "strong" (72, STRONG_THRESHOLD). The
+// old inline [0, 55, 70] landed mid-band, so "≥70" survived rows the grid renders
+// non-strong and unstarred. Re-banding MATRIX_BANDS now updates these too.
+export const MIN_FIT_FLOORS = [0, MATRIX_BANDS[1].min, STRONG_THRESHOLD] as const; // [0, 45, 72]
 // Histogram bucket edges = every band floor except the first (0): 45, 60, 72, 85.
 const BAND_EDGES = MATRIX_BANDS.slice(1).map((b) => b.min); // 5 buckets: <45, 45–59, 60–71, 72–84, 85+
 
