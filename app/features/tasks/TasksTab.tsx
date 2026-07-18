@@ -2,6 +2,7 @@
 
 import { useCallback, useState } from "react";
 import Link from "next/link";
+import { RECENT_TASK_WINDOW_DAYS } from "@/app/_lib/tasks-window";
 import { AlertTriangle, Ban, Check, ChevronDown, ChevronRight, Clock, Loader2, RefreshCw, X } from "lucide-react";
 import { useTasks, type Task, type TaskStatus } from "./TasksProvider";
 import { SystemCard } from "./SystemCard";
@@ -16,9 +17,9 @@ import { Select } from "@/app/_components/Select";
 import { Checkbox } from "@/app/_components/Checkbox";
 
 // Default window the live view shows; older runs page in via the history table.
-// Mirrors RECENT_TASK_WINDOW_DAYS in app/_lib/tasks.ts (server-only, so the value
-// is restated here rather than imported into this client bundle).
-const RECENT_WINDOW_DAYS = 7;
+// Single-sourced from tasks-window.ts (import-free) so these labels + the history
+// boundary can never drift from the server's cutoff (tasks-system-operations #2).
+const RECENT_WINDOW_DAYS = RECENT_TASK_WINDOW_DAYS;
 const HISTORY_PAGE_SIZE = 20;
 
 type StatusMeta = {

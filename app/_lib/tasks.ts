@@ -27,6 +27,8 @@ import { runReasoning } from "./reasoning-run";
 import { runAnalyze, type AnalyzeParams } from "./analyze-run";
 import { runDesignArtifacts, runEvaluateSubmission, runNeedAnalysis, type DevNeed } from "./devcase-run";
 import { runLifecycle } from "./devcase-orchestrator";
+import { RECENT_TASK_WINDOW_DAYS } from "./tasks-window";
+export { RECENT_TASK_WINDOW_DAYS } from "./tasks-window";
 import { runGroupEval } from "./group-eval-run";
 import { runJdBuild } from "./jd-build-run";
 import { runInterviewPrep } from "./interview-prep-run";
@@ -47,7 +49,6 @@ const MAX_CONCURRENT = 2; // respect the Claude CLI subscription rate ceiling
 // runs are paged in on demand via the history endpoint. One knob shared by the
 // recent-list (GET /api/tasks) and history (GET /api/tasks/history) endpoints so
 // their windows can never drift apart and leak/duplicate tasks at the boundary.
-export const RECENT_TASK_WINDOW_DAYS = 7;
 export function recentTaskCutoffIso(): string {
   return new Date(Date.now() - RECENT_TASK_WINDOW_DAYS * 24 * 60 * 60 * 1000).toISOString();
 }
