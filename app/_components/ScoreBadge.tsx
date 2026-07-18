@@ -1,4 +1,4 @@
-import { scoreTone, type ScoreTone } from "@/app/_lib/format";
+import { clampPercent, scoreTone, type ScoreTone } from "@/app/_lib/format";
 
 // A score rendered as a color-banded pill so the eye can rank candidates
 // without reading every number: strong (>=75) reads moss, mid (50-74) amber,
@@ -30,5 +30,8 @@ export function ScoreBadge({ score }: { score: number | null }) {
     return <span className={`${base} ${TONE_CLASS.null}`}>—</span>;
   }
 
-  return <span className={`${base} ${STAMP} ${TONE_CLASS[tone]}`}>{score}</span>;
+  // Normalize the display the way every sibling score surface does (Meter rounds,
+  // ScoreDial clamps+rounds): a fractional 82.6 or out-of-range 150 must not leak
+  // onto a hiring surface (shared-ui-design-system #5). score is non-null here.
+  return <span className={`${base} ${STAMP} ${TONE_CLASS[tone]}`}>{Math.round(clampPercent(score as number))}</span>;
 }
