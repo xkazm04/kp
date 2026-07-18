@@ -223,7 +223,7 @@ test("a distinct variant sharing the winner's label is still compared (not label
 
   // Both non-winner variants (v1 shares the winner's label, v2 doesn't) get a
   // top-level comparison. Pre-fix the label filter excluded v1 too, leaving 1.
-  const topLevel = payload.driverInsightItems.filter((it) => it.kind === "delta" || it.kind === "tie").length;
+  const topLevel = (payload.driverInsightItems ?? []).filter((it) => it.kind === "delta" || it.kind === "tie").length;
   assert.equal(topLevel, 2, "both non-winner variants are compared, including the one sharing the winner's label");
 });
 
