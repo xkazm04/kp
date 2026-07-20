@@ -1993,7 +1993,8 @@
         "rejectDid": "Automaticky zamítnuto · spodních {pct} % z {n} → {count} (pořadí {rank}) a shoda {score} < práh {threshold}.",
         "tieAdjustedNote": "(upraveno kvůli shodě z {from}, aby se stejná skóre nerozdělila)",
         "staleSkipped": "Přeskočeno — fáze se během vlny změnila (byla {wasStage}); ponecháno beze změny.",
-        "unscored": "bez skóre — shoda zatím nezměřena; vyloučeno z automatického zamítání (nejprve ohodnotit)"
+        "unscored": "bez skóre — shoda zatím nezměřena; vyloučeno z automatického zamítání (nejprve ohodnotit)",
+        "holdout": "ponecháno — kalibrační kontrolní vzorek: {pct} % kandidátů určených k automatickému zamítnutí je záměrně ponecháno, aby jejich skutečné výsledky ověřily správnost skóre (shoda {score}, práh {threshold})"
       }
     },
     "summary": {

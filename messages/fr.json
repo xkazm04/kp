@@ -2022,7 +2022,8 @@
         "rejectDid": "Rejeté automatiquement · {pct}% les plus faibles de {n} → {count} (rang {rank}) et correspondance {score} < seuil {threshold}.",
         "tieAdjustedNote": "(ajusté pour égalité depuis {from} afin qu'aucun score égal ne soit séparé)",
         "staleSkipped": "Ignoré — l'étape a changé en cours de vague (était {wasStage}) ; laissé intact.",
-        "unscored": "non évalué — aucun score de correspondance pour l'instant ; exclu du rejet automatique (évaluation requise)"
+        "unscored": "non évalué — aucun score de correspondance pour l'instant ; exclu du rejet automatique (évaluation requise)",
+        "holdout": "conservé — échantillon témoin de calibrage : {pct}% des candidats qui auraient été rejetés automatiquement sont épargnés afin que leurs résultats réels vérifient la justesse du score (correspondance {score}, seuil {threshold})"
       }
     },
     "summary": {

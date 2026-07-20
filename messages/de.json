@@ -2022,7 +2022,8 @@
         "rejectDid": "Automatisch abgelehnt · unterste {pct}% von {n} → {count} (Rang {rank}) und Match {score} < Schwelle {threshold}.",
         "tieAdjustedNote": "(vom Gleichstand ab {from} angepasst, damit kein gleicher Score getrennt wird)",
         "staleSkipped": "Übersprungen — Phase hat sich während der Welle geändert (war {wasStage}); unverändert gelassen.",
-        "unscored": "nicht bewertet — noch kein Match-Score; von Auto-Ablehnung ausgeschlossen (Bewertung nötig)"
+        "unscored": "nicht bewertet — noch kein Match-Score; von Auto-Ablehnung ausgeschlossen (Bewertung nötig)",
+        "holdout": "beibehalten — Kalibrierungs-Kontrollgruppe: {pct}% der eigentlich automatisch abgelehnten Kandidaten werden bewusst behalten, damit ihre tatsächlichen Ergebnisse die Richtigkeit des Scores prüfen können (Match {score}, Schwelle {threshold})"
       }
     },
     "summary": {

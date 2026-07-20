@@ -1993,7 +1993,8 @@
         "rejectDid": "Auto-rejected · bottom {pct}% of {n} → {count} (rank {rank}) and match {score} < {threshold} threshold.",
         "tieAdjustedNote": "(tie-adjusted from {from} so no equal score is split)",
         "staleSkipped": "Skipped — stage changed mid-wave (was {wasStage}); left untouched.",
-        "unscored": "unscored — no match score yet; excluded from auto-rejection (needs scoring)"
+        "unscored": "unscored — no match score yet; excluded from auto-rejection (needs scoring)",
+        "holdout": "kept — calibration holdout: {pct}% of would-be auto-rejects are spared so their real outcomes can test whether the score was right (match {score}, threshold {threshold})"
       }
     },
     "summary": {
