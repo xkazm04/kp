@@ -36,10 +36,15 @@ class CzechTechSurfacesResolveTest(unittest.TestCase):
         # intelligence" both resolved to None, so skill_match_score fell to string
         # equality across the two different strings -> 0.0 (a false miss). Now both
         # resolve to `ai` -> exact match, 1.0.
+        # provenance_default is explicit: the shipped default is now `self_declared`,
+        # which discounts the match. This test is about the Czech surface RESOLVING
+        # to the same taxonomy term (taxonomy credit), not about the evidence
+        # discount, so it pins the professional tier.
         cand = MatchCandidate(
             skills=["umělá inteligence", "zpracování přirozeného jazyka"],
             seniority="senior", role_family="data_ai",
             languages=["Czech", "English"], years_experience=6,
+            provenance_default="professional",
         )
         job = mkjob(
             role_family="data_ai",

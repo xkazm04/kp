@@ -234,8 +234,14 @@ def _probe_language() -> Probe:
         ("kubernetes", "Kubernetes"),
     ]
     ok = all(resolve_term(a) is not None and resolve_term(a) == resolve_term(b) for a, b in cases)
-    # and the match score is full for the Czech surface against the English requirement
-    ok = ok and skill_match_score("strojové učení", "machine learning") == 1.0
+    # and the match score is full for the Czech surface against the English requirement.
+    # Provenance is passed EXPLICITLY: this probe is about taxonomy resolution parity
+    # across languages, not about the evidence discount. It previously relied on the
+    # default parameter being "professional" to reach 1.0, so when that default became
+    # "self_declared" (UAT 2026-07-20) the probe reported a language-neutrality failure
+    # for a change that treats Czech and English identically. Pinning the provenance
+    # keeps the probe measuring the one thing it names.
+    ok = ok and skill_match_score("strojové učení", "machine learning", "professional") == 1.0
     return Probe("language_neutrality", ok, "Czech/diacritic surfaces resolve and score like English")
 
 

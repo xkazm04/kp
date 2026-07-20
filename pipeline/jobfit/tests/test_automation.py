@@ -18,9 +18,15 @@ def mkjob(**over):
     return _mkjob(**base)
 
 
+# provenance_default is explicit on BAU: the shipped default is now `self_declared`,
+# which discounts an unevidenced claim below the match threshold. This fixture is the
+# "experienced hire who clearly HAS the skills" input to the screening policy — these
+# tests are about the automation routing, not about the evidence discount — so it pins
+# the professional tier. STUDENT deliberately keeps the default: an early-career
+# candidate's self-declared skills are exactly the case the discount is for.
 BAU = MatchCandidate(
     skills=["Python", "Django"], seniority="senior", role_family="software_engineering",
-    languages=["English"], archetype="bau",
+    languages=["English"], archetype="bau", provenance_default="professional",
 )
 STUDENT = MatchCandidate(
     skills=["HTML"], seniority="junior", role_family="software_engineering", languages=["English"],

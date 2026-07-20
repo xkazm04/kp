@@ -15,6 +15,12 @@ from pipeline.jobfit.winnability import assess_winnability
 
 
 def _cand(label: str, skills: list[str], **kw) -> MatchCandidate:
+    # provenance_default is explicit: the shipped default is now `self_declared`, which
+    # discounts an unevidenced claim below the match threshold. Winnability is about
+    # which GATES (languages, must-haves, seniority) shrink an otherwise-capable pool,
+    # not about the evidence discount, so the synthetic pool is pinned to the
+    # professional tier — these are people who demonstrably have the stack.
+    kw.setdefault("provenance_default", "professional")
     return MatchCandidate(label=label, skills=skills, role_family="software_engineering", **kw)
 
 

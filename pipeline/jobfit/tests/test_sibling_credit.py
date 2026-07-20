@@ -60,9 +60,14 @@ class SiblingScoreSkillsBoundaryTest(unittest.TestCase):
     NOT missing — it nudges the sub-score but is never claimed as possession."""
 
     def _cand(self, skills: list[str]) -> MatchCandidate:
+        # provenance_default is explicit: the shipped default is now `self_declared`,
+        # which discounts every match. These tests are about where SIBLING credit
+        # lands relative to the match threshold, not about the evidence discount,
+        # so they pin the professional tier.
         return MatchCandidate(
             skills=skills, seniority="medior", role_family="sales_marketing",
             languages=["English"], years_experience=4,
+            provenance_default="professional",
         )
 
     def test_sibling_only_is_neither_matched_nor_missing(self) -> None:

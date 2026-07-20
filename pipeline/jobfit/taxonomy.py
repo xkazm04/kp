@@ -391,7 +391,24 @@ PROVENANCE_WEIGHTS: dict[str, float] = {
     "self_declared": 0.4,
     "unknown": 0.6,
 }
-DEFAULT_PROVENANCE = "professional"
+# The default when NOTHING is recorded about how a skill was acquired (UAT
+# 2026-07-20). This used to be "professional" — the joint-highest trust tier — so
+# absence of evidence was read as the STRONGEST possible evidence: a skill the
+# candidate merely typed into a list scored identically to one demonstrated for
+# five years in production, and a well-written CV therefore outranked a plainly
+# written one carrying real artifacts. "self_declared" is the honest reading of an
+# uncorroborated claim, and it makes the discount fail SAFE (understate an
+# unevidenced claim) instead of fail FLATTERING, matching how the rest of this
+# codebase treats missing signal (unscored → excluded, unknown archetype →
+# shielded, absent robustness → "not_varied").
+#
+# This MOVES SCORES. A self-declared exact match scores 0.4 rather than 1.0, which
+# is below _MATCH_THRESHOLD, so such a claim now lands in `unproven_skills`
+# (contributing 0.4 × weight) instead of `matched_skills`. It never becomes
+# `missing` — that stays reserved for a claim the candidate never made — so
+# knockout filtering is unaffected. Recruiter-facing thresholds calibrated against
+# the old inflated numbers need re-tuning; see docs/SCORING_REBASELINE.md.
+DEFAULT_PROVENANCE = "self_declared"
 
 # The user-selectable provenance values, in dropdown display order (weakest →
 # strongest evidence). A curated SUBSET of PROVENANCE_WEIGHTS: it omits
