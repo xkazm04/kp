@@ -712,6 +712,40 @@ def _coerce_entities(raw: Any) -> dict | None:
     return {"confirmed": confirmed, "corrected": corrected, "unconfirmed": unconfirmed}
 
 
+# Character budget for the transcript handed to the scorecard prompt. MUST match
+# MAX_SCORECARD_NOTES_CHARS in app/_lib/interview-transcript.ts — the TS side
+# already samples to this budget, so a TS-produced note passes through untouched
+# and only a non-TS caller is ever sampled here.
+MAX_SCORECARD_NOTES_CHARS = 6000
+
+
+def sample_scorecard_notes(notes: str | None, limit: int = MAX_SCORECARD_NOTES_CHARS) -> str:
+    """Head+tail sample of an interview transcript, preserving the CLOSING turns.
+
+    A naive ``notes[:limit]`` front-slice deletes the end of the call — which is
+    precisely where the interviewer's read-back of the candidate's stack lives.
+    The scorecard prompt instructs the model to treat that confirmation as the
+    AUTHORITATIVE record of the candidate's technologies, overriding earlier ASR
+    mishearings ("React" heard as "Rust"), so dropping it left the model trusting
+    a confirmation it could no longer see and silently falling back to the raw
+    early turns the prompt explicitly warns about (UAT TZ-VI-L1-02 / PVI-L1-01).
+
+    Mirrors the head+tail strategy the TS side already uses, with an in-band
+    marker so an elided transcript always announces itself rather than reading as
+    a complete one.
+    """
+    text = notes or ""
+    if len(text) <= limit:
+        return text
+    marker = "\n…[transcript elided]…\n"
+    budget = max(0, limit - len(marker))
+    # Bias to the tail: the read-back and the close matter more to a rating than
+    # the middle of the call, while the head still carries the role framing.
+    head = budget // 2
+    tail = budget - head
+    return f"{text[:head]}{marker}{text[len(text) - tail:]}"
+
+
 def interview_scorecard(candidate: MatchCandidate, job: Job, notes: str, *, lang: str = "en", provider: Any | None = None, github: Any | None = None):
     from .i18n import language_directive
 
@@ -740,7 +774,9 @@ def interview_scorecard(candidate: MatchCandidate, job: Job, notes: str, *, lang
     rubric_lines = "\n".join(_rubric_line(c) for c in rubric)
     prompt = (
         f"Synthesize a structured interview scorecard for {candidate.label} (role: {job.title}) from these "
-        f"interviewer notes / transcript:\n\"\"\"{notes[:4000]}\"\"\"\n\n"
+        # Head+tail sampled, NOT front-sliced: the read-back this prompt calls
+        # AUTHORITATIVE a few lines below lives at the END of the call.
+        f"interviewer notes / transcript:\n\"\"\"{sample_scorecard_notes(notes)}\"\"\"\n\n"
         # GH7 — repo evidence contextualizes the ratings (e.g. a thin transcript
         # answer on a skill the repos already corroborate); "" when absent, so
         # the evidence-less prompt stays byte-identical (same guarantee as the
