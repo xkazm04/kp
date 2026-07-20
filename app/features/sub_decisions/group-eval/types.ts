@@ -105,6 +105,13 @@ export type GroupEvalPayload = {
   advisory?: boolean;
   eligibilityList?: { rank: number; entryId: string; label: string; score: number | null }[] | null;
   topPick?: { label: string; score: number | null; why: string } | null;
+  // Whether the crowned lead is genuinely separated from the runner-up once BOTH
+  // confidence bands are taken into account (UAT L1-TOM-GEF-01). "overlapping" means
+  // the point-estimate gap is inside the measurement's own uncertainty — the top two
+  // are a tie on the evidence. "unknown" = not assessable (no band, no runner-up, or
+  // an unscored candidate) and must never be rendered as reassurance. Absent on evals
+  // saved before this existed → render no separation chrome at all.
+  leadSeparation?: "separated" | "overlapping" | "unknown";
   recommendedOrder?: string[];
   candidates?: EvalCandidate[];
   differentiators?: string[];

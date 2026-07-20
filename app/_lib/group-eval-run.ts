@@ -11,6 +11,7 @@ import { poolEntryFromAnalysis, type CandidatePoolEntry } from "./candidate-pool
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "./python-runner";
 import { rankPoolForJob } from "./recruiter-run";
 import { computeDifferentiators } from "./group-eval-differentiators";
+import { leadSeparation, separationNote } from "./group-eval-separation";
 import { hasComparableCohort, GROUP_EVAL_CAP, GROUP_EVAL_MIN_COHORT } from "./group-eval-cohort";
 import { compareByMatchScoreDesc, compareScoreDesc } from "./match-score";
 import { sealDecisionSafe } from "./decision-record-store";
@@ -492,6 +493,14 @@ export async function runGroupEval(
   // An all-unscored field can surface a null-scored lead: the summary then says
   // "unscored" instead of asserting a fit number that was never computed.
   const leadDesc = lead ? `${lead.label} (${lead.score != null ? `fit ${lead.score}` : "unscored"})` : null;
+  // Lead separation (UAT L1-TOM-GEF-01): the crown ranks on the bare point estimate
+  // while every candidate already carries an honest confidence band. Ask whether the
+  // gap to the runner-up actually survives that uncertainty, so the summary and the
+  // sealed record can say "not separated" instead of implying a decisive win. The
+  // runner-up is the next candidate in the SAME honest order — nothing is reordered.
+  const runnerUp = lead ? (candidates.find((c) => c !== lead) ?? null) : null;
+  const separation = leadSeparation(lead, runnerUp);
+  const separationCaveat = lead && runnerUp ? separationNote(separation, lead.label, runnerUp.label) : "";
   let deterministicSummary: string;
   if (!candidates.length) {
     deterministicSummary = `No candidates to evaluate for ${roleTitle}.`;
@@ -510,6 +519,10 @@ export async function runGroupEval(
       differentiators.length ? `Unique strengths: ${differentiators.join(", ")}. ` : ""
     }${risks.length ? `${risks.length} watch-out(s) flagged below.` : "No blocking risks flagged."}`;
   }
+  // Append the separation caveat to EVERY governance mode that names a lead — the
+  // hedge belongs wherever the crown is stated, and it rides into the sealed
+  // rationale below (which is this same string), so the audit record carries it too.
+  if (separationCaveat) deterministicSummary = `${deterministicSummary} ${separationCaveat}`;
 
   // Decision SoR (moonshot D backfill): seal the AI's recommended lead — the
   // group-eval recommendation a recruiter acts on, with the eval source as the
@@ -531,7 +544,12 @@ export async function runGroupEval(
       // cohortSource records whether the compared field was the recruiter's explicit
       // selection or the default top-N — so the sealed record is honest about cohort
       // provenance (a lead crowned over a chosen four ≠ over the whole fit-ranked field).
-      inputs: { score: lead.score, candidates: candidates.length, roleTitle, robustness, cohortSource: useSelection ? "selection" : "top", cohortSize: totalCandidates },
+      // confidence/separation (UAT L1-TOM-GEF-01): the sealed record used to assert a
+      // lead on a bare point estimate. It now carries the lead's honest band and
+      // whether that lead actually clears the runner-up's band — so a record can never
+      // read as a decisive crown when the two top candidates were a tie on the
+      // evidence. "unknown" is recorded as such, never silently as separation.
+      inputs: { score: lead.score, confidence: lead.confidence ?? null, separation, candidates: candidates.length, roleTitle, robustness, cohortSource: useSelection ? "selection" : "top", cohortSize: totalCandidates },
     });
   } else if (lead) {
     // Governance mode (P1-3): the AI is advisory and must NOT seal a winner. Record
@@ -544,7 +562,9 @@ export async function runGroupEval(
       candidateRef: lead.entryId,
       rationale: deterministicSummary,
       reasonCode: "advisory",
-      inputs: { score: lead.score, candidates: candidates.length, roleTitle, governanceMode, robustness, cohortSource: useSelection ? "selection" : "top", cohortSize: totalCandidates },
+      // Same confidence/separation honesty as the recommendation branch above — an
+      // advisory ranking is still a ranking someone will read as a shortlist.
+      inputs: { score: lead.score, confidence: lead.confidence ?? null, separation, candidates: candidates.length, roleTitle, governanceMode, robustness, cohortSource: useSelection ? "selection" : "top", cohortSize: totalCandidates },
     });
   }
 
@@ -610,6 +630,10 @@ export async function runGroupEval(
             (lead.score != null ? `Highest fit (${lead.score}) in this role.` : "Top of the field, but no fit score has been computed yet."),
         }
       : null,
+    // Does the crown survive both top candidates' confidence bands? Carried so the
+    // modal can hedge the lead visually the same way the summary and the sealed
+    // record now do (UAT L1-TOM-GEF-01). "unknown" = not assessable, not "fine".
+    leadSeparation: separation,
     recommendedOrder: candidates.map((c) => c.label),
     candidates,
     differentiators,
