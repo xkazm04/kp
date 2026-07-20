@@ -845,8 +845,22 @@ def score_job(
         score_breakdown=breakdown,
         confidence=_confidence(candidate, total, missing),
         matched_skills=matched,
+        # DISPLAY provenance — deliberately NOT `provenance_default` (UAT RECON-02).
+        # provenance_default is "professional" for every BAU candidate, so falling
+        # back to it here tagged a skill the candidate merely LISTED with the
+        # joint-highest trust tier, which the recruiter surfaces then rendered as a
+        # confident PROFESSIONAL badge: an affirmative claim of verification that was
+        # never performed. The honest fallback is `self_declared` — precisely what
+        # every consumer already assumes for a skill missing from this map
+        # (`prov[s] ?? "self_declared"` in RecruiterCandidates / AnalysisSummaryModal /
+        # ComparisonCells), so Python now agrees with the UI instead of contradicting it.
+        #
+        # SCORING IS UNAFFECTED and must stay that way: score_skills and the dynamic
+        # high-trust weighting read `candidate.skill_provenance` + `provenance_default`
+        # directly, never this field. Whether an unevidenced claim should also be
+        # DISCOUNTED in the score is a separate, score-moving decision.
         matched_skill_provenance={
-            s: candidate.skill_provenance.get(s, candidate.provenance_default) for s in matched
+            s: candidate.skill_provenance.get(s, "self_declared") for s in matched
         },
         matched_skill_strength=matched_strength,
         missing_skills=missing,
