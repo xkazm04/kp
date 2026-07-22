@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { calibrationPairs, pipelineCalibrationPairs } from "@/app/_lib/db";
-import { computeCalibration, computeCalibrationCohorts, recommendScreeningThreshold } from "@/app/_lib/calibration";
+import { heldOutEntryIds } from "@/app/_lib/decision-record-store";
+import { computeCalibration, computeCalibrationCohorts, recommendScreeningThreshold, calibrationLeakage, type CalibrationSource } from "@/app/_lib/calibration";
 import { getDecisionConfig, type ScreeningRule } from "@/app/_lib/decision-config-store";
 import { effectiveFloor } from "@/app/_lib/decision-config-schema";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
@@ -36,14 +37,23 @@ export async function GET(request: Request) {
   try {
     const params = new URL(request.url).searchParams;
     const roleFamily = params.get("roleFamily");
-    const source = params.get("source") === "analysis" ? "analysis" : "pipeline";
+    const rawSource = params.get("source");
+    // holdout = the calibration CLEAN ARM (UAT KAT-L1-001): only candidates the
+    // screening wave SPARED from auto-rejection, whose outcome the score therefore did
+    // not mechanically produce. It is the one source whose curve is not circular.
+    const source: CalibrationSource = rawSource === "analysis" ? "analysis" : rawSource === "holdout" ? "holdout" : "pipeline";
     // P1 — both producers are per-team reliability metrics: scope BOTH to the
     // caller's workspace (the pipeline branch previously defaulted, leaking the
     // default workspace's calibration curve to every team).
     const ws = await currentWorkspace();
     const family = roleFamily || null;
     const payload = calibrationCache.get(calibrationCacheKey(ws, source, family), () => {
-      const allPairs = source === "analysis" ? calibrationPairs(ws) : pipelineCalibrationPairs(ws);
+      const allPairs =
+        source === "analysis"
+          ? calibrationPairs(ws)
+          : source === "holdout"
+            ? pipelineCalibrationPairs(ws, { onlyEntryIds: heldOutEntryIds(ws) })
+            : pipelineCalibrationPairs(ws);
       // The distinct families present (from the UNFILTERED set) so the UI can offer a
       // data-driven "how accurate are you for <family> roles?" selector — stable
       // regardless of which family is currently selected.
@@ -71,7 +81,12 @@ export async function GET(request: Request) {
         // Surface which families carry an override so the panel can chip them.
         familyFloors = screening.familyFloors ?? {};
       }
-      return { ...computeCalibration(pairs), families, measures: source, cohorts, recommendation, currentThreshold, familyFloors };
+      // leakage (UAT KAT-L1-001): state, in the payload, how this source's outcome
+      // label is produced — so the panel can never present a circular curve as
+      // accuracy. `pipeline` is score-caused (high leakage); `holdout` is the clean
+      // arm (low). The recommendation above rests on the pipeline curve, so its own
+      // leakage rides here too, pointing the reader at the holdout arm to trust.
+      return { ...computeCalibration(pairs), families, measures: source, leakage: calibrationLeakage(source), cohorts, recommendation, currentThreshold, familyFloors };
     });
     return NextResponse.json(payload);
   } catch (error) {

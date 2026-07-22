@@ -5,6 +5,7 @@ import {
   computeCalibrationCohorts,
   recommendScreeningThreshold,
   computeThresholdEffect,
+  calibrationLeakage,
   MIN_CALIBRATION_OUTCOMES,
   MIN_CALIBRATION_BAND_OUTCOMES,
   MIN_THRESHOLD_EFFECT_OUTCOMES,
@@ -292,4 +293,37 @@ test("a pair with a malformed timestamp is dropped, never misattributed to a sid
 test("an unparseable apply timestamp returns null (nothing to measure against)", () => {
   const pairs: ScoreOutcomeAt[] = [at(40, 1, AFTER)];
   assert.equal(computeThresholdEffect(pairs, { lo: 35, hi: 45 }, "nope"), null);
+});
+
+// ─── label-leakage honesty (UAT KAT-L1-001) ───────────────────────────────────
+
+test("the pipeline curve is flagged high-leakage because the score caused the label", () => {
+  const l = calibrationLeakage("pipeline");
+  assert.equal(l.level, "high");
+  assert.equal(l.code, "score-caused-label");
+  // It must point the reader at the one arm that isn't circular.
+  assert.match(l.ceiling, /holdout/);
+});
+
+test("the holdout curve is the low-leakage clean arm and still names its ceiling", () => {
+  const l = calibrationLeakage("holdout");
+  assert.equal(l.level, "low");
+  assert.equal(l.code, "no-automated-leakage");
+  // "clean arm" must never overstate: the reviewer still saw the score, and the
+  // arm only covers the below-floor range.
+  assert.match(l.ceiling, /score-blind|below-floor/);
+  assert.notEqual(l.ceiling, "");
+});
+
+test("the analysis curve sits in between — human label, but not score-blind", () => {
+  const l = calibrationLeakage("analysis");
+  assert.equal(l.level, "medium");
+  assert.equal(l.code, "reviewer-saw-score");
+});
+
+test("every source names a non-empty coupling story", () => {
+  for (const s of ["pipeline", "analysis", "holdout"] as const) {
+    const l = calibrationLeakage(s);
+    assert.ok(l.note.length > 0, `${s} must state how its label is produced`);
+  }
 });

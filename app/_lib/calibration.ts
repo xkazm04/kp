@@ -340,3 +340,62 @@ export function computeThresholdEffect(
     minOutcomes,
   };
 }
+
+// ─── Label-leakage honesty (UAT 2026-07-20, KAT-L1-001) ───────────────────────
+// The single most important thing a reader of a calibration curve must know is
+// WHERE the outcome label came from — because if the score PRODUCED the label, the
+// curve validates the score against its own decisions and a perfectly biased
+// screener draws a perfect reliability diagram. The finding was not that the
+// product displays a false accuracy number (it honestly labels the axis "advance
+// rate"); it was that the CAUSAL COUPLING between predictor and label is
+// undisclosed. This descriptor makes it explicit, per source, so the panel and any
+// re-run of the UAT can tell a contaminated curve from the clean arm.
+
+export type CalibrationSource = "pipeline" | "analysis" | "holdout";
+
+export type LeakageLevel = "high" | "medium" | "low";
+
+export type CalibrationLeakage = {
+  /** How badly the label is coupled to the score that predicts it. */
+  level: LeakageLevel;
+  /** Stable code the UI keys its localized copy off. */
+  code: "score-caused-label" | "reviewer-saw-score" | "no-automated-leakage";
+  /** One-line plain statement of the coupling. */
+  note: string;
+  /** The honest limit that REMAINS even for the least-leaked source — named so
+   *  "clean arm" never overstates. Empty when there is nothing left to caveat. */
+  ceiling: string;
+};
+
+/** The leakage descriptor for a calibration source. Pure — no data, just the
+ *  causal story of how that source's outcome label is produced. */
+export function calibrationLeakage(source: CalibrationSource): CalibrationLeakage {
+  switch (source) {
+    case "pipeline":
+      return {
+        level: "high",
+        code: "score-caused-label",
+        note:
+          "The reject label is produced by the score: the screening wave auto-rejects on match_score, so this curve largely validates the score against its own decisions. The Brier score is biased optimistic by an amount nothing here estimates.",
+        ceiling:
+          "Only the calibration holdout (source=holdout) breaks this coupling; until it accrues enough outcomes, treat this curve as internal consistency, not accuracy.",
+      };
+    case "analysis":
+      return {
+        level: "medium",
+        code: "reviewer-saw-score",
+        note:
+          "The label is a human advance/pass disposition, so the score did not mechanically produce it — but the recruiter saw the score while deciding, so the two are still correlated by anchoring, not independent.",
+        ceiling: "Not a score-blind trial: the reviewer's decision was informed by the number being validated.",
+      };
+    case "holdout":
+      return {
+        level: "low",
+        code: "no-automated-leakage",
+        note:
+          "These candidates scored below the auto-reject floor but were spared, so the score did NOT mechanically produce their outcome — this is the clean arm the calibration can actually be falsified against.",
+        ceiling:
+          "The human reviewer still saw the score, so this is not a fully score-blind trial; and the arm only covers the below-floor range, so it measures 'when we said reject, were we right?' — not the whole curve.",
+      };
+  }
+}

@@ -1,7 +1,7 @@
 import { actOnPipelineEntry, listPipeline, recordAutomationEvent } from "./db";
 import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 import { getDecisionConfig, type ScreeningRule } from "./decision-config-store";
-import { sealDecisionSafe } from "./decision-record-store";
+import { sealDecisionSafe, SCREEN_WAVE_HOLDOUT_KIND, AUTO_REJECTED_KIND } from "./decision-record-store";
 import { DecisionConfigError, effectiveFloor, effectiveHoldoutPercent, screenBottomCount, tieSafeBottomCount, validateScreeningOverride } from "./decision-config-schema";
 import { dispatchRejection } from "./comms-dispatch";
 import { isFairnessProtected, isKnownArchetype } from "./archetypes";
@@ -324,7 +324,7 @@ export async function runScreenWave(
       if (!dryRun) {
         recordAutomationEvent(e.id, "screen_wave_holdout", holdoutRationale, workspaceId);
         sealDecisionSafe({
-          kind: "screen_wave_holdout",
+          kind: SCREEN_WAVE_HOLDOUT_KIND,
           actor: "auto:screen-wave",
           policyVersion,
           candidateRef: e.id,
@@ -407,7 +407,7 @@ export async function runScreenWave(
       // already wrote (actor:"system"). Best-effort (sealDecisionSafe never throws):
       // a seal failure must NEVER abort the wave.
       sealDecisionSafe({
-        kind: "auto_rejected",
+        kind: AUTO_REJECTED_KIND,
         actor: "auto:screen-wave",
         // Per-record policyVersion carries the EFFECTIVE floor this candidate was
         // judged against (family override or global) — byte-identical when none.

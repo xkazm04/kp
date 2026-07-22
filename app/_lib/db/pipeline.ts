@@ -323,17 +323,29 @@ export type CalibrationBandCandidate = {
 
 const CALIBRATION_ADVANCED_STAGES = new Set(["Interview", "Offer", "Hired"]);
 
-export function pipelineCalibrationPairs(workspaceId: string = DEFAULT_WORKSPACE_ID): PipelineCalibrationPair[] {
+export function pipelineCalibrationPairs(
+  workspaceId: string = DEFAULT_WORKSPACE_ID,
+  // CALIBRATION HOLDOUT (UAT KAT-L1-001). When present, restrict the pairs to this
+  // set of entry ids — the calibration CLEAN ARM. The screening wave spares a small
+  // random sample of would-be auto-rejects; their eventual advance/reject is a HUMAN
+  // decision, not one the score mechanically produced, so a curve over just these
+  // entries breaks the label leakage that makes the default (all-pairs) curve
+  // circular. The inclusion rule is IDENTICAL to the contaminated curve's — the only
+  // difference is which entries are eligible — so the two are directly comparable.
+  opts?: { onlyEntryIds?: ReadonlySet<string> }
+): PipelineCalibrationPair[] {
   const db = ensureDb();
   const rows = db
     .prepare(
-      `SELECT match_score AS score, stage, status, role_family, created_at FROM pipeline_entries
+      `SELECT id, match_score AS score, stage, status, role_family, created_at FROM pipeline_entries
        WHERE match_score IS NOT NULL AND workspace_id = ?`
     )
-    .all(workspaceId) as { score: number; stage: string; status: string; role_family: string | null; created_at: string }[];
+    .all(workspaceId) as { id: string; score: number; stage: string; status: string; role_family: string | null; created_at: string }[];
+  const only = opts?.onlyEntryIds;
   const pairs: PipelineCalibrationPair[] = [];
   for (const r of rows) {
     if (!Number.isFinite(r.score)) continue; // bad migration/manual edit — never NaN into the math
+    if (only && !only.has(r.id)) continue; // clean-arm filter (holdout source only)
     if (CALIBRATION_ADVANCED_STAGES.has(r.stage)) {
       pairs.push({ score: r.score, outcome: 1, roleFamily: r.role_family, at: r.created_at });
     } else if (r.status === "rejected") {
