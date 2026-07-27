@@ -168,10 +168,18 @@ export function IngestAdPanel({
       const exists = out.filter((r) => r.status === "exists").length;
       const failed = out.filter((r) => r.status === "failed").length;
       setNote(t("bulkDone", { added, exists, failed }));
-      setAdText("");
       // One coalesced refresh after the whole run (only if something new landed) — no
       // per-row reload storm, and no auto-open modal over the results table.
-      if (added > 0) onBulkComplete?.();
+      //
+      // added === 0 (every ad a dedup hit or a parse failure) used to clear the paste
+      // AND skip the refresh: the user's input vanished with nothing new on screen to
+      // account for it. The paste is the only copy of that text — keep it so the failed
+      // ads can be fixed and re-run; the bulkDone note + the per-row table carry the
+      // outcome.
+      if (added > 0) {
+        setAdText("");
+        onBulkComplete?.();
+      }
     } finally {
       if (!controller.signal.aborted || cancelledRef.current) {
         setBusy(false);

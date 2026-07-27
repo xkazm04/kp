@@ -162,7 +162,14 @@ export function JobsTab() {
         </div>
       ) : null}
 
-      <DraftsPanel />
+      <DraftsPanel
+        onPublished={(jobId) => {
+          // Same pair the modal publish path uses (below): flip the row's badge
+          // instantly, then reconcile stats + the openOnly filter against the server.
+          patchJobStatus(jobId, "published");
+          reload();
+        }}
+      />
 
       <RediscoveryFeed />
 
