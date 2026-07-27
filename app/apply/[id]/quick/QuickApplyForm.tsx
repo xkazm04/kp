@@ -11,6 +11,11 @@ import { useErrorMessage } from "@/app/_lib/use-error-message";
 
 type KoStep = { id: string; prompt: string };
 
+// DOM id of a knockout group's first control (its Yes button) — the focus/scroll
+// target when that gate is what's blocking the submit. One place so the render
+// and the "jump to the first unanswered control" lookup can't drift.
+const koControlId = (stepId: string) => `qa-ko-${stepId}`;
+
 // E2 — the one-screen lead form. Everything fits a phone held in a break room:
 // two inputs, the job's knockout questions as big yes/no toggles, one submit.
 // Unlike the conversational flow there is no step machine — the form keeps its
@@ -41,6 +46,9 @@ export function QuickApplyForm({
   const [email, setEmail] = useState("");
   const [ko, setKo] = useState<Record<string, boolean>>({});
   const [emailError, setEmailError] = useState<string | null>(null);
+  // The "you haven't finished yet" cue, raised only by an actual submit attempt
+  // (never pre-emptively) — see `firstMissingControlId` below.
+  const [incompleteError, setIncompleteError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [done, setDone] = useState<{
@@ -63,19 +71,43 @@ export function QuickApplyForm({
   // and accessibility trees, so humans and screen readers never encounter it.
   const [companyUrl, setCompanyUrl] = useState("");
 
-  // Submit unlocks only when every field is answered — a lead with a missing
-  // KO answer would just be declined server-side (missing ⇒ fail), which reads
-  // as a rejection the candidate never earned.
-  const allKoAnswered = koSteps.every((s) => ko[s.id] !== undefined);
-  const ready = Boolean(name.trim()) && Boolean(email.trim()) && allKoAnswered && !submitting;
+  // The FIRST control still standing between the candidate and a submit, as a DOM
+  // id, in visual order — or null when the form is complete. The submit button no
+  // longer renders `disabled` on an incomplete form: a dead grey button on a
+  // paid-traffic mobile form is a silent leak (nothing names the blocking field,
+  // and a disabled control isn't even focusable to hint at one). Instead the tap
+  // is accepted and answered — an inline alert plus a jump to this control.
+  // The server contract is unchanged: a missing KO answer would still be declined
+  // server-side (absent ⇒ fail), which is exactly why we never let it be POSTed.
+  const firstMissingControlId = (): string | null => {
+    if (!name.trim()) return "qa-name";
+    if (!email.trim()) return "qa-email";
+    const unanswered = koSteps.find((s) => ko[s.id] === undefined);
+    return unanswered ? koControlId(unanswered.id) : null;
+  };
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!ready) return;
+    if (submitting) return;
+    // Incomplete: say so, and take the candidate straight to the field that's
+    // blocking them (focus for keyboard/SR users, scroll for everyone else —
+    // the KO gates can sit below the fold on a phone).
+    const missing = firstMissingControlId();
+    if (missing) {
+      setIncompleteError(t("quick.incompleteHint"));
+      const el = document.getElementById(missing);
+      el?.focus();
+      el?.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
+    setIncompleteError(null);
     // Same regex the server enforces — catch the typo here so the candidate
     // fixes it in place instead of bouncing off a 400.
     if (!APPLY_EMAIL_RE.test(email.trim())) {
       setEmailError(t("invalidEmail"));
+      const el = document.getElementById("qa-email");
+      el?.focus();
+      el?.scrollIntoView({ behavior: "smooth", block: "center" });
       return;
     }
     setEmailError(null);
@@ -173,7 +205,10 @@ export function QuickApplyForm({
           <TextInput
             id="qa-name"
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onChange={(e) => {
+              setName(e.target.value);
+              if (incompleteError) setIncompleteError(null);
+            }}
             placeholder={t("script.namePlaceholder")}
             autoComplete="name"
             disabled={submitting}
@@ -192,6 +227,7 @@ export function QuickApplyForm({
             onChange={(e) => {
               setEmail(e.target.value);
               if (emailError) setEmailError(null);
+              if (incompleteError) setIncompleteError(null);
             }}
             placeholder={t("script.emailPlaceholder")}
             autoComplete="email"
@@ -216,10 +252,16 @@ export function QuickApplyForm({
               {([true, false] as const).map((value) => (
                 <button
                   key={String(value)}
+                  // Only the first (Yes) control carries the id — it's the group's
+                  // focus target when this gate is the one blocking submit.
+                  id={value ? koControlId(step.id) : undefined}
                   type="button"
                   disabled={submitting}
                   aria-pressed={ko[step.id] === value}
-                  onClick={() => setKo((k) => ({ ...k, [step.id]: value }))}
+                  onClick={() => {
+                    setKo((k) => ({ ...k, [step.id]: value }));
+                    if (incompleteError) setIncompleteError(null);
+                  }}
                   className={`focus-ring h-12 rounded-md border text-base font-semibold disabled:opacity-50 ${
                     ko[step.id] === value
                       ? "border-ink bg-ink text-white"
@@ -239,10 +281,20 @@ export function QuickApplyForm({
           {submitError}
         </p>
       ) : null}
+      {/* Raised only by an attempted submit on an incomplete form (never
+          pre-emptively), alongside the focus/scroll jump — the cue the dead
+          disabled button never gave. */}
+      {incompleteError ? (
+        <p role="alert" className="mt-4 rounded-lg border border-coral/40 bg-coral/5 p-3 text-base text-coral">
+          {incompleteError}
+        </p>
+      ) : null}
 
       <button
         type="submit"
-        disabled={!ready}
+        // Disabled ONLY while a POST is in flight. An incomplete form still
+        // submits — and gets told what's missing (see `submit`).
+        disabled={submitting}
         className="focus-ring mt-5 h-12 w-full rounded-md bg-ink text-base font-semibold text-white hover:bg-steel disabled:opacity-50"
       >
         {submitting ? t("sending") : t("quick.submit")}

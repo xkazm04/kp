@@ -305,7 +305,8 @@ export function ConversationalApply({
   };
 
   // Reset the conversation to its first question, in place, after a NON-retryable
-  // failure — the server rejected the captured input, so resending it can't help.
+  // failure OR after a DECLINE — the server rejected the captured input (or the
+  // candidate mis-tapped a knockout answer), so resending it can't help.
   // Clearing answeredRef and the remembered final answers lets the candidate
   // re-walk every step and submit fresh, valid input, without the full page reload
   // that would otherwise be their only escape from a rejected payload. An
@@ -322,6 +323,9 @@ export function ConversationalApply({
     }
     setResumed(false);
     setSubmitError(null);
+    // Also clears a DECLINED outcome: the decline done-screen offers this same
+    // control, so a mis-tapped knockout on the last step isn't terminal.
+    setDone(null);
     setAnswers({ ...(prefill?.answers ?? {}) });
     setInput("");
     setIdx(0);
@@ -490,6 +494,24 @@ export function ConversationalApply({
                 {t("trackStatus")}
               </a>
             ) : null}
+            {/* A decline used to be UNRECOVERABLE: `done` is set, the step
+                controls unmount, and the persist effect has already deleted the
+                draft — so a candidate who mis-tapped "No" on the last question
+                of an 8–11 step chat had no way back except finding the URL
+                again. Same start-over machinery the non-retryable submit
+                failure uses; the note is honest that the answers are gone. */}
+            {done.result === "declined" ? (
+              <div className="mt-4">
+                <button
+                  type="button"
+                  onClick={restartConversation}
+                  className="focus-ring rounded-md bg-ink px-4 py-2 text-base font-semibold text-white hover:bg-steel"
+                >
+                  {t("startOver")}
+                </button>
+                <p className="mt-1.5 text-sm text-steel">{t("declinedRestartNote")}</p>
+              </div>
+            ) : null}
           </div>
         ) : null}
         <div ref={endRef} />
@@ -531,7 +553,13 @@ export function ConversationalApply({
                 type="button"
                 disabled={busy}
                 onClick={() => submitKo(true)}
-                className="focus-ring rounded-md border border-stone-200 bg-white px-5 py-2 text-base font-semibold text-ink hover:border-moss/50 disabled:opacity-50"
+                // NEUTRAL hover, deliberately the same coral affordance as No (and
+                // as the choice/quick-form buttons). Yes used to glow moss —
+                // the success tone — which on a KNOCKOUT question told the
+                // candidate which answer "passes" the eligibility gate before
+                // they answered it. moss stays reserved for OUTCOMES (the
+                // "You're in" card), never for steering an answer.
+                className="focus-ring rounded-md border border-stone-200 bg-white px-5 py-2 text-base font-semibold text-ink hover:border-coral/50 disabled:opacity-50"
               >
                 {tCommon("yes")}
               </button>

@@ -398,7 +398,13 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // that had already succeeded. The token is minted BEFORE, synchronously, so
     // the response and the email still carry the same one.
     const statusToken = safeStatusLink(entry.id);
-    const statusLink = statusToken ? `${publicBaseUrl(new URL(request.url).origin)}/status/${statusToken}` : undefined;
+    // Pinned to the language the candidate applied in — this ABSOLUTE link is
+    // opened from an email, outside the app, where no NEXT_LOCALE cookie exists
+    // yet; without ?lang= a Czech applicant lands on an English status page.
+    // Same convention (and the same proxy.ts handler) as the enrichment link.
+    const statusLink = statusToken
+      ? `${publicBaseUrl(new URL(request.url).origin)}/status/${statusToken}?lang=${applicantLocale}`
+      : undefined;
     afterResponse("apply-ack", async () => {
       try {
         await dispatchApplicationReceived(entry, { statusLink });

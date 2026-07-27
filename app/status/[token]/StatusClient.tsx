@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { Check, RefreshCw } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
+import { LanguageSwitcher } from "@/app/_components/LanguageSwitcher";
 import {
   CANDIDATE_TIMELINE,
   classifyStatusError,
@@ -115,6 +116,13 @@ export function StatusClient() {
 
   return (
     <main className="mx-auto max-w-xl px-4 py-12">
+      {/* The candidate's own escape hatch, mirroring the public apply page: the
+          status link is now ?lang=-pinned, but a forwarded/bookmarked link (or a
+          stale NEXT_LOCALE cookie from an earlier visit) can still land them in
+          a language they don't read — and this page has no other chrome. */}
+      <div className="mb-4 flex justify-end">
+        <LanguageSwitcher />
+      </div>
       <p className="text-meta uppercase tracking-wide text-coral">{t("eyebrow")}</p>
       {error && !view ? (
         // Only take over the page on the INITIAL load failure — a transient poll

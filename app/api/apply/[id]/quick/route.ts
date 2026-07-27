@@ -143,9 +143,13 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       // capst-l1-002 — the ack email carries the same durable status link the
       // conversational path has always sent (getOrCreateStatusLink is idempotent
       // per entry, so email and success screen share ONE token).
+      // …pinned to the applied-in language, exactly like enrichLink above: the
+      // ack email is read outside the app, with no NEXT_LOCALE cookie, so a bare
+      // link dropped a Czech lead onto an English status page (proxy.ts turns
+      // ?lang= back into the cookie).
       statusLinkFor: (entryId) => {
         const token = safeStatusToken(entryId);
-        return token ? `${base}/status/${token}` : null;
+        return token ? `${base}/status/${token}?lang=${applicantLocale}` : null;
       },
     });
 
