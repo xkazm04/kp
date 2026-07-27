@@ -2,7 +2,13 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { deliveryClaim, isRelayConfigured } from "./comms-truth.ts";
+import {
+  deliveryClaim,
+  emailInboundAddress,
+  emailInboundDomain,
+  isEmailInboundConfigured,
+  isRelayConfigured,
+} from "./comms-truth.ts";
 import { OUTBOX_STATUSES } from "./comms-status.ts";
 import { COMM_SENT_KINDS } from "./decision-attribution.ts";
 
@@ -44,6 +50,59 @@ test("isRelayConfigured mirrors COMMS_WEBHOOK_URL", () => {
   } finally {
     if (prev === undefined) delete process.env.COMMS_WEBHOOK_URL;
     else process.env.COMMS_WEBHOOK_URL = prev;
+  }
+});
+
+// ---- INBOUND capability: no fabricated forwarding address ------------------
+//
+// inbound-setup-honesty. The Email intake wizard used to SYNTHESIZE a forwarding
+// address from window.location (falling back to the literal `inbound.kp.app`)
+// although no inbound-email provider exists in the repo, so every application
+// forwarded there vanished. The address is now a capability read from
+// EMAIL_INBOUND_DOMAIN — and when nothing is configured there is NO address, which
+// is what forces the wizard to show the real HTTP receiver instead of a guess.
+
+function withInboundDomain<T>(value: string | undefined, run: () => T): T {
+  const prev = process.env.EMAIL_INBOUND_DOMAIN;
+  try {
+    if (value === undefined) delete process.env.EMAIL_INBOUND_DOMAIN;
+    else process.env.EMAIL_INBOUND_DOMAIN = value;
+    return run();
+  } finally {
+    if (prev === undefined) delete process.env.EMAIL_INBOUND_DOMAIN;
+    else process.env.EMAIL_INBOUND_DOMAIN = prev;
+  }
+}
+
+test("with no EMAIL_INBOUND_DOMAIN there is no inbound capability and NO address to show", () => {
+  withInboundDomain(undefined, () => {
+    assert.equal(emailInboundDomain(), null);
+    assert.equal(isEmailInboundConfigured(), false);
+    assert.equal(emailInboundAddress("hook_abc"), null, "an unconfigured deployment must fabricate nothing");
+  });
+  withInboundDomain("   ", () => {
+    assert.equal(isEmailInboundConfigured(), false, "whitespace is not a configuration");
+  });
+});
+
+test("a configured domain yields the token address, normalized and never guessed", () => {
+  withInboundDomain("Inbound.Acme.CZ", () => {
+    assert.equal(emailInboundDomain(), "inbound.acme.cz");
+    assert.equal(isEmailInboundConfigured(), true);
+    assert.equal(emailInboundAddress("hook_abc"), "hook_abc@inbound.acme.cz");
+  });
+  // Forgiving about how an operator pastes it — a URL, a whole address, a trailing path.
+  for (const raw of ["https://inbound.acme.cz/", "anything@inbound.acme.cz", "inbound.acme.cz."]) {
+    withInboundDomain(raw, () => assert.equal(emailInboundDomain(), "inbound.acme.cz", `normalizes ${raw}`));
+  }
+});
+
+test("a value that isn't a domain is treated as unconfigured, not as an address host", () => {
+  for (const raw of ["localhost", "not a domain", "inbound", "http://", "@"]) {
+    withInboundDomain(raw, () => {
+      assert.equal(emailInboundDomain(), null, `${raw} must not become a mail host`);
+      assert.equal(emailInboundAddress("hook_abc"), null);
+    });
   }
 });
 

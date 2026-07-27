@@ -75,7 +75,10 @@ export function ReceiverTable({
             <th className={`px-3 py-2 ${META_LABEL}`}>{endpointLabel}</th>
             <th className={`px-3 py-2 ${META_LABEL}`}>Lang</th>
             <th className={`px-3 py-2 ${META_LABEL}`}>Status</th>
-            <th className={`px-3 py-2 text-right ${META_LABEL}`}>Received</th>
+            {/* Raw AUTHENTICATED POSTs — connectivity, not leads (db/channels.ts). */}
+            <th title="Authenticated POSTs this receiver has taken — probes and rejected payloads included. Leads filed is the candidate count." className={`px-3 py-2 text-right ${META_LABEL}`}>
+              Received
+            </th>
             <th className="px-3 py-2" />
           </tr>
         </thead>
@@ -198,9 +201,15 @@ export function AddReceiverModal({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ channel, jobId, lang }),
       });
-      const p = await r.json();
+      // The route answers `{ webhook }` (POST /api/channels/webhooks), not a bare
+      // token. Reading `p.token` therefore ALWAYS yielded undefined → onCreated("")
+      // → no auto-select, so adding a second receiver silently left the setup guide
+      // and the CV sim pointed at the OLD one: the recruiter copied the wrong
+      // endpoint for the role they had just created. Typed against the record the
+      // route actually returns so tsc pins the contract from now on.
+      const p = (await r.json()) as { webhook?: ChannelWebhookRecord; error?: string };
       if (!r.ok) throw new Error(p.error);
-      onCreated(typeof p.token === "string" ? p.token : "");
+      onCreated(p.webhook?.token ?? "");
       onClose();
     } catch (e) {
       setError(e instanceof Error && e.message ? e.message : "Couldn't create it — try again.");

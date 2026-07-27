@@ -26,6 +26,52 @@ export function isRelayConfigured(): boolean {
   return Boolean(process.env.COMMS_WEBHOOK_URL);
 }
 
+// ---- INBOUND email capability (inbound-setup-honesty) -----------------------
+//
+// The OUTBOUND twin of isRelayConfigured, and the same doctrine applied to the
+// other direction. kp has exactly ONE real receiver: the HTTP endpoint
+// /api/channels/inbound/[token]. There is no inbound-email provider and no MX
+// route anywhere in the repo — yet the Email intake wizard used to SYNTHESIZE a
+// forwarding address from window.location (`hook_x@inbound.<host>`, falling back
+// to the literal `inbound.kp.app`) and walk the recruiter through pointing a real
+// Gmail/Outlook rule at it. Applications forwarded there vanish: nothing on the
+// internet accepts that mailbox.
+//
+// So the address is a CAPABILITY, not a derivation. EMAIL_INBOUND_DOMAIN names the
+// domain a configured inbound-email provider (Postmark/SendGrid/Mailgun inbound,
+// or a mail server) routes to the receiver token. Unset ⇒ the wizard shows the real
+// HTTP receiver URL and says forwarding isn't wired, instead of inventing a mailbox.
+
+/** The configured inbound-email domain, normalized (scheme/path/@ stripped,
+ *  lower-cased), or null when nothing is wired. NEVER derived from a request
+ *  origin — a hostname the app is served on says nothing about mail routing. */
+export function emailInboundDomain(): string | null {
+  const raw = (process.env.EMAIL_INBOUND_DOMAIN ?? "").trim().toLowerCase();
+  if (!raw) return null;
+  const host = raw
+    .replace(/^[a-z][a-z0-9+.-]*:\/\//, "") // a pasted https:// prefix
+    .replace(/^.*@/, "") // a pasted whole address
+    .replace(/[/?#].*$/, "") // a pasted path
+    .replace(/\.$/, "")
+    .trim();
+  // Must look like a domain: at least one dot, no whitespace, no stray @.
+  return /^[a-z0-9.-]+\.[a-z]{2,}$/.test(host) ? host : null;
+}
+
+/** Is inbound email forwarding actually wired? THE capability bit the Email intake
+ *  wizard keys every address + forwarding instruction off (mirrors isRelayConfigured). */
+export function isEmailInboundConfigured(): boolean {
+  return emailInboundDomain() !== null;
+}
+
+/** The real forwarding address for a receiver token, or null when unconfigured —
+ *  in which case there is NO address to show and the caller must fall back to the
+ *  HTTP receiver URL rather than fabricate one. */
+export function emailInboundAddress(token: string): string | null {
+  const domain = emailInboundDomain();
+  return domain && token ? `${token}@${domain}` : null;
+}
+
 /**
  * The truthful claim for one message. Prefers the outbox row's REAL status
  * (queued / sent / failed / bounced) when the caller has it; a surface with no

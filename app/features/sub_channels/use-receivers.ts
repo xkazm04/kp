@@ -51,7 +51,11 @@ export function useReceivers(channel: string, onChanged?: () => void) {
   return { receivers, jobs, load, revoke, revoking, error };
 }
 
-/** A receiver is "live" once it has taken any inbound POST. */
+/** A receiver is "live" once it has taken any AUTHENTICATED inbound POST — the one
+ *  liveness definition on this surface (see db/channels.ts recordChannelWebhookReceipt).
+ *  Proven connectivity, NOT proven leads: a source that reaches the endpoint and then
+ *  fails field mapping is live-but-broken, which is exactly the state the recruiter
+ *  needs to be able to see. The lead count is `acceptedCount`. */
 export function isReceiverLive(h: ChannelWebhookRecord): boolean {
   return h.receivedCount > 0 || Boolean(h.firstReceivedAt);
 }

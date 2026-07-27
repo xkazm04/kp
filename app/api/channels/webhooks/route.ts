@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createChannelWebhook, getJob, isWebhookChannel, listChannelWebhooks } from "@/app/_lib/db";
+import { createChannelWebhook, getJob, isWebhookChannel, listChannelWebhooks, type ChannelWebhookRecord } from "@/app/_lib/db";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { isLocale } from "@/i18n/locales";
 
@@ -34,7 +34,10 @@ export async function POST(request: NextRequest) {
     // chosen at creation like the posting/apply-link language toggles.
     const lang = isLocale(String(body.lang ?? "")) ? String(body.lang) : null;
     const webhook = createChannelWebhook({ channel, jobId: job.id, lang }, await currentWorkspace());
-    return NextResponse.json({ webhook });
+    // The `{ webhook }` envelope is the contract the Add-receiver modal reads
+    // (`p.webhook.token` drives auto-select). `satisfies` pins it, so renaming or
+    // flattening the key is a compile error rather than a silently dead auto-select.
+    return NextResponse.json({ webhook } satisfies { webhook: ChannelWebhookRecord });
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Failed to create the webhook." },

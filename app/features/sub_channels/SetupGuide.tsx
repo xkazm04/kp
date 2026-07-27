@@ -12,7 +12,7 @@ import { SegmentedControl } from "@/app/_components/SegmentedControl";
 // chosen client. Used by both the Email intake and Ad forms panes so the guided
 // experience reads identically; only the client set + step copy differ.
 
-function CopyChip({ value }: { value: string }) {
+export function CopyChip({ value }: { value: string }) {
   const [copied, setCopied] = useState(false);
   return (
     <span className="inline-flex items-center gap-1.5">
