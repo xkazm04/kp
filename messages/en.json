@@ -2736,7 +2736,10 @@
       "bulkDone": "{added} added · {exists} already in catalog · {failed} failed",
       "resAdded": "added",
       "resExists": "in catalog",
-      "resFailed": "couldn't parse"
+      "resFailed": "couldn't parse",
+      "cancelRun": "Cancel run",
+      "cancelled": "Parsing cancelled — nothing was added.",
+      "bulkCancelled": "Cancelled after {done} of {total} ads. The results so far are kept below."
     },
     "drafts": {
       "heading": "Drafts awaiting sourcing",

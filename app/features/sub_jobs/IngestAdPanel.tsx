@@ -42,6 +42,12 @@ export function IngestAdPanel({
   const [results, setResults] = useState<{ title: string; status: RowStatus }[] | null>(null);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  // Distinguishes the two reasons a controller aborts. An UNMOUNT abort must stay
+  // silent (no state writes into a dead component); a USER cancel must land like any
+  // other terminal outcome — clear busy, keep the panel open, keep the partial
+  // results, and say what happened. Without this flag every abort was treated as a
+  // teardown, which is why the run could never be cancelled from the mounted panel.
+  const cancelledRef = useRef(false);
   const bulkCount = bulk ? splitJobAds(adText).length : 0;
 
   // Abort an in-flight parse if the panel unmounts (tab switch) — otherwise the
@@ -86,6 +92,7 @@ export function IngestAdPanel({
     setProgress(null);
     const controller = new AbortController();
     abortRef.current = controller;
+    cancelledRef.current = false;
     try {
       const outcome = await ingestOne(text, controller.signal);
       if (!outcome.ok) throw new Error(outcome.error);
@@ -98,10 +105,15 @@ export function IngestAdPanel({
       setAdText("");
       onIngested?.(result);
     } catch (caught) {
-      if (controller.signal.aborted) return; // intentional teardown, not a failure
+      if (controller.signal.aborted) {
+        // User cancel: report it (the paste is kept so the ad isn't lost). Unmount
+        // teardown: stay silent.
+        if (cancelledRef.current) setNote(t("cancelled"));
+        return;
+      }
       setError(caught instanceof Error ? caught.message : t("ingestFailed"));
     } finally {
-      if (!controller.signal.aborted) setBusy(false);
+      if (!controller.signal.aborted || cancelledRef.current) setBusy(false);
       abortRef.current = null;
     }
   };
@@ -122,6 +134,7 @@ export function IngestAdPanel({
     setResults([]);
     const controller = new AbortController();
     abortRef.current = controller;
+    cancelledRef.current = false;
     const out: { title: string; status: RowStatus }[] = [];
     try {
       for (let i = 0; i < ads.length; i += 1) {
@@ -134,11 +147,22 @@ export function IngestAdPanel({
             const { result } = outcome;
             out.push({ title: result.title, status: result.created ? "added" : "exists" });
           }
-        } catch (caught) {
-          if (controller.signal.aborted) return; // intentional teardown
+        } catch {
+          if (controller.signal.aborted) break; // cancel/teardown — settled after the loop
           out.push({ title: firstLine(ads[i]), status: "failed" });
         }
         setResults([...out]);
+      }
+      // A cancelled run is a real terminal outcome, not a failure: keep the rows that
+      // did land, say how far it got, and refresh the corpus if anything was created.
+      // (Unmount teardown falls through here silently — no state writes.)
+      if (controller.signal.aborted) {
+        if (cancelledRef.current) {
+          setResults([...out]);
+          setNote(t("bulkCancelled", { done: out.length, total: ads.length }));
+          if (out.some((r) => r.status === "added")) onBulkComplete?.();
+        }
+        return;
       }
       const added = out.filter((r) => r.status === "added").length;
       const exists = out.filter((r) => r.status === "exists").length;
@@ -149,7 +173,7 @@ export function IngestAdPanel({
       // per-row reload storm, and no auto-open modal over the results table.
       if (added > 0) onBulkComplete?.();
     } finally {
-      if (!controller.signal.aborted) {
+      if (!controller.signal.aborted || cancelledRef.current) {
         setBusy(false);
         setProgress(null);
       }
@@ -224,9 +248,18 @@ export function IngestAdPanel({
             <Plus size={14} /> {busy ? t("parsing") : t("addToCatalog")}
           </button>
         )}
+        {/* Two jobs, one button — and the busy one is the one that matters. A bulk
+            import is minutes of billed LLM time per ad; while it runs this ABORTS the
+            run (the signal is threaded to the route, which SIGKILLs the parser child)
+            and leaves the panel + partial results standing. Idle, it closes the panel. */}
         <button
           type="button"
           onClick={() => {
+            if (busy) {
+              cancelledRef.current = true;
+              abortRef.current?.abort();
+              return;
+            }
             abortRef.current?.abort();
             setOpen(false);
             setAdText("");
@@ -237,10 +270,9 @@ export function IngestAdPanel({
             setResults(null);
             setProgress(null);
           }}
-          disabled={busy}
-          className="focus-ring inline-flex h-9 items-center rounded-md border border-stone-300 bg-white px-3 text-sm font-semibold text-steel hover:text-ink disabled:opacity-50"
+          className="focus-ring inline-flex h-9 items-center rounded-md border border-stone-300 bg-white px-3 text-sm font-semibold text-steel hover:text-ink"
         >
-          {t("cancel")}
+          {busy ? t("cancelRun") : t("cancel")}
         </button>
         <span className="text-meta text-steel">{t("parsingNote")}</span>
       </div>

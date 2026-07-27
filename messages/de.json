@@ -2765,7 +2765,10 @@
       "bulkDone": "{added} hinzugefügt · {exists} bereits im Katalog · {failed} fehlgeschlagen",
       "resAdded": "hinzugefügt",
       "resExists": "im Katalog",
-      "resFailed": "nicht lesbar"
+      "resFailed": "nicht lesbar",
+      "cancelRun": "Lauf abbrechen",
+      "cancelled": "Analyse abgebrochen — es wurde nichts hinzugefügt.",
+      "bulkCancelled": "Abgebrochen nach {done} von {total} Anzeigen. Die bisherigen Ergebnisse bleiben unten stehen."
     },
     "drafts": {
       "heading": "Entwürfe, die auf Sourcing warten",

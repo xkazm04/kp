@@ -2765,7 +2765,10 @@
       "bulkDone": "{added} ajoutées · {exists} déjà au catalogue · {failed} en échec",
       "resAdded": "ajoutées",
       "resExists": "au catalogue",
-      "resFailed": "non analysées"
+      "resFailed": "non analysées",
+      "cancelRun": "Interrompre",
+      "cancelled": "Analyse annulée — rien n'a été ajouté.",
+      "bulkCancelled": "Interrompu après {done} annonces sur {total}. Les résultats obtenus restent affichés ci-dessous."
     },
     "drafts": {
       "heading": "Brouillons en attente de sourcing",

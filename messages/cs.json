@@ -2736,7 +2736,10 @@
       "bulkDone": "{added} přidáno · {exists} již v katalogu · {failed} selhalo",
       "resAdded": "přidáno",
       "resExists": "v katalogu",
-      "resFailed": "nepodařilo se"
+      "resFailed": "nepodařilo se",
+      "cancelRun": "Zrušit běh",
+      "cancelled": "Zpracování zrušeno — nic nebylo přidáno.",
+      "bulkCancelled": "Zrušeno po {done} z {total} inzerátů. Dosavadní výsledky zůstávají níže."
     },
     "drafts": {
       "heading": "Koncepty čekající na vyhledávání",
