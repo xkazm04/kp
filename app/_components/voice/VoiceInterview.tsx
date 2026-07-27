@@ -388,9 +388,16 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
   useEffect(() => {
     if (phase !== "live") return;
     const started = Date.now();
-    setElapsed(0);
-    const id = window.setInterval(() => setElapsed(Math.floor((Date.now() - started) / 1000)), 1000);
-    return () => window.clearInterval(id);
+    const tick = () => setElapsed(Math.floor((Date.now() - started) / 1000));
+    // Reset via a scheduled callback (not synchronously in the effect body) —
+    // the zero-delay timeout fires before the first 1s tick, so the display
+    // still restarts at 0:00 on the phase change.
+    const reset = window.setTimeout(() => setElapsed(0), 0);
+    const id = window.setInterval(tick, 1000);
+    return () => {
+      window.clearTimeout(reset);
+      window.clearInterval(id);
+    };
   }, [phase]);
 
   // M7: move focus to the now-relevant control when the controls are swapped on a phase change,

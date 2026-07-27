@@ -536,6 +536,13 @@ export function CandidateDrawer({
   // refetch the whole board behind the still-open drawer and defeat the deliberate
   // 30s-poll pause the open drawer is meant to hold.
   const noteSavedRef = useRef(false);
+  // Keep the freshest note in a ref so the unmount flush sends it. Declared BEFORE
+  // the debounce effect that reads it — React Compiler treats a ref captured ahead
+  // of its declaration as an immutable value and rejects the later mirror write.
+  const latestNoteRef = useRef(candNote);
+  useEffect(() => {
+    latestNoteRef.current = candNote;
+  }, [candNote]);
   useEffect(() => {
     if (!noteDirtyRef.current) return;
     const value = candNote; // the exact content this debounced save will persist
@@ -563,12 +570,6 @@ export function CandidateDrawer({
     }, 600);
     return () => window.clearTimeout(h);
   }, [candNote, entry.id]);
-
-  // Keep the freshest note in a ref so the unmount flush sends it.
-  const latestNoteRef = useRef(candNote);
-  useEffect(() => {
-    latestNoteRef.current = candNote;
-  }, [candNote]);
 
   // drawer-note-fresh-hydration — reconcile candNote with the SERVER-truth note that
   // rode the bundle. The rule: overwrite candNote from the bundle ONLY when the user

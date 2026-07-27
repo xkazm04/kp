@@ -163,7 +163,9 @@ export function Workspace() {
   }, []);
   // The drawer element, wired to the shared dialog machinery while open (below).
   const drawerRef = useRef<HTMLElement | null>(null);
-  const closeMobileNav = useCallback(() => setMobileNavOpen(false), []);
+  // setMobileNavOpen is identity-stable, but React Compiler's memoization
+  // check requires the declared deps to match what the body references.
+  const closeMobileNav = useCallback(() => setMobileNavOpen(false), [setMobileNavOpen]);
   const requested: WorkspaceTabId = isWorkspaceTabId(tabParam) ? tabParam : DEFAULT_TAB;
   // About is a dev-only deep-dive (ABOUT_TAB_IN_NAV); in production a direct
   // ?tab=about falls back to the default so the view can't be reached.

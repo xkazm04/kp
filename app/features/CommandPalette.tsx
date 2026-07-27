@@ -125,9 +125,6 @@ export function CommandPalette() {
     if (!open) return;
     const q = query.trim();
     if (q.length < 2) return;
-    // Pending from the first keystroke (debounce included), so the list can't sit on
-    // the prior query's results without a signal that a newer term is being fetched.
-    setLoading(true);
     const controller = new AbortController();
     const timer = setTimeout(() => {
       fetch(`/api/search?q=${encodeURIComponent(q)}`, { signal: controller.signal })
@@ -296,6 +293,11 @@ export function CommandPalette() {
                   setHits([]);
                   setError(null);
                   setLoading(false);
+                } else {
+                  // Pending from the first keystroke (the search effect only schedules
+                  // the debounced fetch), so the list can't sit on the prior query's
+                  // results without a signal that a newer term is being fetched.
+                  setLoading(true);
                 }
               }}
               onKeyDown={onInputKey}

@@ -70,7 +70,10 @@ export function StatusClient() {
   }, [token]);
 
   useEffect(() => {
-    void load();
+    // Scheduled (not called synchronously in the effect body) because load()
+    // sets `refreshing` before its first await.
+    const id = window.setTimeout(() => void load(), 0);
+    return () => window.clearTimeout(id);
   }, [load]);
 
   // Revalidate so a bookmarked/left-open status page doesn't freeze on a stale
