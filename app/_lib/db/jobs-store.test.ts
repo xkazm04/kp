@@ -1,7 +1,7 @@
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { cleanupUnitDb } from "../testing/unit-db.ts";
-import { listJobs, listCorpusJobs } from "./jobs.ts";
+import { listJobs, listCorpusJobs, canWriteJobLifecycle, getJobOwnerWorkspace } from "./jobs.ts";
 import { insertJob, listJobStatuses } from "../job-ingest.ts";
 import type { JobRecord } from "./core.ts";
 
@@ -53,4 +53,19 @@ test("content-hash dedup is per-workspace — teams never share a job for identi
   const other = insertJob(job("jd-b-first", "B First"), hash, "draft", "ws-b");
   assert.equal(other.created, true);
   assert.equal(other.id, "jd-b-first");
+});
+
+// Lifecycle ownership (the gate /api/jobs/[id]/close|publish apply before the unscoped
+// setJobStatus write). Behavioral counterpart to the source guard in jobs-tenancy.test.ts.
+test("canWriteJobLifecycle: own + seeded rows are writable, another team's authored job is not", () => {
+  insertJob(job("jd-owned-by-a", "A Role"), undefined, "draft", "ws-a");
+  assert.equal(canWriteJobLifecycle("jd-owned-by-a", "ws-a"), true, "the owning team may close/publish its role");
+  assert.equal(canWriteJobLifecycle("jd-owned-by-a", "ws-b"), false, "another team must not flip A's lifecycle");
+
+  // A seeded corpus row (workspace_id NULL) is shared: every team may adopt/retire it.
+  const seeded = listCorpusJobs("ws-a").find((j) => !listJobStatuses("ws-a")[j.id]);
+  assert.ok(seeded, "precondition: the shared corpus has a seeded row");
+  assert.equal(getJobOwnerWorkspace(seeded.id), null, "precondition: seeded rows carry workspace_id NULL");
+  assert.equal(canWriteJobLifecycle(seeded.id, "ws-a"), true);
+  assert.equal(canWriteJobLifecycle(seeded.id, "ws-b"), true);
 });

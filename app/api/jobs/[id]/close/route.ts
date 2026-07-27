@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { closeEntriesByJobId, getJob } from "@/app/_lib/db";
+import { canWriteJobLifecycle, closeEntriesByJobId, getJob } from "@/app/_lib/db";
 import { getJobStatus, setJobStatus } from "@/app/_lib/job-ingest";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 
@@ -19,6 +19,12 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
   try {
     const job = getJob(id);
     if (!job) return NextResponse.json({ error: "Job not found." }, { status: 404 });
+    // Ownership gate: the entry withdrawal below is workspace-scoped, but the STATUS
+    // WRITE (setJobStatus) is a bare by-id UPDATE — without this, workspace B could
+    // dark workspace A's live role. Seeded corpus rows (workspace_id NULL) stay
+    // closable by every tenant; see canWriteJobLifecycle for the reasoning. 404
+    // (not 403) so the endpoint doesn't confirm that another tenant's id exists.
+    if (!canWriteJobLifecycle(id, ws)) return NextResponse.json({ error: "Job not found." }, { status: 404 });
     const already = getJobStatus(id) === "closed";
     let withdrawn = 0;
     if (!already) {
