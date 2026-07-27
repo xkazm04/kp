@@ -1,8 +1,7 @@
 "use client";
-/* eslint-disable i18next/no-literal-string -- prototype-stage copy; threaded into
-   the channels namespace on consolidation. */
 
 import { useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Check, ChevronDown, Search } from "lucide-react";
 import { FIELD, META_LABEL } from "@/app/_components/ui/recipes";
 
@@ -12,6 +11,11 @@ import { FIELD, META_LABEL } from "@/app/_components/ui/recipes";
 // off a FIXED-positioned anchor so it escapes the table's overflow clip, and close
 // on scroll / resize / Escape / backdrop. No third-party combobox in the repo, so
 // this is the shared building block for both the comms table and the webhook forms.
+//
+// channels-i18n-honesty: the column-scoped strings interpolate the column TITLE as
+// given (never lower-cased) — a localized header may be a capitalized German noun, and
+// "All {column}" / "Search {column}" are worded per locale so no gendered article has
+// to be guessed.
 
 export type Option = { value: string; label: string };
 
@@ -36,6 +40,7 @@ function OptionList({
   /** When set, shows a top row that resets the filter to "" (e.g. "All roles"). */
   clearLabel?: string;
 }) {
+  const t = useTranslations("channels");
   const [q, setQ] = useState("");
   const needle = q.trim().toLowerCase();
   const shown = needle ? options.filter((o) => o.label.toLowerCase().includes(needle)) : options;
@@ -48,8 +53,8 @@ function OptionList({
             autoFocus
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Search…"
-            aria-label="Search options"
+            placeholder={t("filters.search")}
+            aria-label={t("filters.searchOptions")}
             className={`${FIELD} w-full py-1 pl-7 text-sm`}
           />
         </div>
@@ -69,7 +74,7 @@ function OptionList({
             </button>
           </li>
         ))}
-        {shown.length === 0 ? <li className="px-2 py-2 text-sm text-steel">No matches</li> : null}
+        {shown.length === 0 ? <li className="px-2 py-2 text-sm text-steel">{t("filters.noMatches")}</li> : null}
       </ul>
     </div>
   );
@@ -131,6 +136,7 @@ export function ColumnFilter({
   mode?: "select" | "search";
   options?: Option[];
 }) {
+  const t = useTranslations("channels");
   const ref = useRef<HTMLButtonElement>(null);
   const [anchor, setAnchor] = useState<DOMRect | null>(null);
   const active = value.trim() !== "";
@@ -159,8 +165,8 @@ export function ColumnFilter({
                 autoFocus
                 value={value}
                 onChange={(e) => onChange(e.target.value)}
-                placeholder={`Search ${title.toLowerCase()}…`}
-                aria-label={`Search ${title.toLowerCase()}`}
+                placeholder={t("filters.searchColumn", { column: title })}
+                aria-label={t("filters.searchColumn", { column: title })}
                 className={`${FIELD} w-full py-1 pl-7 text-sm`}
               />
             </div>
@@ -168,7 +174,7 @@ export function ColumnFilter({
             <OptionList
               options={options}
               value={value}
-              clearLabel={`All ${title.toLowerCase()}`}
+              clearLabel={t("filters.allOf", { column: title })}
               onPick={(v) => {
                 onChange(v);
                 setAnchor(null);
@@ -187,7 +193,7 @@ export function SearchSelect({
   value,
   options,
   onChange,
-  placeholder = "Select…",
+  placeholder,
   id,
 }: {
   value: string;
@@ -196,6 +202,7 @@ export function SearchSelect({
   placeholder?: string;
   id?: string;
 }) {
+  const t = useTranslations("channels");
   const ref = useRef<HTMLButtonElement>(null);
   const [anchor, setAnchor] = useState<DOMRect | null>(null);
   const selected = options.find((o) => o.value === value);
@@ -209,7 +216,7 @@ export function SearchSelect({
         aria-expanded={Boolean(anchor)}
         className={`${FIELD} flex w-full items-center justify-between gap-2 text-left`}
       >
-        <span className={`truncate ${selected ? "text-ink" : "text-steel"}`}>{selected ? selected.label : placeholder}</span>
+        <span className={`truncate ${selected ? "text-ink" : "text-steel"}`}>{selected ? selected.label : placeholder ?? t("filters.select")}</span>
         <ChevronDown size={14} className="shrink-0 text-steel" aria-hidden />
       </button>
       {anchor ? (

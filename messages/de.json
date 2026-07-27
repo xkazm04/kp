@@ -3372,23 +3372,14 @@
   },
   "channels": {
     "comms": {
-      "title": "Kommunikation",
       "count": "{count, plural, one {# Nachricht} other {# Nachrichten}}",
       "deadLetters": "{count, plural, one {# Dead-Letter — erfordert Aufmerksamkeit} other {# Dead-Letters — erfordern Aufmerksamkeit}}",
-      "noAddress": "keine Adresse",
       "noAddressHint": "Diese/r Kandidat/in hat keine zustellbare E-Mail — ein echtes Relay erreicht sie/ihn nicht. Erfassen Sie eine Adresse, bevor Sie sich auf diesen Versand verlassen.",
-      "addressIssues": "{count, plural, one {# ohne Adresse} other {# ohne Adresse}}",
-      "intro": "Jede an Kandidat/innen gerichtete Nachricht, die die Pipeline versendet hat — Eingangsbestätigungen, Ansprache, Interview-Einladungen, Absagen, Angebote. Klappen Sie eine Zeile auf, um den vollständigen Text zu lesen; fehlgeschlagene Sendungen können erneut zugestellt werden.",
       "empty": "Noch keine Nachrichten versendet — sie erscheinen hier, sobald Kandidat/innen den Funnel durchlaufen.",
       "loadFailed": "Kommunikation konnte nicht geladen werden.",
       "relayNotConfigured": "Kein Zustell-Relay konfiguriert — diese Nachrichten werden NICHT an Kandidat/innen gesendet. Setzen Sie COMMS_WEBHOOK_URL, um die Zustellung zu aktivieren.",
       "loading": "Kommunikation wird geladen",
-      "recovered": "wiederhergestellt",
-      "recoveredAt": "erneut gesendet {time}",
-      "bounced": "Bounce",
       "bouncedAt": "Relay hat {time} einen Bounce gemeldet: {detail}",
-      "searchPlaceholder": "Kandidat/in, Empfänger/in oder Betreff suchen",
-      "kindAll": "Alle Arten",
       "showing": "{shown} von {total} angezeigt",
       "showMore": "Mehr anzeigen",
       "resend": "Erneut senden",
@@ -3404,73 +3395,166 @@
       "failureDetail": "Zustellung fehlgeschlagen: {detail}",
       "failureDetailUnknown": "Zustellung fehlgeschlagen — für diesen Versand wurde kein Grund erfasst.",
       "resendRejected": "Erneutes Senden nicht möglich: {reason}",
-      "resendDeadLettered": "Erneut gesendet, aber wieder unzustellbar."
+      "resendDeadLettered": "Erneut gesendet, aber wieder unzustellbar.",
+      "colName": "Name",
+      "colRole": "Stelle",
+      "colChannel": "Kanal",
+      "colType": "Typ",
+      "colStatus": "Status",
+      "colRecorded": "Erfasst",
+      "recordedHint": "Wann kp die Nachricht erfasst hat. Ein erneuter Versand ist eine eigene Zeile — Original und Wiederholung bleiben unterscheidbar.",
+      "via": "über {channel}",
+      "statusSent": "Gesendet",
+      "statusQueued": "In Warteschlange",
+      "statusFailed": "Fehlgeschlagen",
+      "statusRecovered": "Behoben",
+      "statusBounced": "Unzustellbar"
     },
-    "eyebrow": "Arbeitsbereich",
-    "title": "Kanäle & Integrationen",
-    "intro": "Wo Kandidat/innen in die Pipeline gelangen. Sowohl eingehende <b>Bewerbungen</b> als auch proaktiv gesourcte Kandidat/innen kommen bei <hl>Angenommen</hl> an und fließen dann für die erste Bewertungswelle nach <hl>Geprüft</hl>.",
-    "received": "{count, plural, one {Bewerbung} other {Bewerbungen}} erhalten → <hl>Angenommen</hl>",
-    "loadingInbound": "Eingehende Bewerbungen werden geladen",
-    "openPipeline": "Pipeline öffnen",
-    "noJobNote": "Sourcen Sie zuerst eine Stellenbeschreibung in die Pipeline — dann können Bewerbungen eingehen.",
-    "appliedNote": "{label} hat sich beworben → Angenommen (Match {score}).",
-    "failed": "Fehlgeschlagen.",
-    "open": "Öffnen",
-    "receiving": "Wird empfangen…",
-    "simulate": "Bewerbung simulieren",
-    "channelAriaLive": "{name}: live — {status}",
-    "channelAriaOff": "{name}: nicht konfiguriert — {status}",
+    "eyebrow": "Eingangsstudio",
+    "title": "Wo Kandidat/innen hereinkommen",
+    "tablist": "Integration",
+    "waiting": "{count} warten in der Pipeline",
+    "ledger": "Journal",
+    "statusLive": "Live",
     "statusListening": "Empfangsbereit",
-    "webhooks": {
-      "connect": "Verbinden",
-      "manage": "Verwalten ({count})",
-      "hide": "Ausblenden",
-      "intro": "POSTen Sie Leads an eine Webhook-URL — jede URL ist an eine Stelle und eine Kandidat/innen-Sprache gebunden. Akzeptiert reines JSON oder Meta-Lead-Formular-Payloads; Leads landen als anreicherbare Stubs bei „Angenommen“ und erhalten sofort eine Eingangsbestätigung mit einem Link zur vollständigen Bewerbung.",
-      "job": "Stelle",
-      "language": "Kandidat/innen-Sprache",
-      "create": "Webhook-URL erstellen",
-      "creating": "Wird erstellt…",
-      "copyUrl": "URL kopieren",
-      "copied": "Kopiert",
-      "revoke": "Webhook widerrufen",
-      "received": "{count, plural, one {# empfangen} other {# empfangen}}",
-      "leads": "{count, plural, one {# Lead} other {# Leads}}",
-      "neverReceived": "noch nichts empfangen",
-      "firstLeadMins": "erster Lead {mins} Min. nach Einrichtung",
-      "firstLeadHours": "erster Lead {hours} Std. nach Einrichtung",
-      "noJobs": "Keine Stellen verfügbar — lesen Sie zuerst eine Stelle ein oder veröffentlichen Sie eine.",
-      "noJobsCta": "Stellenbeschreibung erstellen",
-      "createFailed": "Webhook konnte nicht erstellt werden.",
-      "revokeFailed": "Webhook konnte nicht widerrufen werden."
-    },
-    "items": {
-      "apply": {
-        "name": "Karriereseite · Bewerbungslink",
-        "status": "Empfangsbereit",
-        "desc": "Ein dialogbasierter Bewerbungslink — eingereichte Bewerbungen landen bei „Angenommen“."
+    "statusConfigured": "Konfiguriert",
+    "statusOff": "Aus",
+    "statusWaiting": "Wartet",
+    "copyLink": "Link kopieren",
+    "copy": "Kopieren",
+    "copied": "Kopiert",
+    "sections": {
+      "comms": {
+        "label": "Kommunikation",
+        "blurb": "Jede Nachricht an Kandidat/innen in einem prüfbaren Journal."
+      },
+      "careers": {
+        "label": "Karriereseite",
+        "blurb": "Ihre öffentliche Bewerbungsseite — ein Link, überall einbettbar."
       },
       "email": {
-        "name": "E-Mail-Eingang",
-        "status": "Nicht konfiguriert",
-        "desc": "Leiten Sie eine E-Mail-Parsing-Integration (oder ein beliebiges Formular) an eine stellenspezifische Webhook-URL — geparste Bewerber/innen landen bei „Angenommen“."
+        "label": "E-Mail-Eingang",
+        "blurb": "Leiten Sie Bewerbungen aus einem Postfach direkt in die Pipeline."
       },
-      "boards": {
-        "name": "Jobbörsen & Anzeigenformulare",
-        "status": "Nicht konfiguriert",
-        "desc": "Empfangen Sie Bewerber/innen von Jobbörsen und Anzeigen-Lead-Formularen (Meta-Lead-Formular-Payloads unterstützt) über eine stellenspezifische Webhook-URL — Leads landen bei „Angenommen“."
-      },
-      "sourcing": {
-        "name": "Proaktives Sourcing",
-        "status": "Aktiv",
-        "desc": "Reihen Sie den Kandidat/innen-Pool im Matching gegen die Stelle — proaktiv gesourcte Kandidat/innen landen bei „Angenommen“.",
-        "cta": "Matching öffnen"
-      },
-      "manual": {
-        "name": "Manuell hinzufügen",
-        "status": "Recruiter",
-        "desc": "Erstellen Sie ein Kandidat/innen-Profil von Hand (Profil) und fügen Sie es einer Stelle hinzu.",
-        "cta": "Profil erstellen"
+      "ads": {
+        "label": "Anzeigenformulare",
+        "blurb": "Lead-Formulare (LinkedIn / Meta) liefern ihre Leads hier ein."
       }
+    },
+    "stats": {
+      "publishedRoles": "Veröffentlichte Stellen",
+      "waiting": "Wartend",
+      "receivers": "Empfänger",
+      "received": "Empfangen",
+      "leads": "Erfasste Leads"
+    },
+    "sim": {
+      "run": "Testbewerbung empfangen",
+      "running": "Wird empfangen…",
+      "noJob": "Legen Sie zuerst eine Stelle an — eingehende Bewerbungen brauchen ein Ziel.",
+      "filed": "{label} empfangen — Match {score}. Bei „Angenommen“ zur Stelle {role} erfasst.",
+      "failed": "Testbewerbung konnte nicht empfangen werden."
+    },
+    "careers": {
+      "empty": "Noch keine veröffentlichten Stellen — veröffentlichen Sie eine Stelle, dann erscheint ihr Bewerbungslink hier.",
+      "applyLink": "Bewerbungslink"
+    },
+    "receivers": {
+      "role": "Stelle",
+      "lang": "Sprache",
+      "status": "Status",
+      "received": "Empfangen",
+      "receivedHint": "Authentifizierte POSTs, die dieser Empfänger angenommen hat — Tests und abgelehnte Payloads eingeschlossen. Die Kandidat/innen-Zahl steht unter „Erfasste Leads“.",
+      "copyEndpoint": "Adresse kopieren",
+      "remove": "Entfernen",
+      "removeAria": "Empfänger für {role} entfernen",
+      "confirmTitle": "Diesen Empfänger entfernen?",
+      "confirmBody": "Damit löschen Sie den Eingangspunkt für <b>{role}</b>. <b>{endpoint}</b> nimmt sofort keine Bewerbungen mehr an und lässt sich nicht wiederherstellen — Sie müssten einen neuen Empfänger anlegen und die Quelle auf dessen neue Adresse umstellen.",
+      "confirmLive": "{count, plural, one {Dieser Empfänger ist live — er hat # eingehende Bewerbung angenommen.} other {Dieser Empfänger ist live — er hat # eingehende Bewerbungen angenommen.}} Die Weiterleitungsregel bzw. der Anzeigen-Flow, der darauf zeigt, POSTet weiter an eine tote URL, und neue Bewerbungen gehen verloren, bis sie neu verdrahtet ist.",
+      "cancel": "Abbrechen",
+      "confirm": "Empfänger entfernen"
+    },
+    "add": {
+      "roleLabel": "Stelle",
+      "rolePlaceholder": "Stelle auswählen…",
+      "langLabel": "Kandidat/innen-Sprache",
+      "noJobs": "Veröffentlichen Sie zuerst eine Stelle — jeder Empfänger ist an genau eine gebunden.",
+      "noJobsCta": "Zur Stellenbeschreibungs-Bibliothek",
+      "cancel": "Abbrechen",
+      "create": "Erstellen",
+      "creating": "Wird erstellt…",
+      "createFailed": "Konnte nicht erstellt werden — bitte erneut versuchen.",
+      "removeFailed": "Konnte nicht entfernt werden — bitte erneut versuchen."
+    },
+    "email": {
+      "title": "Stellen-Postfach hinzufügen",
+      "add": "Postfach hinzufügen",
+      "introWired": "Leiten Sie Bewerbungen aus Outlook oder Gmail weiter — <b>eine Regel pro Stelle</b>, und jede Bewerbung fließt automatisch in die Pipeline.",
+      "introUnwired": "Ein Empfänger pro Stelle. E-Mail-Weiterleitung ist auf diesem Deployment nicht verdrahtet, deshalb ist der Empfänger jeder Stelle ein <b>HTTP-Endpunkt</b>, an den alles eine Bewerbung POSTen kann.",
+      "emptyWired": "Noch keine Stellen-Postfächer — legen Sie eines an, um eine Weiterleitungsadresse zu erhalten.",
+      "emptyUnwired": "Noch keine Stellen-Postfächer — legen Sie eines an, um seine Empfänger-URL zu erhalten.",
+      "endpointWired": "Weiterleitungsadresse",
+      "endpointUnwired": "Empfänger-URL",
+      "lead": "Leiten Sie Bewerbungen für <b>{role}</b> weiter an",
+      "waiting": "Warte auf die erste Weiterleitung…",
+      "notWiredTitle": "E-Mail-Weiterleitung ist noch nicht verdrahtet — es gibt kein Postfach, an das weitergeleitet werden könnte.",
+      "notWiredBody": "Dieses Deployment hat keinen Anbieter für eingehende E-Mails, eine Gmail- oder Outlook-Regel würde Bewerbungen für <b>{role}</b> also an eine Adresse schicken, die nichts annimmt. Der echte Empfänger ist ein HTTP-Endpunkt:",
+      "notWiredHowTo": "Alles, was POSTen kann, erreicht ihn schon heute — eine Automatisierung (Zapier/Make), ein Formular oder ein E-Mail-Parsing-Dienst. Für echte Weiterleitung leiten Sie einen Anbieter für eingehende E-Mails (Postmark, SendGrid oder Mailgun Inbound) auf diesen Endpunkt und setzen <code>EMAIL_INBOUND_DOMAIN</code> auf die Domain, unter der er Mail annimmt. Die Weiterleitungsadresse und die Gmail-/Outlook-Schritte erscheinen dann hier.",
+      "gmail1": "Öffnen Sie Gmail → <b>Einstellungen ⚙ → Alle Einstellungen aufrufen → Weiterleitung und POP/IMAP</b>.",
+      "gmail2": "Klicken Sie auf <b>Weiterleitungsadresse hinzufügen</b>, fügen Sie <endpoint></endpoint> ein und dann <b>Weiter → Fortfahren</b>.",
+      "gmail3": "Gmail schickt einen <b>Bestätigungscode</b> an diese Adresse. Holen Sie ihn aus dem Log Ihres Inbound-E-Mail-Anbieters — kp erfasst ausgehende Nachrichten, nicht die Mail des Anbieters — und geben Sie ihn in Gmail ein.",
+      "gmail4": "Legen Sie einen <b>Filter</b> an (z. B. <i>Betreff enthält „Bewerbung“</i>) → <b>Weiterleiten an</b> <endpoint></endpoint>. Jede passende E-Mail fließt nun automatisch herein.",
+      "outlook1": "Öffnen Sie Outlook im Web → <b>Einstellungen ⚙ → E-Mail → Regeln → Neue Regel hinzufügen</b>.",
+      "outlook2": "Nennen Sie sie <i>„Bewerbungen → KP“</i> und fügen Sie eine Bedingung hinzu (z. B. <i>Betreff enthält „Bewerbung“</i>).",
+      "outlook3": "Setzen Sie die Aktion auf <b>Umleiten an</b> (oder <b>Weiterleiten an</b>) <endpoint></endpoint>.",
+      "outlook4": "Klicken Sie auf <b>Speichern</b>. Passende Mail wird nun automatisch umgeleitet — kein Code zu bestätigen."
+    },
+    "ads": {
+      "title": "Anzeigenformular-Empfänger hinzufügen",
+      "add": "Empfänger hinzufügen",
+      "intro": "Richten Sie den Webhook eines LinkedIn- oder Meta-Lead-Formulars auf die <b>Empfänger-URL</b> einer Stelle — jeder Lead landet automatisch in der Pipeline.",
+      "empty": "Noch keine Anzeigenformular-Empfänger — legen Sie einen an, um eine Webhook-URL zu erhalten.",
+      "endpoint": "Empfänger-URL",
+      "lead": "Richten Sie das Anzeigenformular für <b>{role}</b> auf",
+      "waiting": "Warte auf den ersten Lead…",
+      "footnote": "Fortgeschritten: Sie können den Konnektor überspringen und Leads direkt an diese URL POSTen — LinkedIns Lead-Sync-API oder eine Meta-App mit <code>leadgen</code>-Webhook-Abo kann sie nach der Verifizierung ansprechen.",
+      "linkedin1": "Erstellen Sie in <b>Zapier</b> oder <b>Make</b> einen Flow: Trigger <b>LinkedIn Lead Gen Forms → New Lead</b> (verbinden Sie Ihr Werbekonto).",
+      "linkedin2": "Fügen Sie die Aktion <b>Webhooks → POST</b> hinzu und setzen Sie die URL auf <endpoint></endpoint>.",
+      "linkedin3": "Mappen Sie <b>Name</b>, <b>E-Mail</b> und die Lebenslauf-Datei des Leads in den Request-Body.",
+      "linkedin4": "Schalten Sie ihn ein — neue LinkedIn-Leads werden nun automatisch in die Pipeline gepostet.",
+      "meta1": "Erstellen Sie in <b>Zapier</b> oder <b>Make</b> einen Flow: Trigger <b>Facebook Lead Ads → New Lead</b> (verbinden Sie Ihre Seite).",
+      "meta2": "Fügen Sie die Aktion <b>Webhooks → POST</b> hinzu und setzen Sie die URL auf <endpoint></endpoint>.",
+      "meta3": "Mappen Sie <b>Name</b>, <b>E-Mail</b> und ein etwaiges Lebenslauf-Upload-Feld in den Request-Body.",
+      "meta4": "Schalten Sie ihn ein — neue Meta-Leads werden nun automatisch in die Pipeline gepostet."
+    },
+    "guide": {
+      "setupFor": "Einrichtung für",
+      "live": "Empfängt"
+    },
+    "cvSim": {
+      "open": "Mit einem echten Lebenslauf testen",
+      "title": "Lebenslauf simulieren für",
+      "close": "Schließen",
+      "choose": "Lebenslauf wählen — PDF, DOCX, TXT oder MD",
+      "namePlaceholder": "Name (optional)",
+      "emailPlaceholder": "E-Mail (optional)",
+      "run": "Diesen Lebenslauf empfangen",
+      "running": "Wird geparst und erfasst…",
+      "hint": "Parst die Datei, baut eine matchbare Kandidatur und erfasst sie bei „Angenommen“.",
+      "failed": "Konnte nicht erfasst werden: {reason}",
+      "failedStatus": "Fehlgeschlagen ({status}).",
+      "requestFailed": "Anfrage fehlgeschlagen.",
+      "landed": "<b>{name}</b> ist bei <b>Angenommen</b> zur Stelle {role} gelandet{suffix}",
+      "stub": " (als Stub — der Lebenslauftext war zu dünn)",
+      "openInPipeline": "In der Pipeline öffnen"
+    },
+    "filters": {
+      "search": "Suchen…",
+      "searchOptions": "Optionen durchsuchen",
+      "noMatches": "Keine Treffer",
+      "searchColumn": "{column} durchsuchen…",
+      "allOf": "Alle — {column}",
+      "select": "Auswählen…"
     }
   },
   "interviewSim": {

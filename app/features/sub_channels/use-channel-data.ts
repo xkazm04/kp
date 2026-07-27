@@ -38,20 +38,35 @@ export function useChannelData() {
   return { webhooks, jobs, accepted, reload: load };
 }
 
-// Shared inbound simulator (the "receive a test application" action). Returns a
-// note the caller renders; refreshes channel data on success.
-//
-// The route files the applicant into the sim/demo workspace under a `(SIM)`-marked
-// title (comms-tenancy-pair), so the note names the marked role it actually landed on
-// rather than implying it joined the real board for this role.
-export async function simulateInbound(jobId: string | undefined): Promise<{ text: string; ok: boolean }> {
-  if (!jobId) return { text: "Create a job first — inbound applications need a role to land on.", ok: false };
+/** Outcome of the inbound simulator. channels-i18n-honesty: this used to return a
+ *  ready-made ENGLISH sentence, which is why the Channels tab could never speak the
+ *  recruiter's language here. It now returns DATA and the component renders it through
+ *  next-intl. A server-side `message` (an honest, specific refusal like "No available
+ *  applicant.") is passed through rather than flattened into a generic failure. */
+export type InboundSimResult =
+  | { ok: true; label: string; score: number; jobTitle: string }
+  | { ok: false; reason: "noJob" }
+  | { ok: false; reason: "failed"; message: string | null };
+
+// Shared inbound simulator (the "receive a test application" action). The route files
+// the applicant into the sim/demo workspace under a `(SIM)`-marked title
+// (comms-tenancy-pair), so `jobTitle` is the marked role it actually landed on, not
+// the real board for this role.
+export async function simulateInbound(jobId: string | undefined): Promise<InboundSimResult> {
+  if (!jobId) return { ok: false, reason: "noJob" };
   try {
     const r = await fetch("/api/sim/inbound", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ jobId }) });
-    const p = await r.json();
-    if (!r.ok) throw new Error(p.error ?? "Couldn't receive a test application.");
-    return { text: `Received ${p.label} — matched at ${p.score}. Filed at Accepted on ${p.jobTitle}.`, ok: true };
+    const p = (await r.json().catch(() => null)) as
+      | { label?: unknown; score?: unknown; jobTitle?: unknown; error?: unknown }
+      | null;
+    if (!r.ok) return { ok: false, reason: "failed", message: typeof p?.error === "string" ? p.error : null };
+    return {
+      ok: true,
+      label: String(p?.label ?? ""),
+      score: Number(p?.score ?? 0),
+      jobTitle: String(p?.jobTitle ?? ""),
+    };
   } catch (e) {
-    return { text: e instanceof Error ? e.message : "Couldn't receive a test application.", ok: false };
+    return { ok: false, reason: "failed", message: e instanceof Error ? e.message : null };
   }
 }

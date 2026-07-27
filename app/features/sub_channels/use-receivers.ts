@@ -12,7 +12,11 @@ export function useReceivers(channel: string, onChanged?: () => void) {
   const [receivers, setReceivers] = useState<ChannelWebhookRecord[] | null>(null);
   const [jobs, setJobs] = useState<ReceiverJob[] | null>(null);
   const [revoking, setRevoking] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  // Did the last revoke FAIL? (channels-i18n-honesty) This used to be an `error` string
+  // holding a hardcoded English sentence that no pane ever read — so a failed revoke was
+  // indistinguishable from a successful one: the row simply stayed put and nothing said
+  // why. The hook reports the fact; the pane renders the localized message.
+  const [revokeFailed, setRevokeFailed] = useState(false);
 
   const load = useCallback(() => {
     fetch("/api/channels/webhooks")
@@ -33,14 +37,14 @@ export function useReceivers(channel: string, onChanged?: () => void) {
     async (token: string) => {
       if (revoking) return;
       setRevoking(token);
-      setError(null);
+      setRevokeFailed(false);
       try {
         const r = await fetch(`/api/channels/webhooks/${encodeURIComponent(token)}`, { method: "DELETE" });
         if (!r.ok) throw new Error();
         load();
         onChanged?.();
       } catch {
-        setError("Couldn't remove it — try again.");
+        setRevokeFailed(true);
       } finally {
         setRevoking(null);
       }
@@ -48,7 +52,7 @@ export function useReceivers(channel: string, onChanged?: () => void) {
     [revoking, load, onChanged]
   );
 
-  return { receivers, jobs, load, revoke, revoking, error };
+  return { receivers, jobs, load, revoke, revoking, revokeFailed };
 }
 
 /** A receiver is "live" once it has taken any AUTHENTICATED inbound POST — the one

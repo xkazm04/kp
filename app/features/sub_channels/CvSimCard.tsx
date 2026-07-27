@@ -1,9 +1,8 @@
 "use client";
-/* eslint-disable i18next/no-literal-string -- prototype-stage copy; threaded into
-   the channels namespace on a later i18n pass. */
 
 import { useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { AnimatePresence, motion } from "framer-motion";
 import { AlertCircle, ArrowRight, Check, FileText, FlaskConical, Loader2, Upload, X } from "lucide-react";
 import { buildUrl } from "@/app/features/tabs";
@@ -16,6 +15,7 @@ import { TextInput } from "@/app/_components/TextInput";
 // parses it with the real extractor, builds a matchable candidate, and lands them at
 // Accepted on the receiver's role. Same composite the real inbound receiver uses, so
 // this exercises the actual parse → candidate → pipeline path, not a mock.
+// Copy resolves through `channels.cvSim.*` (channels-i18n-honesty).
 
 const ACCEPT = ".pdf,.docx,.txt,.md";
 
@@ -39,6 +39,7 @@ export function CvSimCard({
   channel: string;
   onDone?: () => void;
 }) {
+  const t = useTranslations("channels");
   const reduced = useReducedMotion();
   const router = useRouter();
   const search = useSearchParams();
@@ -64,13 +65,13 @@ export function CvSimCard({
       const res = await fetch("/api/sim/apply-cv", { method: "POST", body: fd });
       const data = (await res.json().catch(() => ({}))) as SimResult;
       if (!res.ok || !data.ok) {
-        setResult({ error: data.error ?? `Failed (${res.status}).` });
+        setResult({ error: data.error ?? t("cvSim.failedStatus", { status: res.status }) });
       } else {
         setResult(data);
         onDone?.();
       }
     } catch (err) {
-      setResult({ error: err instanceof Error ? err.message : "Request failed." });
+      setResult({ error: err instanceof Error ? err.message : t("cvSim.requestFailed") });
     } finally {
       setBusy(false);
     }
@@ -83,7 +84,7 @@ export function CvSimCard({
         onClick={() => setOpen(true)}
         className="focus-ring inline-flex items-center gap-2 rounded-lg border border-dashed border-stone-300 bg-paper/40 px-3 py-2 text-sm font-semibold text-ink hover:border-coral/50 hover:text-coral"
       >
-        <FlaskConical size={15} aria-hidden /> Test with a real CV
+        <FlaskConical size={15} aria-hidden /> {t("cvSim.open")}
       </button>
     );
   }
@@ -92,10 +93,10 @@ export function CvSimCard({
     <div className="space-y-3 rounded-lg border border-dashed border-stone-300 bg-paper/40 p-3">
       <div className="flex items-center justify-between">
         <p className="inline-flex items-center gap-2 text-sm font-semibold text-ink">
-          <FlaskConical size={15} className="text-coral" aria-hidden /> Simulate a CV for{" "}
+          <FlaskConical size={15} className="text-coral" aria-hidden /> {t("cvSim.title")}{" "}
           <span className="text-coral">{jobTitle}</span>
         </p>
-        <button type="button" onClick={() => setOpen(false)} aria-label="Close" className="focus-ring rounded-md p-1 text-steel hover:text-ink">
+        <button type="button" onClick={() => setOpen(false)} aria-label={t("cvSim.close")} className="focus-ring rounded-md p-1 text-steel hover:text-ink">
           <X size={15} />
         </button>
       </div>
@@ -116,20 +117,20 @@ export function CvSimCard({
         className="focus-ring flex w-full items-center gap-2 rounded-md border border-stone-200 bg-white px-3 py-2 text-sm hover:border-coral/40"
       >
         {file ? <FileText size={15} className="text-moss" aria-hidden /> : <Upload size={15} className="text-steel" aria-hidden />}
-        <span className={file ? "truncate text-ink" : "text-steel"}>{file ? file.name : "Choose a CV — PDF, DOCX, TXT, or MD"}</span>
+        <span className={file ? "truncate text-ink" : "text-steel"}>{file ? file.name : t("cvSim.choose")}</span>
       </button>
 
       <div className="flex flex-wrap gap-2">
-        <TextInput value={name} onChange={(e) => setName(e.target.value)} placeholder="Name (optional)" sizeVariant="sm" className="min-w-0 flex-1" />
-        <TextInput value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email (optional)" sizeVariant="sm" className="min-w-0 flex-1" />
+        <TextInput value={name} onChange={(e) => setName(e.target.value)} placeholder={t("cvSim.namePlaceholder")} sizeVariant="sm" className="min-w-0 flex-1" />
+        <TextInput value={email} onChange={(e) => setEmail(e.target.value)} placeholder={t("cvSim.emailPlaceholder")} sizeVariant="sm" className="min-w-0 flex-1" />
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
         <button type="button" onClick={run} disabled={!file || busy} className={`${BTN_PRIMARY} h-9 px-4 text-sm`}>
           {busy ? <Loader2 size={15} className="animate-spin" aria-hidden /> : <ArrowRight size={15} aria-hidden />}
-          {busy ? "Parsing & filing…" : "Receive this CV"}
+          {busy ? t("cvSim.running") : t("cvSim.run")}
         </button>
-        <p className="text-xs text-steel">Parses the file, builds a matchable candidate, lands them at Accepted.</p>
+        <p className="text-xs text-steel">{t("cvSim.hint")}</p>
       </div>
 
       <AnimatePresence>
@@ -145,21 +146,27 @@ export function CvSimCard({
           >
             {result.error ? (
               <span className="inline-flex items-center gap-1.5">
-                <AlertCircle size={14} className="text-coral" aria-hidden /> Couldn’t file it: {result.error}
+                <AlertCircle size={14} className="text-coral" aria-hidden /> {t("cvSim.failed", { reason: result.error })}
               </span>
             ) : (
               <>
                 <span className="inline-flex items-center gap-1.5">
                   <Check size={14} className="text-moss" aria-hidden />
-                  <b>{result.candidateLabel}</b> landed at <b>Accepted</b> on {result.jobTitle}
-                  {result.degraded ? " (as a stub — CV text was thin)" : result.archetype ? ` · ${result.archetype}` : ""}.
+                  {t.rich("cvSim.landed", {
+                    name: result.candidateLabel ?? "",
+                    role: result.jobTitle ?? "",
+                    // A thin CV lands a STUB, not a matchable candidate — the suffix says
+                    // which of the two actually happened rather than implying the good case.
+                    suffix: result.degraded ? t("cvSim.stub") : result.archetype ? ` · ${result.archetype}` : "",
+                    b: (chunks) => <b>{chunks}</b>,
+                  })}
                 </span>
                 <button
                   type="button"
                   onClick={() => router.push(buildUrl({ tab: "pipeline" }, search.toString()))}
                   className="focus-ring inline-flex items-center gap-1 font-semibold text-coral hover:underline"
                 >
-                  Open in pipeline <ArrowRight size={13} aria-hidden />
+                  {t("cvSim.openInPipeline")} <ArrowRight size={13} aria-hidden />
                 </button>
               </>
             )}

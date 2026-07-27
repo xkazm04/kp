@@ -1,10 +1,8 @@
 "use client";
-/* eslint-disable i18next/no-literal-string -- prototype-stage copy; threaded into
-   the channels.comms namespace on consolidation (matches the JD Ledger's own disable). */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertTriangle, Inbox } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import type { OutboxStatus } from "@/app/_lib/comms-status";
 import { ResendButton } from "@/app/features/sub_dev/OutboxSection";
 import { useLiveRefresh } from "@/app/features/live-refresh";
@@ -22,6 +20,10 @@ import { ColumnFilter } from "./filters";
 // message, filter by channel / role / name, click a row to read the full body and
 // resend a dead letter. Self-fetching so either prototype variant can just drop it
 // in. (Native <select> filters are round-1 — a themed dropdown is a later upgrade.)
+//
+// channels-i18n-honesty: the column headers, the status vocabulary and the date column
+// all resolve through `channels.comms.*` in four locales. The date column is also the
+// one that used to lie by omission — see RECORDED below.
 
 type Message = {
   id: string;
@@ -55,24 +57,25 @@ const isActionable = (m: Message) =>
 
 // Tone + copy for ONE shared verdict (comms-view.ts `commsVerdict`) — the same
 // derivation the drawer renders, so the two surfaces can no longer disagree about the
-// same message. This function now only decides how a verdict LOOKS here.
-// `orphanLabel` is threaded in (not hardcoded like its siblings) because it is NEW
-// copy — the surrounding literals are prototype-stage and get localized wholesale in a
-// later pass; anything added now goes through next-intl from the start.
-function statusTone(m: Message, orphanLabel: string): { tone: BadgeTone; label: string } {
+// same message. This function now only decides how a verdict LOOKS here; the labels
+// come from the catalog (they are also the Status filter's option set, so the filter
+// and the column it filters always read alike in every locale).
+type StatusLabels = Record<"orphaned" | "bounced" | "recovered" | "failed" | "sent" | "queued", string>;
+
+function statusTone(m: Message, labels: StatusLabels): { tone: BadgeTone; label: string } {
   switch (commsVerdict(m)) {
     case "orphaned":
-      return { tone: "caution", label: orphanLabel };
+      return { tone: "caution", label: labels.orphaned };
     case "bounced":
-      return { tone: "critical", label: "Bounced" };
+      return { tone: "critical", label: labels.bounced };
     case "recovered":
-      return { tone: "positive", label: "Recovered" };
+      return { tone: "positive", label: labels.recovered };
     case "failed":
-      return { tone: "critical", label: "Failed" };
+      return { tone: "critical", label: labels.failed };
     case "sent":
-      return { tone: "positive", label: "Sent" };
+      return { tone: "positive", label: labels.sent };
     case "queued":
-      return { tone: "info", label: "Queued" };
+      return { tone: "info", label: labels.queued };
     default:
       return { tone: "neutral", label: labelize(m.status) };
   }
@@ -163,6 +166,7 @@ function BouncedResend({ id, defaultRecipient, onResent }: { id: string; default
 
 export function CommsTable() {
   const t = useTranslations("channels.comms");
+  const locale = useLocale();
   const [messages, setMessages] = useState<Message[] | null>(null);
   const [refs, setRefs] = useState<Record<string, RefInfo>>({});
   const [error, setError] = useState(false);
@@ -213,11 +217,27 @@ export function CommsTable() {
   );
   // Status options mirror the displayed labels (Sent / Failed / Bounced / …) so the
   // Status column filter reads the same as the column it filters.
-  const orphanLabel = t("orphanBadge");
-  const statuses = useMemo(
-    () => [...new Set((messages ?? []).map((m) => statusTone(m, orphanLabel).label))].sort(),
-    [messages, orphanLabel]
+  const statusLabels: StatusLabels = useMemo(
+    () => ({
+      orphaned: t("orphanBadge"),
+      bounced: t("statusBounced"),
+      recovered: t("statusRecovered"),
+      failed: t("statusFailed"),
+      sent: t("statusSent"),
+      queued: t("statusQueued"),
+    }),
+    [t]
   );
+  const statuses = useMemo(
+    () => [...new Set((messages ?? []).map((m) => statusTone(m, statusLabels).label))].sort(),
+    [messages, statusLabels]
+  );
+  // RECORDED, not "Sent". The header said Sent over EVERY row — including the queued
+  // ones nothing will deliver and the failed ones that never left — and rendered a bare
+  // DATE, which made an original and its same-day resend indistinguishable. The column
+  // now states what the timestamp actually is (when kp recorded the row) and shows the
+  // time as well, so the two are told apart at a glance.
+  const recordedAt = (iso: string) => new Date(iso).toLocaleString(locale, { dateStyle: "short", timeStyle: "short" });
 
   if (error) {
     return <p className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{t("loadFailed")}</p>;
@@ -252,7 +272,7 @@ export function CommsTable() {
       (!channelFilter || m.channel === channelFilter) &&
       (!roleFilter || roleOf(m) === roleFilter) &&
       (!kindFilter || m.kind === kindFilter) &&
-      (!statusFilter || statusTone(m, orphanLabel).label === statusFilter) &&
+      (!statusFilter || statusTone(m, statusLabels).label === statusFilter) &&
       matchesQuery(m)
   );
   const shown = filtered.slice(0, visibleCount);
@@ -289,26 +309,28 @@ export function CommsTable() {
             <thead>
               <tr className="border-b border-stone-200 bg-paper/60">
                 <th className="px-3 py-2">
-                  <ColumnFilter title="Name" mode="search" value={nameQuery} onChange={setNameQuery} />
+                  <ColumnFilter title={t("colName")} mode="search" value={nameQuery} onChange={setNameQuery} />
                 </th>
                 <th className="px-3 py-2">
-                  <ColumnFilter title="Role" value={roleFilter} onChange={setRoleFilter} options={roles.map((r) => ({ value: r, label: r }))} />
+                  <ColumnFilter title={t("colRole")} value={roleFilter} onChange={setRoleFilter} options={roles.map((r) => ({ value: r, label: r }))} />
                 </th>
                 <th className="px-3 py-2">
-                  <ColumnFilter title="Channel" value={channelFilter} onChange={setChannelFilter} options={channels.map((c) => ({ value: c, label: labelize(c) }))} />
+                  <ColumnFilter title={t("colChannel")} value={channelFilter} onChange={setChannelFilter} options={channels.map((c) => ({ value: c, label: labelize(c) }))} />
                 </th>
                 <th className="px-3 py-2">
-                  <ColumnFilter title="Type" value={kindFilter} onChange={setKindFilter} options={kinds.map((k) => ({ value: k, label: labelize(k) }))} />
+                  <ColumnFilter title={t("colType")} value={kindFilter} onChange={setKindFilter} options={kinds.map((k) => ({ value: k, label: labelize(k) }))} />
                 </th>
                 <th className="px-3 py-2">
-                  <ColumnFilter title="Status" value={statusFilter} onChange={setStatusFilter} options={statuses.map((s) => ({ value: s, label: s }))} />
+                  <ColumnFilter title={t("colStatus")} value={statusFilter} onChange={setStatusFilter} options={statuses.map((s) => ({ value: s, label: s }))} />
                 </th>
-                <th className={`px-3 py-2 ${META_LABEL}`}>Sent</th>
+                <th title={t("recordedHint")} className={`px-3 py-2 ${META_LABEL}`}>
+                  {t("colRecorded")}
+                </th>
               </tr>
             </thead>
             <tbody>
               {shown.map((m) => {
-                const st = statusTone(m, orphanLabel);
+                const st = statusTone(m, statusLabels);
                 // An unmatched receipt has no candidate address by construction
                 // ("(relay callback)"), so the no-address warning is noise on it.
                 const unaddressable = relayConfigured && m.deliverable === false && !m.orphaned;
@@ -336,7 +358,7 @@ export function CommsTable() {
                     <td className="px-3 py-2">
                       <Badge tone={st.tone} label={st.label} />
                     </td>
-                    <td className="whitespace-nowrap px-3 py-2 text-xs text-steel">{new Date(m.createdAt).toLocaleDateString()}</td>
+                    <td className="whitespace-nowrap px-3 py-2 text-xs text-steel">{recordedAt(m.createdAt)}</td>
                   </tr>
                 );
               })}
@@ -362,10 +384,10 @@ export function CommsTable() {
         <Modal title={nameOf(open)} subtitle={roleOf(open) ?? open.recipient ?? undefined} onClose={() => setOpenId(null)} size="lg">
           <div className="space-y-3">
             <div className="flex flex-wrap items-center gap-2">
-              <Badge {...statusTone(open, orphanLabel)} />
+              <Badge {...statusTone(open, statusLabels)} />
               {open.kind ? <span className="rounded-full bg-stone-100 px-2 py-0.5 text-xs font-semibold uppercase text-steel">{labelize(open.kind)}</span> : null}
-              {open.channel ? <span className="text-xs text-steel">via {labelize(open.channel)}</span> : null}
-              <span className="ml-auto text-xs text-steel">{new Date(open.createdAt).toLocaleString()}</span>
+              {open.channel ? <span className="text-xs text-steel">{t("via", { channel: labelize(open.channel) })}</span> : null}
+              <span className="ml-auto text-xs text-steel">{recordedAt(open.createdAt)}</span>
             </div>
             {open.orphaned ? (
               <p className="flex items-start gap-1.5 rounded-md bg-amber-50 px-2 py-1 text-xs font-medium text-amber-800">

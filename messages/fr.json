@@ -3372,23 +3372,14 @@
   },
   "channels": {
     "comms": {
-      "title": "Communications",
       "count": "{count, plural, one {# message} other {# messages}}",
       "deadLetters": "{count, plural, one {# message non distribué — à traiter} other {# messages non distribués — à traiter}}",
-      "noAddress": "aucune adresse",
       "noAddressHint": "Ce candidat n'a pas d'e-mail valide — un relais réel ne peut pas le joindre. Renseignez une adresse avant de compter sur cet envoi.",
-      "addressIssues": "{count, plural, one {# sans adresse} other {# sans adresse}}",
-      "intro": "Tous les messages adressés aux candidats par le pipeline — accusés de réception, prises de contact, invitations à un entretien, refus, offres. Déployez une ligne pour lire le message complet ; les envois échoués peuvent être renvoyés.",
       "empty": "Aucun message envoyé pour l'instant — ils apparaîtront ici à mesure que les candidats avancent dans le pipeline.",
       "loadFailed": "Impossible de charger les communications.",
       "relayNotConfigured": "Aucun relais de distribution configuré — ces messages ne sont PAS envoyés aux candidats. Définissez COMMS_WEBHOOK_URL pour activer la distribution.",
       "loading": "Chargement des communications",
-      "recovered": "récupéré",
-      "recoveredAt": "renvoyé {time}",
-      "bounced": "rebond",
       "bouncedAt": "Le relais a signalé un rebond {time} : {detail}",
-      "searchPlaceholder": "Rechercher un candidat, un destinataire ou un objet",
-      "kindAll": "Tous les types",
       "showing": "Affichage de {shown} sur {total}",
       "showMore": "Afficher plus",
       "resend": "Renvoyer",
@@ -3404,73 +3395,166 @@
       "failureDetail": "Échec de la distribution : {detail}",
       "failureDetailUnknown": "Échec de la distribution — aucune raison n'a été enregistrée pour cet envoi.",
       "resendRejected": "Renvoi impossible : {reason}",
-      "resendDeadLettered": "Renvoyé, mais de nouveau non distribué."
+      "resendDeadLettered": "Renvoyé, mais de nouveau non distribué.",
+      "colName": "Nom",
+      "colRole": "Poste",
+      "colChannel": "Canal",
+      "colType": "Type",
+      "colStatus": "Statut",
+      "colRecorded": "Enregistré",
+      "recordedHint": "Quand kp a enregistré le message. Un renvoi constitue sa propre ligne : l’original et le renvoi restent distincts.",
+      "via": "via {channel}",
+      "statusSent": "Envoyé",
+      "statusQueued": "En file d’attente",
+      "statusFailed": "Échec",
+      "statusRecovered": "Rattrapé",
+      "statusBounced": "Non distribué"
     },
-    "eyebrow": "Espace de travail",
-    "title": "Canaux et intégrations",
-    "intro": "Là où les candidats entrent dans le pipeline. Les <b>candidatures</b> entrantes comme les candidats sourcés de façon proactive arrivent à <hl>Accepté</hl>, puis passent en <hl>Présélectionné</hl> pour la première vague d'évaluation.",
-    "received": "{count, plural, one {candidature reçue} other {candidatures reçues}} → <hl>Accepté</hl>",
-    "loadingInbound": "Chargement des candidatures entrantes",
-    "openPipeline": "Ouvrir Recrutement",
-    "noJobNote": "Sourcez d'abord une fiche de poste dans le pipeline — les candidatures pourront alors arriver.",
-    "appliedNote": "{label} a postulé → Accepté (correspondance {score}).",
-    "failed": "Échec.",
-    "open": "Ouvrir",
-    "receiving": "Réception…",
-    "simulate": "Simuler une candidature",
-    "channelAriaLive": "{name} : actif — {status}",
-    "channelAriaOff": "{name} : non configuré — {status}",
-    "statusListening": "À l'écoute",
-    "webhooks": {
-      "connect": "Connecter",
-      "manage": "Gérer ({count})",
-      "hide": "Masquer",
-      "intro": "Envoyez des leads en POST vers une URL de webhook — chaque URL est liée à un poste et à une langue de candidat. Accepte du JSON simple ou des payloads de formulaires de leads Meta ; les leads arrivent à « Accepté » sous forme d'ébauches enrichissables et reçoivent un accusé de réception instantané avec un lien de candidature complète.",
-      "job": "Poste",
-      "language": "Langue du candidat",
-      "create": "Créer une URL de webhook",
-      "creating": "Création…",
-      "copyUrl": "Copier l'URL",
-      "copied": "Copié",
-      "revoke": "Révoquer le webhook",
-      "received": "{count, plural, one {# reçu} other {# reçus}}",
-      "leads": "{count, plural, one {# lead} other {# leads}}",
-      "neverReceived": "rien reçu pour l'instant",
-      "firstLeadMins": "premier lead {mins} min après la configuration",
-      "firstLeadHours": "premier lead {hours} h après la configuration",
-      "noJobs": "Aucun poste disponible — importez ou publiez d'abord un poste.",
-      "noJobsCta": "Créer une fiche de poste",
-      "createFailed": "Impossible de créer le webhook.",
-      "revokeFailed": "Impossible de révoquer le webhook."
-    },
-    "items": {
-      "apply": {
-        "name": "Page carrières · Lien de candidature",
-        "status": "À l'écoute",
-        "desc": "Un lien de candidature conversationnel — les candidatures envoyées arrivent à « Accepté »."
+    "eyebrow": "Studio des entrées",
+    "title": "Par où les candidats arrivent",
+    "tablist": "Intégration",
+    "waiting": "{count} en attente dans le pipeline",
+    "ledger": "Registre",
+    "statusLive": "Actif",
+    "statusListening": "À l’écoute",
+    "statusConfigured": "Configuré",
+    "statusOff": "Inactif",
+    "statusWaiting": "En attente",
+    "copyLink": "Copier le lien",
+    "copy": "Copier",
+    "copied": "Copié",
+    "sections": {
+      "comms": {
+        "label": "Communications",
+        "blurb": "Chaque message adressé aux candidats, dans un registre auditable."
+      },
+      "careers": {
+        "label": "Page carrières",
+        "blurb": "Votre page de candidature publique — un lien, intégrable partout."
       },
       "email": {
-        "name": "Réception par e-mail",
-        "status": "Non configuré",
-        "desc": "Reliez une intégration d'analyse d'e-mails (ou n'importe quel formulaire) à une URL de webhook par poste — les candidats analysés arrivent à « Accepté »."
+        "label": "Réception par e-mail",
+        "blurb": "Transférez les candidatures d’une boîte mail directement dans le pipeline."
       },
-      "boards": {
-        "name": "Sites d'emploi et formulaires publicitaires",
-        "status": "Non configuré",
-        "desc": "Recevez des candidats depuis des sites d'emploi et des formulaires publicitaires de leads (payloads de formulaires Meta pris en charge) via une URL de webhook par poste — les leads arrivent à « Accepté »."
-      },
-      "sourcing": {
-        "name": "Sourcing proactif",
-        "status": "Actif",
-        "desc": "Classez le vivier de candidats pour ce poste dans Matching — les candidats sourcés de façon proactive arrivent à « Accepté ».",
-        "cta": "Ouvrir Matching"
-      },
-      "manual": {
-        "name": "Ajout manuel",
-        "status": "Recruteur",
-        "desc": "Créez un profil de candidat à la main (Profil) et ajoutez-le à un poste.",
-        "cta": "Créer un profil"
+      "ads": {
+        "label": "Formulaires publicitaires",
+        "blurb": "Les formulaires de leads (LinkedIn / Meta) déposent leurs leads ici."
       }
+    },
+    "stats": {
+      "publishedRoles": "Postes publiés",
+      "waiting": "En attente",
+      "receivers": "Récepteurs",
+      "received": "Reçus",
+      "leads": "Leads enregistrés"
+    },
+    "sim": {
+      "run": "Recevoir une candidature test",
+      "running": "Réception…",
+      "noJob": "Créez d’abord un poste — les candidatures entrantes ont besoin d’une destination.",
+      "filed": "{label} reçu — correspondance {score}. Enregistré à « Accepté » sur {role}.",
+      "failed": "Impossible de recevoir une candidature test."
+    },
+    "careers": {
+      "empty": "Aucun poste publié pour l’instant — publiez un poste et son lien de candidature apparaîtra ici.",
+      "applyLink": "lien de candidature"
+    },
+    "receivers": {
+      "role": "Poste",
+      "lang": "Langue",
+      "status": "Statut",
+      "received": "Reçus",
+      "receivedHint": "Requêtes POST authentifiées reçues par ce récepteur — sondes et payloads rejetés compris. Le nombre de candidats figure sous « Leads enregistrés ».",
+      "copyEndpoint": "Copier l’adresse",
+      "remove": "Supprimer",
+      "removeAria": "Supprimer le récepteur du poste {role}",
+      "confirmTitle": "Supprimer ce récepteur ?",
+      "confirmBody": "Cela supprime le point d’entrée du poste <b>{role}</b>. <b>{endpoint}</b> cesse immédiatement d’accepter les candidatures et ne peut pas être restauré — il faudrait ajouter un nouveau récepteur et réorienter la source vers sa nouvelle adresse.",
+      "confirmLive": "{count, plural, one {Ce récepteur est actif — il a reçu # candidature entrante.} other {Ce récepteur est actif — il a reçu # candidatures entrantes.}} La règle de transfert ou le flux publicitaire qui pointe dessus continuera d’envoyer des POST vers une URL morte et les nouvelles candidatures seront perdues jusqu’à ce qu’il soit reconnecté.",
+      "cancel": "Annuler",
+      "confirm": "Supprimer le récepteur"
+    },
+    "add": {
+      "roleLabel": "Poste",
+      "rolePlaceholder": "Sélectionner un poste…",
+      "langLabel": "Langue du candidat",
+      "noJobs": "Publiez d’abord un poste — chaque récepteur est lié à un seul poste.",
+      "noJobsCta": "Aller à la bibliothèque de fiches de poste",
+      "cancel": "Annuler",
+      "create": "Créer",
+      "creating": "Création…",
+      "createFailed": "Impossible de le créer — réessayez.",
+      "removeFailed": "Impossible de le supprimer — réessayez."
+    },
+    "email": {
+      "title": "Ajouter une boîte de poste",
+      "add": "Ajouter une boîte",
+      "introWired": "Transférez les candidatures depuis Outlook ou Gmail — définissez <b>une règle par poste</b> et chaque candidature arrive automatiquement dans le pipeline.",
+      "introUnwired": "Un récepteur par poste. Le transfert d’e-mails n’est pas branché sur ce déploiement : le récepteur de chaque poste est donc un <b>point d’accès HTTP</b> auquel n’importe quoi peut envoyer une candidature en POST.",
+      "emptyWired": "Aucune boîte de poste — ajoutez-en une pour obtenir une adresse de transfert.",
+      "emptyUnwired": "Aucune boîte de poste — ajoutez-en une pour obtenir son URL de récepteur.",
+      "endpointWired": "Adresse de transfert",
+      "endpointUnwired": "URL du récepteur",
+      "lead": "Transférez les candidatures pour <b>{role}</b> vers",
+      "waiting": "En attente du premier transfert…",
+      "notWiredTitle": "Le transfert d’e-mails n’est pas encore branché — il n’existe aucune boîte vers laquelle transférer.",
+      "notWiredBody": "Ce déploiement n’a pas de fournisseur d’e-mails entrants : une règle Gmail ou Outlook enverrait donc les candidatures pour <b>{role}</b> vers une adresse qui n’accepte rien. Le vrai récepteur est un point d’accès HTTP :",
+      "notWiredHowTo": "Tout ce qui sait envoyer un POST l’atteint dès aujourd’hui — une automatisation (Zapier/Make), un formulaire ou un service d’analyse d’e-mails. Pour activer un vrai transfert, dirigez un fournisseur d’e-mails entrants (Postmark, SendGrid ou Mailgun inbound) vers ce point d’accès et définissez <code>EMAIL_INBOUND_DOMAIN</code> sur le domaine où il accepte le courrier. L’adresse de transfert et les étapes Gmail/Outlook apparaîtront alors ici.",
+      "gmail1": "Ouvrez Gmail → <b>Paramètres ⚙ → Afficher tous les paramètres → Transfert et POP/IMAP</b>.",
+      "gmail2": "Cliquez sur <b>Ajouter une adresse de transfert</b>, collez <endpoint></endpoint>, puis <b>Suivant → Continuer</b>.",
+      "gmail3": "Gmail envoie un <b>code de confirmation</b> à cette adresse. Récupérez-le dans le journal de votre fournisseur d’e-mails entrants — kp enregistre les messages sortants, pas le courrier du fournisseur — puis saisissez-le dans Gmail.",
+      "gmail4": "Créez un <b>filtre</b> (p. ex. <i>l’objet contient « candidature »</i>) → <b>Le transférer à</b> <endpoint></endpoint>. Chaque e-mail correspondant arrive désormais automatiquement.",
+      "outlook1": "Ouvrez Outlook sur le web → <b>Paramètres ⚙ → Courrier → Règles → Ajouter une règle</b>.",
+      "outlook2": "Nommez-la <i>« Candidatures → KP »</i> et ajoutez une condition (p. ex. <i>l’objet contient « candidature »</i>).",
+      "outlook3": "Définissez l’action sur <b>Rediriger vers</b> (ou <b>Transférer à</b>) <endpoint></endpoint>.",
+      "outlook4": "Cliquez sur <b>Enregistrer</b>. Le courrier correspondant est désormais redirigé automatiquement — aucun code à confirmer."
+    },
+    "ads": {
+      "title": "Ajouter un récepteur de formulaire publicitaire",
+      "add": "Ajouter un récepteur",
+      "intro": "Pointez le webhook d’un formulaire de leads LinkedIn ou Meta vers l’<b>URL de récepteur</b> d’un poste — chaque lead arrive automatiquement dans le pipeline.",
+      "empty": "Aucun récepteur de formulaire publicitaire — ajoutez-en un pour obtenir une URL de webhook.",
+      "endpoint": "URL du récepteur",
+      "lead": "Pointez le formulaire publicitaire de <b>{role}</b> vers",
+      "waiting": "En attente du premier lead…",
+      "footnote": "Avancé : vous pouvez sauter le connecteur et envoyer les leads en POST directement sur cette URL — l’API Lead Sync de LinkedIn, ou une app Meta abonnée au webhook <code>leadgen</code>, peut la cibler une fois vérifiée.",
+      "linkedin1": "Dans <b>Zapier</b> ou <b>Make</b>, créez un flux : déclencheur <b>LinkedIn Lead Gen Forms → New Lead</b> (connectez votre compte publicitaire).",
+      "linkedin2": "Ajoutez une action <b>Webhooks → POST</b> et définissez l’URL sur <endpoint></endpoint>.",
+      "linkedin3": "Mappez le <b>nom</b>, l’<b>e-mail</b> et le fichier CV du lead dans le corps de la requête.",
+      "linkedin4": "Activez-le — les nouveaux leads LinkedIn arrivent désormais automatiquement dans le pipeline.",
+      "meta1": "Dans <b>Zapier</b> ou <b>Make</b>, créez un flux : déclencheur <b>Facebook Lead Ads → New Lead</b> (connectez votre Page).",
+      "meta2": "Ajoutez une action <b>Webhooks → POST</b> et définissez l’URL sur <endpoint></endpoint>.",
+      "meta3": "Mappez le <b>nom</b>, l’<b>e-mail</b> et tout champ de dépôt de CV dans le corps de la requête.",
+      "meta4": "Activez-le — les nouveaux leads Meta arrivent désormais automatiquement dans le pipeline."
+    },
+    "guide": {
+      "setupFor": "Configuration pour",
+      "live": "Réception"
+    },
+    "cvSim": {
+      "open": "Tester avec un vrai CV",
+      "title": "Simuler un CV pour",
+      "close": "Fermer",
+      "choose": "Choisir un CV — PDF, DOCX, TXT ou MD",
+      "namePlaceholder": "Nom (facultatif)",
+      "emailPlaceholder": "E-mail (facultatif)",
+      "run": "Recevoir ce CV",
+      "running": "Analyse et enregistrement…",
+      "hint": "Analyse le fichier, construit un candidat comparable et l’enregistre à « Accepté ».",
+      "failed": "Impossible de l’enregistrer : {reason}",
+      "failedStatus": "Échec ({status}).",
+      "requestFailed": "La requête a échoué.",
+      "landed": "<b>{name}</b> est arrivé à <b>Accepté</b> sur {role}{suffix}",
+      "stub": " (en ébauche — le texte du CV était trop mince)",
+      "openInPipeline": "Ouvrir dans le pipeline"
+    },
+    "filters": {
+      "search": "Rechercher…",
+      "searchOptions": "Rechercher dans les options",
+      "noMatches": "Aucun résultat",
+      "searchColumn": "Rechercher : {column}…",
+      "allOf": "Tout — {column}",
+      "select": "Sélectionner…"
     }
   },
   "interviewSim": {

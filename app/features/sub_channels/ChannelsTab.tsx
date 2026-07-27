@@ -1,9 +1,8 @@
 "use client";
-/* eslint-disable i18next/no-literal-string -- prototype-stage copy; threaded into
-   the channels namespace on a later i18n pass. */
 
 import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import { useTranslations } from "next-intl";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight, Check, Copy, ExternalLink, Link2 } from "lucide-react";
 import { buildUrl } from "@/app/features/tabs";
@@ -13,6 +12,7 @@ import { Badge, type BadgeTone } from "@/app/_components/Badge";
 import { BTN_PRIMARY, EYEBROW, TITLE_DISPLAY } from "@/app/_components/ui/recipes";
 import { CHANNEL_SECTIONS, type ChannelSectionId } from "./sections";
 import { useChannelData, simulateInbound } from "./use-channel-data";
+import { isReceiverLive } from "./use-receivers";
 import { CommsTable } from "./CommsTable";
 import { AdFormsPane } from "./AdFormsPane";
 import { EmailIntakeWizard } from "./EmailIntakeWizard";
@@ -23,6 +23,10 @@ import { EmailIntakeWizard } from "./EmailIntakeWizard";
 // cluster of what's flowing, then the manager. Proactive sourcing + Manual add are
 // intentionally out of this page (they live in Match / Profile). Accents are drawn
 // only from Badge-mapped tones (coral/moss/blue/amber) so both themes stay honest.
+//
+// channels-i18n-honesty: every string on this surface now resolves through the
+// `channels.*` catalog in all four locales — the tab was hardcoded English behind an
+// eslint-disable while ~49 already-translated keys sat orphaned.
 
 type Accent = { text: string; soft: string; border: string };
 const ACCENT: Record<ChannelSectionId, Accent> = {
@@ -33,6 +37,7 @@ const ACCENT: Record<ChannelSectionId, Accent> = {
 };
 
 function CopyLink({ url }: { url: string }) {
+  const t = useTranslations("channels");
   const [copied, setCopied] = useState(false);
   const copy = async () => {
     try {
@@ -49,7 +54,7 @@ function CopyLink({ url }: { url: string }) {
       onClick={copy}
       className="focus-ring inline-flex items-center gap-1 rounded-md border border-stone-200 bg-white px-2 py-1 text-xs font-semibold text-ink hover:border-coral/40"
     >
-      {copied ? <Check size={12} /> : <Copy size={12} />} {copied ? "Copied" : "Copy link"}
+      {copied ? <Check size={12} /> : <Copy size={12} />} {copied ? t("copied") : t("copyLink")}
     </button>
   );
 }
@@ -64,6 +69,7 @@ function Stat({ label, value }: { label: string; value: string | number }) {
 }
 
 export function ChannelsTab() {
+  const t = useTranslations("channels");
   const router = useRouter();
   const search = useSearchParams();
   const reduced = useReducedMotion();
@@ -77,32 +83,49 @@ export function ChannelsTab() {
   const a = ACCENT[section];
   const hooksFor = (ch?: string) => (ch ? webhooks.filter((w) => w.channel === ch) : []);
 
+  // ONE "Listening" definition on this page (channels-i18n-honesty). The section badge
+  // used to say Listening the moment a receiver ROW existed, while the row's own badge
+  // said Listening only once it had taken traffic — two contradictory claims about the
+  // same thing, side by side. The row semantics win: Listening means liveness is
+  // PROVEN (isReceiverLive, an authenticated POST has arrived — see db/channels.ts);
+  // a receiver that exists but has never been reached reads as the neutral "Configured".
   const statusFor = (id: ChannelSectionId, channel?: string): { tone: BadgeTone; label: string } | null => {
     if (id === "comms") return null;
-    if (id === "careers") return { tone: "positive", label: "Live" };
-    const n = hooksFor(channel).length;
-    return n > 0 ? { tone: "positive", label: "Listening" } : { tone: "neutral", label: "Off" };
+    if (id === "careers") return { tone: "positive", label: t("statusLive") };
+    const hooks = hooksFor(channel);
+    if (hooks.length === 0) return { tone: "neutral", label: t("statusOff") };
+    return hooks.some(isReceiverLive)
+      ? { tone: "positive", label: t("statusListening") }
+      : { tone: "info", label: t("statusConfigured") };
   };
 
   const simulate = async () => {
     setSimBusy(true);
     setSimNote(null);
-    const note = await simulateInbound(jobs[0]?.id);
-    if (note.ok) reload();
-    setSimNote(note);
+    const result = await simulateInbound(jobs[0]?.id);
+    if (result.ok) {
+      reload();
+      setSimNote({ ok: true, text: t("sim.filed", { label: result.label, score: result.score, role: result.jobTitle }) });
+    } else {
+      setSimNote({
+        ok: false,
+        text: result.reason === "noJob" ? t("sim.noJob") : result.message ?? t("sim.failed"),
+      });
+    }
     setSimBusy(false);
   };
 
   const activeHooks = hooksFor(active.channel);
   const received = activeHooks.reduce((n, h) => n + (h.receivedCount ?? 0), 0);
   const leads = activeHooks.reduce((n, h) => n + (h.acceptedCount ?? 0), 0);
+  const activeStatus = statusFor(active.id, active.channel);
 
   return (
     <section data-sim="channels" className="space-y-5">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className={EYEBROW}>Inbound studio</p>
-          <h2 className={`mt-1 ${TITLE_DISPLAY}`}>Where candidates come in</h2>
+          <p className={EYEBROW}>{t("eyebrow")}</p>
+          <h2 className={`mt-1 ${TITLE_DISPLAY}`}>{t("title")}</h2>
         </div>
         {/* data-sim hook: the guided simulation spotlights this inbound indicator. */}
         <button
@@ -111,12 +134,12 @@ export function ChannelsTab() {
           onClick={() => router.push(buildUrl({ tab: "pipeline" }, search.toString()))}
           className="focus-ring inline-flex items-center gap-1.5 text-sm font-semibold text-coral hover:underline"
         >
-          {accepted ?? "—"} waiting in the pipeline <ArrowRight size={14} aria-hidden />
+          {t("waiting", { count: accepted ?? "—" })} <ArrowRight size={14} aria-hidden />
         </button>
       </header>
 
       {/* Icon-pill section switcher — each channel carries its own accent */}
-      <div role="tablist" aria-label="Integration" className="flex flex-wrap gap-2">
+      <div role="tablist" aria-label={t("tablist")} className="flex flex-wrap gap-2">
         {CHANNEL_SECTIONS.map((s) => {
           const selected = s.id === section;
           const acc = ACCENT[s.id];
@@ -138,14 +161,16 @@ export function ChannelsTab() {
                 <s.icon size={16} className={selected ? acc.text : "text-steel"} aria-hidden />
               </span>
               <span className="text-left">
-                <span className={`block text-sm font-semibold ${selected ? "text-ink" : "text-steel"}`}>{s.label}</span>
+                <span className={`block text-sm font-semibold ${selected ? "text-ink" : "text-steel"}`}>
+                  {t(`sections.${s.id}.label`)}
+                </span>
                 {st ? (
                   <span className="flex items-center gap-1 text-xs text-steel">
                     <span className={`h-1.5 w-1.5 rounded-full ${st.tone === "positive" ? "bg-moss" : "bg-stone-300"}`} aria-hidden />
                     {st.label}
                   </span>
                 ) : (
-                  <span className="block text-xs text-steel">Ledger</span>
+                  <span className="block text-xs text-steel">{t("ledger")}</span>
                 )}
               </span>
             </button>
@@ -170,12 +195,10 @@ export function ChannelsTab() {
             </span>
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
-                <h3 className="font-serif text-h2 text-ink">{active.label}</h3>
-                {statusFor(active.id, active.channel) ? (
-                  <Badge {...statusFor(active.id, active.channel)!} dot={statusFor(active.id, active.channel)!.tone === "positive"} />
-                ) : null}
+                <h3 className="font-serif text-h2 text-ink">{t(`sections.${active.id}.label`)}</h3>
+                {activeStatus ? <Badge {...activeStatus} dot={activeStatus.tone === "positive"} /> : null}
               </div>
-              <p className="mt-1 max-w-xl text-body text-steel">{active.blurb}</p>
+              <p className="mt-1 max-w-xl text-body text-steel">{t(`sections.${active.id}.blurb`)}</p>
             </div>
           </div>
 
@@ -183,16 +206,16 @@ export function ChannelsTab() {
           <div className="mt-4 flex flex-wrap gap-2">
             {active.id === "careers" ? (
               <>
-                <Stat label="Published roles" value={jobs.length} />
-                <Stat label="Waiting" value={accepted ?? "—"} />
+                <Stat label={t("stats.publishedRoles")} value={jobs.length} />
+                <Stat label={t("stats.waiting")} value={accepted ?? "—"} />
               </>
             ) : active.id === "comms" ? (
-              <Stat label="Waiting in pipeline" value={accepted ?? "—"} />
+              <Stat label={t("stats.waiting")} value={accepted ?? "—"} />
             ) : (
               <>
-                <Stat label="Receivers" value={activeHooks.length} />
-                <Stat label="Received" value={received} />
-                <Stat label="Leads filed" value={leads} />
+                <Stat label={t("stats.receivers")} value={activeHooks.length} />
+                <Stat label={t("stats.received")} value={received} />
+                <Stat label={t("stats.leads")} value={leads} />
               </>
             )}
           </div>
@@ -201,7 +224,7 @@ export function ChannelsTab() {
           {active.id === "careers" ? (
             <div className="mt-4 flex flex-wrap items-center gap-3">
               <button type="button" data-sim-click="simulate-inbound" onClick={simulate} disabled={simBusy} className={`${BTN_PRIMARY} h-9 px-4 text-sm`}>
-                <Link2 size={15} aria-hidden /> {simBusy ? "Receiving…" : "Receive a test application"}
+                <Link2 size={15} aria-hidden /> {simBusy ? t("sim.running") : t("sim.run")}
               </button>
               {simNote ? (
                 <span role="status" aria-live="polite" className={`text-sm font-medium ${simNote.ok ? "text-moss" : "text-coral"}`}>
@@ -218,7 +241,7 @@ export function ChannelsTab() {
             {active.id === "ads" ? <AdFormsPane onChanged={reload} /> : null}
             {active.id === "careers" ? (
               jobs.length === 0 ? (
-                <p className="text-sm text-steel">No published roles yet — publish a job and its apply link appears here.</p>
+                <p className="text-sm text-steel">{t("careers.empty")}</p>
               ) : (
                 <ul className="space-y-1.5">
                   {jobs.slice(0, 8).map((j) => {
@@ -227,7 +250,7 @@ export function ChannelsTab() {
                       <li key={j.id} className="flex flex-wrap items-center gap-2 rounded-md border border-stone-100 bg-paper/40 px-3 py-1.5 text-sm">
                         <span className="font-semibold text-ink">{j.title}</span>
                         <a href={url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-coral hover:underline">
-                          <Link2 size={12} aria-hidden /> apply link <ExternalLink size={11} aria-hidden />
+                          <Link2 size={12} aria-hidden /> {t("careers.applyLink")} <ExternalLink size={11} aria-hidden />
                         </a>
                         <span className="ml-auto">
                           <CopyLink url={url} />

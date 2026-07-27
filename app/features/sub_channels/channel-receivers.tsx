@@ -1,8 +1,7 @@
 "use client";
-/* eslint-disable i18next/no-literal-string -- prototype-stage copy; threaded into
-   the channels namespace on a later i18n pass. */
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Check, Copy, Trash2 } from "lucide-react";
 import { buildTabSwitchUrl } from "@/app/features/tabs";
@@ -15,10 +14,12 @@ import { SearchSelect } from "./filters";
 import { isReceiverLive, type ReceiverJob } from "./use-receivers";
 
 // One receiver per row — the compact table both the Email intake and Ad forms panes
-// render. `endpointFor` yields the per-channel address (an email parse address, or a
-// receiver URL). `onSelect` (email only) highlights the row whose setup guide shows.
+// render. `endpointFor` yields the per-channel address (an email forwarding address,
+// or a receiver URL). `onSelect` (email only) highlights the row whose setup guide
+// shows. All copy resolves through the `channels.*` catalog (channels-i18n-honesty).
 
 function CopyBtn({ value }: { value: string }) {
+  const t = useTranslations("channels");
   const [copied, setCopied] = useState(false);
   return (
     <button
@@ -33,10 +34,10 @@ function CopyBtn({ value }: { value: string }) {
           })
           .catch(() => undefined);
       }}
-      aria-label="Copy endpoint"
+      aria-label={t("receivers.copyEndpoint")}
       className="focus-ring inline-flex items-center gap-1 rounded-md border border-stone-200 bg-white px-1.5 py-0.5 text-xs font-semibold text-ink hover:border-coral/40"
     >
-      {copied ? <Check size={12} /> : <Copy size={12} />} {copied ? "Copied" : "Copy"}
+      {copied ? <Check size={12} /> : <Copy size={12} />} {copied ? t("copied") : t("copy")}
     </button>
   );
 }
@@ -58,6 +59,7 @@ export function ReceiverTable({
   selectedToken?: string | null;
   onSelect?: (token: string) => void;
 }) {
+  const t = useTranslations("channels");
   // Revoking a receiver DELETEs a live, externally-wired intake endpoint (a Gmail
   // forwarding rule / a Zapier→Meta flow now POSTs to a dead URL) and there is no
   // un-revoke. So the trash icon opens a confirm step that names the role and warns
@@ -71,13 +73,13 @@ export function ReceiverTable({
       <table className="w-full min-w-[42rem] border-collapse text-left text-sm">
         <thead>
           <tr className="border-b border-stone-200 bg-paper/60">
-            <th className={`px-3 py-2 ${META_LABEL}`}>Role</th>
+            <th className={`px-3 py-2 ${META_LABEL}`}>{t("receivers.role")}</th>
             <th className={`px-3 py-2 ${META_LABEL}`}>{endpointLabel}</th>
-            <th className={`px-3 py-2 ${META_LABEL}`}>Lang</th>
-            <th className={`px-3 py-2 ${META_LABEL}`}>Status</th>
+            <th className={`px-3 py-2 ${META_LABEL}`}>{t("receivers.lang")}</th>
+            <th className={`px-3 py-2 ${META_LABEL}`}>{t("receivers.status")}</th>
             {/* Raw AUTHENTICATED POSTs — connectivity, not leads (db/channels.ts). */}
-            <th title="Authenticated POSTs this receiver has taken — probes and rejected payloads included. Leads filed is the candidate count." className={`px-3 py-2 text-right ${META_LABEL}`}>
-              Received
+            <th title={t("receivers.receivedHint")} className={`px-3 py-2 text-right ${META_LABEL}`}>
+              {t("receivers.received")}
             </th>
             <th className="px-3 py-2" />
           </tr>
@@ -106,7 +108,7 @@ export function ReceiverTable({
                   <span className="rounded-full border border-stone-200 px-1.5 text-micro font-semibold uppercase text-steel">{h.lang ?? DEFAULT_LOCALE}</span>
                 </td>
                 <td className="px-3 py-2">
-                  <Badge tone={live ? "positive" : "neutral"} dot={live} label={live ? "Listening" : "Waiting"} />
+                  <Badge tone={live ? "positive" : "neutral"} dot={live} label={live ? t("statusListening") : t("statusWaiting")} />
                 </td>
                 <td className="px-3 py-2 text-right text-steel nums">{h.receivedCount}</td>
                 <td className="px-3 py-2 text-right">
@@ -117,8 +119,8 @@ export function ReceiverTable({
                       setConfirmRow(h);
                     }}
                     disabled={revoking === h.token}
-                    title="Remove"
-                    aria-label={`Remove receiver for ${h.jobTitle ?? h.jobId}`}
+                    title={t("receivers.remove")}
+                    aria-label={t("receivers.removeAria", { role: h.jobTitle ?? h.jobId })}
                     className="focus-ring inline-flex items-center rounded-md border border-stone-200 bg-white p-1 text-steel hover:border-coral/40 hover:text-coral disabled:opacity-50"
                   >
                     <Trash2 size={13} />
@@ -132,25 +134,24 @@ export function ReceiverTable({
     </div>
 
     {confirmRow ? (
-      <Modal title="Remove this receiver?" onClose={() => setConfirmRow(null)} size="md">
+      <Modal title={t("receivers.confirmTitle")} onClose={() => setConfirmRow(null)} size="md">
         <div className="space-y-4">
           <p className="text-sm text-steel">
-            This deletes the intake endpoint for{" "}
-            <b className="text-ink">{confirmRow.jobTitle ?? confirmRow.jobId}</b>. The{" "}
-            <b className="text-ink">{endpointLabel.toLowerCase()}</b> stops accepting applications immediately and
-            can’t be restored — you’d have to add a new receiver and re-point the source at its new address.
+            {t.rich("receivers.confirmBody", {
+              role: confirmRow.jobTitle ?? confirmRow.jobId,
+              endpoint: endpointLabel,
+              b: (chunks) => <b className="text-ink">{chunks}</b>,
+            })}
           </p>
           {confirmLive ? (
             <p className="flex items-start gap-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-800">
               <Trash2 size={14} className="mt-0.5 shrink-0" aria-hidden />
-              This receiver is live (it has taken {confirmRow.receivedCount} inbound
-              {confirmRow.receivedCount === 1 ? " application" : " applications"}). The forwarding rule / ad flow
-              pointing at it will keep POSTing to a dead URL and new applications will be dropped until it’s re-wired.
+              {t("receivers.confirmLive", { count: confirmRow.receivedCount })}
             </p>
           ) : null}
           <div className="flex items-center justify-end gap-2 border-t border-stone-100 pt-3">
             <button type="button" onClick={() => setConfirmRow(null)} className={`${BTN_SECONDARY} h-9 px-4 text-sm`}>
-              Cancel
+              {t("receivers.cancel")}
             </button>
             <button
               type="button"
@@ -160,7 +161,7 @@ export function ReceiverTable({
               }}
               className="focus-ring inline-flex h-9 items-center rounded-md bg-red-600 px-4 text-sm font-semibold text-white hover:bg-red-700"
             >
-              Remove receiver
+              {t("receivers.confirm")}
             </button>
           </div>
         </div>
@@ -184,6 +185,7 @@ export function AddReceiverModal({
   onClose: () => void;
   onCreated: (token: string) => void;
 }) {
+  const t = useTranslations("channels");
   const router = useRouter();
   const search = useSearchParams();
   const [jobId, setJobId] = useState(jobs[0]?.id ?? "");
@@ -212,7 +214,7 @@ export function AddReceiverModal({
       onCreated(p.webhook?.token ?? "");
       onClose();
     } catch (e) {
-      setError(e instanceof Error && e.message ? e.message : "Couldn't create it — try again.");
+      setError(e instanceof Error && e.message ? e.message : t("add.createFailed"));
     } finally {
       setCreating(false);
     }
@@ -222,24 +224,29 @@ export function AddReceiverModal({
     <Modal title={title} onClose={onClose} size="md">
       {jobs.length === 0 ? (
         <p className="text-sm text-steel">
-          Publish a role first — each receiver binds to one job.{" "}
+          {t("add.noJobs")}{" "}
           <button
             type="button"
             onClick={() => router.push(buildTabSwitchUrl("library", search.toString()))}
             className="focus-ring font-semibold text-coral hover:underline"
           >
-            Go to the JD library
+            {t("add.noJobsCta")}
           </button>
         </p>
       ) : (
         <div className="space-y-4">
           <div>
-            <label className={`mb-1 block ${META_LABEL}`}>Role</label>
-            <SearchSelect value={jobId} onChange={setJobId} placeholder="Select a role…" options={jobs.map((j) => ({ value: j.id, label: j.title }))} />
+            <label className={`mb-1 block ${META_LABEL}`}>{t("add.roleLabel")}</label>
+            <SearchSelect
+              value={jobId}
+              onChange={setJobId}
+              placeholder={t("add.rolePlaceholder")}
+              options={jobs.map((j) => ({ value: j.id, label: j.title }))}
+            />
           </div>
           <div>
-            <span className={`mb-1 block ${META_LABEL}`}>Candidate language</span>
-            <span className="flex items-center gap-1" role="group" aria-label="Candidate language">
+            <span className={`mb-1 block ${META_LABEL}`}>{t("add.langLabel")}</span>
+            <span className="flex items-center gap-1" role="group" aria-label={t("add.langLabel")}>
               {LOCALES.map((loc) => (
                 <button
                   key={loc}
@@ -262,10 +269,10 @@ export function AddReceiverModal({
           ) : null}
           <div className="flex items-center justify-end gap-2 border-t border-stone-100 pt-3">
             <button type="button" onClick={onClose} className={`${BTN_SECONDARY} h-9 px-4 text-sm`}>
-              Cancel
+              {t("add.cancel")}
             </button>
             <button type="button" onClick={create} disabled={creating || !jobId} className={`${BTN_PRIMARY} h-9 px-4 text-sm`}>
-              {creating ? "Creating…" : "Create"}
+              {creating ? t("add.creating") : t("add.create")}
             </button>
           </div>
         </div>

@@ -67,7 +67,11 @@ const config = [
       "app/features/sub_analytics/**/*.tsx",
       "app/features/sub_about/**/*.tsx",
       "app/features/sub_matrix/**/*.tsx",
-      "app/features/sub_analyze/**/*.tsx"
+      "app/features/sub_analyze/**/*.tsx",
+      // channels-i18n-honesty: the Channels tab + Comms Center graduated off their
+      // six prototype-stage `no-literal-string` disables — hold them at ERROR so a
+      // new hardcoded string can't quietly re-English the surface.
+      "app/features/sub_channels/**/*.tsx"
     ],
     rules: {
       "i18next/no-literal-string": ["error", { mode: "jsx-text-only" }]
