@@ -97,6 +97,9 @@ jobs:
           #      (needs that fixture AND a GEMINI_API_KEY — CI has neither)
           #   +0 test_llm_base.GeminiAdapterTest (its google-genai skip does NOT
           #      fire: requirements.txt installs the SDK)
-          #   = 4. The gate trips on skips > 4, so any NEW skip fails the build.
+          #   +1 test_interview_eval.TestGroundedBridge (the grounded DB-fixture
+          #      bridge spawns node + better-sqlite3; this Python-only job
+          #      installs no node_modules)
+          #   = 5. The gate trips on skips > 5, so any NEW skip fails the build.
           # Bump deliberately (with a derivation edit) when adding a tolerated skip.
-          KP_SKIP_BASELINE: "4"
+          KP_SKIP_BASELINE: "5"
