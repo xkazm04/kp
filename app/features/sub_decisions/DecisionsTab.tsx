@@ -24,6 +24,7 @@ import { AnalysisSummaryModal } from "./AnalysisSummaryModal";
 import { Empty } from "./DecisionsShared";
 import { GroupEvalModal, type GroupEvalPayload } from "./GroupEvalModal";
 import { ARM_PARAM, parseArmParam } from "./group-eval-arm";
+import { selectionCacheKey } from "./group-eval/cache-key";
 import { RoleDecisionRow } from "./RoleDecisionRow";
 import { isScoreStale, type Entry } from "./DecisionsTypes";
 import { capNames, pruneSelection, selectionDriftIds } from "./selection-hygiene";
@@ -115,6 +116,10 @@ export function DecisionsTab() {
   const [evalData, setEvalData] = useState<GroupEvalPayload | null>(null);
   const [evalCreatedAt, setEvalCreatedAt] = useState<string | null>(null);
   const [evalTaskId, setEvalTaskId] = useState<string | null>(null);
+  // Whether the in-flight eval run is over an explicit SELECTION (selection-rerun-cache).
+  // Its result is cached under the selection's own key, so it must not flip the role's
+  // "evaluated" chip, which promises a role-level top-N eval.
+  const [evalIsSelection, setEvalIsSelection] = useState(false);
   // Set when a role marked "evaluated" has an unreadable/missing saved payload, so the modal
   // shows an honest "couldn't load — re-run" instead of the misleading "no evaluation yet".
   const [evalError, setEvalError] = useState<string | null>(null);
@@ -399,7 +404,10 @@ export function DecisionsTab() {
   if (evalTaskId && evalStatus === "succeeded" && evalFull) {
     setEvalData((evalFull.result as GroupEvalPayload) ?? null);
     setEvalTaskId(null);
-    if (evalRole) setEvaluated((s) => ({ ...s, [evalRole.roleKey]: new Date().toISOString() }));
+    // Only a top-N run makes the ROLE "evaluated" — a selection run's eval lives under
+    // its own cache key (selection-rerun-cache), and claiming the role otherwise would
+    // send the next default open to a role-level row that was never written.
+    if (evalRole && !evalIsSelection) setEvaluated((s) => ({ ...s, [evalRole.roleKey]: new Date().toISOString() }));
   } else if (evalTaskId && (evalStatus === "failed" || evalStatus === "canceled" || evalStatus === "interrupted")) {
     setEvalTaskId(null);
   }
@@ -470,33 +478,7 @@ export function DecisionsTab() {
     setEvalCreatedAt(null);
     setEvalTaskId(null);
     setEvalError(null);
-    // group-eval-cohort-choice — an explicit selection ("compare these four") always
-    // runs FRESH (it's a different, recruiter-chosen field); a saved eval is reused
-    // only for the default top-N view.
     const hasSelection = Array.isArray(selection) && selection.length > 0;
-    if (evaluated[g.roleKey] && !rerun && !hasSelection) {
-      const p = await fetch(`/api/decisions/group-eval?role=${encodeURIComponent(g.roleKey)}`)
-        .then((r) => r.json())
-        .catch(() => null);
-      const payload = (p?.evaluation?.payload as GroupEvalPayload) ?? null;
-      // The role is marked evaluated but the stored eval is unreadable/missing (parse failed,
-      // or removed between the list and this read). Surface an error so the modal doesn't fall
-      // through to "No evaluation yet" for a role its own button promised had one.
-      if (!payload) {
-        setEvalError(t("evalLoadFailed"));
-        return;
-      }
-      setEvalData(payload);
-      setEvalCreatedAt((p?.evaluation?.createdAt as string) ?? null);
-      // Bind the segmented control to the role's PERSISTED governance (bug-ui-scan #1):
-      // evalMode is unpersisted per-mount state that defaults to "recommendation", so
-      // without this a rerun of a committee/eligibility role could re-send
-      // "recommendation" and (were the server to trust it) silently auto-seal an AI lead.
-      // The server also enforces this, but syncing the control keeps the UI honest and a
-      // subsequent rerun sends the correct mode.
-      if (payload.governanceMode) setEvalMode(payload.governanceMode);
-      return;
-    }
     const cohortCands = g.entries.map((e) => ({ entryId: e.id, candidateId: e.candidateId, label: e.candidateLabel, matchScore: e.matchScore }));
     // Selection: send the chosen subset as `candidates` and the FULL cohort as
     // `cohort` (the server validates membership + cap and anchors coverage/drift to
@@ -504,6 +486,47 @@ export function DecisionsTab() {
     // shape, byte-identical — and omit `cohort`.
     const selectedSet = hasSelection ? new Set(selection) : null;
     const candidates = selectedSet ? cohortCands.filter((c) => selectedSet.has(c.entryId)) : cohortCands;
+    // selection-rerun-cache — WHICH saved eval this open is looking for. A default
+    // top-N open looks up the role key (unchanged); a selection open looks up the key
+    // for THAT exact field (roleKey + a hash of its sorted member ids), computed from
+    // the same ids the server hashes when it persists the run. Reopening the identical
+    // four-candidate comparison therefore serves the cache instead of re-spawning the
+    // full ≤8-process pipeline (LLM weights, embeddings, compare narrative).
+    const cacheKey = selectedSet ? selectionCacheKey(g.roleKey, candidates.map((c) => c.entryId)) : g.roleKey;
+    // A top-N open reads the cache only when the role is KNOWN to be evaluated (the
+    // roles list drives the chip); a selection open always probes its own key, since
+    // nothing lists selection rows — a miss simply falls through to a fresh run.
+    const tryCache = !rerun && (selectedSet ? true : Boolean(evaluated[g.roleKey]));
+    if (tryCache) {
+      const p = await fetch(`/api/decisions/group-eval?role=${encodeURIComponent(cacheKey)}`)
+        .then((r) => r.json())
+        .catch(() => null);
+      const payload = (p?.evaluation?.payload as GroupEvalPayload) ?? null;
+      // The role is marked evaluated but the stored eval is unreadable/missing (parse failed,
+      // or removed between the list and this read). Surface an error so the modal doesn't fall
+      // through to "No evaluation yet" for a role its own button promised had one. Only for the
+      // top-N path: a selection was never PROMISED a cached run, so a miss there just spawns.
+      if (!payload && !selectedSet) {
+        setEvalError(t("evalLoadFailed"));
+        return;
+      }
+      if (payload) {
+        setEvalData(payload);
+        setEvalCreatedAt((p?.evaluation?.createdAt as string) ?? null);
+        // Bind the segmented control to the role's PERSISTED governance (bug-ui-scan #1):
+        // evalMode is unpersisted per-mount state that defaults to "recommendation", so
+        // without this a rerun of a committee/eligibility role could re-send
+        // "recommendation" and (were the server to trust it) silently auto-seal an AI lead.
+        // The server also enforces this, but syncing the control keeps the UI honest and a
+        // subsequent rerun sends the correct mode.
+        if (payload.governanceMode) setEvalMode(payload.governanceMode);
+        return;
+      }
+    }
+    // The run this open is about to spawn is a SELECTION run: its result is stored
+    // under the selection key, not the role key, so completion must not mark the ROLE
+    // evaluated (the chip promises a role-level top-N eval that would then 404).
+    setEvalIsSelection(Boolean(selectedSet));
     const params: Record<string, unknown> = { roleKey: g.roleKey, roleTitle: g.roleTitle, jobId: g.jobId, candidates, governanceMode: evalMode };
     if (selectedSet) params.cohort = cohortCands;
     const started = await startTask("group_eval", params);

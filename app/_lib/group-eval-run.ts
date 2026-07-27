@@ -19,6 +19,7 @@ import { sealDecisionSafe } from "./decision-record-store";
 import { buildEligibilityList, governanceNote, normalizeGovernanceMode, resolveGovernanceMode, sealsLead } from "./group-eval-governance";
 import type { MatchResultView, ScoreDimension, Confidence, Reasoning as CanonicalReasoning } from "@/app/features/sub_match/MatchTypes";
 import type { Comparison, Fairness, FairnessScheme, RiskFact, SummaryFacts } from "@/app/features/sub_decisions/group-eval/types";
+import { selectionCacheKey } from "@/app/features/sub_decisions/group-eval/cache-key";
 import { assessRobustness } from "@/app/features/sub_decisions/group-eval/types";
 
 // Cap on how many candidates one comparative evaluation covers (GROUP_EVAL_CAP,
@@ -301,6 +302,18 @@ export async function runGroupEval(
   // changes the degenerate replay/bypass case, never a normal first-run selection.)
   const useSelection = hasSelectionParam && validatedSelection.length >= GROUP_EVAL_MIN_COHORT;
   const preCap = useSelection ? validatedSelection : cohort;
+  // selection-rerun-cache — WHERE this run is persisted. A default top-N run keeps
+  // the bare roleKey (byte-identical to before, so legacy rows and the "evaluated"
+  // chip are untouched); a selection run is stored under a key that also carries a
+  // deterministic hash of its sorted member ids, so reopening the IDENTICAL
+  // comparison serves the cache instead of re-spawning the whole ≤8-process
+  // pipeline. The client computes the same key from the same ids before it spawns
+  // (DecisionsTab.openGroupEval) — see group-eval/cache-key.ts for why the key is
+  // layered onto role_key rather than migrated into a new column. The ids hashed are
+  // the ones the CLIENT sent (pre-cap/dedupe), because that is what the client can
+  // key on at lookup time; a fallback-to-top-N run (`useSelection` false) is stored
+  // under the plain roleKey exactly as it is today.
+  const cacheKey = useSelection ? selectionCacheKey(roleKey, validatedSelection.map((c) => c.entryId)) : roleKey;
   // Governance mode (P1-3): "recommendation" (default — AI synthesizes + seals a
   // single lead) vs "committee" / "eligibility_list" (the AI is ADVISORY only — it
   // never seals a winner; the committee / eligibility certification is the human's).
@@ -312,7 +325,11 @@ export async function runGroupEval(
   // last run under. resolveGovernanceMode keeps a committee/eligibility role governed so a
   // rerun whose client state reset can never silently downgrade it and auto-seal an AI lead.
   const requestedGovernanceMode = normalizeGovernanceMode(params.governanceMode);
-  const priorEval = getGroupEval(roleKey, workspaceId);
+  // Governance is a property of the ROLE, so the stickiness read stays anchored to the
+  // role-level row; a selection run falls back to its own prior selection row when the
+  // role has never been evaluated as a top-N (before selection-rerun-cache a selection
+  // run wrote the role-level row, so this keeps governance exactly as sticky as it was).
+  const priorEval = getGroupEval(roleKey, workspaceId) ?? (cacheKey !== roleKey ? getGroupEval(cacheKey, workspaceId) : null);
   const storedGovernanceMode = priorEval
     ? normalizeGovernanceMode((priorEval.payload as { governanceMode?: unknown }).governanceMode)
     : null;
@@ -725,6 +742,8 @@ export async function runGroupEval(
     comparisonSource: compare?.source ?? null,
   };
 
-  saveGroupEval(roleKey, roleTitle, payload, workspaceId);
+  // Persist under the run's cache key (roleKey for a top-N run, the selection key for
+  // a selection run — selection-rerun-cache). Same workspace scoping either way.
+  saveGroupEval(cacheKey, roleTitle, payload, workspaceId);
   return payload;
 }
