@@ -1,7 +1,5 @@
 import { test, beforeEach, after } from "node:test";
 import assert from "node:assert/strict";
-import os from "node:os";
-import path from "node:path";
 import fs from "node:fs";
 import { registerHooks } from "node:module";
 import { fileURLToPath } from "node:url";
@@ -34,9 +32,17 @@ registerHooks({
 
 // Point the store at a throwaway DB BEFORE importing it: db-path reads KP_DB_PATH at module
 // load, and the store opens its connection lazily, so the override is in force by first use.
-// node --test isolates each test file in its own process, so this env mutation can't leak.
-const TMP = path.join(os.tmpdir(), `kp-dev-outcomes-test-${process.pid}.sqlite`);
-process.env.KP_DB_PATH = TMP;
+// This MUST stay the first project import.
+//
+// It used to be a hand-rolled `os.tmpdir()/kp-dev-outcomes-test-${process.pid}.sqlite`.
+// `--test-isolation=process` gives each FILE a fresh process, but the OS RECYCLES pids: a
+// later run drawing a pid this file had used before re-opened that run's leftover database
+// and inherited its committed rows (the after() unlink is best-effort and silently loses to
+// the store's still-open handle on Windows). unit-db.ts is the repo-wide fix: a mkdtemp'd run
+// directory (unique by construction, never pid-derived), a liveness-gated sweep of abandoned
+// dirs, and cleanupUnitDb() to remove our own.
+const { cleanupUnitDb, UNIT_DB_PATH: TMP } = await import("./testing/unit-db.ts");
+after(cleanupUnitDb);
 
 const { recordOutcome, recordPipelineOutcome, latestOutcomeByRefs, listOutcomes, calibrate } = await import("./dev-outcomes.ts");
 
@@ -72,19 +78,6 @@ beforeEach(() => {
   const d = new Database(TMP);
   d.prepare(`DELETE FROM dev_outcomes`).run();
   d.close();
-});
-
-after(() => {
-  // Best-effort: the store's connection is still open (no close hook); on Windows an
-  // open SQLite file can't be unlinked, so swallow the error — the temp file is
-  // disposable and the process exits next.
-  for (const f of [TMP, `${TMP}-wal`, `${TMP}-shm`]) {
-    try {
-      fs.rmSync(f, { force: true });
-    } catch {
-      /* file locked / absent — fine */
-    }
-  }
 });
 
 test("a first outcome inserts a fresh row", () => {
