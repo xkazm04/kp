@@ -57,8 +57,12 @@ function db(): Database.Database {
   }
   // AUTO1 retired (UAT M6 / GDPR Art. 22): unattended auto-reject was removed —
   // clock-computed rejections are always queued for a human on the Decisions gate.
-  // The reject_mode column is kept as a harmless additive no-op (never written or
-  // read) so existing DBs don't need a destructive migration.
+  // The reject_mode column is DEAD: never written, never read, no TS field maps to
+  // it. Kept as a harmless additive no-op so existing DBs don't need a destructive
+  // migration. The rule it used to switch now lives — unconditionally — in
+  // automation-pass.ts (see the "AUTO1 RETIRED" note above the apply loop); there is
+  // no "auto" mode to restore, so do not resurrect this column, drop it if/when a
+  // destructive migration is otherwise warranted.
   try {
     d.exec(`ALTER TABLE scheduler ADD COLUMN reject_mode TEXT`);
   } catch {

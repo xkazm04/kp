@@ -4,7 +4,6 @@ import { AlertTriangle, ArrowUpCircle, PauseCircle, XCircle } from "lucide-react
 import { useTranslations } from "next-intl";
 import { Modal } from "@/app/_components/Modal";
 import { deriveDecisionOutcome } from "@/app/_lib/decision-attribution";
-import { useDeliveryCapability } from "@/app/features/useDeliveryCapability";
 import type { Entry } from "./PipelineTypes";
 
 type PreviewDecision = { entryId: string; action: string; toStage: string | null; reason: string; outcome?: string };
@@ -13,11 +12,15 @@ type Preview = {
   decisions: PreviewDecision[];
 };
 
-// AUTO3 — the look-before-commit gate for the policy pass. The pass
-// auto-rejects AND emails candidates in the same breath; like the screening
-// wave (DEC2), nothing irreversible happens until the explicit commit here.
-// Rejects render first and loudest — they're the irreversible, email-sending
-// rows the preview exists for.
+// AUTO3 — the look-before-commit gate for the policy pass. Like the screening
+// wave (DEC2), nothing lands until the explicit commit here.
+//
+// PREVIEW/COMMIT PARITY: the pass does NOT auto-reject. Every reject it computes
+// is queued as a rejection_review on the Decisions gate for a human click — the
+// commit records zero rejections and sends zero rejection emails (UAT M6 / GDPR
+// Art. 22). The would-be rejects still render first and loudest: they are the
+// rows that will land in the recruiter's approval queue, and the reason each one
+// carries says so ("Would be queued for approval: …").
 export function PassPreviewModal({
   preview,
   entries,
@@ -32,9 +35,6 @@ export function PassPreviewModal({
   onClose: () => void;
 }) {
   const t = useTranslations("pipeline.tab");
-  // REC-10 — "(sends rejection emails)" is only promised when a relay exists;
-  // without one a committed reject records an outbox row nothing delivers.
-  const relayConfigured = useDeliveryCapability();
   const labelById = new Map(entries.map((e) => [e.id, e.candidateLabel]));
   const label = (id: string) => labelById.get(id) ?? id;
 
@@ -69,7 +69,10 @@ export function PassPreviewModal({
               disabled={committing}
               className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-md bg-ink px-3 text-base font-semibold text-white hover:opacity-90 disabled:opacity-50"
             >
-              {committing ? t("runningPass") : t("previewApply", { count: changes, rejected: rejects.length })}
+              {/* No `rejected` param: a commit produces zero rejections, so the
+                  button must not imply any (it used to pass the would-be-reject
+                  count into a message that then had to stay silent about it). */}
+              {committing ? t("runningPass") : t("previewApply", { count: changes })}
             </button>
           ) : (
             <span className="text-sm text-steel">{t("previewNothing")}</span>
@@ -81,8 +84,7 @@ export function PassPreviewModal({
         {rejects.length > 0 ? (
           <section>
             <p className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-coral">
-              <XCircle size={13} aria-hidden />{" "}
-              {t(relayConfigured === false ? "previewRejectsQueued" : "previewRejects", { count: rejects.length })}
+              <XCircle size={13} aria-hidden /> {t("previewRejectsQueued", { count: rejects.length })}
             </p>
             <ul className="mt-1.5 space-y-1">
               {rejects.map((d) => (
