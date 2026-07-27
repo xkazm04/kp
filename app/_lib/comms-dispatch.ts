@@ -154,7 +154,7 @@ async function dataFooter(entry: CandidateCommTarget, t: CommsTranslator): Promi
 async function sendCandidateComm(
   entry: CandidateCommTarget,
   t: CommsTranslator,
-  msg: { subject: string; body: string; kind: string; ref?: string }
+  msg: { subject: string; body: string; kind: string; ref?: string; workspaceId?: string | null }
 ): Promise<OutboxStatus> {
   const recorded = await sendComm({
     to: candidateRecipient(entry),
@@ -162,6 +162,9 @@ async function sendCandidateComm(
     body: msg.body + (await dataFooter(entry, t)),
     kind: msg.kind,
     ref: msg.ref ?? entry.id ?? undefined,
+    // Fallback tenant for the case where `ref` names no pipeline entry (a slot/link
+    // ref on an entry-less dispatch). Ignored whenever the entry resolves.
+    workspaceId: msg.workspaceId,
   });
   return recorded.status;
 }
@@ -269,19 +272,28 @@ export async function dispatchRejection(entry: PipelineEntry, opts?: { automated
  *  ships null context (comms-envelope handles a missing entry). The own quick-apply
  *  form shows the decline live in the UI — this comm is for webhook surfaces whose
  *  candidate saw "submitted" on a third-party board and would otherwise hear
- *  nothing, ever. */
+ *  nothing, ever.
+ *
+ *  TENANT (comms-tenancy-pair): with no entry there is nothing for recordOutbox to
+ *  derive a workspace from, so the row used to land in the DEFAULT team's Comms
+ *  Center — for a non-default team, in a board its recruiters cannot see, while the
+ *  decline itself was correctly recorded (recordKnockoutDecline) in their own. The
+ *  caller holds the authoritative tenant (the webhook's / the opening's team) and
+ *  passes it here, so the notice and the decline record file together. */
 export async function dispatchKnockoutDecline(input: {
   email: string;
   name?: string | null;
   jobTitle?: string | null;
   locale?: string | null;
+  /** The team that owns the declined lead. Omitted ⇒ the default workspace. */
+  workspaceId?: string | null;
 }): Promise<void> {
   const t = await commsTranslator(input.locale);
   const name = (input.name ?? "").trim() || t("there");
   const role = input.jobTitle ?? t("theRole");
   const subject = t("koDecline.subject", { role });
   const body = t("koDecline.body", { name, role, team: t("team") });
-  await sendComm({ to: input.email, subject, body, kind: "ko_decline" });
+  await sendComm({ to: input.email, subject, body, kind: "ko_decline", workspaceId: input.workspaceId });
 }
 
 /**
@@ -445,11 +457,17 @@ export async function dispatchScheduleInvite(
  *  The audit write that follows is post-send bookkeeping; were it allowed to throw
  *  (e.g. a transient SQLite contention after the message already left), the caller
  *  would re-arm and send the candidate a DUPLICATE reminder. So it is logged and
- *  swallowed, never surfaced as a delivery failure. */
+ *  swallowed, never surfaced as a delivery failure.
+ *
+ *  TENANT (comms-tenancy-pair): this is the one reminder whose `ref` can fail to name
+ *  a pipeline entry — the sweep reminds an invite whose linked entry has since been
+ *  deleted (dueReminders LEFT JOINs and keeps a null entry eligible), and then `ref`
+ *  degrades to the human-readable slot string, which resolves to nothing. The invite
+ *  row carries the owning team, so the caller passes it as the fallback tenant. */
 export async function dispatchInterviewReminder(
   entry: { id?: string | null; candidateLabel?: string | null; candidateId?: string | null; jobTitle?: string | null; locale?: string | null },
   slot: string,
-  opts?: { durationMin?: number | null }
+  opts?: { durationMin?: number | null; workspaceId?: string | null }
 ): Promise<void> {
   const t = await commsTranslator(entry.locale);
   const name = greetName(entry, t);
@@ -457,7 +475,13 @@ export async function dispatchInterviewReminder(
   const length = opts?.durationMin ? t("interviewReminder.length", { minutes: opts.durationMin }) : "";
   const subject = t("interviewReminder.subject", { slot });
   const body = t("interviewReminder.body", { name, role, slot, length, team: t("team") });
-  await sendCandidateComm(entry, t, { subject, body, kind: "interview_reminder", ref: entry.id ?? slot });
+  await sendCandidateComm(entry, t, {
+    subject,
+    body,
+    kind: "interview_reminder",
+    ref: entry.id ?? slot,
+    workspaceId: opts?.workspaceId,
+  });
   // Post-send: the reminder is delivered. Do not let an audit-log failure re-throw —
   // that would look like a delivery failure and trigger a duplicate send.
   try {

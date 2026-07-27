@@ -374,16 +374,26 @@ export type OutboxEntry = {
 
 // Tenant (P1): derive the outbox tenant from the referenced pipeline entry (ref =
 // entry id — comms.ts resolves it via getPipelineEntry) so no comms call site threads
-// a workspace; an entry-less / system message falls back to the default workspace.
-// Shared by the write (recordOutbox) and the relay-callback's orphan probe, so a
-// receipt is looked up in exactly the tenant its send was recorded in.
-function outboxWorkspaceForRef(ref: string | null | undefined): string {
-  if (!ref) return DEFAULT_WORKSPACE_ID;
-  const db = ensureDb();
-  const wsRow = db.prepare(`SELECT workspace_id FROM pipeline_entries WHERE id = ?`).get(ref) as
-    | { workspace_id?: string }
-    | undefined;
-  return wsRow?.workspace_id ?? DEFAULT_WORKSPACE_ID;
+// a workspace. Shared by the write (recordOutbox) and the relay-callback's orphan
+// probe, so a receipt is looked up in exactly the tenant its send was recorded in.
+//
+// comms-tenancy-pair — the ENTRY-DERIVED tenant always wins (unchanged), but an
+// ENTRY-LESS comm no longer falls straight to the default workspace: a dispatch may
+// now carry an explicit `workspaceId` and that is used instead. The motivating case is
+// dispatchKnockoutDecline, which is entry-less BY DESIGN (a channel lead is declined
+// before any pipeline entry exists) yet its caller holds the webhook's owning team — so
+// a non-default team's KO-decline used to surface in the DEFAULT team's Comms Center and
+// nowhere in its own. The explicit tenant is the LAST resort before the default, never a
+// way to re-file a ref'd comm away from its entry's team.
+function outboxWorkspaceForRef(ref: string | null | undefined, explicitWorkspaceId?: string | null): string {
+  if (ref) {
+    const db = ensureDb();
+    const wsRow = db.prepare(`SELECT workspace_id FROM pipeline_entries WHERE id = ?`).get(ref) as
+      | { workspace_id?: string }
+      | undefined;
+    if (wsRow?.workspace_id) return wsRow.workspace_id;
+  }
+  return explicitWorkspaceId?.trim() || DEFAULT_WORKSPACE_ID;
 }
 
 /** Does any real SEND exist for this (ref, kind)? — the relay callback's orphan probe.
@@ -413,11 +423,18 @@ export function recordOutbox(input: {
   ref?: string | null;
   /** The dead-letter reason for a `failed` row (comms.ts computes it per attempt). */
   failureDetail?: string | null;
+  /** The dispatch's own tenant — used ONLY when `ref` names no pipeline entry (an
+   *  entry-less comm such as a KO decline). A ref'd comm always files into its
+   *  entry's team, whatever this says. */
+  workspaceId?: string | null;
 }): OutboxEntry {
   const db = ensureDb();
   const now = new Date().toISOString();
   const id = randomId("out");
-  const workspaceId = outboxWorkspaceForRef(input.ref);
+  // The tenant column is NOT part of the returned message shape (OutboxEntry) — strip it
+  // off the payload so it can't leak into an API response through the spread below.
+  const { workspaceId: explicitWorkspaceId, ...message } = input;
+  const workspaceId = outboxWorkspaceForRef(input.ref, explicitWorkspaceId);
   // A reason belongs to a FAILURE. Storing one on a sent/queued row would put a stale
   // "http 503" (the last retry before the one that worked) next to a green badge.
   const failureDetail = input.status === "failed" ? input.failureDetail?.trim() || null : null;
@@ -425,7 +442,7 @@ export function recordOutbox(input: {
     `INSERT INTO dev_outbox (id, recipient, subject, body, kind, channel, status, ref, created_at, workspace_id, failure_detail)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(id, input.recipient, input.subject, input.body, input.kind, input.channel, input.status, input.ref ?? null, now, workspaceId, failureDetail);
-  return { id, ...input, ref: input.ref ?? null, createdAt: now, failureDetail };
+  return { id, ...message, ref: input.ref ?? null, createdAt: now, failureDetail };
 }
 
 function rowToOutboxEntry(r: Record<string, unknown>): OutboxEntry {

@@ -40,13 +40,17 @@ export function useChannelData() {
 
 // Shared inbound simulator (the "receive a test application" action). Returns a
 // note the caller renders; refreshes channel data on success.
+//
+// The route files the applicant into the sim/demo workspace under a `(SIM)`-marked
+// title (comms-tenancy-pair), so the note names the marked role it actually landed on
+// rather than implying it joined the real board for this role.
 export async function simulateInbound(jobId: string | undefined): Promise<{ text: string; ok: boolean }> {
   if (!jobId) return { text: "Create a job first — inbound applications need a role to land on.", ok: false };
   try {
     const r = await fetch("/api/sim/inbound", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ jobId }) });
     const p = await r.json();
     if (!r.ok) throw new Error(p.error ?? "Couldn't receive a test application.");
-    return { text: `Received ${p.label} — matched at ${p.score}. Now in the pipeline at Accepted.`, ok: true };
+    return { text: `Received ${p.label} — matched at ${p.score}. Filed at Accepted on ${p.jobTitle}.`, ok: true };
   } catch (e) {
     return { text: e instanceof Error ? e.message : "Couldn't receive a test application.", ok: false };
   }

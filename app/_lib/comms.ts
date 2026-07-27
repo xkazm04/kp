@@ -23,7 +23,15 @@ import { logComms } from "./logger";
 // real address; `msg.ref` (the pipeline entry id) is always carried so an unaddressable
 // message stays traceable in the audit log.
 
-export type OutboundMessage = { to: string; subject: string; body: string; kind: string; ref?: string };
+// TENANT CONTRACT (comms-tenancy-pair): `ref` (a pipeline entry id) is the primary
+// tenant source — recordOutbox derives the owning team from the entry, so nearly no
+// dispatcher threads a workspace. `workspaceId` is the fallback for an ENTRY-LESS comm
+// (a KO decline is dispatched before any entry exists) whose caller nonetheless knows
+// the team: without it the row lands in the DEFAULT workspace's Comms Center and is
+// invisible to the team that actually owns the lead. It NEVER overrides an entry-derived
+// tenant — it is consulted only when `ref` resolves to no entry. Not part of the wire
+// envelope: it's kp-internal bookkeeping, not something a relay should see.
+export type OutboundMessage = { to: string; subject: string; body: string; kind: string; ref?: string; workspaceId?: string | null };
 
 export interface CommsChannel {
   readonly name: string;
@@ -38,7 +46,16 @@ const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve,
 class OutboxChannel implements CommsChannel {
   readonly name = "outbox";
   async send(msg: OutboundMessage): Promise<OutboxEntry> {
-    return recordOutbox({ recipient: msg.to, subject: msg.subject, body: msg.body, kind: msg.kind, channel: this.name, status: "queued", ref: msg.ref });
+    return recordOutbox({
+      recipient: msg.to,
+      subject: msg.subject,
+      body: msg.body,
+      kind: msg.kind,
+      channel: this.name,
+      status: "queued",
+      ref: msg.ref,
+      workspaceId: msg.workspaceId,
+    });
   }
 }
 
@@ -75,6 +92,7 @@ class WebhookChannel implements CommsChannel {
       status,
       ref: msg.ref,
       failureDetail: detail,
+      workspaceId: msg.workspaceId,
     });
   }
 

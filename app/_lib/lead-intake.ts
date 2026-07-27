@@ -142,7 +142,16 @@ export async function intakeLead(input: LeadIntakeInput): Promise<LeadIntakeOutc
     // the intake verdict, and the outbox row makes the decline auditable.
     if (input.notifyDecline && email) {
       try {
-        await dispatchKnockoutDecline({ email, name: name || null, jobTitle: job.title, locale: input.locale });
+        // Same tenant the decline RECORD above was filed into: the notice is entry-less
+        // (no entry exists yet), so without this its outbox row lands in the DEFAULT
+        // team's Comms Center — invisible to the team that owns the opening.
+        await dispatchKnockoutDecline({
+          email,
+          name: name || null,
+          jobTitle: job.title,
+          locale: input.locale,
+          workspaceId,
+        });
       } catch (declineErr) {
         console.error(
           `[lead-intake] KO decline recorded but notification failed for ${email}:`,
