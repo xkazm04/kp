@@ -220,3 +220,16 @@ Delivery truth used to exist in three places and die in two of them.
   dead-lettered again. They now surface the server's reason on refusal, and claim
   success only when the new row is not itself `failed`; a re-failed resend reports it
   (with the new row's reason) and stays retryable.
+
+## 9. Configuration summary
+
+| Variable | Direction | Unset (the honest default) | Set |
+|---|---|---|---|
+| `COMMS_WEBHOOK_URL` | outbound | local outbox only; every surface says messages are **not** being sent | messages POST to the relay as `kp.comm.v1` |
+| `COMMS_CALLBACK_SECRET` | inbound receipts | `POST /api/comms/callback` answers `503` (fail-closed) | relay receipts accepted with header auth + timestamp + nonce guard |
+| `EMAIL_INBOUND_DOMAIN` | inbound email | the Email intake wizard shows the HTTP receiver URL and says forwarding isn't wired — no fabricated mailbox | wizard hands out `<token>@<domain>`; you must route that domain's mail to `POST /api/channels/inbound/<token>` yourself |
+
+All three are documented in `.env.example`. The address capability deliberately
+mirrors `isRelayConfigured()` (`app/_lib/comms-truth.ts`): a mail route is a
+deployment fact, so the UI treats it as a capability bit, never a derivation from
+the browser's origin.
