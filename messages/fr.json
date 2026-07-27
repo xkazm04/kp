@@ -3195,14 +3195,14 @@
       "rebuildWarnKeep": "Conserver mes modifications",
       "projectionLabel": "Vue des candidats",
       "projectionList": "Liste",
-      "projectionMatrix": "Matrice"
+      "projectionMatrix": "Matrice",
+      "newProfile": "Créer un profil candidat"
     },
     "matrix": {
       "eyebrow": "Candidats",
       "title": "Candidats par archétype",
       "intro": "Chaque profil enregistré et chaque CV analysé, placé dans l’archétype vers lequel il a été orienté. Une puce indique la source — ouvrez-en un pour modifier le profil ou voir l’analyse.",
       "loadFailed": "Impossible de charger les candidats.",
-      "newProfile": "Créer un profil candidat",
       "emptyTitle": "Aucun candidat pour l’instant",
       "emptyBody": "Créez un profil ci-dessus, ou lancez un CV dans l’onglet <b>Analyse</b> — chacun est orienté vers un archétype et apparaît ici.",
       "openAnalysisTitle": "Ouvrir l’analyse de {name}",
@@ -3218,7 +3218,7 @@
       "intro": "Les profils que vous avez créés et enregistrés. Modifiez-en un, confrontez-le aux postes ouverts ou supprimez-le.",
       "loadFailed": "Impossible de charger les profils enregistrés.",
       "emptyTitle": "Aucun profil enregistré pour l’instant",
-      "emptyBody": "Créez un profil candidat ci-dessous et il apparaîtra ici, prêt à être matché.",
+      "emptyBody": "Créez un profil candidat avec le bouton ci-dessus et il apparaîtra ici, prêt à être matché.",
       "completenessAria": "Complétude du profil {pct} %",
       "completenessPct": "{pct} % complété",
       "staleBadge": "CV plus récent",
@@ -3268,6 +3268,9 @@
     "evidence": {
       "skillsTitle": "Compétences (auto-évaluées)",
       "skillPlaceholder": "React",
+      "skillLevelAria": "Niveau de compétence",
+      "skillProvenanceAria": "Provenance de la compétence",
+      "evidenceKindAria": "Type de preuve",
       "addSkill": "+ compétence",
       "evidenceTitle": "Preuves (projets, mémoire, stages, activités)",
       "evidenceTitlePlaceholder": "Titre (ex. mémoire de licence : appli de recommandation)",

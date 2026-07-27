@@ -43,18 +43,9 @@ type ProfileGet = { profile: { archetype: string | null; completeness: number | 
 
 async function openBuilder(page: Page): Promise<void> {
   await page.goto("/?tab=profile");
-  // The "Build candidate profile" button lives in CandidateMatrix, but the tab
-  // defaults to the List projection (ProfileRoster), which has no create CTA —
-  // switch the segmented "Candidate view" control to Matrix first. Retry the
-  // click until the radio reports checked: like the build button below, the
-  // control can paint before React wires its onClick (dev hydration gap).
-  const matrixRadio = page.getByRole("radio", { name: "Matrix" }).or(page.getByRole("button", { name: "Matrix" })).first();
-  await expect(async () => {
-    if (!(await matrixRadio.isChecked().catch(() => false))) {
-      await matrixRadio.click().catch(() => undefined);
-    }
-    expect(await matrixRadio.isChecked()).toBe(true);
-  }).toPass({ timeout: 30_000 });
+  // The "Build candidate profile" button sits beside the "Candidate view"
+  // projection toggle in ProfileTab, so it's reachable from the default List
+  // projection — no Matrix switch needed.
   const openBtn = page.getByRole("button", { name: "Build candidate profile" });
   const heading = page.getByRole("heading", { name: "Build a candidate profile" });
   await expect(openBtn).toBeVisible();
@@ -87,8 +78,8 @@ async function fillSkills(page: Page, skills: string[]): Promise<void> {
 // name, then click the option. An unlabeled combobox's accessible name is its
 // currently selected value.
 async function pickOption(page: Page, comboName: string, option: string): Promise<void> {
-  // Labeled combos match by accessible name; the evidence/skill combos carry no
-  // aria-label (their value renders as plain inner text), so fall back to text.
+  // Combos match by accessible name (every profile-form Select now carries an
+  // aria-label); the text fallback keeps value-named lookups working too.
   const combo = page
     .getByRole("combobox", { name: comboName, exact: true })
     .or(page.getByRole("combobox").filter({ hasText: comboName }))
@@ -116,10 +107,8 @@ async function pickOption(page: Page, comboName: string, option: string): Promis
 }
 
 async function fillEvidence(page: Page, kind: string, title: string): Promise<void> {
-  // The evidence "kind" combobox starts on the EVIDENCE_FALLBACK row's
-  // "project", which is what names it (the skill-row combos read "working" /
-  // "self_declared", so this is position-independent).
-  await pickOption(page, "project", kind);
+  // The evidence "kind" combobox is named by its aria-label ("Evidence kind").
+  await pickOption(page, "Evidence kind", kind);
   await page.getByPlaceholder("Title").fill(title);
 }
 

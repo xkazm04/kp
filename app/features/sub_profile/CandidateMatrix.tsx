@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus, UserPlus, Users } from "lucide-react";
+import { UserPlus, Users } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { ScoreBadge } from "@/app/_components/ScoreBadge";
 import { archetypeDisplayKey } from "@/app/_lib/archetypes";
@@ -13,13 +13,11 @@ import type { ArchetypeDef, CandidateRow } from "./ProfileTypes";
 
 export function CandidateMatrix({
   archetypes,
-  onNewProfile,
   onEditProfile,
   reloadKey = 0,
   archivedArchetypeIds,
 }: {
   archetypes: ArchetypeDef[];
-  onNewProfile: () => void;
   /** Open the editor for a saved profile cell (same ?edit= flow the roster uses). */
   onEditProfile: (id: string) => void;
   /** Bump to force a refetch (e.g. after a roster delete elsewhere on the tab). */
@@ -93,19 +91,12 @@ export function CandidateMatrix({
 
   return (
     <section className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
-      <header className="flex flex-wrap items-start justify-between gap-3 border-b border-stone-200 pb-4">
-        <div>
-          <p className="text-meta uppercase text-coral">{t("eyebrow")}</p>
-          <h2 className="mt-1 font-serif text-h2 text-ink">{t("title")}</h2>
-          <p className="mt-2 max-w-3xl text-body text-steel">{t("intro")}</p>
-        </div>
-        <button
-          type="button"
-          onClick={onNewProfile}
-          className="focus-ring inline-flex h-9 shrink-0 items-center gap-1.5 rounded-md border border-stone-200 px-3 text-sm font-semibold text-ink hover:bg-paper"
-        >
-          <Plus size={15} /> {t("newProfile")}
-        </button>
+      {/* The "Build candidate profile" CTA moved up to ProfileTab, beside the
+          projection toggle — shared by both projections, so no button here. */}
+      <header className="border-b border-stone-200 pb-4">
+        <p className="text-meta uppercase text-coral">{t("eyebrow")}</p>
+        <h2 className="mt-1 font-serif text-h2 text-ink">{t("title")}</h2>
+        <p className="mt-2 max-w-3xl text-body text-steel">{t("intro")}</p>
       </header>
 
       <div className="mt-4">

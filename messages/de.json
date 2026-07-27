@@ -3195,14 +3195,14 @@
       "rebuildWarnKeep": "Meine Änderungen behalten",
       "projectionLabel": "Kandidatenansicht",
       "projectionList": "Liste",
-      "projectionMatrix": "Matrix"
+      "projectionMatrix": "Matrix",
+      "newProfile": "Kandidatenprofil erstellen"
     },
     "matrix": {
       "eyebrow": "Kandidaten",
       "title": "Kandidaten nach Archetyp",
       "intro": "Jedes gespeicherte Profil und jeder analysierte Lebenslauf, eingeordnet in den zugewiesenen Archetyp. Ein Chip zeigt die Herkunft — öffnen Sie eines, um das Profil zu bearbeiten oder die Analyse zu sehen.",
       "loadFailed": "Kandidaten konnten nicht geladen werden.",
-      "newProfile": "Kandidatenprofil erstellen",
       "emptyTitle": "Noch keine Kandidaten",
       "emptyBody": "Erstellen Sie oben ein Profil oder analysieren Sie einen Lebenslauf im Tab <b>Analyse</b> — jedes wird einem Archetyp zugewiesen und erscheint hier.",
       "openAnalysisTitle": "Analyse von {name} öffnen",
@@ -3218,7 +3218,7 @@
       "intro": "Profile, die Sie erstellt und gespeichert haben. Bearbeiten Sie eines, gleichen Sie es mit offenen Stellen ab oder entfernen Sie es.",
       "loadFailed": "Gespeicherte Profile konnten nicht geladen werden.",
       "emptyTitle": "Noch keine gespeicherten Profile",
-      "emptyBody": "Erstellen Sie unten ein Kandidatenprofil, und es erscheint hier, bereit zum Matchen.",
+      "emptyBody": "Erstellen Sie über die Schaltfläche oben ein Kandidatenprofil, und es erscheint hier, bereit zum Matchen.",
       "completenessAria": "Profilvollständigkeit {pct} %",
       "completenessPct": "{pct} % vollständig",
       "staleBadge": "Neueres CV",
@@ -3268,6 +3268,9 @@
     "evidence": {
       "skillsTitle": "Fähigkeiten (Selbsteinschätzung)",
       "skillPlaceholder": "React",
+      "skillLevelAria": "Kompetenzniveau",
+      "skillProvenanceAria": "Herkunft der Angabe",
+      "evidenceKindAria": "Art des Nachweises",
       "addSkill": "+ Fähigkeit",
       "evidenceTitle": "Nachweise (Projekte, Abschlussarbeit, Praktika, Aktivitäten)",
       "evidenceTitlePlaceholder": "Titel (z. B. Bachelorarbeit: Empfehlungs-App)",

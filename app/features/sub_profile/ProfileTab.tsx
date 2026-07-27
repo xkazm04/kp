@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Plus } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { buildUrl } from "@/app/features/tabs";
 import { Modal } from "@/app/_components/Modal";
@@ -189,15 +189,27 @@ export function ProfileTab() {
       <ArchetypeManager archetypes={archetypes} loading={archLoading} onChanged={reloadArchetypes} />
 
       <div className="space-y-3">
-        <SegmentedControl
-          label={t("projectionLabel")}
-          value={projection}
-          onChange={setProjection}
-          options={[
-            { value: "list", label: t("projectionList") },
-            { value: "matrix", label: t("projectionMatrix") },
-          ]}
-        />
+        {/* The create CTA sits NEXT TO the projection toggle, not inside either
+            projection, so "Build candidate profile" is reachable from List and
+            Matrix alike (it used to live only in the Matrix header). */}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <SegmentedControl
+            label={t("projectionLabel")}
+            value={projection}
+            onChange={setProjection}
+            options={[
+              { value: "list", label: t("projectionList") },
+              { value: "matrix", label: t("projectionMatrix") },
+            ]}
+          />
+          <button
+            type="button"
+            onClick={() => setEditor({ mode: "create", editingId: null, initialPayload: null })}
+            className="focus-ring inline-flex h-9 shrink-0 items-center gap-1.5 rounded-md border border-stone-200 px-3 text-sm font-semibold text-ink hover:bg-paper"
+          >
+            <Plus size={15} /> {t("newProfile")}
+          </button>
+        </div>
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
             key={projection}
@@ -218,7 +230,6 @@ export function ProfileTab() {
                 reloadKey={dataRev}
                 archivedArchetypeIds={archetypes.filter((a) => a.archived).map((a) => a.id)}
                 onEditProfile={(id) => void openEditor(id)}
-                onNewProfile={() => setEditor({ mode: "create", editingId: null, initialPayload: null })}
               />
             )}
           </motion.div>

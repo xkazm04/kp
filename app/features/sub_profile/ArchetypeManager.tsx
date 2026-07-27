@@ -422,6 +422,7 @@ function EditPanel({
           <Select
             value={draft.scoringModel}
             onChange={(v) => set("scoringModel", v)}
+            ariaLabel={t("scoringModelField")}
             className="w-full"
             options={[
               { value: "experienced", label: t("scoringExperienced") },

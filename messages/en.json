@@ -3166,14 +3166,14 @@
       "rebuildWarnKeep": "Keep my edits",
       "projectionLabel": "Candidate view",
       "projectionList": "List",
-      "projectionMatrix": "Matrix"
+      "projectionMatrix": "Matrix",
+      "newProfile": "Build candidate profile"
     },
     "matrix": {
       "eyebrow": "Candidates",
       "title": "Candidates by archetype",
       "intro": "Every saved profile and analyzed CV, placed in the archetype it routed to. A chip marks which store each is from — open one to edit the profile or see its analysis.",
       "loadFailed": "Couldn't load candidates.",
-      "newProfile": "Build candidate profile",
       "emptyTitle": "No candidates yet",
       "emptyBody": "Build a profile above, or run a CV in the <b>Analyze</b> tab — each is routed to an archetype and appears here.",
       "openAnalysisTitle": "Open {name}'s analysis",
@@ -3189,7 +3189,7 @@
       "intro": "Profiles you've built and saved. Edit one, run it against open roles, or remove it.",
       "loadFailed": "Couldn't load saved profiles.",
       "emptyTitle": "No saved profiles yet",
-      "emptyBody": "Build a candidate profile below and it will appear here, ready to match.",
+      "emptyBody": "Build a candidate profile with the button above and it will appear here, ready to match.",
       "completenessAria": "Profile completeness {pct}%",
       "completenessPct": "{pct}% complete",
       "staleBadge": "Newer CV",
@@ -3239,6 +3239,9 @@
     "evidence": {
       "skillsTitle": "Skills (self-rated)",
       "skillPlaceholder": "React",
+      "skillLevelAria": "Skill level",
+      "skillProvenanceAria": "Skill provenance",
+      "evidenceKindAria": "Evidence kind",
       "addSkill": "+ skill",
       "evidenceTitle": "Evidence (projects, thesis, internships, activities)",
       "evidenceTitlePlaceholder": "Title (e.g. Bachelor thesis: recommender app)",

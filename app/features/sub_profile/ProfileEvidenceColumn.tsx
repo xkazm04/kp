@@ -33,12 +33,14 @@ export function ProfileEvidenceColumn({
               <Select
                 value={s.level}
                 onChange={(v) => setSkills(upd(skills, i, { level: v }))}
+                ariaLabel={t("skillLevelAria")}
                 className="px-1 text-sm"
                 options={SKILL_LEVELS.map((l) => ({ value: l, label: l }))}
               />
               <Select
                 value={s.provenance}
                 onChange={(v) => setSkills(upd(skills, i, { provenance: v }))}
+                ariaLabel={t("skillProvenanceAria")}
                 className="px-1 text-sm"
                 options={PROVENANCE.map((p) => ({ value: p, label: p }))}
               />
@@ -57,6 +59,7 @@ export function ProfileEvidenceColumn({
                 <Select
                   value={e.kind}
                   onChange={(v) => setEvidence(upd(evidence, i, { kind: v }))}
+                  ariaLabel={t("evidenceKindAria")}
                   className="px-1 text-sm"
                   options={EVIDENCE_KINDS.map((k) => ({ value: k, label: k }))}
                 />

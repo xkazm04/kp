@@ -3166,14 +3166,14 @@
       "rebuildWarnKeep": "Ponechat mé úpravy",
       "projectionLabel": "Zobrazení kandidátů",
       "projectionList": "Seznam",
-      "projectionMatrix": "Matice"
+      "projectionMatrix": "Matice",
+      "newProfile": "Vytvořit profil kandidáta"
     },
     "matrix": {
       "eyebrow": "Kandidáti",
       "title": "Kandidáti podle archetypu",
       "intro": "Každý uložený profil i analyzované CV, zařazené do archetypu, do kterého byly směrovány. Štítek značí, z kterého úložiště pochází — otevřením upravíte profil nebo zobrazíte analýzu.",
       "loadFailed": "Kandidáty se nepodařilo načíst.",
-      "newProfile": "Vytvořit profil kandidáta",
       "emptyTitle": "Zatím žádní kandidáti",
       "emptyBody": "Vytvořte profil výše nebo spusťte CV v záložce <b>Analýza</b> — každý je směrován do archetypu a objeví se zde.",
       "openAnalysisTitle": "Otevřít analýzu — {name}",
@@ -3189,7 +3189,7 @@
       "intro": "Profily, které jste vytvořili a uložili. Upravte je, spusťte je proti otevřeným pozicím nebo je odstraňte.",
       "loadFailed": "Uložené profily se nepodařilo načíst.",
       "emptyTitle": "Zatím žádné uložené profily",
-      "emptyBody": "Vytvořte profil kandidáta níže a objeví se zde, připravený k párování.",
+      "emptyBody": "Vytvořte profil kandidáta tlačítkem výše a objeví se zde, připravený k párování.",
       "completenessAria": "Úplnost profilu {pct} %",
       "completenessPct": "{pct} % hotovo",
       "staleBadge": "Novější CV",
@@ -3239,6 +3239,9 @@
     "evidence": {
       "skillsTitle": "Dovednosti (sebehodnocení)",
       "skillPlaceholder": "React",
+      "skillLevelAria": "Úroveň dovednosti",
+      "skillProvenanceAria": "Původ dovednosti",
+      "evidenceKindAria": "Typ evidence",
       "addSkill": "+ dovednost",
       "evidenceTitle": "Evidence (projekty, diplomová práce, stáže, aktivity)",
       "evidenceTitlePlaceholder": "Název (např. Bakalářská práce: doporučovací aplikace)",
