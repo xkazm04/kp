@@ -40,13 +40,43 @@ export type Fairness = {
 //                    is claimed and no lead is crowned (bug-ui-scan-2026-07-09 #4).
 export type RobustnessStatus = "assessed" | "not_varied" | "unavailable" | "not_applicable" | "insufficient_sample";
 
+/** Is a fairness blob actually renderable — i.e. do the parallel arrays the panel
+ *  indexes in lockstep (labels / candidateIds / schemes / mean, and the matrix's row
+ *  AND column counts) really agree in length?
+ *
+ *  The type above ASSERTS that alignment; nothing enforced it. The payload is
+ *  persisted as JSON (group-eval.ts) and re-parsed unvalidated on every open, so one
+ *  malformed blob — a Python-side shape change, a truncated write, a hand-edited row —
+ *  used to throw inside the panel's unguarded `schemes[j].skills` / `matrix[i][j]` /
+ *  `mean[i]` indexing and take the WHOLE modal down: comparison table, decide buttons
+ *  and the Re-run button that would have replaced the bad blob included. Returning
+ *  false here degrades that to the honest "could not assess" panel instead. */
+export function isFairnessAligned(fairness: Fairness | null | undefined): fairness is Fairness {
+  if (!fairness) return false;
+  const { labels, candidateIds, schemes, matrix, mean, ranking, weightNotes } = fairness;
+  if (!Array.isArray(labels) || labels.length === 0) return false;
+  const n = labels.length;
+  const sameLength = (a: unknown) => Array.isArray(a) && a.length === n;
+  if (!sameLength(candidateIds) || !sameLength(schemes) || !sameLength(mean) || !sameLength(matrix)) return false;
+  // Every row must span every column — the matrix is square by contract (each
+  // candidate re-scored under every candidate's scheme).
+  if (!matrix.every((row) => Array.isArray(row) && row.length === n)) return false;
+  // The scheme cells the header formats, and the two collections the notes list walks.
+  if (!schemes.every((s) => s != null && typeof s.skills === "number" && typeof s.career === "number" && typeof s.personal === "number")) return false;
+  if (!Array.isArray(ranking)) return false;
+  if (weightNotes != null && typeof weightNotes !== "object") return false;
+  return true;
+}
+
 /** The honest robustness status of a group eval, derived from whether the role had a
  *  job (so a ranker ran) and whether that ranker produced a fairness matrix whose
  *  weights actually vary. Single-sourced so the panel copy AND the sealed decision
- *  record agree, and so a no-op / a missing check can never read as a PASS. */
+ *  record agree, and so a no-op / a missing check can never read as a PASS. A
+ *  MISALIGNED matrix is treated exactly like a missing one — an unreadable check is
+ *  not a check. */
 export function assessRobustness(hasJob: boolean, fairness: Fairness | null): RobustnessStatus {
   if (!hasJob) return "not_applicable";
-  if (!fairness || !fairness.labels?.length || !fairness.matrix?.length) return "unavailable";
+  if (!isFairnessAligned(fairness)) return "unavailable";
   const varied = fairness.candidateIds.some((id) => (fairness.weightNotes?.[id]?.length ?? 0) > 0);
   return varied ? "assessed" : "not_varied";
 }
