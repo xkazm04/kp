@@ -2750,6 +2750,10 @@
       "quotaNote": "Dosáhli jste limitu aktivních pozic ve svém tarifu. Upgradujte nebo uzavřete pozici, abyste mohli publikovat další.",
       "goToBilling": "Upgradovat ve Fakturaci"
     },
+    "deeplink": {
+      "notFound": "Tuto pozici ve svém katalogu nemáte – mohla být odstraněna, nebo patří jinému týmu.",
+      "dismiss": "Zavřít"
+    },
     "posting": {
       "copied": "Zkopírováno",
       "applyLink": "Odkaz pro přihlášení",
@@ -2760,6 +2764,7 @@
       "closing": "Uzavírání…",
       "closedNow": "Pozice uzavřena",
       "withdrewCount": "{count, plural, one {Z pipeline stažen # kandidát.} few {Z pipeline staženi # kandidáti.} many {Z pipeline staženo # kandidáta.} other {Z pipeline staženo # kandidátů.}}",
+      "withdrawFailed": "Pozice byla uzavřena, ale její kandidáty v procesu se nepodařilo stáhnout – zkontrolujte Pipeline.",
       "reopenRole": "Znovu otevřít pozici",
       "reopenTitle": "Znovu zveřejnit pozici — opět vyhledá kandidáty a překontroluje limit aktivních pozic ve vašem tarifu",
       "closeFailed": "Pozici se nepodařilo uzavřít.",

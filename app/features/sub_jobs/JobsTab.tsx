@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { ArrowRight, SearchX, X } from "lucide-react";
@@ -28,6 +28,9 @@ import { resolveIngestLatch, ingestNeedsOpenFilterCleared, type IngestLatch } fr
 
 export function JobsTab() {
   const t = useTranslations("jobs.tab");
+  // Deep-link (?job=) resolution messages — their own namespace: they belong to the
+  // link, not to the table chrome.
+  const td = useTranslations("jobs.deeplink");
   const enumLabel = useEnumLabel();
   const {
     jobs,
@@ -78,11 +81,43 @@ export function JobsTab() {
   const search = useSearchParams();
   const jobParam = search.get("job");
   const [appliedJobParam, setAppliedJobParam] = useState<string | null>(null);
+  // The list is a ranked LIMIT-300 slice (and the active filters narrow it further),
+  // so a perfectly real role can be absent from `jobs` — the guard above then stamped
+  // the param and did NOTHING, silently. Miss → point-fetch it by id; only a 404 from
+  // that is a genuine "no such role", which gets a dismissible notice.
+  const [lookupId, setLookupId] = useState<string | null>(null);
+  const [lookupMissed, setLookupMissed] = useState(false);
   if (jobs && jobParam !== appliedJobParam) {
     setAppliedJobParam(jobParam);
+    setLookupMissed(false);
     const match = jobParam ? jobs.find((j) => j.id === jobParam) : null;
-    if (match) setOpenJob(match);
+    if (match) {
+      setOpenJob(match);
+      setLookupId(null);
+    } else {
+      setLookupId(jobParam);
+    }
   }
+  useEffect(() => {
+    if (!lookupId) return;
+    let cancelled = false;
+    fetch(`/api/jobs/${encodeURIComponent(lookupId)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((payload: { job?: Job } | null) => {
+        if (cancelled) return;
+        if (payload?.job) setOpenJob(payload.job);
+        else setLookupMissed(true);
+        setLookupId(null);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setLookupMissed(true);
+        setLookupId(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [lookupId]);
 
   return (
     <section className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
@@ -93,6 +128,25 @@ export function JobsTab() {
           {t.rich("intro", { strong: (chunks) => <strong>{chunks}</strong> })}
         </p>
       </header>
+
+      {lookupMissed ? (
+        // Deep link to a role that no longer resolves (deleted, or another team's).
+        // Says so instead of opening nothing — amber, the app's "partial/attention" tone.
+        <div
+          role="status"
+          className="mt-4 flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-base text-amber-800"
+        >
+          <span className="flex-1">{td("notFound")}</span>
+          <button
+            type="button"
+            onClick={() => setLookupMissed(false)}
+            aria-label={td("dismiss")}
+            className="focus-ring shrink-0 rounded-md p-0.5 text-amber-800 hover:text-ink"
+          >
+            <X size={14} aria-hidden />
+          </button>
+        </div>
+      ) : null}
 
       {stats ? (
         <div className="mt-4 flex flex-wrap gap-2">

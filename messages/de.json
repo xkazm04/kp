@@ -2779,6 +2779,10 @@
       "quotaNote": "Sie haben das Limit aktiver Stellen Ihres Tarifs erreicht. Führen Sie ein Upgrade durch oder schließen Sie eine Stelle, um eine weitere zu veröffentlichen.",
       "goToBilling": "Upgrade in der Abrechnung"
     },
+    "deeplink": {
+      "notFound": "Diese Stelle ist nicht in Ihrem Katalog — sie wurde möglicherweise entfernt oder gehört einem anderen Team.",
+      "dismiss": "Schließen"
+    },
     "posting": {
       "copied": "Kopiert",
       "applyLink": "Bewerbungslink",
@@ -2789,6 +2793,7 @@
       "closing": "Wird geschlossen…",
       "closedNow": "Stelle geschlossen",
       "withdrewCount": "{count, plural, one {# Kandidat/in aus der Pipeline zurückgezogen.} other {# Kandidat/innen aus der Pipeline zurückgezogen.}}",
+      "withdrawFailed": "Stelle geschlossen, aber die laufenden Kandidat/innen konnten nicht zurückgezogen werden — prüfen Sie die Pipeline.",
       "reopenRole": "Stelle wieder öffnen",
       "reopenTitle": "Diese Stelle wieder live schalten — sourct die Pipeline neu und prüft erneut Ihr Tariflimit für aktive Stellen",
       "closeFailed": "Stelle konnte nicht geschlossen werden.",

@@ -2750,6 +2750,10 @@
       "quotaNote": "You've reached your plan's active-job limit. Upgrade or close a role to publish another.",
       "goToBilling": "Upgrade in Billing"
     },
+    "deeplink": {
+      "notFound": "That role isn't in your catalog — it may have been removed, or it belongs to another team.",
+      "dismiss": "Dismiss"
+    },
     "posting": {
       "copied": "Copied",
       "applyLink": "Apply link",
@@ -2760,6 +2764,7 @@
       "closing": "Closing…",
       "closedNow": "Role closed",
       "withdrewCount": "{count, plural, one {Withdrew # candidate from the pipeline.} other {Withdrew # candidates from the pipeline.}}",
+      "withdrawFailed": "Role closed, but its in-flight candidates couldn't be withdrawn — check the Pipeline.",
       "reopenRole": "Reopen role",
       "reopenTitle": "Bring this role back live — re-sources the pipeline and re-checks your active-jobs plan limit",
       "closeFailed": "Couldn't close the role.",

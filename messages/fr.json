@@ -2779,6 +2779,10 @@
       "quotaNote": "Vous avez atteint la limite de postes actifs de votre forfait. Passez à un forfait supérieur ou fermez un poste pour en publier un autre.",
       "goToBilling": "Mettre à niveau (Facturation)"
     },
+    "deeplink": {
+      "notFound": "Ce poste n'est pas dans votre catalogue — il a peut-être été supprimé, ou il appartient à une autre équipe.",
+      "dismiss": "Fermer"
+    },
     "posting": {
       "copied": "Copié",
       "applyLink": "Lien de candidature",
@@ -2789,6 +2793,7 @@
       "closing": "Fermeture…",
       "closedNow": "Poste fermé",
       "withdrewCount": "{count, plural, one {# candidat retiré du pipeline.} other {# candidats retirés du pipeline.}}",
+      "withdrawFailed": "Poste fermé, mais ses candidats en cours n'ont pas pu être retirés — vérifiez le pipeline.",
       "reopenRole": "Rouvrir le poste",
       "reopenTitle": "Remettre ce poste en ligne — relance le sourcing du pipeline et revérifie la limite de postes actifs de votre forfait",
       "closeFailed": "Impossible de fermer le poste.",

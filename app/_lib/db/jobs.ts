@@ -406,6 +406,17 @@ export function getJobOwnerWorkspace(id: string): string | null {
  *  shared, so one tenant closing a corpus role affects all — that needs per-tenant
  *  lifecycle state on shared rows, not an ownership check.) */
 export function canWriteJobLifecycle(id: string, workspaceId: string): boolean {
+  // Same predicate as visibility: a team may retire/adopt exactly the roles it can see.
+  return jobVisibleToWorkspace(id, workspaceId);
+}
+
+/** Is this job visible to a team? The by-id form of listJobs' `(workspace_id IS NULL OR
+ *  workspace_id = @workspaceId)` predicate — the shared seeded corpus plus the team's own
+ *  authored openings. Used by the by-id GET that resolves a ?job= deep link whose target
+ *  fell outside the list slice, so a point-fetch can't hand out what the list wouldn't.
+ *  An unknown id reads as "visible" (no owner to conflict with) — callers establish
+ *  existence with getJob first and 404 on a miss. */
+export function jobVisibleToWorkspace(id: string, workspaceId: string): boolean {
   const owner = getJobOwnerWorkspace(id);
   return owner === null || owner === workspaceId;
 }
