@@ -111,6 +111,53 @@ test("the automation schedule + run routes scope their decision reads to the cal
   assert.doesNotMatch(run, /NextResponse\.json\(\{\s*summary,\s*decisions,/, "the raw global decision list must not be returned");
 });
 
+// decision-count-honesty. Shipping the labels is only half the fix: for a while
+// NOTHING in app/features read workspaceDecisionCount / decisionCount / scheduleScope,
+// so a multi-tenant operator saw a GLOBAL "evaluated 40" headline over four of their
+// own rows, a run-history badge row that outnumbered its decision list, and a commit
+// button that vanished when only OTHER teams had pending changes — even though a
+// commit applies the pass installation-wide. These guards pin the consumption, and
+// that it stays conditional so a single-tenant install renders exactly as before.
+test("the automation UI consumes the tenancy labels the routes ship", () => {
+  const modal = read("../features/sub_pipeline/PassPreviewModal.tsx");
+  assert.match(modal, /workspaceDecisionCount/, "the preview must read the per-tenant decision count");
+  assert.match(modal, /mine !== total/, "the scope line must render ONLY when the tenant's count differs from the run's");
+  assert.match(modal, /t\("previewScope"/, "…and say the ratio in localized copy");
+  assert.match(modal, /othersOnly/, "the preview must name the only-other-teams-have-changes case");
+  assert.match(
+    modal,
+    /changes > 0 \|\| othersOnly \?/,
+    "the commit affordance must survive that case (a commit is installation-wide) instead of being hidden"
+  );
+  assert.match(modal, /t\("previewApplyGlobal"/, "…relabeled with the global change count so the click can't read as 'apply my 0'");
+
+  const kit = read("../features/simulation/controlCenterKit.ts");
+  assert.match(kit, /workspaceDecisionCount/, "the dry-run fetch must forward the label, not drop it");
+
+  const control = read("../features/sub_pipeline/SchedulerControl.tsx");
+  assert.match(control, /run\.decisionCount !== run\.summary\.evaluated/, "the run-history caption must be conditional on a real gap");
+  assert.match(control, /t\("runScope"/, "…and localized");
+  assert.match(control, /scheduleScope === "global"/, "the enable toggle must caption its installation-wide blast radius");
+  assert.match(control, /t\("scopeGlobal"\)/, "…in localized copy");
+});
+
+test("every catalog carries the tenancy-honesty copy", () => {
+  const root = path.resolve(here, "..", "..");
+  for (const locale of ["en", "cs", "de", "fr"] as const) {
+    const messages = JSON.parse(readFileSync(path.join(root, "messages", `${locale}.json`), "utf8")) as {
+      pipeline: { tab: Record<string, string>; scheduler: Record<string, string> };
+    };
+    for (const key of ["previewScope", "previewOtherTeamsOnly", "previewApplyGlobal"]) {
+      assert.ok((messages.pipeline.tab[key]?.length ?? 0) > 0, `${locale}: pipeline.tab.${key} must exist`);
+    }
+    for (const key of ["runScope", "scopeGlobal", "scopeGlobalTitle"]) {
+      assert.ok((messages.pipeline.scheduler[key]?.length ?? 0) > 0, `${locale}: pipeline.scheduler.${key} must exist`);
+    }
+    assert.match(messages.pipeline.tab.previewScope, /\{mine\}[\s\S]*\{total\}/, `${locale}: previewScope names both figures`);
+    assert.match(messages.pipeline.scheduler.runScope, /\{mine\}[\s\S]*\{total\}/, `${locale}: runScope names both figures`);
+  }
+});
+
 test("the automation degrade switch reads the asking tenant's billing state", () => {
   const enforce = read("./billing/enforce.ts");
   assert.match(

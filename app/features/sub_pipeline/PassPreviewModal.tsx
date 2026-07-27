@@ -10,6 +10,13 @@ type PreviewDecision = { entryId: string; action: string; toStage: string | null
 type Preview = {
   summary: { advanced: number; rejected: number; held: number; alerts: number; errors: number; evaluated: number };
   decisions: PreviewDecision[];
+  /** TENANCY (a43408d) — `summary` is the GLOBAL sweep (the pass really did evaluate that
+   *  many entries, across every team), while `decisions` is already filtered to the caller's
+   *  own workspace by /api/automation/run. These two fields are what the route ships so this
+   *  modal can say which is which instead of pairing a global headline with a partial list.
+   *  Absent (simulation fixtures, older payloads) → the modal reads exactly as before. */
+  workspaceDecisionCount?: number;
+  decisionsWorkspace?: string | null;
 };
 
 // AUTO3 — the look-before-commit gate for the policy pass. Like the screening
@@ -48,6 +55,24 @@ export function PassPreviewModal({
   const holds = allHolds.filter((d) => deriveDecisionOutcome(d) !== "fairness_blocked");
   const changes = rejects.length + advances.length;
 
+  // TENANCY HONESTY. On a multi-tenant install the header counts describe the WHOLE
+  // sweep while the rows below are only this team's, so the modal could show
+  // "evaluated 40" above four rows and — worse — hide the commit button entirely when
+  // every pending change belonged to another team, even though a commit applies the
+  // pass installation-wide. Both are labeled from the fields the route already ships.
+  //
+  // Single-tenant installs are the common case and must stay noise-free: mine === total
+  // there, so `partial` is false and nothing extra renders.
+  const mine = preview.workspaceDecisionCount ?? preview.decisions.length;
+  const total = preview.summary.evaluated;
+  const partial = preview.workspaceDecisionCount != null && mine !== total;
+  // The pass's global change count (advances + would-be rejects), from the summary that
+  // deliberately stays installation-wide. When this team has none but the run does, the
+  // commit is still a real, consequential action — so it is offered and labeled as one,
+  // never silently replaced by "nothing to apply".
+  const globalChanges = preview.summary.advanced + preview.summary.rejected;
+  const othersOnly = partial && changes === 0 && globalChanges > 0;
+
   return (
     <Modal
       title={t("previewTitle")}
@@ -62,7 +87,11 @@ export function PassPreviewModal({
           >
             {t("previewCancel")}
           </button>
-          {changes > 0 ? (
+          {/* Only-other-teams-have-changes: name it. The commit affordance stays (a
+              commit was always installation-wide — hiding it was the misleading part),
+              labeled with the global count so the click can't read as "apply my 0". */}
+          {othersOnly ? <span className="mr-auto text-sm text-steel">{t("previewOtherTeamsOnly", { count: globalChanges })}</span> : null}
+          {changes > 0 || othersOnly ? (
             <button
               type="button"
               onClick={onCommit}
@@ -72,7 +101,7 @@ export function PassPreviewModal({
               {/* No `rejected` param: a commit produces zero rejections, so the
                   button must not imply any (it used to pass the would-be-reject
                   count into a message that then had to stay silent about it). */}
-              {committing ? t("runningPass") : t("previewApply", { count: changes })}
+              {committing ? t("runningPass") : othersOnly ? t("previewApplyGlobal", { count: globalChanges }) : t("previewApply", { count: changes })}
             </button>
           ) : (
             <span className="text-sm text-steel">{t("previewNothing")}</span>
@@ -81,6 +110,13 @@ export function PassPreviewModal({
       }
     >
       <div className="space-y-4">
+        {/* The header/subtitle counts are the whole installation's; the rows below are
+            this team's. Say the ratio out loud rather than letting the two disagree. */}
+        {partial ? (
+          <p className="rounded-md border border-stone-200 bg-paper/50 px-3 py-1.5 text-sm text-steel">
+            {t("previewScope", { mine, total })}
+          </p>
+        ) : null}
         {rejects.length > 0 ? (
           <section>
             <p className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-coral">

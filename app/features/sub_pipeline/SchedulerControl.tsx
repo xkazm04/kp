@@ -24,6 +24,13 @@ type SchedulerRun = {
   decisions: RunDecision[] | null;
   error: string | null;
   startedAt: string;
+  /** TENANCY (a43408d) — `summary` stays the GLOBAL record of what the sweep did, while
+   *  `decisions` is filtered to the caller's workspace by listRuns({ workspace }). These
+   *  two say so: `decisionCount` is how many rows this read may see, `decisionsWorkspace`
+   *  which tenant they were narrowed to. Without them the history showed "evaluated 40"
+   *  over four rows with nothing to explain the gap. */
+  decisionCount?: number;
+  decisionsWorkspace?: string | null;
 };
 type Schedule = {
   enabled: boolean;
@@ -149,6 +156,11 @@ export function SchedulerControl({
   // AUTO2 — run history (already on every schedule GET; previously discarded).
   const [runs, setRuns] = useState<SchedulerRun[]>([]);
   const [historyOpen, setHistoryOpen] = useState(false);
+  // The clock's blast radius, as the route declares it (`scheduleScope`). It is "global"
+  // by design in phase 1 — one schedule row for the whole installation behind
+  // requireOperator — so flipping this toggle stops or starts automation for EVERY team.
+  // The button gave no hint of that; the caption below states it.
+  const [scheduleScope, setScheduleScope] = useState<string | null>(null);
   // Draft string for the interval field so the user can clear/retype freely — a
   // number-bound input can't hold an empty string. Parsed + clamped on blur.
   const [intervalDraft, setIntervalDraft] = useState("");
@@ -174,6 +186,7 @@ export function SchedulerControl({
         if (Array.isArray(p.runs)) setRuns(p.runs as SchedulerRun[]);
         if (p.reminders) setReminders(p.reminders as Schedule);
         if (Array.isArray(p.reminderRuns)) setReminderRuns(p.reminderRuns as SchedulerRun[]);
+        if (typeof p.scheduleScope === "string") setScheduleScope(p.scheduleScope);
         setError(null);
       })
       .catch(() => setError(t("engineUnreachable")));
@@ -218,6 +231,7 @@ export function SchedulerControl({
       if (Array.isArray(p.runs)) setRuns(p.runs as SchedulerRun[]);
       if (p.reminders) setReminders(p.reminders as Schedule);
       if (Array.isArray(p.reminderRuns)) setReminderRuns(p.reminderRuns as SchedulerRun[]);
+      if (typeof p.scheduleScope === "string") setScheduleScope(p.scheduleScope);
       setError(null);
       if (body.tick) {
         onRan?.();
@@ -294,6 +308,15 @@ export function SchedulerControl({
       >
         {sched.enabled ? t("on") : t("off")}
       </button>
+      {/* The switch is installation-wide (one schedule row, phase-1 tenancy): flipping
+          it starts or stops automation for every team, not just this one. The route
+          declares that as `scheduleScope`; render it as a caption rather than leaving
+          the blast radius implicit. */}
+      {scheduleScope === "global" ? (
+        <span className="rounded-full bg-stone-100 px-1.5 py-0.5 text-xs text-steel" title={t("scopeGlobalTitle")}>
+          {t("scopeGlobal")}
+        </span>
+      ) : null}
       <label className="flex items-center gap-1">
         {t("every")}
         <input
@@ -404,6 +427,14 @@ export function SchedulerControl({
                         {run.summary ? <SummaryBadges summary={run.summary} /> : null}
                         {run.summary?.evaluated != null ? (
                           <span className="text-xs">{t("runEvaluated", { n: run.summary.evaluated })}</span>
+                        ) : null}
+                        {/* Multi-tenant install: the badges above are the whole sweep,
+                            the rows below only this team's. Named when they differ;
+                            on a single-tenant install they're equal and nothing shows. */}
+                        {run.decisionCount != null && run.summary?.evaluated != null && run.decisionCount !== run.summary.evaluated ? (
+                          <span className="rounded-full bg-stone-100 px-1.5 py-0.5 text-xs text-steel">
+                            {t("runScope", { mine: run.decisionCount, total: run.summary.evaluated })}
+                          </span>
                         ) : null}
                       </span>
                     )}
