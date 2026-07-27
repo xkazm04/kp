@@ -55,6 +55,47 @@ test("the pricing basis renders only under its own label (pricingBasis ← struc
   );
 });
 
+// honest-unpriced-offer. draft_offer's FAIL SAFE (pipeline/jobfit/automation.py) emits
+// recommended / salaryMin / salaryMax as null TOGETHER when neither the posting nor the
+// active market carries a salary band — no figure is proposed, the candidate letter names
+// none, and the draft routes to this human gate so a recruiter prices it. The card used to
+// pull those nulls through `Number(x ?? 0).toLocaleString()`: a literal "0" headline and a
+// 0–0 band meter — a fabricated number on exactly the drafts that exist BECAUSE nobody was
+// willing to invent one. Source guard so a refactor can't quietly restore the coercion.
+test("an unpriced offer draft renders no fabricated figure and no 0–0 band meter", () => {
+  assert.ok(
+    /const unpriced =[\s\S]*?parsed\.recommended == null/.test(card),
+    "the card must derive an `unpriced` state from a null `recommended`"
+  );
+  assert.ok(
+    /const hasBand =[\s\S]*?parsed\.salaryMin != null && parsed\.salaryMax != null/.test(card),
+    "the card must derive `hasBand` from BOTH bounds being present"
+  );
+  assert.ok(/unpriced \? \(/.test(card), "the money headline must branch on `unpriced` before formatting a figure");
+  assert.ok(/\{hasBand \? \(/.test(card), "the band meter + band caption must be gated on `hasBand`");
+  assert.ok(
+    /pricingBasis != null && hasBand \?/.test(card),
+    'the "~N% of the band" line needs a band — it must be gated on `hasBand` too'
+  );
+  assert.ok(
+    /t\("noBand"\)/.test(card) && /t\("unpricedAmount"\)/.test(card),
+    "the unpriced state must render localized honest copy, not empty chrome"
+  );
+});
+
+test("every catalog carries the unpriced-offer copy the card renders", () => {
+  for (const locale of ["en", "cs", "de", "fr"] as const) {
+    const messages = JSON.parse(read(path.join(REPO_ROOT, "messages", `${locale}.json`))) as {
+      decisions: { aiReview: Record<string, string> };
+    };
+    const a = messages.decisions.aiReview;
+    for (const key of ["noBand", "unpricedAmount", "unpricedTitle"]) {
+      assert.ok((a[key]?.length ?? 0) > 0, `${locale}: decisions.aiReview.${key} must exist`);
+    }
+    assert.ok(!/\{min\}|\{max\}|\{currency\}/.test(a.noBand), `${locale}: noBand must not interpolate absent band bounds`);
+  }
+});
+
 test("both catalogs carry the labels the contract renders (pricingBasis names the producer; scoreProvenance names the source)", () => {
   for (const locale of ["en", "cs"] as const) {
     const messages = JSON.parse(read(path.join(REPO_ROOT, "messages", `${locale}.json`))) as {

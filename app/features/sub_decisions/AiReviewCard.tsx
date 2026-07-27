@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Check, CheckSquare, History, Search, Sparkles, Square, X } from "lucide-react";
+import { Check, CheckSquare, CircleDollarSign, History, Search, Sparkles, Square, X } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { RATING_MAX } from "@/app/_lib/format";
 import { OFFER_TTL_DAYS_MIN, OFFER_TTL_DAYS_MAX, defaultOfferTtlDays } from "@/app/_lib/offer-policy";
@@ -98,6 +98,18 @@ export function AiReviewCard({
           : t("tagScreening");
   const acceptLabel = isOffer ? t("acceptSendOffer") : isScorecard ? t("acceptToOffer") : t("acceptAdvance");
 
+  // UNPRICED DRAFTS (draft_offer's FAIL SAFE, pipeline/jobfit/automation.py). When the
+  // active market configures no seniority band AND the posting carries none, the drafter
+  // deliberately proposes NO figure: recommended / salaryMin / salaryMax come back null
+  // together, the candidate letter names no number, and the draft is routed to THIS human
+  // gate precisely so a recruiter sets the real one. The card used to render those nulls
+  // through `Number(x ?? 0).toLocaleString()` — a literal "0" headline and a 0–0 band
+  // meter — i.e. it fabricated the one number nobody was willing to invent, on exactly the
+  // drafts that exist because the number is unknown. So: no figure and no meter unless the
+  // payload genuinely carries them.
+  const unpriced = isOffer && parsed != null && parsed.recommended == null;
+  const hasBand = isOffer && parsed != null && parsed.salaryMin != null && parsed.salaryMax != null;
+
   // Direction 1 — the compact confidence band on the card itself. This is the
   // AI's numeric confidence in ITS screening verdict (screening/queued-reject
   // payloads carry a 0-100 scalar); a scorecard's confidence is a {level,reason}
@@ -145,14 +157,26 @@ export function AiReviewCard({
           </span>
         )}
         {isOffer ? (
-          // P2-1 / Direction 2c — render only the unit the draft actually carries.
-          // The server path deliberately refuses to fabricate a currency
-          // (pipeline-entry-action.ts extendOffer), so the card must not invent
-          // "CZK" either: an absent currency shows the bare amount, not a wrong unit.
-          <span className="font-serif text-base text-ink">
-            {Number(parsed?.recommended ?? 0).toLocaleString()}
-            {parsed?.currency ? ` ${parsed.currency}` : ""}
-          </span>
+          unpriced ? (
+            // No figure was proposed — say so, in the amber "needs your attention"
+            // grammar this card already uses for the JD-staleness cue. The rationale
+            // in the body carries the server's reason verbatim.
+            <span
+              className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-meta font-semibold text-amber-800"
+              title={t("unpricedTitle")}
+            >
+              <CircleDollarSign size={11} aria-hidden /> {t("unpricedAmount")}
+            </span>
+          ) : (
+            // P2-1 / Direction 2c — render only the unit the draft actually carries.
+            // The server path deliberately refuses to fabricate a currency
+            // (pipeline-entry-action.ts extendOffer), so the card must not invent
+            // "CZK" either: an absent currency shows the bare amount, not a wrong unit.
+            <span className="font-serif text-base text-ink">
+              {Number(parsed?.recommended ?? 0).toLocaleString()}
+              {parsed?.currency ? ` ${parsed.currency}` : ""}
+            </span>
+          )
         ) : (
           <RecBadge rec={parsed?.recommendation} confidence={isScorecard ? undefined : parsed?.confidence} />
         )}
@@ -186,24 +210,35 @@ export function AiReviewCard({
         <div className="mt-2 rounded-md border border-stone-200 bg-paper/50 p-2.5 text-sm text-ink">
           {isOffer ? (
             <>
-              <div className="h-1.5 overflow-hidden rounded-full bg-stone-200">
-                <div
-                  className="h-full rounded-full bg-moss"
-                  style={{
-                    width: `${Math.max(4, Math.min(100, ((Number(parsed.recommended) - Number(parsed.salaryMin)) / Math.max(1, Number(parsed.salaryMax) - Number(parsed.salaryMin))) * 100))}%`,
-                  }}
-                />
-              </div>
-              <p className="mt-1 text-sm text-steel">
-                {t("band", {
-                  min: Number(parsed.salaryMin ?? 0).toLocaleString(),
-                  max: Number(parsed.salaryMax ?? 0).toLocaleString(),
-                  currency: String(parsed.currency ?? ""),
-                })}
-              </p>
+              {/* The meter and the band caption are a POSITION-WITHIN-A-BAND readout;
+                  with no band they'd be a 0–0 rail with the marker pinned at the floor.
+                  Rendered only when the draft actually carries min AND max. */}
+              {hasBand ? (
+                <>
+                  <div className="h-1.5 overflow-hidden rounded-full bg-stone-200">
+                    <div
+                      className="h-full rounded-full bg-moss"
+                      style={{
+                        width: `${Math.max(4, Math.min(100, ((Number(parsed.recommended) - Number(parsed.salaryMin)) / Math.max(1, Number(parsed.salaryMax) - Number(parsed.salaryMin))) * 100))}%`,
+                      }}
+                    />
+                  </div>
+                  <p className="mt-1 text-sm text-steel">
+                    {t("band", {
+                      min: Number(parsed.salaryMin ?? 0).toLocaleString(),
+                      max: Number(parsed.salaryMax ?? 0).toLocaleString(),
+                      currency: String(parsed.currency ?? ""),
+                    })}
+                  </p>
+                </>
+              ) : (
+                <p className="rounded-md border border-dashed border-stone-300 px-2 py-1.5 text-sm text-steel">{t("noBand")}</p>
+              )}
               {/* See pricingBasis above — labeled, localized, one number with a named
-                  producer. Only an unparseable payload falls back to raw prose. */}
-              {pricingBasis != null ? (
+                  producer. The "~N% of the band" phrasing is meaningless without a band,
+                  so an unpriced draft falls through to the server's rationale, which
+                  names the uncalibrated market and what the approver must do. */}
+              {pricingBasis != null && hasBand ? (
                 <p className="mt-1">
                   {t("pricingBasis", {
                     score: pricingBasis,
