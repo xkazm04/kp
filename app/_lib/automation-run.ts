@@ -194,7 +194,10 @@ export async function runAutomationTask(
   // cache entry — otherwise a quota-exhausted workspace's stubs keep serving for
   // the full 168h TTL after the allowance resets (and vice versa). Same boolean
   // feeds the key axis and the CLI flag, so they can't disagree.
-  const degraded = !meterAllows("ai_candidates");
+  // Tenancy: the degrade switch reads THIS entry's workspace billing state (the
+  // route passes currentWorkspace(), the batch sweep the entry's own team) — not
+  // the default workspace's, which used to decide it for every tenant alike.
+  const degraded = !meterAllows("ai_candidates", { workspace: workspaceId });
   const cacheKey = computeAutomationCacheKey({
     version,
     task,

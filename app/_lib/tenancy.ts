@@ -183,7 +183,10 @@ export const TENANCY_EXEMPT_TABLES: ReadonlySet<string> = new Set([
   "ats_delivery", // the ATS webhook delivery ledger (sibling of ats_config; deployment/org-level, not per-tenant)
   "login_attempts", // brute-force throttle counters keyed by email/IP — deployment-global, no tenant dimension
   "llm_usage", // deployment-level LLM metering ledger (sibling of billing_usage; written off-request from Python)
-  "scheduler", // global background-job scheduler state
+  "scheduler", // global background-job scheduler state (ONE clock; its toggle's blast radius is the whole installation — operator-gated, see scheduler-store.ts)
+  // One row per global sweep. Exempt as a ROW, not as a payload: its decisions_json
+  // holds per-entry rows across every team, each stamped with the entry's workspaceId
+  // and filtered to the caller's tenant on read (scheduler-store.decisionsForWorkspace).
   "scheduler_runs",
   "scheduler_heartbeat", // one row per deployment: the clock's liveness stamp, not tenant data
   // The autonomous dev-case pipeline's CONTROL PLANE + CALIBRATION (Directions D/E,

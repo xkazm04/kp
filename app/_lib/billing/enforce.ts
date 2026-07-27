@@ -91,9 +91,15 @@ export function maxBillableInterviewMin(bookedMin: number): number {
 }
 
 /** True when the meter still allows spending — the degrade switch for LLM
- *  garnish call sites (append --no-llm instead of blocking). */
-export function meterAllows(meter: Meter, now: Date = new Date()): boolean {
-  return meterAllowance(meter, now).allowed;
+ *  garnish call sites (append --no-llm instead of blocking).
+ *
+ *  Takes the SAME `{ now, workspace }` options shape as meterGate above, for the
+ *  same reason: the degrade decision must read the ASKING tenant's billing state.
+ *  Before the workspace axis existed, every tenant's automation degrade was decided
+ *  by the default workspace's plan — a second team ran on the first team's quota.
+ *  Omitted, it reads exactly the row it read before (single-tenant path unchanged). */
+export function meterAllows(meter: Meter, opts: { now?: Date; workspace?: string } = {}): boolean {
+  return meterAllowance(meter, opts.now ?? new Date(), opts.workspace).allowed;
 }
 
 /** Active-job cap (free plan: 1). `publishedCount` = authored jobs currently

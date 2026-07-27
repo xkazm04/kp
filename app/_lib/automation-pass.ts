@@ -90,6 +90,14 @@ export type AutomationDecision = {
    *  run. Rows persisted before the field existed derive it from the reason
    *  prefix (deriveDecisionOutcome in decision-attribution.ts). */
   outcome?: DecisionOutcome;
+  /** The tenant this decision belongs to — the entry's OWN workspace, stamped by
+   *  executeAutomationPass from the snapshot (Python never sees it). The pass is a
+   *  deliberate GLOBAL sweep, so one run's decision list spans teams; this is what
+   *  lets every READ of that list (scheduler-store.listRuns, /api/automation/run)
+   *  hand a caller only their own rows instead of leaking other tenants' candidate
+   *  labels and rejection reasons. Absent only on rows persisted before the stamp
+   *  existed — those are attributed to the default workspace on read. */
+  workspaceId?: string;
 };
 // `evaluated` = how many active entries the pass actually scanned. It distinguishes a
 // healthy idle pass (evaluated N, 0 actions) from a pass that saw NOTHING (evaluated 0 —
@@ -242,6 +250,18 @@ async function executeAutomationPass(dryRun: boolean): Promise<AutomationPassRes
     // Keep the entry snapshots keyed by id so the apply boundary can re-check the
     // fairness invariant against the SAME archetype/score the policy pass saw.
     const byId = new Map(entries.map((e) => [e.id, e]));
+
+    // TENANCY (phase 1) — stamp each decision with its entry's own workspace, in ONE
+    // place, before either branch below can return or persist the list. The sweep
+    // itself stays global by design (listActiveEntriesForAutomation), but a decision
+    // row carries a candidate label and a rejection reason, so every reader of the
+    // list (the run log, the dry-run preview) must be able to filter it to the asking
+    // tenant. Python computes the verdict and never sees a workspace; the snapshot is
+    // the only authority for it.
+    for (const d of decisions) {
+      const ws = byId.get(d.entryId)?.workspaceId;
+      if (ws) d.workspaceId = ws;
+    }
 
     // AUTO3 — dry run: identical snapshot → Python → decisions flow, but the
     // apply/dispatch loop is replaced by annotation. The fairness backstop is
