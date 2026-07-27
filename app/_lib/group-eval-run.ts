@@ -627,6 +627,9 @@ export async function runGroupEval(
     topPick: lead
       ? {
           label: lead.label,
+          // The lead's stable identity — the modal keys the "Unique strengths" chips on
+          // it (candIdentity), so a duplicate display name can't decorate the rival's tab.
+          entryId: lead.entryId,
           // null = unscored (the modal's ScoreBadge renders a dash) — sealed and
           // displayed as "not measured", never as 0.
           score: lead.score,

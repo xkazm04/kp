@@ -134,13 +134,22 @@ export type GroupEvalPayload = {
   governanceNote?: string | null;
   advisory?: boolean;
   eligibilityList?: { rank: number; entryId: string; label: string; score: number | null }[] | null;
-  topPick?: { label: string; score: number | null; why: string } | null;
+  // The crowned lead. `entryId` is the lead's stable pipeline-entry id — the SAME
+  // identity every other keyed surface in the modal uses (candIdentity). Without it a
+  // duplicate display name put the lead's "Unique strengths" chips on the rival's tab.
+  // Optional/additive: a payload saved before it existed (and the simulation's
+  // client-side runGroupEval) falls back to matching on `label`.
+  topPick?: { label: string; score: number | null; why: string; entryId?: string } | null;
   // Whether the crowned lead is genuinely separated from the runner-up once BOTH
   // confidence bands are taken into account (UAT L1-TOM-GEF-01). "overlapping" means
   // the point-estimate gap is inside the measurement's own uncertainty — the top two
   // are a tie on the evidence. "unknown" = not assessable (no band, no runner-up, or
   // an unscored candidate) and must never be rendered as reassurance. Absent on evals
   // saved before this existed → render no separation chrome at all.
+  // Read by ComparisonTable's CandidateHeader (the "effectively tied" chip beside the
+  // Lead crown) and by LegacyView's recommended-lead card, so the recruiter sees the
+  // same hedge the sealed record carries — the summary prose that used to carry it is
+  // discarded by AiVerdict whenever an LLM comparison exists.
   leadSeparation?: "separated" | "overlapping" | "unknown";
   recommendedOrder?: string[];
   candidates?: EvalCandidate[];

@@ -2127,6 +2127,8 @@
       "eligibilityNote": "Ordinal ranking only — apply statutory preferences (e.g. veterans') before certifying. Nothing here is auto-sealed.",
       "ruleBased": "rule-based",
       "lead": "Lead",
+      "leadTied": "Effectively tied",
+      "leadTiedTitle": "The gap to the runner-up is inside both candidates' confidence bands — treat the top two as a tie on the evidence available.",
       "ko": "KO",
       "potential": "potential {n}",
       "dimLeader": "lead",

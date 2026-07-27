@@ -22,7 +22,7 @@ import { candIdentity, type EvalCandidate } from "./types";
 // the same fixed column layout, so widths line up across Overview / Score / Skills
 // / Salary and the eye scans straight down a candidate's column.
 
-function CandidateHeader({ c, rank, isLead }: { c: EvalCandidate; rank: number; isLead: boolean }) {
+function CandidateHeader({ c, rank, isLead, tiedLead }: { c: EvalCandidate; rank: number; isLead: boolean; tiedLead: boolean }) {
   const t = useTranslations("decisions.groupEval");
   return (
     <div className="flex items-center gap-2">
@@ -38,9 +38,22 @@ function CandidateHeader({ c, rank, isLead }: { c: EvalCandidate; rank: number; 
         {c.koPassed === false ? (
           <Pill tone="coral">{t("ko")}</Pill>
         ) : isLead ? (
-          <Pill tone="moss">
-            <Crown size={12} /> {t("lead")}
-          </Pill>
+          // The crown, and — when the payload says so — the hedge that belongs beside
+          // it. leadSeparation "overlapping" means the gap to the runner-up is inside
+          // both confidence bands; it was computed and SEALED into the audit record but
+          // rendered nowhere, because the summary prose carrying it is discarded by
+          // AiVerdict whenever an LLM comparison exists. A recruiter must not read a
+          // confident crown the audit record itself hedges.
+          <span className="flex flex-wrap items-center gap-1">
+            <Pill tone="moss">
+              <Crown size={12} /> {t("lead")}
+            </Pill>
+            {tiedLead ? (
+              <Pill tone="amber" title={t("leadTiedTitle")}>
+                {t("leadTied")}
+              </Pill>
+            ) : null}
+          </span>
         ) : null}
       </div>
     </div>
@@ -123,6 +136,7 @@ export function ComparisonTable({
   mustRows,
   roleBand,
   hasLead,
+  leadSeparation,
 }: {
   candidates: EvalCandidate[];
   skillRows: { skill: string; mustHave: boolean }[];
@@ -133,6 +147,11 @@ export function ComparisonTable({
   // and the sealed record (group-evaluation-fairness #1). The lead, when present, is
   // always the rank-1 (first) column.
   hasLead: boolean;
+  // Does the crown survive both top candidates' confidence bands? "overlapping" — the
+  // top two are a tie on the evidence — renders an "effectively tied" chip beside the
+  // crown. Absent (legacy payload) or "unknown"/"separated" renders no extra chrome:
+  // an unassessable separation must never read as either reassurance or a hedge.
+  leadSeparation?: "separated" | "overlapping" | "unknown";
 }) {
   const t = useTranslations("decisions.groupEval");
   const cols = candidates.length + 1;
@@ -192,7 +211,7 @@ export function ComparisonTable({
               </th>
               {candidates.map((c, i) => (
                 <th key={candIdentity(c)} scope="col" className="sticky top-0 z-20 border-b border-stone-200 bg-paper px-3 py-2 text-left align-bottom font-normal">
-                  <CandidateHeader c={c} rank={i + 1} isLead={hasLead && i === 0} />
+                  <CandidateHeader c={c} rank={i + 1} isLead={hasLead && i === 0} tiedLead={leadSeparation === "overlapping"} />
                 </th>
               ))}
             </tr>

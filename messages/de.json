@@ -2156,6 +2156,8 @@
       "eligibilityNote": "Nur ordinale Rangfolge — wenden Sie gesetzliche Vorrangregeln (z. B. für Veteranen) vor der Zertifizierung an. Nichts hier wird automatisch versiegelt.",
       "ruleBased": "regelbasiert",
       "lead": "Favorit",
+      "leadTied": "Praktisch gleichauf",
+      "leadTiedTitle": "Der Abstand zum Zweitplatzierten liegt innerhalb der Konfidenzbänder beider Kandidaten — betrachten Sie die ersten beiden als gleichwertig.",
       "ko": "KO",
       "potential": "Potenzial {n}",
       "dimLeader": "führend",

@@ -2,7 +2,7 @@ import { useTranslations } from "next-intl";
 import { Sparkles } from "lucide-react";
 import { ScoreBadge } from "@/app/_components/ScoreBadge";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
-import { SectionTitle } from "./primitives";
+import { Pill, SectionTitle } from "./primitives";
 import type { GroupEvalPayload } from "./types";
 
 // ---- Legacy fallback (no recruiter breakdown: job-less role, old saved eval,
@@ -17,8 +17,16 @@ export function LegacyView({ evaluation }: { evaluation: GroupEvalPayload }) {
           <p className="flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wide text-moss">
             <Sparkles size={14} /> {t("recommendedLead")}
           </p>
-          <p className="mt-1 flex items-center gap-2 font-serif text-h3 text-ink">
+          <p className="mt-1 flex flex-wrap items-center gap-2 font-serif text-h3 text-ink">
             {evaluation.topPick.label} <ScoreBadge score={evaluation.topPick.score} />
+            {/* Same hedge as the comparison table's crown: the sealed record already
+                says the top two are a tie on the evidence, so the compact view must
+                not present the lead as decisive either. */}
+            {evaluation.leadSeparation === "overlapping" ? (
+              <Pill tone="amber" title={t("leadTiedTitle")}>
+                {t("leadTied")}
+              </Pill>
+            ) : null}
           </p>
           {evaluation.topPick.why ? <p className="mt-1 text-base text-steel">{evaluation.topPick.why}</p> : null}
         </div>

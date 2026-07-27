@@ -2156,6 +2156,8 @@
       "eligibilityNote": "Classement ordinal uniquement — appliquez les préférences légales (par ex. anciens combattants) avant de certifier. Rien ici n'est scellé automatiquement.",
       "ruleBased": "basé sur des règles",
       "lead": "Favori",
+      "leadTied": "À égalité de fait",
+      "leadTiedTitle": "L'écart avec le deuxième se situe à l'intérieur des intervalles de confiance des deux candidats — considérez les deux premiers comme à égalité.",
       "ko": "KO",
       "potential": "potentiel {n}",
       "dimLeader": "favori",

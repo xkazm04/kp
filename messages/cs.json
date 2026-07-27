@@ -2127,6 +2127,8 @@
       "eligibilityNote": "Pouze pořadí — před certifikací uplatněte zákonné preference (např. veteránské). Nic zde se automaticky nezapečetí.",
       "ruleBased": "pravidlové",
       "lead": "Vedoucí",
+      "leadTied": "Prakticky nerozhodně",
+      "leadTiedTitle": "Rozdíl oproti druhému v pořadí leží uvnitř pásem jistoty obou kandidátů — berte první dva jako rovnocenné.",
       "ko": "KO",
       "potential": "potenciál {n}",
       "dimLeader": "nejlepší",

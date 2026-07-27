@@ -127,7 +127,14 @@ export function GroupEvalModal({
 
           {enriched ? (
             <>
-              <ComparisonTable candidates={candidates} skillRows={skillRows} mustRows={mustRows} roleBand={evaluation.roleSalaryBand ?? []} hasLead={evaluation.topPick != null} />
+              <ComparisonTable
+                candidates={candidates}
+                skillRows={skillRows}
+                mustRows={mustRows}
+                roleBand={evaluation.roleSalaryBand ?? []}
+                hasLead={evaluation.topPick != null}
+                leadSeparation={evaluation.leadSeparation}
+              />
               <FairnessPanel
                 fairness={evaluation.fairness ?? null}
                 headlineOrder={evaluation.recommendedOrder ?? []}
@@ -136,7 +143,7 @@ export function GroupEvalModal({
               <PerCandidateTabs
                 candidates={candidates}
                 differentiators={evaluation.differentiators ?? []}
-                topPick={evaluation.topPick?.label}
+                topPick={evaluation.topPick}
                 decided={decided}
                 onDecide={decide || undefined}
               />

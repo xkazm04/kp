@@ -8,9 +8,9 @@ import { ConfidenceBandBadge, FitTierBadge } from "@/app/_components/Badge";
 import { ScoreBreakdown, useConfidenceBandCopy, useFitTierLabels } from "@/app/features/sub_match/MatchShared";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { styleFor } from "../DecisionsTypes";
-import { potentialOf } from "./helpers";
+import { isTopPick, potentialOf } from "./helpers";
 import { ArchetypeTag, Avatar, Pill, SectionTitle } from "./primitives";
-import { candIdentity, type EvalCandidate } from "./types";
+import { candIdentity, type EvalCandidate, type GroupEvalPayload } from "./types";
 
 // ---- Per candidate (full-width tab switcher) ------------------------------
 
@@ -43,7 +43,7 @@ function CandidateDetail({
 }: {
   c: EvalCandidate;
   differentiators: string[];
-  topPick?: string;
+  topPick?: GroupEvalPayload["topPick"];
   decision?: "accept" | "reject";
   onDecide?: (label: string, action: "accept" | "reject") => void;
 }) {
@@ -111,7 +111,9 @@ function CandidateDetail({
 
       {c.verdict ? <p className="mt-3 text-base text-ink">{c.verdict}</p> : null}
 
-      {topPick === c.label && differentiators.length ? (
+      {/* The lead's edge, keyed on IDENTITY — the last label-keyed comparison in this
+          module, which put these chips on the wrong tab for duplicate display names. */}
+      {isTopPick(c, topPick) && differentiators.length ? (
         <div className="mt-3">
           <p className="text-sm font-semibold uppercase tracking-wide text-steel">{t("uniqueStrengths")}</p>
           <div className="mt-1 flex flex-wrap gap-1">
@@ -148,7 +150,7 @@ export function PerCandidateTabs({
 }: {
   candidates: EvalCandidate[];
   differentiators: string[];
-  topPick?: string;
+  topPick?: GroupEvalPayload["topPick"];
   decided: Record<string, "accept" | "reject">;
   onDecide?: (label: string, action: "accept" | "reject") => void;
 }) {

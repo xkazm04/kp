@@ -1,4 +1,17 @@
-import type { EvalCandidate } from "./types";
+import { candIdentity, type EvalCandidate, type GroupEvalPayload } from "./types";
+
+/** Is this candidate the crowned lead?
+ *
+ *  Keyed on the lead's stable entry id (candIdentity — the same identity the tabs, the
+ *  decide map and the comparison columns use). The display label is NOT unique: with
+ *  two same-named candidates the label test put the lead's "Unique strengths" chips on
+ *  the rival's tab. Falls back to the label only for a payload sealed before topPick
+ *  carried an id (and for the simulation's client-side eval), which is exactly the old
+ *  behaviour for exactly the old payloads. */
+export function isTopPick(c: EvalCandidate, topPick: GroupEvalPayload["topPick"]): boolean {
+  if (!topPick) return false;
+  return topPick.entryId ? candIdentity(c) === topPick.entryId : c.label === topPick.label;
+}
 
 // Returns the catalog key for the source pill; resolved through t() at the call site.
 export const sourceLabelKey = (s?: string) => (s === "llm" ? "sourceLlm" : s === "partial" ? "sourcePartial" : "sourceDeterministic");
