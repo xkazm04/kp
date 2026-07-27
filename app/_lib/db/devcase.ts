@@ -365,6 +365,11 @@ export type OutboxEntry = {
   status: OutboxStatus;
   ref: string | null;
   createdAt: string;
+  /** WHY a `failed` row dead-lettered, verbatim from the relay attempt ("http 503",
+   *  "getaddrinfo ENOTFOUND relay.example", a timeout message). NULL on every
+   *  non-failed row AND on legacy failures written before the column existed — the
+   *  UI must render its absence as "no reason recorded", never invent one. */
+  failureDetail: string | null;
 };
 
 // Tenant (P1): derive the outbox tenant from the referenced pipeline entry (ref =
@@ -406,16 +411,21 @@ export function recordOutbox(input: {
   channel: string;
   status: OutboxStatus;
   ref?: string | null;
+  /** The dead-letter reason for a `failed` row (comms.ts computes it per attempt). */
+  failureDetail?: string | null;
 }): OutboxEntry {
   const db = ensureDb();
   const now = new Date().toISOString();
   const id = randomId("out");
   const workspaceId = outboxWorkspaceForRef(input.ref);
+  // A reason belongs to a FAILURE. Storing one on a sent/queued row would put a stale
+  // "http 503" (the last retry before the one that worked) next to a green badge.
+  const failureDetail = input.status === "failed" ? input.failureDetail?.trim() || null : null;
   db.prepare(
-    `INSERT INTO dev_outbox (id, recipient, subject, body, kind, channel, status, ref, created_at, workspace_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-  ).run(id, input.recipient, input.subject, input.body, input.kind, input.channel, input.status, input.ref ?? null, now, workspaceId);
-  return { id, ...input, ref: input.ref ?? null, createdAt: now };
+    `INSERT INTO dev_outbox (id, recipient, subject, body, kind, channel, status, ref, created_at, workspace_id, failure_detail)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(id, input.recipient, input.subject, input.body, input.kind, input.channel, input.status, input.ref ?? null, now, workspaceId, failureDetail);
+  return { id, ...input, ref: input.ref ?? null, createdAt: now, failureDetail };
 }
 
 function rowToOutboxEntry(r: Record<string, unknown>): OutboxEntry {
@@ -431,6 +441,7 @@ function rowToOutboxEntry(r: Record<string, unknown>): OutboxEntry {
     status: coerceOutboxStatus(r.status as string | null),
     ref: (r.ref as string) ?? null,
     createdAt: r.created_at as string,
+    failureDetail: (r.failure_detail as string) ?? null,
   };
 }
 

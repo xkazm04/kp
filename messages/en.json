@@ -1530,6 +1530,18 @@
       "githubRunning": "Analyzing…",
       "githubRunFailed": "GitHub deep-dive failed — try again shortly.",
       "messages": "Messages ({count})",
+      "commsVerdict": {
+        "sent": "sent",
+        "queued": "queued",
+        "failed": "failed",
+        "recovered": "recovered",
+        "bounced": "bounced",
+        "orphaned": "unmatched receipt"
+      },
+      "commsBounceLine": "The relay reported this as undeliverable: {detail}",
+      "commsFailureLine": "Delivery failed and wasn't retried: {detail}",
+      "commsRecoveredLine": "This send failed first, then a later resend went through.",
+      "commsReasonUnknown": "no reason recorded",
       "priorLinksRevoked": "{count, plural, one {# earlier link was deactivated} other {# earlier links were deactivated}}",
       "revokeLinks": "Revoke interview links",
       "linksRevoked": "{count, plural, =0 {No live links to revoke} one {# link revoked — it no longer works} other {# links revoked — they no longer work}}",
@@ -3311,7 +3323,11 @@
       "bouncedRecipientPlaceholder": "name@company.com",
       "bouncedResendInvalid": "Enter a valid email address before resending.",
       "orphanBadge": "Unmatched receipt",
-      "orphanHint": "The relay reported a delivery failure for a message kp never sent — its reference or type matches nothing here. Check the ref/kind mapping in the relay integration."
+      "orphanHint": "The relay reported a delivery failure for a message kp never sent — its reference or type matches nothing here. Check the ref/kind mapping in the relay integration.",
+      "failureDetail": "Delivery failed: {detail}",
+      "failureDetailUnknown": "Delivery failed — no reason was recorded for this send.",
+      "resendRejected": "Couldn't resend: {reason}",
+      "resendDeadLettered": "Resent, but it dead-lettered again."
     },
     "eyebrow": "Workspace",
     "title": "Channels & integrations",

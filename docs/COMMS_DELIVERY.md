@@ -186,3 +186,37 @@ later, out-of-band. `POST /api/comms/callback` is where a configured relay
 This is why "sent" is no longer read as success on its own: a hard bounce at the
 offer/rejection moment is exactly the reputation-sensitive failure a recruiter must
 chase, not trust as delivered.
+
+## 8. One delivery truth, on every surface
+
+Delivery truth used to exist in three places and die in two of them.
+
+- **The failure reason is persisted.** `comms.ts` computes a precise dead-letter
+  detail per relay attempt (`http 503`, `getaddrinfo ENOTFOUND relay.example`, a
+  timeout) and used to spend it entirely on the `console.error` + `comms.log` alert.
+  It now rides the row: `dev_outbox.failure_detail` (additive, nullable — legacy
+  failures read as *no reason recorded*, never a fabricated one) is written **only**
+  for `failed` rows, so a stale "http 503" from the retry before the one that worked
+  can never sit next to a green badge. The Comms Center modal shows it on the
+  synchronous-failure path exactly as it already showed `bounceDetail` on the bounce
+  path.
+- **`commsVerdict` is the single vocabulary.** One pure function (`comms-view.ts`)
+  turns a derived row into exactly one of `orphaned | bounced | recovered | failed |
+  sent | queued`, with the derived bits OUTRANKING the stored column. The Comms
+  Center maps it to a badge tone; the candidate drawer maps it to a label + reason
+  line. Neither re-derives anything. Before this, the drawer projected the raw
+  `status` column, so a bounced offer showed a green **sent** there while Channels
+  showed it red, and a recovered dead-letter stayed red in the drawer forever.
+- **The drawer payload carries the derived fields.** `candidate-timeline.ts` projects
+  the comms view through ONE exported mapping (`toCandidateComm`) that carries
+  `verdict` plus `recovered/recoveredAt`, `bounced/bouncedAt/bounceDetail`,
+  `failureDetail` and `deliverable`. Parity is locked by
+  `comms-delivery-truth.test.ts`: for a bounced and a recovered fixture, the drawer
+  projection must carry exactly the verdict `deriveCommsView` + `commsVerdict`
+  produce for the same row.
+- **Resend claims are honest.** Both resend clients (the Dev outbox `ResendButton`
+  and the Comms Center `BouncedResend`) used to throw away the server's 409/422/404
+  explanation and flip to "Resent" on any 2xx — including when the fresh row
+  dead-lettered again. They now surface the server's reason on refusal, and claim
+  success only when the new row is not itself `failed`; a re-failed resend reports it
+  (with the new row's reason) and stays retryable.

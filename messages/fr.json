@@ -1556,6 +1556,18 @@
       "githubRunning": "Analyse en cours…",
       "githubRunFailed": "Échec de l'analyse GitHub approfondie — réessayez sous peu.",
       "messages": "Messages ({count})",
+      "commsVerdict": {
+        "sent": "envoyé",
+        "queued": "en file d'attente",
+        "failed": "échec",
+        "recovered": "rattrapé",
+        "bounced": "non distribué",
+        "orphaned": "accusé non rattaché"
+      },
+      "commsBounceLine": "Le relais a signalé ce message comme non distribuable : {detail}",
+      "commsFailureLine": "La distribution a échoué et n'a pas été retentée : {detail}",
+      "commsRecoveredLine": "Cet envoi a d'abord échoué, puis un renvoi ultérieur est passé.",
+      "commsReasonUnknown": "aucune raison enregistrée",
       "priorLinksRevoked": "{count, plural, one {# lien antérieur a été désactivé} other {# liens antérieurs ont été désactivés}}",
       "revokeLinks": "Révoquer les liens d'entretien",
       "linksRevoked": "{count, plural, =0 {Aucun lien actif à révoquer} one {# lien révoqué — il ne fonctionne plus} other {# liens révoqués — ils ne fonctionnent plus}}",
@@ -3340,7 +3352,11 @@
       "bouncedRecipientPlaceholder": "nom@entreprise.fr",
       "bouncedResendInvalid": "Saisissez une adresse e-mail valide avant de renvoyer.",
       "orphanBadge": "Accusé non rattaché",
-      "orphanHint": "Le relais a signalé un échec de distribution pour un message que kp n'a jamais envoyé — sa référence et son type ne correspondent à rien ici. Vérifiez la correspondance ref/kind dans l'intégration du relais."
+      "orphanHint": "Le relais a signalé un échec de distribution pour un message que kp n'a jamais envoyé — sa référence et son type ne correspondent à rien ici. Vérifiez la correspondance ref/kind dans l'intégration du relais.",
+      "failureDetail": "Échec de la distribution : {detail}",
+      "failureDetailUnknown": "Échec de la distribution — aucune raison n'a été enregistrée pour cet envoi.",
+      "resendRejected": "Renvoi impossible : {reason}",
+      "resendDeadLettered": "Renvoyé, mais de nouveau non distribué."
     },
     "eyebrow": "Espace de travail",
     "title": "Canaux et intégrations",

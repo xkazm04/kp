@@ -1530,6 +1530,18 @@
       "githubRunning": "Analyzuji…",
       "githubRunFailed": "Hloubková analýza GitHubu se nezdařila — zkuste to za chvíli znovu.",
       "messages": "Zprávy ({count})",
+      "commsVerdict": {
+        "sent": "odesláno",
+        "queued": "ve frontě",
+        "failed": "selhalo",
+        "recovered": "napraveno",
+        "bounced": "nedoručeno",
+        "orphaned": "nespárované potvrzení"
+      },
+      "commsBounceLine": "Relay tuto zprávu označil za nedoručitelnou: {detail}",
+      "commsFailureLine": "Doručení selhalo a nebylo zopakováno: {detail}",
+      "commsRecoveredLine": "Toto odeslání nejprve selhalo, pozdější opakování ale prošlo.",
+      "commsReasonUnknown": "důvod nezaznamenán",
       "priorLinksRevoked": "{count, plural, one {# dřívější odkaz byl deaktivován} few {# dřívější odkazy byly deaktivovány} other {# dřívějších odkazů bylo deaktivováno}}",
       "revokeLinks": "Zneplatnit odkazy na pohovor",
       "linksRevoked": "{count, plural, =0 {Žádné aktivní odkazy ke zneplatnění} one {# odkaz zneplatněn — už nefunguje} few {# odkazy zneplatněny — už nefungují} other {# odkazů zneplatněno — už nefungují}}",
@@ -3311,7 +3323,11 @@
       "bouncedRecipientPlaceholder": "jmeno@firma.cz",
       "bouncedResendInvalid": "Před odesláním zadejte platnou e-mailovou adresu.",
       "orphanBadge": "Nespárované potvrzení",
-      "orphanHint": "Relay ohlásil selhání doručení u zprávy, kterou kp nikdy neodeslala — její reference ani typ zde ničemu neodpovídají. Zkontrolujte mapování ref/kind v integraci relaye."
+      "orphanHint": "Relay ohlásil selhání doručení u zprávy, kterou kp nikdy neodeslala — její reference ani typ zde ničemu neodpovídají. Zkontrolujte mapování ref/kind v integraci relaye.",
+      "failureDetail": "Doručení selhalo: {detail}",
+      "failureDetailUnknown": "Doručení selhalo — u tohoto odeslání nebyl zaznamenán žádný důvod.",
+      "resendRejected": "Nepodařilo se odeslat znovu: {reason}",
+      "resendDeadLettered": "Odesláno znovu, ale znovu skončilo jako nedoručené."
     },
     "eyebrow": "Pracovní prostor",
     "title": "Kanály a integrace",

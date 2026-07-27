@@ -1556,6 +1556,18 @@
       "githubRunning": "Wird analysiert…",
       "githubRunFailed": "GitHub-Tiefenanalyse fehlgeschlagen — bitte gleich erneut versuchen.",
       "messages": "Nachrichten ({count})",
+      "commsVerdict": {
+        "sent": "gesendet",
+        "queued": "in Warteschlange",
+        "failed": "fehlgeschlagen",
+        "recovered": "behoben",
+        "bounced": "unzustellbar",
+        "orphaned": "nicht zuordenbare Rückmeldung"
+      },
+      "commsBounceLine": "Das Relay hat diese Nachricht als unzustellbar gemeldet: {detail}",
+      "commsFailureLine": "Zustellung fehlgeschlagen und nicht erneut versucht: {detail}",
+      "commsRecoveredLine": "Dieser Versand schlug zuerst fehl, ein späterer Neuversand kam durch.",
+      "commsReasonUnknown": "kein Grund erfasst",
       "priorLinksRevoked": "{count, plural, one {# früherer Link wurde deaktiviert} other {# frühere Links wurden deaktiviert}}",
       "revokeLinks": "Interview-Links widerrufen",
       "linksRevoked": "{count, plural, =0 {Keine aktiven Links zum Widerrufen} one {# Link widerrufen — er funktioniert nicht mehr} other {# Links widerrufen — sie funktionieren nicht mehr}}",
@@ -3340,7 +3352,11 @@
       "bouncedRecipientPlaceholder": "name@firma.de",
       "bouncedResendInvalid": "Geben Sie vor dem Senden eine gültige E-Mail-Adresse ein.",
       "orphanBadge": "Nicht zuordenbare Rückmeldung",
-      "orphanHint": "Das Relay hat einen Zustellfehler für eine Nachricht gemeldet, die kp nie versendet hat — Referenz und Typ passen zu nichts hier. Prüfen Sie das ref/kind-Mapping in der Relay-Integration."
+      "orphanHint": "Das Relay hat einen Zustellfehler für eine Nachricht gemeldet, die kp nie versendet hat — Referenz und Typ passen zu nichts hier. Prüfen Sie das ref/kind-Mapping in der Relay-Integration.",
+      "failureDetail": "Zustellung fehlgeschlagen: {detail}",
+      "failureDetailUnknown": "Zustellung fehlgeschlagen — für diesen Versand wurde kein Grund erfasst.",
+      "resendRejected": "Erneutes Senden nicht möglich: {reason}",
+      "resendDeadLettered": "Erneut gesendet, aber wieder unzustellbar."
     },
     "eyebrow": "Arbeitsbereich",
     "title": "Kanäle & Integrationen",

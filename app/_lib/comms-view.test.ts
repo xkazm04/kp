@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { deriveCommsView, type OutboxRow } from "./comms-view.ts";
+import { commsVerdict, deriveCommsView, type OutboxRow } from "./comms-view.ts";
 
 function row(p: Partial<OutboxRow> & { id: string; status: OutboxRow["status"]; createdAt: string }): OutboxRow {
   return {
@@ -10,6 +10,7 @@ function row(p: Partial<OutboxRow> & { id: string; status: OutboxRow["status"]; 
     kind: "offer",
     channel: "webhook",
     ref: "ent_1",
+    failureDetail: null,
     ...p,
   };
 }
@@ -132,4 +133,37 @@ test("a receipt for a ref-less/kind-less row is orphaned (it can key onto nothin
   const view = deriveCommsView([row({ id: "r", status: "bounced", createdAt: "t1", ref: null, kind: null })]);
   assert.equal(view.length, 1);
   assert.equal(view[0].orphaned, true);
+});
+
+// --- commsVerdict: the ONE vocabulary every surface renders --------------------
+// Derived bits outrank the stored column, in order — this is the whole reason the
+// Comms Center and the drawer can no longer disagree about the same message.
+
+test("commsVerdict: a derived bit always outranks the stored status", () => {
+  assert.equal(commsVerdict({ status: "sent", bounced: true }), "bounced");
+  assert.equal(commsVerdict({ status: "failed", recovered: true }), "recovered");
+  assert.equal(commsVerdict({ status: "bounced", orphaned: true }), "orphaned");
+  // orphaned wins over bounced (an unmatched receipt is not a bounced message).
+  assert.equal(commsVerdict({ status: "bounced", orphaned: true, bounced: true }), "orphaned");
+});
+
+test("commsVerdict: a clean row reads as its stored status", () => {
+  assert.equal(commsVerdict({ status: "sent" }), "sent");
+  assert.equal(commsVerdict({ status: "queued" }), "queued");
+  assert.equal(commsVerdict({ status: "failed" }), "failed");
+  // A raw receipt row that escaped the fold is named for what it is, not invented
+  // into a message state.
+  assert.equal(commsVerdict({ status: "bounced" }), "orphaned");
+});
+
+test("commsVerdict agrees with the view it is derived from, row by row", () => {
+  const view = deriveCommsView([
+    row({ id: "s", status: "sent", createdAt: "t1" }),
+    row({ id: "b", status: "bounced", createdAt: "t2", body: "550" }),
+    row({ id: "f", status: "failed", kind: "rejection", createdAt: "t1" }),
+    row({ id: "ok", status: "sent", kind: "rejection", createdAt: "t2" }),
+    row({ id: "orph", status: "bounced", kind: "newsletter", createdAt: "t3", body: "?" }),
+  ]);
+  const byId = Object.fromEntries(view.map((m) => [m.id, commsVerdict(m)]));
+  assert.deepEqual(byId, { s: "bounced", f: "recovered", ok: "sent", orph: "orphaned" });
 });

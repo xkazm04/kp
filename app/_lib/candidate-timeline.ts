@@ -5,7 +5,7 @@ import { isScheduleInviteExpired, INVITE_LINK_TTL_DAYS } from "./schedule-slots"
 import { listOffersForEntry } from "./offers-store";
 import { jdSlugOfJobId } from "./jd-limits";
 import { withCanonicalScores } from "./match-score-resolve";
-import { deriveCommsView } from "./comms-view";
+import { commsVerdict, deriveCommsView, type CommsVerdict, type CommsViewRow } from "./comms-view";
 import { consentStatus, consentWithholdsPii, redactTranscriptForConsent, type ConsentStatus } from "./consent";
 import { getInterviewPrep } from "./interview-prep";
 import { isScoreStale } from "@/app/features/sub_decisions/DecisionsTypes";
@@ -61,12 +61,53 @@ export type CandidateTimelineItem = {
 export type CandidateComm = {
   id: string;
   kind: string | null;
+  /** The RAW stored status. Kept for audit, but it is NOT the delivery truth — read
+   *  `verdict`. A bounced offer is stored `sent`; a recovered dead-letter is stored
+   *  `failed`. Rendering this column is exactly how the drawer used to show a green
+   *  "sent" for a message the Comms Center showed as Bounced. */
   status: string;
+  /** The delivery truth for this message, derived by the SAME `commsVerdict` the Comms
+   *  Center renders (comms-view.ts). The two surfaces cannot disagree by construction. */
+  verdict: CommsVerdict;
   channel: string | null;
   subject: string | null;
   body: string | null;
   createdAt: string;
+  /** A `failed` row whose dead-letter a later successful resend resolved. */
+  recovered: boolean;
+  recoveredAt: string | null;
+  /** A `sent` row the relay later reported undeliverable, with the relay's reason. */
+  bounced: boolean;
+  bouncedAt: string | null;
+  bounceDetail: string | null;
+  /** WHY a `failed` row dead-lettered (null on legacy rows — render as unknown). */
+  failureDetail: string | null;
+  /** Could a real relay address this recipient at all? (comms-recipient.ts) */
+  deliverable: boolean;
 };
+
+/** The ONE projection from the derived comms view to the drawer's payload. Exported so
+ *  the projection-parity test can assert it carries exactly the verdict comms-view
+ *  derives, instead of re-deriving anything of its own. */
+export function toCandidateComm(m: CommsViewRow): CandidateComm {
+  return {
+    id: m.id,
+    kind: m.kind,
+    status: m.status,
+    verdict: commsVerdict(m),
+    channel: m.channel,
+    subject: m.subject,
+    body: m.body,
+    createdAt: m.createdAt,
+    recovered: m.recovered,
+    recoveredAt: m.recoveredAt,
+    bounced: m.bounced,
+    bouncedAt: m.bouncedAt,
+    bounceDetail: m.bounceDetail,
+    failureDetail: m.failureDetail,
+    deliverable: m.deliverable,
+  };
+}
 
 // The latest completed voice-interview outcome, derived from its scorecard — the
 // same projection the /api/interview/by-entry read produced for the drawer, now
@@ -262,15 +303,7 @@ function candidateComms(entryId: string, workspaceId: string): CandidateComm[] {
   // deriveCommsView surfaces it, not a letter to show the recruiter mid-history.
   return deriveCommsView(listOutboxFiltered({ ref: entryId, limit: COMMS_LIMIT }, workspaceId))
     .filter((m) => !m.orphaned)
-    .map((m) => ({
-      id: m.id,
-      kind: m.kind,
-      status: m.status,
-      channel: m.channel,
-      subject: m.subject,
-      body: m.body,
-      createdAt: m.createdAt,
-    }));
+    .map(toCandidateComm);
 }
 
 // The latest COMPLETED interview's outcome, consent-gated the same way the

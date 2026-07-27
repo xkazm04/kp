@@ -13,6 +13,7 @@ import { Modal } from "@/app/_components/Modal";
 import { Skeleton } from "@/app/_components/Skeleton";
 import { BTN_PRIMARY, CHIP_TOGGLE, FIELD, META_LABEL } from "@/app/_components/ui/recipes";
 import { isDeliverableAddress } from "@/app/_lib/comms-recipient";
+import { commsVerdict } from "@/app/_lib/comms-view";
 import { labelize } from "@/app/_lib/format";
 import { ColumnFilter } from "./filters";
 
@@ -40,6 +41,9 @@ type Message = {
   bounceDetail?: string | null;
   /** A relay receipt that matched no send of ours (see comms-view.ts). */
   orphaned?: boolean;
+  /** WHY a `failed` row dead-lettered — null on legacy rows written before the
+   *  column existed, which must read as "no reason recorded", not as a clean send. */
+  failureDetail?: string | null;
 };
 type RefInfo = { label: string; jobTitle: string | null };
 
@@ -49,16 +53,29 @@ type RefInfo = { label: string; jobTitle: string | null };
 const isActionable = (m: Message) =>
   (m.status === "failed" && !m.recovered) || Boolean(m.bounced) || Boolean(m.orphaned);
 
+// Tone + copy for ONE shared verdict (comms-view.ts `commsVerdict`) — the same
+// derivation the drawer renders, so the two surfaces can no longer disagree about the
+// same message. This function now only decides how a verdict LOOKS here.
 // `orphanLabel` is threaded in (not hardcoded like its siblings) because it is NEW
 // copy — the surrounding literals are prototype-stage and get localized wholesale in a
 // later pass; anything added now goes through next-intl from the start.
 function statusTone(m: Message, orphanLabel: string): { tone: BadgeTone; label: string } {
-  if (m.orphaned) return { tone: "caution", label: orphanLabel };
-  if (m.bounced) return { tone: "critical", label: "Bounced" };
-  if (m.status === "failed") return m.recovered ? { tone: "positive", label: "Recovered" } : { tone: "critical", label: "Failed" };
-  if (m.status === "sent") return { tone: "positive", label: "Sent" };
-  if (m.status === "queued") return { tone: "info", label: "Queued" };
-  return { tone: "neutral", label: labelize(m.status) };
+  switch (commsVerdict(m)) {
+    case "orphaned":
+      return { tone: "caution", label: orphanLabel };
+    case "bounced":
+      return { tone: "critical", label: "Bounced" };
+    case "recovered":
+      return { tone: "positive", label: "Recovered" };
+    case "failed":
+      return { tone: "critical", label: "Failed" };
+    case "sent":
+      return { tone: "positive", label: "Sent" };
+    case "queued":
+      return { tone: "info", label: "Queued" };
+    default:
+      return { tone: "neutral", label: labelize(m.status) };
+  }
 }
 
 const PAGE_SIZE = 40;
@@ -71,21 +88,40 @@ const PAGE_SIZE = 40;
 function BouncedResend({ id, defaultRecipient, onResent }: { id: string; defaultRecipient: string | null; onResent: () => void }) {
   const t = useTranslations("channels.comms");
   const [recipient, setRecipient] = useState(defaultRecipient ?? "");
-  const [state, setState] = useState<"idle" | "busy" | "done" | "error">("idle");
+  const [state, setState] = useState<"idle" | "busy" | "done" | "deadLettered" | "error">("idle");
+  const [message, setMessage] = useState<string | null>(null);
   const valid = isDeliverableAddress(recipient.trim());
+  // Same honesty fix as ResendButton: surface the server's own refusal reason, and
+  // claim success only when the corrected address actually took.
   const resend = async () => {
     if (state === "busy" || state === "done" || !valid) return;
     setState("busy");
+    setMessage(null);
     try {
       const r = await fetch(`/api/comms/${encodeURIComponent(id)}/resend`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ recipient: recipient.trim() }),
       });
-      if (!r.ok) throw new Error();
+      const payload = (await r.json().catch(() => null)) as
+        | { error?: string; entry?: { status?: string; failureDetail?: string | null } }
+        | null;
+      if (!r.ok) {
+        setMessage(t("resendRejected", { reason: payload?.error ?? t("resendFailed") }));
+        setState("error");
+        return;
+      }
+      if (payload?.entry?.status === "failed") {
+        const detail = payload.entry.failureDetail;
+        setMessage(detail ? `${t("resendDeadLettered")} ${t("failureDetail", { detail })}` : t("resendDeadLettered"));
+        setState("deadLettered");
+        onResent();
+        return;
+      }
       setState("done");
       onResent();
     } catch {
+      setMessage(t("resendFailed"));
       setState("error");
     }
   };
@@ -106,8 +142,11 @@ function BouncedResend({ id, defaultRecipient, onResent }: { id: string; default
         />
       </label>
       <div className="flex items-center justify-between gap-2">
-        <span className="text-xs text-steel" role={state === "error" ? "alert" : undefined}>
-          {state === "error" ? t("resendFailed") : recipient.trim() && !valid ? t("bouncedResendInvalid") : ""}
+        <span
+          className={`text-xs ${state === "error" || state === "deadLettered" ? "text-red-800" : "text-steel"}`}
+          role={message ? "alert" : undefined}
+        >
+          {message ?? (recipient.trim() && !valid ? t("bouncedResendInvalid") : "")}
         </span>
         <button
           type="button"
@@ -338,6 +377,12 @@ export function CommsTable() {
               <p className="flex items-center gap-1.5 rounded-md bg-red-50 px-2 py-1 text-xs font-medium text-red-800">
                 <AlertTriangle size={12} aria-hidden />
                 {t("bouncedAt", { time: open.bouncedAt ? new Date(open.bouncedAt).toLocaleString() : "—", detail: open.bounceDetail ?? "—" })}
+              </p>
+            ) : null}
+            {open.status === "failed" && !open.recovered && !open.bounced ? (
+              <p className="flex items-start gap-1.5 rounded-md bg-red-50 px-2 py-1 text-xs font-medium text-red-800">
+                <AlertTriangle size={12} className="mt-0.5 shrink-0" aria-hidden />
+                {open.failureDetail ? t("failureDetail", { detail: open.failureDetail }) : t("failureDetailUnknown")}
               </p>
             ) : null}
             {open.subject ? <p className="font-semibold text-ink">{open.subject}</p> : null}

@@ -61,7 +61,21 @@ class WebhookChannel implements CommsChannel {
     const envelope = buildCommEnvelope(msg, msg.ref ? getPipelineEntry(msg.ref) : null, new Date().toISOString());
     const { status, attempts, detail } = await this.deliver(envelope);
     if (status === "failed") await this.alertDeadLetter(msg, attempts, detail);
-    return recordOutbox({ recipient: msg.to, subject: msg.subject, body: msg.body, kind: msg.kind, channel: this.name, status, ref: msg.ref });
+    // failure-truth-everywhere: `detail` is the precise reason this attempt died
+    // ("http 503", "getaddrinfo ENOTFOUND …"). It used to be spent entirely on the
+    // dead-letter alert and then dropped, so the row the recruiter actually looks at
+    // said "failed" and nothing more. It now rides the row (recordOutbox keeps it only
+    // for `failed`), which is what the Comms Center reads.
+    return recordOutbox({
+      recipient: msg.to,
+      subject: msg.subject,
+      body: msg.body,
+      kind: msg.kind,
+      channel: this.name,
+      status,
+      ref: msg.ref,
+      failureDetail: detail,
+    });
   }
 
   // Attempt delivery with bounded retry. Returns the terminal status plus how many
