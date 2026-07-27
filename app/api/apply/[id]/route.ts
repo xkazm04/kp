@@ -22,6 +22,7 @@ import { buildApplicantProfile } from "@/app/_lib/applicant-profile";
 import { randomId } from "@/app/_lib/random-id";
 import { getOrCreateStatusLink } from "@/app/_lib/application-status-store";
 import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
+import { safeJsonError } from "@/app/_lib/api-response";
 
 // Mint (or reuse) the candidate's status-link token for an entry (idea-e76a6fb2),
 // best-effort: the application already succeeded, so a status-link failure must
@@ -203,6 +204,9 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // Apply doesn't HARD-block on a missing email (the entry still files; comms
     // just stay undeliverable until a contact is captured) — but a clearly
     // malformed address is rejected so the stored recipient is never junk.
+    // This leniency is for SCRIPTED/webhook callers only; the conversational UI
+    // requires the address. See the decision comment on the `email` step in
+    // app/_lib/apply.ts — that step owns the contract.
     if (email.length > MAX_EMAIL_LENGTH) {
       return NextResponse.json({ error: "Your email is too long." }, { status: 400 });
     }
@@ -403,6 +407,9 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       statusToken,
     });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "apply failed" }, { status: 500 });
+    // Public + unauthenticated: a raw err.message here is SQLite/Python/fs
+    // internals on the wire. Log it server-side, answer generically (same
+    // contract the sibling /api/status token route already follows).
+    return safeJsonError(error, "api:apply", "APPLY_FAILED");
   }
 }

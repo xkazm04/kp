@@ -24,6 +24,7 @@ import {
   seedLeadPrefillAnswers,
   trimSeededSteps,
   mergeDraftAnswers,
+  applyDraftFingerprint,
   isHoneypotFilled,
 } from "./apply-intake.ts";
 import type { JobRecord } from "./db.ts";
@@ -574,6 +575,38 @@ test("trimSeededSteps with no seeded answers returns the full script", () => {
     "ko_auth",
     "ko_lang",
   ]);
+});
+
+// ---------------------------------------------------------------------------
+// applyDraftFingerprint — the saved draft's SCRIPT identity. A draft stores
+// answers keyed by step id plus a positional `idx`; replaying it onto a script
+// that has since changed (job edited so a conditional ko_* gate appeared or
+// vanished, archetype options changed, or the candidate switched language)
+// desyncs the transcript from the questions — and a KO gate that MOVED can be
+// skipped positionally, declining a candidate who actually qualifies. So a
+// mismatch discards the draft. Copy changes must NOT: rewording a prompt can't
+// be allowed to throw away a candidate's half-finished application.
+// ---------------------------------------------------------------------------
+
+test("the fingerprint is stable for the same script + locale", () => {
+  const ids = ["cv", "name", "email", "ko_auth"];
+  assert.equal(applyDraftFingerprint(ids, "cs"), applyDraftFingerprint([...ids], "cs"));
+});
+
+test("a gained, lost, or MOVED step changes the fingerprint (the positional-KO-skip bug)", () => {
+  const base = applyDraftFingerprint(["cv", "name", "email", "ko_auth"], "en");
+  // The job gained a conditional gate (ko_mode is conditional on workMode).
+  assert.notEqual(base, applyDraftFingerprint(["cv", "name", "email", "ko_auth", "ko_mode"], "en"));
+  // …or lost one.
+  assert.notEqual(base, applyDraftFingerprint(["cv", "name", "email"], "en"));
+  // …or kept the same set but REORDERED it: same ids, so an id-only check would
+  // pass while the draft's `idx` now points at a different question.
+  assert.notEqual(base, applyDraftFingerprint(["cv", "name", "ko_auth", "email"], "en"));
+});
+
+test("a locale switch changes the fingerprint (the transcript would be in the wrong language)", () => {
+  const ids = ["cv", "name", "email"];
+  assert.notEqual(applyDraftFingerprint(ids, "en"), applyDraftFingerprint(ids, "cs"));
 });
 
 // ---------------------------------------------------------------------------

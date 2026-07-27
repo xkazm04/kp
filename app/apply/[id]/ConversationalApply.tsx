@@ -1,13 +1,20 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { AiDisclosure } from "@/app/_components/AiDisclosure";
 import { TextInput } from "@/app/_components/TextInput";
 import type { ApplyStep } from "@/app/_lib/apply";
 // Imported straight from the registry-free intake module (not the apply.ts
 // barrel) so the candidate-facing bundle doesn't pull in the archetype registry.
-import { APPLY_EMAIL_RE, coerceGithubHandle, isRetryableApplyStatus, mergeDraftAnswers, nextVisibleStepIndex } from "@/app/_lib/apply-intake";
+import {
+  APPLY_EMAIL_RE,
+  applyDraftFingerprint,
+  coerceGithubHandle,
+  isRetryableApplyStatus,
+  mergeDraftAnswers,
+  nextVisibleStepIndex,
+} from "@/app/_lib/apply-intake";
 import { cvAutofill } from "@/app/_lib/cv-autofill";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 
@@ -37,7 +44,11 @@ export type ApplyPrefill = {
 const draftKey = (jobId: string, leadToken?: string | null) =>
   leadToken ? `kp:apply-draft:${jobId}:${leadToken}` : `kp:apply-draft:${jobId}`;
 
-type ApplyDraft = { idx: number; answers: Record<string, unknown>; msgs: Msg[]; answeredIds: string[] };
+// `fp` pins the SCRIPT the draft was recorded against (applyDraftFingerprint:
+// step ids + locale). Optional in the type because drafts saved before this
+// field existed are still in candidates' browsers — they're treated as a
+// mismatch and discarded, which is the same safe path a genuine desync takes.
+type ApplyDraft = { idx: number; answers: Record<string, unknown>; msgs: Msg[]; answeredIds: string[]; fp?: string };
 
 export function ConversationalApply({
   jobId,
@@ -56,6 +67,11 @@ export function ConversationalApply({
   // token (see draftKey) so a first-time draft and an enrichment draft for the
   // same job never share a slot. Stable across renders (both are props).
   const draftStorageKey = draftKey(jobId, prefill?.leadToken);
+  // The script this visit is actually running. A draft recorded against a
+  // different one (job edited, archetype options changed, language switched)
+  // cannot be replayed onto it — see applyDraftFingerprint.
+  const locale = useLocale();
+  const draftFingerprint = applyDraftFingerprint(steps.map((s) => s.id), locale);
   const [idx, setIdx] = useState(0);
   // Seeded from the server-built steps so the first prompt paints on hydration —
   // no initial fetch, no fatal load-error branch, no Loading… flash. The script
@@ -148,6 +164,15 @@ export function ConversationalApply({
       if (!raw) return;
       const d = JSON.parse(raw) as ApplyDraft;
       if (!d || typeof d.idx !== "number" || d.idx < 0 || d.idx >= steps.length) return;
+      // Script identity, not just a bounds check: `idx` and the answer keys are
+      // only meaningful against the script that recorded them. A mismatch (or a
+      // pre-fingerprint draft) is discarded outright — replaying it would put the
+      // candidate on a different question than their transcript shows and could
+      // skip a KO gate positionally, declining someone who actually qualifies.
+      if (d.fp !== draftFingerprint) {
+        window.localStorage.removeItem(draftStorageKey);
+        return;
+      }
       if (!d.answers || typeof d.answers !== "object" || !Array.isArray(d.msgs) || d.msgs.length === 0) return;
       if (Object.keys(d.answers).length === 0) return;
       answeredRef.current = new Set(Array.isArray(d.answeredIds) ? d.answeredIds : []);
@@ -182,12 +207,12 @@ export function ConversationalApply({
     }
     if (Object.keys(answers).length === 0) return; // nothing worth saving yet
     try {
-      const draft: ApplyDraft = { idx, answers, msgs, answeredIds: [...answeredRef.current] };
+      const draft: ApplyDraft = { idx, answers, msgs, answeredIds: [...answeredRef.current], fp: draftFingerprint };
       window.localStorage.setItem(draftStorageKey, JSON.stringify(draft));
     } catch {
       /* quota / unavailable — best-effort */
     }
-  }, [idx, answers, msgs, done, draftStorageKey]);
+  }, [idx, answers, msgs, done, draftStorageKey, draftFingerprint]);
 
   // Move focus to the first control of a newly-rendered step so keyboard / screen-reader
   // users don't have to tab from the top of the page on every ko / choice / file step (only

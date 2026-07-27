@@ -82,6 +82,14 @@ export const STORE_ERRORS = {
   // Candidate application-status lookup (idea-e76a6fb2) — public token route over
   // the application-status store.
   STATUS_LOOKUP_FAILED: "Could not load your application status. Please try again.",
+  // The two PUBLIC apply submissions (conversational + quick lead form). Their
+  // catch paths sit on better-sqlite3, a Python profile-build subprocess, an fs
+  // temp write and the comms dispatcher — every one throws messages carrying
+  // internal detail (SQLITE_* codes, absolute db/temp paths, Python tracebacks)
+  // that these routes were forwarding verbatim to ANONYMOUS visitors. The
+  // deliberate human-written 4xx validation strings above them stay as they are:
+  // those are client-safe by construction and tell the applicant what to fix.
+  APPLY_FAILED: "Could not submit your application. Please try again.",
   // Standing silver-medalist feed (idea-fdb45cd0) over the rediscovery-alert store.
   REDISCOVERY_ALERTS_FAILED: "Could not load rediscovery alerts. Please try again.",
   // GDPR self-service data/erasure (public token route over the pipeline entry).

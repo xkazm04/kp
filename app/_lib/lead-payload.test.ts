@@ -1,7 +1,7 @@
 // Pins the inbound-webhook lead mapping (Erika gap E3): which payload shapes
-// flatten, which key aliases resolve name/email (with diacritic folding), the
-// email value-scan fallback, and the provided-only KO verdict (explicit
-// negative = fail; absent or uninterpretable = ungated, never a silent
+// flatten, which keys resolve name/email (with diacritic folding), the
+// fail-closed address selection (see pickEmail), and the provided-only KO verdict
+// (explicit negative = fail; absent or uninterpretable = ungated, never a silent
 // discard). This is the trust boundary for every third-party lead source.
 //
 // Runner: Node's built-in test runner with type stripping — npm run test:unit
@@ -70,14 +70,43 @@ test("composes first + last name when no full-name field exists", () => {
   assert.equal(lead.name, "Jana Nová");
 });
 
-test("falls back to scanning values for an email-shaped string", () => {
-  const lead = extractLead({ contact_info: "jana@example.cz", name: "Jana" }, []);
-  assert.equal(lead.email, "jana@example.cz");
-});
-
 test("a malformed value in an email-named field is not an address", () => {
   const lead = extractLead({ email: "not-an-email" }, []);
   assert.equal(lead.email, "");
+});
+
+// ---------------------------------------------------------------------------
+// extractLead — the address IS the identity, so selection fails closed
+//
+// The email becomes the dedupe key AND the recipient of the enrichment lead
+// token + status link. An address belonging to someone else therefore hands one
+// person's application to another — the two guards below are what stop that.
+// ---------------------------------------------------------------------------
+
+test("an email-shaped value under a non-address key is NOT the candidate", () => {
+  // The old last-resort scan read every value, so this adopted the referrer.
+  const lead = extractLead({ name: "Jana", referred_by: "kamarad@example.cz", note: "found via a friend" }, []);
+  assert.equal(lead.email, "", "only a key that NAMES an address may supply the candidate's identity");
+});
+
+test("two distinct addresses in one payload ⇒ ungiven, never a guess", () => {
+  const lead = extractLead({ name: "Jana", email: "jana@example.cz", recruiter_email: "recruiter@agency.cz" }, []);
+  assert.equal(
+    lead.email,
+    "",
+    "field naming across integrations can't rank addresses — refuse (the caller answers 422) rather than mail a stranger the candidate's links"
+  );
+  assert.equal(lead.name, "Jana", "the rest of the mapping still resolves — only the address is withheld");
+});
+
+test("the SAME address repeated across aliases is one address, not an ambiguity", () => {
+  const lead = extractLead({ email: "Jana@Example.cz", email_address: "jana@example.cz" }, []);
+  assert.equal(lead.email, "Jana@Example.cz", "case-insensitive dedupe, original casing preserved");
+});
+
+test("a Czech email alias still resolves as the single address", () => {
+  const lead = extractLead({ "Jméno": "Petr", "E-mailová adresa": "petr@example.cz" }, []);
+  assert.equal(lead.email, "petr@example.cz");
 });
 
 test("yields empty name/email when nothing maps (caller decides the rejection)", () => {

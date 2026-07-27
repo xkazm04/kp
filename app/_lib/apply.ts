@@ -119,6 +119,17 @@ export function buildApplyScript(job: JobRecord, t: ApplyTranslator): ApplyStep[
       // Captured up front so the candidate is reachable: without it every
       // follow-up (acknowledgement, interview invite, offer, rejection) has no
       // address and dead-letters. Stored on the pipeline entry as `contact`.
+      //
+      // DECISION — the email contract, stated once, here (the step that owns it).
+      // This step carries NO `optional: true`, so the conversational UI REQUIRES
+      // an address: a human walking the chat must not be allowed to file an
+      // application we can never answer. The server is deliberately more lenient
+      // (POST /api/apply/[id] validates the SHAPE but files `contact: email ||
+      // null`, and the dedupe has a contactless fallback) — that leniency exists
+      // for SCRIPTED/webhook traffic and legacy contactless rows, NOT as a way
+      // for the UI to skip the step. Do not "align" the two by relaxing this
+      // step or by hard-rejecting a contactless POST: they are different trust
+      // boundaries answering to different callers.
       id: "email",
       type: "text",
       prompt: t("script.emailPrompt"),

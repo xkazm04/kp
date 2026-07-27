@@ -10,6 +10,7 @@ import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
 import { getOrCreateStatusLink } from "@/app/_lib/application-status-store";
 import { isRelayConfigured } from "@/app/_lib/comms-truth";
+import { safeJsonError } from "@/app/_lib/api-response";
 
 // Mint (or reuse) the entry's status-link token, best-effort — the application
 // already succeeded, so a status-link failure must never turn it into an error
@@ -170,6 +171,8 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       statusToken,
     });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "apply failed" }, { status: 500 });
+    // Same public-surface hygiene as the conversational POST: the raw message
+    // behind this catch is store/subprocess internals, never candidate copy.
+    return safeJsonError(error, "api:apply:quick", "APPLY_FAILED");
   }
 }

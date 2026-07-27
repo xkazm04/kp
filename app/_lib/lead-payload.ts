@@ -39,7 +39,12 @@ function normalizeKey(key: string): string {
 const NAME_KEYS = ["name", "full_name", "fullname", "applicant_name", "candidate_name", "jmeno", "jmeno_a_prijmeni", "cele_jmeno"];
 const FIRST_NAME_KEYS = ["first_name", "firstname", "krestni_jmeno"];
 const LAST_NAME_KEYS = ["last_name", "lastname", "prijmeni"];
-const EMAIL_KEYS = ["email", "e_mail", "mail", "email_address", "emailova_adresa", "e_mailova_adresa"];
+// A key that names an address at all — "email", "e_mail", "mail",
+// "email_address", "emailova_adresa"/"e_mailova_adresa" (Czech, post-fold) all
+// carry the token, and nothing else in a lead form does. This is a KEY filter,
+// not a whitelist of candidate-owned keys: see pickEmail for why the value scan
+// is bounded by it.
+const EMAIL_KEY_TOKEN = /mail/;
 // E5 — campaign/creative attribution, the UTM vocabulary plus the ad-platform
 // field names integrations commonly forward.
 const CAMPAIGN_KEYS = ["utm_campaign", "campaign", "campaign_name", "campaign_id"];
@@ -104,9 +109,43 @@ function firstHit(fields: Record<string, string>, keys: readonly string[]): stri
   return "";
 }
 
+/**
+ * The lead's own address, or "" when the payload doesn't unambiguously carry one.
+ *
+ * This value becomes the candidate's IDENTITY: it is the dedupe key, it receives
+ * the enrichment lead token (which opens their application prefilled) and the
+ * status link. Getting it wrong doesn't just misfile a lead — it hands one
+ * person's application to another. So two rules, both fail-closed:
+ *
+ *   1. Only values under a key that NAMES an address are considered. The old
+ *      last-resort scan read EVERY value, so any email-shaped field —
+ *      `hiring_manager`, a referrer's address, a notification sender — could be
+ *      adopted as the applicant.
+ *   2. More than one DISTINCT address ⇒ ungiven. A third-party payload's field
+ *      naming is not trustworthy enough to RANK addresses (`email` vs
+ *      `recruiter_email` vs `email_address` is one integration's convention, not
+ *      a contract), and a confident wrong guess mails a stranger the candidate's
+ *      links. The caller already handles an unreachable lead — it answers 422
+ *      `missing_email` — which is a recoverable, visible outcome; a mis-delivered
+ *      identity is not.
+ *
+ * Case-insensitive dedupe: the SAME address repeated across `email` and
+ * `Email_Address` is one address, not an ambiguity. The original casing is kept.
+ */
+function pickEmail(fields: Record<string, string>): string {
+  const distinct = new Map<string, string>();
+  for (const [key, raw] of Object.entries(fields)) {
+    if (!EMAIL_KEY_TOKEN.test(key)) continue;
+    const value = raw.trim();
+    if (!EMAIL_RE.test(value)) continue; // a malformed value in an email-named field is not an address
+    if (!distinct.has(value.toLowerCase())) distinct.set(value.toLowerCase(), value);
+  }
+  return distinct.size === 1 ? [...distinct.values()][0] : "";
+}
+
 /** Map a raw webhook payload to a lead: name (aliases, else first+last
- *  composition), email (aliases, else a value scan for the first email-shaped
- *  string), and the provided-only KO verdict (explicit negative = fail;
+ *  composition), email (the payload's single email-named address — see
+ *  pickEmail), and the provided-only KO verdict (explicit negative = fail;
  *  absent/uninterpretable = ungated — see ExtractedLead). */
 export function extractLead(payload: unknown, expectedKoIds: readonly string[]): ExtractedLead {
   const fields = flattenLeadFields(payload);
@@ -118,13 +157,7 @@ export function extractLead(payload: unknown, expectedKoIds: readonly string[]):
     name = [first, last].filter(Boolean).join(" ");
   }
 
-  let email = firstHit(fields, EMAIL_KEYS);
-  if (!EMAIL_RE.test(email)) email = "";
-  if (!email) {
-    // Last resort: any value that LOOKS like an address. Integrations love
-    // creative field names; the address shape is the more stable signal.
-    email = Object.values(fields).find((v) => EMAIL_RE.test(v)) ?? "";
-  }
+  const email = pickEmail(fields);
 
   const failedKoIds: string[] = [];
   const ungatedKoIds: string[] = [];
