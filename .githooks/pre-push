@@ -1,0 +1,32 @@
+#!/bin/sh
+# Ship-loop CI-discipline guard (backlog item 50).
+# Pushes to main have repeatedly gone out without the verification gate and
+# turned CI red for a day (see .claude/ship-loop/journal.md, CP7). This hook
+# runs the fast core of the gate — typecheck, lint, build — before any push
+# that updates refs/heads/main. Other branches push freely; CI covers them.
+#
+# Escape hatch (emergencies only, record why in the journal):
+#   KP_SKIP_GATE=1 git push ...
+
+if [ "$KP_SKIP_GATE" = "1" ]; then
+  echo "pre-push: KP_SKIP_GATE=1 — gate skipped. Record the reason in .claude/ship-loop/journal.md." >&2
+  exit 0
+fi
+
+targets_main=0
+while read -r local_ref local_sha remote_ref remote_sha; do
+  case "$remote_ref" in
+    refs/heads/main) targets_main=1 ;;
+  esac
+done
+
+[ "$targets_main" = "1" ] || exit 0
+
+echo "pre-push: push targets main — running the gate (typecheck, lint, build)..." >&2
+
+npm run typecheck || { echo "pre-push: typecheck failed — push blocked." >&2; exit 1; }
+npm run lint      || { echo "pre-push: lint failed — push blocked." >&2; exit 1; }
+npm run build     || { echo "pre-push: build failed — push blocked." >&2; exit 1; }
+
+echo "pre-push: gate green — pushing." >&2
+exit 0
