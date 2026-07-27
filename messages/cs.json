@@ -3309,7 +3309,9 @@
       "bouncedResendHint": "Tato adresa se vrátila jako nedoručitelná — odeslání na stejnou adresu se opět vrátí. Zadejte opravený e-mail a zkuste jinou adresu.",
       "bouncedRecipientLabel": "Opravený e-mail",
       "bouncedRecipientPlaceholder": "jmeno@firma.cz",
-      "bouncedResendInvalid": "Před odesláním zadejte platnou e-mailovou adresu."
+      "bouncedResendInvalid": "Před odesláním zadejte platnou e-mailovou adresu.",
+      "orphanBadge": "Nespárované potvrzení",
+      "orphanHint": "Relay ohlásil selhání doručení u zprávy, kterou kp nikdy neodeslala — její reference ani typ zde ničemu neodpovídají. Zkontrolujte mapování ref/kind v integraci relaye."
     },
     "eyebrow": "Pracovní prostor",
     "title": "Kanály a integrace",

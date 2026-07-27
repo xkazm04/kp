@@ -38,14 +38,22 @@ type Message = {
   bounced?: boolean;
   bouncedAt?: string | null;
   bounceDetail?: string | null;
+  /** A relay receipt that matched no send of ours (see comms-view.ts). */
+  orphaned?: boolean;
 };
 type RefInfo = { label: string; jobTitle: string | null };
 
-// A dead letter (failed, not yet recovered by a later resend) or a sent row the
-// relay later bounced — both need the recruiter to chase.
-const isActionable = (m: Message) => (m.status === "failed" && !m.recovered) || Boolean(m.bounced);
+// A dead letter (failed, not yet recovered by a later resend), a sent row the relay
+// later bounced, or an unmatched relay receipt — all three need the recruiter (or the
+// integrator) to chase.
+const isActionable = (m: Message) =>
+  (m.status === "failed" && !m.recovered) || Boolean(m.bounced) || Boolean(m.orphaned);
 
-function statusTone(m: Message): { tone: BadgeTone; label: string } {
+// `orphanLabel` is threaded in (not hardcoded like its siblings) because it is NEW
+// copy — the surrounding literals are prototype-stage and get localized wholesale in a
+// later pass; anything added now goes through next-intl from the start.
+function statusTone(m: Message, orphanLabel: string): { tone: BadgeTone; label: string } {
+  if (m.orphaned) return { tone: "caution", label: orphanLabel };
   if (m.bounced) return { tone: "critical", label: "Bounced" };
   if (m.status === "failed") return m.recovered ? { tone: "positive", label: "Recovered" } : { tone: "critical", label: "Failed" };
   if (m.status === "sent") return { tone: "positive", label: "Sent" };
@@ -166,7 +174,11 @@ export function CommsTable() {
   );
   // Status options mirror the displayed labels (Sent / Failed / Bounced / …) so the
   // Status column filter reads the same as the column it filters.
-  const statuses = useMemo(() => [...new Set((messages ?? []).map((m) => statusTone(m).label))].sort(), [messages]);
+  const orphanLabel = t("orphanBadge");
+  const statuses = useMemo(
+    () => [...new Set((messages ?? []).map((m) => statusTone(m, orphanLabel).label))].sort(),
+    [messages, orphanLabel]
+  );
 
   if (error) {
     return <p className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{t("loadFailed")}</p>;
@@ -201,7 +213,7 @@ export function CommsTable() {
       (!channelFilter || m.channel === channelFilter) &&
       (!roleFilter || roleOf(m) === roleFilter) &&
       (!kindFilter || m.kind === kindFilter) &&
-      (!statusFilter || statusTone(m).label === statusFilter) &&
+      (!statusFilter || statusTone(m, orphanLabel).label === statusFilter) &&
       matchesQuery(m)
   );
   const shown = filtered.slice(0, visibleCount);
@@ -257,8 +269,10 @@ export function CommsTable() {
             </thead>
             <tbody>
               {shown.map((m) => {
-                const st = statusTone(m);
-                const unaddressable = relayConfigured && m.deliverable === false;
+                const st = statusTone(m, orphanLabel);
+                // An unmatched receipt has no candidate address by construction
+                // ("(relay callback)"), so the no-address warning is noise on it.
+                const unaddressable = relayConfigured && m.deliverable === false && !m.orphaned;
                 return (
                   <tr
                     key={m.id}
@@ -309,11 +323,17 @@ export function CommsTable() {
         <Modal title={nameOf(open)} subtitle={roleOf(open) ?? open.recipient ?? undefined} onClose={() => setOpenId(null)} size="lg">
           <div className="space-y-3">
             <div className="flex flex-wrap items-center gap-2">
-              <Badge {...statusTone(open)} />
+              <Badge {...statusTone(open, orphanLabel)} />
               {open.kind ? <span className="rounded-full bg-stone-100 px-2 py-0.5 text-xs font-semibold uppercase text-steel">{labelize(open.kind)}</span> : null}
               {open.channel ? <span className="text-xs text-steel">via {labelize(open.channel)}</span> : null}
               <span className="ml-auto text-xs text-steel">{new Date(open.createdAt).toLocaleString()}</span>
             </div>
+            {open.orphaned ? (
+              <p className="flex items-start gap-1.5 rounded-md bg-amber-50 px-2 py-1 text-xs font-medium text-amber-800">
+                <AlertTriangle size={12} className="mt-0.5 shrink-0" aria-hidden />
+                {t("orphanHint")}
+              </p>
+            ) : null}
             {open.bounced ? (
               <p className="flex items-center gap-1.5 rounded-md bg-red-50 px-2 py-1 text-xs font-medium text-red-800">
                 <AlertTriangle size={12} aria-hidden />

@@ -148,8 +148,27 @@ later, out-of-band. `POST /api/comms/callback` is where a configured relay
 `ref` (pipeline entry id) + `kind`:
 
 - **Auth is fail-closed.** The endpoint returns `503` unless `COMMS_CALLBACK_SECRET`
-  is set; when it is, every call must present it as the `x-comms-secret` header
-  (or `?secret=`). An unconfigured deployment cannot be poked by a forged receipt.
+  is set; when it is, every call must present it as the `x-comms-secret` **header**
+  — the `?secret=` query form was dropped, because URLs are logged and forwarded by
+  design. The compare is constant-time; an `x-comms-timestamp` (ISO-8601 or epoch-ms)
+  must be within ±5 minutes, and an in-process nonce guard drops an exact replay
+  inside that window. An unconfigured deployment cannot be poked by a forged receipt.
+- **The path is on the public allow-list** (`app/_lib/auth/public-routes.ts`), same
+  rationale as `/api/billing/webhook` and `/api/devcase/inbound`: a machine posts
+  here with no session cookie, so the operator gate (`proxy.ts`) would `401` the
+  relay *before* the shared-secret auth above ever ran — which left the entire bounce
+  subsystem inert in any password-protected deployment. Only `/api/comms/callback`
+  is public; the recruiter read (`/api/comms`) and resend stay gated, and the entry
+  is pinned by `public-routes.test.ts`.
+- **Unmatched ("orphan") receipts are answered, not swallowed.** A receipt is keyed
+  only by `(ref, kind)`. If no send of ours matches that pair — an integrator on a
+  different ref scheme, or a `kind` kp does not emit — the response is
+  `{ recorded: false, reason: "no_matching_send", stored: true }`, so the vocabulary
+  mismatch surfaces on the FIRST call instead of accumulating invisible rows. The
+  receipt is still stored (append-only), and `deriveCommsView` surfaces it in the
+  Comms Center as an actionable **unmatched receipt** (`orphaned: true`) instead of
+  dropping it. Orphan state is *derived*, never frozen into a column, so a receipt
+  that arrives before its send folds normally once the send lands.
 - **Bounce-class outcomes** (`isBounceOutcome`: bounced/complaint/spam/dropped/failed)
   record an **append-only** `bounced` outbox RECEIPT row (`channel = relay-callback`,
   `body = the bounce detail`). Positive/soft outcomes (delivered/opened/deferred) are

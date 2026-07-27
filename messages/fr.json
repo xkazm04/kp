@@ -3338,7 +3338,9 @@
       "bouncedResendHint": "Cette adresse a rebondi — renvoyer au même destinataire échouera de nouveau. Saisissez une adresse e-mail corrigée pour essayer une autre adresse.",
       "bouncedRecipientLabel": "E-mail corrigé",
       "bouncedRecipientPlaceholder": "nom@entreprise.fr",
-      "bouncedResendInvalid": "Saisissez une adresse e-mail valide avant de renvoyer."
+      "bouncedResendInvalid": "Saisissez une adresse e-mail valide avant de renvoyer.",
+      "orphanBadge": "Accusé non rattaché",
+      "orphanHint": "Le relais a signalé un échec de distribution pour un message que kp n'a jamais envoyé — sa référence et son type ne correspondent à rien ici. Vérifiez la correspondance ref/kind dans l'intégration du relais."
     },
     "eyebrow": "Espace de travail",
     "title": "Canaux et intégrations",

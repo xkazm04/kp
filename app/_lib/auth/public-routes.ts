@@ -50,6 +50,15 @@ export const PUBLIC_API_EXACT: ReadonlySet<string> = new Set([
   "/api/devcase/inbound", // candidate apply webhook; the rest of /api/devcase is recruiter
   "/api/interview/connect", // candidate voice runtime; create/by-entry/compare/revoke are recruiter
   "/api/interview/complete",
+  // The relay's asynchronous delivery-receipt callback (bounce/complaint/drop), same
+  // rationale as /api/billing/webhook and /api/devcase/inbound: a MACHINE posts here,
+  // never a browser with a session cookie, so the operator gate would 401 it before its
+  // own auth ran — leaving the whole bounce subsystem inert in any password-protected
+  // deployment. It is NOT unauthenticated: the route is 503 unless COMMS_CALLBACK_SECRET
+  // is set, then requires a constant-time `x-comms-secret` match, a ±5-minute
+  // `x-comms-timestamp`, and a nonce replay guard. The rest of /api/comms (the recruiter
+  // read + resend) stays gated.
+  "/api/comms/callback",
 ]);
 
 // Candidate schedule links are `/api/schedule/<token>` — exactly ONE segment below the

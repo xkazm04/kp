@@ -367,6 +367,37 @@ export type OutboxEntry = {
   createdAt: string;
 };
 
+// Tenant (P1): derive the outbox tenant from the referenced pipeline entry (ref =
+// entry id — comms.ts resolves it via getPipelineEntry) so no comms call site threads
+// a workspace; an entry-less / system message falls back to the default workspace.
+// Shared by the write (recordOutbox) and the relay-callback's orphan probe, so a
+// receipt is looked up in exactly the tenant its send was recorded in.
+function outboxWorkspaceForRef(ref: string | null | undefined): string {
+  if (!ref) return DEFAULT_WORKSPACE_ID;
+  const db = ensureDb();
+  const wsRow = db.prepare(`SELECT workspace_id FROM pipeline_entries WHERE id = ?`).get(ref) as
+    | { workspace_id?: string }
+    | undefined;
+  return wsRow?.workspace_id ?? DEFAULT_WORKSPACE_ID;
+}
+
+/** Does any real SEND exist for this (ref, kind)? — the relay callback's orphan probe.
+ *
+ *  A delivery receipt is keyed only by (ref, kind); one naming a pair kp never sent is
+ *  an integrator vocabulary mismatch (wrong ref scheme, a kind we don't emit), not a
+ *  bounce. The callback answers such a receipt `recorded:false, reason:"no_matching_send"`
+ *  so the mismatch surfaces on the FIRST call instead of accumulating rows that fold
+ *  onto nothing. `bounced` rows are receipts, not sends, so they never count as a match. */
+export function hasOutboxSendFor(ref: string, kind: string): boolean {
+  const db = ensureDb();
+  const r = db
+    .prepare(
+      `SELECT 1 FROM dev_outbox WHERE workspace_id = ? AND ref = ? AND kind = ? AND status <> 'bounced' LIMIT 1`
+    )
+    .get(outboxWorkspaceForRef(ref), ref, kind);
+  return Boolean(r);
+}
+
 export function recordOutbox(input: {
   recipient: string;
   subject: string;
@@ -379,13 +410,7 @@ export function recordOutbox(input: {
   const db = ensureDb();
   const now = new Date().toISOString();
   const id = randomId("out");
-  // Tenant (P1): derive from the referenced pipeline entry (ref = entry id — comms.ts
-  // resolves it via getPipelineEntry) so no comms call site threads a workspace; an
-  // entry-less / system message falls back to the default workspace.
-  const wsRow = input.ref
-    ? (db.prepare(`SELECT workspace_id FROM pipeline_entries WHERE id = ?`).get(input.ref) as { workspace_id?: string } | undefined)
-    : undefined;
-  const workspaceId = wsRow?.workspace_id ?? "workspace";
+  const workspaceId = outboxWorkspaceForRef(input.ref);
   db.prepare(
     `INSERT INTO dev_outbox (id, recipient, subject, body, kind, channel, status, ref, created_at, workspace_id)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`

@@ -256,15 +256,21 @@ function candidateTimelineForEntry(
 function candidateComms(entryId: string, workspaceId: string): CandidateComm[] {
   // deriveCommsView (the /api/comms derivation): supersession-aware and folds
   // bounce-receipt rows onto their send, so a receipt never renders as a message.
-  return deriveCommsView(listOutboxFiltered({ ref: entryId, limit: COMMS_LIMIT }, workspaceId)).map((m) => ({
-    id: m.id,
-    kind: m.kind,
-    status: m.status,
-    channel: m.channel,
-    subject: m.subject,
-    body: m.body,
-    createdAt: m.createdAt,
-  }));
+  // `orphaned` receipts (a relay reporting a failure for a (ref, kind) we never sent)
+  // are dropped here too — this section is "the letters this candidate received", and
+  // an unmatched receipt is an INTEGRATION fault, actionable in the Comms Center where
+  // deriveCommsView surfaces it, not a letter to show the recruiter mid-history.
+  return deriveCommsView(listOutboxFiltered({ ref: entryId, limit: COMMS_LIMIT }, workspaceId))
+    .filter((m) => !m.orphaned)
+    .map((m) => ({
+      id: m.id,
+      kind: m.kind,
+      status: m.status,
+      channel: m.channel,
+      subject: m.subject,
+      body: m.body,
+      createdAt: m.createdAt,
+    }));
 }
 
 // The latest COMPLETED interview's outcome, consent-gated the same way the

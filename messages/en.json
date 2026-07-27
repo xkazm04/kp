@@ -3309,7 +3309,9 @@
       "bouncedResendHint": "This address bounced — resending to the same one will bounce again. Enter a corrected email to try a different address.",
       "bouncedRecipientLabel": "Corrected email",
       "bouncedRecipientPlaceholder": "name@company.com",
-      "bouncedResendInvalid": "Enter a valid email address before resending."
+      "bouncedResendInvalid": "Enter a valid email address before resending.",
+      "orphanBadge": "Unmatched receipt",
+      "orphanHint": "The relay reported a delivery failure for a message kp never sent — its reference or type matches nothing here. Check the ref/kind mapping in the relay integration."
     },
     "eyebrow": "Workspace",
     "title": "Channels & integrations",

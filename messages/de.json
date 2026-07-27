@@ -3338,7 +3338,9 @@
       "bouncedResendHint": "Diese Adresse ist unzustellbar — ein erneuter Versand an dieselbe Adresse schlägt wieder fehl. Geben Sie eine korrigierte E-Mail-Adresse ein, um eine andere Adresse zu versuchen.",
       "bouncedRecipientLabel": "Korrigierte E-Mail",
       "bouncedRecipientPlaceholder": "name@firma.de",
-      "bouncedResendInvalid": "Geben Sie vor dem Senden eine gültige E-Mail-Adresse ein."
+      "bouncedResendInvalid": "Geben Sie vor dem Senden eine gültige E-Mail-Adresse ein.",
+      "orphanBadge": "Nicht zuordenbare Rückmeldung",
+      "orphanHint": "Das Relay hat einen Zustellfehler für eine Nachricht gemeldet, die kp nie versendet hat — Referenz und Typ passen zu nichts hier. Prüfen Sie das ref/kind-Mapping in der Relay-Integration."
     },
     "eyebrow": "Arbeitsbereich",
     "title": "Kanäle & Integrationen",
