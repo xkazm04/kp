@@ -1,4 +1,8 @@
 pypdf>=5.1.0
+# Voice eval plane (pipeline/jobfit/eval/voice): PCM resampling in tts.py imports
+# numpy at module level, and test_voice_harness pins that contract in CI.
+numpy>=1.26
+
 pydantic>=2.7.0
 google-genai>=1.64.0
 python-dotenv>=1.0.1

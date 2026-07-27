@@ -20,9 +20,11 @@ import unittest
 from pathlib import Path
 
 # Skips we knowingly tolerate in a keyless CI: the live Claude-CLI smoke, the
-# Gemini-key PDF test, and the two personal-CV fixtures that are not in the repo.
+# Gemini-key PDF test, the two personal-CV fixtures that are not in the repo, and
+# the interview-eval grounded bridge (spawns node + better-sqlite3, which the
+# Python-only CI job does not install).
 # Bump this DELIBERATELY (with a comment) when a new tolerated skip is added.
-SKIP_BASELINE = int(os.getenv("KP_SKIP_BASELINE", "4"))
+SKIP_BASELINE = int(os.getenv("KP_SKIP_BASELINE", "5"))
 
 TESTS_DIR = Path(__file__).resolve().parent
 REPO_ROOT = TESTS_DIR.parents[2]
