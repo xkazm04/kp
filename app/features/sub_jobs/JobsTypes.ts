@@ -45,6 +45,18 @@ export type Job = {
   description?: string;
   requirements?: JobRequirement[];
   detectedSkills?: string[];
+  // A bare [min, max] gross pay band carrying NO unit of its own: by contract it is
+  // denominated in APP_CURRENCY (format.ts) per the active market's pay PERIOD —
+  // CZK/month for the shipped Czech default. Every producer is held to that contract:
+  // a band the pipeline anchors from the taxonomy comes straight out of the
+  // Czech-calibrated benchmarks, and the LLM ingest prompt (jobs.py
+  // _build_extraction_prompt) asks the parser for the range "in whatever currency it
+  // uses" over the ACTIVE market's period — so the PERIOD is normalized upstream but
+  // the CURRENCY is not. A foreign-currency ad therefore lands here as a number that
+  // renders under the CZK label. Consumers must NOT invent a per-band currency to
+  // paper over that; the honest fix is upstream (make the parser reject or convert a
+  // non-market currency), tracked as such. Non-goal everywhere in the app: FX
+  // conversion — see isSameCurrency in salary-band.ts.
   salaryBand?: number[];
   entryProfile?: JobEntryProfile | null;
   // Provenance from normalize_job (jobs.py DEFAULT_POLICY): field names that were
@@ -144,6 +156,11 @@ export { ARCHETYPE_BADGE, isEarlyCareer } from "@/app/_lib/archetypes";
 // via useEnumLabel). RecruiterCandidates — the only consumer of the old fork here —
 // now imports it from there.
 
+// Compact table-cell band ("80–110k"): thousands of the Job.salaryBand contract's
+// currency, per its period. Deliberately unitless in the CELL because the column
+// HEADER carries the unit once (messages `jobs.table.colSalary` — "Salary (CZK/mo)" /
+// "Mzda (Kč/měs)"), which is where a per-column unit belongs; a bare "80–110k" with
+// no header unit anywhere would be the unlabelled-figure bug. Keep the two in step.
 export function formatBand(band?: number[]): string {
   if (!band || band.length < 2) return "—";
   return `${Math.round(band[0] / 1000)}–${Math.round(band[1] / 1000)}k`;
