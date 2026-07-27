@@ -82,6 +82,8 @@ export const STORE_ERRORS = {
   // Candidate application-status lookup (idea-e76a6fb2) — public token route over
   // the application-status store.
   STATUS_LOOKUP_FAILED: "Could not load your application status. Please try again.",
+  // Art. 86 candidate decision history (public status-token sibling route).
+  STATUS_DECISIONS_FAILED: "Could not load your decision history. Please try again.",
   // The two PUBLIC apply submissions (conversational + quick lead form). Their
   // catch paths sit on better-sqlite3, a Python profile-build subprocess, an fs
   // temp write and the comms dispatcher — every one throws messages carrying

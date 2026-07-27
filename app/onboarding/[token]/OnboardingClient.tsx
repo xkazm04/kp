@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { AiDisclosure } from "@/app/_components/AiDisclosure";
 import { TextInput } from "@/app/_components/TextInput";
 import { Skeleton } from "@/app/_components/Skeleton";
 import { hasAnyIntakeAnswer } from "@/app/_lib/onboarding-intake";
@@ -233,6 +234,9 @@ export function OnboardingClient() {
                   </button>
                 </>
               )}
+              {/* Art. 50 transparency note — same muted near-footer placement as the
+                  sibling schedule/offer token pages (EU AI-Act pack G9). */}
+              <AiDisclosure className="mt-6" />
             </>
           )}
         </div>

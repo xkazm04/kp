@@ -958,7 +958,31 @@
     "notSelectedTitle": "Diesmal nicht ausgewählt",
     "notSelectedBody": "Vielen Dank für Ihre Bewerbung. Das Team hat sich für diese Position für andere Kandidatinnen und Kandidaten entschieden. Über eine erneute Bewerbung auf künftige Stellen freuen wir uns.",
     "withdrawnTitle": "Bewerbung geschlossen",
-    "withdrawnBody": "Diese Bewerbung ist geschlossen. Sollte das nicht korrekt sein, wenden Sie sich bitte an das Recruiting-Team."
+    "withdrawnBody": "Diese Bewerbung ist geschlossen. Sollte das nicht korrekt sein, wenden Sie sich bitte an das Recruiting-Team.",
+    "decisions": {
+      "title": "Wie Entscheidungen zu Ihrer Bewerbung getroffen wurden",
+      "automated": "Automatisiert",
+      "human": "Menschliche Entscheidung",
+      "humanReviewNote": "Sie können jederzeit eine menschliche Überprüfung jeder Entscheidung anfordern — antworten Sie einfach auf eine beliebige Nachricht des Recruiting-Teams.",
+      "reasons": {
+        "reject": "Die entscheidenden Fakten: Ihr Match-Score von {score} lag unter dem Screening-Schwellenwert von {threshold}."
+      },
+      "kinds": {
+        "auto_rejected": "Bewerbung im automatisierten Screening nicht weitergekommen",
+        "rejected": "Bewerbung nicht weitergekommen",
+        "advanced": "Bewerbung in die nächste Phase weitergerückt",
+        "auto_advanced": "Bewerbung in die nächste Phase weitergerückt",
+        "reinstated": "Bewerbung nach Überprüfung wieder aufgenommen",
+        "interview_scheduled": "Interview geplant",
+        "interview_cancelled": "Interview abgesagt",
+        "interview_no_show": "Interview als verpasst vermerkt",
+        "interview_proposal_declined": "Vorgeschlagener Interviewtermin abgelehnt",
+        "ai_scorecard": "Interview mit KI-Unterstützung ausgewertet",
+        "human_scorecard": "Interview von einer Interviewerin bzw. einem Interviewer ausgewertet",
+        "group_eval": "Bewerbung innerhalb der Kandidatengruppe für diese Stelle verglichen",
+        "offer_terms": "Angebotskonditionen vorbereitet"
+      }
+    }
   },
   "apply": {
     "eyebrow": "Bewerben",

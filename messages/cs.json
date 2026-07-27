@@ -932,7 +932,31 @@
     "notSelectedTitle": "Tentokrát jste nebyl/a vybrán/a",
     "notSelectedBody": "Děkujeme za vaši přihlášku. Tým se rozhodl pokračovat s jinými kandidáty na tuto roli. Budeme rádi za vaši přihlášku na budoucí pozice.",
     "withdrawnTitle": "Přihláška uzavřena",
-    "withdrawnBody": "Tato přihláška je uzavřena. Pokud to není správně, kontaktujte prosím náborový tým."
+    "withdrawnBody": "Tato přihláška je uzavřena. Pokud to není správně, kontaktujte prosím náborový tým.",
+    "decisions": {
+      "title": "Jak vznikala rozhodnutí o vaší přihlášce",
+      "automated": "Automatizované",
+      "human": "Lidské rozhodnutí",
+      "humanReviewNote": "Kdykoli můžete požádat o lidské přezkoumání kteréhokoli rozhodnutí — stačí odpovědět na libovolnou zprávu od náborového týmu.",
+      "reasons": {
+        "reject": "Rozhodující skutečnosti: vaše skóre shody {score} bylo pod prahem pro postup {threshold}."
+      },
+      "kinds": {
+        "auto_rejected": "Přihláška nepostoupila při automatizovaném předvýběru",
+        "rejected": "Přihláška nepostoupila",
+        "advanced": "Přihláška postoupila do další fáze",
+        "auto_advanced": "Přihláška postoupila do další fáze",
+        "reinstated": "Přihláška obnovena po přezkoumání",
+        "interview_scheduled": "Pohovor naplánován",
+        "interview_cancelled": "Pohovor zrušen",
+        "interview_no_show": "Pohovor zaznamenán jako zmeškaný",
+        "interview_proposal_declined": "Navržený termín pohovoru odmítnut",
+        "ai_scorecard": "Pohovor vyhodnocen s asistencí AI",
+        "human_scorecard": "Pohovor vyhodnocen tazatelem",
+        "group_eval": "Přihláška porovnána v rámci skupiny uchazečů o tuto pozici",
+        "offer_terms": "Připraveny podmínky nabídky"
+      }
+    }
   },
   "apply": {
     "eyebrow": "Přihláška",

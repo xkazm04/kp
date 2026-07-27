@@ -958,7 +958,31 @@
     "notSelectedTitle": "Non retenu(e) cette fois-ci",
     "notSelectedBody": "Merci de votre candidature. L'équipe a décidé de poursuivre avec d'autres candidats pour ce poste. Nous serions ravis de recevoir une future candidature à mesure que nos postes évoluent.",
     "withdrawnTitle": "Candidature clôturée",
-    "withdrawnBody": "Cette candidature est clôturée. Si ce n'est pas correct, veuillez contacter l'équipe de recrutement."
+    "withdrawnBody": "Cette candidature est clôturée. Si ce n'est pas correct, veuillez contacter l'équipe de recrutement.",
+    "decisions": {
+      "title": "Comment les décisions concernant votre candidature ont été prises",
+      "automated": "Automatisée",
+      "human": "Décision humaine",
+      "humanReviewNote": "Vous pouvez à tout moment demander un réexamen humain de toute décision — il vous suffit de répondre à n'importe quel message de l'équipe de recrutement.",
+      "reasons": {
+        "reject": "Les éléments décisifs : votre score de correspondance de {score} était inférieur au seuil de présélection de {threshold}."
+      },
+      "kinds": {
+        "auto_rejected": "Candidature non retenue lors de la présélection automatisée",
+        "rejected": "Candidature non retenue",
+        "advanced": "Candidature avancée à l'étape suivante",
+        "auto_advanced": "Candidature avancée à l'étape suivante",
+        "reinstated": "Candidature réintégrée après réexamen",
+        "interview_scheduled": "Entretien planifié",
+        "interview_cancelled": "Entretien annulé",
+        "interview_no_show": "Entretien enregistré comme manqué",
+        "interview_proposal_declined": "Créneau d'entretien proposé décliné",
+        "ai_scorecard": "Entretien évalué avec l'assistance de l'IA",
+        "human_scorecard": "Entretien évalué par un intervieweur",
+        "group_eval": "Candidature comparée au sein du groupe de candidats pour ce poste",
+        "offer_terms": "Conditions de l'offre préparées"
+      }
+    }
   },
   "apply": {
     "eyebrow": "Postuler",

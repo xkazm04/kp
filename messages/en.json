@@ -932,7 +932,31 @@
     "notSelectedTitle": "Not selected this time",
     "notSelectedBody": "Thank you for applying. The team has decided to move forward with other candidates for this role. We'd welcome a future application as our openings evolve.",
     "withdrawnTitle": "Application closed",
-    "withdrawnBody": "This application is closed. If that's not right, please contact the hiring team."
+    "withdrawnBody": "This application is closed. If that's not right, please contact the hiring team.",
+    "decisions": {
+      "title": "How decisions about your application were made",
+      "automated": "Automated",
+      "human": "Human decision",
+      "humanReviewNote": "You can request a human review of any decision at any time — just reply to any message from the hiring team.",
+      "reasons": {
+        "reject": "The decisive facts: your match score of {score} was below the screening threshold of {threshold}."
+      },
+      "kinds": {
+        "auto_rejected": "Application not progressed at automated screening",
+        "rejected": "Application not progressed",
+        "advanced": "Application advanced to the next stage",
+        "auto_advanced": "Application advanced to the next stage",
+        "reinstated": "Application reinstated after review",
+        "interview_scheduled": "Interview scheduled",
+        "interview_cancelled": "Interview cancelled",
+        "interview_no_show": "Interview recorded as missed",
+        "interview_proposal_declined": "Proposed interview time declined",
+        "ai_scorecard": "Interview assessed with AI assistance",
+        "human_scorecard": "Interview assessed by an interviewer",
+        "group_eval": "Application compared within the candidate group for this role",
+        "offer_terms": "Offer terms prepared"
+      }
+    }
   },
   "apply": {
     "eyebrow": "Apply",
