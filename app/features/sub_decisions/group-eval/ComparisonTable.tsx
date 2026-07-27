@@ -13,7 +13,7 @@ import {
   SkillsLegend,
   type SalaryScale,
 } from "./ComparisonCells";
-import { coverageCount, percentOf } from "./helpers";
+import { coverageCount, percentOf, rowLeader } from "./helpers";
 import { Avatar, Pill, SectionTitle } from "./primitives";
 import { candIdentity, type EvalCandidate } from "./types";
 
@@ -82,7 +82,10 @@ function RowHead({ title, sub }: { title: string; sub?: string }) {
 
 // A generic comparison row: a sticky label cell + one value cell per candidate.
 // `leaderValue` (when given) tints the winning cell so the column comparison reads
-// without hunting for the highest number.
+// without hunting for the highest number. It returns null for an ABSENT value (an
+// unscored candidate, a missing breakdown dimension) — never a sentinel number:
+// rowLeader then withholds the wash entirely on a row nobody wins (all absent, or
+// an exact tie across the board) instead of washing every column.
 function Row({
   head,
   candidates,
@@ -92,16 +95,16 @@ function Row({
   head: React.ReactNode;
   candidates: EvalCandidate[];
   render: (c: EvalCandidate, isLeader: boolean) => React.ReactNode;
-  leaderValue?: (c: EvalCandidate) => number;
+  leaderValue?: (c: EvalCandidate) => number | null;
 }) {
-  const leader = leaderValue && candidates.length > 1 ? Math.max(...candidates.map(leaderValue)) : null;
+  const leader = leaderValue && candidates.length > 1 ? rowLeader(candidates.map(leaderValue)) : null;
   return (
     <tr className="border-b border-stone-100 last:border-0">
       <th scope="row" className="sticky left-0 z-10 bg-white px-3 py-2 text-left align-middle">
         {head}
       </th>
       {candidates.map((c) => {
-        const isLeader = leader != null && leader > -Infinity && leaderValue!(c) === leader;
+        const isLeader = leader != null && leaderValue!(c) === leader;
         // Leader wash is stronger in dark — /5 moss vanishes against the dark
         // surface; /15 plus a moss edge keeps the front-runner column scannable.
         return (
@@ -198,8 +201,9 @@ export function ComparisonTable({
           {/* Overview */}
           <tbody>
             <GroupTr label={t("overview")} cols={cols} />
-            {/* Unscored → -1 for the leader tint only (an absent score can never win the row). */}
-            <Row head={<RowHead title={t("overallFit")} />} candidates={candidates} leaderValue={(c) => c.score ?? -1} render={(c) => <FitCell c={c} />} />
+            {/* An unscored candidate reports null — absent, not a sentinel — so it can
+                never win the row AND an all-unscored row crowns nobody. */}
+            <Row head={<RowHead title={t("overallFit")} />} candidates={candidates} leaderValue={(c) => c.score} render={(c) => <FitCell c={c} />} />
             <Row head={<RowHead title={t("confidenceBand")} />} candidates={candidates} render={(c) => <ConfidenceCell c={c} />} />
             <Row head={<RowHead title={t("profile")} />} candidates={candidates} render={(c) => <ProfileCell c={c} />} />
             {mustRows.length ? (
@@ -221,7 +225,7 @@ export function ComparisonTable({
                   key={d.key}
                   head={<RowHead title={d.label} sub={t("weight", { weight: d.weight })} />}
                   candidates={candidates}
-                  leaderValue={(c) => percentOf(c, d.key) ?? -1}
+                  leaderValue={(c) => percentOf(c, d.key)}
                   render={(c, isLeader) => <DimCell c={c} dimKey={d.key} isLeader={isLeader} />}
                 />
               ))}

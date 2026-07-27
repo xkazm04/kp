@@ -7,6 +7,7 @@ import { getGroupEval, saveGroupEval } from "./group-eval";
 import { isEarlyCareer } from "./archetypes";
 import { APP_CURRENCY } from "./format";
 import { isSameCurrency } from "./salary-band";
+import { FIT_PROMISING_FLOOR } from "./fit-thresholds";
 import { poolEntryFromAnalysis, type CandidatePoolEntry } from "./candidate-pool";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "./python-runner";
 import { rankPoolForJob } from "./recruiter-run";
@@ -477,7 +478,11 @@ export async function runGroupEval(
 
   const risks: string[] = [];
   for (const c of candidates) {
-    if (c.score != null && c.score > 0 && c.score < 55) risks.push(`${c.label}: lower fit (${c.score}) — confirm must-haves at interview.`);
+    // Lower-fit watch-out. `score != null` ALREADY means measured (REC-03: an unscored
+    // candidate carries null, never a fabricated 0), so the old `> 0` clause exempted
+    // exactly the worst measured candidate in the field — a genuine 0 — from the flag.
+    // The floor is the shared FIT_PROMISING_FLOOR, not a re-hardcoded 55.
+    if (c.score != null && c.score < FIT_PROMISING_FLOOR) risks.push(`${c.label}: lower fit (${c.score}) — confirm must-haves at interview.`);
     if (isEarlyCareer(c.archetype)) risks.push(`${c.label}: early-career — assess potential and trajectory, not only current skills.`);
     if (c.gaps.length) risks.push(`${c.label}: gaps in ${c.gaps.slice(0, 3).join(", ")}.`);
   }

@@ -10,6 +10,25 @@ export const ranWhen = (iso?: string | null): string | null => {
 };
 
 export const percentOf = (c: EvalCandidate, key: string) => c.scoreBreakdown?.find((d) => d.key === key)?.percent ?? null;
+
+/** The value that wins a comparison row, or null when NOBODY wins it.
+ *
+ *  The leader wash is a claim ("this column leads the row"), so it must only appear
+ *  when the row actually discriminates. Two states produce no leader:
+ *    • every value is absent (null) — an all-unscored field. The row used to map
+ *      absent → a -1 SENTINEL and take Math.max, and `-1 > -Infinity` passed, so the
+ *      wash was painted on EVERY column of a row where nothing was measured.
+ *    • every PRESENT value is identical — an exact tie is a tie, not a lead. (A single
+ *      measured value among absent ones falls here too: the wash claims "this column
+ *      beat the others", and an unscored column was never in the race.)
+ *  A tie AT the top of an otherwise-varying row keeps the wash on each tied column:
+ *  they genuinely share the lead, and the row still discriminates against the rest. */
+export function rowLeader(values: (number | null)[]): number | null {
+  const present = values.filter((v): v is number => v != null);
+  if (present.length === 0) return null;
+  if (present.every((v) => v === present[0])) return null;
+  return Math.max(...present);
+}
 export const coverageCount = (c: EvalCandidate, mustRows: string[]) => mustRows.filter((s) => (c.matchedSkills ?? []).includes(s)).length;
 
 // Canonical skill rows: the role's requirements (must-have first), else the union
