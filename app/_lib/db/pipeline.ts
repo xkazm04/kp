@@ -220,6 +220,10 @@ type PipelineRow = {
   // must never ride a list payload into the browser. Read via findEntryByLeadToken.
   lead_token?: string | null;
   lead_passed_ko_json?: string | null;
+  // Recorded unmet-checklist gaps for this entry's profile — read through
+  // findEntryByLeadToken (candidate follow-up) and entryProfileGaps (server-side),
+  // not mapped onto the PipelineEntry client view.
+  profile_gaps_json?: string | null;
   // GDPR consent lifecycle (consent.ts). The 4 dated fields map onto PipelineEntry;
   // erasure_token does NOT (capability token, internal-only, like lead_token).
   consent_given_at?: string | null;
@@ -1055,7 +1059,79 @@ export type LeadEnrichTarget = {
   /** KO step ids the lead EXPLICITLY answered true at intake — recorded
    *  pass-state, never derived. Empty when nothing was verified. */
   passedKoIds: string[];
+  /** The archetype checklist's still-unmet items for this entry's profile
+   *  (profile_cli `missingGaps`) — what the candidate can still be asked. Empty
+   *  when nothing was recorded, or when every recorded gap has been answered. */
+  profileGaps: EntryProfileGap[];
 };
+
+/** One recorded, still-unmet checklist item. Structurally the pure module's
+ *  CompletenessGap; re-declared here so the DB layer stays import-free of app
+ *  logic (the two are asserted compatible at every call site by the compiler). */
+export type EntryProfileGap = { check: string; label: string };
+
+// Bounds on the recorded gap list, applied at write AND read — it rides a public
+// candidate payload, so a corrupt column can never balloon a response.
+const PROFILE_GAPS_MAX = 12;
+const PROFILE_GAP_CHECK_MAX = 64;
+const PROFILE_GAP_LABEL_MAX = 160;
+
+// Record (REPLACE) the entry's still-unmet checklist gaps. Rewritten wholesale
+// rather than merged: the list is always the authoritative output of the profile
+// build (or of the re-normalization after a gap answer merged), so appending
+// would resurrect gaps the candidate has already closed. An empty list clears the
+// column — "nothing left to ask". Best-effort by contract: the caller's
+// application/merge has already succeeded, so a failure here is logged upstream,
+// never fatal. Returns true when a row was touched.
+export function setEntryProfileGaps(
+  entryId: string,
+  gaps: readonly EntryProfileGap[],
+  workspaceId: string = DEFAULT_WORKSPACE_ID
+): boolean {
+  const db = ensureDb();
+  const bounded = gaps
+    .filter((g) => typeof g?.check === "string" && g.check.length > 0 && g.check.length <= PROFILE_GAP_CHECK_MAX)
+    .slice(0, PROFILE_GAPS_MAX)
+    .map((g) => ({ check: g.check, label: String(g.label ?? "").slice(0, PROFILE_GAP_LABEL_MAX) }));
+  const info = db
+    .prepare(`UPDATE pipeline_entries SET profile_gaps_json = ?, updated_at = ? WHERE id = ? AND workspace_id = ?`)
+    .run(bounded.length ? JSON.stringify(bounded) : null, new Date().toISOString(), entryId, workspaceId);
+  return Number(info.changes) > 0;
+}
+
+// Read the recorded gaps for an entry (server-side; the candidate path reads them
+// through findEntryByLeadToken's capability lookup instead).
+export function entryProfileGaps(entryId: string, workspaceId: string = DEFAULT_WORKSPACE_ID): EntryProfileGap[] {
+  const db = ensureDb();
+  const row = db
+    .prepare(`SELECT profile_gaps_json FROM pipeline_entries WHERE id = ? AND workspace_id = ?`)
+    .get(entryId, workspaceId) as { profile_gaps_json: string | null } | undefined;
+  return row ? parseProfileGaps(row.profile_gaps_json, entryId) : [];
+}
+
+// Revive the recorded gaps at the read boundary, same degrade-to-safe discipline
+// as parseLeadPassedKo: corrupt or mis-shaped JSON yields [] — the candidate is
+// simply asked nothing — never a fabricated question.
+function parseProfileGaps(json: string | null | undefined, entryId: string): EntryProfileGap[] {
+  if (!json) return [];
+  try {
+    const parsed = JSON.parse(json);
+    if (!Array.isArray(parsed)) return [];
+    const out: EntryProfileGap[] = [];
+    for (const item of parsed) {
+      if (out.length >= PROFILE_GAPS_MAX) break;
+      if (!item || typeof item !== "object") continue;
+      const check = (item as { check?: unknown }).check;
+      const label = (item as { label?: unknown }).label;
+      if (typeof check !== "string" || !check || check.length > PROFILE_GAP_CHECK_MAX) continue;
+      out.push({ check, label: typeof label === "string" ? label.slice(0, PROFILE_GAP_LABEL_MAX) : "" });
+    }
+    return out;
+  } catch (error) {
+    console.error(`[db] corrupt profile_gaps_json on pipeline entry "${entryId}"`, error);
+    return [];
+  }
+}
 
 // Resolve a lead-enrichment token back to its entry (+ recorded KO pass-state).
 // The caller-facing contract is deliberately soft: unknown/blank tokens return
@@ -1068,7 +1144,11 @@ export function findEntryByLeadToken(token: string): LeadEnrichTarget | null {
   const db = ensureDb();
   const row = db.prepare(`SELECT * FROM pipeline_entries WHERE lead_token = ?`).get(key) as PipelineRow | undefined;
   if (!row) return null;
-  return { entry: rowToEntry(row), passedKoIds: parseLeadPassedKo(row.lead_passed_ko_json, row.id) };
+  return {
+    entry: rowToEntry(row),
+    passedKoIds: parseLeadPassedKo(row.lead_passed_ko_json, row.id),
+    profileGaps: parseProfileGaps(row.profile_gaps_json, row.id),
+  };
 }
 
 // Revive the recorded KO pass-state at the read boundary (same degrade-to-safe

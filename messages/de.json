@@ -990,7 +990,53 @@
     "enrichedMessage": "Danke! Ihre frühere Bewerbung ist jetzt noch stärker — Ihr vollständiges Profil liegt vor und ein Recruiter prüft es in Kürze.",
     "trackStatus": "Bewerbungsstatus verfolgen",
     "prefilledHint": "Aus Ihrem Lebenslauf übernommen — bitte prüfen Sie, ob alles stimmt.",
+    "gapFields": {
+      "hasProjectOrThesis": {
+        "prompt": "Erzählen Sie uns von einem Studienprojekt oder einer Abschlussarbeit, auf die Sie stolz sind",
+        "placeholder": "z. B. Bachelorarbeit: eine kleine REST-API für die Laborplanung…"
+      },
+      "hasAspirations": {
+        "prompt": "Welche Art von Position streben Sie an?",
+        "placeholder": "z. B. Junior-Backend-Entwickler:in"
+      },
+      "hasEducationDetail": {
+        "prompt": "Was studieren Sie, und wann wollen Sie abschließen?",
+        "placeholder": "z. B. Informatik an der TU, Abschluss Juni 2027"
+      },
+      "hasActivity": {
+        "prompt": "Gibt es ein Praktikum, ein Zertifikat, ein Engagement oder einen Nebenjob, den wir kennen sollten?",
+        "placeholder": "z. B. Sommerpraktikum in einer Webagentur"
+      },
+      "educationKnown": {
+        "prompt": "Was ist Ihr höchster Bildungsabschluss (oder der laufende)?",
+        "placeholder": "z. B. Bachelor"
+      },
+      "hasLanguages": {
+        "prompt": "In welchen Sprachen arbeiten Sie? (durch Komma getrennt)",
+        "placeholder": "z. B. Tschechisch, Englisch"
+      },
+      "min3Skills": {
+        "prompt": "Nennen Sie ein paar Fähigkeiten, die wir kennen sollten (durch Komma getrennt)",
+        "placeholder": "z. B. Python, SQL, Git"
+      },
+      "hasYears": {
+        "prompt": "Wie viele Jahre Berufserfahrung haben Sie?",
+        "placeholder": "z. B. 4"
+      },
+      "hasJob": {
+        "prompt": "Was ist Ihre relevanteste Berufserfahrung?",
+        "placeholder": "z. B. 3 Jahre als Backend-Entwickler:in bei…"
+      }
+    },
     "declinedRestartNote": "Versehentlich geantwortet? Sie können die Fragen noch einmal durchgehen — Ihre früheren Antworten haben wir nicht gespeichert, Sie geben sie also neu ein.",
+    "followup": {
+      "title": "Noch eine Sache — freiwillig",
+      "subtitle": "Ihre Bewerbung ist bereits eingegangen. Diese wenigen Antworten helfen uns nur, Sie fair einzuschätzen; überspringen Sie sie, geht nichts verloren.",
+      "submit": "Antworten senden",
+      "skip": "Nein, danke",
+      "thanks": "Vielen Dank — das steht jetzt in Ihrem Profil.",
+      "saveFailed": "Diese Antworten konnten wir gerade nicht speichern. Ihre Bewerbung ist sicher erfasst — versuchen Sie es gern noch einmal."
+    },
     "quick": {
       "subtitle": "Drei kurze Fragen — unter 30 Sekunden, kein Lebenslauf nötig.",
       "nameLabel": "Ihr Name",

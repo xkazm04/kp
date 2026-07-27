@@ -74,6 +74,7 @@ test("ALTER-loop migrations landed: pipeline_entries carries every post-launch c
     "github_handle",
     "source_channel",
     "lead_token",
+    "profile_gaps_json",
     "notes",
     "consent_given_at",
     "consent_expires_at",

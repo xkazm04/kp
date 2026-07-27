@@ -964,7 +964,53 @@
     "enrichedMessage": "Děkujeme! Vaše dřívější přihláška právě získala na síle — váš úplný profil máme uložený a náborář/ka ho brzy posoudí.",
     "trackStatus": "Sledovat stav přihlášky",
     "prefilledHint": "Předvyplněno z vašeho životopisu — zkontrolujte prosím správnost.",
+    "gapFields": {
+      "hasProjectOrThesis": {
+        "prompt": "Popište nám školní projekt nebo práci, na které si zakládáte",
+        "placeholder": "např. bakalářská práce: malé REST API pro rezervaci laboratoří…"
+      },
+      "hasAspirations": {
+        "prompt": "Jakou pozici hledáte?",
+        "placeholder": "např. junior backend vývojář"
+      },
+      "hasEducationDetail": {
+        "prompt": "Co studujete a kdy plánujete dostudovat?",
+        "placeholder": "např. Informatika na ČVUT, dokončení červen 2027"
+      },
+      "hasActivity": {
+        "prompt": "Máte za sebou stáž, certifikaci, spolkovou činnost nebo brigádu, o které bychom měli vědět?",
+        "placeholder": "např. letní stáž ve webové agentuře"
+      },
+      "educationKnown": {
+        "prompt": "Jaké je vaše nejvyšší dosažené vzdělání (nebo to právě studované)?",
+        "placeholder": "např. bakalářské"
+      },
+      "hasLanguages": {
+        "prompt": "V jakých jazycích pracujete? (oddělte čárkami)",
+        "placeholder": "např. čeština, angličtina"
+      },
+      "min3Skills": {
+        "prompt": "Uveďte pár dovedností, o kterých bychom měli vědět (oddělte čárkami)",
+        "placeholder": "např. Python, SQL, Git"
+      },
+      "hasYears": {
+        "prompt": "Kolik let profesní praxe máte?",
+        "placeholder": "např. 4"
+      },
+      "hasJob": {
+        "prompt": "Jaká je vaše nejrelevantnější pracovní zkušenost?",
+        "placeholder": "např. 3 roky jako backend vývojář ve firmě…"
+      }
+    },
     "declinedRestartNote": "Odpověděli jste omylem? Můžete otázky projít znovu — dřívější odpovědi jsme neuchovali, takže je vyplníte od začátku.",
+    "followup": {
+      "title": "Ještě jedna věc — nepovinně",
+      "subtitle": "Vaše přihláška už je u nás. Těchto pár odpovědí nám jen pomůže posoudit vás spravedlivě; když je přeskočíte, o nic nepřijdete.",
+      "submit": "Odeslat odpovědi",
+      "skip": "Děkuji, ne",
+      "thanks": "Děkujeme — máme to ve vašem profilu.",
+      "saveFailed": "Odpovědi se nám teď nepodařilo uložit. Vaše přihláška je v pořádku uložená — klidně to zkuste znovu."
+    },
     "quick": {
       "subtitle": "Tři rychlé otázky — do 30 sekund, bez životopisu.",
       "nameLabel": "Vaše jméno",

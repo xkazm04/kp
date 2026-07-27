@@ -990,7 +990,53 @@
     "enrichedMessage": "Merci ! Votre candidature précédente vient de gagner en force — votre profil complet est désormais enregistré et un recruteur l'examinera bientôt.",
     "trackStatus": "Suivre l'état de votre candidature",
     "prefilledHint": "Rempli à partir de votre CV — veuillez vérifier l'exactitude.",
+    "gapFields": {
+      "hasProjectOrThesis": {
+        "prompt": "Parlez-nous d'un projet d'études ou d'un mémoire dont vous êtes fier",
+        "placeholder": "ex. mémoire de licence : une petite API REST pour la réservation de laboratoires…"
+      },
+      "hasAspirations": {
+        "prompt": "Quel type de poste visez-vous ?",
+        "placeholder": "ex. développeur back-end junior"
+      },
+      "hasEducationDetail": {
+        "prompt": "Que étudiez-vous, et quand prévoyez-vous d'obtenir votre diplôme ?",
+        "placeholder": "ex. informatique à l'université, diplôme en juin 2027"
+      },
+      "hasActivity": {
+        "prompt": "Un stage, une certification, une association ou un emploi étudiant dont nous devrions avoir connaissance ?",
+        "placeholder": "ex. stage d'été dans une agence web"
+      },
+      "educationKnown": {
+        "prompt": "Quel est votre niveau d'études le plus élevé (ou celui en cours) ?",
+        "placeholder": "ex. licence"
+      },
+      "hasLanguages": {
+        "prompt": "Dans quelles langues travaillez-vous ? (séparées par des virgules)",
+        "placeholder": "ex. tchèque, anglais"
+      },
+      "min3Skills": {
+        "prompt": "Citez quelques compétences que nous devrions connaître (séparées par des virgules)",
+        "placeholder": "ex. Python, SQL, Git"
+      },
+      "hasYears": {
+        "prompt": "Combien d'années d'expérience professionnelle avez-vous ?",
+        "placeholder": "ex. 4"
+      },
+      "hasJob": {
+        "prompt": "Quelle est votre expérience professionnelle la plus pertinente ?",
+        "placeholder": "ex. 3 ans comme développeur back-end chez…"
+      }
+    },
     "declinedRestartNote": "Une réponse donnée par erreur ? Vous pouvez reprendre les questions — vos réponses précédentes n'ont pas été conservées, vous les saisirez donc à nouveau.",
+    "followup": {
+      "title": "Une dernière chose — facultatif",
+      "subtitle": "Votre candidature est déjà enregistrée. Ces quelques réponses nous aident simplement à vous évaluer équitablement ; les ignorer ne vous coûte rien.",
+      "submit": "Envoyer les réponses",
+      "skip": "Non merci",
+      "thanks": "Merci — c'est ajouté à votre profil.",
+      "saveFailed": "Nous n'avons pas pu enregistrer ces réponses pour le moment. Votre candidature est bien enregistrée — n'hésitez pas à réessayer."
+    },
     "quick": {
       "subtitle": "Trois questions rapides — moins de 30 secondes, sans CV.",
       "nameLabel": "Votre nom",

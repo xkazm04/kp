@@ -754,6 +754,13 @@ export function ensureDb(): Database.Database {
     // so the enrichment chat can skip exactly those gates — recorded pass-state,
     // never derived. NULL = nothing verified (the chat asks every gate).
     "ALTER TABLE pipeline_entries ADD COLUMN lead_passed_ko_json TEXT",
+    // The archetype checklist's still-unmet items for this entry's profile
+    // (profile_cli `missingGaps`, JSON array of {check,label}) — recorded at
+    // intake so the post-apply follow-up can ask the CANDIDATE the targeted gap
+    // questions (completeness-followup.ts) that only they can answer, and so an
+    // UNANSWERED gap stays on the record. Rewritten (never appended) whenever the
+    // profile is rebuilt or a gap answer merges. NULL = nothing recorded.
+    "ALTER TABLE pipeline_entries ADD COLUMN profile_gaps_json TEXT",
     // Persistent per-candidate recruiter note: call facts ("wants 80k, available
     // August, hybrid") autosaved from the drawer's always-visible scratchpad, so
     // they survive closing it instead of living in spreadsheets. Free text,

@@ -964,7 +964,53 @@
     "enrichedMessage": "Thanks! Your earlier application just got stronger — your full profile is now on file and a recruiter will review it shortly.",
     "trackStatus": "Track your application status",
     "prefilledHint": "Filled in from your CV — please check it's right.",
+    "gapFields": {
+      "hasProjectOrThesis": {
+        "prompt": "Tell us about a school project or thesis you're proud of",
+        "placeholder": "e.g. Bachelor thesis: a small REST API for lab scheduling…"
+      },
+      "hasAspirations": {
+        "prompt": "What kind of role are you aiming for?",
+        "placeholder": "e.g. junior backend developer"
+      },
+      "hasEducationDetail": {
+        "prompt": "What are you studying, and when do you expect to graduate?",
+        "placeholder": "e.g. Computer Science at CTU, graduating June 2027"
+      },
+      "hasActivity": {
+        "prompt": "Any internship, certification, club, or part-time work worth knowing about?",
+        "placeholder": "e.g. summer internship at a web agency"
+      },
+      "educationKnown": {
+        "prompt": "What's your highest education level (or the one in progress)?",
+        "placeholder": "e.g. bachelor"
+      },
+      "hasLanguages": {
+        "prompt": "Which languages do you work in? (comma-separated)",
+        "placeholder": "e.g. Czech, English"
+      },
+      "min3Skills": {
+        "prompt": "List a few skills we should know about (comma-separated)",
+        "placeholder": "e.g. Python, SQL, Git"
+      },
+      "hasYears": {
+        "prompt": "How many years of professional experience do you have?",
+        "placeholder": "e.g. 4"
+      },
+      "hasJob": {
+        "prompt": "What's your most relevant work experience?",
+        "placeholder": "e.g. 3 years as a backend developer at…"
+      }
+    },
     "declinedRestartNote": "Answered something by mistake? You can go through the questions again — your earlier answers weren't kept, so you'll enter them fresh.",
+    "followup": {
+      "title": "One last thing — optional",
+      "subtitle": "Your application is already in. These few answers just help us assess you fairly; skip them and nothing is lost.",
+      "submit": "Send answers",
+      "skip": "No thanks",
+      "thanks": "Thank you — that's on your profile now.",
+      "saveFailed": "We couldn't save those answers just now. Your application is safely filed — feel free to try again."
+    },
     "quick": {
       "subtitle": "Three quick questions — under 30 seconds, no CV needed.",
       "nameLabel": "Your name",

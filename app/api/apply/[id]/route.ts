@@ -3,6 +3,7 @@ import { getTranslations } from "next-intl/server";
 import { getServerLocale } from "@/i18n/server";
 import {
   createPipelineEntry,
+  ensureLeadEnrichToken,
   findApplicationByApplicant,
   findEntryByLeadToken,
   getJob,
@@ -11,7 +12,10 @@ import {
   recordAutomationEvent,
   recordEntryConsent,
   recordKnockoutDecline,
+  setEntryProfileGaps,
+  type EntryProfileGap,
 } from "@/app/_lib/db";
+import { GAP_FIELDS } from "@/app/_lib/completeness-followup";
 import { applyDedupeKey, applyKoSteps, FALLBACK_ARCHETYPE } from "@/app/_lib/apply";
 import { ANONYMOUS_APPLICANT_LABEL, APPLY_EMAIL_RE, coerceGithubHandle, coerceLeadTokenParam, failedKoStepIds } from "@/app/_lib/apply-intake";
 import { getJobStatus, isJobOpenForApplications } from "@/app/_lib/job-ingest";
@@ -37,6 +41,42 @@ function safeStatusLink(entryId: string): string | null {
   }
 }
 
+
+// How many of the profile's unmet-checklist gaps the candidate is offered right
+// after "You're in". Deliberately small: this is a courtesy ask on a flow that has
+// ALREADY succeeded, not a second form. The rest stay recorded on the entry.
+const MAX_FOLLOWUP_QUESTIONS = 3;
+
+/** The optional post-accept gap follow-up offered to the candidate. Absent
+ *  entirely when there's nothing askable — the client then renders the plain
+ *  done screen it always has. */
+type FollowupOffer = { followupToken: string; followupGaps: EntryProfileGap[] } | Record<string, never>;
+
+// Record the profile build's unmet gaps on the entry and, when any of them is a
+// question we actually know how to ask, mint the capability the candidate answers
+// under. The token is the EXISTING lead-enrichment token (ensureLeadEnrichToken —
+// CSPRNG, opaque, already meaning "this candidate may enrich this entry"), never
+// the raw entry id. Wholly best-effort: the application is already filed, so a
+// failure here silently degrades to "no follow-up offered".
+function recordAndOfferGaps(entryId: string, gaps: EntryProfileGap[], workspaceId: string): FollowupOffer {
+  try {
+    setEntryProfileGaps(entryId, gaps, workspaceId);
+  } catch (err) {
+    console.error(`[apply] could not record profile gaps for entry ${entryId}:`, err instanceof Error ? err.message : err);
+  }
+  // Only gaps this build knows a localized question for — an unknown/new
+  // checklist id stays RECORDED (the recruiter still sees it) but is never
+  // rendered as a label with no input.
+  const askable = gaps.filter((g) => GAP_FIELDS[g.check]).slice(0, MAX_FOLLOWUP_QUESTIONS);
+  if (askable.length === 0) return {};
+  try {
+    const token = ensureLeadEnrichToken(entryId, undefined, workspaceId);
+    return token ? { followupToken: token, followupGaps: askable } : {};
+  } catch (err) {
+    console.error(`[apply] could not mint follow-up token for entry ${entryId}:`, err instanceof Error ? err.message : err);
+    return {};
+  }
+}
 
 // Input caps for this PUBLIC, unauthenticated, side-effecting endpoint. Without
 // them a single POST can buffer a multi-hundred-MB body in the Node heap
@@ -72,14 +112,30 @@ const APPLY_RATE_LIMIT = { limit: 20, windowMs: 60_000 };
 // lead following its enrichment link, or any degraded stub recovered). The
 // client celebrates it as a completed profile rather than shrugging "already
 // applied" at a candidate who just did exactly what we asked them to.
-function acknowledgeReapply(entryId: string, message: string, changes: string[] = [], enriched = false, workspaceId?: string): NextResponse {
+function acknowledgeReapply(
+  entryId: string,
+  message: string,
+  changes: string[] = [],
+  enriched = false,
+  workspaceId?: string,
+  // The gap follow-up, when the repeat REBUILT the profile (an enrichment walk):
+  // the freshly computed gaps are the honest ones to ask about.
+  followup: FollowupOffer = {}
+): NextResponse {
   const detail = changes.length
     ? `repeat application via conversational apply — ${changes.join("; ")}`
     : "repeat application via conversational apply";
   recordAutomationEvent(entryId, "re_applied", detail, workspaceId);
   // The repeat reuses the ORIGINAL entry, so it returns the SAME status link
   // (getOrCreateStatusLink is keyed on entry_id) — a returning candidate can track.
-  return NextResponse.json({ result: "accepted", duplicate: true, enriched, message, statusToken: safeStatusLink(entryId) });
+  return NextResponse.json({
+    result: "accepted",
+    duplicate: true,
+    enriched,
+    message,
+    statusToken: safeStatusLink(entryId),
+    ...followup,
+  });
 }
 
 // POST → evaluate KO answers. Pass → create an Accepted pipeline entry; fail → a
@@ -265,6 +321,8 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
         const changes: string[] = [];
         const updates: { contact?: string; candidateId?: string; archetype?: string | null; githubHandle?: string } = {};
         let profileRebuilt = false;
+        // The gap follow-up offered on THIS response, populated only by a rebuild.
+        let followup: FollowupOffer = {};
         if (email && !existing.contact) {
           updates.contact = email;
           changes.push("contact email captured");
@@ -282,6 +340,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
             updates.candidateId = rebuilt.id;
             updates.archetype = rebuilt.archetype;
             profileRebuilt = true;
+            followup = recordAndOfferGaps(existing.id, rebuilt.missingGaps, workspaceId);
             changes.push(
               existing.intakeDegraded ? "degraded intake recovered (profile rebuilt)" : "profile rebuilt with CV"
             );
@@ -318,7 +377,8 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
           profileRebuilt ? t("enrichedMessage") : t("alreadyMessage"),
           changes,
           profileRebuilt,
-          workspaceId
+          workspaceId,
+          followup
         );
       }
     }
@@ -422,6 +482,13 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       // A tokenized link so the applicant can track their status (idea-e76a6fb2)
       // instead of going dark after applying.
       statusToken,
+      // The OPTIONAL post-accept gap questions. profile_cli already computed which
+      // checklist items this profile still misses on every build; until now the
+      // list was discarded, so the only person who can answer them — the candidate,
+      // standing right here — was never asked. Purely additive to the response:
+      // absent when there is nothing askable, and the client treats it as an
+      // after-the-fact courtesy (the application is already filed).
+      ...(built.ok ? recordAndOfferGaps(entry.id, built.missingGaps, workspaceId) : {}),
     });
   } catch (error) {
     // Public + unauthenticated: a raw err.message here is SQLite/Python/fs

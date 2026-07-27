@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { ArrowRight, Check, Sparkles, UserPlus } from "lucide-react";
 import { ARCHETYPE_LABEL } from "@/app/_lib/archetypes";
-import { GAP_FIELDS, mergeGapAnswers, type CompletenessGap } from "@/app/_lib/completeness-followup";
+import { gapFieldCopy, GAP_FIELDS, mergeGapAnswers, type CompletenessGap } from "@/app/_lib/completeness-followup";
 import { TextInput } from "@/app/_components/TextInput";
 import { TextArea } from "@/app/_components/TextArea";
 import { formatOptionalFraction } from "./archetypeBannerView";
@@ -44,6 +44,10 @@ export function ArchetypeBanner({
   sourceAnalysisSlug?: string;
 }) {
   const t = useTranslations("report");
+  // The gap prompts are SHARED with the candidate-facing post-apply follow-up
+  // (they used to be hardcoded English in completeness-followup.ts), so they live
+  // in one catalog namespace both surfaces read.
+  const tGap = useTranslations("apply.gapFields");
   const v2 = v2Profile as V2;
   const [save, setSave] = useState<SaveState>({ kind: "idle" });
   // Answers to the completeness follow-up, keyed by check id. Optional: saving
@@ -140,7 +144,8 @@ export function ArchetypeBanner({
           </p>
           <div className="mt-2 grid gap-2 sm:grid-cols-2">
             {gaps.map((gap) => {
-              const field = GAP_FIELDS[gap.check];
+              // Non-null: `gaps` is already filtered to checks GAP_FIELDS knows.
+              const field = gapFieldCopy(gap.check, tGap)!;
               const shared = {
                 value: gapAnswers[gap.check] ?? "",
                 onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>

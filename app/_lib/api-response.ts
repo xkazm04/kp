@@ -90,6 +90,10 @@ export const STORE_ERRORS = {
   // deliberate human-written 4xx validation strings above them stay as they are:
   // those are client-safe by construction and tell the applicant what to fix.
   APPLY_FAILED: "Could not submit your application. Please try again.",
+  // The candidate's OPTIONAL post-accept profile-gap answers (public capability
+  // token route; same subprocess/SQLite catch surface as the apply routes above).
+  // Framed so it can never read as "your application failed" — it didn't.
+  FOLLOWUP_FAILED: "Could not save those answers. Your application is safely filed — please try again.",
   // Standing silver-medalist feed (idea-fdb45cd0) over the rediscovery-alert store.
   REDISCOVERY_ALERTS_FAILED: "Could not load rediscovery alerts. Please try again.",
   // GDPR self-service data/erasure (public token route over the pipeline entry).
