@@ -11,6 +11,7 @@ import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-lim
 import { getOrCreateStatusLink } from "@/app/_lib/application-status-store";
 import { isRelayConfigured } from "@/app/_lib/comms-truth";
 import { safeJsonError } from "@/app/_lib/api-response";
+import { afterResponse } from "@/app/_lib/after-response";
 
 // Mint (or reuse) the entry's status-link token, best-effort — the application
 // already succeeded, so a status-link failure must never turn it into an error
@@ -129,6 +130,9 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       sourceCampaign: campaign || null,
       sourceVariant: variant || null,
       channelLabel: "quick apply",
+      // E4 speed-to-lead is about the LEAD landing fast, not about the applicant
+      // watching an SMTP round-trip: the ack dispatch runs after this response.
+      defer: (task) => afterResponse("quick-apply-ack", task),
       // STRICT verdict: every expected KO answer must be present AND true.
       failedKoIds: failedKoStepIds(expectedKoIds, answers),
       // …so an ACCEPT means every gate was explicitly answered true: record them

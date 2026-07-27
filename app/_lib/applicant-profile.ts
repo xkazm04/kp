@@ -22,6 +22,25 @@ export type BuildOutcome =
 
 const DEGRADED_REASON_MAX = 280;
 
+// Hard bound on the profile_cli spawn. Without an explicit value the runner
+// applies its 600s hang-backstop (python-runner DEFAULT_TIMEOUT_MS) — a
+// deliberate ceiling for the long multi-LLM CLIs, and completely wrong here: this
+// spawn sits on the UNAUTHENTICATED accept path, so a wedged child held an
+// applicant's request open for ten minutes (they see a hung form and re-submit,
+// each retry spawning another child).
+//
+// 60s, matching the 60s-class bounds the sibling extraction spawns already use
+// (/api/extract-text derives its budget from maxDuration; cv-intake.ts uses 55s).
+// profile_cli is a DETERMINISTIC normalizer — no LLM call, no network — so a
+// healthy run is sub-second and this is purely a wedge backstop, not a deadline
+// any real application approaches.
+//
+// A timeout REJECTS the spawn promise (python-runner `fail(...)`), which lands in
+// this module's catch and returns the ordinary degraded outcome — so the entry
+// still files, flagged intakeDegraded with the timeout as its recruiter-visible
+// reason. The applicant never sees a 500.
+const PROFILE_BUILD_TIMEOUT_MS = 60_000;
+
 // Keep the persisted reason short and single-line: it lands in a DB column and a
 // compact recruiter UI, and raw Python stderr can be huge/multiline.
 export function degradedReason(detail: string): string {
@@ -52,7 +71,9 @@ export async function buildApplicantProfile(
     workdir = await createWorkdir();
     const inputPath = path.join(workdir, "intake.json");
     await writeFile(inputPath, JSON.stringify({ profile, signals }), "utf-8");
-    const { result } = spawnPython(["-m", "pipeline.jobfit.profile_cli", "--input-json", inputPath]);
+    const { result } = spawnPython(["-m", "pipeline.jobfit.profile_cli", "--input-json", inputPath], {
+      timeoutMs: PROFILE_BUILD_TIMEOUT_MS,
+    });
     const { stdout, stderr, exitCode } = await result;
     if (exitCode !== 0) {
       // Surface the failing exit code plus the tail of stderr (the most likely line

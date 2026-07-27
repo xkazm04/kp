@@ -23,6 +23,7 @@ import { randomId } from "@/app/_lib/random-id";
 import { getOrCreateStatusLink } from "@/app/_lib/application-status-store";
 import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
 import { safeJsonError } from "@/app/_lib/api-response";
+import { afterResponse } from "@/app/_lib/after-response";
 
 // Mint (or reuse) the candidate's status-link token for an entry (idea-e76a6fb2),
 // best-effort: the application already succeeded, so a status-link failure must
@@ -290,16 +291,19 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
           const merged = mergeReapplication(existing.id, updates, workspaceId);
           // Newly reachable: the original acknowledgment dead-lettered (no
           // recipient existed), so send it to the address just captured.
-          // Best-effort, same contract as the first-apply ack below.
+          // Best-effort, same contract as the first-apply ack below — and, like
+          // it, dispatched AFTER this response rather than in front of it.
           if (updates.contact && merged) {
-            try {
-              await dispatchApplicationReceived(merged);
-            } catch (ackErr) {
-              console.error(
-                `[apply] re-apply merged but acknowledgement failed for entry ${merged.id}:`,
-                ackErr instanceof Error ? ackErr.message : ackErr
-              );
-            }
+            afterResponse("apply-reack", async () => {
+              try {
+                await dispatchApplicationReceived(merged);
+              } catch (ackErr) {
+                console.error(
+                  `[apply] re-apply merged but acknowledgement failed for entry ${merged.id}:`,
+                  ackErr instanceof Error ? ackErr.message : ackErr
+                );
+              }
+            });
           }
         }
         // Re-applying re-consents: refresh the data-processing consent + expiry
@@ -388,16 +392,23 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // SAME token — the email is the durable touchpoint that survives the candidate
     // closing the tab (without it the unguessable token was lost forever on tab
     // close, defeating the whole status-tracking feature).
+    // The dispatch itself runs AFTER this response: it's an SMTP/relay round-trip
+    // whose failure already can't change the outcome, so awaiting it only made a
+    // slow provider look like a slow (or broken) apply form for an application
+    // that had already succeeded. The token is minted BEFORE, synchronously, so
+    // the response and the email still carry the same one.
     const statusToken = safeStatusLink(entry.id);
     const statusLink = statusToken ? `${publicBaseUrl(new URL(request.url).origin)}/status/${statusToken}` : undefined;
-    try {
-      await dispatchApplicationReceived(entry, { statusLink });
-    } catch (ackErr) {
-      console.error(
-        `[apply] application accepted but acknowledgement failed for entry ${entry.id}:`,
-        ackErr instanceof Error ? ackErr.message : ackErr
-      );
-    }
+    afterResponse("apply-ack", async () => {
+      try {
+        await dispatchApplicationReceived(entry, { statusLink });
+      } catch (ackErr) {
+        console.error(
+          `[apply] application accepted but acknowledgement failed for entry ${entry.id}:`,
+          ackErr instanceof Error ? ackErr.message : ackErr
+        );
+      }
+    });
 
     return NextResponse.json({
       result: "accepted",
