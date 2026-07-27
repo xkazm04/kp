@@ -149,6 +149,9 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
         jobTitle: job.title,
         channel: "conversational apply",
         failedKoIds: failedKo,
+        // The opening's team — the decline belongs to whoever owns the role, not
+        // to the default workspace (see recordKnockoutDecline).
+        workspaceId,
       });
       return NextResponse.json({
         result: "declined",

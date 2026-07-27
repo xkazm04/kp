@@ -1544,12 +1544,21 @@ export function recordAutomationEvent(entryId: string, kind: string, detail?: st
 // and per-channel funnel analytics can count and inspect every discard. The
 // contact address is deliberately NOT recorded — no entry was created, so no
 // deliverable identity should be retained for a declined applicant.
+//
+// Tenant (P1): `workspaceId` is REQUIRED, deliberately un-defaulted. This event is
+// entry-less, so recordEvent's usual "derive the tenant from the linked entry"
+// fallback cannot fire and an omitted tenant would silently land in the DEFAULT
+// workspace — which both zeroes every other team's "turned away at the gate"
+// metric (the analytics read IS workspace-scoped) and bleeds their applicants'
+// names + role titles into the default team's activity feed. Callers hold the
+// opening's workspace already; make them pass it.
 const KO_DECLINE_DETAIL_MAX = 200;
 export function recordKnockoutDecline(input: {
   candidateLabel: string | null;
   jobTitle: string | null;
   channel: string;
   failedKoIds: readonly string[];
+  workspaceId: string;
 }): void {
   const db = ensureDb();
   const detail = `knockout declined via ${input.channel} — failed: ${input.failedKoIds.join(", ")}`;
@@ -1559,6 +1568,7 @@ export function recordKnockoutDecline(input: {
     jobTitle: input.jobTitle,
     kind: "ko_declined",
     detail: detail.length > KO_DECLINE_DETAIL_MAX ? `${detail.slice(0, KO_DECLINE_DETAIL_MAX - 1)}…` : detail,
+    workspaceId: input.workspaceId,
   });
 }
 

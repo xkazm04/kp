@@ -121,6 +121,9 @@ export async function intakeLead(input: LeadIntakeInput): Promise<LeadIntakeOutc
       jobTitle: job.title,
       channel: input.channelLabel,
       failedKoIds: input.failedKoIds,
+      // Same tenant the accepted path files into — a declined applicant is counted
+      // (and their name shown) only by the team that owns the opening.
+      workspaceId,
     });
     // The adverse outcome is where the never-ghost promise matters most — and the
     // email is in hand. Best-effort like the ack: a comms failure never changes
