@@ -2206,7 +2206,34 @@
       "robustAgrees": "Agrees with the headline fit order above.",
       "watchOuts": "Watch-outs · {n}",
       "recommendedLead": "Recommended lead",
-      "differentiators": "Differentiators (lead):"
+      "differentiators": "Differentiators (lead):",
+      "risk": {
+        "lowFit": "{label}: lower fit ({score}) — confirm must-haves at interview.",
+        "earlyCareer": "{label}: early-career — assess potential and trajectory, not only current skills.",
+        "gaps": "{label}: gaps in {gaps}."
+      },
+      "summary": {
+        "leadScored": "{label} (fit {score})",
+        "leadUnscored": "{label} (unscored)",
+        "empty": "No candidates to evaluate for {role}.",
+        "insufficient": "Only {count, plural, one {# candidate} other {# candidates}} for {role} — a single candidate can't be ranked against a field, so no lead is crowned and the weighting-robustness check does not apply (insufficient sample). Add more candidates to compare.",
+        "noLead": "{count, plural, one {# candidate} other {# candidates}} for {role}, but none pass the role's must-haves (knockout) — no lead. Review the field below.",
+        "eligibility": "{count, plural, one {# candidate} other {# candidates}} for {role}, ranked into an ordinal eligibility list (top by fit: {lead}). Apply any statutory preferences before certifying — nothing is auto-sealed.",
+        "committee": "{count, plural, one {# candidate} other {# candidates}} for {role}. Top by fit (advisory): {lead}. The search committee decides — the AI does not pick or seal a hire.",
+        "recommendation": "{count, plural, one {# candidate} other {# candidates}} for {role}. Recommended lead: {lead}.",
+        "uniqueStrengths": "Unique strengths: {list}.",
+        "watchOuts": "{count, plural, one {# watch-out} other {# watch-outs}} flagged below.",
+        "noRisks": "No blocking risks flagged.",
+        "separationCaveat": "Confidence caveat: {lead} is not separated from {runnerUp} — their score bands overlap, so this ordering is within the measurement's own uncertainty. Treat the top two as a tie on the evidence available."
+      },
+      "governance": {
+        "committee": "Committee mode: the AI comparison is ADVISORY input for the search committee — it does not pick or seal a hire. Capture each evaluator's assessment and the committee's decision in your governance process.",
+        "eligibilityList": "Eligibility-list mode: candidates are an ordinal, fit-ranked list — not a discretionary AI pick, and nothing is auto-sealed. Apply any statutory preferences (e.g. veterans') before certifying; the app holds no such status and cannot compute it."
+      },
+      "topPickWhy": {
+        "highestFit": "Highest fit ({score}) in this role.",
+        "unscored": "Top of the field, but no fit score has been computed yet."
+      }
     }
   },
   "scheduleTab": {

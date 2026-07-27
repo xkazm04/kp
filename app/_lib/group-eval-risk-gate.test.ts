@@ -6,9 +6,13 @@
 // test requires consuming surfaces to derive from it.
 //
 // buildGroupEval is not loadable under this runner (it pulls the db barrel + the
-// python runner), and the risks loop is inline prose the wave-2 restructure will own,
-// so this test lifts the SHIPPED condition out of the source and evaluates it — a real
-// behavioural check on the expression that runs in production, with no refactor.
+// python runner), so this test lifts the SHIPPED condition out of the source and
+// evaluates it — a real behavioural check on the expression that runs in production,
+// with no refactor.
+//
+// The GATE is unchanged; only what it pushes moved: eval-speaks-your-language made the
+// risk a STRUCTURED FACT (`{ kind: "low_fit", … }`) instead of an English sentence, so
+// the anchor below matches the fact literal rather than the template string.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -18,7 +22,7 @@ import { FIT_PROMISING_FLOOR } from "./fit-thresholds.ts";
 
 const src = readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "group-eval-run.ts"), "utf8");
 
-const m = src.match(/if \((c\.score != null && [^)]*)\) risks\.push\(`\$\{c\.label\}: lower fit/);
+const m = src.match(/if \((c\.score != null && [^)]*)\) risks\.push\(\{ kind: "low_fit"/);
 assert.ok(m, "could not locate the lower-fit risk gate in group-eval-run.ts");
 const flagsLowerFit = new Function("c", "FIT_PROMISING_FLOOR", `return !!(${m![1]});`) as (
   c: { score: number | null },

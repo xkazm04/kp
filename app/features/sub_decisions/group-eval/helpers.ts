@@ -16,10 +16,14 @@ export function isTopPick(c: EvalCandidate, topPick: GroupEvalPayload["topPick"]
 // Returns the catalog key for the source pill; resolved through t() at the call site.
 export const sourceLabelKey = (s?: string) => (s === "llm" ? "sourceLlm" : s === "partial" ? "sourcePartial" : "sourceDeterministic");
 
-export const ranWhen = (iso?: string | null): string | null => {
+/** The "ran at" stamp, formatted in the APP's locale — not the browser's.
+ *  A bare `toLocaleString()` follows the browser/OS locale, so a Czech workspace
+ *  opened in an en-US browser stamped its localized modal with a US date. The
+ *  locale is threaded from next-intl (useGroupEval → useLocale). */
+export const ranWhen = (iso: string | null | undefined, locale: string): string | null => {
   if (!iso) return null;
   const t = Date.parse(iso);
-  return Number.isFinite(t) ? new Date(t).toLocaleString() : null;
+  return Number.isFinite(t) ? new Date(t).toLocaleString(locale) : null;
 };
 
 export const percentOf = (c: EvalCandidate, key: string) => c.scoreBreakdown?.find((d) => d.key === key)?.percent ?? null;

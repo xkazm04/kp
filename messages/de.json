@@ -2235,7 +2235,34 @@
       "robustAgrees": "Stimmt mit der oben genannten Eignungsreihenfolge überein.",
       "watchOuts": "Zu beachten · {n}",
       "recommendedLead": "Empfohlener Favorit",
-      "differentiators": "Alleinstellungsmerkmale (Favorit):"
+      "differentiators": "Alleinstellungsmerkmale (Favorit):",
+      "risk": {
+        "lowFit": "{label}: geringere Eignung ({score}) — Muss-Kriterien im Interview prüfen.",
+        "earlyCareer": "{label}: Berufseinstieg — Potenzial und Entwicklung bewerten, nicht nur die aktuellen Fähigkeiten.",
+        "gaps": "{label}: Lücken bei {gaps}."
+      },
+      "summary": {
+        "leadScored": "{label} (Eignung {score})",
+        "leadUnscored": "{label} (nicht bewertet)",
+        "empty": "Keine Kandidaten zur Bewertung für {role}.",
+        "insufficient": "Nur {count, plural, one {# Kandidat} other {# Kandidaten}} für {role} — eine einzelne Person lässt sich nicht gegen ein Feld einordnen, daher wird kein Favorit gekürt und die Prüfung der Gewichtungsrobustheit entfällt (unzureichende Stichprobe). Fügen Sie weitere Kandidaten zum Vergleich hinzu.",
+        "noLead": "{count, plural, one {# Kandidat} other {# Kandidaten}} für {role}, aber niemand erfüllt die Muss-Kriterien der Stelle (K.-o.) — kein Favorit. Prüfen Sie das Feld unten.",
+        "eligibility": "{count, plural, one {# Kandidat} other {# Kandidaten}} für {role}, geordnet zu einer ordinalen Eignungsliste (beste Eignung: {lead}). Wenden Sie etwaige gesetzliche Präferenzen vor der Zertifizierung an — nichts wird automatisch besiegelt.",
+        "committee": "{count, plural, one {# Kandidat} other {# Kandidaten}} für {role}. Beste Eignung (beratend): {lead}. Die Auswahlkommission entscheidet — die KI trifft und besiegelt keine Einstellung.",
+        "recommendation": "{count, plural, one {# Kandidat} other {# Kandidaten}} für {role}. Empfohlener Favorit: {lead}.",
+        "uniqueStrengths": "Alleinstellungsmerkmale: {list}.",
+        "watchOuts": "{count, plural, one {# Hinweis} other {# Hinweise}} unten markiert.",
+        "noRisks": "Keine blockierenden Risiken markiert.",
+        "separationCaveat": "Konfidenz-Hinweis: {lead} ist von {runnerUp} nicht getrennt — die Konfidenzbänder überlappen sich, diese Reihenfolge liegt also innerhalb der Messunsicherheit. Behandeln Sie die beiden Ersten nach der verfügbaren Evidenz als gleichauf."
+      },
+      "governance": {
+        "committee": "Kommissionsmodus: Der KI-Vergleich ist BERATENDER Input für die Auswahlkommission — er trifft und besiegelt keine Einstellung. Halten Sie die Bewertung jedes Prüfers und die Entscheidung der Kommission in Ihrem Governance-Prozess fest.",
+        "eligibilityList": "Eignungslisten-Modus: Die Kandidaten bilden eine ordinale, nach Eignung sortierte Liste — keine diskretionäre KI-Auswahl, und nichts wird automatisch besiegelt. Wenden Sie etwaige gesetzliche Präferenzen (z. B. für Veteranen) vor der Zertifizierung an; die App kennt diesen Status nicht und kann ihn nicht berechnen."
+      },
+      "topPickWhy": {
+        "highestFit": "Höchste Eignung ({score}) in dieser Rolle.",
+        "unscored": "An der Spitze des Feldes, aber es wurde noch keine Eignung berechnet."
+      }
     }
   },
   "scheduleTab": {

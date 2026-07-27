@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useLocale } from "next-intl";
 import { buildSkillRows, ranWhen } from "./helpers";
 import type { GroupEvalPayload } from "./types";
 
@@ -19,7 +20,9 @@ export function useGroupEval({
   // then show a fake success pill.
   onDecide?: (identity: string, action: "accept" | "reject") => boolean;
 }) {
-  const ranAt = ranWhen(createdAt);
+  // The stamp follows the APP locale (the language the rest of this modal is in),
+  // not whatever locale the browser happens to run under.
+  const ranAt = ranWhen(createdAt, useLocale());
   // Candidates decided here this session, so their buttons flip to a result pill
   // (the cached `evaluation` snapshot doesn't refetch; the live queue updates
   // underneath via act()).

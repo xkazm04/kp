@@ -7,6 +7,7 @@ import { AiVerdict } from "./group-eval/AiVerdict";
 import { ComparisonTable } from "./group-eval/ComparisonTable";
 import { FairnessPanel } from "./group-eval/FairnessPanel";
 import { sourceLabelKey } from "./group-eval/helpers";
+import { governanceText, summaryText, type Translate } from "./group-eval/localize";
 import { LegacyView } from "./group-eval/LegacyView";
 import { Notices } from "./group-eval/Notices";
 import { PerCandidateTabs } from "./group-eval/PerCandidateTabs";
@@ -53,6 +54,10 @@ export function GroupEvalModal({
   onDecide?: (identity: string, action: "accept" | "reject") => boolean;
 }) {
   const t = useTranslations("decisions.groupEval");
+  // eval-speaks-your-language — the persisted eval carries structured facts, not
+  // prose; the localize composers turn them into sentences in the reader's
+  // language (and pass a legacy payload's stored English through unchanged).
+  const tt = t as unknown as Translate;
   const { ranAt, decided, decide, drift, candidates, enriched, skillRows, mustRows, aiBacked } = useGroupEval({
     evaluation,
     createdAt,
@@ -101,13 +106,13 @@ export function GroupEvalModal({
           <Notices drift={drift} ranAt={ranAt} evaluation={evaluation} />
           {/* Governance (P1-3): in committee / eligibility-list mode the AI is advisory —
               a banner makes clear it didn't pick or seal a hire. */}
-          {evaluation.governanceNote ? (
+          {governanceText(tt, evaluation) ? (
             <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-base text-amber-900">
               <Scale size={18} className="mt-0.5 shrink-0" aria-hidden />
-              <span>{evaluation.governanceNote}</span>
+              <span>{governanceText(tt, evaluation)}</span>
             </div>
           ) : null}
-          <AiVerdict comparison={evaluation.comparison} fallback={evaluation.summary} aiBacked={aiBacked} />
+          <AiVerdict comparison={evaluation.comparison} fallback={summaryText(tt, evaluation)} aiBacked={aiBacked} />
           {evaluation.eligibilityList?.length ? (
             <section className="rounded-xl border border-stone-200 bg-white p-4">
               <p className="text-sm font-semibold uppercase tracking-wide text-steel">{t("eligibilityList")}</p>

@@ -2235,7 +2235,34 @@
       "robustAgrees": "Concorde avec l'ordre de correspondance principal ci-dessus.",
       "watchOuts": "Points de vigilance · {n}",
       "recommendedLead": "Favori recommandé",
-      "differentiators": "Différenciateurs (favori) :"
+      "differentiators": "Différenciateurs (favori) :",
+      "risk": {
+        "lowFit": "{label} : correspondance plus faible ({score}) — vérifiez les incontournables en entretien.",
+        "earlyCareer": "{label} : début de carrière — évaluez le potentiel et la trajectoire, pas seulement les compétences actuelles.",
+        "gaps": "{label} : lacunes sur {gaps}."
+      },
+      "summary": {
+        "leadScored": "{label} (correspondance {score})",
+        "leadUnscored": "{label} (non évalué)",
+        "empty": "Aucun candidat à évaluer pour {role}.",
+        "insufficient": "Seulement {count, plural, one {# candidat} other {# candidats}} pour {role} — un seul candidat ne peut pas être classé face à un champ : aucun favori n'est désigné et le contrôle de robustesse de la pondération ne s'applique pas (échantillon insuffisant). Ajoutez d'autres candidats pour comparer.",
+        "noLead": "{count, plural, one {# candidat} other {# candidats}} pour {role}, mais aucun ne satisfait les incontournables du poste (éliminatoires) — aucun favori. Examinez le champ ci-dessous.",
+        "eligibility": "{count, plural, one {# candidat} other {# candidats}} pour {role}, classés en une liste d'aptitude ordinale (meilleure correspondance : {lead}). Appliquez les préférences légales éventuelles avant de certifier — rien n'est scellé automatiquement.",
+        "committee": "{count, plural, one {# candidat} other {# candidats}} pour {role}. Meilleure correspondance (à titre consultatif) : {lead}. Le comité de sélection décide — l'IA ne choisit ni ne scelle un recrutement.",
+        "recommendation": "{count, plural, one {# candidat} other {# candidats}} pour {role}. Favori recommandé : {lead}.",
+        "uniqueStrengths": "Points forts uniques : {list}.",
+        "watchOuts": "{count, plural, one {# point de vigilance signalé} other {# points de vigilance signalés}} ci-dessous.",
+        "noRisks": "Aucun risque bloquant signalé.",
+        "separationCaveat": "Réserve de confiance : {lead} n'est pas départagé de {runnerUp} — leurs intervalles de confiance se chevauchent, ce classement reste donc dans l'incertitude de la mesure. Considérez les deux premiers comme à égalité au vu des éléments disponibles."
+      },
+      "governance": {
+        "committee": "Mode comité : la comparaison de l'IA est un apport CONSULTATIF pour le comité de sélection — elle ne choisit ni ne scelle un recrutement. Consignez l'évaluation de chaque évaluateur et la décision du comité dans votre processus de gouvernance.",
+        "eligibilityList": "Mode liste d'aptitude : les candidats forment une liste ordinale classée par correspondance — ce n'est pas un choix discrétionnaire de l'IA, et rien n'est scellé automatiquement. Appliquez les préférences légales éventuelles (p. ex. anciens combattants) avant de certifier ; l'application ne détient pas ce statut et ne peut pas le calculer."
+      },
+      "topPickWhy": {
+        "highestFit": "Correspondance la plus élevée ({score}) pour ce poste.",
+        "unscored": "En tête du champ, mais aucune correspondance n'a encore été calculée."
+      }
     }
   },
   "scheduleTab": {

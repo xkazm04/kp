@@ -18,7 +18,7 @@ import { compareByMatchScoreDesc, compareScoreDesc } from "./match-score";
 import { sealDecisionSafe } from "./decision-record-store";
 import { buildEligibilityList, governanceNote, normalizeGovernanceMode, resolveGovernanceMode, sealsLead } from "./group-eval-governance";
 import type { MatchResultView, ScoreDimension, Confidence, Reasoning as CanonicalReasoning } from "@/app/features/sub_match/MatchTypes";
-import type { Comparison, Fairness, FairnessScheme } from "@/app/features/sub_decisions/group-eval/types";
+import type { Comparison, Fairness, FairnessScheme, RiskFact, SummaryFacts } from "@/app/features/sub_decisions/group-eval/types";
 import { assessRobustness } from "@/app/features/sub_decisions/group-eval/types";
 
 // Cap on how many candidates one comparative evaluation covers (GROUP_EVAL_CAP,
@@ -476,15 +476,20 @@ export async function runGroupEval(
     ? computeDifferentiators(lead, candidates.filter((c) => c.entryId !== lead.entryId), requirements)
     : [];
 
-  const risks: string[] = [];
+  // Watch-outs as STRUCTURED FACTS (eval-speaks-your-language), not baked English
+  // sentences: the eval is persisted once and re-opened by whoever is on the team,
+  // so a frozen English string would render untranslated forever in a Czech/German/
+  // French workspace. The client composes the sentence from the fact through the
+  // `decisions.groupEval.risk.*` catalog (group-eval/localize.ts).
+  const risks: RiskFact[] = [];
   for (const c of candidates) {
     // Lower-fit watch-out. `score != null` ALREADY means measured (REC-03: an unscored
     // candidate carries null, never a fabricated 0), so the old `> 0` clause exempted
     // exactly the worst measured candidate in the field — a genuine 0 — from the flag.
     // The floor is the shared FIT_PROMISING_FLOOR, not a re-hardcoded 55.
-    if (c.score != null && c.score < FIT_PROMISING_FLOOR) risks.push(`${c.label}: lower fit (${c.score}) — confirm must-haves at interview.`);
-    if (isEarlyCareer(c.archetype)) risks.push(`${c.label}: early-career — assess potential and trajectory, not only current skills.`);
-    if (c.gaps.length) risks.push(`${c.label}: gaps in ${c.gaps.slice(0, 3).join(", ")}.`);
+    if (c.score != null && c.score < FIT_PROMISING_FLOOR) risks.push({ kind: "low_fit", label: c.label, score: c.score });
+    if (isEarlyCareer(c.archetype)) risks.push({ kind: "early_career", label: c.label });
+    if (c.gaps.length) risks.push({ kind: "gaps", label: c.label, gaps: c.gaps.slice(0, 3) });
   }
 
   const uniqueSources = new Set(sources.filter(Boolean));
@@ -506,20 +511,35 @@ export async function runGroupEval(
   const runnerUp = lead ? (candidates.find((c) => c !== lead) ?? null) : null;
   const separation = leadSeparation(lead, runnerUp);
   const separationCaveat = lead && runnerUp ? separationNote(separation, lead.label, runnerUp.label) : "";
+  // The summary is produced TWICE, on purpose:
+  //   • `deterministicSummary` — English prose. It is the SEALED decision rationale
+  //     below (English by convention — see the seal site) and the only thing a
+  //     pre-facts reader has.
+  //   • `summaryFacts` — the same branch as a discriminator + params, which the
+  //     modal renders through the catalog in the reader's language
+  //     (eval-speaks-your-language). The two must stay in lockstep: each branch
+  //     sets both.
+  let summaryKind: SummaryFacts["kind"];
   let deterministicSummary: string;
   if (!candidates.length) {
+    summaryKind = "empty";
     deterministicSummary = `No candidates to evaluate for ${roleTitle}.`;
   } else if (!comparable) {
     // Single-candidate field (bug-ui-scan-2026-07-09 #4): nothing to compare against, so
     // no lead is crowned/sealed and the weighting-robustness check does not apply.
+    summaryKind = "insufficient";
     deterministicSummary = `Only ${candidates.length} candidate for ${roleTitle} — a single candidate can't be ranked against a field, so no lead is crowned and the weighting-robustness check does not apply (insufficient sample). Add more candidates to compare.`;
   } else if (!lead) {
+    summaryKind = "no_lead";
     deterministicSummary = `${candidates.length} candidate(s) for ${roleTitle}, but none pass the role's must-haves (knockout) — no lead. Review the field below.`;
   } else if (governanceMode === "eligibility_list") {
+    summaryKind = "eligibility";
     deterministicSummary = `${candidates.length} candidate(s) for ${roleTitle}, ranked into an ordinal eligibility list (top by fit: ${leadDesc}). Apply any statutory preferences before certifying — nothing is auto-sealed.`;
   } else if (governanceMode === "committee") {
+    summaryKind = "committee";
     deterministicSummary = `${candidates.length} candidate(s) for ${roleTitle}. Top by fit (advisory): ${leadDesc}. The search committee decides — the AI does not pick or seal a hire.${risks.length ? ` ${risks.length} watch-out(s) below.` : ""}`;
   } else {
+    summaryKind = "recommendation";
     deterministicSummary = `${candidates.length} candidate(s) for ${roleTitle}. Recommended lead: ${leadDesc}. ${
       differentiators.length ? `Unique strengths: ${differentiators.join(", ")}. ` : ""
     }${risks.length ? `${risks.length} watch-out(s) flagged below.` : "No blocking risks flagged."}`;
@@ -528,7 +548,30 @@ export async function runGroupEval(
   // hedge belongs wherever the crown is stated, and it rides into the sealed
   // rationale below (which is this same string), so the audit record carries it too.
   if (separationCaveat) deterministicSummary = `${deterministicSummary} ${separationCaveat}`;
+  // The structured twin of the branch just taken. Only the fields that branch
+  // actually renders are populated; the client's composer ignores the rest.
+  const summaryFacts: SummaryFacts = {
+    kind: summaryKind,
+    roleTitle,
+    count: candidates.length,
+    leadLabel: lead?.label ?? null,
+    leadScore: lead?.score ?? null,
+    differentiators,
+    riskCount: risks.length,
+    separation: lead && runnerUp ? { verdict: separation, leadLabel: lead.label, runnerUpLabel: runnerUp.label } : null,
+  };
 
+  // SEALED RATIONALE LANGUAGE — CONVENTION (eval-speaks-your-language).
+  // Everything the MODAL shows is composed in the reader's language from persisted
+  // facts. The sealed `rationale` below is deliberately the opposite: it stays the
+  // ENGLISH `deterministicSummary`, in every workspace, forever. A decision record
+  // is an immutable audit artifact — it is read by auditors, exported, and compared
+  // across tenants and across time, so its wording must not depend on whichever org
+  // locale happened to be configured when the eval ran (and must not change if that
+  // setting is later flipped). Same rule as `separationNote` (group-eval-separation.ts)
+  // and the reasonCode/kind enums: the RECORD is canonical English, the UI localizes.
+  // Do NOT "fix" this by feeding a localized string into sealDecisionSafe.
+  //
   // Decision SoR (moonshot D backfill): seal the AI's recommended lead — the
   // group-eval recommendation a recruiter acts on, with the eval source as the
   // policy version. Best-effort; this is the real (non-sim) eval path — the sim has
@@ -598,6 +641,10 @@ export async function runGroupEval(
     // Governance (P1-3): the mode, its human-facing note, whether the AI output is
     // advisory (no auto-sealed lead), and the ordinal eligibility list when relevant.
     governanceMode,
+    // The English note is still persisted for readers that predate the mode enum,
+    // but the modal composes the banner from `governanceMode` through the catalog
+    // (eval-speaks-your-language): this banner is compliance guidance and must not
+    // be the one English paragraph in a Czech workspace's modal.
     governanceNote: governanceNote(governanceMode),
     advisory,
     eligibilityList: governanceMode === "eligibility_list" && lead ? buildEligibilityList(candidates) : null,
@@ -636,6 +683,11 @@ export async function runGroupEval(
           why:
             lead.verdict ||
             (lead.score != null ? `Highest fit (${lead.score}) in this role.` : "Top of the field, but no fit score has been computed yet."),
+          // eval-speaks-your-language — which of the two canned fallbacks was used,
+          // so the modal can render it in the reader's language. Absent when the AI
+          // VERDICT supplied the text (that is already produced in the org locale
+          // and is candidate-specific, so it is rendered verbatim).
+          whyKind: lead.verdict ? undefined : lead.score != null ? ("highest_fit" as const) : ("unscored" as const),
         }
       : null,
     // Does the crown survive both top candidates' confidence bands? Carried so the
@@ -664,6 +716,10 @@ export async function runGroupEval(
     // check that did not run.
     robustness,
     summary: deterministicSummary,
+    // eval-speaks-your-language — the structured twin of `summary`. `summary` stays
+    // (it is the sealed English rationale and the legacy reader's only copy); the
+    // modal prefers these facts and composes the sentence in the reader's language.
+    summaryFacts,
     // Structured, bold-formatted AI comparison (the modal prefers it).
     comparison: compare?.comparison ?? null,
     comparisonSource: compare?.source ?? null,

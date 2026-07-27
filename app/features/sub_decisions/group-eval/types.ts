@@ -81,6 +81,52 @@ export function assessRobustness(hasJob: boolean, fairness: Fairness | null): Ro
   return varied ? "assessed" : "not_varied";
 }
 
+// ---- Structured facts (eval-speaks-your-language) --------------------------
+//
+// The eval is PERSISTED once and re-rendered for whoever opens it, so any prose
+// baked into the payload is frozen in the language of the machine that produced
+// it. The AI compare narrative is generated in the org locale (group-eval-run →
+// group_compare_cli --lang), but the deterministic prose around it used to be
+// English literals appended to the payload — so a Czech workspace read a Czech
+// headline stacked on English risks and an English (compliance-critical)
+// governance banner in the same modal.
+//
+// The fix is the same shape the rest of the app uses for server-generated
+// display data (cf. useEnumLabel: the WIRE value stays canonical, only the
+// rendered label is localized): the server persists STRUCTURED FACTS and the
+// client composes the sentence through next-intl at render time. See
+// ./localize.ts for the composition and the legacy-prose fallback.
+
+/** One pool-level watch-out as facts. Legacy payloads carry the English sentence
+ *  as a bare string instead — both shapes are accepted by `risks` below. */
+export type RiskFact =
+  | { kind: "low_fit"; label: string; score: number }
+  | { kind: "early_career"; label: string }
+  | { kind: "gaps"; label: string; gaps: string[] };
+
+/** The deterministic summary as a branch discriminator + params (one entry per
+ *  branch in group-eval-run's summary switch), plus the separation caveat that
+ *  rides along with any crowned lead. `summary` keeps the English prose because
+ *  it is ALSO the sealed decision rationale (English by convention — see the
+ *  seal site in group-eval-run.ts); the client renders THIS when present. */
+export type SummaryFacts = {
+  kind: "empty" | "insufficient" | "no_lead" | "eligibility" | "committee" | "recommendation";
+  roleTitle: string;
+  count: number;
+  leadLabel?: string | null;
+  leadScore?: number | null;
+  differentiators?: string[];
+  riskCount?: number;
+  // Present (and "overlapping") only when the crown needs the confidence hedge —
+  // mirrors separationNote's "empty unless overlapping" rule.
+  separation?: { verdict: "separated" | "overlapping" | "unknown"; leadLabel: string; runnerUpLabel: string } | null;
+};
+
+/** Why the lead is the lead, when the LLM verdict was absent and the server fell
+ *  back to a canned line. `topPick.why` keeps that English prose for legacy
+ *  readers; this discriminator lets the client render the localized line. */
+export type TopPickWhyKind = "highest_fit" | "unscored";
+
 // One candidate as carried by a group evaluation. The base fields (score,
 // verdict, strengths, gaps) are always present; the recruiter breakdown fields
 // are the shared MatchResultView (single-sourced from MatchTypes), all optional
@@ -139,7 +185,11 @@ export type GroupEvalPayload = {
   // duplicate display name put the lead's "Unique strengths" chips on the rival's tab.
   // Optional/additive: a payload saved before it existed (and the simulation's
   // client-side runGroupEval) falls back to matching on `label`.
-  topPick?: { label: string; score: number | null; why: string; entryId?: string } | null;
+  // `whyKind` (eval-speaks-your-language) is set when `why` is the server's canned
+  // fallback rather than the AI verdict — the client then renders the localized
+  // line and ignores the English prose. Absent ⇒ render `why` verbatim (an AI
+  // verdict, already produced in the org locale, or a legacy payload).
+  topPick?: { label: string; score: number | null; why: string; entryId?: string; whyKind?: TopPickWhyKind } | null;
   // Whether the crowned lead is genuinely separated from the runner-up once BOTH
   // confidence bands are taken into account (UAT L1-TOM-GEF-01). "overlapping" means
   // the point-estimate gap is inside the measurement's own uncertainty — the top two
@@ -154,8 +204,16 @@ export type GroupEvalPayload = {
   recommendedOrder?: string[];
   candidates?: EvalCandidate[];
   differentiators?: string[];
-  risks?: string[];
+  // Pool-level watch-outs. Evals produced after eval-speaks-your-language carry
+  // RiskFact objects (localized at render); evals saved before it carry the frozen
+  // English sentences as strings and are rendered verbatim.
+  risks?: (string | RiskFact)[];
+  // The deterministic summary as ENGLISH prose. Still persisted because it IS the
+  // sealed decision rationale (English by convention) and because a legacy reader
+  // has nothing else; the modal prefers `summaryFacts` when present.
   summary?: string;
+  // Structured twin of `summary` (absent on legacy payloads → the prose renders).
+  summaryFacts?: SummaryFacts | null;
   // Structured AI head-to-head narrative (the modal prefers it).
   comparison?: Comparison | null;
   comparisonSource?: string | null;

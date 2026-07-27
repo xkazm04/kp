@@ -2206,7 +2206,34 @@
       "robustAgrees": "Souhlasí s pořadím podle shody výše.",
       "watchOuts": "Na co si dát pozor · {n}",
       "recommendedLead": "Doporučený vedoucí",
-      "differentiators": "Odlišovače (vedoucí):"
+      "differentiators": "Odlišovače (vedoucí):",
+      "risk": {
+        "lowFit": "{label}: nižší shoda ({score}) — ověřte povinné požadavky na pohovoru.",
+        "earlyCareer": "{label}: začátek kariéry — posuzujte potenciál a směřování, nejen současné dovednosti.",
+        "gaps": "{label}: mezery v oblastech: {gaps}."
+      },
+      "summary": {
+        "leadScored": "{label} (shoda {score})",
+        "leadUnscored": "{label} (bez hodnocení)",
+        "empty": "Pro roli {role} nejsou žádní kandidáti k vyhodnocení.",
+        "insufficient": "Pouze {count, plural, one {# kandidát} few {# kandidáti} other {# kandidátů}} pro roli {role} — jediného kandidáta nelze porovnat s polem, takže se nekoruje žádný vedoucí a kontrola robustnosti vážení se neuplatní (nedostatečný vzorek). Přidejte další kandidáty k porovnání.",
+        "noLead": "{count, plural, one {# kandidát} few {# kandidáti} other {# kandidátů}} pro roli {role}, ale nikdo nesplňuje povinné požadavky role (vyřazovací kritéria) — žádný vedoucí. Projděte si pole níže.",
+        "eligibility": "{count, plural, one {# kandidát} few {# kandidáti} other {# kandidátů}} pro roli {role}, seřazeno do pořadového seznamu způsobilosti (nejvyšší shoda: {lead}). Před certifikací uplatněte případné zákonné preference — nic se neschvaluje automaticky.",
+        "committee": "{count, plural, one {# kandidát} few {# kandidáti} other {# kandidátů}} pro roli {role}. Nejvyšší shoda (poradně): {lead}. Rozhoduje výběrová komise — AI nevybírá ani nezpečeťuje přijetí.",
+        "recommendation": "{count, plural, one {# kandidát} few {# kandidáti} other {# kandidátů}} pro roli {role}. Doporučený vedoucí: {lead}.",
+        "uniqueStrengths": "Jedinečné silné stránky: {list}.",
+        "watchOuts": "Níže je {count, plural, one {# upozornění} few {# upozornění} other {# upozornění}}.",
+        "noRisks": "Nebyla označena žádná blokující rizika.",
+        "separationCaveat": "Upozornění na spolehlivost: {lead} se neodděluje od {runnerUp} — jejich intervaly spolehlivosti se překrývají, takže toto pořadí spadá do nejistoty samotného měření. Považujte první dva za rovnocenné na základě dostupných podkladů."
+      },
+      "governance": {
+        "committee": "Režim komise: porovnání AI je PORADNÍM podkladem pro výběrovou komisi — nevybírá ani nezpečeťuje přijetí. Zaznamenejte hodnocení každého posuzovatele i rozhodnutí komise ve svém procesu řízení.",
+        "eligibilityList": "Režim seznamu způsobilosti: kandidáti tvoří pořadový seznam seřazený podle shody — nejde o diskreční výběr AI a nic se neschvaluje automaticky. Před certifikací uplatněte případné zákonné preference (např. pro veterány); aplikace tyto údaje nemá a nedokáže je vypočítat."
+      },
+      "topPickWhy": {
+        "highestFit": "Nejvyšší shoda ({score}) v této roli.",
+        "unscored": "Nejlepší v poli, ale shoda zatím nebyla vypočítána."
+      }
     }
   },
   "scheduleTab": {

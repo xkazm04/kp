@@ -2,6 +2,7 @@ import { useTranslations } from "next-intl";
 import { Sparkles } from "lucide-react";
 import { ScoreBadge } from "@/app/_components/ScoreBadge";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
+import { topPickWhyText, type Translate } from "./localize";
 import { Pill, SectionTitle } from "./primitives";
 import type { GroupEvalPayload } from "./types";
 
@@ -10,6 +11,9 @@ import type { GroupEvalPayload } from "./types";
 export function LegacyView({ evaluation }: { evaluation: GroupEvalPayload }) {
   const t = useTranslations("decisions.groupEval");
   const enumLabel = useEnumLabel();
+  // The lead's "why" is either the AI verdict (already in the org locale) or one of
+  // two canned lines flagged by `whyKind` — those are composed from the catalog.
+  const why = topPickWhyText(t as unknown as Translate, evaluation.topPick);
   return (
     <div className="space-y-4">
       {evaluation.topPick ? (
@@ -28,7 +32,7 @@ export function LegacyView({ evaluation }: { evaluation: GroupEvalPayload }) {
               </Pill>
             ) : null}
           </p>
-          {evaluation.topPick.why ? <p className="mt-1 text-base text-steel">{evaluation.topPick.why}</p> : null}
+          {why ? <p className="mt-1 text-base text-steel">{why}</p> : null}
         </div>
       ) : null}
 
