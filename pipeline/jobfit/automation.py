@@ -24,7 +24,12 @@ from .matching import MatchCandidate, ko_filter, score_job
 from .match_reasoning import generate as generate_reasoning
 from .match_reasoning import reasoning_context
 
-SCREENING_PROMPT_VERSION = "screening-v1"
+# screening-v2: no prompt-content change — the version marks the CACHE-AXIS
+# correction. The screening rationale is generated in the requested --lang, but the
+# TS cache key ignored the locale, so a locale switch served the previous language's
+# rationale for the full 168h TTL. Bumped in lockstep with AUTOMATION_VERSION.screen
+# (app/_lib/automation-run.ts) so the wrongly-shared v1 entries self-invalidate.
+SCREENING_PROMPT_VERSION = "screening-v2"
 # Letter tasks v2 (backlog #34/#37): explicit --lang (the entry's resolved comms
 # locale) overrides the CV-language guess, and the prompts carry the
 # gender-neutral style directive; the offer prompt additionally forbids inventing
@@ -36,7 +41,10 @@ PREP_PROMPT_VERSION = "interview-prep-v1"
 # (confirmed / corrected heard→meant / unconfirmed) alongside the prose trust rule,
 # so a recruiter sees that "Rust" in the raw transcript actually meant React — not
 # just buried in the summary. Grounded ONLY in an actual read-back; null otherwise.
-SCORECARD_PROMPT_VERSION = "scorecard-v5"
+# scorecard-v6: no prompt-content change over v5 — same cache-axis correction as
+# screening-v2 (the summary is generated in the requested --lang, which is now a
+# key axis). Kept in lockstep with AUTOMATION_VERSION.scorecard.
+SCORECARD_PROMPT_VERSION = "scorecard-v6"
 REMATCH_PROMPT_VERSION = "rematch-v1"
 # offer-v3: the result names its pricing basis — the draft-time fresh fit check
 # rides structured as `matchBasis` (rendered under its own label by the approval
