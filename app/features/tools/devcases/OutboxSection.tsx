@@ -4,7 +4,7 @@ import { useState } from "react";
 import { RefreshCw, Send } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { LoadStatus } from "@/app/_components/LoadStatus";
-import { formatRelativeTime } from "@/app/_lib/format";
+import { useRelativeTime } from "@/app/_lib/use-relative-time";
 import type { LoadState } from "@/app/_lib/useLoader";
 import type { OutboxStatus } from "@/app/_lib/comms-status";
 import type { OutboxItem } from "./DevTypes";
@@ -102,6 +102,7 @@ const STATUS_STYLE: Record<OutboxStatus, string> = {
 
 /** The Outbox tab: every message the pipeline sent, as a full table. */
 export function OutboxTable({ outbox, state, onResent }: { outbox: OutboxItem[]; state: LoadState; onResent?: () => void }) {
+  const rel = useRelativeTime();
   const t = useTranslations("devcase.outbox");
   const tc = useTranslations("channels.comms");
   const tk = useTranslations("devcase.outboxKind");
@@ -166,7 +167,7 @@ export function OutboxTable({ outbox, state, onResent }: { outbox: OutboxItem[];
                   </span>
                 </td>
                 <td className="hidden whitespace-nowrap px-3 py-2 text-sm text-steel sm:table-cell">
-                  {formatRelativeTime(m.createdAt) || "—"}
+                  {rel(m.createdAt) || "—"}
                 </td>
               </tr>
             ))}

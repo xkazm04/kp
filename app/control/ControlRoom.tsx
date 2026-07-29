@@ -6,7 +6,7 @@ import { LoadStatus } from "@/app/_components/LoadStatus";
 import { Select } from "@/app/_components/Select";
 import { useLoader } from "@/app/_lib/useLoader";
 import { aggregateLoadState } from "@/app/_lib/load-state";
-import { formatRelativeTime } from "@/app/_lib/format";
+import { useRelativeTime } from "@/app/_lib/use-relative-time";
 import { armOrExecute } from "./controlRoomConfirm";
 
 type Audit = { id: number; lifecycleId: string | null; actor: string; action: string; reason: string | null; createdAt: string };
@@ -33,6 +33,7 @@ function parseNum(v: string): number | undefined {
 }
 
 export function ControlRoom() {
+  const rel = useRelativeTime();
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [form, setForm] = useState({ candidate: "", score: "", outcome: "hired", perf: "4" });
@@ -287,7 +288,7 @@ export function ControlRoom() {
                 </span>
                 <span className="w-28 shrink-0 truncate font-semibold text-ink">{a.action}</span>
                 <span className="min-w-0 flex-1 truncate text-steel">{a.reason}</span>
-                <span className="shrink-0 text-[10px] text-steel">{formatRelativeTime(a.createdAt)}</span>
+                <span className="shrink-0 text-[10px] text-steel">{rel(a.createdAt)}</span>
               </li>
             ))}
             {(s?.audit ?? []).length === 0 ? <li className="px-3 py-2 text-[11px] text-steel">No decisions logged yet.</li> : null}
@@ -447,7 +448,7 @@ export function ControlRoom() {
                           "—"
                         )}
                       </td>
-                      <td className="text-[10px] text-steel">{formatRelativeTime(row.recordedAt)}</td>
+                      <td className="text-[10px] text-steel">{rel(row.recordedAt)}</td>
                     </tr>
                   ))}
                 </tbody>

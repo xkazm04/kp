@@ -63,6 +63,8 @@ export const ATTRIBUTION_BADGE = {
 
 // Audit rows show "—" for a blank/malformed timestamp; otherwise the shared
 // relative-time renderer (formatRelativeTime, which returns "" on invalid).
-export function timeAgo(iso: string): string {
-  return formatRelativeTime(iso) || "—";
+// `locale` is the active next-intl locale, threaded from the rendering row so
+// the age reads in the same language as the rest of the log.
+export function timeAgo(iso: string, locale: string): string {
+  return formatRelativeTime(iso, locale) || "—";
 }

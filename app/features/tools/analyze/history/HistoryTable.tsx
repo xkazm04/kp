@@ -3,7 +3,7 @@
 // The analysis history table (+ its Th/Td/formatRelative helpers), split out of
 // HistoryTab.tsx.
 import Link from "next/link";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { formatRelativeTime } from "@/app/_lib/format";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { DISPOSITION_STYLE, type AnalysisRow } from "./HistoryTypes";
@@ -11,6 +11,7 @@ import { DISPOSITION_STYLE, type AnalysisRow } from "./HistoryTypes";
 export function HistoryTable({ rows, dispLabel }: { rows: AnalysisRow[]; dispLabel: (d: string) => string }) {
   const t = useTranslations("history");
   const enumLabel = useEnumLabel();
+  const locale = useLocale();
 
   return (
     <div className="mt-4 overflow-x-auto rounded-lg border border-stone-200">
@@ -88,7 +89,7 @@ export function HistoryTable({ rows, dispLabel }: { rows: AnalysisRow[]; dispLab
                   "—"
                 )}
               </Td>
-              <Td>{formatRelative(row.created_at)}</Td>
+              <Td>{formatRelative(row.created_at, locale)}</Td>
             </tr>
           ))}
         </tbody>
@@ -112,11 +113,13 @@ function Td({ children, className = "" }: { children: React.ReactNode; className
   return <td className={`px-4 py-3 text-base text-ink ${className}`}>{children}</td>;
 }
 
-function formatRelative(iso: string): string {
+function formatRelative(iso: string, locale: string): string {
   const ts = new Date(iso).getTime();
   if (!Number.isFinite(ts)) return iso;
   // Within a day: the shared relative "ago" renderer. Older: an absolute date,
-  // which reads better than "37d ago" for a history view.
-  if (Date.now() - ts < 86_400_000) return formatRelativeTime(iso);
-  return new Date(iso).toLocaleDateString();
+  // which reads better than "37d ago" for a history view. Both halves render in
+  // the ACTIVE locale — the absolute fallback used to take the JS runtime's
+  // default, which is the viewer's OS locale, not the app's.
+  if (Date.now() - ts < 86_400_000) return formatRelativeTime(iso, locale);
+  return new Date(iso).toLocaleDateString(locale);
 }

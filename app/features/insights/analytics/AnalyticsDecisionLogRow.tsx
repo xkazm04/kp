@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { CHIP_QUIET } from "@/app/_components/ui/recipes";
 import { ATTRIBUTION_BADGE, decisionMeta, timeAgo, PAGE_SIZE, type Decision } from "./analyticsDecisionLogTypes";
 
@@ -28,6 +28,7 @@ export function DecisionLogRow({
   reasonText: (d: Decision) => string | null;
   enumLabel: (kind: string, value: string) => string;
 }) {
+  const locale = useLocale();
   const t = useTranslations("analytics.log");
   const m = decisionMeta(d.kind);
   const badgeCls = ATTRIBUTION_BADGE[m.attribution];
@@ -69,7 +70,7 @@ export function DecisionLogRow({
         </p>
         <DecisionDetail d={d} reason={reasonText(d)} boardHref={boardHref} viewLabel={t("viewCandidate")} />
       </div>
-      <span className="shrink-0 text-sm text-steel">{timeAgo(d.createdAt)}</span>
+      <span className="shrink-0 text-sm text-steel">{timeAgo(d.createdAt, locale)}</span>
     </li>
   );
 }

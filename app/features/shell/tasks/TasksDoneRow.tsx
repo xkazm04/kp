@@ -4,6 +4,7 @@
 // TasksTab.tsx so it stays under the 200-line file cap. Verbatim — same
 // DATA5 outcome derivation/rendering, same DATA1 retry affordance.
 import { useState } from "react";
+import { useLocale } from "next-intl";
 import Link from "next/link";
 import { ChevronDown, ChevronRight, RefreshCw } from "lucide-react";
 import { useTasks, type Task } from "./TasksProvider";
@@ -97,6 +98,7 @@ function TaskOutcome({ task }: { task: Task }) {
 // rows omit it so polling never re-triggers motion. CSS animations only fire on
 // mount, so already-present rows never re-animate regardless.
 export function DoneRow({ task, animateDelayMs = null }: { task: Task; animateDelayMs?: number | null }) {
+  const locale = useLocale();
   const { retryTask, fetchTask } = useTasks();
   const [retrying, setRetrying] = useState(false);
   // DATA5 — the outcome drawer: the row expands to the task's full record
@@ -165,7 +167,7 @@ export function DoneRow({ task, animateDelayMs = null }: { task: Task; animateDe
           </button>
         ) : null}
         <div className="shrink-0 text-right text-sm text-steel">
-          <p>{relTime(task.finishedAt ?? task.startedAt ?? task.createdAt)}</p>
+          <p>{relTime(task.finishedAt ?? task.startedAt ?? task.createdAt, locale)}</p>
           {dur ? <p className="text-sm text-steel/70">took {dur}</p> : null}
         </div>
       </div>
