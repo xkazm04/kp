@@ -1,13 +1,13 @@
 "use client";
-/* eslint-disable i18next/no-literal-string -- prototype-stage copy; threaded into
-   the channels namespace on consolidation. */
 
 // Shared internal menu pieces for the Channels filter primitives (ColumnFilter,
 // SearchSelect): the anchored/fixed-position popover shell and its searchable
 // option-list body. Split out of ChannelsFilters.tsx so that file stays under
-// the 200-line cap.
+// the 200-line cap. Copy resolves through `channels.filters.*` in four locales
+// (channels-i18n-honesty).
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Check, Search } from "lucide-react";
 import { FIELD } from "@/app/_components/ui/recipes";
 
@@ -34,6 +34,7 @@ export function OptionList({
   /** When set, shows a top row that resets the filter to "" (e.g. "All roles"). */
   clearLabel?: string;
 }) {
+  const t = useTranslations("channels");
   const [q, setQ] = useState("");
   const needle = q.trim().toLowerCase();
   const shown = needle ? options.filter((o) => o.label.toLowerCase().includes(needle)) : options;
@@ -46,8 +47,8 @@ export function OptionList({
             autoFocus
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Search…"
-            aria-label="Search options"
+            placeholder={t("filters.search")}
+            aria-label={t("filters.searchOptions")}
             className={`${FIELD} w-full py-1 pl-7 text-sm`}
           />
         </div>
@@ -67,7 +68,7 @@ export function OptionList({
             </button>
           </li>
         ))}
-        {shown.length === 0 ? <li className="px-2 py-2 text-sm text-steel">No matches</li> : null}
+        {shown.length === 0 ? <li className="px-2 py-2 text-sm text-steel">{t("filters.noMatches")}</li> : null}
       </ul>
     </div>
   );

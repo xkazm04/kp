@@ -3531,6 +3531,7 @@
     "statusLive": "Live",
     "statusConfigured": "Konfiguriert",
     "statusOff": "Aus",
+    "statusNothingPublished": "Nichts veröffentlicht",
     "statusWaiting": "Wartet",
     "copyLink": "Link kopieren",
     "copy": "Kopieren",
@@ -3569,7 +3570,8 @@
     },
     "careers": {
       "empty": "Noch keine veröffentlichten Stellen — veröffentlichen Sie eine Stelle, dann erscheint ihr Bewerbungslink hier.",
-      "applyLink": "Bewerbungslink"
+      "applyLink": "Bewerbungslink",
+      "publishRole": "Stelle veröffentlichen"
     },
     "receivers": {
       "role": "Stelle",

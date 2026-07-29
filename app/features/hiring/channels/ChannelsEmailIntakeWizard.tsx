@@ -8,7 +8,8 @@ import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import { BTN_PRIMARY } from "@/app/_components/ui/recipes";
 import { useCommsCapability } from "@/app/features/shell/useDeliveryCapability";
 import { useReceivers, isReceiverLive } from "@/app/features/hiring/channels/useChannelsReceivers";
-import { ReceiverTable, AddReceiverModal } from "@/app/features/hiring/channels/ChannelsReceiverTable";
+import { ReceiverTable } from "@/app/features/hiring/channels/ChannelsReceiverTable";
+import { AddReceiverModal } from "@/app/features/hiring/channels/ChannelsAddReceiverModal";
 import { SetupGuide, CopyChip } from "@/app/features/hiring/channels/ChannelsSetupGuide";
 import { CvSimCard } from "@/app/features/hiring/channels/ChannelsCvSimCard";
 

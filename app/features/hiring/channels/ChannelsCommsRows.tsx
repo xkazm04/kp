@@ -1,18 +1,17 @@
 "use client";
-/* eslint-disable i18next/no-literal-string -- prototype-stage copy; threaded into
-   the channels.comms namespace on consolidation (matches the JD Ledger's own disable). */
 
 // The Comms ledger's table: the column-filter header row and the message rows.
 // Split out of ChannelsCommsTable.tsx to keep the table file under the
-// 200-line cap.
+// 200-line cap. Every header, badge and timestamp resolves through
+// `channels.comms.*` (channels-i18n-honesty).
 
 import { AlertTriangle } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { Badge } from "@/app/_components/Badge";
 import { META_LABEL } from "@/app/_components/ui/recipes";
 import { labelize } from "@/app/_lib/format";
 import { ColumnFilter, type Option } from "./ChannelsFilters";
-import { isActionable, statusTone, type Message } from "./channelsCommsHelpers";
+import { formatRecordedAt, isActionable, statusTone, type Message, type StatusLabels } from "./channelsCommsHelpers";
 
 export function ChannelsCommsRows({
   shown,
@@ -33,6 +32,7 @@ export function ChannelsCommsRows({
   statusFilter,
   setStatusFilter,
   statuses,
+  statusLabels,
   onOpen,
 }: {
   shown: Message[];
@@ -53,9 +53,11 @@ export function ChannelsCommsRows({
   statusFilter: string;
   setStatusFilter: (v: string) => void;
   statuses: string[];
+  statusLabels: StatusLabels;
   onOpen: (id: string) => void;
 }) {
   const t = useTranslations("channels.comms");
+  const locale = useLocale();
   const asOptions = (values: string[]): Option[] => values.map((v) => ({ value: v, label: v }));
   return (
     <div className="overflow-x-auto rounded-lg border border-stone-200">
@@ -63,27 +65,31 @@ export function ChannelsCommsRows({
         <thead>
           <tr className="border-b border-stone-200 bg-paper/60">
             <th className="px-3 py-2">
-              <ColumnFilter title="Name" mode="search" value={nameQuery} onChange={setNameQuery} />
+              <ColumnFilter title={t("colName")} mode="search" value={nameQuery} onChange={setNameQuery} />
             </th>
             <th className="px-3 py-2">
-              <ColumnFilter title="Role" value={roleFilter} onChange={setRoleFilter} options={asOptions(roles)} />
+              <ColumnFilter title={t("colRole")} value={roleFilter} onChange={setRoleFilter} options={asOptions(roles)} />
             </th>
             <th className="px-3 py-2">
-              <ColumnFilter title="Channel" value={channelFilter} onChange={setChannelFilter} options={channels.map((c) => ({ value: c, label: labelize(c) }))} />
+              <ColumnFilter title={t("colChannel")} value={channelFilter} onChange={setChannelFilter} options={channels.map((c) => ({ value: c, label: labelize(c) }))} />
             </th>
             <th className="px-3 py-2">
-              <ColumnFilter title="Type" value={kindFilter} onChange={setKindFilter} options={kinds.map((k) => ({ value: k, label: labelize(k) }))} />
+              <ColumnFilter title={t("colType")} value={kindFilter} onChange={setKindFilter} options={kinds.map((k) => ({ value: k, label: labelize(k) }))} />
             </th>
             <th className="px-3 py-2">
-              <ColumnFilter title="Status" value={statusFilter} onChange={setStatusFilter} options={asOptions(statuses)} />
+              <ColumnFilter title={t("colStatus")} value={statusFilter} onChange={setStatusFilter} options={asOptions(statuses)} />
             </th>
-            <th className={`px-3 py-2 ${META_LABEL}`}>Sent</th>
+            <th title={t("recordedHint")} className={`px-3 py-2 ${META_LABEL}`}>
+              {t("colRecorded")}
+            </th>
           </tr>
         </thead>
         <tbody>
           {shown.map((m) => {
-            const st = statusTone(m);
-            const unaddressable = relayConfigured && m.deliverable === false;
+            const st = statusTone(m, statusLabels);
+            // An unmatched receipt has no candidate address by construction
+            // ("(relay callback)"), so the no-address warning is noise on it.
+            const unaddressable = relayConfigured && m.deliverable === false && !m.orphaned;
             return (
               <tr
                 key={m.id}
@@ -108,7 +114,7 @@ export function ChannelsCommsRows({
                 <td className="px-3 py-2">
                   <Badge tone={st.tone} label={st.label} />
                 </td>
-                <td className="whitespace-nowrap px-3 py-2 text-xs text-steel">{new Date(m.createdAt).toLocaleDateString()}</td>
+                <td className="whitespace-nowrap px-3 py-2 text-xs text-steel">{formatRecordedAt(m.createdAt, locale)}</td>
               </tr>
             );
           })}

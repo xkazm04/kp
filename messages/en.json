@@ -3531,6 +3531,7 @@
     "statusLive": "Live",
     "statusConfigured": "Configured",
     "statusOff": "Off",
+    "statusNothingPublished": "Nothing published",
     "statusWaiting": "Waiting",
     "copyLink": "Copy link",
     "copy": "Copy",
@@ -3569,7 +3570,8 @@
     },
     "careers": {
       "empty": "No published roles yet — publish a job and its apply link appears here.",
-      "applyLink": "apply link"
+      "applyLink": "apply link",
+      "publishRole": "Publish a role"
     },
     "receivers": {
       "role": "Role",
