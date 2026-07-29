@@ -34,6 +34,18 @@ export function useAiReviewCardLogic(entry: Entry) {
         ? Number(legacyBasis[1])
         : null
     : null;
+  // UNPRICED DRAFTS (draft_offer's FAIL SAFE, pipeline/jobfit/automation.py). When the
+  // active market configures no seniority band AND the posting carries none, the drafter
+  // deliberately proposes NO figure: recommended / salaryMin / salaryMax come back null
+  // together, the candidate letter names no number, and the draft is routed to the human
+  // offer_review gate precisely so a recruiter sets the real one. The card used to render
+  // those nulls through `Number(x ?? 0).toLocaleString()` — a literal "0" headline and a
+  // 0–0 band meter — i.e. it fabricated the one number nobody was willing to invent, on
+  // exactly the drafts that exist because the number is unknown. So: no figure and no
+  // meter unless the payload genuinely carries them.
+  const unpriced = isOffer && parsed != null && parsed.recommended == null;
+  const hasBand = isOffer && parsed != null && parsed.salaryMin != null && parsed.salaryMax != null;
+
   // AUTO1 — a supervised-clock reject queued for ratification. Same screening
   // payload shape; the tag names what clicking Reject actually does (apply +
   // email the rejection) so the reviewer knows this card IS the adverse action.
@@ -60,5 +72,5 @@ export function useAiReviewCardLogic(entry: Entry) {
           ? "bg-amber-400"
           : "bg-coral";
 
-  return { parsed, kind, isScorecard, isOffer, pricingBasis, isQueuedReject, isHumanScorecard, screeningConfidence, confidenceTone };
+  return { parsed, kind, isScorecard, isOffer, unpriced, hasBand, pricingBasis, isQueuedReject, isHumanScorecard, screeningConfidence, confidenceTone };
 }

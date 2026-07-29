@@ -1,3 +1,4 @@
+import { Crown } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { formatSalaryRange } from "@/app/_lib/format";
 import {
@@ -9,9 +10,9 @@ import {
   SalaryCell,
   SkillCell,
   SkillsLegend,
-  type SalaryScale,
 } from "@/app/features/hiring/decisions/groupEval/GroupEvalComparisonCells";
 import { coverageCount, percentOf, rowLeader } from "@/app/features/hiring/decisions/groupEval/groupEvalHelpers";
+import { computeSalaryScale } from "@/app/features/hiring/decisions/groupEval/groupEvalSalaryScale";
 import { Avatar, Pill, SectionTitle } from "@/app/features/hiring/decisions/groupEval/GroupEvalPrimitives";
 import { candIdentity, type EvalCandidate } from "@/app/features/shared/groupEvalTypes";
 

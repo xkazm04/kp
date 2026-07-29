@@ -18,6 +18,7 @@ export function AiReviewCardBody({
   parsed,
   isOffer,
   isScorecard,
+  hasBand,
   pricingBasis,
   ttlDays,
   setTtlDays,
@@ -26,6 +27,10 @@ export function AiReviewCardBody({
   parsed: ParsedApproval;
   isOffer: boolean;
   isScorecard: boolean;
+  // honest-unpriced-offer — whether this draft actually carries BOTH salary
+  // bounds. Derived in decisionsAiReviewCardLogic.ts; false on the fail-safe
+  // drafts that deliberately propose no figure.
+  hasBand: boolean;
   pricingBasis: number | null;
   ttlDays: number;
   setTtlDays: (n: number) => void;
@@ -35,25 +40,36 @@ export function AiReviewCardBody({
     <div className="mt-2 rounded-md border border-stone-200 bg-paper/50 p-2.5 text-sm text-ink">
       {isOffer ? (
         <>
-          <div className="h-1.5 overflow-hidden rounded-full bg-stone-200">
-            <div
-              className="h-full rounded-full bg-moss"
-              style={{
-                width: `${Math.max(4, Math.min(100, ((Number(parsed.recommended) - Number(parsed.salaryMin)) / Math.max(1, Number(parsed.salaryMax) - Number(parsed.salaryMin))) * 100))}%`,
-              }}
-            />
-          </div>
-          <p className="mt-1 text-sm text-steel">
-            {t("band", {
-              min: Number(parsed.salaryMin ?? 0).toLocaleString(),
-              max: Number(parsed.salaryMax ?? 0).toLocaleString(),
-              currency: String(parsed.currency ?? ""),
-            })}
-          </p>
+          {/* The meter and the band caption are a POSITION-WITHIN-A-BAND readout;
+              with no band they'd be a 0–0 rail with the marker pinned at the floor.
+              Rendered only when the draft actually carries min AND max. */}
+          {hasBand ? (
+            <>
+              <div className="h-1.5 overflow-hidden rounded-full bg-stone-200">
+                <div
+                  className="h-full rounded-full bg-moss"
+                  style={{
+                    width: `${Math.max(4, Math.min(100, ((Number(parsed.recommended) - Number(parsed.salaryMin)) / Math.max(1, Number(parsed.salaryMax) - Number(parsed.salaryMin))) * 100))}%`,
+                  }}
+                />
+              </div>
+              <p className="mt-1 text-sm text-steel">
+                {t("band", {
+                  min: Number(parsed.salaryMin ?? 0).toLocaleString(),
+                  max: Number(parsed.salaryMax ?? 0).toLocaleString(),
+                  currency: String(parsed.currency ?? ""),
+                })}
+              </p>
+            </>
+          ) : (
+            <p className="rounded-md border border-dashed border-stone-300 px-2 py-1.5 text-sm text-steel">{t("noBand")}</p>
+          )}
           {/* See pricingBasis in decisionsAiReviewCardLogic.ts — labeled, localized,
-              one number with a named producer. Only an unparseable payload falls
-              back to raw prose. */}
-          {pricingBasis != null ? (
+              one number with a named producer. The "~N% of the band" phrasing is
+              meaningless without a band, so an unpriced draft falls through to the
+              server's rationale, which names the uncalibrated market and what the
+              approver must do. */}
+          {pricingBasis != null && hasBand ? (
             <p className="mt-1">
               {t("pricingBasis", {
                 score: pricingBasis,
