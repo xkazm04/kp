@@ -50,7 +50,7 @@ test("no crowned lead means no candidate is the top pick", () => {
 });
 
 test("the per-candidate tabs key the lead's chips on identity, not the label", () => {
-  const src = read("PerCandidateTabs.tsx");
+  const src = read("GroupEvalPerCandidateTabs.tsx");
   assert.match(src, /isTopPick\(c, topPick\)/, "the chips must gate on isTopPick");
   assert.doesNotMatch(src, /topPick === c\.label/, "the label-keyed comparison must be gone");
 });
@@ -58,18 +58,18 @@ test("the per-candidate tabs key the lead's chips on identity, not the label", (
 // ---- (b) the hedge --------------------------------------------------------
 
 test("an overlapping lead separation renders a visible hedge beside the crown", () => {
-  const table = read("ComparisonTable.tsx");
+  const table = read("GroupEvalComparisonTable.tsx");
   assert.match(table, /leadSeparation === "overlapping"/, "the table must react to an overlapping separation");
   assert.match(table, /t\("leadTied"\)/, "the hedge chip must render localized copy");
   // Only "overlapping" hedges: "separated" needs none and "unknown" must never be
   // rendered as either reassurance or a hedge.
   assert.doesNotMatch(table, /leadSeparation === "unknown"/);
-  const legacy = read("LegacyView.tsx");
+  const legacy = read("GroupEvalLegacyView.tsx");
   assert.match(legacy, /leadSeparation === "overlapping"/, "the compact lead card must hedge too");
 });
 
 test("the hedge copy exists in every locale", () => {
-  const root = path.join(dir, "..", "..", "..", "..");
+  const root = path.join(dir, "..", "..", "..", "..", "..");
   for (const loc of ["en", "cs", "de", "fr"]) {
     const m = JSON.parse(readFileSync(path.join(root, "messages", `${loc}.json`), "utf8")) as {
       decisions: { groupEval: Record<string, string> };
@@ -81,6 +81,6 @@ test("the hedge copy exists in every locale", () => {
 });
 
 test("the sealed separation contract still names its reader (no orphan field)", () => {
-  const types = read("types.ts");
+  const types = readFileSync(path.join(dir, "..", "..", "..", "shared", "groupEvalTypes.ts"), "utf8");
   assert.match(types, /ComparisonTable/, "the leadSeparation comment must name the surface that renders it");
 });

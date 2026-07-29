@@ -5,7 +5,7 @@
 // accept/reject actions. Parsing + derived flags live in
 // decisionsAiReviewCardLogic.ts so this file stays under the 200-line cap.
 import { useState } from "react";
-import { Check, CheckSquare, History, Search, Sparkles, Square, X } from "lucide-react";
+import { Check, CheckSquare, CircleDollarSign, History, Search, Sparkles, Square, X } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { defaultOfferTtlDays } from "@/app/_lib/offer-policy";
 import { CandidateHead, RecBadge } from "./DecisionsShared";
@@ -53,7 +53,10 @@ export function AiReviewCard({
   // whole days, defaulting to the deployment default. Sent with the accept that
   // extends the offer; the candidate's countdown then reflects it.
   const [ttlDays, setTtlDays] = useState<number>(defaultOfferTtlDays());
-  const { parsed, isScorecard, isOffer, pricingBasis, isQueuedReject, isHumanScorecard, screeningConfidence, confidenceTone } =
+  // `unpriced` / `hasBand` — the honest-unpriced-offer state, derived in the logic
+  // module (see the UNPRICED DRAFTS note there): an offer draft whose fail-safe
+  // proposed no figure must show no figure, and no band meter without a band.
+  const { parsed, isScorecard, isOffer, unpriced, hasBand, pricingBasis, isQueuedReject, isHumanScorecard, screeningConfidence, confidenceTone } =
     useAiReviewCardLogic(entry);
   const tag = isOffer
     ? t("tagOffer")
@@ -95,14 +98,26 @@ export function AiReviewCard({
           </span>
         )}
         {isOffer ? (
-          // P2-1 / Direction 2c — render only the unit the draft actually carries.
-          // The server path deliberately refuses to fabricate a currency
-          // (pipeline-entry-action.ts extendOffer), so the card must not invent
-          // "CZK" either: an absent currency shows the bare amount, not a wrong unit.
-          <span className="font-serif text-base text-ink">
-            {Number(parsed?.recommended ?? 0).toLocaleString()}
-            {parsed?.currency ? ` ${parsed.currency}` : ""}
-          </span>
+          unpriced ? (
+            // No figure was proposed — say so, in the amber "needs your attention"
+            // grammar this card already uses for the JD-staleness cue. The rationale
+            // in the body carries the server's reason verbatim.
+            <span
+              className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-meta font-semibold text-amber-800"
+              title={t("unpricedTitle")}
+            >
+              <CircleDollarSign size={11} aria-hidden /> {t("unpricedAmount")}
+            </span>
+          ) : (
+            // P2-1 / Direction 2c — render only the unit the draft actually carries.
+            // The server path deliberately refuses to fabricate a currency
+            // (pipeline-entry-action.ts extendOffer), so the card must not invent
+            // "CZK" either: an absent currency shows the bare amount, not a wrong unit.
+            <span className="font-serif text-base text-ink">
+              {Number(parsed?.recommended ?? 0).toLocaleString()}
+              {parsed?.currency ? ` ${parsed.currency}` : ""}
+            </span>
+          )
         ) : (
           <RecBadge rec={parsed?.recommendation} confidence={isScorecard ? undefined : parsed?.confidence} />
         )}
@@ -133,7 +148,7 @@ export function AiReviewCard({
       ) : null}
 
       {parsed ? (
-        <AiReviewCardBody parsed={parsed} isOffer={isOffer} isScorecard={isScorecard} pricingBasis={pricingBasis} ttlDays={ttlDays} setTtlDays={setTtlDays} t={t} />
+        <AiReviewCardBody parsed={parsed} isOffer={isOffer} isScorecard={isScorecard} hasBand={hasBand} pricingBasis={pricingBasis} ttlDays={ttlDays} setTtlDays={setTtlDays} t={t} />
       ) : null}
 
       {/* Direction 1 — reach the full analysis (confidence band, score breakdown,

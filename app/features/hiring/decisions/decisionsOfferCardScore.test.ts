@@ -71,23 +71,26 @@ test("the pricing basis renders only under its own label (pricingBasis ← struc
 // pull those nulls through `Number(x ?? 0).toLocaleString()`: a literal "0" headline and a
 // 0–0 band meter — a fabricated number on exactly the drafts that exist BECAUSE nobody was
 // willing to invent one. Source guard so a refactor can't quietly restore the coercion.
+// The card is split three ways, so each half of the contract is asserted against the
+// module that now owns it: the two derivations live in the logic module, the money
+// headline in the card shell, the meter / band caption / pricing-basis line in the body.
 test("an unpriced offer draft renders no fabricated figure and no 0–0 band meter", () => {
   assert.ok(
-    /const unpriced =[\s\S]*?parsed\.recommended == null/.test(card),
-    "the card must derive an `unpriced` state from a null `recommended`"
+    /const unpriced =[\s\S]*?parsed\.recommended == null/.test(cardLogic),
+    "the card's logic module must derive an `unpriced` state from a null `recommended`"
   );
   assert.ok(
-    /const hasBand =[\s\S]*?parsed\.salaryMin != null && parsed\.salaryMax != null/.test(card),
-    "the card must derive `hasBand` from BOTH bounds being present"
+    /const hasBand =[\s\S]*?parsed\.salaryMin != null && parsed\.salaryMax != null/.test(cardLogic),
+    "the card's logic module must derive `hasBand` from BOTH bounds being present"
   );
   assert.ok(/unpriced \? \(/.test(card), "the money headline must branch on `unpriced` before formatting a figure");
-  assert.ok(/\{hasBand \? \(/.test(card), "the band meter + band caption must be gated on `hasBand`");
+  assert.ok(/\{hasBand \? \(/.test(cardBody), "the band meter + band caption must be gated on `hasBand`");
   assert.ok(
-    /pricingBasis != null && hasBand \?/.test(card),
+    /pricingBasis != null && hasBand \?/.test(cardBody),
     'the "~N% of the band" line needs a band — it must be gated on `hasBand` too'
   );
   assert.ok(
-    /t\("noBand"\)/.test(card) && /t\("unpricedAmount"\)/.test(card),
+    /t\("noBand"\)/.test(cardBody) && /t\("unpricedAmount"\)/.test(card),
     "the unpriced state must render localized honest copy, not empty chrome"
   );
 });

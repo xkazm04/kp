@@ -70,7 +70,7 @@ test("missing / empty blobs stay rejected (unchanged behaviour)", () => {
 test("the panel guards on the alignment check, not on bare non-emptiness", () => {
   // The panel is a client component with no unit seam; pin the wiring in source so the
   // unguarded parallel-array indexing can't come back.
-  const src = readFileSync(path.join(dir, "FairnessPanel.tsx"), "utf8");
+  const src = readFileSync(path.join(dir, "GroupEvalFairnessPanel.tsx"), "utf8");
   assert.match(src, /if \(!isFairnessAligned\(fairness\)\)/, "the render guard must use isFairnessAligned");
   assert.doesNotMatch(src, /!fairness \|\| !fairness\.labels\?\.length/, "the old non-emptiness-only guard must be gone");
 });
