@@ -33,6 +33,12 @@ export function useIngestAdPanelLogic({
   const [results, setResults] = useState<{ title: string; status: RowStatus }[] | null>(null);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  // Distinguishes the two reasons a controller aborts. An UNMOUNT abort must stay
+  // silent (no state writes into a dead component); a USER cancel must land like any
+  // other terminal outcome — clear busy, keep the panel open, keep the partial
+  // results, and say what happened. Without this flag every abort was treated as a
+  // teardown, which is why the run could never be cancelled from the mounted panel.
+  const cancelledRef = useRef(false);
   const bulkCount = bulk ? splitJobAds(adText).length : 0;
 
   // Abort an in-flight parse if the panel unmounts (tab switch) — otherwise the
@@ -77,6 +83,7 @@ export function useIngestAdPanelLogic({
     setProgress(null);
     const controller = new AbortController();
     abortRef.current = controller;
+    cancelledRef.current = false;
     try {
       const outcome = await ingestOne(text, controller.signal);
       if (!outcome.ok) throw new Error(outcome.error);
@@ -89,10 +96,15 @@ export function useIngestAdPanelLogic({
       setAdText("");
       onIngested?.(result);
     } catch (caught) {
-      if (controller.signal.aborted) return; // intentional teardown, not a failure
+      if (controller.signal.aborted) {
+        // User cancel: report it (the paste is kept so the ad isn't lost). Unmount
+        // teardown: stay silent.
+        if (cancelledRef.current) setNote(t("cancelled"));
+        return;
+      }
       setError(caught instanceof Error ? caught.message : t("ingestFailed"));
     } finally {
-      if (!controller.signal.aborted) setBusy(false);
+      if (!controller.signal.aborted || cancelledRef.current) setBusy(false);
       abortRef.current = null;
     }
   };
@@ -113,6 +125,7 @@ export function useIngestAdPanelLogic({
     setResults([]);
     const controller = new AbortController();
     abortRef.current = controller;
+    cancelledRef.current = false;
     const out: { title: string; status: RowStatus }[] = [];
     try {
       for (let i = 0; i < ads.length; i += 1) {
@@ -125,27 +138,54 @@ export function useIngestAdPanelLogic({
             const { result } = outcome;
             out.push({ title: result.title, status: result.created ? "added" : "exists" });
           }
-        } catch (caught) {
-          if (controller.signal.aborted) return; // intentional teardown
+        } catch {
+          if (controller.signal.aborted) break; // cancel/teardown — settled after the loop
           out.push({ title: firstLine(ads[i]), status: "failed" });
         }
         setResults([...out]);
+      }
+      // A cancelled run is a real terminal outcome, not a failure: keep the rows that
+      // did land, say how far it got, and refresh the corpus if anything was created.
+      // (Unmount teardown falls through here silently — no state writes.)
+      if (controller.signal.aborted) {
+        if (cancelledRef.current) {
+          setResults([...out]);
+          setNote(t("bulkCancelled", { done: out.length, total: ads.length }));
+          if (out.some((r) => r.status === "added")) onBulkComplete?.();
+        }
+        return;
       }
       const added = out.filter((r) => r.status === "added").length;
       const exists = out.filter((r) => r.status === "exists").length;
       const failed = out.filter((r) => r.status === "failed").length;
       setNote(t("bulkDone", { added, exists, failed }));
-      setAdText("");
       // One coalesced refresh after the whole run (only if something new landed) — no
       // per-row reload storm, and no auto-open modal over the results table.
-      if (added > 0) onBulkComplete?.();
+      //
+      // added === 0 (every ad a dedup hit or a parse failure) used to clear the paste
+      // AND skip the refresh: the user's input vanished with nothing new on screen to
+      // account for it. The paste is the only copy of that text — keep it so the failed
+      // ads can be fixed and re-run; the bulkDone note + the per-row table carry the
+      // outcome.
+      if (added > 0) {
+        setAdText("");
+        onBulkComplete?.();
+      }
     } finally {
-      if (!controller.signal.aborted) {
+      if (!controller.signal.aborted || cancelledRef.current) {
         setBusy(false);
         setProgress(null);
       }
       abortRef.current = null;
     }
+  };
+
+  // Cancel a RUNNING import. A bulk import is minutes of billed LLM time per ad;
+  // this ABORTS the run (the signal is threaded to the route, which SIGKILLs the
+  // parser child) and leaves the panel + partial results standing.
+  const cancelRun = () => {
+    cancelledRef.current = true;
+    abortRef.current?.abort();
   };
 
   const close = () => {
@@ -186,6 +226,7 @@ export function useIngestAdPanelLogic({
     bulkCount,
     submit,
     submitBulk,
+    cancelRun,
     close,
   };
 }
