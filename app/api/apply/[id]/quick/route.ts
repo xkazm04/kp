@@ -9,7 +9,7 @@ import { intakeLead } from "@/app/_lib/lead-intake";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
 import { getOrCreateStatusLink } from "@/app/_lib/application-status-store";
-import { isRelayConfigured } from "@/app/_lib/comms-truth";
+import { isRelayConfigured } from "@/app/_lib/comms-relay";
 
 // Mint (or reuse) the entry's status-link token, best-effort — the application
 // already succeeded, so a status-link failure must never turn it into an error

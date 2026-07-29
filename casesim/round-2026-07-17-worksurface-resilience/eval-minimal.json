@@ -1,0 +1,234 @@
+{
+  "result": {
+    "reflection": {
+      "narrative": "The evidence packet is effectively empty: zero commits, no messages, no change-shape statistics, no cadence, and no top-level structure were captured. From this there is nothing to reconstruct about where the candidate mentally went â€” no decomposition rhythm, no sizing of changes, no visible recovery from mistakes, and no tooling footprint, deliberate or otherwise. This absence could mean an unpushed or squashed history, a fresh or misconfigured extraction, work done outside version control, or simply that the signals never reached this analysis; it should not be read as evidence of poor engineering habits. No inference about capability, positive or negative, is warranted from an empty record.",
+      "iterationPattern": "unclear",
+      "deadEnds": [],
+      "readBeforeWrite": 0.5,
+      "verificationHabits": [],
+      "confidence": 0.05,
+      "promptVersion": "commit-reflection-v3"
+    },
+    "tooling": {
+      "fluency": 0.7,
+      "probeOutcomes": [
+        {
+          "probeId": "p1",
+          "kind": "ambiguity",
+          "where": "the brief's 'feel safe' â€” restore-on-reload vs local draft persistence vs warn-before-leave vs tighter flush cadence",
+          "detected": false,
+          "handledWell": null,
+          "note": "observed: probe area not opened/edited"
+        },
+        {
+          "probeId": "p2",
+          "kind": "legacy_trap",
+          "where": "the existing flush()/re-buffer logic and the session event log's append-only integrity contract (server-side hash chain) â€” naive rewrites break event ordering or the chain",
+          "detected": false,
+          "handledWell": null,
+          "note": "observed: probe area not opened/edited"
+        },
+        {
+          "probeId": "p3",
+          "kind": "verification_trap",
+          "where": "a resilience fix that looks right but double-appends the re-buffered event batch on retry, or restores stale files over newer local edits â€” passes a quick manual check",
+          "detected": false,
+          "handledWell": null,
+          "note": "observed: probe area not opened/edited"
+        }
+      ],
+      "overRelianceFlags": [],
+      "evidence": [
+        "Opened 3 file(s), edited 1 (observed).",
+        "Read-before-write ratio 1.0 from event order.",
+        "Recorded 3 decision-log edit(s).",
+        "Used the captured assistant/stakeholder channel 3 time(s) (observed; never a penalty).",
+        "The mid-flight requirement change was shown but no edits followed it (submitted against the stale brief)."
+      ],
+      "signals": {
+        "filesOpened": 3,
+        "filesEdited": 1,
+        "readBeforeWrite": 1.0,
+        "decisionLogEntries": 3,
+        "editedTest": false,
+        "editedDecisions": true,
+        "iterationPattern": "iterative",
+        "perturbationShown": true,
+        "editsAfterPerturbation": 0,
+        "decisionsAfterPerturbation": 2,
+        "promptExchanges": 3
+      },
+      "confidence": 0.8
+    },
+    "evaluation": {
+      "dimensionScores": {
+        "framing": 46,
+        "tooling": 58,
+        "judgment": 44,
+        "architecture": 45,
+        "transfer": 45
+      },
+      "strengths": [
+        "Prompts were self-authored, not brief pastes (briefPasteRatio 0.0), with real iteration (depth 3 across 3 prompts) â€” the candidate drove the assistant rather than delegating wholesale.",
+        "Perfect read-before-write discipline (1.0 from event order) on the files that were opened, plus 3 decision-log edits showing some deliberate reasoning trail.",
+        "Engaged the stakeholder channel once rather than working in a vacuum."
+      ],
+      "concerns": [
+        "The mid-flight requirement change was shown but produced no follow-up edits â€” the submission went out against the stale brief, a direct miss on framing and judgment.",
+        "Zero verification asks and zero clarifying questions; none of the three planted probe areas (ambiguity, legacy trap, verification trap) were even opened, so there is no positive evidence of catching or validating AI output.",
+        "The broader evidence packet is effectively empty (no commits, cadence, or structure), so architecture and transfer are scored near the neutral midpoint on thin signal rather than demonstrated capability."
+      ],
+      "hasFindings": true,
+      "summary": "A thin but not empty record: the candidate authored their own prompts, iterated, read before writing, and kept a decision log â€” modest positive tooling signal for a medior product engineer. However, they shipped against a superseded brief after the requirement change was surfaced, never asked a clarifying question or verification of the assistant, and touched none of the probe areas, leaving judgment and verification unevidenced. Architecture and transfer scores reflect near-absent evidence rather than observed weakness.",
+      "dimensions": [
+        {
+          "name": "framing",
+          "label": "Problem framing",
+          "weight": 0.2,
+          "score": 46,
+          "description": "Turns an ambiguous need into a sound plan."
+        },
+        {
+          "name": "tooling",
+          "label": "Tooling fluency",
+          "weight": 0.25,
+          "score": 58,
+          "description": "Drives AI and other tools well; iterates and verifies."
+        },
+        {
+          "name": "judgment",
+          "label": "Judgment",
+          "weight": 0.25,
+          "score": 44,
+          "description": "Catches AI/tooling mistakes; validates; pushes back."
+        },
+        {
+          "name": "architecture",
+          "label": "Architecture",
+          "weight": 0.15,
+          "score": 45,
+          "description": "Structure and trade-offs that fit the real materials and constraints."
+        },
+        {
+          "name": "transfer",
+          "label": "Transfer",
+          "weight": 0.15,
+          "score": 45,
+          "description": "Capability transfers to THIS role's tools and responsibilities."
+        }
+      ],
+      "confidence": 0.05,
+      "promptVersion": "case-eval-v1"
+    },
+    "transfer": {
+      "transferScore": 44,
+      "transfers": [
+        "Self-authored, iterative prompting against a codebase â€” reading before writing maps directly to owning unfamiliar candidate-facing surfaces in a Next.js repo",
+        "Keeping a decision log mirrors the traceability habits needed for trustworthy data-capture pipelines",
+        "Baseline TypeScript/React fluency implied by the working submission, relevant to the core stack"
+      ],
+      "gaps": [
+        "Shipped against a superseded brief after the change was surfaced â€” directly undermines the 'own surfaces end to end' responsibility, which requires tracking requirement drift",
+        "No verification of assistant output and no probe areas touched â€” the role explicitly requires verifying against failure paths, and this is the least-evidenced skill",
+        "No evidence on API/route design, SQLite, or storage-layer judgment (three of five must-haves unobserved)",
+        "No clarifying questions asked despite ambiguity â€” risky for a medior expected to operate with limited oversight"
+      ],
+      "hasTransfers": true,
+      "roleFitRationale": "The demonstrated skills that do transfer (read-then-write tooling discipline, decision logging) are real but sit in the least differentiating band for a medior product engineer, while the role's most heavily weighted responsibilities â€” end-to-end ownership under changing requirements and failure-path verification â€” are exactly where the record shows either a negative signal (building against a superseded brief) or no evidence (untouched probes, no verification loop). Must-have coverage is thin: front-of-stack fluency is plausible, but API design and SQLite are unobserved. Weighting by relevance, this lands in the low-40s: not a rejection on ability, but the evidence does not yet support trusting this candidate with unsupervised ownership of production data-capture surfaces.",
+      "confidence": 0.05,
+      "promptVersion": "transfer-v1"
+    },
+    "followups": {
+      "questions": [
+        {
+          "id": "q1",
+          "probeId": "",
+          "decision": "The submission went out against the original brief even though a mid-flight requirement change was surfaced in the session; no follow-up edits addressed it.",
+          "question": "Partway through the session a change to the requirements came in. Walk me through what you did when you saw it â€” what did it change about the task in your reading, what did you decide to do about it, and what would the update have cost you to absorb?",
+          "listenFor": "They can recount the specific change, admit they saw it (or explain honestly why they missed it), and reason concretely about the trade-off of absorbing it late â€” e.g. what they would have re-scoped or cut. A genuine author knows what the stale brief actually said versus the new one.",
+          "redFlag": "They don't remember any requirement change existing, describe it only in generic terms ('there was an update, I handled the main scope'), or claim they addressed it when the submission shows no corresponding edits."
+        },
+        {
+          "id": "q2",
+          "probeId": "p1",
+          "decision": "The 'feel safe' resilience ambiguity (restore-on-reload vs local draft vs warn-before-leave vs tighter flush) was never opened or resolved; no clarifying question was asked either.",
+          "question": "The brief asked that candidates 'feel safe' about losing work. There are at least three different loss modes you could have targeted â€” losing work on reload, losing an unflushed buffer, or losing local edits to a server restore. Which one did you understand the brief to mean, which would you have built first, and what would make you pick a different one?",
+          "listenFor": "They can enumerate distinct loss scenarios unprompted, tie each to a concrete mechanism in the editor (flush cadence, unload events, localStorage reconciliation), and give a reasoned first pick with a counterfactual ('if the flush interval were shorter, warn-before-unload matters less').",
+          "redFlag": "They treat all options as equally fine, can't name a concrete loss scenario, or pivot to describing what the submission contains rather than reasoning about the choice they didn't visibly make."
+        },
+        {
+          "id": "q3",
+          "probeId": "p2",
+          "decision": "The existing flush()/re-buffer capture pipeline and its append-only hash-chain event log were left untouched â€” never opened during the session.",
+          "question": "The session editor already had a flush-and-re-buffer pipeline writing to an append-only event log with an integrity chain. If you had added a restore path, how would you have kept the event log's guarantees intact â€” and what specifically in that existing code would you have had to read first to be sure?",
+          "listenFor": "They reason about ordering and append-only constraints concretely â€” e.g. a restore must be a read path or a new event type, retries must be idempotent, rewriting past events breaks the chain. Someone who worked in this codebase can name what they'd inspect (the flush function, how the batch re-buffers on failure).",
+          "redFlag": "They hand-wave ('I'd just make sure not to break it'), propose rewriting the flush loop without acknowledging the re-verification cost, or show no awareness that an integrity contract existed at all despite it being in the code they submitted."
+        },
+        {
+          "id": "q4",
+          "probeId": "p3",
+          "decision": "No failure-path verification was observed â€” zero verification asks to the assistant and the retry/restore edge cases were never exercised.",
+          "question": "Suppose a flush request fails and the client retries. What's the failure mode you'd be most worried about in your submission, and how did you â€” or how would you â€” convince yourself it doesn't happen? Walk me through the actual check, not the intention.",
+          "listenFor": "They name the double-append hazard (the re-buffered batch getting written twice) or stale-restore-over-newer-edits unprompted, and describe a concrete reproduction: killing the network mid-flush, asserting on event counts, or a test against the real route. Genuine verifiers describe what they observed, not what they hoped.",
+          "redFlag": "They describe verification as 'I tested it and it worked' with no mechanism, can't name any specific failure mode in their own retry logic, or only propose checks the interviewer just implied."
+        },
+        {
+          "id": "q5",
+          "probeId": "",
+          "decision": "Three self-authored prompts with iteration depth 3 (briefPasteRatio 0.0) drove the assistant, alongside a 3-entry decision log.",
+          "question": "Your prompts to the assistant were short and iterative rather than pasting the brief in. Pick the exchange where the assistant's first answer wasn't what you wanted â€” what was wrong with it, and how did you steer the follow-up?",
+          "listenFor": "They can reconstruct a specific back-and-forth: what the first draft got wrong, the exact correction they gave, and why their phrasing changed. Real iteration leaves a memory of friction â€” a wrong assumption, a missing constraint they had to supply.",
+          "redFlag": "They can't recall any exchange where the assistant was wrong, describe the interaction only in general terms ('I refined it until it was good'), or the iteration story doesn't match a three-prompt session."
+        },
+        {
+          "id": "q6",
+          "probeId": "",
+          "decision": "One stakeholder question was asked, but zero clarifying questions about the brief's ambiguities.",
+          "question": "You went to the stakeholder once during the session. What did you ask, why was that the thing worth spending your one question on, and what did you deliberately decide NOT to ask and resolve on your own instead?",
+          "listenFor": "They remember the actual question and the answer, can justify its priority over other unknowns, and can name at least one ambiguity they consciously self-resolved with a stated assumption â€” showing the triage was deliberate.",
+          "redFlag": "They don't remember contacting the stakeholder, invent a plausible-sounding question that doesn't match the record, or frame the brief as having had no ambiguities worth asking about."
+        }
+      ],
+      "promptVersion": "followups-v1"
+    },
+    "observedChecks": {
+      "promptSignals": {
+        "observed": true,
+        "assistantPrompts": 3,
+        "stakeholderQuestions": 1,
+        "clarifyingQuestions": 0,
+        "verificationAsks": 0,
+        "meanPromptChars": 147,
+        "iterationDepth": 3,
+        "briefPasteRatio": 0.0,
+        "confidence": 0.8
+      },
+      "promptEvidence": [
+        "Assistant prompts: 3 (mean 147 chars, iteration depth 3).",
+        "Stakeholder questions: 1 (0 clarifying)."
+      ]
+    }
+  },
+  "source": "partial",
+  "perStepSources": {
+    "reflect": "llm",
+    "tooling": "observed",
+    "evaluate": "llm",
+    "transfer": "llm",
+    "followups": "llm"
+  },
+  "confidence": {
+    "byStep": {
+      "reflect": 0.05,
+      "tooling": 0.8,
+      "evaluate": 0.05,
+      "transfer": 0.05
+    },
+    "threshold": 0.4,
+    "low": [
+      "evaluate",
+      "reflect",
+      "transfer"
+    ]
+  }
+}

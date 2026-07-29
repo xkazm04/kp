@@ -64,3 +64,8 @@
 - Direction: user → "Pause here". Loop stops; state fully recorded; re-invoke to resume.
 - Discipline carried forward: parallel CLI sessions share this working tree — on resume, re-read git state, commit only own files by explicit path (never -A), verify the COMMITTED state (not just the local tree-with-WIP), and watch CI (local-green ≠ CI-green).
 - OPEN (next session): tenancy P2 WIP (parallel session's to land); item 6 rotate .env.local keys (USER); public-demo CTA tenancy unblock (KP_DEMO_ENABLED); comms delivery (1); E1 SSO.
+
+## CP9 (2026-07-27) — RESUME, USER PRESENT, real answers
+- Skill adopted: the ship-loop procedure (codified in the personas repo from this repo's precedent) now lives at .claude/skills/ship-loop/SKILL.md, adapted to kp (state stays in .claude/ship-loop/, kp gate commands, dual-theme check, gate-before-push invariant).
+- Workspace (user): "Worktree off main" — the primary checkout sits on vibeman/ambiguity-ui-wave1 (0 ahead / 11 behind main, ~60 uncommitted files = another session's WIP). Loop work executes in an isolated worktree branched from local main; the wave1 WIP stays untouched. NOTE: main is checked out in .claude/worktrees/perfect-merge, and local main (283c5c1) is 4 commits AHEAD of origin/main (7ac77a8) — unpushed comms/apply work.
+- M9 (user): "AI-Act pack + reconcile" — item 26 (AI-Act conformity pack, deadline 2026-08-02) + item 50 (CI-discipline guard) + premise-sweep verifying/marking items 1/2/40 closed by parallel sessions (comms delivery, tenancy, E0).

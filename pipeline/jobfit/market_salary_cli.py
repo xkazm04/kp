@@ -111,20 +111,43 @@ def main(argv: list[str] | None = None) -> int:
 
         from .i18n import language_name
 
-        # The currency the model is asked to price in follows the ACTIVE market
-        # ("CZK" byte-identical for the Czech default) rather than a hardcoded literal.
+        # #20 (currency lock) — the currency the model prices in follows the REQUESTED
+        # REGION, not a hardcoded CZK. The Tiger Lens-3 benchmark proved every model
+        # (incl. opus) otherwise obeys a hardcoded-CZK prompt and emits a nonsensical
+        # "CZK/month for a Munich job" — the fix is model-independent and lives here in
+        # the prompt (_coerce already passes through the model-returned currency). For
+        # the active market (the default, and any region naming it) the prompt is
+        # byte-identical to before; for any OTHER region the model prices in that
+        # region's own natural currency and is told NOT to convert to CZK.
         cur = ACTIVE_MARKET.currency
-        prompt = (
-            "You are a compensation analyst. Using current web search results, estimate the typical MONTHLY GROSS "
-            f"salary range for this role in {region}.\n"
-            f"- Title: {title}\n- Seniority: {seniority}\n- Field: {role_family}\n"
-            f"- Company profile: similar to {company}\n- Key stack: {stack}\n\n"
-            f"Write the summary in {language_name(args.lang)}; keep the currency code and numbers as specified.\n"
-            "Respond with ONLY a JSON object (no prose, no fences):\n"
-            f'{{"suggestedMinimum": <int {cur}/month>, "suggestedMaximum": <int {cur}/month>, '
-            f'"currency": "{cur}", "confidence": "low|medium|high", '
-            '"summary": "<1-2 sentences of market context grounded in what you found>"}'
-        )
+        active_region = region.strip().lower() == REGION_DEFAULT.strip().lower()
+        if active_region:
+            prompt = (
+                "You are a compensation analyst. Using current web search results, estimate the typical MONTHLY GROSS "
+                f"salary range for this role in {region}.\n"
+                f"- Title: {title}\n- Seniority: {seniority}\n- Field: {role_family}\n"
+                f"- Company profile: similar to {company}\n- Key stack: {stack}\n\n"
+                f"Write the summary in {language_name(args.lang)}; keep the currency code and numbers as specified.\n"
+                "Respond with ONLY a JSON object (no prose, no fences):\n"
+                f'{{"suggestedMinimum": <int {cur}/month>, "suggestedMaximum": <int {cur}/month>, '
+                f'"currency": "{cur}", "confidence": "low|medium|high", '
+                '"summary": "<1-2 sentences of market context grounded in what you found>"}'
+            )
+        else:
+            prompt = (
+                "You are a compensation analyst. Using current web search results, estimate the typical MONTHLY GROSS "
+                f"salary range for this role in {region}.\n"
+                f"- Title: {title}\n- Seniority: {seniority}\n- Field: {role_family}\n"
+                f"- Company profile: similar to {company}\n- Key stack: {stack}\n\n"
+                f"Price the range in the NATURAL CURRENCY of {region} (its own ISO 4217 code, e.g. EUR, USD, GBP, "
+                "PLN) — do NOT convert to CZK. State that currency in the 'currency' field.\n"
+                f"Write the summary in {language_name(args.lang)}; name the market and keep the currency code and numbers as specified.\n"
+                "Respond with ONLY a JSON object (no prose, no fences):\n"
+                '{"suggestedMinimum": <int in the region\'s own currency, per month>, '
+                '"suggestedMaximum": <int in the region\'s own currency, per month>, '
+                '"currency": "<ISO 4217 code for the region\'s currency>", "confidence": "low|medium|high", '
+                '"summary": "<1-2 sentences of market context grounded in what you found>"}'
+            )
         ans: GroundedAnswer = grounded_answer(
             prompt=prompt,
             use_grounding=True,

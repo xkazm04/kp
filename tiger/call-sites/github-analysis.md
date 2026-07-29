@@ -7,12 +7,21 @@ wrapper: direct Gemini SDK (full wrapper bypass)
 provider: gemini  model: gemini-3-flash-preview (hardcoded const route.ts:18)
 schema: yes — geminiReviewSchema (route.ts:491-496, lenient .catch) + githubAnalysisSchema/codeReviewSchema (schemas.ts:84,105)
 grounding: 6/7 sources
-quality_score: 4  code_score: 3
-recommended_model: "—"
-status: assessed
-last_scanned: 2026-06-20
+quality_score: 4  code_score: 4
+recommended_model: Claude-portable; if routed through the registry prefer sonnet (≥ haiku on prose discipline)
+status: benchmarked
+last_scanned: 2026-07-16
 characters: ["[[eva-eng-hiring-lead]]", "[[helena-buyer]]"]
 ---
+
+> **2026-07-16 Lens-3 benchmark → [[models/github-analysis]]** (Claude-only). The one target
+> **fully Claude-faithful** (text signals only, no vision/web). All 3 tiers produced valid,
+> conservative structured output + correctly flagged Kubernetes/Go/Terraform as unverified —
+> so the site is **demonstrably model-portable, strengthening finding #7** (kill the TS-direct
+> Gemini bypass → route via `resolve_provider`). Quality spread is in PROSE: haiku-low's summary
+> said "4 of 4 must-haves" (silently swapped Kafka for the missing Kubernetes). Cheap fix is
+> prompt-level (name unmet must-haves explicitly), not a model upgrade. code_score 3→4 (now
+> metered + BYOM-aware, though still a structural TS bypass).
 ## What it does
 GitHub deep-dive for hiring. Fetches a user + up to 100 repos via GitHub REST (132-148), derives deterministic metrics/rank, then runs an LLM "repo-signal review" over the top 3 ranked repos (runCodeReview 498-647). Per repo it bundles README (truncated), recent commit subjects, root file/dir NAMES, language, topics (fetchRepoBundle 442-467) and asks Gemini for {summary, confirmed_skills, unverified_claims, hidden_strengths} (601-610). Validated, cached, returned.
 

@@ -815,6 +815,7 @@ async function runCodeReview(
     "You are NOT reading the source code. You only receive lightweight public signals: README text (truncated), recent commit subject lines, root-level file/directory NAMES (no file contents), the primary language, and topics.",
     "Decide which technical skills are demonstrably evidenced by these public repo signals, which are *claimed* in the job description but absent from the signals, and which strengths the signals reveal that the job description didn't ask for.",
     "Be conservative: do not infer code quality, architecture, or implementation details you cannot see. Treat a skill as evidenced only when the visible signals directly support it.",
+    "In the summary, name any MUST-HAVE job-description skills that are NOT evidenced by the signals explicitly — never imply full coverage (e.g. do not say 'matches N of N must-haves') when a required skill is unproven.",
     "Output ONLY a JSON object matching this shape — no markdown fences, no commentary:",
     `{"summary": "2-3 sentence overall assessment of what the public repo signals show.", "confirmed_skills": ["skill evidenced by the signals"], "unverified_claims": ["jd skill not visible in the repo signals"], "hidden_strengths": ["skill in the signals but not in jd"]}`,
     "",

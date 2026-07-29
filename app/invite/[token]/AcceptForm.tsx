@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { BTN_PRIMARY } from "@/app/_components/ui/recipes";
 import { TextInput } from "@/app/_components/TextInput";
-import { roleLabel } from "@/app/features/sub_organization/member-ui";
+import { roleLabel } from "@/app/features/shared/memberUi";
 import type { MemberRole } from "@/app/_lib/auth/roles";
 
 type Preview =

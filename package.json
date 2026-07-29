@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "node scripts/dev-guard.mjs next dev",
+    "dev:empty": "node scripts/dev-empty.mjs",
     "dev:inspect": "cross-env DEV_INSPECT=1 DEV_GUARD_MAX_NODE=150 node scripts/dev-guard.mjs next dev --webpack",
     "build": "npm run schemas:gen && next build",
     "start": "next start",

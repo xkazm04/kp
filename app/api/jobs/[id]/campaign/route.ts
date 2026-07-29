@@ -5,6 +5,7 @@ import { getCampaignPack, getJob, saveCampaignPack } from "@/app/_lib/db";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "@/app/_lib/python-runner";
+import { buildLlmConfigEnv } from "@/app/_lib/llm-config";
 import { DEFAULT_LOCALE, isLocale, type Locale } from "@/i18n/locales";
 
 
@@ -51,9 +52,12 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
 
     // Thread the request's AbortSignal so closing the modal mid-generation
     // kills the CLI child instead of leaking it to the timeout backstop.
+    // Pass buildLlmConfigEnv() so the campaign_pack use-case resolves the BYOM
+    // key + any UI model re-route (KP_LLM_CONFIG) — without it, resolve_provider
+    // sees no config and the sonnet override / customer keys are silently dead.
     const { result } = spawnPython(
       ["-m", "pipeline.jobfit.campaign_cli", "--job-json", jobPath, "--lang", lang, "--apply-url", applyUrl],
-      { signal: request.signal }
+      { signal: request.signal, env: buildLlmConfigEnv() }
     );
     const { stdout, stderr, exitCode } = await result;
     if (exitCode !== 0) {

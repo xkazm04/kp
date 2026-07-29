@@ -8,6 +8,12 @@ import createNextIntlPlugin from "next-intl/plugin";
 const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
 
 const nextConfig: NextConfig = {
+  // `npm run dev:empty` (scripts/dev-empty.mjs, KP_EMPTY=1) runs a SECOND dev
+  // server — the blank-tenant first-run preview — beside the normal seeded one.
+  // Next's dev-server lock lives at <distDir>/lock, so the empty server needs its
+  // own distDir to coexist (and its cache shouldn't share .next with the seeded
+  // dev anyway). Production builds never set KP_EMPTY.
+  ...(process.env.KP_EMPTY === "1" ? { distDir: ".next-empty" } : {}),
   // Standalone output — traces the exact server files + minimal node_modules into
   // .next/standalone (a self-contained `node server.js`), so the self-host Docker
   // image ships only what's needed instead of the whole source + full node_modules.

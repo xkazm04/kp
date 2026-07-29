@@ -6,7 +6,7 @@ import path from "node:path";
 // full ArchetypeDef stays declared separately on each side: the client/server
 // split is intentional (this module imports node:fs) and the weight/dimension
 // maps differ (Record<Slot,...> here vs the literal object client-side).
-import { BUILT_IN_ARCHETYPE_IDS, type ArchetypeChecklistItem } from "@/app/features/sub_profile/ProfileTypes";
+import { BUILT_IN_ARCHETYPE_IDS, type ArchetypeChecklistItem } from "@/app/features/shared/profileTypes";
 
 // Server-side read/write for the shared archetype registry (pipeline/jobfit/
 // archetypes.json) — the SAME file the Python pipeline reads per spawn, so an

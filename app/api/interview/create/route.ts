@@ -9,7 +9,8 @@ import {
 } from "@/app/_lib/db";
 import { buildGroundedInterview } from "@/app/_lib/interview-run";
 import { dispatchInterviewInvite } from "@/app/_lib/comms-dispatch";
-import { deliveryClaim, isRelayConfigured, type DeliveryClaim } from "@/app/_lib/comms-truth";
+import { deliveryClaim, type DeliveryClaim } from "@/app/_lib/comms-truth";
+import { isRelayConfigured } from "@/app/_lib/comms-relay";
 import { safeJsonError } from "@/app/_lib/api-response";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import { coerceLanguage, pickDefaultProvider, voiceAvailability, type VoiceProviderId } from "@/app/_lib/voice";

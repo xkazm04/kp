@@ -126,18 +126,32 @@ def _ordered_dimensions(scores: dict, rubric: list) -> list[dict]:
 # --- evaluate_submission ----------------------------------------------------
 
 
-def evaluate_submission(reflection: dict, tooling: dict, case: dict, role: dict, *, provider: Any | None = None) -> tuple[dict, str]:
+def evaluate_submission(reflection: dict, tooling: dict, case: dict, role: dict, *, extras: dict | None = None, provider: Any | None = None) -> tuple[dict, str]:
+    """``extras`` (LLM-era controls) carries the OBSERVED ground-truth checks when the
+    submission came through the Live Work Surface: ``promptSignals`` (the captured
+    prompt channel, prompt_signals.py), ``canaryOutcomes`` (planted-flaw verdicts,
+    artifact_checks.py), ``baselineSimilarity`` (distance from the frozen one-shot
+    naive-LLM solve). All are evidence to GRADE WITH, never penalties for AI use."""
     rubric = case.get("rubricDimensions") or []
     ctx = {
         "role": {"title": role.get("title"), "seniority": role.get("seniority")},
         "rubric": rubric,
         "reflection": {k: reflection.get(k) for k in ("narrative", "iterationPattern", "readBeforeWrite", "verificationHabits", "deadEnds")},
-        "tooling": {k: tooling.get(k) for k in ("fluency", "probeOutcomes", "overRelianceFlags")},
+        "tooling": {k: tooling.get(k) for k in ("fluency", "probeOutcomes", "overRelianceFlags", "evidence")},
     }
+    if extras:
+        # Observed, mechanically-derived evidence — the strongest signals we have.
+        ctx["observedChecks"] = {k: v for k, v in extras.items() if v}
     prompt = (
         "Score this submission on the five durable capabilities (framing, tooling, judgment, architecture, "
         "transfer), 0-100 each, using the rubric + the evidence below. Code is assumed LLM-generated — grade "
         "judgment + verification + how they drove the work, not correctness.\n"
+        "If 'observedChecks' is present it is MECHANICAL ground truth, weight it accordingly: canaryOutcomes "
+        "('addressed'/'flagged' = read-and-verified, strong judgment; 'propagated' = one-shot output trusted "
+        "unverified); promptSignals grade PROMPT QUALITY (decomposition, iteration, verification asks, clarifying "
+        "questions = strong tooling/framing; a verbatim brief paste is delegation-shaped but NEVER a penalty by "
+        "itself); baselineSimilarity near 1.0 means the work matches what a bare model produces unattended — "
+        "judge what the human added, don't punish the similarity.\n"
         f"{json.dumps(ctx, ensure_ascii=False, indent=2)}\n\n"
         'Return JSON: { "dimensionScores": { "framing": int, "tooling": int, "judgment": int, "architecture": int, '
         '"transfer": int }, "strengths": [str], "concerns": [str], "summary": str }. JSON only.'
@@ -149,6 +163,24 @@ def evaluate_submission(reflection: dict, tooling: dict, case: dict, role: dict,
         fluency = _num(tooling.get("fluency"), 0.5)
         rbw = _num(reflection.get("readBeforeWrite"), 0.4)
         verif = min(1.0, len(reflection.get("verificationHabits") or []) / 2.0)
+        # Observed sessions (case-sim round 1 finding): the reflection's verification
+        # habits are COMMIT-derived, so a live session (no git by design) scored
+        # judgment 0 for every candidate — no discrimination at all. When the tooling
+        # signal carries observed process signals, derive verification from what was
+        # actually WATCHED: edited a test, kept the decision log warm, asked the model
+        # to verify its output. MAX with the commit-derived value, never instead of it.
+        sig = tooling.get("signals") if isinstance(tooling.get("signals"), dict) else None
+        if sig:
+            asked_verify = bool((((extras or {}).get("promptSignals")) or {}).get("verificationAsks"))
+            obs_verif = (
+                (0.5 if sig.get("editedTest") else 0.0)
+                + (0.3 if (sig.get("decisionLogEntries") or 0) >= 2 else 0.0)
+                + (0.2 if asked_verify else 0.0)
+            )
+            # For observed sessions the observed read-before-write is also the honest
+            # framing input (the reflection's commit-derived rbw is a default here).
+            rbw = _num(sig.get("readBeforeWrite"), rbw)
+            verif = max(verif, min(1.0, obs_verif))
         # Filter to dict outcomes (a stored / hand-built ToolingSignal may carry
         # strings or None) so `.get` can't raise — mirrors mint_followups and
         # assess_tooling, the sibling consumers that already guard.
@@ -295,7 +327,7 @@ _KIND_PHRASE = {
 }
 
 
-def mint_followups(reflection: dict, tooling: dict, evaluation: dict, case: dict, role: dict, *, provider: Any | None = None) -> tuple[dict, str]:
+def mint_followups(reflection: dict, tooling: dict, evaluation: dict, case: dict, role: dict, *, extras: dict | None = None, provider: Any | None = None) -> tuple[dict, str]:
     """Mint candidate-specific interview questions FROM their evaluated submission.
 
     This step is the point of the whole evaluation in the LLM era: the submission —
@@ -320,6 +352,12 @@ def mint_followups(reflection: dict, tooling: dict, evaluation: dict, case: dict
         "reflection": {k: reflection.get(k) for k in ("narrative", "iterationPattern", "deadEnds", "verificationHabits")},
         "overRelianceFlags": tooling.get("overRelianceFlags") or [],
     }
+    if extras:
+        # The observed checks are the sharpest anchors an authorship question can
+        # have: a propagated canary ("walk me through <file> — anything odd there?"),
+        # a near-baseline submission ("what did you change from the first draft the
+        # tools gave you, and why?"), a pasted-brief prompt pattern.
+        ctx["observedChecks"] = {k: v for k, v in extras.items() if v}
     prompt = (
         "Mint 4-6 interview follow-up questions from THIS specific evaluated submission. The submission "
         "(code, commits, decision log) may be ENTIRELY LLM-produced on the candidate's behalf — treat every "
@@ -330,7 +368,10 @@ def mint_followups(reflection: dict, tooling: dict, evaluation: dict, case: dict
         "differently') — never anything answerable by generic preparation or by re-reading the submission "
         "aloud. listenFor = what a genuine author of that decision sounds like (specifics, trade-offs they "
         "actually hit); redFlag = the answer pattern of delegated work (restates WHAT was done but not why, "
-        "defends every option equally, cannot name what they rejected). Both are internal interviewer notes.\n"
+        "defends every option equally, cannot name what they rejected). Both are internal interviewer notes. "
+        "When 'observedChecks' is present, prefer its anchors: a PROPAGATED canary (ask them to walk through that "
+        "file and see if they spot it live), a near-baseline similarity (ask what they changed from the tools' "
+        "first draft and why), a pasted-brief prompt pattern (ask how they decomposed the task).\n"
         f"{json.dumps(ctx, ensure_ascii=False, indent=2)}\n\n"
         'Return JSON: { "questions": [ { "id": str, "probeId": str ("" if general), "decision": str (the observed '
         'decision being verified), "question": str, "listenFor": str, "redFlag": str } ] }. JSON only.'

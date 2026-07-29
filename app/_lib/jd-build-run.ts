@@ -8,7 +8,7 @@ import { marketSalaryLabel, normalizeMarketSalary, type MarketSalary } from "./s
 import { type RepoSnapshot } from "./repo-snapshot";
 import { failJdAnalysis, finishJdAnalysis } from "./db";
 import { ingestStructuredJob } from "@/app/api/jds/save/ingest-job";
-import { renderTemplate } from "@/app/features/sub_library/render-template";
+import { renderTemplate } from "@/app/features/shared/renderTemplate";
 
 // The AI job-description builder: a free-text need (+ optional GitHub repo for
 // dev roles) → our devcase need→design machinery → a structured RoleSpec, then

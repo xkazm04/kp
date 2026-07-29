@@ -1,0 +1,61 @@
+{
+  "id": "cs-2026-07-17-ws-resilience",
+  "title": "Make working in the Live Work Surface feel safe",
+  "brief": "Candidates occasionally report losing in-progress work in the in-product work surface (the in-browser editor behind the dev-case apply link). The team wants working in it to feel safe. You decide what that means, which loss modes matter most, and how far to go within the timebox.",
+  "repoSeed": "The kp repository itself. Start from app/devcase/apply/[token]/LiveWorkSurface.tsx and its API routes app/api/devcase/session/route.ts + app/api/devcase/session/[id]/route.ts, and the session storage in app/_lib/db/devcase.ts.",
+  "tasks": [
+    "Investigate how in-progress work can actually be lost in the Live Work Surface and decide which loss modes matter most.",
+    "Implement the protection you judge most valuable within the timebox.",
+    "Show how you verified your change works.",
+    "Keep a short DECISIONS log: for every call you made where the brief was open — what you chose, the alternative you rejected, and what you would have asked the team."
+  ],
+  "coverProbes": [
+    {
+      "id": "p1",
+      "kind": "ambiguity",
+      "where": "the brief's 'feel safe' — restore-on-reload vs local draft persistence vs warn-before-leave vs tighter flush cadence",
+      "reveals": "Do they name the loss modes, pick one deliberately, and scope it — or silently build the first thing the model suggests?",
+      "decisionSpace": [
+        "Restore the last flushed server state into the editor on reload (server is source of truth)",
+        "Persist a local draft (localStorage) and reconcile with the server copy on return",
+        "Prevent the loss instead: warn before unload with unflushed changes and tighten the flush path"
+      ]
+    },
+    {
+      "id": "p2",
+      "kind": "legacy_trap",
+      "where": "the existing flush()/re-buffer logic and the session event log's append-only integrity contract (server-side hash chain) — naive rewrites break event ordering or the chain",
+      "reveals": "Do they read the existing capture pipeline before changing it, or generate over it and break the observed-process contract?",
+      "decisionSpace": [
+        "Work within the existing flush/event contract and leave the capture semantics untouched",
+        "Extend the contract deliberately (e.g. a restore read path) with the integrity implications written down",
+        "Rework the flush loop and accept the re-verification burden"
+      ]
+    },
+    {
+      "id": "p3",
+      "kind": "verification_trap",
+      "where": "a resilience fix that looks right but double-appends the re-buffered event batch on retry, or restores stale files over newer local edits — passes a quick manual check",
+      "reveals": "Do they exercise the failure paths (reload mid-session, failed flush then retry, conflicting local vs server state), or trust one happy-path check?",
+      "decisionSpace": [
+        "Unit-test the failure paths against the real route/db layer",
+        "Manually drive the failure paths and document the observations",
+        "Rely on a happy-path smoke check and ship"
+      ]
+    }
+  ],
+  "rubricDimensions": [
+    { "name": "framing", "label": "Problem framing", "weight": 0.2, "description": "Turns an ambiguous need into a sound plan." },
+    { "name": "tooling", "label": "Tooling fluency", "weight": 0.25, "description": "Drives AI and other tools well; iterates and verifies." },
+    { "name": "judgment", "label": "Judgment", "weight": 0.25, "description": "Catches AI/tooling mistakes; validates; pushes back." },
+    { "name": "architecture", "label": "Architecture", "weight": 0.15, "description": "Structure and trade-offs that fit the real materials and constraints." },
+    { "name": "transfer", "label": "Transfer", "weight": 0.15, "description": "Capability transfers to THIS role's tools and responsibilities." }
+  ],
+  "timeboxHours": 1.5,
+  "midFlightUpdate": {
+    "afterMinutes": 20,
+    "update": "Quick update from the team: we just learned a meaningful share of candidates work on flaky connections (hotel/train wifi) — offline periods of a few minutes are common, not an edge case. Whatever you build must tolerate that.",
+    "reveals": "Do they revisit the already-chosen loss-mode priority (an offline period changes which protection matters most), or bolt a retry on without reconciling the earlier decision?"
+  },
+  "promptVersion": "case-sim-manual-v1"
+}

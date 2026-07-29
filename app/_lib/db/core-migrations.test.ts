@@ -86,6 +86,15 @@ test("ALTER-loop migrations landed: pipeline_entries carries every post-launch c
   }
 });
 
+test("ALTER-loop migrations landed: first-run onboarding flags (users + workspaces)", () => {
+  const userCols = columnNames("users");
+  for (const col of ["onboarding_completed_at", "onboarding_skipped_at"]) {
+    assert.ok(userCols.has(col), `users is missing migrated column "${col}"`);
+  }
+  const wsCols = columnNames("workspaces");
+  assert.ok(wsCols.has("onboarding_state"), `workspaces is missing migrated column "onboarding_state"`);
+});
+
 test("ALTER-loop migrations landed: jds carries the backgrounded-analysis columns", () => {
   const cols = columnNames("jds");
   for (const col of ["archived_at", "analysis_status", "analysis_task_id", "analysis_error", "analysis_json"]) {

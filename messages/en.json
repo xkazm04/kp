@@ -385,7 +385,12 @@
     "fr": "Français"
   },
   "jobMarket": {
-    "nav": { "home": "Home", "about": "About", "signIn": "Sign in", "menu": "Menu" },
+    "nav": {
+      "home": "Home",
+      "about": "About",
+      "signIn": "Sign in",
+      "menu": "Menu"
+    },
     "hero": {
       "eyebrow": "Open data, read out loud",
       "title": "The Czech job market, <emph>in the open</emph>.",
@@ -503,9 +508,18 @@
       "mascotNote": "meet Kandi — your new teammate"
     },
     "pile": {
-      "jana": { "role": "React Developer", "verdict": "strong fit" },
-      "petr": { "role": "Data Analyst", "verdict": "worth a call" },
-      "alex": { "role": "PM, no portfolio", "verdict": "kind pass" }
+      "jana": {
+        "role": "React Developer",
+        "verdict": "strong fit"
+      },
+      "petr": {
+        "role": "Data Analyst",
+        "verdict": "worth a call"
+      },
+      "alex": {
+        "role": "PM, no portfolio",
+        "verdict": "kind pass"
+      }
     },
     "marquee": [
       "CV scoring in seconds",
@@ -696,12 +710,24 @@
     },
     "previews": {
       "close": "Close preview",
-      "score": { "note": "evidence attached, always" },
-      "voice": { "note": "yes, it speaks Czech too" },
-      "schedule": { "note": "no calendar tennis" },
-      "inbox": { "note": "five doors, one starting line" },
-      "salary": { "note": "offers that land first time" },
-      "gates": { "note": "every call gets a human signature" }
+      "score": {
+        "note": "evidence attached, always"
+      },
+      "voice": {
+        "note": "yes, it speaks Czech too"
+      },
+      "schedule": {
+        "note": "no calendar tennis"
+      },
+      "inbox": {
+        "note": "five doors, one starting line"
+      },
+      "salary": {
+        "note": "offers that land first time"
+      },
+      "gates": {
+        "note": "every call gets a human signature"
+      }
     }
   },
   "aboutPage": {
@@ -1016,6 +1042,7 @@
   "interview": {
     "completedTitle": "Thank you",
     "completedBody": "This interview has already been completed. A human recruiter will review the conversation and follow up.",
+    "completedStatusCta": "Track your application",
     "inactiveTitle": "This interview link is no longer active",
     "inactiveBody": "The link has expired or was withdrawn by the recruiter. If you're expecting an interview, please ask them for a fresh link.",
     "eyebrow": "First-round interview",
@@ -1158,13 +1185,14 @@
       "hiring": "Hiring",
       "library": "Library",
       "tools": "Tools",
-      "devExtension": "Dev extension",
       "insights": "Insights",
       "settings": "Settings"
     },
+    "openWorkspace": "Open workspace",
     "tasks": {
       "label": "Background tasks",
       "startErrorTitle": "Couldn't start the task",
+      "cancelErrorTitle": "Couldn't cancel the task",
       "dismiss": "Dismiss",
       "failedSince": "{count, plural, one {# background task failed since you last looked} other {# background tasks failed since you last looked}}",
       "running": "{count, plural, one {# background task running} other {# background tasks running}}"
@@ -1671,7 +1699,10 @@
       "summaryErrors": "{n, plural, one {# error} other {# errors}}",
       "history": "History ({count})",
       "historyTitle": "What each pass did, and why — per candidate",
-      "trigger": { "clock": "clock", "manual": "manual" },
+      "trigger": {
+        "clock": "clock",
+        "manual": "manual"
+      },
       "runEvaluated": "{n} evaluated",
       "runNoActions": "No actions — every candidate held or unchanged.",
       "rejectModeLabel": "Rejections",
@@ -2891,9 +2922,18 @@
   },
   "match": {
     "band": {
-      "tight": { "label": "Tight band", "aria": "Confidence band: tight — high certainty" },
-      "moderate": { "label": "Moderate band", "aria": "Confidence band: moderate certainty" },
-      "wide": { "label": "Wide band", "aria": "Confidence band: wide — low certainty" },
+      "tight": {
+        "label": "Tight band",
+        "aria": "Confidence band: tight — high certainty"
+      },
+      "moderate": {
+        "label": "Moderate band",
+        "aria": "Confidence band: moderate certainty"
+      },
+      "wide": {
+        "label": "Wide band",
+        "aria": "Confidence band: wide — low certainty"
+      },
       "titlePrefix": "Why this band:",
       "titleFallback": "Narrow band — strong, verifiable evidence."
     },
@@ -3348,11 +3388,51 @@
       "revokeFailed": "Couldn't revoke the webhook."
     },
     "items": {
-      "apply": { "name": "Careers page · Apply link", "status": "Listening", "desc": "A conversational apply link — submitted applications land at ‘Accepted’." },
-      "email": { "name": "Email intake", "status": "Not configured", "desc": "Pipe an email-parsing integration (or any form) into a per-role webhook URL — parsed applicants land at ‘Accepted’." },
-      "boards": { "name": "Job boards & ad forms", "status": "Not configured", "desc": "Receive applicants from job boards and ad lead forms (Meta lead-form payloads supported) via a per-role webhook URL — leads land at ‘Accepted’." },
-      "sourcing": { "name": "Proactive sourcing", "status": "Active", "desc": "Rank the candidate pool against the role in Match — proactively sourced candidates land at ‘Accepted’.", "cta": "Open Match" },
-      "manual": { "name": "Manual add", "status": "Recruiter", "desc": "Build a candidate profile by hand (Profile) and add them to a role.", "cta": "Build a profile" }
+      "apply": {
+        "name": "Careers page · Apply link",
+        "status": "Listening",
+        "desc": "A conversational apply link — submitted applications land at ‘Accepted’."
+      },
+      "email": {
+        "name": "Email intake",
+        "status": "Not configured",
+        "desc": "Pipe an email-parsing integration (or any form) into a per-role webhook URL — parsed applicants land at ‘Accepted’."
+      },
+      "boards": {
+        "name": "Job boards & ad forms",
+        "status": "Not configured",
+        "desc": "Receive applicants from job boards and ad lead forms (Meta lead-form payloads supported) via a per-role webhook URL — leads land at ‘Accepted’."
+      },
+      "sourcing": {
+        "name": "Proactive sourcing",
+        "status": "Active",
+        "desc": "Rank the candidate pool against the role in Match — proactively sourced candidates land at ‘Accepted’.",
+        "cta": "Open Match"
+      },
+      "manual": {
+        "name": "Manual add",
+        "status": "Recruiter",
+        "desc": "Build a candidate profile by hand (Profile) and add them to a role.",
+        "cta": "Build a profile"
+      }
+    },
+    "relay": {
+      "title": "Delivery relay",
+      "intro": "Where outbound candidate messages actually go — wire a mail relay, Zapier, or your ATS endpoint. Without one, messages stay in the local outbox and nothing reaches a candidate.",
+      "statusOn": "Delivering",
+      "statusOff": "Not configured",
+      "secretSet": "Signing secret set",
+      "envNote": "Configured by the COMMS_WEBHOOK_URL environment variable — remove it to manage the relay here.",
+      "urlLabel": "Relay endpoint (https)",
+      "secretLabel": "Signing secret",
+      "secretPlaceholder": "Optional — signs each delivery",
+      "secretKeepPlaceholder": "Leave blank to keep the current secret",
+      "save": "Save",
+      "saved": "Relay saved",
+      "saveFailed": "Couldn't save the relay",
+      "test": "Send test ping",
+      "testOk": "Delivered — HTTP {status}",
+      "testFailed": "Test failed: {reason}"
     }
   },
   "interviewSim": {
@@ -3362,9 +3442,18 @@
     "modeAria": "Simulation mode",
     "createFailed": "Couldn't create the simulation.",
     "modes": {
-      "student": { "label": "Student (generic script)", "blurb": "Agent leads the six-phase thought-script — mental model, coachability, calibration." },
-      "student-case": { "label": "Student — case-grounded", "blurb": "Same six phases, but the mechanism, counterfactual and hint work a shared designed case." },
-      "regular": { "label": "Regular candidate", "blurb": "Standard quick screen — a few questions on recent experience with follow-ups." }
+      "student": {
+        "label": "Student (generic script)",
+        "blurb": "Agent leads the six-phase thought-script — mental model, coachability, calibration."
+      },
+      "student-case": {
+        "label": "Student — case-grounded",
+        "blurb": "Same six phases, but the mechanism, counterfactual and hint work a shared designed case."
+      },
+      "regular": {
+        "label": "Regular candidate",
+        "blurb": "Standard quick screen — a few questions on recent experience with follow-ups."
+      }
     },
     "simulating": "Simulating <b>{name}</b>{job}",
     "startOver": "Start over",
@@ -3417,7 +3506,11 @@
     "colDecision": "Decision",
     "colJd": "JD",
     "colSaved": "Saved",
-    "disposition": { "advance": "advance", "hold": "hold", "pass": "pass" },
+    "disposition": {
+      "advance": "advance",
+      "hold": "hold",
+      "pass": "pass"
+    },
     "reviewFlags": "{count, plural, one {# quality check flagged for review} other {# quality checks flagged for review}}",
     "priorRuns": "{count, plural, one {supersedes # earlier run of the same CV} other {supersedes # earlier runs of the same CV}}"
   },
@@ -3509,12 +3602,27 @@
   "devApply": {
     "workSurface": {
       "heading": "Work the case here",
+      "phoneAdvisory": "This case is easiest to work on a computer — the same link opens it there. You can still continue on your phone.",
       "intro": "Edit the starter files below. Your process — what you open, what you edit, and what you note in DECISIONS.md — is recorded so we grade the judgment we watch, not just the final code. You may use any tools, including AI. We never record keystrokes or your screen.",
       "submit": "Submit work",
       "submitting": "Submitting…",
       "submittedTitle": "Submitted",
       "submitted": "Thank you — your work and the process behind it were captured. The team will review it.",
-      "error": "Couldn't submit — try again, or use the repository-link option below."
+      "submittedNext": "You'll hear back at {contact} — nothing more is needed on this page.",
+      "submittedRef": "Submission reference: {ref}",
+      "error": "Couldn't submit — try again, or use the repository-link option below.",
+      "errorClosed": "This role's intake has closed and is no longer accepting submissions — your work can't be submitted here anymore.",
+      "chatHeading": "Ask as you work",
+      "chatIntro": "Use the built-in AI assistant, or ask the stakeholder behind the brief a clarifying question. These conversations are part of your submission — good questions and good prompts count in your favor.",
+      "tabAssistant": "AI assistant",
+      "tabStakeholder": "Stakeholder",
+      "chatPlaceholderAssistant": "Ask the assistant anything about the work…",
+      "chatPlaceholderStakeholder": "Ask the stakeholder a clarifying question…",
+      "chatSend": "Send",
+      "chatSending": "Sending…",
+      "chatError": "Couldn't send — try again.",
+      "updateHeading": "Update from the team",
+      "restored": "We restored your unsaved work from this device — nothing was lost."
     },
     "eyebrow": "Take-home assignment",
     "fallbackTitle": "Developer assignment",
@@ -3534,7 +3642,8 @@
     "submitFailed": "Submission failed — please try again.",
     "received": "Application received",
     "receivedNote": "We'll review your submission and get back to you. A confirmation is on its way.",
-    "receivedDuplicate": "We already had a submission for you on this assignment — it's the one that counts, no need to resubmit."
+    "receivedDuplicate": "We already had a submission for you on this assignment — it's the one that counts, no need to resubmit.",
+    "receivedRef": "Submission reference: {ref}"
   },
   "potential": {
     "badge": "potential {pct}",
@@ -3827,6 +3936,9 @@
     "totalHired": "{total} · {hired} hired",
     "advancedPct": "{pct}% advanced past screening",
     "noArchetypeData": "No archetype data yet.",
+    "noArchetypeBody": "Archetypes fill in as candidates enter the pipeline and their CVs are analyzed.",
+    "emptyCtaChannels": "Set up a channel",
+    "emptyCtaJobs": "Open jobs",
     "byRole": "By role",
     "topByVolume": "Top {shown} of {total} by volume",
     "colJob": "Job",
@@ -3836,6 +3948,7 @@
     "colHired": "Hired",
     "colHireRate": "Hire rate",
     "noPipelineEntries": "No pipeline entries yet.",
+    "noPipelineEntriesBody": "Role stats build up as applications land on the board — open a job and connect a channel to start collecting them.",
     "koDeclinedLine": "{count, plural, one {# applicant turned away at the eligibility gate before entering the pipeline} other {# applicants turned away at the eligibility gate before entering the pipeline}}",
     "log": {
       "loadFailed": "Couldn't load the decision log.",
@@ -3864,7 +3977,11 @@
       "csvRematchCounterpart": "Re-matched · {name}",
       "rematchTo": "Re-matched to <link></link>",
       "rematchFrom": "Re-matched from <link></link>",
-      "attribution": { "auto": "AUTO", "human": "HUMAN", "unknown": "UNKNOWN" },
+      "attribution": {
+        "auto": "AUTO",
+        "human": "HUMAN",
+        "unknown": "UNKNOWN"
+      },
       "kinds": {
         "advanced": "Auto-advanced",
         "screening_hold": "Held for human review",
@@ -4538,5 +4655,208 @@
     "editGateReason": "Editing is available to operators only.",
     "editConflict": "This description changed since you opened it. Reload to get the latest, then re-apply your edit.",
     "editReload": "Reload latest"
+  },
+  "setup": {
+    "aria": {
+      "dialog": "Set up your workspace",
+      "skip": "Skip setup for now"
+    },
+    "previewRibbon": "Preview — nothing you do here will be saved",
+    "rail": {
+      "stepOf": "Step {current} of {total}",
+      "brand": "kp"
+    },
+    "steps": {
+      "welcome": {
+        "label": "Welcome",
+        "eyebrow": "Welcome",
+        "title": "Let's get you hiring",
+        "blurb": "A few quick steps: your company, your team, your first role — and kp takes it from there."
+      },
+      "company": {
+        "label": "Company",
+        "eyebrow": "Set up · Company",
+        "title": "Make it your company",
+        "blurb": "How your company appears across kp — on job posts, offers, and to your teammates."
+      },
+      "team": {
+        "label": "Team",
+        "eyebrow": "Set up · Team",
+        "title": "Bring your team in",
+        "blurb": "Invite the recruiters and hiring managers you'll work with. You can skip and do this later."
+      },
+      "firstRole": {
+        "label": "First role",
+        "eyebrow": "Set up · First role",
+        "title": "Describe your first role",
+        "blurb": "Tell kp what you need — it drafts the job description, market salary, and a work-sample case in the background."
+      },
+      "handoff": {
+        "label": "Done",
+        "eyebrow": "Welcome aboard",
+        "title": "You're all set",
+        "blurb": "Your workspace is ready — here's what happens next."
+      }
+    },
+    "welcome": {
+      "values": {
+        "role": {
+          "title": "Describe a role",
+          "body": "AI drafts the job description, salary band, and a work-sample case for you."
+        },
+        "channels": {
+          "title": "Open your channels",
+          "body": "A careers page, email intake, and job-board hooks bring candidates in."
+        },
+        "pipeline": {
+          "title": "Run the pipeline",
+          "body": "Screening, interviews, and offers — one flow, with you making the calls."
+        }
+      },
+      "minutes": "Takes about 3 minutes"
+    },
+    "company": {
+      "nameLabel": "Company name",
+      "namePlaceholder": "e.g. Acme Software",
+      "languageLabel": "App language",
+      "brandLabel": "Brand (optional)",
+      "brandHint": "Pick an accent color and add your logo — you can fine-tune both later in Settings → Branding.",
+      "accent": {
+        "default": "Default accent",
+        "moss": "Moss green",
+        "steel": "Steel blue",
+        "ink": "Ink",
+        "custom": "Custom",
+        "illegible": "That color is too light for buttons and focus rings — pick a darker one."
+      },
+      "logoLabel": "Logo URL",
+      "logoInvalid": "Enter an https:// image URL."
+    },
+    "team": {
+      "emailPlaceholder": "name@company.com",
+      "roleAria": "Role for the invite",
+      "add": "Add",
+      "empty": "No invites yet — add teammates by email, or skip and invite them later.",
+      "removeAria": "Remove invite for {email}"
+    },
+    "firstRole": {
+      "titleLabel": "Job title",
+      "titlePlaceholder": "e.g. Senior Java Backend Engineer",
+      "seniorityLabel": "Seniority",
+      "familyLabel": "Role family",
+      "needLabel": "What do you need?",
+      "needPlaceholder": "Own core backend services · Java, Spring, SQL · mentor the team…",
+      "needHint": "A few honest sentences are enough — kp expands them into a full, branded job description.",
+      "includedLabel": "Included in this build",
+      "included": {
+        "description": "Job description",
+        "salary": "Market salary",
+        "case": "Work-sample case"
+      },
+      "background": "The build runs in the background — you can keep exploring while it lands in the Library.",
+      "modeLabel": "How to add your first role",
+      "mode": {
+        "write": "Describe it",
+        "import": "Import existing"
+      },
+      "import": {
+        "fileLabel": "Import from a file",
+        "browse": "Choose file",
+        "extracting": "Reading the file…",
+        "hint": "PDF · DOCX · TXT · MD up to 8 MB — the text is extracted for you.",
+        "error": "Couldn't read that file — try another format, or paste the text below.",
+        "bodyLabel": "Job description",
+        "bodyPlaceholder": "Paste the full posting here, or import it from a file above.",
+        "note": "Imported roles are saved to the Library as-is and become matchable right away — no AI build."
+      }
+    },
+    "handoff": {
+      "readyTitle": "{org} — ready to go",
+      "orgFallback": "Your workspace",
+      "readyMeta": "Language: {language} · {invites, plural, =0 {no invites yet} one {# teammate invited} other {# teammates invited}}",
+      "roleTitle": "First role: {role}",
+      "roleBody": "kp is drafting the description, market salary, and case — watch it land in the Library ledger.",
+      "checklistTitle": "Your Getting-started checklist",
+      "checklistBody": "It sits on the Pipeline board and walks you through publishing the role, opening channels, and meeting your first candidates.",
+      "tourTitle": "Start the guided demo",
+      "tourBody": "The whole hiring story, played on sample data — about 3 minutes.",
+      "roleImportedBody": "Imported and saved to the Library — it's matchable right away.",
+      "chooseLabel": "How do you want to begin?",
+      "soloTitle": "Explore on my own",
+      "soloBody": "Take it at your own pace — the demo stays one click away behind the round Candi button at the bottom of the screen."
+    },
+    "footer": {
+      "back": "Back",
+      "skipSetup": "Skip setup",
+      "skipStep": "Skip for now",
+      "start": "Let's go",
+      "continue": "Continue",
+      "enter": "Enter kp"
+    },
+    "toast": {
+      "saved": "Your workspace is set up",
+      "partial": "Some setup steps couldn't be saved — you can finish them in Settings",
+      "roleStarted": "Your first role is being drafted — watch the Library ledger",
+      "roleFailed": "The role build couldn't start — try again from Library → Generate",
+      "roleImported": "Your role was saved to the Library"
+    },
+    "checklist": {
+      "title": "Getting started",
+      "progress": "{done} of {total} done",
+      "dismiss": "Don't show again",
+      "open": "Open",
+      "showMe": "Show me",
+      "steps": {
+        "company": {
+          "title": "Set up your company",
+          "body": "Name, language, and brand — how you appear to candidates."
+        },
+        "firstRole": {
+          "title": "Create your first role",
+          "body": "Describe the need — kp drafts the description, salary, and case.",
+          "analyzing": "Building now — watch the Library ledger.",
+          "failed": "The build failed — retry it from the Library ledger."
+        },
+        "case": {
+          "title": "Design the work-sample case",
+          "body": "A practical assignment that screens for real skill."
+        },
+        "channels": {
+          "title": "Connect your channels",
+          "body": "Open an email intake and receive a test application.",
+          "listening": "Listening — receive a test application to verify."
+        },
+        "team": {
+          "title": "Invite your team",
+          "body": "Optional — bring recruiters and hiring managers in."
+        }
+      },
+      "coach": {
+        "company": {
+          "title": "Your company settings",
+          "caption": "Set the name and language here — branding lives one tab over."
+        },
+        "firstRole": {
+          "title": "Generate your first role",
+          "caption": "Open Generate, describe the need, and start the analysis — it builds in the background."
+        },
+        "case": {
+          "title": "Design a case",
+          "caption": "Switch to Define need, pick your saved role, and run the automated lifecycle."
+        },
+        "channels": {
+          "title": "Open your intake",
+          "caption": "Add an inbox here, then use “Receive a test application” to verify the wiring."
+        },
+        "team": {
+          "title": "Invite teammates",
+          "caption": "Members and invites live here — add colleagues by email and pick their role."
+        }
+      },
+      "completed": {
+        "title": "You're all set!",
+        "body": "Company, role, case, and channels are wired — happy hiring."
+      }
+    }
   }
 }

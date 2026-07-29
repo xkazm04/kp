@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getJob, getPipelineEntry } from "@/app/_lib/db";
 import { getEntryIdByStatusToken } from "@/app/_lib/application-status-store";
 import { candidateStatusFor } from "@/app/_lib/application-status";
-import { isRelayConfigured } from "@/app/_lib/comms-truth";
+import { isRelayConfigured } from "@/app/_lib/comms-relay";
 import { jsonOk, safeJsonError } from "@/app/_lib/api-response";
 
 

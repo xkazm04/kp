@@ -8,6 +8,7 @@ import type { PipelineStage } from "../pipeline-stages";
 import { assertTenancyReady } from "../tenancy";
 import { multiWorkspaceEnabled } from "../workspace-lock";
 import { seedBenchmarkTeam } from "./seed-benchmark-team";
+import { fixtureSeedEnabled } from "./seed-gate";
 
 // Memoized on globalThis (not just module scope): Next dev HMR re-evaluates this
 // module with a fresh module-local binding, which would re-run the ENTIRE
@@ -503,6 +504,28 @@ export function ensureDb(): Database.Database {
       -- migration below (a DB created before this column existed).
       size INTEGER,
       created_at TEXT NOT NULL,
+      -- Tamper-evidence (LLM-era controls #1): server-computed SHA-256 chain link —
+      -- hash(prev_hash | session | seq | event fields | server receive time). Computed
+      -- at INSERT inside appendDevSessionEvents (never client-supplied), so any later
+      -- edit/delete/reorder of the log breaks every downstream link and
+      -- verifyDevSessionChain reports the first broken seq. NULL only on legacy rows
+      -- that predate the column (verify treats a NULL-hash prefix as unverifiable).
+      hash TEXT,
+      PRIMARY KEY (session_id, seq)
+    );
+
+    -- LLM-era controls #2: the captured prompt channel. Every assistant / stakeholder
+    -- exchange in the Live Work Surface flows through the platform and lands here —
+    -- the human<->LLM dialogue is first-class evidence (prompt quality, clarifying
+    -- questions) evaluated beside the artifact. role: 'user' | 'model'.
+    CREATE TABLE IF NOT EXISTS dev_session_chat (
+      session_id TEXT NOT NULL,
+      seq INTEGER NOT NULL,
+      channel TEXT NOT NULL,
+      role TEXT NOT NULL,
+      text TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      workspace_id TEXT NOT NULL DEFAULT 'workspace',
       PRIMARY KEY (session_id, seq)
     );
 
@@ -794,6 +817,18 @@ export function ensureDb(): Database.Database {
     "ALTER TABLE workspaces ADD COLUMN type TEXT",
     // Per-user permission overrides on a membership (P0) — see the memberships CREATE.
     "ALTER TABLE memberships ADD COLUMN capability_overrides TEXT",
+    // First-run onboarding (per-user): when this person finished — or explicitly
+    // skipped — the setup wizard. Both NULL = never seen ⇒ the / gate shows it.
+    // Timestamps (not booleans) so support can see WHEN, and a skip can later be
+    // distinguished from a completion (the getting-started checklist re-offers
+    // itself to skippers). Workspace-level twin below covers open-dev/operator
+    // sessions where no user id exists (current-user.ts short-circuits to null).
+    "ALTER TABLE users ADD COLUMN onboarding_completed_at TEXT",
+    "ALTER TABLE users ADD COLUMN onboarding_skipped_at TEXT",
+    // First-run onboarding (workspace fallback): 'completed' | 'skipped' | NULL.
+    // The authority when the session has no user claim (open dev mode, operator
+    // password) — mirrors the default_locale per-workspace-scalar pattern.
+    "ALTER TABLE workspaces ADD COLUMN onboarding_state TEXT",
     "ALTER TABLE channel_webhooks ADD COLUMN first_received_at TEXT",
     // E5 metric honesty: `received_count`/`first_received_at` stamp EVERY POST (probes,
     // health-checks, malformed integrations), so they overstate real leads. Track
@@ -961,6 +996,15 @@ export function ensureDb(): Database.Database {
     // predate observed paste capture). migrateExec tolerates the re-run on a DB whose
     // CREATE TABLE above already includes the column.
     "ALTER TABLE dev_session_events ADD COLUMN size INTEGER",
+    // LLM-era controls #1: the server-computed hash-chain link (see CREATE TABLE above).
+    // Legacy rows stay NULL — verifyDevSessionChain treats a NULL-hash prefix as
+    // unverifiable rather than tampered.
+    "ALTER TABLE dev_session_events ADD COLUMN hash TEXT",
+    // LLM-era controls #6: one-shot naive-LLM baseline solutions frozen per case at
+    // approval ({solutions: [{files, note}], promptVersion}). Evaluation diffs each
+    // submission against them — never a penalty, but similarity aims the authorship
+    // interview at what the human added beyond the bare model.
+    "ALTER TABLE dev_cases ADD COLUMN baseline_json TEXT",
     // Durable skill profiles (E0 Phase 1): stamped from the submission's workspace on
     // issue; public token / by-submission_id reads are exempt (skill-profiles-tenancy.test.ts).
     "ALTER TABLE skill_profiles ADD COLUMN workspace_id TEXT NOT NULL DEFAULT 'workspace'",
@@ -1076,15 +1120,26 @@ export function ensureDb(): Database.Database {
   } catch {
     /* index already exists */
   }
-  seedExampleJd(db);
-  seedOrgMembers(db);
-  seedJobs(db);
-  seedCandidates(db);
-  seedAnalyses(db);
-  seedPipeline(db);
+  // KP_EMPTY=1 (npm run dev:empty) skips ALL fixture content — the ČS demo corpus,
+  // candidates, analyses, pipeline, example JD, seed members — so the app boots as a
+  // truly blank tenant for first-run/onboarding verification. Structural bootstrap
+  // above (schema, default workspace/org) still runs: a real deployment has it too.
+  if (fixtureSeedEnabled()) {
+    seedExampleJd(db);
+    seedOrgMembers(db);
+    seedJobs(db);
+    seedCandidates(db);
+    seedAnalyses(db);
+    seedPipeline(db);
+    seedBenchmarkTeam(db); // a 2nd org team so the Phase-2 org benchmark (org_id-join) has cross-team data
+    // A fixture-seeded tenant is an ESTABLISHED demo environment, not a first
+    // run — mark it onboarded so the setup wizard doesn't ambush existing dev
+    // DBs. COALESCE keeps a real recorded state; dev:empty (KP_EMPTY=1) skips
+    // this whole block, so the blank tenant stays NULL and the wizard fires.
+    db.prepare(`UPDATE workspaces SET onboarding_state = COALESCE(onboarding_state, 'completed') WHERE id = 'workspace'`).run();
+  }
   migratePipelineStages(db); // remap any legacy 7-stage rows to the 5-stage model
   backfillDeclinedStatus(db); // split candidate declines out of overloaded `rejected`
-  seedBenchmarkTeam(db); // a 2nd org team so the Phase-2 org benchmark (org_id-join) has cross-team data
 
   // Tenant scope (P2): backfill ANY analyses row missing a workspace_id (legacy
   // rows AND freshly-seeded ones) to the default workspace. After all seeders so

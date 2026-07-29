@@ -20,7 +20,7 @@ test("FIT_PROMISING_FLOOR is the shared value", () => {
 test("both surfaces derive from FIT_PROMISING_FLOOR, not a re-hardcoded literal", () => {
   const rediscover = read("rediscover.ts");
   assert.match(rediscover, /SCORE_FLOOR\s*=\s*FIT_PROMISING_FLOOR/, "SCORE_FLOOR must reference the shared floor");
-  const recruiter = read("../features/sub_jobs/RecruiterCandidates.tsx");
+  const recruiter = read("../features/library/jobs/jobsRecruiterCandidatesLogic.ts");
   assert.match(recruiter, /FIT_PROMISING_FLOOR/, "the Pool fit filter must use the shared floor");
   assert.doesNotMatch(recruiter, /POOL_FIT_FLOOR\s*=\s*55/, "the re-hardcoded 55 literal must be gone");
 });

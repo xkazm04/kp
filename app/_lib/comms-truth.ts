@@ -19,12 +19,10 @@ import type { OutboxStatus } from "./comms-status";
 
 export type DeliveryClaim = "sent" | "queued" | "failed";
 
-/** Is a real delivery relay wired? THE capability bit every "sent" claim keys
- *  off — same source of truth the channel selection (comms.ts getCommsChannel)
- *  and the Comms Center's red "NOT being sent" banner use. */
-export function isRelayConfigured(): boolean {
-  return Boolean(process.env.COMMS_WEBHOOK_URL);
-}
+// The capability bit itself (isRelayConfigured) lives in comms-relay.ts now that
+// the relay is UI-configurable (env → stored config): it reads the DB, so it is
+// server-only. This module stays import-free so deliveryClaim remains loadable
+// by client bundles and the bare unit runner alike.
 
 /**
  * The truthful claim for one message. Prefers the outbox row's REAL status

@@ -10,6 +10,7 @@ candidate x job by the API layer.
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from . import registry
@@ -249,6 +250,28 @@ def deterministic_reasoning(context: dict[str, Any]) -> dict[str, Any]:
     return {"verdict": verdict, "strengths": strengths, "gaps": gaps, "interviewProbes": probes}
 
 
+def _real_cv_tokens(context: dict[str, Any]) -> set[str]:
+    """High-signal tokens from the candidate's real skills + matched skills — used to
+    check that a model-written strength references something concrete, not boilerplate."""
+    cand = context.get("candidate", {})
+    match = context.get("match", {})
+    raw = [str(s) for s in (cand.get("skills") or [])] + [str(s) for s in (match.get("matchedSkills") or [])]
+    tokens: set[str] = set()
+    for item in raw:
+        for tok in re.split(r"[^0-9a-zA-Z+#.]+", item.lower()):
+            if len(tok) >= 3:
+                tokens.add(tok)
+    return tokens
+
+
+def _any_strength_grounded(strengths: list[str], tokens: set[str]) -> bool:
+    """True if at least one strength references a real skill/matched-skill token.
+    Lenient: with no tokens to check against, never punish."""
+    if not tokens:
+        return True
+    return any(any(tok in s.lower() for tok in tokens) for s in strengths)
+
+
 def _coerce(payload: Any, context: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(payload, dict):
         return deterministic_reasoning(context)
@@ -271,6 +294,17 @@ def _coerce(payload: Any, context: dict[str, Any]) -> dict[str, Any]:
         out["strengths"] = out["strengths"] or fallback["strengths"]
         out["gaps"] = out["gaps"] or fallback["gaps"]
         out["interviewProbes"] = out["interviewProbes"] or fallback["interviewProbes"]
+
+    # Grounding post-check (Tiger finding #2, confirmed by the 2026-07-16 Lens-3
+    # benchmark): the prompt INSTRUCTS the model to cite a concrete candidate detail,
+    # but nothing verified it — a generic-boilerplate strengths list ("Strong
+    # communicator", "Team player") would still pass. If NONE of the strengths
+    # reference a real skill/matched-skill token, the model didn't ground them, so
+    # backfill from the deterministic template (which cites the actual matched skills).
+    # Lenient by design — one grounded strength is enough — so a genuinely specific
+    # list is never touched.
+    if out["strengths"] and not _any_strength_grounded(out["strengths"], _real_cv_tokens(context)):
+        out["strengths"] = deterministic_reasoning(context)["strengths"]
     return out
 
 

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getPipelineEntry, listOutboxFiltered } from "@/app/_lib/db";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { coerceOutboxStatus } from "@/app/_lib/comms-status";
-import { isRelayConfigured } from "@/app/_lib/comms-truth";
+import { isRelayConfigured } from "@/app/_lib/comms-relay";
 import { deriveCommsView } from "@/app/_lib/comms-view";
 import { safeJsonError } from "@/app/_lib/api-response";
 

@@ -14,7 +14,7 @@ import { cleanupUnitDb } from "./testing/unit-db.ts";
 import { openStore } from "./db-path.ts";
 import { ensureDb } from "./db/core.ts";
 import { resetSim } from "./sim-store.ts";
-import { SIM_MARKER } from "@/app/features/simulation/constants";
+import { SIM_MARKER } from "@/app/features/shell/simulation/constants";
 
 after(() => cleanupUnitDb());
 

@@ -10,7 +10,7 @@ const config = [
     // copies from isolated agent runs. Without this, `eslint .` traverses those
     // stale checkouts and reports their (pre-existing, unrelated) violations as
     // if they were this tree's. eslint has no business in .claude.
-    ignores: [".next/**", "node_modules/**", "test-results/**", ".claude/**"]
+    ignores: [".next/**", ".next-empty/**", "node_modules/**", "test-results/**", ".claude/**"]
   },
   {
     // i18n gap prevention: flag hardcoded user-facing JSX text so new strings go
@@ -52,22 +52,24 @@ const config = [
       "app/apply/**/*.tsx",
       "app/interview/**/*.tsx",
       "app/_components/voice/**/*.tsx",
-      "app/features/Workspace.tsx",
-      "app/features/WorkspaceNav.tsx",
-      "app/features/sub_pipeline/**/*.tsx",
-      "app/features/sub_decisions/**/*.tsx",
-      "app/features/sub_schedule/**/*.tsx",
-      "app/features/sub_library/**/*.tsx",
-      "app/features/sub_jobs/**/*.tsx",
-      "app/features/sub_match/**/*.tsx",
-      "app/features/sub_profile/**/*.tsx",
-      "app/features/sub_channels/**/*.tsx",
-      "app/features/sub_interview/**/*.tsx",
-      "app/features/sub_history/**/*.tsx",
-      "app/features/sub_analytics/**/*.tsx",
-      "app/features/sub_about/**/*.tsx",
-      "app/features/sub_matrix/**/*.tsx",
-      "app/features/sub_analyze/**/*.tsx"
+      // The workspace, by menu group (docs/FEATURE_STRUCTURE_REFACTOR.md). Same
+      // seventeen surfaces the old `sub_*` globs covered, re-pointed at the menu
+      // tree — NOT the whole tree: `tools/devcases` and `hiring/onboarding` were
+      // deliberately outside this rule (dev-facing copy) and stay outside it.
+      "app/features/shell/Workspace.tsx",
+      "app/features/shell/WorkspaceNav.tsx",
+      "app/features/shell/setup/**/*.tsx",
+      "app/features/hiring/pipeline/**/*.tsx",
+      "app/features/hiring/decisions/**/*.tsx",
+      "app/features/hiring/schedule/**/*.tsx",
+      "app/features/hiring/channels/**/*.tsx",
+      "app/features/library/**/*.tsx",
+      "app/features/tools/match/**/*.tsx",
+      "app/features/tools/profile/**/*.tsx",
+      "app/features/tools/analyze/**/*.tsx",
+      "app/features/tools/interview/**/*.tsx",
+      "app/features/insights/**/*.tsx",
+      "app/features/shared/**/*.tsx"
     ],
     rules: {
       "i18next/no-literal-string": ["error", { mode: "jsx-text-only" }]

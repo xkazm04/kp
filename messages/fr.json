@@ -1042,6 +1042,7 @@
   "interview": {
     "completedTitle": "Merci",
     "completedBody": "Cet entretien a déjà été effectué. Un recruteur humain examinera la conversation et reviendra vers vous.",
+    "completedStatusCta": "Suivre ma candidature",
     "inactiveTitle": "Ce lien d'entretien n'est plus actif",
     "inactiveBody": "Le lien a expiré ou a été retiré par le recruteur. Si un entretien vous attend, demandez-lui un nouveau lien.",
     "eyebrow": "Entretien de premier tour",
@@ -1184,13 +1185,14 @@
       "hiring": "Recrutement",
       "library": "Bibliothèque",
       "tools": "Outils",
-      "devExtension": "Extension dev",
       "insights": "Aperçus",
       "settings": "Paramètres"
     },
+    "openWorkspace": "Ouvrir l'espace de travail",
     "tasks": {
       "label": "Tâches en arrière-plan",
       "startErrorTitle": "Impossible de démarrer la tâche",
+      "cancelErrorTitle": "Impossible d'annuler la tâche",
       "dismiss": "Fermer",
       "failedSince": "{count, plural, one {# tâche en arrière-plan a échoué depuis votre dernière consultation} other {# tâches en arrière-plan ont échoué depuis votre dernière consultation}}",
       "running": "{count, plural, one {# tâche en arrière-plan en cours} other {# tâches en arrière-plan en cours}}"
@@ -2920,9 +2922,18 @@
   },
   "match": {
     "band": {
-      "tight": { "label": "Fourchette étroite", "aria": "Intervalle de confiance : étroit — grande certitude" },
-      "moderate": { "label": "Fourchette modérée", "aria": "Intervalle de confiance : certitude modérée" },
-      "wide": { "label": "Fourchette large", "aria": "Intervalle de confiance : large — faible certitude" },
+      "tight": {
+        "label": "Fourchette étroite",
+        "aria": "Intervalle de confiance : étroit — grande certitude"
+      },
+      "moderate": {
+        "label": "Fourchette modérée",
+        "aria": "Intervalle de confiance : certitude modérée"
+      },
+      "wide": {
+        "label": "Fourchette large",
+        "aria": "Intervalle de confiance : large — faible certitude"
+      },
       "titlePrefix": "Pourquoi cette fourchette :",
       "titleFallback": "Fourchette étroite — preuves solides et vérifiables."
     },
@@ -3404,6 +3415,24 @@
         "desc": "Créez un profil de candidat à la main (Profil) et ajoutez-le à un poste.",
         "cta": "Créer un profil"
       }
+    },
+    "relay": {
+      "title": "Relais de distribution",
+      "intro": "La destination réelle des messages sortants aux candidats — branchez un relais mail, Zapier ou l'endpoint de votre ATS. Sans relais, les messages restent dans la boîte d'envoi locale et rien n'atteint les candidats.",
+      "statusOn": "Distribution active",
+      "statusOff": "Non configuré",
+      "secretSet": "Secret de signature défini",
+      "envNote": "Configuré par la variable d'environnement COMMS_WEBHOOK_URL — retirez-la pour gérer le relais ici.",
+      "urlLabel": "Endpoint du relais (https)",
+      "secretLabel": "Secret de signature",
+      "secretPlaceholder": "Facultatif — signe chaque distribution",
+      "secretKeepPlaceholder": "Laissez vide pour conserver le secret actuel",
+      "save": "Enregistrer",
+      "saved": "Relais enregistré",
+      "saveFailed": "Impossible d'enregistrer le relais",
+      "test": "Envoyer un ping de test",
+      "testOk": "Distribué — HTTP {status}",
+      "testFailed": "Échec du test : {reason}"
     }
   },
   "interviewSim": {
@@ -3573,12 +3602,27 @@
   "devApply": {
     "workSurface": {
       "heading": "Traitez le cas ici",
+      "phoneAdvisory": "Ce cas se travaille plus confortablement sur un ordinateur — le même lien l'ouvre là-bas. Vous pouvez néanmoins continuer sur votre téléphone.",
       "intro": "Modifiez les fichiers de départ ci-dessous. Votre démarche — ce que vous ouvrez, ce que vous modifiez et ce que vous notez dans DECISIONS.md — est enregistrée afin que nous évaluions le jugement observé, pas seulement le code final. Vous pouvez utiliser n'importe quel outil, y compris l'AI. Nous n'enregistrons jamais vos frappes ni votre écran.",
       "submit": "Envoyer le travail",
       "submitting": "Envoi…",
       "submittedTitle": "Envoyé",
       "submitted": "Merci — votre travail et la démarche qui le sous-tend ont été enregistrés. L'équipe les examinera.",
-      "error": "Impossible d'envoyer — réessayez, ou utilisez l'option de lien vers le dépôt ci-dessous."
+      "submittedNext": "Nous vous répondrons à {contact} — rien d'autre n'est nécessaire sur cette page.",
+      "submittedRef": "Référence de la soumission : {ref}",
+      "error": "Impossible d'envoyer — réessayez, ou utilisez l'option de lien vers le dépôt ci-dessous.",
+      "errorClosed": "La réception des soumissions pour ce poste est close — votre travail ne peut plus être envoyé ici.",
+      "chatHeading": "Posez vos questions en travaillant",
+      "chatIntro": "Utilisez l'assistant AI intégré, ou posez une question de clarification au commanditaire du brief. Ces conversations font partie de votre rendu — de bonnes questions et de bons prompts jouent en votre faveur.",
+      "tabAssistant": "Assistant AI",
+      "tabStakeholder": "Commanditaire",
+      "chatPlaceholderAssistant": "Posez à l'assistant toute question sur le travail…",
+      "chatPlaceholderStakeholder": "Posez une question de clarification au commanditaire…",
+      "chatSend": "Envoyer",
+      "chatSending": "Envoi…",
+      "chatError": "Échec de l'envoi — réessayez.",
+      "updateHeading": "Nouvelle de l'équipe",
+      "restored": "Nous avons restauré votre travail non enregistré depuis cet appareil — rien n'a été perdu."
     },
     "eyebrow": "Exercice à domicile",
     "fallbackTitle": "Exercice pour développeur",
@@ -3598,7 +3642,8 @@
     "submitFailed": "L'envoi a échoué — veuillez réessayer.",
     "received": "Candidature reçue",
     "receivedNote": "Nous examinerons votre soumission et reviendrons vers vous. Une confirmation est en route.",
-    "receivedDuplicate": "Nous avions déjà une soumission de votre part pour cet exercice — c'est celle qui compte, inutile de la renvoyer."
+    "receivedDuplicate": "Nous avions déjà une soumission de votre part pour cet exercice — c'est celle qui compte, inutile de la renvoyer.",
+    "receivedRef": "Référence de la soumission : {ref}"
   },
   "potential": {
     "badge": "potentiel {pct}",
@@ -3891,6 +3936,9 @@
     "totalHired": "{total} · {hired} recrutés",
     "advancedPct": "{pct} % ont franchi la présélection",
     "noArchetypeData": "Aucune donnée d'archétype pour l'instant.",
+    "noArchetypeBody": "Les archétypes se remplissent à mesure que les candidats entrent dans le pipeline et que leurs CV sont analysés.",
+    "emptyCtaChannels": "Configurer un canal",
+    "emptyCtaJobs": "Ouvrir les postes",
     "byRole": "Par poste",
     "topByVolume": "Top {shown} sur {total} par volume",
     "colJob": "Poste",
@@ -3900,6 +3948,7 @@
     "colHired": "Recrutés",
     "colHireRate": "Taux de recrutement",
     "noPipelineEntries": "Aucune entrée dans le pipeline pour l'instant.",
+    "noPipelineEntriesBody": "Les statistiques par poste se constituent au fil des candidatures — ouvrez un poste et connectez un canal pour commencer à les collecter.",
     "koDeclinedLine": "{count, plural, one {# candidat écarté au filtre d'éligibilité avant d'entrer dans le pipeline} other {# candidats écartés au filtre d'éligibilité avant d'entrer dans le pipeline}}",
     "log": {
       "loadFailed": "Impossible de charger le journal des décisions.",
@@ -4606,5 +4655,208 @@
     "editGateReason": "La modification est réservée aux opérateurs.",
     "editConflict": "Cette description a changé depuis que vous l'avez ouverte. Rechargez la dernière version, puis réappliquez votre modification.",
     "editReload": "Recharger la dernière version"
+  },
+  "setup": {
+    "aria": {
+      "dialog": "Configurer votre espace de travail",
+      "skip": "Ignorer la configuration pour l'instant"
+    },
+    "previewRibbon": "Aperçu — rien de ce que vous faites ici ne sera enregistré",
+    "rail": {
+      "stepOf": "Étape {current} sur {total}",
+      "brand": "kp"
+    },
+    "steps": {
+      "welcome": {
+        "label": "Bienvenue",
+        "eyebrow": "Bienvenue",
+        "title": "Lancez vos recrutements",
+        "blurb": "Quelques étapes rapides : votre entreprise, votre équipe, votre premier poste — kp s'occupe du reste."
+      },
+      "company": {
+        "label": "Entreprise",
+        "eyebrow": "Configuration · Entreprise",
+        "title": "Faites-en votre entreprise",
+        "blurb": "C'est ainsi que votre entreprise apparaît dans kp — sur les offres, les propositions et pour vos collègues."
+      },
+      "team": {
+        "label": "Équipe",
+        "eyebrow": "Configuration · Équipe",
+        "title": "Invitez votre équipe",
+        "blurb": "Invitez les recruteurs et hiring managers avec qui vous travaillez. Vous pouvez le faire plus tard."
+      },
+      "firstRole": {
+        "label": "Premier poste",
+        "eyebrow": "Configuration · Premier poste",
+        "title": "Décrivez votre premier poste",
+        "blurb": "Dites à kp ce qu'il vous faut — il rédige en arrière-plan la fiche de poste, le salaire de marché et un cas pratique."
+      },
+      "handoff": {
+        "label": "Terminé",
+        "eyebrow": "Bienvenue à bord",
+        "title": "Tout est prêt",
+        "blurb": "Votre espace de travail est prêt — voici la suite."
+      }
+    },
+    "welcome": {
+      "values": {
+        "role": {
+          "title": "Décrivez un poste",
+          "body": "L'IA rédige pour vous la fiche de poste, la fourchette salariale et un cas pratique."
+        },
+        "channels": {
+          "title": "Ouvrez vos canaux",
+          "body": "Page carrières, réception d'e-mails et connexions aux job boards font venir les candidats."
+        },
+        "pipeline": {
+          "title": "Pilotez le pipeline",
+          "body": "Présélection, entretiens et offres — un seul flux, et c'est vous qui décidez."
+        }
+      },
+      "minutes": "Environ 3 minutes"
+    },
+    "company": {
+      "nameLabel": "Nom de l'entreprise",
+      "namePlaceholder": "p. ex. Acme Software",
+      "languageLabel": "Langue de l'application",
+      "brandLabel": "Marque (facultatif)",
+      "brandHint": "Choisissez une couleur d'accent et ajoutez votre logo — vous pourrez les affiner dans Paramètres → Branding.",
+      "accent": {
+        "default": "Accent par défaut",
+        "moss": "Vert mousse",
+        "steel": "Bleu acier",
+        "ink": "Encre",
+        "custom": "Personnalisée",
+        "illegible": "Cette couleur est trop claire pour les boutons et les contours de focus — choisissez-en une plus foncée."
+      },
+      "logoLabel": "URL du logo",
+      "logoInvalid": "Saisissez une URL d'image en https://."
+    },
+    "team": {
+      "emailPlaceholder": "nom@entreprise.fr",
+      "roleAria": "Rôle pour l'invitation",
+      "add": "Ajouter",
+      "empty": "Aucune invitation pour l'instant — ajoutez des collègues par e-mail, ou passez et invitez-les plus tard.",
+      "removeAria": "Supprimer l'invitation de {email}"
+    },
+    "firstRole": {
+      "titleLabel": "Intitulé du poste",
+      "titlePlaceholder": "p. ex. Senior Java Backend Engineer",
+      "seniorityLabel": "Séniorité",
+      "familyLabel": "Famille de métiers",
+      "needLabel": "De quoi avez-vous besoin ?",
+      "needPlaceholder": "Prendre en charge les services backend · Java, Spring, SQL · mentorer l'équipe…",
+      "needHint": "Quelques phrases honnêtes suffisent — kp les développe en une fiche de poste complète à votre marque.",
+      "includedLabel": "Inclus dans cette génération",
+      "included": {
+        "description": "Fiche de poste",
+        "salary": "Salaire de marché",
+        "case": "Cas pratique"
+      },
+      "background": "La génération tourne en arrière-plan — continuez d'explorer, le résultat arrive dans la Bibliothèque.",
+      "modeLabel": "Comment ajouter votre premier poste",
+      "mode": {
+        "write": "Le décrire",
+        "import": "Importer un existant"
+      },
+      "import": {
+        "fileLabel": "Importer depuis un fichier",
+        "browse": "Choisir un fichier",
+        "extracting": "Lecture du fichier…",
+        "hint": "PDF · DOCX · TXT · MD jusqu'à 8 Mo — le texte est extrait pour vous.",
+        "error": "Impossible de lire ce fichier — essayez un autre format, ou collez le texte ci-dessous.",
+        "bodyLabel": "Fiche de poste",
+        "bodyPlaceholder": "Collez l'annonce complète ici, ou importez-la depuis un fichier ci-dessus.",
+        "note": "Les postes importés sont enregistrés tels quels dans la Bibliothèque et immédiatement matchables — aucune génération IA."
+      }
+    },
+    "handoff": {
+      "readyTitle": "{org} — prêt",
+      "orgFallback": "Votre espace de travail",
+      "readyMeta": "Langue : {language} · {invites, plural, =0 {aucune invitation pour l'instant} one {# collègue invité} other {# collègues invités}}",
+      "roleTitle": "Premier poste : {role}",
+      "roleBody": "kp rédige la fiche, le salaire de marché et le cas pratique — suivez leur arrivée dans le registre de la Bibliothèque.",
+      "checklistTitle": "Votre liste de démarrage",
+      "checklistBody": "Elle se trouve sur le tableau Pipeline et vous guide : publication du poste, ouverture des canaux, premiers candidats.",
+      "tourTitle": "Lancer la démo guidée",
+      "tourBody": "Toute l'histoire du recrutement sur des données d'exemple — environ 3 minutes.",
+      "roleImportedBody": "Importé et enregistré dans la Bibliothèque — matchable immédiatement.",
+      "chooseLabel": "Comment voulez-vous commencer ?",
+      "soloTitle": "Explorer par moi-même",
+      "soloBody": "À votre rythme — la démo reste à un clic, derrière le bouton rond Candi en bas de l'écran."
+    },
+    "footer": {
+      "back": "Retour",
+      "skipSetup": "Ignorer la configuration",
+      "skipStep": "Passer pour l'instant",
+      "start": "C'est parti",
+      "continue": "Continuer",
+      "enter": "Entrer dans kp"
+    },
+    "toast": {
+      "saved": "Votre espace de travail est configuré",
+      "partial": "Certaines étapes n'ont pas pu être enregistrées — vous pourrez les terminer dans les Paramètres",
+      "roleStarted": "Votre premier poste est en cours de rédaction — suivez le registre de la Bibliothèque",
+      "roleFailed": "La génération du poste n'a pas pu démarrer — réessayez depuis Bibliothèque → Générer",
+      "roleImported": "Votre poste a été enregistré dans la Bibliothèque"
+    },
+    "checklist": {
+      "title": "Premiers pas",
+      "progress": "{done} sur {total} terminés",
+      "dismiss": "Ne plus afficher",
+      "open": "Ouvrir",
+      "showMe": "Montrez-moi",
+      "steps": {
+        "company": {
+          "title": "Configurez votre entreprise",
+          "body": "Nom, langue et marque — l'image que voient les candidats."
+        },
+        "firstRole": {
+          "title": "Créez votre premier poste",
+          "body": "Décrivez le besoin — kp rédige la fiche, le salaire et le cas.",
+          "analyzing": "Génération en cours — suivez le registre de la Bibliothèque.",
+          "failed": "La génération a échoué — relancez-la depuis le registre de la Bibliothèque."
+        },
+        "case": {
+          "title": "Concevez le cas pratique",
+          "body": "Un exercice concret qui évalue les compétences réelles."
+        },
+        "channels": {
+          "title": "Connectez vos canaux",
+          "body": "Ouvrez une réception d'e-mails et recevez une candidature test.",
+          "listening": "En écoute — vérifiez en recevant une candidature test."
+        },
+        "team": {
+          "title": "Invitez votre équipe",
+          "body": "Facultatif — faites venir recruteurs et hiring managers."
+        }
+      },
+      "coach": {
+        "company": {
+          "title": "Paramètres de votre entreprise",
+          "caption": "Définissez ici le nom et la langue — le branding est dans l'onglet voisin."
+        },
+        "firstRole": {
+          "title": "Générez votre premier poste",
+          "caption": "Ouvrez Générer, décrivez le besoin et lancez l'analyse — elle tourne en arrière-plan."
+        },
+        "case": {
+          "title": "Concevez un cas",
+          "caption": "Passez à Définir le besoin, choisissez votre poste enregistré et lancez le cycle automatisé."
+        },
+        "channels": {
+          "title": "Ouvrez votre réception",
+          "caption": "Ajoutez une boîte ici, puis vérifiez avec « Recevoir une candidature test »."
+        },
+        "team": {
+          "title": "Invitez des collègues",
+          "caption": "Membres et invitations sont ici — ajoutez des collègues par e-mail et choisissez leur rôle."
+        }
+      },
+      "completed": {
+        "title": "Tout est prêt !",
+        "body": "Entreprise, poste, cas et canaux sont connectés — bon recrutement."
+      }
+    }
   }
 }

@@ -9,7 +9,7 @@ import { TextArea } from "@/app/_components/TextArea";
 type SubmitState =
   | { kind: "idle" }
   | { kind: "sending" }
-  | { kind: "done"; duplicate: boolean }
+  | { kind: "done"; duplicate: boolean; ref: string | null }
   | { kind: "error"; message: string };
 
 // The submission form half of the dev-case apply page (W5-1). POSTs to the
@@ -46,9 +46,13 @@ export function DevApplyForm({ token }: { token: string }) {
           notes: notes.trim() || undefined,
         }),
       });
-      const payload = (await r.json().catch(() => null)) as { error?: string; duplicate?: boolean } | null;
+      const payload = (await r.json().catch(() => null)) as { error?: string; duplicate?: boolean; submissionId?: string } | null;
       if (!r.ok) throw new Error(payload?.error ?? t("submitFailed"));
-      setState({ kind: "done", duplicate: Boolean(payload?.duplicate) });
+      setState({
+        kind: "done",
+        duplicate: Boolean(payload?.duplicate),
+        ref: typeof payload?.submissionId === "string" ? payload.submissionId : null,
+      });
     } catch (caught) {
       setState({ kind: "error", message: caught instanceof Error ? caught.message : t("submitFailed") });
     }
@@ -61,6 +65,9 @@ export function DevApplyForm({ token }: { token: string }) {
           <Check size={16} aria-hidden /> {t("received")}
         </p>
         <p className="mt-1 text-sm text-steel">{state.duplicate ? t("receivedDuplicate") : t("receivedNote")}</p>
+        {/* A durable handle on the submission — the page is otherwise a dead end
+            once the form is gone. */}
+        {state.ref ? <p className="mt-2 text-xs text-steel">{t("receivedRef", { ref: state.ref })}</p> : null}
       </div>
     );
   }

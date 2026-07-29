@@ -3,13 +3,13 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { Send, UserPlus } from "lucide-react";
-import { WorkspaceShell } from "@/app/features/WorkspaceNav";
-import { RecordRecent } from "@/app/features/RecordRecent";
+import { WorkspaceShell } from "@/app/features/shell/WorkspaceNav";
+import { RecordRecent } from "@/app/features/shell/RecordRecent";
 import { getJob, loadJd, type JdRow } from "@/app/_lib/db";
 import { getJobStatus, isJobOpenForApplications } from "@/app/_lib/job-ingest";
 import { jdJobId } from "@/app/_lib/jd-limits";
 import { isOperator } from "@/app/_lib/auth/require-operator";
-import { jdMarketResearchAvailable } from "@/app/features/sub_library/jd-library";
+import { jdMarketResearchAvailable } from "@/app/features/library/jds/jdsLibrary";
 import { JdActions } from "./JdActions";
 import { JdBody } from "./JdBody";
 
@@ -88,7 +88,7 @@ export default async function JdDetailPage({
   // shareable ?lang=cs links), so the former "Candidates" aside and header
   // count exposed other applicants' names + scores to every candidate sent
   // here. The same listAnalysesByJd list now lives on the recruiter-facing
-  // Library tab rows (sub_library/LibraryTab.tsx), lazy-loaded per JD.
+  // Library tab rows (features/library/jds/JdsTab.tsx), lazy-loaded per JD.
 
   // W8-2 (JDL2) — the JD → apply bridge. The page is the public, shareable
   // candidate-facing artifact, yet a candidate landing here had zero path to

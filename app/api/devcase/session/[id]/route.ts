@@ -1,6 +1,37 @@
 import { NextResponse } from "next/server";
-import { appendDevSessionEvents, getDevSession, saveDevSessionFiles } from "@/app/_lib/db";
+import {
+  appendDevSessionEvents,
+  getDevCase,
+  getDevSessionEvents,
+  getDevSessionMeta,
+  getPostingByToken,
+  saveDevSessionFiles,
+} from "@/app/_lib/db";
 import { jsonError } from "@/app/_lib/api-response";
+
+// Per-token mid-flight-update memo (case-sim round 3 canary c2): the flush path
+// fires every ~8s per active candidate, and the token→posting→case chain it used
+// to walk per request resolves data that is FROZEN at publish (the seed/case
+// freeze contract) — it cannot change mid-session, so one resolve per token is
+// enough. Bounded FIFO so a leaked-token flood can't grow it unboundedly.
+const MFU_CACHE = new Map<string, { afterMinutes: number; update: string } | null>();
+const MFU_CACHE_MAX = 500;
+
+function midFlightUpdateForToken(token: string): { afterMinutes: number; update: string } | null {
+  if (MFU_CACHE.has(token)) return MFU_CACHE.get(token) ?? null;
+  const kase = getDevCase(getPostingByToken(token)?.caseId ?? "")?.case as
+    | { midFlightUpdate?: { afterMinutes?: number; update?: string } }
+    | null;
+  const mfu = kase?.midFlightUpdate;
+  const resolved =
+    mfu?.update && typeof mfu.afterMinutes === "number" ? { afterMinutes: mfu.afterMinutes, update: mfu.update } : null;
+  if (MFU_CACHE.size >= MFU_CACHE_MAX) {
+    const oldest = MFU_CACHE.keys().next().value;
+    if (oldest !== undefined) MFU_CACHE.delete(oldest);
+  }
+  MFU_CACHE.set(token, resolved);
+  return resolved;
+}
 
 
 // Live Work Surface (moonshot E) — append observed events + save the (editable)
@@ -18,7 +49,9 @@ const MAX_FILE_BYTES = 256 * 1024;
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const session = getDevSession(id);
+    // Status-only read (case-sim round 3): this hot path never needs the files
+    // blob getDevSession would parse on every flush.
+    const session = getDevSessionMeta(id);
     if (!session) return NextResponse.json({ error: "session not found" }, { status: 404 });
     if (session.status !== "active") return NextResponse.json({ error: "session already submitted" }, { status: 409 });
 
@@ -50,7 +83,23 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       saveDevSessionFiles(id, files);
     }
 
-    return NextResponse.json({ ok: true, seq });
+    // Mid-flight update reveal (LLM-era controls #5): once the session is older than
+    // the case's afterMinutes, serve the requirement change with this flush response
+    // and record the reveal SERVER-SIDE as a chained "perturbation" event (clients
+    // can't submit that kind — see KINDS above — so the reveal moment is trustworthy).
+    // Already-fired sessions keep receiving the text so a reload re-renders the banner.
+    let perturbation: string | null = null;
+    const mfu = session.token ? midFlightUpdateForToken(session.token) : null;
+    if (mfu) {
+      const fired = getDevSessionEvents(id).some((e) => e.kind === "perturbation");
+      const due = Date.now() - Date.parse(session.createdAt) >= mfu.afterMinutes * 60_000;
+      if (fired || due) {
+        if (!fired) appendDevSessionEvents(id, [{ t: Date.now(), kind: "perturbation", path: null }]);
+        perturbation = mfu.update;
+      }
+    }
+
+    return NextResponse.json({ ok: true, seq, perturbation });
   } catch (error) {
     return jsonError(error, "Failed to save the work session.");
   }

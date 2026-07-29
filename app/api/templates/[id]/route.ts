@@ -3,7 +3,7 @@ import { deleteTemplate, getTemplate, setDefaultTemplate, updateTemplate } from 
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { safeJsonError } from "@/app/_lib/api-response";
-import { findUnknownPlaceholders, unknownPlaceholderMessage, validateTemplateUpdate } from "@/app/features/sub_library/render-template";
+import { findUnknownPlaceholders, unknownPlaceholderMessage, validateTemplateUpdate } from "@/app/features/shared/renderTemplate";
 
 
 export async function GET(_request: NextRequest, context: { params: Promise<{ id: string }> }) {

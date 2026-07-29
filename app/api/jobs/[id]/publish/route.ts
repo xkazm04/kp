@@ -5,7 +5,7 @@ import { countPublishedJobs, getJobStatus, setJobStatus } from "@/app/_lib/job-i
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { runSourceForRole } from "@/app/_lib/devcase-run";
 import { raiseRediscoveryAlertsForJob } from "@/app/_lib/rediscover";
-import { splitRequirements } from "@/app/features/sub_jobs/JobsTypes";
+import { splitRequirements } from "@/app/features/library/jobs/JobsTypes";
 
 export const maxDuration = 60;
 

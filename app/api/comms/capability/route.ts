@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { isRelayConfigured } from "@/app/_lib/comms-truth";
+import { isRelayConfigured } from "@/app/_lib/comms-relay";
 
 
 // REC-10 — the one capability bit the delivery truth-language keys off:

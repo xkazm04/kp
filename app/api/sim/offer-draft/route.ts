@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getJob, getPipelineEntry, setApproval } from "@/app/_lib/db";
 import { jsonError } from "@/app/_lib/api-response";
 import { normalizeSalaryBand } from "@/app/_lib/salary-band";
-import { SIM_SALARY } from "@/app/features/simulation/constants";
+import { SIM_SALARY } from "@/app/features/shell/simulation/constants";
 
 
 // Deterministic offer draft for the simulation spine — NO LLM (salary from the

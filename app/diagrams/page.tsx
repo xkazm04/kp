@@ -1,7 +1,7 @@
 import { getTranslations } from "next-intl/server";
 import { PlantUml } from "@/app/_components/puml/PlantUml";
 import { DIAGRAM_STATUS_TOKENS } from "@/app/_components/puml/constants";
-import { WorkspaceShell } from "@/app/features/WorkspaceNav";
+import { WorkspaceShell } from "@/app/features/shell/WorkspaceNav";
 import { PipelineExplorer } from "./PipelineExplorer";
 import { readDiagramSource } from "./readDiagramSource";
 

@@ -6,11 +6,11 @@ import { Archive, ArchiveRestore, Check, History, Pencil, X } from "lucide-react
 import { useTranslations } from "next-intl";
 import { TextInput } from "@/app/_components/TextInput";
 import { TextArea } from "@/app/_components/TextArea";
-import { builderLintFindings } from "@/app/features/sub_library/jd-library";
-import { JdLintPanel } from "@/app/features/sub_library/JdLintPanel";
-import { JdRevisionList } from "@/app/features/sub_library/JdRevisionList";
-import { useJdEditor } from "@/app/features/sub_library/useJdEditor";
-import { classifyJdWriteResponse } from "@/app/features/sub_library/jd-edit-client";
+import { builderLintFindings } from "@/app/features/library/jds/jdsLibrary";
+import { JdLintPanel } from "@/app/features/library/jds/JdsLintPanel";
+import { JdRevisionList } from "@/app/features/library/jds/JdsRevisionList";
+import { useJdEditor } from "@/app/features/library/jds/useJdEditor";
+import { classifyJdWriteResponse } from "@/app/features/library/jds/jdsEditClient";
 
 // W8-4 (JDL1) — edit + archive for a saved JD, on the page that displays it.
 // The library was fully append-only: every revision forked a permanent

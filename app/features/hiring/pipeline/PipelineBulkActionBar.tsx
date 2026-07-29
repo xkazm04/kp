@@ -1,0 +1,173 @@
+"use client";
+
+// PIPE1/P2-2/bdc7fc01 — the select-mode batch action bar: bulk move, bulk
+// self-scheduling invite, bulk outreach draft (two-step confirm when a relay is
+// configured/unknown), and bulk accept/reject of the awaiting-decision subset.
+// Split out of PipelineTab.tsx; all state lives in usePipelineTabState.
+
+import type { PipelineTabTranslator } from "./pipelineTranslator";
+import { CalendarClock } from "lucide-react";
+import { Select } from "@/app/_components/Select";
+import { STAGES, type Entry } from "@/app/features/shared/pipelineTypes";
+import { PipelineBulkDecideRow } from "./PipelineBulkDecideRow";
+import { PipelineBulkOutreachButton } from "./PipelineBulkOutreachButton";
+import type { BulkConfirmEvent } from "./pipelineBulkConfirm";
+
+type BulkResult = { ok: number; failed: number; verb: "moved" | "accepted" | "rejected" | "invited" | "drafted"; reason?: string | null };
+
+export function PipelineBulkActionBar({
+  t,
+  enumLabel,
+  relayConfigured,
+  selectedIds,
+  filteredCount,
+  onSelectAllVisible,
+  onClearSelection,
+  bulkStage,
+  onBulkStageChange,
+  onBulkMove,
+  bulkBusy,
+  selectedActive,
+  onBulkInvite,
+  confirmingBulkOutreach,
+  dispatchBulkConfirm,
+  onBulkOutreach,
+  outreachTaskActive,
+  bulkResult,
+  selectedAwaiting,
+  awaitingKinds,
+  onBulkDecide,
+  confirmingBulkReject,
+}: {
+  t: PipelineTabTranslator;
+  enumLabel: (kind: string, value: string) => string;
+  relayConfigured: boolean | null;
+  selectedIds: ReadonlySet<string>;
+  filteredCount: number;
+  onSelectAllVisible: () => void;
+  onClearSelection: () => void;
+  bulkStage: string;
+  onBulkStageChange: (s: string) => void;
+  onBulkMove: () => void;
+  bulkBusy: boolean;
+  selectedActive: Entry[];
+  onBulkInvite: () => void;
+  confirmingBulkOutreach: boolean;
+  dispatchBulkConfirm: (action: BulkConfirmEvent) => void;
+  onBulkOutreach: () => void;
+  outreachTaskActive: boolean;
+  bulkResult: BulkResult | null;
+  selectedAwaiting: Entry[];
+  awaitingKinds: [string, number][];
+  onBulkDecide: (action: "accept" | "reject") => void;
+  confirmingBulkReject: boolean;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-2 rounded-md border border-coral/30 bg-coral/5 px-3 py-2">
+      <span className="text-sm font-semibold text-ink" aria-live="polite">
+        {t("selectedCount", { count: selectedIds.size })}
+      </span>
+      <button
+        type="button"
+        onClick={onSelectAllVisible}
+        className="focus-ring rounded-full border border-stone-200 bg-white px-2.5 py-0.5 text-sm font-semibold text-steel hover:border-coral/40 hover:text-ink"
+      >
+        {t("selectAllVisible", { count: filteredCount })}
+      </button>
+      {selectedIds.size > 0 ? (
+        <button
+          type="button"
+          onClick={onClearSelection}
+          className="focus-ring rounded-full border border-stone-200 bg-white px-2.5 py-0.5 text-sm font-semibold text-steel hover:border-coral/40 hover:text-ink"
+        >
+          {t("bulkClear")}
+        </button>
+      ) : null}
+      <label className="ml-auto flex items-center gap-1.5 text-sm font-medium text-steel">
+        {t("bulkMoveLabel")}
+        <Select
+          ariaLabel={t("bulkMoveLabel")}
+          value={bulkStage}
+          onChange={onBulkStageChange}
+          size="sm"
+          className="h-8"
+          options={[{ value: "", label: "—" }, ...STAGES.map((s) => ({ value: s, label: enumLabel("stage", s) }))]}
+        />
+      </label>
+      <button
+        type="button"
+        onClick={onBulkMove}
+        disabled={bulkBusy || !bulkStage || selectedIds.size === 0}
+        className="focus-ring rounded-md bg-coral px-3 py-1 text-sm font-semibold text-white hover:bg-coral/90 disabled:opacity-50"
+      >
+        {bulkBusy ? t("bulkMoving") : t("bulkApply", { count: selectedIds.size })}
+      </button>
+      {/* P2-2 — send self-scheduling links to the selected active cohort. */}
+      {selectedActive.length > 0 ? (
+        <button
+          type="button"
+          onClick={onBulkInvite}
+          disabled={bulkBusy}
+          className="focus-ring inline-flex items-center gap-1.5 rounded-md border border-stone-200 bg-white px-3 py-1 text-sm font-semibold text-ink hover:border-coral/40 disabled:opacity-50"
+        >
+          <CalendarClock size={13} aria-hidden /> {t("bulkInvite", { count: selectedActive.length })}
+        </button>
+      ) : null}
+      <PipelineBulkOutreachButton
+        t={t}
+        relayConfigured={relayConfigured}
+        selectedActive={selectedActive}
+        bulkBusy={bulkBusy}
+        confirmingBulkOutreach={confirmingBulkOutreach}
+        dispatchBulkConfirm={dispatchBulkConfirm}
+        onBulkOutreach={onBulkOutreach}
+        outreachTaskActive={outreachTaskActive}
+      />
+      {bulkResult ? (
+        <span role="status" className="text-sm">
+          <span className="font-semibold text-moss">
+            {t(
+              bulkResult.verb === "moved"
+                ? "bulkMoved"
+                : bulkResult.verb === "accepted"
+                  ? "bulkAccepted"
+                  : bulkResult.verb === "invited"
+                    ? relayConfigured === false
+                      ? "bulkInvitedQueued"
+                      : "bulkInvited"
+                    : bulkResult.verb === "drafted"
+                      ? relayConfigured === false
+                        ? "bulkDraftedQueued"
+                        : "bulkDrafted"
+                      : "bulkRejected",
+              { count: bulkResult.ok }
+            )}
+          </span>
+          {bulkResult.failed > 0 ? (
+            <span className="font-semibold text-coral">
+              {" · "}
+              {t(bulkResult.verb === "drafted" ? "bulkDraftFailed" : "bulkFailed", { count: bulkResult.failed })}
+            </span>
+          ) : null}
+          {/* The server's own reason for the refusals (409 concurrency vs
+              422 forbidden transition), verbatim — so a bulk failure says
+              WHY and what to do, not just a count. */}
+          {bulkResult.reason ? <span className="block text-steel">{bulkResult.reason}</span> : null}
+        </span>
+      ) : null}
+      {/* bdc7fc01 — accept/reject the awaiting cohort in one pass. Only the
+          selected entries that need a human decision are actionable; the
+          per-kind breakdown makes a mixed selection obvious before acting. */}
+      <PipelineBulkDecideRow
+        t={t}
+        enumLabel={enumLabel}
+        selectedAwaiting={selectedAwaiting}
+        awaitingKinds={awaitingKinds}
+        bulkBusy={bulkBusy}
+        onBulkDecide={onBulkDecide}
+        confirmingBulkReject={confirmingBulkReject}
+        dispatchBulkConfirm={dispatchBulkConfirm}
+      />
+    </div>
+  );
+}
