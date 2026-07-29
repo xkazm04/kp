@@ -3754,6 +3754,112 @@
     "staleAge": "Genuine and untampered, but issued {issued} under standard {version}. Ask the candidate for a current assessment if recency matters.",
     "staleMethodology": "Genuine and untampered, but scored under standard {version} (issued {issued}), which has since been superseded. Ask the candidate for an assessment on the current standard."
   },
+  "devcase": {
+    "lifecycle": {
+      "sectionTitle": "Automated lifecycle",
+      "intro": "Each case advances under policy — auto-approving clean designs, routing flagged ones to you, publishing, and (as submissions arrive) evaluating → ranking → promoting the top candidates into Decisions. No manual steps between.",
+      "untitledRole": "Role",
+      "railLabel": "Lifecycle progress — {steps}",
+      "railStep": "{step}: {state}",
+      "stalledBadge": "stalled {days}d",
+      "stalledTitle": "{days, plural, one {Open and empty for # day} other {Open and empty for # days}} — re-source the candidate pool or close the case.",
+      "reSourceTitle": "Rank the existing candidate DB against this role and seed the pipeline again",
+      "reSourcing": "Re-sourcing…",
+      "reSource": "Re-source",
+      "hideReview": "Hide review",
+      "review": "Review & approve",
+      "closeTitle": "Wrap up non-promoted submitters and stop the apply link",
+      "closing": "Closing…",
+      "close": "Close case",
+      "closeConfirm": "Close this case? Non-promoted submitters get a wrap-up note and the apply link stops accepting submissions.",
+      "closeFailed": "Close failed."
+    },
+    "stage": {
+      "intake": "intake",
+      "analyzed": "analyzed",
+      "designed": "designed",
+      "awaiting_approval": "needs approval",
+      "approved": "approved",
+      "published": "published",
+      "collecting": "collecting",
+      "ranked": "ranked",
+      "promoted": "promoted"
+    },
+    "stepState": {
+      "done": "done",
+      "current": "current",
+      "upcoming": "upcoming"
+    },
+    "review": {
+      "flagged": "Why this was flagged",
+      "flaggedWithConfidence": "Why this was flagged · confidence {pct}%",
+      "fieldTitle": "Title",
+      "fieldBrief": "Brief",
+      "fieldTasks": "Tasks (one per line)",
+      "fieldTimebox": "Timebox (hours)",
+      "internalProbes": "Internal — cover probes ({count})",
+      "engineOwned": "Probes and rubric are engine-owned — to change them, regenerate with a note.",
+      "previewTitle": "Candidate-safe preview (live)",
+      "approving": "Approving…",
+      "approveWithEdits": "Approve with edits",
+      "approve": "Approve",
+      "approveFailed": "Approve failed.",
+      "feedbackPlaceholder": "What should change? e.g. “too broad for a junior — narrow task 2 to one endpoint”",
+      "redesignTitle": "Re-run only the design step with this note — no full lifecycle re-run",
+      "redesigning": "Redesigning…",
+      "redesign": "Regenerate with note",
+      "redesignFailed": "Redesign failed."
+    },
+    "outbox": {
+      "emptyTitle": "No messages yet",
+      "emptyBody": "The pipeline writes every intake acknowledgement, promote invite, recruiter outreach and rejection here as cases collect submissions.",
+      "relayHint": "“queued” = recorded locally (terminal until a relay is wired); set <code>COMMS_WEBHOOK_URL</code> to relay through a real channel (email / ATS), where messages resolve to <sent>sent</sent> or, on a dropped delivery, <failed>failed</failed> (dead-lettered — needs attention).",
+      "colKind": "Kind",
+      "colRecipient": "Recipient",
+      "colSubject": "Subject",
+      "colStatus": "Status",
+      "colSent": "Sent",
+      "resendTitle": "Re-deliver this message through the active channel (recorded as a new outbox row)",
+      "retryResend": "Retry resend"
+    },
+    "outboxKind": {
+      "invite": "invite",
+      "acknowledgement": "acknowledgement",
+      "outreach": "outreach",
+      "rejection": "rejection"
+    },
+    "cohort": {
+      "title": "Cohort probe insights",
+      "evaluated": "· {count} evaluated",
+      "notScored": "not yet scored",
+      "missed": "{pct}% missed · {band}",
+      "missedAria": "{pct} percent missed, {band} miss rate",
+      "weak": "{pct}% weak",
+      "weakTitle": "Detected but mishandled, or missed",
+      "sample": "n={count}",
+      "miscalibrationLabel": "Possible miscalibration:",
+      "miscalibration": "{count, plural, one {# probe was} other {# probes were}} missed by every evaluated candidate — the seam may be too hidden to read, or the option space too narrow to force a real choice."
+    },
+    "band": {
+      "high": "high",
+      "some": "some",
+      "low": "low"
+    },
+    "interviewKit": {
+      "title": "Interview kit — top candidate",
+      "fit": "· fit {score}",
+      "copied": "Copied",
+      "copy": "Copy",
+      "export": "Export",
+      "intro": "Each question verifies the candidate owns a real decision from their submission. Listen-for / red-flag notes are interviewer-internal."
+    },
+    "probeAudit": {
+      "label": "Probe-strength audit",
+      "strong": "{loadBearing} of {total} probes are load-bearing — this case discriminates.",
+      "weak": "Only {loadBearing} of {total} probes are load-bearing — most won't separate strong from naive.",
+      "none": "No load-bearing probes — this case can't tell a strong submission from a naive one."
+    }
+  },
   "devApply": {
     "workSurface": {
       "heading": "Work the case here",

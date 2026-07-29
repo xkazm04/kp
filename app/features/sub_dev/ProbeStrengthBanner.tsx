@@ -1,6 +1,7 @@
 "use client";
 
 import { ShieldAlert, ShieldCheck } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { auditProbeStrength } from "@/app/_lib/devcase-probe-audit";
 import type { CoverProbe } from "./DevTypes";
 
@@ -11,6 +12,7 @@ import type { CoverProbe } from "./DevTypes";
 // the approval gate (before the case goes live) and on the approved case's
 // internal panel.
 export function ProbeStrengthBanner({ probes }: { probes: CoverProbe[] }) {
+  const t = useTranslations("devcase.probeAudit");
   const audit = auditProbeStrength(probes);
   if (audit.total === 0) return null;
 
@@ -20,12 +22,13 @@ export function ProbeStrengthBanner({ probes }: { probes: CoverProbe[] }) {
       : audit.verdict === "weak"
         ? "border-amber-300 bg-amber-50 text-amber-900"
         : "border-coral/40 bg-coral/5 text-ink";
+  const counts = { loadBearing: audit.loadBearing, total: audit.total };
   const headline =
     audit.verdict === "strong"
-      ? `${audit.loadBearing} of ${audit.total} probes are load-bearing — this case discriminates.`
+      ? t("strong", counts)
       : audit.verdict === "weak"
-        ? `Only ${audit.loadBearing} of ${audit.total} probes are load-bearing — most won't separate strong from naive.`
-        : `No load-bearing probes — this case can't tell a strong submission from a naive one.`;
+        ? t("weak", counts)
+        : t("none");
   const dead = audit.probes.filter((p) => !p.loadBearing);
 
   return (
@@ -36,7 +39,7 @@ export function ProbeStrengthBanner({ probes }: { probes: CoverProbe[] }) {
         ) : (
           <ShieldAlert size={12} className={audit.verdict === "none" ? "text-coral" : "text-amber-700"} />
         )}
-        Probe-strength audit · {headline}
+        {t("label")} · {headline}
       </p>
       {dead.length > 0 ? (
         <ul className="mt-1 space-y-0.5">

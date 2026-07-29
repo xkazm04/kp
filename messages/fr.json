@@ -3796,6 +3796,112 @@
     "staleAge": "Authentique et non modifié, mais émis le {issued} selon la norme {version}. Demandez au candidat une évaluation à jour si la récence importe.",
     "staleMethodology": "Authentique et non modifié, mais évalué selon la norme {version} (émis le {issued}), désormais remplacée. Demandez une évaluation selon la norme actuelle."
   },
+  "devcase": {
+    "lifecycle": {
+      "sectionTitle": "Cycle automatisé",
+      "intro": "Chaque cas avance selon les règles : les conceptions propres sont approuvées automatiquement, celles qui sont signalées vous sont transmises, puis publication et (à mesure que les rendus arrivent) évaluation → classement → passage des meilleurs candidats dans Décisions. Aucune étape manuelle entre les deux.",
+      "untitledRole": "Poste",
+      "railLabel": "Progression du cycle — {steps}",
+      "railStep": "{step} : {state}",
+      "stalledBadge": "bloqué {days} j",
+      "stalledTitle": "{days, plural, one {Ouvert et vide depuis # jour} other {Ouvert et vide depuis # jours}} — relancez le sourcing de candidats ou clôturez le cas.",
+      "reSourceTitle": "Classer la base de candidats existante pour ce poste et réamorcer le pipeline",
+      "reSourcing": "Sourcing en cours…",
+      "reSource": "Relancer le sourcing",
+      "hideReview": "Masquer la revue",
+      "review": "Examiner et approuver",
+      "closeTitle": "Clôturer les candidats non retenus et désactiver le lien de candidature",
+      "closing": "Clôture en cours…",
+      "close": "Clôturer le cas",
+      "closeConfirm": "Clôturer ce cas ? Les candidats non retenus recevront un message de clôture et le lien de candidature n'acceptera plus de rendus.",
+      "closeFailed": "Échec de la clôture."
+    },
+    "stage": {
+      "intake": "réception",
+      "analyzed": "analysé",
+      "designed": "conçu",
+      "awaiting_approval": "à approuver",
+      "approved": "approuvé",
+      "published": "publié",
+      "collecting": "collecte",
+      "ranked": "classé",
+      "promoted": "promu"
+    },
+    "stepState": {
+      "done": "terminé",
+      "current": "en cours",
+      "upcoming": "à venir"
+    },
+    "review": {
+      "flagged": "Pourquoi ce cas a été signalé",
+      "flaggedWithConfidence": "Pourquoi ce cas a été signalé · confiance {pct} %",
+      "fieldTitle": "Titre",
+      "fieldBrief": "Brief",
+      "fieldTasks": "Tâches (une par ligne)",
+      "fieldTimebox": "Limite de temps (heures)",
+      "internalProbes": "Interne — sondes masquées ({count})",
+      "engineOwned": "Les sondes et la grille d'évaluation sont gérées par le moteur — pour les modifier, régénérez avec une note.",
+      "previewTitle": "Aperçu côté candidat (en direct)",
+      "approving": "Approbation en cours…",
+      "approveWithEdits": "Approuver avec modifications",
+      "approve": "Approuver",
+      "approveFailed": "Échec de l'approbation.",
+      "feedbackPlaceholder": "Qu'est-ce qui doit changer ? Par ex. « trop large pour un junior — restreignez la tâche 2 à un seul endpoint »",
+      "redesignTitle": "Relancer uniquement l'étape de conception avec cette note — sans relancer tout le cycle",
+      "redesigning": "Régénération en cours…",
+      "redesign": "Régénérer avec la note",
+      "redesignFailed": "Échec de la régénération."
+    },
+    "outbox": {
+      "emptyTitle": "Aucun message pour l'instant",
+      "emptyBody": "À mesure que les cas collectent des rendus, le pipeline consigne ici chaque accusé de réception, invitation après passage, prise de contact du recruteur et refus.",
+      "relayHint": "« queued » = enregistré localement (état final tant qu'aucun relais n'est configuré) ; définissez <code>COMMS_WEBHOOK_URL</code> pour acheminer via un canal réel (e-mail / ATS), où les messages deviennent <sent>sent</sent> ou, en cas de livraison perdue, <failed>failed</failed> (mis en file d'erreurs — à traiter).",
+      "colKind": "Type",
+      "colRecipient": "Destinataire",
+      "colSubject": "Objet",
+      "colStatus": "Statut",
+      "colSent": "Envoyé",
+      "resendTitle": "Réacheminer ce message par le canal actif (consigné comme une nouvelle ligne de la boîte d'envoi)",
+      "retryResend": "Réessayer l'envoi"
+    },
+    "outboxKind": {
+      "invite": "invitation",
+      "acknowledgement": "accusé de réception",
+      "outreach": "prise de contact",
+      "rejection": "refus"
+    },
+    "cohort": {
+      "title": "Analyse des sondes sur la cohorte",
+      "evaluated": "· {count} évalué(e)s",
+      "notScored": "pas encore évaluée",
+      "missed": "{pct} % manquées · {band}",
+      "missedAria": "{pct} pour cent manquées, taux de non-détection {band}",
+      "weak": "{pct} % faible",
+      "weakTitle": "Détectée mais mal traitée, ou manquée",
+      "sample": "n={count}",
+      "miscalibrationLabel": "Calibrage possiblement incorrect :",
+      "miscalibration": "{count, plural, one {# sonde a été manquée} other {# sondes ont été manquées}} par tous les candidats évalués — la faille est peut-être trop bien cachée, ou l'espace de choix trop étroit pour imposer un vrai arbitrage."
+    },
+    "band": {
+      "high": "élevé",
+      "some": "moyen",
+      "low": "faible"
+    },
+    "interviewKit": {
+      "title": "Kit d'entretien — meilleur candidat",
+      "fit": "· correspondance {score}",
+      "copied": "Copié",
+      "copy": "Copier",
+      "export": "Exporter",
+      "intro": "Chaque question vérifie que le candidat assume réellement une décision de son rendu. Les notes « à écouter » et les signaux d'alerte sont réservés à l'intervieweur."
+    },
+    "probeAudit": {
+      "label": "Audit de la force des sondes",
+      "strong": "{loadBearing} sondes sur {total} sont porteuses — ce cas discrimine.",
+      "weak": "Seules {loadBearing} sondes sur {total} sont porteuses — la plupart ne sépareront pas les bons des naïfs.",
+      "none": "Aucune sonde porteuse — ce cas ne distingue pas un rendu solide d'un rendu naïf."
+    }
+  },
   "devApply": {
     "workSurface": {
       "heading": "Traitez le cas ici",

@@ -20,6 +20,8 @@ import type { OutboxItem } from "./DevTypes";
 // and whether the new send actually landed.
 export function ResendButton({ id, onResent, compact = false }: { id: string; onResent?: () => void; compact?: boolean }) {
   const t = useTranslations("channels.comms");
+  // The outbox-row copy this button needs beyond the shared comms vocabulary.
+  const td = useTranslations("devcase.outbox");
   const [state, setState] = useState<"idle" | "busy" | "done" | "deadLettered" | "error">("idle");
   const [message, setMessage] = useState<string | null>(null);
   const resend = async () => {
@@ -60,13 +62,13 @@ export function ResendButton({ id, onResent, compact = false }: { id: string; on
         type="button"
         onClick={resend}
         disabled={state === "busy" || state === "done"}
-        title="Re-deliver this message through the active channel (recorded as a new outbox row)"
+        title={td("resendTitle")}
         className={`focus-ring inline-flex shrink-0 items-center gap-1 rounded border border-stone-200 bg-white font-semibold text-coral hover:bg-coral/5 disabled:opacity-50 ${
           compact ? "px-1.5 py-0.5 text-micro" : "px-2 py-1 text-sm"
         }`}
       >
         <RefreshCw size={compact ? 10 : 12} className={state === "busy" ? "animate-spin" : ""} aria-hidden />
-        {state === "done" ? "Resent" : adverse ? "Retry resend" : state === "busy" ? "Resending…" : "Resend"}
+        {state === "done" ? t("resent") : adverse ? td("retryResend") : state === "busy" ? t("resending") : t("resend")}
       </button>
       {message ? (
         <span
@@ -100,17 +102,25 @@ const STATUS_STYLE: Record<OutboxStatus, string> = {
 
 /** The Outbox tab: every message the pipeline sent, as a full table. */
 export function OutboxTable({ outbox, state, onResent }: { outbox: OutboxItem[]; state: LoadState; onResent?: () => void }) {
+  const t = useTranslations("devcase.outbox");
+  const tc = useTranslations("channels.comms");
+  const tk = useTranslations("devcase.outboxKind");
+  // Message kind + delivery status are enum codes from the store. Render the catalog
+  // label when we know the code, else fall back to the raw value (the pipeline may mint
+  // a kind before its string lands) — never a blank cell.
+  const kindLabel = (kind: string) => {
+    const key = kind as Parameters<typeof tk>[0];
+    return tk.has(key) ? tk(key) : kind.replace(/_/g, " ");
+  };
+  const STATUS_KEY = { queued: "statusQueued", sent: "statusSent", failed: "statusFailed", bounced: "statusBounced" } as const;
   if (outbox.length === 0) {
     return (
       <div className="space-y-3">
         <LoadStatus state={state} label="the comms outbox" />
         <div className="rounded-lg border border-dashed border-stone-300 bg-white p-10 text-center">
           <Send size={22} className="mx-auto text-steel" aria-hidden />
-          <p className="mt-2 text-base font-semibold text-ink">No messages yet</p>
-          <p className="mx-auto mt-1 max-w-md text-sm text-steel">
-            The pipeline writes every intake acknowledgement, promote invite, recruiter outreach and rejection here
-            as cases collect submissions.
-          </p>
+          <p className="mt-2 text-base font-semibold text-ink">{t("emptyTitle")}</p>
+          <p className="mx-auto mt-1 max-w-md text-sm text-steel">{t("emptyBody")}</p>
         </div>
       </div>
     );
@@ -118,20 +128,21 @@ export function OutboxTable({ outbox, state, onResent }: { outbox: OutboxItem[];
   return (
     <div className="space-y-2">
       <p className="text-micro text-steel">
-        &quot;queued&quot; = recorded locally (terminal until a relay is wired); set{" "}
-        <span className="font-mono">COMMS_WEBHOOK_URL</span> to relay through a real channel (email / ATS), where
-        messages resolve to <span className="text-moss">sent</span> or, on a dropped delivery,{" "}
-        <span className="font-semibold text-red-700">failed</span> (dead-lettered — needs attention).
+        {t.rich("relayHint", {
+          code: (chunks) => <span className="font-mono">{chunks}</span>,
+          sent: (chunks) => <span className="text-moss">{chunks}</span>,
+          failed: (chunks) => <span className="font-semibold text-red-700">{chunks}</span>,
+        })}
       </p>
       <div className="overflow-hidden rounded-lg border border-stone-200 bg-white shadow-panel">
         <table className="w-full border-collapse text-left">
           <thead>
             <tr className="border-b border-stone-200 bg-paper/60 text-micro font-semibold uppercase tracking-wide text-steel">
-              <th scope="col" className="px-3 py-2">Kind</th>
-              <th scope="col" className="px-3 py-2">Recipient</th>
-              <th scope="col" className="px-3 py-2">Subject</th>
-              <th scope="col" className="px-3 py-2">Status</th>
-              <th scope="col" className="hidden whitespace-nowrap px-3 py-2 sm:table-cell">Sent</th>
+              <th scope="col" className="px-3 py-2">{t("colKind")}</th>
+              <th scope="col" className="px-3 py-2">{t("colRecipient")}</th>
+              <th scope="col" className="px-3 py-2">{t("colSubject")}</th>
+              <th scope="col" className="px-3 py-2">{t("colStatus")}</th>
+              <th scope="col" className="hidden whitespace-nowrap px-3 py-2 sm:table-cell">{t("colSent")}</th>
             </tr>
           </thead>
           <tbody>
@@ -143,14 +154,14 @@ export function OutboxTable({ outbox, state, onResent }: { outbox: OutboxItem[];
               >
                 <td className="px-3 py-2">
                   <span className={`rounded-full px-1.5 py-0.5 text-micro font-semibold uppercase ${KIND_STYLE[m.kind ?? ""] ?? "bg-paper text-steel"}`}>
-                    {(m.kind ?? "").replace(/_/g, " ")}
+                    {kindLabel(m.kind ?? "")}
                   </span>
                 </td>
                 <td className="max-w-0 truncate px-3 py-2 text-sm text-steel sm:max-w-40">{m.recipient}</td>
                 <td className="max-w-0 truncate px-3 py-2 text-sm text-ink">{m.subject}</td>
                 <td className={`whitespace-nowrap px-3 py-2 text-micro uppercase ${STATUS_STYLE[m.status] ?? "text-steel"}`}>
                   <span className="inline-flex items-center gap-1.5">
-                    {m.status === "queued" ? `${m.channel}` : m.status}
+                    {m.status === "queued" ? `${m.channel}` : tc(STATUS_KEY[m.status] ?? "statusQueued")}
                     {m.status === "failed" ? <ResendButton id={m.id} onResent={onResent} compact /> : null}
                   </span>
                 </td>

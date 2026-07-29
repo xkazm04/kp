@@ -3754,6 +3754,112 @@
     "staleAge": "Pravé a nezměněné, ale vydáno {issued} podle standardu {version}. Pokud záleží na aktuálnosti, vyžádejte si od kandidáta nové hodnocení.",
     "staleMethodology": "Pravé a nezměněné, ale hodnoceno podle standardu {version} (vydáno {issued}), který byl mezitím nahrazen. Vyžádejte si od kandidáta hodnocení podle aktuálního standardu."
   },
+  "devcase": {
+    "lifecycle": {
+      "sectionTitle": "Automatizovaný průběh",
+      "intro": "Každý případ postupuje podle pravidel — čisté návrhy schvaluje automaticky, označené směruje k vám, publikuje je a (jak přicházejí řešení) vyhodnocuje → řadí → posouvá nejlepší kandidáty do Rozhodnutí. Mezi tím žádné ruční kroky.",
+      "untitledRole": "Pozice",
+      "railLabel": "Průběh případu — {steps}",
+      "railStep": "{step}: {state}",
+      "stalledBadge": "stagnuje {days} d",
+      "stalledTitle": "{days, plural, one {Otevřeno a prázdné # den} few {Otevřeno a prázdné # dny} other {Otevřeno a prázdné # dní}} — obnovte sourcing kandidátů, nebo případ uzavřete.",
+      "reSourceTitle": "Seřadit stávající databázi kandidátů podle této pozice a znovu naplnit pipeline",
+      "reSourcing": "Probíhá sourcing…",
+      "reSource": "Nový sourcing",
+      "hideReview": "Skrýt kontrolu",
+      "review": "Zkontrolovat a schválit",
+      "closeTitle": "Uzavřít nepostupující uchazeče a vypnout odkaz na přihlášení",
+      "closing": "Uzavírání…",
+      "close": "Uzavřít případ",
+      "closeConfirm": "Uzavřít tento případ? Nepostupující uchazeči dostanou závěrečnou zprávu a odkaz na přihlášení přestane přijímat řešení.",
+      "closeFailed": "Uzavření se nezdařilo."
+    },
+    "stage": {
+      "intake": "příjem",
+      "analyzed": "analyzováno",
+      "designed": "navrženo",
+      "awaiting_approval": "čeká na schválení",
+      "approved": "schváleno",
+      "published": "publikováno",
+      "collecting": "sběr řešení",
+      "ranked": "seřazeno",
+      "promoted": "postoupeno"
+    },
+    "stepState": {
+      "done": "hotovo",
+      "current": "aktuální",
+      "upcoming": "čeká"
+    },
+    "review": {
+      "flagged": "Proč bylo označeno",
+      "flaggedWithConfidence": "Proč bylo označeno · jistota {pct} %",
+      "fieldTitle": "Název",
+      "fieldBrief": "Zadání",
+      "fieldTasks": "Úkoly (jeden na řádek)",
+      "fieldTimebox": "Časový limit (hodiny)",
+      "internalProbes": "Interní — skryté sondy ({count})",
+      "engineOwned": "Sondy a hodnoticí tabulku spravuje engine — pokud je chcete změnit, nechte případ přegenerovat s poznámkou.",
+      "previewTitle": "Náhled pro kandidáta (živý)",
+      "approving": "Schvalování…",
+      "approveWithEdits": "Schválit s úpravami",
+      "approve": "Schválit",
+      "approveFailed": "Schválení se nezdařilo.",
+      "feedbackPlaceholder": "Co je třeba změnit? Např. „příliš široké pro juniora — zužte úkol 2 na jeden endpoint“",
+      "redesignTitle": "Spustit znovu jen krok návrhu s touto poznámkou — bez opakování celého průběhu",
+      "redesigning": "Přegenerování…",
+      "redesign": "Přegenerovat s poznámkou",
+      "redesignFailed": "Přegenerování se nezdařilo."
+    },
+    "outbox": {
+      "emptyTitle": "Zatím žádné zprávy",
+      "emptyBody": "Jak případy sbírají řešení, zapisuje sem pipeline každé potvrzení příjmu, pozvánku po postupu, oslovení od recruitera i zamítnutí.",
+      "relayHint": "„queued“ = zaznamenáno lokálně (koncový stav, dokud není zapojen relay); nastavením <code>COMMS_WEBHOOK_URL</code> zapnete doručování reálným kanálem (e-mail / ATS), kde zprávy skončí jako <sent>sent</sent> nebo — při ztraceném doručení — jako <failed>failed</failed> (dead-letter, vyžaduje pozornost).",
+      "colKind": "Typ",
+      "colRecipient": "Příjemce",
+      "colSubject": "Předmět",
+      "colStatus": "Stav",
+      "colSent": "Odesláno",
+      "resendTitle": "Doručit tuto zprávu znovu aktivním kanálem (zaznamená se jako nový řádek odchozí pošty)",
+      "retryResend": "Zkusit odeslat znovu"
+    },
+    "outboxKind": {
+      "invite": "pozvánka",
+      "acknowledgement": "potvrzení",
+      "outreach": "oslovení",
+      "rejection": "zamítnutí"
+    },
+    "cohort": {
+      "title": "Přehled sond napříč kohortou",
+      "evaluated": "· vyhodnoceno {count}",
+      "notScored": "zatím nehodnoceno",
+      "missed": "{pct} % přehlédnuto · {band}",
+      "missedAria": "{pct} procent přehlédnuto, {band} míra přehlédnutí",
+      "weak": "{pct} % slabě",
+      "weakTitle": "Odhaleno, ale zpracováno špatně, nebo přehlédnuto",
+      "sample": "n={count}",
+      "miscalibrationLabel": "Možná špatná kalibrace:",
+      "miscalibration": "{count, plural, one {# sondu} few {# sondy} other {# sond}} přehlédl každý vyhodnocený kandidát — švy mohou být příliš skryté, nebo je prostor voleb příliš úzký na skutečné rozhodnutí."
+    },
+    "band": {
+      "high": "vysoká",
+      "some": "střední",
+      "low": "nízká"
+    },
+    "interviewKit": {
+      "title": "Podklady k pohovoru — nejlepší kandidát",
+      "fit": "· shoda {score}",
+      "copied": "Zkopírováno",
+      "copy": "Kopírovat",
+      "export": "Exportovat",
+      "intro": "Každá otázka ověřuje, že kandidát skutečně stojí za konkrétním rozhodnutím ve svém řešení. Poznámky „na co si dát pozor“ a varovné signály jsou určeny jen pro tazatele."
+    },
+    "probeAudit": {
+      "label": "Audit síly sond",
+      "strong": "Nosných sond: {loadBearing} z {total} — tento případ rozlišuje.",
+      "weak": "Nosné jsou jen {loadBearing} z {total} sond — většina silné od naivních neodliší.",
+      "none": "Žádné nosné sondy — tento případ nerozezná silné řešení od naivního."
+    }
+  },
   "devApply": {
     "workSurface": {
       "heading": "Pracujte na zadání zde",

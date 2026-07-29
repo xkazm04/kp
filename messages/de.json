@@ -3796,6 +3796,112 @@
     "staleAge": "Echt und unverändert, aber ausgestellt am {issued} nach Standard {version}. Bitten Sie die Kandidatin bzw. den Kandidaten bei Bedarf um eine aktuelle Bewertung.",
     "staleMethodology": "Echt und unverändert, aber bewertet nach Standard {version} (ausgestellt am {issued}), der inzwischen abgelöst wurde. Bitten Sie um eine Bewertung nach dem aktuellen Standard."
   },
+  "devcase": {
+    "lifecycle": {
+      "sectionTitle": "Automatisierter Ablauf",
+      "intro": "Jeder Fall läuft regelbasiert weiter — saubere Entwürfe werden automatisch genehmigt, markierte an Sie weitergeleitet, dann veröffentlicht und (sobald Einreichungen eintreffen) bewertet → sortiert → die besten Kandidaten in Entscheidungen übernommen. Keine manuellen Schritte dazwischen.",
+      "untitledRole": "Position",
+      "railLabel": "Fortschritt des Ablaufs — {steps}",
+      "railStep": "{step}: {state}",
+      "stalledBadge": "stockt {days} T",
+      "stalledTitle": "{days, plural, one {Seit # Tag offen und leer} other {Seit # Tagen offen und leer}} — suchen Sie erneut nach Kandidaten oder schließen Sie den Fall.",
+      "reSourceTitle": "Die bestehende Kandidatendatenbank für diese Position bewerten und die Pipeline erneut befüllen",
+      "reSourcing": "Sourcing läuft…",
+      "reSource": "Neues Sourcing",
+      "hideReview": "Prüfung ausblenden",
+      "review": "Prüfen & genehmigen",
+      "closeTitle": "Nicht weitergeleitete Einreichende abschließen und den Bewerbungslink deaktivieren",
+      "closing": "Wird geschlossen…",
+      "close": "Fall schließen",
+      "closeConfirm": "Diesen Fall schließen? Nicht weitergeleitete Einreichende erhalten eine abschließende Nachricht und der Bewerbungslink nimmt keine Einreichungen mehr an.",
+      "closeFailed": "Schließen fehlgeschlagen."
+    },
+    "stage": {
+      "intake": "Aufnahme",
+      "analyzed": "analysiert",
+      "designed": "entworfen",
+      "awaiting_approval": "Genehmigung nötig",
+      "approved": "genehmigt",
+      "published": "veröffentlicht",
+      "collecting": "sammelt",
+      "ranked": "sortiert",
+      "promoted": "weitergeleitet"
+    },
+    "stepState": {
+      "done": "erledigt",
+      "current": "aktuell",
+      "upcoming": "ausstehend"
+    },
+    "review": {
+      "flagged": "Warum dies markiert wurde",
+      "flaggedWithConfidence": "Warum dies markiert wurde · Konfidenz {pct} %",
+      "fieldTitle": "Titel",
+      "fieldBrief": "Kurzbeschreibung",
+      "fieldTasks": "Aufgaben (eine pro Zeile)",
+      "fieldTimebox": "Zeitbudget (Stunden)",
+      "internalProbes": "Intern — verdeckte Prüfpunkte ({count})",
+      "engineOwned": "Prüfpunkte und Bewertungsraster verwaltet die Engine — zum Ändern mit einer Notiz neu generieren.",
+      "previewTitle": "Kandidatensichere Vorschau (live)",
+      "approving": "Wird genehmigt…",
+      "approveWithEdits": "Mit Änderungen genehmigen",
+      "approve": "Genehmigen",
+      "approveFailed": "Genehmigung fehlgeschlagen.",
+      "feedbackPlaceholder": "Was soll sich ändern? Z. B. „zu breit für einen Junior — Aufgabe 2 auf einen Endpunkt eingrenzen“",
+      "redesignTitle": "Nur den Entwurfsschritt mit dieser Notiz erneut ausführen — kein kompletter Neustart des Ablaufs",
+      "redesigning": "Wird neu erstellt…",
+      "redesign": "Mit Notiz neu generieren",
+      "redesignFailed": "Neu generieren fehlgeschlagen."
+    },
+    "outbox": {
+      "emptyTitle": "Noch keine Nachrichten",
+      "emptyBody": "Sobald Fälle Einreichungen sammeln, schreibt die Pipeline hier jede Eingangsbestätigung, Einladung nach Weiterleitung, Recruiter-Ansprache und Absage mit.",
+      "relayHint": "„queued“ = lokal erfasst (Endzustand, solange kein Relay eingerichtet ist); mit <code>COMMS_WEBHOOK_URL</code> wird über einen echten Kanal (E-Mail / ATS) zugestellt, wo Nachrichten als <sent>sent</sent> oder — bei fehlgeschlagener Zustellung — als <failed>failed</failed> enden (Dead Letter, erfordert Aufmerksamkeit).",
+      "colKind": "Typ",
+      "colRecipient": "Empfänger",
+      "colSubject": "Betreff",
+      "colStatus": "Status",
+      "colSent": "Gesendet",
+      "resendTitle": "Diese Nachricht erneut über den aktiven Kanal zustellen (wird als neue Postausgangszeile erfasst)",
+      "retryResend": "Erneut versuchen"
+    },
+    "outboxKind": {
+      "invite": "Einladung",
+      "acknowledgement": "Bestätigung",
+      "outreach": "Ansprache",
+      "rejection": "Absage"
+    },
+    "cohort": {
+      "title": "Kohorten-Auswertung der Prüfpunkte",
+      "evaluated": "· {count} bewertet",
+      "notScored": "noch nicht bewertet",
+      "missed": "{pct} % übersehen · {band}",
+      "missedAria": "{pct} Prozent übersehen, {band} Übersehensrate",
+      "weak": "{pct} % schwach",
+      "weakTitle": "Erkannt, aber falsch behandelt, oder übersehen",
+      "sample": "n={count}",
+      "miscalibrationLabel": "Mögliche Fehlkalibrierung:",
+      "miscalibration": "{count, plural, one {# Prüfpunkt wurde} other {# Prüfpunkte wurden}} von jedem bewerteten Kandidaten übersehen — die Bruchstelle ist möglicherweise zu gut versteckt oder der Entscheidungsraum zu eng für eine echte Wahl."
+    },
+    "band": {
+      "high": "hoch",
+      "some": "mittel",
+      "low": "niedrig"
+    },
+    "interviewKit": {
+      "title": "Interview-Kit — Top-Kandidat",
+      "fit": "· Eignung {score}",
+      "copied": "Kopiert",
+      "copy": "Kopieren",
+      "export": "Exportieren",
+      "intro": "Jede Frage prüft, ob der Kandidat eine echte Entscheidung aus seiner Einreichung wirklich verantwortet. Die Hinweise „worauf achten“ und die Warnsignale sind nur für die interviewende Person bestimmt."
+    },
+    "probeAudit": {
+      "label": "Prüfpunkt-Stärkeanalyse",
+      "strong": "{loadBearing} von {total} Prüfpunkten sind tragend — dieser Fall differenziert.",
+      "weak": "Nur {loadBearing} von {total} Prüfpunkten sind tragend — die meisten trennen Starke nicht von Naiven.",
+      "none": "Keine tragenden Prüfpunkte — dieser Fall unterscheidet eine starke Einreichung nicht von einer naiven."
+    }
+  },
   "devApply": {
     "workSurface": {
       "heading": "Bearbeiten Sie den Case hier",
