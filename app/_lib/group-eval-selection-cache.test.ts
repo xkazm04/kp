@@ -21,7 +21,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import { groupEvalCacheKey, selectionCacheKey } from "@/app/features/sub_decisions/group-eval/cache-key";
+import { groupEvalCacheKey, selectionCacheKey } from "@/app/features/hiring/decisions/groupEval/cache-key";
 
 // Force the best-effort AI "compare all" spawn to fail fast (ENOENT → deterministic
 // fallback), so the test is hermetic. Set BEFORE python-runner is loaded.
@@ -124,7 +124,9 @@ test("governance stickiness survives a selection-only role (the stored mode is s
 
 test("the modal's cached read is keyed on the SAME helper the server persists with", () => {
   const src = readFileSync(
-    path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "features", "sub_decisions", "DecisionsTab.tsx"),
+    path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "features", "hiring", "decisions",
+      // the cached-read path moved into the queue hook when DecisionsTab was split
+      "useDecisionsQueue.ts"),
     "utf8"
   );
   // The old bug in one line: `hasSelection` unconditionally skipped the cached read.

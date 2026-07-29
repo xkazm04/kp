@@ -108,7 +108,10 @@ export function Toaster() {
   if (!mounted) return null;
   return createPortal(
     <div
-      className="pointer-events-none fixed right-4 top-4 z-[var(--z-toast)] flex w-[min(24rem,calc(100vw-2rem))] flex-col gap-2"
+      // top/right max() with the safe-area insets: keeps the stack out of the
+      // Dynamic Island / notch in landscape (insets are 0 on desktop, so the
+      // 1rem baseline is unchanged there).
+      className="pointer-events-none fixed right-[max(1rem,env(safe-area-inset-right))] top-[max(1rem,env(safe-area-inset-top))] z-[var(--z-toast)] flex w-[min(24rem,calc(100vw-2rem))] flex-col gap-2"
       // React's synthesized enter/leave fires for the pointer-events-auto cards
       // inside this none-container, so hovering a toast pauses the whole stack.
       onMouseEnter={() => setPaused(true)}

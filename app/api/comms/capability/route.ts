@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { emailInboundDomain, isRelayConfigured } from "@/app/_lib/comms-truth";
+import { emailInboundDomain } from "@/app/_lib/comms-truth";
+import { isRelayConfigured } from "@/app/_lib/comms-relay";
 
 
 // REC-10 — the comms capability bits, served tiny so any client surface that

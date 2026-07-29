@@ -97,6 +97,10 @@ export const TENANCY_SCOPED_TABLES: ReadonlySet<string> = new Set([
   "dev_submissions",
   "dev_sessions",
   "dev_session_events",
+  // Captured prompt channel (LLM-era controls #2): chat rows inherit their
+  // session's workspace at INSERT (appendDevSessionChat); by-session reads are
+  // exempt like the sibling event log.
+  "dev_session_chat",
   // Phase 1 — the onboarding hand-off (onboarding-store.ts): listTemplates/listRuns +
   // the intake-submitted set + every INSERT filter/stamp workspace_id. Templates are
   // per-team; a run derives its tenant from the Hired candidate's entry; child rows
@@ -188,6 +192,7 @@ export const TENANCY_EXEMPT_TABLES: ReadonlySet<string> = new Set([
   "brand_settings", // the org's candidate-facing brand (name/accent/logo)
   "ats_config", // the org's outbound ATS webhook integration (one endpoint)
   "ats_delivery", // the ATS webhook delivery ledger (sibling of ats_config; deployment/org-level, not per-tenant)
+  "comms_relay_config", // the org's outbound comms delivery relay (one endpoint; sibling of ats_config)
   "login_attempts", // brute-force throttle counters keyed by email/IP — deployment-global, no tenant dimension
   "llm_usage", // deployment-level LLM metering ledger (sibling of billing_usage; written off-request from Python)
   "scheduler", // global background-job scheduler state (ONE clock; its toggle's blast radius is the whole installation — operator-gated, see scheduler-store.ts)
@@ -222,6 +227,7 @@ export const TENANCY_LAZY_TABLES: ReadonlySet<string> = new Set([
   "ats_config",
   "ats_delivery",
   "brand_settings",
+  "comms_relay_config",
   "decision_config",
   "decision_records",
   "dev_audit",

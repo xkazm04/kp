@@ -28,7 +28,7 @@ import { insertJob } from "@/app/_lib/job-ingest";
 import { pipelineAnalytics } from "@/app/_lib/db/analytics";
 import { resetSim } from "@/app/_lib/sim-store";
 import { ensureDb } from "@/app/_lib/db/core";
-import { isSimTitle } from "@/app/features/simulation/constants";
+import { isSimTitle } from "@/app/features/shell/simulation/constants";
 
 after(() => cleanupUnitDb());
 

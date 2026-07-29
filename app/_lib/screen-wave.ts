@@ -12,7 +12,7 @@ import { isScored } from "./match-score";
 import { withCanonicalScores } from "./match-score-resolve";
 import { jdSlugOfJobId } from "./jd-limits";
 import { jdLastEditedAt } from "./db/jobs";
-import { isScoreStale } from "@/app/features/sub_decisions/DecisionsTypes";
+import { isScoreStale } from "@/app/features/shared/decisionsTypes";
 
 export { ScreenWaveApprovalError } from "./screen-wave-approval";
 

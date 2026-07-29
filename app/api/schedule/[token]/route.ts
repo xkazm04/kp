@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { actOnPipelineEntry, getPipelineEntry } from "@/app/_lib/db";
 import { dispatchInterviewConfirmation, dispatchInterviewerBrief } from "@/app/_lib/comms-dispatch";
-import { deliveryClaim, isRelayConfigured, type DeliveryClaim } from "@/app/_lib/comms-truth";
+import { deliveryClaim, type DeliveryClaim } from "@/app/_lib/comms-truth";
+import { isRelayConfigured } from "@/app/_lib/comms-relay";
 import { getInterviewPrep } from "@/app/_lib/interview-prep";
 import {
   bookedSlots,

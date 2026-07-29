@@ -28,6 +28,20 @@ from . import automation
 from .llm import emit_deterministic, resolve_provider
 from .matching import MatchCandidate, load_corpus, score_job
 
+# Most sub-commands are the "automation" umbrella use_case, but `scorecard` has
+# its own catalog use_case (interview_scorecard, capabilities.py) with its own
+# config row + telemetry tag. Resolving it under "automation" (the old behavior)
+# mis-attributed its cost/telemetry and dropped any interview_scorecard-specific
+# KP_LLM_CONFIG routing — so map each command to the right use_case and use it for
+# BOTH provider resolution and the deterministic-fallback ledger signal.
+_USE_CASE_BY_COMMAND: dict[str, str] = {
+    "scorecard": "interview_scorecard",
+}
+
+
+def _use_case_for(command: str) -> str:
+    return _USE_CASE_BY_COMMAND.get(command, "automation")
+
 # --- Honest error taxonomy --------------------------------------------------
 # The stderr envelope carries a real HTTP status + a stable machine code so the
 # TS seam (python-runner.parseStderrError) and its callers can tell a client
@@ -107,7 +121,8 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps({"decisions": decisions}, ensure_ascii=False))
             return 0
 
-        provider = None if args.no_llm else resolve_provider("automation", timeout=120)
+        use_case = _use_case_for(args.command)
+        provider = None if args.no_llm else resolve_provider(use_case, timeout=120)
         if provider is not None and not provider.available():
             provider = None
 
@@ -123,7 +138,7 @@ def main(argv: list[str] | None = None) -> int:
             if source == "deterministic":
                 # Keyless/failed fallback served — make it ledger-visible (see
                 # monitor.emit_deterministic; no-op without KP_LLM_USAGE_LOG).
-                emit_deterministic("automation")
+                emit_deterministic(use_case)
             print(json.dumps({"result": result, "source": source}, ensure_ascii=False))
             return 0
 
@@ -154,7 +169,7 @@ def main(argv: list[str] | None = None) -> int:
             # The deterministic template served in place of the LLM (--no-llm,
             # missing key, or a failed call that fell back) — record it in the
             # usage ledger so keyless traffic stops being invisible (item 22).
-            emit_deterministic("automation")
+            emit_deterministic(use_case)
         print(json.dumps({"result": result, "source": source}, ensure_ascii=False))
         return 0
     except NotFoundError as exc:

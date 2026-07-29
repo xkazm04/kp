@@ -7,7 +7,6 @@ import {
   emailInboundAddress,
   emailInboundDomain,
   isEmailInboundConfigured,
-  isRelayConfigured,
 } from "./comms-truth.ts";
 import { OUTBOX_STATUSES } from "./comms-status.ts";
 import { COMM_SENT_KINDS } from "./decision-attribution.ts";
@@ -40,18 +39,8 @@ test("deliveryClaim covers every canonical outbox status", () => {
   }
 });
 
-test("isRelayConfigured mirrors COMMS_WEBHOOK_URL", () => {
-  const prev = process.env.COMMS_WEBHOOK_URL;
-  try {
-    delete process.env.COMMS_WEBHOOK_URL;
-    assert.equal(isRelayConfigured(), false);
-    process.env.COMMS_WEBHOOK_URL = "https://relay.example/hook";
-    assert.equal(isRelayConfigured(), true);
-  } finally {
-    if (prev === undefined) delete process.env.COMMS_WEBHOOK_URL;
-    else process.env.COMMS_WEBHOOK_URL = prev;
-  }
-});
+// isRelayConfigured moved to comms-relay.ts (env → stored config) — its
+// precedence contract is locked in comms-relay.test.ts.
 
 // ---- INBOUND capability: no fabricated forwarding address ------------------
 //

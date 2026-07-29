@@ -7,7 +7,7 @@ import { toast } from "@/app/_components/toast-store";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { useSlotLabel } from "@/app/_lib/use-slot-label";
 import { resolveTimeZone, timeZoneShortLabel } from "@/app/_lib/timezone";
-import { AddToCalendar } from "@/app/features/sub_schedule/AddToCalendar";
+import { AddToCalendar } from "@/app/features/hiring/schedule/ScheduleAddToCalendar";
 import { candidateCalendarEvent } from "@/app/_lib/calendar-links";
 
 type Invite = {

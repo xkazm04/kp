@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { countRecentDevSessionsForToken, getPostingByToken, startDevSession } from "@/app/_lib/db";
+import { countRecentDevSessionsForToken, devSessionWatermark, getPostingByToken, startDevSession } from "@/app/_lib/db";
 import { jsonError } from "@/app/_lib/api-response";
 
 // bug-ui-scan-2026-07-09 (dev-submissions-live-work-surface #2): a per-token/day session
@@ -30,7 +30,12 @@ export async function POST(request: Request) {
     }
     const candidateRef = typeof body.candidateRef === "string" ? body.candidateRef.trim() || null : null;
     const session = startDevSession({ token, candidateRef });
-    return NextResponse.json({ sessionId: session.id });
+    // LLM-era controls #4 — the per-session watermark. The work surface stamps it
+    // into the DECISIONS log as an innocuous session reference; evaluation scans
+    // submissions for FOREIGN marks (a circulated/relayed solution). Derived, never
+    // stored; disclosing the candidate's own mark to them is fine — absence is a
+    // mild note, a foreign mark is the decisive tell.
+    return NextResponse.json({ sessionId: session.id, watermark: devSessionWatermark(session.id) });
   } catch (error) {
     return jsonError(error, "Failed to start the work session.");
   }

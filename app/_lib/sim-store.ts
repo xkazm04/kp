@@ -1,7 +1,7 @@
 import Database from "better-sqlite3";
 import { openStore } from "./db-path";
 import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
-import { SIM_TITLE_LIKE } from "@/app/features/simulation/constants";
+import { SIM_TITLE_LIKE } from "@/app/features/shell/simulation/constants";
 
 // Pipeline simulation — reset helper. Isolated connection (job-ingest/offers
 // pattern; avoids the fork-churned db.ts) that clears every artifact a sim run

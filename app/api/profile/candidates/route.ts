@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { cachedProfileRecords, listAnalysisRecords } from "@/app/_lib/db";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
-import type { ProfilePayload } from "@/app/features/sub_profile/ProfileTypes";
+import type { ProfilePayload } from "@/app/features/shared/profileTypes";
 
 
 // Candidate overview for the Profile tab matrix — a UNION of BOTH candidate stores,

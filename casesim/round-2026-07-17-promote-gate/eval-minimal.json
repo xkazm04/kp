@@ -1,0 +1,272 @@
+{
+  "result": {
+    "reflection": {
+      "narrative": "The provided repository signals are empty â€” zero commits, no messages, no change-shape or cadence data, and no top-level structure. There is no durable evidence to reconstruct where the candidate mentally went: no decomposition to read, no rhythm to infer, no recovery or validation traces. This could mean the work was never committed, history was squashed away or stripped before export, or the extraction step failed upstream. No inference about the candidate's capability, positive or negative, is warranted from this artifact alone.",
+      "iterationPattern": "unclear",
+      "deadEnds": [],
+      "readBeforeWrite": 0.0,
+      "verificationHabits": [],
+      "confidence": 0.0,
+      "promptVersion": "commit-reflection-v3"
+    },
+    "tooling": {
+      "fluency": 0.7,
+      "probeOutcomes": [
+        {
+          "probeId": "p1",
+          "kind": "ambiguity",
+          "where": "the brief's 'trustworthy' â€” behavioral consistency vs stricter evidence gating vs reviewer-facing transparency",
+          "detected": false,
+          "handledWell": null,
+          "note": "observed: probe area not opened/edited"
+        },
+        {
+          "probeId": "p2",
+          "kind": "legacy_trap",
+          "where": "the promote flow's existing contracts â€” idempotent promotion, the audit trail, the human-gated adverse-action rule, and two callers of promoteSubmission",
+          "detected": false,
+          "handledWell": null,
+          "note": "observed: probe area not opened/edited"
+        },
+        {
+          "probeId": "p3",
+          "kind": "verification_trap",
+          "where": "a fix that looks right in the orchestrator but silently changes the manual promote route's behavior, or breaks the existing unit tests around promotion â€” passes a quick read",
+          "detected": false,
+          "handledWell": null,
+          "note": "observed: probe area not opened/edited"
+        }
+      ],
+      "overRelianceFlags": [],
+      "evidence": [
+        "Opened 4 file(s), edited 3 (observed).",
+        "Read-before-write ratio 1.0 from event order.",
+        "Recorded 4 decision-log edit(s).",
+        "Used the captured assistant/stakeholder channel 3 time(s) (observed; never a penalty).",
+        "The mid-flight requirement change was shown but no edits followed it (submitted against the stale brief)."
+      ],
+      "signals": {
+        "filesOpened": 4,
+        "filesEdited": 3,
+        "readBeforeWrite": 1.0,
+        "decisionLogEntries": 4,
+        "editedTest": false,
+        "editedDecisions": true,
+        "iterationPattern": "single-pass",
+        "perturbationShown": true,
+        "editsAfterPerturbation": 0,
+        "decisionsAfterPerturbation": 2,
+        "promptExchanges": 3
+      },
+      "confidence": 0.8
+    },
+    "evaluation": {
+      "dimensionScores": {
+        "framing": 47,
+        "tooling": 63,
+        "judgment": 52,
+        "architecture": 50,
+        "transfer": 55
+      },
+      "strengths": [
+        "Genuine personal contribution: submission diverges sharply from the one-shot baseline (similarity 0.09), so the work is not an unattended model dump.",
+        "Caught and explicitly flagged one planted flaw (c1 wrong_constant) in the decision log rather than silently patching or ignoring it â€” a real read-and-verify signal.",
+        "Healthy prompting habits: no verbatim brief pasting (briefPasteRatio 0.0), iteration depth 3, one clarifying stakeholder question, and one explicit ask for the model to verify its own output.",
+        "Disciplined process hygiene: read-before-write ratio of 1.0 and four decision-log entries showing deliberate, recorded choices."
+      ],
+      "concerns": [
+        "The mid-flight requirement change was shown but produced no edits â€” the candidate submitted against the stale brief, a notable framing and judgment lapse for a product engineer.",
+        "None of the three probes (ambiguity in 'trustworthy', the promote-flow legacy contracts, the verification trap) were opened or engaged â€” the riskiest parts of the codebase went unexamined.",
+        "The second canary (c2, confidence-vs-score conflation) propagated into the submission unverified, exactly the conflation the domain model guards against.",
+        "Verification was thin overall: one verification ask and no observed test or check activity around the promotion contracts the work touches.",
+        "Repository history was empty, so process reconstruction rests entirely on the harness's observed events; no independent corroboration of iteration rhythm exists."
+      ],
+      "hasFindings": true,
+      "summary": "A real, hands-on submission â€” clearly not a one-shot model dump (baseline similarity 0.09), with clean read-before-write discipline, decision logging, and one planted flaw caught and honestly flagged. But the candidate never opened the highest-risk areas the case seeded (all three probes untouched), let a subtle confidence-vs-score bug through, and â€” most tellingly for a product role â€” did not react to the mid-flight requirement change, shipping against the stale brief. Tooling use is competent and iterative; judgment is partial: strong where they looked, absent where they didn't look. Mid-band medior signal with a specific gap in scope-scanning and requirement tracking rather than in AI-driving skill.",
+      "dimensions": [
+        {
+          "name": "framing",
+          "label": "Problem framing",
+          "weight": 0.2,
+          "score": 47,
+          "description": "Turns an ambiguous need into a sound plan."
+        },
+        {
+          "name": "tooling",
+          "label": "Tooling fluency",
+          "weight": 0.25,
+          "score": 63,
+          "description": "Drives AI and other tools well; iterates and verifies."
+        },
+        {
+          "name": "judgment",
+          "label": "Judgment",
+          "weight": 0.25,
+          "score": 52,
+          "description": "Catches AI/tooling mistakes; validates; pushes back."
+        },
+        {
+          "name": "architecture",
+          "label": "Architecture",
+          "weight": 0.15,
+          "score": 50,
+          "description": "Structure and trade-offs that fit the real materials and constraints."
+        },
+        {
+          "name": "transfer",
+          "label": "Transfer",
+          "weight": 0.15,
+          "score": 55,
+          "description": "Capability transfers to THIS role's tools and responsibilities."
+        }
+      ],
+      "confidence": 0.0,
+      "promptVersion": "case-eval-v1"
+    },
+    "transfer": {
+      "transferScore": 52,
+      "transfers": [
+        "Iterative AI-assisted development workflow with read-before-write discipline and decision logging â€” directly applicable to owning full-stack product surfaces where changes must be grounded in existing code",
+        "Honest verification instinct where attention was applied: caught and flagged a planted flaw rather than papering over it, which supports the role's 'verify against failure paths' responsibility",
+        "Competent tooling fluency (63) in an iterative loop â€” transfers to day-to-day Next.js/TypeScript feature work where driving AI tools well is now part of the job",
+        "Genuine hands-on engagement (baseline similarity 0.09) â€” the candidate shapes output rather than accepting model dumps, a durable skill for maintaining trustworthy data-capture code"
+      ],
+      "gaps": [
+        "Did not react to the mid-flight requirement change and shipped against the stale brief â€” directly contradicts the core responsibility of owning product surfaces end to end, where requirements shift constantly",
+        "All three seeded high-risk probes left untouched â€” weak scope-scanning means low confidence the candidate would proactively find failure paths in data-capture pipelines rather than only fixing what is pointed at",
+        "A subtle confidence-vs-score bug slipped through â€” verification is reactive (strong where they looked, absent where they didn't), which is the exact inverse of 'verify changes against failure paths, not just happy paths'",
+        "No demonstrated signal on API/route design or SQLite-layer judgment beyond the surfaces they happened to touch, so the storage-ownership part of the role is under-evidenced"
+      ],
+      "hasTransfers": true,
+      "roleFitRationale": "The role asks a medior product engineer to own UI+API+storage surfaces and, critically, to keep pipelines trustworthy by hunting failure paths. The candidate's strengths â€” real iterative AI-driving, honest flagging, grounded edits â€” transfer well to the build half of that mandate, and the mid-band dimension scores (tooling 63, judgment 52) are consistent with a competent medior contributor. But the two most role-relevant behaviors are the two weakest: they missed a live requirement change (product-ownership failure) and never scanned the seeded risk areas (failure-path verification failure). Because the role weights exactly those responsibilities, transfer lands slightly below the raw dimension average: a capable builder today, but one who would currently need a reviewer or PM guarding scope and requirement drift.",
+      "confidence": 0.0,
+      "promptVersion": "transfer-v1"
+    },
+    "followups": {
+      "questions": [
+        {
+          "id": "q1",
+          "probeId": "",
+          "decision": "The planted confidence-vs-score conflation (c2) in app/_lib/devcase-run.ts survived into the submission untouched, while a neighboring flaw in the same file was caught and flagged.",
+          "question": "Let's open devcase-run.ts together â€” walk me through how confidence and score flow through this file, line by line. There's a spot where they interact; talk me through whether it's doing what you intended and what the two values each mean at that point.",
+          "listenFor": "They can distinguish the two quantities in domain terms (confidence = evidence reliability, score = performance level), spot the conflation live within a minute or two, and can say why they audited the adjacent flaw in this same file but stopped short of this one â€” e.g. what heuristic bounded their review.",
+          "redFlag": "Reads the code aloud without noticing the conflation, or treats confidence and score as interchangeable; when it's pointed out, cannot explain what the code should do â€” suggesting they never read this passage even though their tooling touched it."
+        },
+        {
+          "id": "q2",
+          "probeId": "",
+          "decision": "In the same file, they left the c1 wrong-constant flaw in place but explicitly flagged it in the decision log rather than fixing it.",
+          "question": "Your decision log calls out the threshold discrepancy but you shipped it as-is. What was your reasoning for flag-not-fix, and which of the two divergent sites did you believe was the correct one? What would you have needed to know to just unify them?",
+          "listenFor": "A genuine author names the two sites from memory, states which value they suspected was right and why, and gives a concrete blocker (unknown intent, no test coverage, risk of changing downstream behavior) â€” plus what evidence would have unblocked the fix.",
+          "redFlag": "Restates the log entry but can't locate the second site or say which value was suspect; defends flag-and-fix as equally valid without a reason for choosing; the flag reads as something the assistant wrote that they never internalized."
+        },
+        {
+          "id": "q3",
+          "probeId": "",
+          "decision": "A mid-flight requirement change was delivered during the session, but no edits followed and the final submission targets the original, stale brief.",
+          "question": "Partway through, the stakeholder revised the requirements. Tell me how you triaged that update when it arrived: what did it change about the target, and what did you decide to do about it? If you deliberately deferred it, what was the trade-off?",
+          "listenFor": "They remember the update arriving and can state its content; either they made a conscious cut ('I judged it out of scope for the time box and would have said so in the handoff') with a defensible rationale, or they honestly own missing it and can say what in their workflow would catch it next time.",
+          "redFlag": "Doesn't recall the change existing at all, or claims the submission does address it â€” both indicate the session ran on autopilot and no human was tracking the requirements the way a product engineer must."
+        },
+        {
+          "id": "q4",
+          "probeId": "p2",
+          "decision": "The work touches the promotion outcome, but the promote flow's surrounding contracts â€” idempotency, the audit trail, the human-gated adverse-action rule, and the second caller of promoteSubmission â€” were never opened.",
+          "question": "Your change affects what gets promoted, but promoteSubmission has more than one caller and carries idempotency and audit guarantees. How did you establish your change was safe for the callers you didn't edit â€” and if you didn't, walk me through now how you'd go about verifying that before merge.",
+          "listenFor": "They either describe a real containment argument ('my change is upstream of the shared computation, both callers see the same inputs') or candidly say they didn't check and then demonstrate the muscle live: grep for callers, name the contracts they'd re-verify, mention the existing tests around promotion.",
+          "redFlag": "Asserts safety because 'the code compiled' or 'the model said it was fine'; can't produce a method for finding other callers on the spot; treats idempotency and audit as new information rather than something a promote flow obviously carries."
+        },
+        {
+          "id": "q5",
+          "probeId": "p1",
+          "decision": "The brief's ambiguous 'trustworthy' requirement was never explicitly interpreted â€” no probe engagement shows which reading (behavioral consistency, stricter evidence gating, or reviewer transparency) they chose.",
+          "question": "The brief asked for the system to be 'trustworthy'. There are at least three defensible readings â€” make the advice match the calibrated floor, gate harder on weak evidence, or change nothing and expose the reasoning to reviewers. Which did your submission actually implement, which did you reject, and what would have to be true about the users for you to flip to a rejected one?",
+          "listenFor": "Maps their concrete diff onto one reading without prompting, names a rejected alternative with its cost ('gating harder silently rejects candidates â€” that collides with the human-gated adverse-action rule'), and can construct the counterfactual with specifics about reviewers or candidates.",
+          "redFlag": "Argues all three readings are equally good, or describes what the code does without connecting it to any interpretation of 'trustworthy' â€” the interpretation was made by the model, not by them."
+        },
+        {
+          "id": "q6",
+          "probeId": "",
+          "decision": "Their session shows exactly one stakeholder clarifying question and one ask for the model to verify its own output, out of three total prompts.",
+          "question": "You asked the stakeholder one clarifying question and asked your assistant to verify its work once. What was the clarifying question, why was that the one thing worth spending a question on, and what did the verification pass actually change in the output?",
+          "listenFor": "Recalls their own question and its answer, explains the prioritization ('that was the only ambiguity that changed which code path I'd touch'), and can point to a concrete diff the verification pass produced or a concrete reason it produced nothing.",
+          "redFlag": "Cannot remember what they asked or what the verification returned; describes verification as a ritual ('I always ask it to double-check') with no observable effect they can name â€” the prompts were ceremony, not judgment."
+        }
+      ],
+      "promptVersion": "followups-v1"
+    },
+    "observedChecks": {
+      "promptSignals": {
+        "observed": true,
+        "assistantPrompts": 3,
+        "stakeholderQuestions": 1,
+        "clarifyingQuestions": 1,
+        "verificationAsks": 1,
+        "meanPromptChars": 191,
+        "iterationDepth": 3,
+        "briefPasteRatio": 0.0,
+        "confidence": 0.8
+      },
+      "promptEvidence": [
+        "Assistant prompts: 3 (mean 191 chars, iteration depth 3).",
+        "Stakeholder questions: 1 (1 clarifying).",
+        "Asked the model to verify/check its output 1 time(s)."
+      ],
+      "canaryOutcomes": [
+        {
+          "id": "c1",
+          "kind": "wrong_constant",
+          "path": "app/_lib/devcase-run.ts",
+          "status": "flagged",
+          "note": "flaw left in place but called out in the decision log / dialogue",
+          "reveals": "Do they trace both sites and unify the threshold, or fix one side and leave the divergence?"
+        },
+        {
+          "id": "c2",
+          "kind": "subtle_bug",
+          "path": "app/_lib/devcase-run.ts",
+          "status": "propagated",
+          "note": "the planted flaw survived into the submission untouched",
+          "reveals": "Do they notice that 'confidence' is not the score â€” the exact conflation the models.py confidence scale exists to prevent?"
+        }
+      ],
+      "baselineSimilarity": {
+        "available": true,
+        "bestSimilarity": 0.09,
+        "perBaseline": [
+          {
+            "baseline": 0,
+            "similarity": 0.09,
+            "comparedPaths": 5
+          }
+        ]
+      },
+      "checkEvidence": [
+        "Planted canaries: caught 1/2 (c1:flagged, c2:propagated).",
+        "Submission diverges from the one-shot baseline (similarity 0.09) â€” the human's own contribution is visible."
+      ]
+    }
+  },
+  "source": "partial",
+  "perStepSources": {
+    "reflect": "llm",
+    "tooling": "observed",
+    "evaluate": "llm",
+    "transfer": "llm",
+    "followups": "llm"
+  },
+  "confidence": {
+    "byStep": {
+      "reflect": 0.0,
+      "tooling": 0.8,
+      "evaluate": 0.0,
+      "transfer": 0.0
+    },
+    "threshold": 0.4,
+    "low": [
+      "evaluate",
+      "reflect",
+      "transfer"
+    ]
+  }
+}

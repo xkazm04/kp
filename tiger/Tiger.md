@@ -1,9 +1,9 @@
 ---
 type: tiger/home
 app: kp — AI recruiting / hiring platform (Czech retail bank; ČS-seeded)
-last_session: "[[2026-06-20-init-scan]]"
-last_updated: 2026-06-20
-call_sites_active: 13
+last_session: "[[2026-07-15-scan]]"
+last_updated: 2026-07-15
+call_sites_active: 14
 ---
 
 # 🐯 Tiger — kp
@@ -12,49 +12,64 @@ Hunting the apex surface of an LLM app: the model call sites. This vault is the
 durable, linked memory — each `/tiger` run reads it, diffs, and writes back.
 Engine: `.claude/skills/tiger.md`. Per-app config: [[config]].
 
-## Headline state (after [[2026-06-20-init-scan]])
-kp has an **unusually strong wrapper** (one `resolve_provider(use_case)` chokepoint,
-retry/fallback/capability-gating, prompt-version pinning, a real bench harness) — but
-the **economics layer is broken** and **4 call sites bypass the wrapper**, so its
-benefits don't reach a large slice of traffic.
+## Headline state (after [[2026-07-15-scan]])
+The 2026-06-20 story ("strong wrapper, **broken economics**, 4 bypasses") has
+**flipped**. All four T0 critical findings are RESOLVED with live code + regression
+tests, so the economics layer is now solid; the frontier has moved to **value &
+compliance** in the dev-hiring and group-eval surfaces.
 
-> ⛔ **The single biggest finding:** the `llm_usage` ledger **does not exist** (deleted
-> 2026-06-14; 0 writers/readers in code). Without LightTrack configured — the default —
-> ~100% of LLM traffic emits and persists nothing. The pricing meters have 0% of traffic
-> to bill against. See [[_plumbing]] F1 and backlog T0.1.
+> ✅ **Biggest win:** the `llm_usage` ledger is **rebuilt and DEFAULT-ON** (not gated on
+> LightTrack) — table `db/core.ts:623`, writer `db/llm.ts:111`, emitted per-envelope,
+> sidecar set on every spawn `python-runner.ts:145`. Cost is stamped on every adapter with
+> a priced-model regression test. **kp can now cost and bill its own AI.** ([[_plumbing]])
+>
+> ⛔ **New top risk:** the devcase dev-hiring judge **still self-grades** (judge = generator;
+> `devcase_judge` row exists but is never wired) and **grades blind** (the evaluation never
+> sees the submission). Plus the auto-sealed EU-AI-Act `group_eval_lead` decision still lacks
+> the model's raw reasoning / promptVersion. See [[2026-07-15-scan]] backlog #1–#3.
 
-## The backlog → see [[2026-06-20-init-scan]]
-T0 (critical, cross-cutting): rebuild the usage ledger · fix cost stamping · add JSON
-self-repair. T1 (config bugs killing built features): campaign env · gemini retry ·
-scorecard use_case · github bypass · profile_draft meter · voice cost. T2 (value/
-compliance): rejection draft never sent · self-grading judge · eval can't see submission ·
-EU-AI-Act audit trail. T3: lang threading (Czech→English) on 5 sites. T4: grounding gaps.
+## Backlog → [[2026-07-16-backlog]] (post-benchmark, consolidated)
+**✅ Resolved 2026-07-16 (5):** campaign env bug (#4) · scorecard use_case mis-tag (#6) ·
+grounded-salary currency-from-region (#20/B1) · github name-unmet-must-haves (B4) ·
+match-reasoning grounding post-check (#2/B3). Full `pipeline/jobfit` suite green (1138 passed).
+
+**Open, ranked:** 1. devcase judge ≠ generator (#11) · 2. devcase eval sees the submission
+(#12) · 3. group-eval seal traceability / EU-AI-Act (#13) · 4. cv-analysis derived-fact
+post-check (B2) · 5. automation slashed-gender/vocative post-check (B5, with the #10
+deliver-or-drop decision) · 6. weight-proposal + jd-ingest lang (#15).
+
+**✅ Lens 3 COMPLETE (5 sites):** every benchmarked site keeps its production model — the
+lever is prompts + post-checks, not model tier. See Models section below.
+
+**Closed this period (11):** all of T0 (ledger, cost, self-repair) · T1 gemini-retry,
+profile-draft meter, voice ledger · T3 group-compare/scorecard/profile-draft lang ·
+T4 jd-ingest role-families · T5 jd-ingest cache. Plus 5 net-new hardening wins
+(KP_OFFLINE no-egress, self-host/OpenRouter adapters, HTTP-200-error guard).
 
 ## Call sites (the inventory)
 
-### Active LLM call sites — by value
-| site | provider/model | grounding | code | quality | top issue |
-|---|---|---|---|---|---|
-| [[cv-analysis]] | gemini/flash (direct) | 4/4 | 3 | 4 | retry never wired; uncosted |
-| [[voice-interview]] | elevenlabs/openai-rt | 4/4 | 4 | 4 | billed minutes uncosted; silent brief downgrade |
-| [[weight-proposal]] | claude_cli/haiku | 5/6 | 4 | 4 | lang dropped (strongest design overall) |
-| [[match-reasoning]] | claude_cli/haiku | 5/6 | 4 | 4 | no prior-pipeline context |
-| [[github-analysis]] | gemini/flash (direct TS) | 6/7 | 3 | 4 | full wrapper bypass |
-| [[devcase]] | anthropic/sonnet+haiku | 2–4/4 | 4 | 4 | self-grading judge; eval can't see submission |
-| [[automation]] | claude_cli/haiku | 2–4/5 | 4 | 3 | rejection draft generated but never sent |
-| [[interview-scorecard]] | claude_cli/haiku | 4/5 | 3 | 4 | wrong use_case routing; lang dropped |
-| [[group-compare]] | claude_cli/haiku | 4/6 | 3 | 3 | EU-AI-Act audit trail; lang dropped |
-| [[campaign-pack]] | anthropic/sonnet* | 4/7 | 3 | 3 | sonnet override DEAD (env bug) |
-| [[grounded-salary]] | gemini/flash (direct) | 3/4 | 3 | 3 | no cache; CZK lock |
-| [[jd-ingest]] | claude_cli | 1/3 | 4 | 3 | role_family bare enum → wrong band |
-| [[profile-draft]] | gemini/flash (direct) | 1/2 | 3 | 3 | wrapper bypass; lang dropped |
-
-\* override exists in config but is bypassed in the running app.
+### Active LLM call sites — by value (status @ 2026-07-15)
+| site | provider/model | grounding | code | top remaining issue |
+|---|---|---|---|---|
+| [[cv-analysis]] | gemini/flash (direct) | 4/4 | 4 | ✅ retry wired + metered |
+| [[voice-interview]] | elevenlabs/openai-rt | 4/4 | 4 | ✅ ledger row + deploy verify; ◐ no runtime override confirm |
+| [[weight-proposal]] | claude_cli/haiku | 5/6 | 4 | ◐ lang plumbed but caller drops it |
+| [[match-reasoning]] | claude_cli/haiku | 5/6→ | 4 | ◐ richer CV grounding; still no strength-cites-token check |
+| [[github-analysis]] | gemini/flash (direct TS) | 6/7 | 4 | ◐ now metered+BYOM; still a TS-direct bypass |
+| [[devcase]] | anthropic/sonnet+haiku | 2–4/4 | 4 | ⛔ self-grading judge; eval can't see submission |
+| [[automation]] | claude_cli/haiku | 2–4/5 | 4 | ◐ auto-reject retired (GDPR); tailored draft still not delivered |
+| [[interview-scorecard]] | claude_cli/haiku | 4/5 | 3 | ✅ lang fixed; ⛔ still mis-tagged use_case=automation |
+| [[group-compare]] | claude_cli/haiku | 4/6 | 3 | ✅ lang fixed; ⛔ EU-AI-Act seal traceability; no must-haves |
+| [[campaign-pack]] | anthropic/sonnet | 4/7 | 3 | ⛔ env bug still drops BYOM (`route.ts:54`) |
+| [[grounded-salary]] | gemini/flash (direct) | 3/4 | 3 | ✅ retry wired; ⛔ no cache; CZK currency lock |
+| [[jd-ingest]] | claude_cli | 1/3→ | 4 | ✅ role-families inlined + content-hash cache; ⛔ lang |
+| [[profile-draft]] | gemini/flash (direct) | 1/2 | 4 | ✅ metered + lang; ⛔ role_family enum-only |
+| [[bench-judge]] | claude_cli (judge) | n/a | 4 | 🆕 model-matrix judge; itself unranked (Lens-3 prior art) |
 
 ### Chokepoint & non-LLM (recorded)
-- [[_plumbing]] — the shared `TextProvider` layer (cross-cutting findings live here).
+- [[_plumbing]] — the shared `TextProvider` layer (economics tier now CLOSED; code_score 3→5).
 - [[soft-signals]] · [[insights]] · [[sim-offer-draft]] · [[profile-extract]] — confirmed
-  non-LLM / dead (so future scans skip them).
+  non-LLM / dead (so future scans skip them). CV/lead intake also confirmed deterministic.
 
 ## Characters (judgment harness)
 Internal: [[petra-recruiter]] · [[katerina-ta-analytics]] · [[tomas-hiring-manager]] ·
@@ -62,11 +77,28 @@ Internal: [[petra-recruiter]] · [[katerina-ta-analytics]] · [[tomas-hiring-man
 External: [[helena-buyer]] · [[hr-media-agency-talent]]. Candidates: [[tereza-candidate]] ·
 [[sam-dev-candidate]].
 
-## Models (Lens 3)
-[[models/README|Not yet benchmarked]] — blocked on cost stamping ([[_plumbing]] F2/F3).
+## Models (Lens 3) — 4 sites benchmarked (all Claude-only, blind Fable judge)
+- ✅ **[[models/match-reasoning|match-reasoning]] (07-15) → keep haiku / claude_cli.** Near-parity
+  across tiers; none flatter the unqualified candidate. Cheap fix: verify a strength cites a real CV token.
+- ✅ **[[models/github-analysis|github-analysis]] (07-16) → Claude-portable, prefer sonnet≥haiku.**
+  Fully text → the one truly portable target; all tiers valid + conservative. Strengthens finding #7
+  (kill the TS-direct Gemini bypass). haiku's lone slip is prose ("4 of 4 must-haves" hiding the K8s gap).
+- ✅ **[[models/cv-analysis|cv-analysis]] (07-16) → keep Gemini** (multimodal-only). **Injection
+  resistance + EUR currency-inference held on ALL tiers incl. haiku** (two strengths to protect);
+  sonnet hallucinated CV tenure → add a derived-fact post-check.
+- ✅ **[[models/grounded-salary|grounded-salary]] (07-16) → keep Gemini** (web grounding is the point).
+  Surfaced **finding #20 live**: a hardcoded-CZK prompt trapped every tier (incl. opus) into a
+  "CZK/month for a Munich job". Promote #20.
+
+> **Meta-lesson (4 benchmarks):** the model tier is rarely the lever here — a bigger model *lost*
+> twice. The real levers are **prompt fixes** (CZK lock, name-unmet-must-haves) and **cheap
+> post-checks** (strength-cites-token, derived-fact consistency) — all model-independent. The
+> in-repo matrix ([[bench-judge]]) covers ~15 text ops; Tiger adds the multimodal/grounded/portability read.
 
 ## Next runs
-- `/tiger run --live --chars 3` on the top sites once an env key is confirmed (`config.md`
-  open Q1) — confirm the L1 senior-bar verdicts with real generations.
-- `/tiger benchmark match-reasoning` after T0.2 — first real Lens-3 cell.
-- `/tiger scan` after any backlog fix — diff the vault, measure the delta.
+- `/tiger benchmark automation` — the next Claude-native target (downgrade headroom on cheap
+  subtasks? upgrade for the routing-critical `screen` verdict / candidate-facing prose?).
+- Fold the benchmark's prompt/post-check fixes into the backlog: **promote #20 (CZK lock)**;
+  add cv-analysis derived-fact post-check; github "name unmet must-haves" prompt line.
+- `/tiger run --live --chars 3` once a provider key is confirmed (`config.md` open Q1).
+- Work backlog #1–#5 ([[2026-07-15-scan]]) then `/tiger scan` to measure the delta.

@@ -1,8 +1,10 @@
 import {
   approveLifecycleCase,
   getDevCase,
+  getDevCaseBaseline,
   getLifecycle,
   listSubmissions,
+  saveDevCaseBaselineIfAbsent,
   saveDevCaseScenarioIfAbsent,
   saveDevCaseSeedIfAbsent,
   updateLifecycle,
@@ -11,6 +13,7 @@ import {
 import {
   mintObservedFromSubmission,
   promoteSubmission,
+  runBaselineSolve,
   runDesignArtifacts,
   runEvaluateSubmission,
   runInterviewScenario,
@@ -233,6 +236,40 @@ export async function runLifecycle(id: string, progress?: Progress, signal?: Abo
           }
         }
 
+        // Naive-LLM baseline (LLM-era controls #6): solve the case once, one-shot, with
+        // zero simulated judgment — frozen per case like the seed, so every candidate is
+        // compared against the SAME "what a bare model does unattended". Best-effort:
+        // without it, evaluation simply reports the comparison unavailable. Same freeze
+        // discipline (…IfAbsent) and the same honesty contract as the artifacts above —
+        // a deterministic (empty) baseline gets its own audit action, never a success row.
+        {
+          const frozen = getDevCase(devCase.id); // re-read: the seed may have just been frozen above
+          if (frozen && !getDevCaseBaseline(frozen.id)) {
+            try {
+              const { baseline, source: baselineSource } = await runBaselineSolve(
+                (frozen.case as Record<string, unknown>) ?? {},
+                lc.role ?? {},
+                (frozen.seed as Record<string, unknown> | null) ?? null
+              );
+              saveDevCaseBaselineIfAbsent(frozen.id, { ...baseline, source: baselineSource });
+              if (baselineSource === "llm") {
+                scenarioNote += "; baseline frozen";
+                recordAudit({ lifecycleId: id, actor: "auto", action: "baseline_frozen", ref: frozen.id });
+              } else {
+                recordAudit({
+                  lifecycleId: id,
+                  actor: "system",
+                  action: "baseline_unavailable",
+                  reason: "LLM unavailable — submissions will not be baseline-diffed",
+                  ref: frozen.id,
+                });
+              }
+            } catch {
+              /* comparisons will report unavailable */
+            }
+          }
+        }
+
         // Now — and only now, with the assignment frozen onto the case — mint the live
         // token. From here the seed/scenario are immutable (this block is skipped on resume).
         const posting = await getAdapter("local").publish(devCase);
@@ -333,29 +370,53 @@ export async function runLifecycle(id: string, progress?: Progress, signal?: Abo
         .slice(0, DEV_POLICY.promoteTopN);
       const roleTitle = lc.role?.title ?? lc.title ?? "the role";
       let promoted = 0;
+      let held = 0;
       for (const s of ranked) {
-        const entryId = promoteSubmission(s.id);
-        if (!entryId) continue;
+        // The calibrated floor rides into promoteSubmission so the reviewer-facing
+        // advice and this stage's behavior share ONE threshold (case-sim round 2:
+        // the advice hardcoded 70 while this stage promoted on the floor).
+        const result = promoteSubmission(s.id, floor);
+        if (!result) continue;
         promoted += 1;
         // Take-home -> observed bridge: a promoted submission already cleared the
         // transfer floor, so when its candidateRef resolves to a saved profile the
         // demonstrated skills become observed-provenance evidence. Best-effort
         // enrichment — a minting failure must never block the promotion batch.
         try {
-          await mintObservedFromSubmission(s.id, entryId);
+          await mintObservedFromSubmission(s.id, result.entryId);
         } catch {
           /* minting is enrichment, not a gate */
         }
-        // Non-adverse comm — safe to automate. Adverse actions (rejections) stay human-gated.
-        await sendComm({
-          to: s.contact || s.candidateRef || "candidate",
-          subject: `Next step — ${roleTitle}`,
-          body: `Hi ${s.candidateRef},\n\nYour submission for ${roleTitle} stood out (fit ${s.transferScore ?? "—"}/100) and we'd like to take it forward. We'll be in touch with next steps shortly.\n\nBest,\nThe hiring team`,
-          kind: "invite",
-          ref: s.id,
-        });
+        // Say/do consistency (case-sim round 2 — every persona converged on this):
+        // the "we'd like to take it forward" comm only goes out when the verdict
+        // written on the reviewer's card actually IS "advance". A held submission
+        // (suspect authenticity, low evidence-confidence) still enters the pipeline
+        // for human triage, but the candidate is never told they advanced — that
+        // read as an advance-then-silent-rejection, the exact trust breach the
+        // round's brief described. The hold is audited with its reasons so a
+        // reviewer can answer "why" (compliance/explainability).
+        if (result.recommendation === "advance") {
+          // Non-adverse comm — safe to automate. Adverse actions (rejections) stay human-gated.
+          await sendComm({
+            to: s.contact || s.candidateRef || "candidate",
+            subject: `Next step — ${roleTitle}`,
+            body: `Hi ${s.candidateRef},\n\nYour submission for ${roleTitle} stood out (fit ${s.transferScore ?? "—"}/100) and we'd like to take it forward. We'll be in touch with next steps shortly.\n\nBest,\nThe hiring team`,
+            kind: "invite",
+            ref: s.id,
+          });
+        } else {
+          held += 1;
+          recordAudit({
+            lifecycleId: id,
+            actor: "system",
+            action: "promote_held",
+            reason: result.reasons.join("; "),
+            ref: s.id,
+          });
+        }
       }
-      const detail = `promoted ${promoted}/${DEV_POLICY.promoteTopN} (floor ${floor}) to the pipeline`;
+      const heldNote = held > 0 ? `, ${held} held for review` : "";
+      const detail = `promoted ${promoted}/${DEV_POLICY.promoteTopN} (floor ${floor}) to the pipeline${heldNote}`;
       updateLifecycle(id, { stage: "promoted", detail });
       recordAudit({ lifecycleId: id, actor: "auto", action: "promoted", reason: detail });
       return { stage: "promoted", detail };

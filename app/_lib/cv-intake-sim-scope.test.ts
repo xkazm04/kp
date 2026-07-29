@@ -18,7 +18,7 @@ import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { cleanupUnitDb } from "./testing/unit-db.ts";
 import { simCvIntakeTarget } from "./cv-intake.ts";
-import { markSimTitle, isSimTitle } from "@/app/features/simulation/constants";
+import { markSimTitle, isSimTitle } from "@/app/features/shell/simulation/constants";
 import { getJob, getJobWorkspace, createPipelineEntry, DEFAULT_WORKSPACE_ID } from "./db.ts";
 import { insertJob } from "./job-ingest.ts";
 import { pipelineAnalytics } from "./db/analytics.ts";

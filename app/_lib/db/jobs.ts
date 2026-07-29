@@ -130,6 +130,21 @@ export function markJdAnalyzing(slug: string): void {
   ensureDb().prepare(`UPDATE jds SET analysis_status = 'analyzing', analysis_error = NULL WHERE slug = ?`).run(slug);
 }
 
+/** Whether any ready JD build in this workspace produced a case-design artifact
+ *  (analysis_json.case — the JD builder's caseDesign checklist output). Feeds the
+ *  Getting-started checklist's "case designed" derivation alongside dev_cases. */
+export function hasJdCaseArtifact(workspaceId: string = DEFAULT_WORKSPACE_ID): boolean {
+  const row = ensureDb()
+    .prepare(
+      `SELECT 1 FROM jds
+       WHERE workspace_id = ? AND archived_at IS NULL AND analysis_status = 'ready'
+         AND json_valid(analysis_json) AND json_extract(analysis_json, '$.case') IS NOT NULL
+       LIMIT 1`
+    )
+    .get(workspaceId);
+  return row !== undefined;
+}
+
 export function listJds(limit = 100, workspaceId: string = DEFAULT_WORKSPACE_ID): JdListItem[] {
   const db = ensureDb();
   // Pull only one char past the preview window to detect truncation, so the

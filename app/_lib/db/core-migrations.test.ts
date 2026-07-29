@@ -87,6 +87,15 @@ test("ALTER-loop migrations landed: pipeline_entries carries every post-launch c
   }
 });
 
+test("ALTER-loop migrations landed: first-run onboarding flags (users + workspaces)", () => {
+  const userCols = columnNames("users");
+  for (const col of ["onboarding_completed_at", "onboarding_skipped_at"]) {
+    assert.ok(userCols.has(col), `users is missing migrated column "${col}"`);
+  }
+  const wsCols = columnNames("workspaces");
+  assert.ok(wsCols.has("onboarding_state"), `workspaces is missing migrated column "onboarding_state"`);
+});
+
 test("ALTER-loop migrations landed: dev_outbox carries tenancy + the failure reason", () => {
   // failure-truth-everywhere: `failure_detail` is additive and nullable, so an existing
   // DB gains it without touching a single stored row (legacy failures read as "no

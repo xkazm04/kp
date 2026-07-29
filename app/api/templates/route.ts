@@ -3,7 +3,7 @@ import { createTemplate, listTemplates } from "@/app/_lib/templates-store";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { safeJsonError } from "@/app/_lib/api-response";
-import { findUnknownPlaceholders, unknownPlaceholderMessage, validateTemplateFields } from "@/app/features/sub_library/render-template";
+import { findUnknownPlaceholders, unknownPlaceholderMessage, validateTemplateFields } from "@/app/features/shared/renderTemplate";
 
 
 export async function GET() {

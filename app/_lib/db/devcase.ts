@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { coerceOutboxStatus, type OutboxStatus } from "../comms-status";
 import { randomId } from "../random-id";
 import type { DevNeed } from "../devcase-run";
@@ -708,6 +709,20 @@ export function getDevSession(id: string): DevSession | null {
   return r ? rowToSession(r) : null;
 }
 
+// The flush/chat hot-path read (case-sim round 3, verifier's find): those routes
+// only branch on status/token/createdAt, but getDevSession parses the FULL
+// files_json blob (up to 50×256KB) on every ~8s flush per active candidate just
+// to check a status column. Status-only projection, no JSON parse.
+export type DevSessionMeta = { id: string; token: string | null; status: string; createdAt: string };
+
+export function getDevSessionMeta(id: string): DevSessionMeta | null {
+  const db = ensureDb();
+  const r = db.prepare(`SELECT id, token, status, created_at FROM dev_sessions WHERE id = ?`).get(id) as
+    | { id: string; token: string | null; status: string; created_at: string }
+    | undefined;
+  return r ? { id: r.id, token: r.token ?? null, status: r.status, createdAt: r.created_at } : null;
+}
+
 // bug-ui-scan-2026-07-09 (dev-submissions-live-work-surface #2): a per-token session
 // throttle. Apply tokens are deliberately shareable PUBLIC links, so an unauthenticated
 // holder is the trust boundary — session POST otherwise minted unlimited sessions per
@@ -750,9 +765,56 @@ export function saveDevSessionFiles(id: string, files: DevSessionFile[]): boolea
   );
 }
 
+// ---- Tamper-evident event log (LLM-era controls #1) ------------------------
+// Each stored event carries a SERVER-computed SHA-256 chain link over the previous
+// link + the event's canonical form + the server receive time. The client never
+// supplies or sees a hash — it is derived at INSERT, inside the same transaction
+// that assigns `seq` — so backward manipulation (editing, deleting, reordering, or
+// re-timing an already-persisted event) breaks every later link and is detectable
+// by recomputation. The chain seeds from `genesis:<sessionId>`, binding it to ONE
+// session: replaying another session's rows breaks at the first link.
+
+function chainLink(prev: string, sessionId: string, seq: number, e: DevSessionEvent, receivedAt: string): string {
+  const canonical = `${prev}|${sessionId}|${seq}|${e.t ?? ""}|${e.kind}|${e.path ?? ""}|${e.size ?? ""}|${receivedAt}`;
+  return createHash("sha256").update(canonical, "utf8").digest("hex");
+}
+
+export type ChainVerdict = {
+  // true = every hashed link recomputes; false = a link failed (log was altered
+  // after the fact). null = unverifiable (no events, or legacy NULL-hash rows).
+  valid: boolean | null;
+  events: number;
+  brokenAtSeq: number | null;
+};
+
+/** Recompute the whole chain from stored rows. O(n), cheap at MAX_SESSION_EVENTS. */
+export function verifyDevSessionChain(id: string): ChainVerdict {
+  const db = ensureDb();
+  const rows = db
+    .prepare(`SELECT seq, t, kind, path, size, created_at, hash FROM dev_session_events WHERE session_id = ? ORDER BY seq ASC`)
+    .all(id) as Array<{ seq: number; t: number | null; kind: string; path: string | null; size: number | null; created_at: string; hash: string | null }>;
+  if (rows.length === 0) return { valid: null, events: 0, brokenAtSeq: null };
+  let prev = `genesis:${id}`;
+  let sawHash = false;
+  for (const r of rows) {
+    if (r.hash == null) {
+      // Legacy prefix (pre-chain rows): can't verify. A NULL AFTER hashed rows,
+      // however, is a hole punched in a live chain — that IS a break.
+      if (sawHash) return { valid: false, events: rows.length, brokenAtSeq: r.seq };
+      continue;
+    }
+    sawHash = true;
+    const expect = chainLink(prev, id, r.seq, { t: r.t ?? 0, kind: r.kind, path: r.path, size: r.size }, r.created_at);
+    if (expect !== r.hash) return { valid: false, events: rows.length, brokenAtSeq: r.seq };
+    prev = r.hash;
+  }
+  return { valid: sawHash ? true : null, events: rows.length, brokenAtSeq: null };
+}
+
 /** Append observed events to the session's append-only log. One transaction so
- *  the per-session seq can't collide under concurrent flushes. Returns the new
- *  high-water seq. No-op once submitted. */
+ *  the per-session seq can't collide under concurrent flushes — and so each row's
+ *  chain hash links the true predecessor. Returns the new high-water seq. No-op
+ *  once submitted. */
 export function appendDevSessionEvents(id: string, events: DevSessionEvent[]): number {
   const db = ensureDb();
   if (!events?.length) return 0;
@@ -774,17 +836,158 @@ export function appendDevSessionEvents(id: string, events: DevSessionEvent[]): n
     const room = MAX_SESSION_EVENTS - seq;
     if (room <= 0) return seq;
     const accepted = events.length > room ? events.slice(0, room) : events;
-    const stmt = db.prepare(`INSERT INTO dev_session_events (session_id, seq, t, kind, path, size, created_at, workspace_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`);
+    // Chain seed: the last stored link, or the session-bound genesis for row 1.
+    const last = db
+      .prepare(`SELECT hash FROM dev_session_events WHERE session_id = ? AND seq = ?`)
+      .get(id, seq) as { hash: string | null } | undefined;
+    let prev = last?.hash ?? `genesis:${id}`;
+    const stmt = db.prepare(
+      `INSERT INTO dev_session_events (session_id, seq, t, kind, path, size, created_at, workspace_id, hash) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    );
     for (const e of accepted) {
       seq += 1;
       // `size` = paste magnitude (char count) for "paste" events; null otherwise.
       const size = typeof e.size === "number" && Number.isFinite(e.size) ? e.size : null;
-      stmt.run(id, seq, Number.isFinite(e.t) ? e.t : null, String(e.kind), e.path ?? null, size, now, workspaceId);
+      const row: DevSessionEvent = { t: Number.isFinite(e.t) ? e.t : 0, kind: String(e.kind), path: e.path ?? null, size };
+      const hash = chainLink(prev, id, seq, row, now);
+      stmt.run(id, seq, row.t, row.kind, row.path, row.size, now, workspaceId, hash);
+      prev = hash;
     }
     db.prepare(`UPDATE dev_sessions SET updated_at = ? WHERE id = ?`).run(now, id);
     return seq;
   });
   return tx();
+}
+
+// Client timestamps are candidate-controlled; the server receive time is not. An
+// event whose claimed `t` sits outside [session start - skew, receive + skew] was
+// backdated or future-dated — the exact manipulation that would fake read-before-write
+// ordering. The skew absorbs honest clock drift + the 8s client flush buffer.
+const INTEGRITY_CLOCK_SKEW_MS = 2 * 60 * 1000;
+
+export type SessionIntegrity = {
+  chain: ChainVerdict;
+  // Events whose client timestamp contradicts the server receive window.
+  backdatedEvents: number;
+  // Worst observed client-vs-server disagreement (ms) among flagged events.
+  maxClockDriftMs: number;
+  // Per-session watermark verdict (LLM-era controls #4): `foreign` markers are the
+  // circulation tell — another session's watermark inside THIS session's files means
+  // a shared/relayed solution. A merely-missing own marker is a mild note (the
+  // candidate may have deleted the line), never decisive alone.
+  watermark: { expected: string; present: boolean; foreign: string[] };
+};
+
+// LLM-era controls #4 — the per-session seed watermark. Deterministically derived
+// from the session id (never stored), injected into the served DECISIONS log as an
+// innocuous session reference, and scanned for at evaluation. Task substance is
+// untouched, so per-case comparability (freeze-at-publish) is preserved — only the
+// marker differs per session.
+const WATERMARK_RE = /wm-[0-9a-f]{10}/g;
+
+export function devSessionWatermark(sessionId: string): string {
+  return `wm-${createHash("sha256").update(`kp-devcase-wm|${sessionId}`, "utf8").digest("hex").slice(0, 10)}`;
+}
+
+/** One integrity verdict per session: recompute the hash chain + check every
+ *  client timestamp against its server receive time. Read at evaluation and
+ *  persisted with the bundle so the verdict survives beside the scores. */
+export function getDevSessionIntegrity(id: string): SessionIntegrity {
+  const db = ensureDb();
+  const chain = verifyDevSessionChain(id);
+  const session = getDevSession(id);
+  const startMs = session ? Date.parse(session.createdAt) : NaN;
+  const rows = db
+    .prepare(`SELECT t, created_at FROM dev_session_events WHERE session_id = ? AND t IS NOT NULL AND t > 0`)
+    .all(id) as Array<{ t: number; created_at: string }>;
+  let backdated = 0;
+  let maxDrift = 0;
+  for (const r of rows) {
+    const received = Date.parse(r.created_at);
+    if (!Number.isFinite(received)) continue;
+    const future = r.t - received - INTEGRITY_CLOCK_SKEW_MS; // claimed after it was received
+    const preSession = Number.isFinite(startMs) ? startMs - INTEGRITY_CLOCK_SKEW_MS - r.t : -1; // claimed before the session existed
+    if (future > 0 || preSession > 0) {
+      backdated += 1;
+      maxDrift = Math.max(maxDrift, future > 0 ? future : preSession);
+    }
+  }
+  // Watermark scan over the submitted tree: our marker present? any FOREIGN one?
+  const expected = devSessionWatermark(id);
+  const body = (session?.files ?? []).map((f) => f.contents).join("\n");
+  const found = new Set(body.match(WATERMARK_RE) ?? []);
+  const foreign = [...found].filter((m) => m !== expected);
+  return {
+    chain,
+    backdatedEvents: backdated,
+    maxClockDriftMs: maxDrift,
+    watermark: { expected, present: found.has(expected), foreign },
+  };
+}
+
+// ---- Captured prompt channel (LLM-era controls #2) -------------------------
+// The assistant / stakeholder dialogue is evidence, not chrome: it flows through
+// the platform and is stored per session, append-only, in exchange order.
+
+export type DevChatMessage = { seq: number; channel: string; role: "user" | "model"; text: string; createdAt: string };
+
+const MAX_CHAT_MESSAGES = 400; // per session — generous vs. a real 2h timebox
+const MAX_CHAT_TEXT = 8_000;
+
+/** Append one chat message. Returns the stored seq, or 0 when refused (session
+ *  not active / at cap). Same transaction discipline as the event log. */
+export function appendDevSessionChat(id: string, channel: string, role: "user" | "model", text: string): number {
+  const db = ensureDb();
+  const now = new Date().toISOString();
+  const tx = db.transaction((): number => {
+    const active = db.prepare(`SELECT status, workspace_id FROM dev_sessions WHERE id = ?`).get(id) as
+      | { status: string; workspace_id?: string }
+      | undefined;
+    if (!active || active.status !== "active") return 0;
+    const max = db.prepare(`SELECT COALESCE(MAX(seq), 0) AS m FROM dev_session_chat WHERE session_id = ?`).get(id) as { m: number };
+    const seq = Number(max.m) + 1;
+    if (seq > MAX_CHAT_MESSAGES) return 0;
+    db.prepare(
+      `INSERT INTO dev_session_chat (session_id, seq, channel, role, text, created_at, workspace_id) VALUES (?, ?, ?, ?, ?, ?, ?)`
+    ).run(id, seq, channel, role, String(text).slice(0, MAX_CHAT_TEXT), now, active.workspace_id ?? DEFAULT_WORKSPACE_ID);
+    return seq;
+  });
+  return tx();
+}
+
+export function getDevSessionChat(id: string, channel?: string): DevChatMessage[] {
+  const db = ensureDb();
+  const rows = (
+    channel
+      ? db.prepare(`SELECT seq, channel, role, text, created_at FROM dev_session_chat WHERE session_id = ? AND channel = ? ORDER BY seq ASC`).all(id, channel)
+      : db.prepare(`SELECT seq, channel, role, text, created_at FROM dev_session_chat WHERE session_id = ? ORDER BY seq ASC`).all(id)
+  ) as Array<Record<string, unknown>>;
+  return rows.map((r) => ({
+    seq: Number(r.seq),
+    channel: String(r.channel),
+    role: r.role === "model" ? "model" : "user",
+    text: String(r.text),
+    createdAt: String(r.created_at),
+  }));
+}
+
+// ---- Naive-LLM baselines (LLM-era controls #6) -----------------------------
+
+/** Freeze the case's one-shot baseline solutions: set only if absent, mirroring
+ *  the seed/scenario freeze contract (identical comparison target per candidate). */
+export function saveDevCaseBaselineIfAbsent(id: string, baseline: unknown): boolean {
+  const db = ensureDb();
+  return (
+    db
+      .prepare(`UPDATE dev_cases SET baseline_json = ? WHERE id = ? AND baseline_json IS NULL`)
+      .run(JSON.stringify(baseline ?? null), id).changes > 0
+  );
+}
+
+export function getDevCaseBaseline(id: string): unknown {
+  const db = ensureDb();
+  const r = db.prepare(`SELECT baseline_json FROM dev_cases WHERE id = ?`).get(id) as { baseline_json?: string | null } | undefined;
+  return r?.baseline_json ? safeRowParse(r.baseline_json, "devCase.baseline", id) : null;
 }
 
 /** Finalize a session: mark it submitted and create a linked dev_submissions row

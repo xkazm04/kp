@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Bricolage_Grotesque, Fraunces, Inter } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages, getTranslations } from "next-intl/server";
@@ -110,6 +110,23 @@ export async function generateMetadata(): Promise<Metadata> {
     }
   };
 }
+
+// Mobile viewport contract. `viewportFit: "cover"` is load-bearing: without it
+// iOS pins every env(safe-area-inset-*) to 0px permanently, so the safe-area
+// padding on the fixed chrome (control dock, orb, toasts, mobile drawer) could
+// never take effect. themeColor keeps the mobile browser chrome in the page's
+// register — it can only follow the OS preference (media queries are the only
+// dial the meta supports), which matches the theme bootstrap's default; an
+// explicit in-app override may diverge, which beats the always-light chrome.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#fdf8ee" },
+    { media: "(prefers-color-scheme: dark)", color: "#141b24" }
+  ]
+};
 
 // Pre-hydration theme bootstrap (paired with ThemeToggle + the
 // [data-theme="dark"] seam in globals.css). Runs inline before first paint:

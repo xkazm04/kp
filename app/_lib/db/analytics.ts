@@ -4,7 +4,7 @@ import { summarizeAutomationImpact, type AutomationImpact } from "../decision-at
 import { offerConversion, type OfferConversion } from "../analytics-offer";
 import { automationRoi, type AutomationRoi } from "../automation-roi";
 import { FUNNEL_STAGES, hasAdvancedPastScreening, type FunnelStage } from "../pipeline-stages";
-import { SIM_TITLE_LIKE } from "@/app/features/simulation/constants";
+import { SIM_TITLE_LIKE } from "@/app/features/shell/simulation/constants";
 import { ensureDb } from "./core";
 import { DEFAULT_WORKSPACE_ID } from "./workspaces";
 import { listChannelSpend } from "./channels";

@@ -31,6 +31,11 @@ export type AuthenticityInput = {
   // the watched editor with no incremental build-up — the in-product paste-from-LLM
   // tell. Computed by the caller from the observed event stream.
   observedBulkPaste?: boolean;
+  // Observed sessions only (LLM-era controls #1): the tamper-evidence verdict on the
+  // event log itself — true when the server-side hash chain failed to recompute or
+  // client timestamps contradicted their server receive window (backdating). A trace
+  // that was manipulated after the fact proves nothing, so this is decisive.
+  integrityCompromised?: boolean;
 };
 
 export type Authenticity = {
@@ -81,6 +86,15 @@ export function scoreAuthenticity(input: AuthenticityInput): Authenticity {
   if (input.observed && input.observedBulkPaste) {
     score -= 65;
     reasons.push("Large bulk paste with no incremental build-up — possible paste-from-LLM.");
+  }
+
+  // A broken hash chain / backdated timestamps mean the observed trace was
+  // manipulated after the fact — every process signal above it is untrustworthy,
+  // so the penalty is decisive on its own (the submission is held for the live
+  // ownership-verifying interview, never auto-advanced).
+  if (input.observed && input.integrityCompromised) {
+    score -= 70;
+    reasons.push("Event-log integrity check failed (broken hash chain or backdated timestamps) — the observed trace cannot be trusted.");
   }
 
   // The forced DECISIONS.md authorship artifact (case-design contract) is absent.

@@ -7,12 +7,20 @@ wrapper: direct Gemini SDK (genai.Client.models.generate_content; bypasses llm/ 
 provider: Google Gemini  model: gemini-3-flash-preview (gemini.py:25)
 schema: yes — ANALYSIS_RESPONSE_SCHEMA in-prompt (gemini.py:28-135,:403); response_mime_type=json (:490); coerced in pipeline.py (_profile_from_payload :433, _score_from_payload :175, _salary_from_payload :181) + TS analysisSchema.safeParse (analyze-run.ts:145)
 grounding: 4/4 mandatory (+1 conditional Google-Search)
-quality_score: 4  code_score: 3
-recommended_model: "—"
-status: assessed
-last_scanned: 2026-06-20
+quality_score: 4  code_score: 4
+recommended_model: keep Gemini (multimodal ingest is Gemini-only); reasoning not a switch reason
+status: benchmarked
+last_scanned: 2026-07-16
 characters: ["[[petra-recruiter]]", "[[katerina-ta-analytics]]"]
 ---
+
+> **2026-07-16 Lens-3 benchmark → [[models/cv-analysis]]** (blind-text path, Claude-only).
+> **Keep Gemini** — the PDF/vision ingest is Gemini-only. Two wins confirmed across ALL Claude
+> tiers incl. haiku: (1) **injection resistance** held (the embedded "score 100" line was
+> refused + flagged); (2) **currency inference correct** (EUR not CZK) — proving this prompt is
+> NOT currency-locked, unlike [[grounded-salary]]. Caution: sonnet-high **hallucinated tenure**
+> (7y vs 5y) + over-leveled — reinforces a **derived-fact post-check** (years/seniority
+> consistency), the cheap model-independent guard. code_score 3→4 (retry now wired + metered).
 ## What it does
 The flagship. One multimodal Gemini call reads the CV file (PDF/image) + JD/company/evidence and returns the whole structured analysis (profile, score sub-totals, salary band, market_evidence, job_fit). Entry: POST /api/analyze → analyze-run.ts:runAnalyze → spawnPython(pipeline.jobfit.cli) → pipeline.py:142 → gemini.py:371. UI: the candidate analyze workspace / report.
 

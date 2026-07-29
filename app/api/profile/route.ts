@@ -21,7 +21,7 @@ import {
   parseStderrError,
   spawnPython,
 } from "@/app/_lib/python-runner";
-import type { ProfileCliOutput } from "@/app/features/sub_profile/ProfileTypes";
+import type { ProfileCliOutput } from "@/app/features/shared/profileTypes";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 
 

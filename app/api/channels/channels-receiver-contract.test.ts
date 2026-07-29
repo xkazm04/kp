@@ -28,7 +28,7 @@ const read = (...p: string[]) => readFileSync(path.join(dir, ...p), "utf8");
 
 const receiverSrc = read("inbound", "[token]", "route.ts");
 const webhooksSrc = read("webhooks", "route.ts");
-const modalSrc = read("..", "..", "features", "sub_channels", "channel-receivers.tsx");
+const modalSrc = read("..", "..", "features", "hiring", "channels", "ChannelsAddReceiverModal.tsx");
 const channelsDbSrc = read("..", "..", "_lib", "db", "channels.ts");
 
 test("the liveness receipt is stamped exactly once, right after the token authenticates", () => {

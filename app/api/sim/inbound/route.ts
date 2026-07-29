@@ -3,7 +3,7 @@ import { createPipelineEntry, getJob, listMatrixProfiles, listPipeline } from "@
 import { simCvIntakeTarget } from "@/app/_lib/cv-intake";
 import { inferProfileLocale } from "@/app/_lib/comms-locale";
 import { jsonError } from "@/app/_lib/api-response";
-import { SIM_SCREEN_POLICY } from "@/app/features/simulation/constants";
+import { SIM_SCREEN_POLICY } from "@/app/features/shell/simulation/constants";
 
 
 // Simulate an inbound application arriving via a channel (the careers/apply page):

@@ -82,7 +82,7 @@ export type UploadAcceptance =
  * existing upload — is rejected instantly with an inline message, instead of
  * only failing after the upload round-trips to the server. Every intake path
  * (empty drop zone, Replace, Add-variant, drop-anywhere overlay) routes through
- * here via the `useFileAccept` hook; see app/features/sub_analyze/useFileAccept.ts.
+ * here via the `useFileAccept` hook; see app/features/tools/analyze/useFileAccept.ts.
  */
 export function acceptUpload(file: File): UploadAcceptance {
   if (!EXTENSION_RE.test(file.name)) {

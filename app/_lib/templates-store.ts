@@ -2,7 +2,7 @@ import Database from "better-sqlite3";
 import { openStore } from "./db-path";
 import { randomId } from "./random-id";
 import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
-import { DEFAULT_TEMPLATE_BODY } from "@/app/features/sub_library/render-template";
+import { DEFAULT_TEMPLATE_BODY } from "@/app/features/shared/renderTemplate";
 
 // Company JD templates — full CRUD. Isolated connection (job-ingest/offers/
 // scheduler/decision-config pattern) so we don't touch the fork-active db.ts.

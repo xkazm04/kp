@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { MessagesSquare, Wrench, ShieldAlert, HelpCircle, Filter, Check, ClipboardCheck, CalendarPlus, Loader2 } from "lucide-react";
 import type { Analysis } from "@/app/_lib/schemas";
-import { tabHref } from "@/app/features/tabs";
+import { tabHref } from "@/app/features/shell/tabs";
 import { dedupe } from "@/app/_lib/dedupe";
 import { SoftSignalsSection } from "./SoftSignalsSection";
 import {

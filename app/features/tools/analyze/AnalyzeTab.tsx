@@ -1,0 +1,150 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
+import dynamic from "next/dynamic";
+import { AnalysisProgress } from "@/app/_components/AnalysisProgress";
+import { AnalyzeForm } from "./AnalyzeForm";
+import { AnalyzeFormCollapsed } from "./AnalyzeFormCollapsed";
+import { deriveCollapseDecision } from "./analyzeCollapse";
+import { deriveAnalyzePipelineAffordance } from "./analyzePipelineRef";
+import { useAnalyzeForm } from "./useAnalyzeForm";
+
+// Tier 3 (docs/LOADING_CHOREOGRAPHY.md): the result renderers are heavy and
+// only ever needed once a run has produced something to show — they must not
+// sit in the entry chunk of a tab whose first paint is just an empty form.
+// (Not a loading state: these are ready by the time `result.analysis` /
+// `githubStatus` flips, so the quiet gap is normally invisible.)
+const ResultPanel = dynamic(() => import("@/app/_components/results/ResultPanel").then((m) => ({ default: m.ResultPanel })), {
+  loading: () => <div className="reveal-quiet min-h-[20rem]" aria-hidden />,
+});
+const GithubAnalysisPanel = dynamic(
+  () => import("@/app/_components/GithubAnalysisPanel").then((m) => ({ default: m.GithubAnalysisPanel })),
+  { loading: () => <div className="reveal-quiet min-h-[12rem]" aria-hidden /> }
+);
+
+export function AnalyzeTab() {
+  const t = useTranslations("analyze");
+  const state = useAnalyzeForm();
+  const { inputs, flags, result, handlers } = state;
+  // Direction 1 — offer the SAME Add-to-pipeline the saved report does, right on
+  // the live result, reusing the shared AddToPipelineButton plumbing. A JD-less
+  // (or unsaved) run gets an honest disabled affordance with a one-line reason.
+  const affordance = deriveAnalyzePipelineAffordance(result.analysis);
+  const pipelineRef = affordance?.kind === "add" ? affordance.ref : undefined;
+  const pipelineDisabledReason =
+    affordance?.kind === "disabled"
+      ? affordance.reason === "jdless"
+        ? t("addToPipelineJdless")
+        : t("addToPipelineUnsaved")
+      : undefined;
+  const isAnalyzing = flags.isLoading || flags.isCompleting;
+  // A GitHub-only run (GH3) produces no main analysis — its panel below counts
+  // as a result for the form auto-collapse too. A CV error, however, is NOT a
+  // result: it forces `idle` true so the form re-expands and its aria-live error
+  // slot surfaces the failure, even when a parallel GitHub run succeeded (which
+  // would otherwise pin the form collapsed with the error visible nowhere —
+  // bug-ui-scan-2026-07-09 #1). See deriveCollapseDecision.
+  const { idle } = deriveCollapseDecision({
+    isAnalyzing,
+    hasAnalysis: result.analysis !== null,
+    githubStatus: result.githubStatus,
+    cvError: result.error !== null,
+  });
+
+  // Auto-collapse the form on the leading edge of an analysis (or when a
+  // result lands), and auto-expand again once we return to an idle state
+  // (via reset() OR a CV error). The transition guard lets the user manually
+  // re-expand mid-result without being immediately collapsed again on re-render.
+  const [expanded, setExpanded] = useState(true);
+  const wasIdleRef = useRef(true);
+  useEffect(() => {
+    if (wasIdleRef.current && !idle) setExpanded(false);
+    if (!wasIdleRef.current && idle) setExpanded(true);
+    wasIdleRef.current = idle;
+  }, [idle]);
+
+  return (
+    // Tier 1 (docs/LOADING_CHOREOGRAPHY.md): the form/progress/result sections
+    // cascade in as this container's direct children. There is no tab-entry
+    // fetch here — the analysis run itself is user-triggered, so no aria-busy;
+    // AnalysisProgress/ScanAnimation stay exactly as they were for that run.
+    <div className="stagger-children space-y-5">
+      {expanded ? (
+        <AnalyzeForm state={state} />
+      ) : (
+        <AnalyzeFormCollapsed state={state} onExpand={() => setExpanded(true)} />
+      )}
+
+      {isAnalyzing ? (
+        <AnalysisProgress
+          stages={result.stageState}
+          complete={flags.isCompleting}
+          fileName={inputs.cvFiles.length === 1 ? inputs.cvFiles[0].name : undefined}
+          variantCount={inputs.cvFiles.length}
+          // #5 — the server's REAL per-variant completion drives the bar for a
+          // multi-CV comparison instead of the faked stage timeline.
+          variantsDone={result.variantProgress?.done}
+          variantsTotal={result.variantProgress?.total}
+          onCancel={handlers.cancel}
+        />
+      ) : null}
+
+      {/* Direction 2 — a comparison that lost a variant still delivers; name the
+          failed variant(s) here so the recruiter sees which CV didn't make it and
+          why, rather than a silently smaller compare. */}
+      {result.analysis?.partialFailures && result.analysis.partialFailures.length > 0 ? (
+        <div role="status" className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-amber-900">
+          <p className="text-sm font-semibold">
+            {t("partialFailureTitle", { count: result.analysis.partialFailures.length })}
+          </p>
+          <ul className="mt-1 space-y-0.5 text-sm">
+            {result.analysis.partialFailures.map((f) => (
+              // A coded failure had no engine text — show a localized generic line;
+              // an uncoded one carries engine/server English (Python stderr), shown
+              // verbatim in the localized frame (the honest "shown in English" case).
+              <li key={f.label}>
+                {f.code
+                  ? t("partialFailureGeneric", { label: f.label })
+                  : t("partialFailureItem", { label: f.label, error: f.error })}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      {result.analysis ? (
+        <ResultPanel
+          analysis={result.analysis}
+          analysisSlug={result.analysis.persistence?.slug ?? undefined}
+          pipelineRef={pipelineRef}
+          pipelineDisabledReason={pipelineDisabledReason}
+          // Cross-worktree seam (director note): flag a fully-cached delivery so the
+          // engine builder's "served from cache — no new cost" note fires at merge.
+          runCached={result.analysis.servedFromCache ?? undefined}
+          github={
+            result.githubStatus === "idle"
+              ? undefined
+              : {
+                  status: result.githubStatus,
+                  analysis: result.githubAnalysis,
+                  error: result.githubError,
+                  warning: result.githubWarning,
+                }
+          }
+          onGithubRetry={handlers.retryGithub}
+        />
+      ) : result.githubStatus !== "idle" ? (
+        // GH3 — GitHub-only run: no CV attached, so there's no main analysis or
+        // tabbed report; the deep-dive panel stands alone in the result area.
+        <GithubAnalysisPanel
+          status={result.githubStatus}
+          analysis={result.githubAnalysis}
+          error={result.githubError}
+          warning={result.githubWarning}
+          onRetry={handlers.retryGithub}
+        />
+      ) : null}
+    </div>
+  );
+}

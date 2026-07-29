@@ -62,7 +62,9 @@ export function Modal({
         // modal with no focusable children still has a guaranteed first focus
         // target — keeping focus inside the dialog and the Escape/Tab handler live.
         tabIndex={-1}
-        className={`animate-fade-in relative flex w-full ${isFull ? "h-[92vh] max-h-[92vh]" : "max-h-[85vh]"} ${SIZE[size] ?? SIZE["2xl"]} flex-col overflow-hidden rounded-lg border border-stone-200 bg-white shadow-2xl focus:outline-none`}
+        // dvh, not vh: on iOS Safari vh is the LARGE viewport, so with the URL bar
+        // visible a vh-sized centered dialog clips its header and footer off-screen.
+        className={`animate-fade-in relative flex w-full ${isFull ? "h-[92dvh] max-h-[92dvh]" : "max-h-[85dvh]"} ${SIZE[size] ?? SIZE["2xl"]} flex-col overflow-hidden rounded-lg border border-stone-200 bg-white shadow-2xl focus:outline-none`}
       >
         <header className="flex items-start gap-3 border-b border-stone-200 px-5 py-3.5">
           <div className="min-w-0 flex-1">

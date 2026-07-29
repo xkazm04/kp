@@ -269,6 +269,11 @@ body {
   --z-sim-bar: 55;
   --z-sim-frame: 48;
   --sim-bar-h: 60px;
+  /* First-run onboarding wizard (app/features/setup): a full takeover above the
+     Modal (50) and the sim bar (55) — nothing in the workspace should compete
+     with the first-run moment — but under the toast stack, so its own save
+     confirmations stay visible. */
+  --z-onboarding: 60;
   /* Toast stack (app/_components/Toast.tsx): transient feedback must clear
      everything — the Modal (50) and the sim bar (55) included — because a
      mutation fired from inside a dialog still needs its confirmation visible. */
@@ -381,11 +386,50 @@ textarea {
 .stagger-children > *:nth-child(5) { animation-delay: 240ms; }
 .stagger-children > *:nth-child(n + 6) { animation-delay: 280ms; }
 
+/* Content that ARRIVES after its container is already on screen (a fetch
+   resolving, a deferred section committing): a plain opacity fade, no rise, so
+   it settles into the space the layout already holds instead of sliding.
+   Loading choreography tier 2 — see docs/LOADING_CHOREOGRAPHY.md. */
+.animate-arrive-in {
+  animation: arrive-in 200ms ease-out both;
+}
+
+@keyframes arrive-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/* Gap-filler that is INVISIBLE for its first 150ms and only then fades up.
+   `both` fills backwards through the delay, so a chunk or fetch that resolves
+   inside the window never paints a single pixel of it — the anti-flash costs
+   zero timers and zero JS. Use on placeholders ONLY (a reserved-height box, a
+   quiet frame); never on real content, which must never be held back. */
+.reveal-quiet {
+  animation: arrive-in 200ms ease-out both;
+  animation-delay: 150ms;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-tab-in,
   .animate-fade-in,
+  .animate-arrive-in,
   .stagger-children > * {
     animation: none;
+  }
+  /* The placeholder keeps its delay — that is anti-flash, not decoration — but
+     lands at full opacity with no fade. */
+  .reveal-quiet {
+    animation-name: hold-hidden;
+    animation-duration: 1ms;
+  }
+}
+
+/* Reduced-motion partner for .reveal-quiet: no fade, just "absent until the
+   delay elapses". */
+@keyframes hold-hidden {
+  from {
+    opacity: 0;
   }
 }
 

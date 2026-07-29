@@ -1,0 +1,132 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Users } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { useLiveRefresh } from "@/app/features/shell/live-refresh";
+import { buildUrl } from "@/app/features/shell/tabs";
+
+// Phase 1: authored-JD drafts awaiting sourcing. "Source into Pipeline" marks
+// a draft live and pulls matching candidates in (the API route is /publish;
+// the DB status it sets is 'published'). Distinct from external "Publish to
+// job boards" distribution. See docs/JD_LIFECYCLE.md.
+//
+// Self-contained: owns its own drafts/sourcing state and live-refreshes itself,
+// so JobsTab just drops it in. Renders nothing when there are no drafts.
+//
+// onPublished (optional — the panel still works standalone without it) closes the
+// surface-agreement gap: going live from HERE used to refresh only this panel, so
+// the very same role in the table two lines below kept its DRAFT badge, the stat
+// chips stayed stale, and the "open only" filter went on hiding a role that was now
+// live. The modal path already had the fix pair (patchJobStatus + reload); this hands
+// the owner the same hook so both publish surfaces agree instantly.
+export function DraftsPanel({ onPublished }: { onPublished?: (jobId: string) => void } = {}) {
+  const t = useTranslations("jobs.drafts");
+  const router = useRouter();
+  const search = useSearchParams();
+  const goToBilling = () => router.push(buildUrl({ tab: "billing" }, search.toString()));
+  const [drafts, setDrafts] = useState<{ id: string; title: string; company: string | null }[]>([]);
+  const [sourcingId, setSourcingId] = useState<string | null>(null);
+  // tone "warn" = publish succeeded but sourcing errored (or the call failed) — styled
+  // distinctly so a broken pipeline isn't mistaken for a clean "sourced 0" result.
+  // tone "quota" = hit the plan's active-job cap (402); an upgrade prompt, not a warning.
+  const [draftNote, setDraftNote] = useState<{ text: string; tone: "ok" | "warn" | "quota" } | null>(null);
+  const loadDrafts = () =>
+    fetch("/api/jobs/status").then((r) => r.json()).then((p) => setDrafts(p.drafts ?? [])).catch(() => undefined);
+  useEffect(() => {
+    loadDrafts();
+  }, []);
+  useLiveRefresh(loadDrafts); // a JD saved elsewhere (e.g. the simulation) shows up here
+  const sourceDraft = async (id: string) => {
+    setSourcingId(id);
+    setDraftNote(null);
+    try {
+      const r = await fetch(`/api/jobs/${id}/publish`, { method: "POST" });
+      const p = await r.json();
+      if (!r.ok) {
+        // Plan's active-job cap (402): distinct upgrade prompt, not a sourcing-failed warn.
+        if (p.code === "quota_exceeded") {
+          setDraftNote({ text: t("quotaNote"), tone: "quota" });
+          return;
+        }
+        throw new Error(p.error ?? t("sourcingFailed"));
+      }
+      if (p.sourcingWarning) {
+        // Live, but sourcing broke — show why instead of a misleading "sourced 0".
+        setDraftNote({ text: t("publishedButFailed", { warning: p.sourcingWarning }), tone: "warn" });
+      } else {
+        setDraftNote({
+          text: t("sourced", { count: p.sourced ?? 0 }),
+          tone: "ok",
+        });
+      }
+      loadDrafts();
+      // The role IS live now (both the warn and ok branches above reached a 2xx
+      // /publish) — tell the owner so the table row, the badge and the stat chips
+      // stop disagreeing with this panel.
+      onPublished?.(id);
+    } catch (e) {
+      setDraftNote({ text: e instanceof Error ? e.message : t("sourcingFailed"), tone: "warn" });
+    } finally {
+      setSourcingId(null);
+    }
+  };
+
+  if (drafts.length === 0) return null;
+
+  return (
+    <div data-sim="job-drafts" className="mt-4 rounded-lg border border-coral/30 bg-coral/5 p-3">
+      <p className="text-meta uppercase tracking-wide text-coral">{t("heading")} · {drafts.length}</p>
+      <ul className="mt-2 space-y-1.5">
+        {drafts.map((d) => (
+          <li key={d.id} data-sim-entry={d.id} className="flex flex-wrap items-center gap-2 rounded-md bg-white px-3 py-1.5 text-sm">
+            <span className="rounded-full bg-stone-200 px-1.5 py-0.5 text-micro font-semibold uppercase text-steel">{t("draftBadge")}</span>
+            <span className="min-w-0 flex-1 truncate text-ink">
+              {d.title}
+              {d.company ? <span className="text-steel">{` · ${d.company}`}</span> : null}
+            </span>
+            <button
+              type="button"
+              data-sim-click="publish"
+              onClick={() => sourceDraft(d.id)}
+              disabled={sourcingId === d.id}
+              title={t("sourceTitle")}
+              className="focus-ring inline-flex h-8 items-center gap-1.5 rounded-md bg-coral px-3 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
+            >
+              <Users size={13} /> {sourcingId === d.id ? t("sourcing") : t("sourceIntoPipeline")}
+            </button>
+          </li>
+        ))}
+      </ul>
+      {draftNote ? (
+        draftNote.tone === "quota" ? (
+          <div
+            aria-live="polite"
+            className="mt-2 flex flex-wrap items-center gap-2 rounded-md border border-coral/40 bg-coral/5 px-2.5 py-1.5 text-sm text-coral"
+          >
+            <span>{draftNote.text}</span>
+            <button
+              type="button"
+              onClick={goToBilling}
+              className="focus-ring rounded-md border border-coral/40 bg-white px-2 py-0.5 font-semibold text-coral hover:bg-coral/10"
+            >
+              {t("goToBilling")}
+            </button>
+          </div>
+        ) : (
+          <p
+            aria-live="polite"
+            className={
+              draftNote.tone === "warn"
+                ? "mt-2 rounded-md border border-amber-200 bg-amber-50/60 px-2.5 py-1.5 text-sm text-amber-800"
+                : "mt-2 text-sm text-steel"
+            }
+          >
+            {draftNote.text}
+          </p>
+        )
+      ) : null}
+    </div>
+  );
+}

@@ -6,7 +6,7 @@
 // comm/ack/reminder sends, manual moves, intake kinds…) and every unmapped kind
 // rendered an UNKNOWN badge and fell out of any attribution math.
 //
-import { parseRematchDetail } from "@/app/features/sub_pipeline/pipeline-rematch-link";
+import { parseRematchDetail } from "@/app/features/shared/pipelineRematchLink";
 
 // Attribution semantics: `auto` = the system initiated the action (policy pass,
 // fan-out, dispatched comm, sentinel); `human` = a person did (a recruiter

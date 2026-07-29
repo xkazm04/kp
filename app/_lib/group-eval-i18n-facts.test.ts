@@ -18,7 +18,7 @@ import { cleanupUnitDb } from "./testing/unit-db.ts";
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { FIT_PROMISING_FLOOR } from "./fit-thresholds.ts";
-import type { RiskFact, SummaryFacts } from "@/app/features/sub_decisions/group-eval/types";
+import type { RiskFact, SummaryFacts } from "@/app/features/shared/groupEvalTypes";
 
 // Force the best-effort AI "compare all" spawn to fail fast (ENOENT → deterministic
 // fallback), so the test is hermetic. Set BEFORE python-runner is loaded.

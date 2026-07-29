@@ -1,0 +1,14 @@
+{
+  "title": "Product Engineer (Full-stack, Next.js)",
+  "seniority": "medior",
+  "roleFamily": "software_engineering",
+  "mustHaves": ["TypeScript", "React", "Next.js App Router", "API/route design", "SQLite"],
+  "niceToHaves": ["Offline-tolerant client design", "Testing with node:test"],
+  "responsibilities": [
+    "Own candidate-facing product surfaces end to end (UI + API + storage)",
+    "Keep data-capture pipelines trustworthy and resilient",
+    "Verify changes against failure paths, not just happy paths"
+  ],
+  "languages": ["English"],
+  "promptVersion": "case-sim-manual-v1"
+}

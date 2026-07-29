@@ -134,6 +134,15 @@ export const TOGGLE_GROUP = "inline-flex items-center gap-0.5 rounded-md border 
 export const toggleBtn = (isActive: boolean): string =>
   isActive ? "bg-ink text-white" : "text-steel hover:bg-stone-100";
 
+/** First-level (sidebar rail) icon-only control — the appearance/language popup
+ *  triggers and Sign out. Square hit area on the 4.75rem rail, quiet by default,
+ *  coral wash when open/active, matching the rail's section buttons. Always pair
+ *  with an aria-label/sr-only name: there is no visible text. */
+export const railIconBtn = (isActive: boolean): string =>
+  `focus-ring relative flex h-9 w-9 items-center justify-center rounded-lg transition-colors ${
+    isActive ? "bg-coral/10 text-coral" : "text-steel hover:bg-stone-100 hover:text-ink"
+  }`;
+
 /** Keycap chip (`<kbd>`) — command palette + keyboard-shortcuts overlay.
  *  Pair with a type size at the call site (`${KBD} text-sm` / `text-[11px]`). */
 export const KBD = "rounded border border-stone-200 bg-paper px-1.5 py-0.5 font-semibold text-steel";

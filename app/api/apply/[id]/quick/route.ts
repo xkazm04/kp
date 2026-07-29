@@ -9,7 +9,7 @@ import { intakeLead } from "@/app/_lib/lead-intake";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
 import { getOrCreateStatusLink } from "@/app/_lib/application-status-store";
-import { isRelayConfigured } from "@/app/_lib/comms-truth";
+import { isRelayConfigured } from "@/app/_lib/comms-relay";
 import { safeJsonError } from "@/app/_lib/api-response";
 import { afterResponse } from "@/app/_lib/after-response";
 

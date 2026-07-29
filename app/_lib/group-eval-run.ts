@@ -17,10 +17,10 @@ import { hasComparableCohort, GROUP_EVAL_CAP, GROUP_EVAL_MIN_COHORT } from "./gr
 import { compareByMatchScoreDesc, compareScoreDesc } from "./match-score";
 import { sealDecisionSafe } from "./decision-record-store";
 import { buildEligibilityList, governanceNote, normalizeGovernanceMode, resolveGovernanceMode, sealsLead } from "./group-eval-governance";
-import type { MatchResultView, ScoreDimension, Confidence, Reasoning as CanonicalReasoning } from "@/app/features/sub_match/MatchTypes";
-import type { Comparison, Fairness, FairnessScheme, RiskFact, SummaryFacts } from "@/app/features/sub_decisions/group-eval/types";
-import { selectionCacheKey } from "@/app/features/sub_decisions/group-eval/cache-key";
-import { assessRobustness } from "@/app/features/sub_decisions/group-eval/types";
+import type { MatchResultView, ScoreDimension, Confidence, Reasoning as CanonicalReasoning } from "@/app/features/shared/matchTypes";
+import type { Comparison, Fairness, FairnessScheme, RiskFact, SummaryFacts } from "@/app/features/shared/groupEvalTypes";
+import { selectionCacheKey } from "@/app/features/hiring/decisions/groupEval/cache-key";
+import { assessRobustness } from "@/app/features/shared/groupEvalTypes";
 
 // Cap on how many candidates one comparative evaluation covers (GROUP_EVAL_CAP,
 // single-sourced from group-eval-cohort so the client selection UI shares it). The

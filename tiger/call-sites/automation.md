@@ -9,11 +9,19 @@ model: CLI default for all six subtasks (no --model). On anthropic adapter → c
 schema: per-subtask coerce() closures (screen 281-298, outreach 344-352, rejection 387-396, prep 450-466, scorecard 601-637, offer 757-765); verdict pinned via coerce_recommendation (78-86); TS re-validates (automation-run.ts:76-85)
 grounding: 4/5 (screen/prep/scorecard) down to 2/4 (outreach/rejection)
 quality_score: 3  code_score: 4
-recommended_model: "—"
-status: assessed
-last_scanned: 2026-06-20
+recommended_model: keep haiku (screen verdict-stable + routing-safe); prose = keep deterministic templates, NOT a model upgrade
+status: benchmarked
+last_scanned: 2026-07-16
 characters: ["[[petra-recruiter]]", "[[marek-coordinator]]"]
 ---
+
+> **2026-07-16 Lens-3 benchmark → [[models/automation]].** **screen: keep haiku** — all 3
+> tiers routed the borderline case to `hold` (conf 68/68/72), verdict-stable + routing-safe,
+> no upgrade. **CZ outreach/rejection: a bigger model is NOT the fix** — sonnet-high was the
+> *worst* cell in both, emitting the exact banned slashed-gender forms (`podílel(a)`,
+> `věnoval/a`, `prokázal/a`) `_NEUTRAL_STYLE` forbids; no tier fully clean. This makes the
+> deterministic templates the **safer floor** → reframes finding #1 toward *drop/keep-template*,
+> and the real lever is a **slashed-gender + vocative post-check** (model-independent), not a tier swap.
 ## What it does
 One Python family, six LLM subtasks via _generate() (automation.py:92-101): **screen** (verdict+confidence+rationale, drives auto-advance), **outreach** (candidate-facing first contact), **rejection** (candidate-facing), **prep** (interviewer pack), **scorecard** (rubric ratings from transcript), **offer** (deterministic salary + LLM letter). rematch/policy mostly deterministic. Every subtask emits source + promptVersion. TS caches by input-hash, spawns Python, maps result→pipeline effect.
 
@@ -34,6 +42,14 @@ One Python family, six LLM subtasks via _generate() (automation.py:92-101): **sc
 - **Language** [bug code/value]: only prep threads --lang; outreach/rejection/offer infer from candidate.languages and ignore entry.locale that comms-dispatch.ts:174 localizes on.
 
 ## Findings
+> **Benchmark update (2026-07-16) on findings 1, 2 & 4:** the Lens-3 CZ prose benchmark
+> ([[models/automation]]) shows the LLM drafts carry gender-neutrality + vocative risk the
+> deterministic templates don't (sonnet violated the neutrality rule; no tier was clean).
+> → **Finding 1** resolution now leans **drop/keep-template** (the template is the safer send),
+> not "wire the LLM draft through." → **Finding 2/4:** the real lever is a **slashed-gender
+> (`\w+\(a\)`, `\w+/a`) + vocative post-check**, model-independent — NOT a per-subtask model
+> upgrade (finding 4 is a non-lever: screen is already verdict-stable on haiku).
+
 1. [value] **HIGH — the LLM rejection draft is generated, cached, shown to the recruiter, but never sent.** draft_rejection (automation.py:359) produces a tailored body; automation-run.ts routes task==="rejection" to a record-only branch (46-49,301-303). The actual reject sends the **deterministic template** dispatchRejection (comms-dispatch.ts:189-200; pipeline/[id]/route.ts:239, command/route.ts:89, screen-wave.ts:280). The candidate always gets the generic template; the tailored draft dead-ends in the UI. Fix: wire the approved draft through dispatchRejection (fall back to template), OR drop the LLM rejection subtask — don't generate+bill+display an undeliverable draft.
 2. [value] **MED — candidate-facing outreach/rejection language ignores the stored locale.** _candidate_lang (110-112) keys off CV languages, not entry.locale. Fix: pass entry locale into the prompts like prep does (--lang); add a lang cache axis for those tasks.
 3. [code] **MED — no llm_usage ledger on the highest-traffic site** (base.py:220 LightTrack-only). With LightTrack off (default), outreach/screen/scorecard/offer are unmetered. Fix: emit one ledger row per complete().

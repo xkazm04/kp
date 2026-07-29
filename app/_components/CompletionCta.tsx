@@ -2,7 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight, Check, X } from "lucide-react";
-import { buildUrl, clearedTabScopedParams, type TabScopedParamKey, type WorkspaceTabId } from "@/app/features/tabs";
+import { buildUrl, clearedTabScopedParams, type TabScopedParamKey, type WorkspaceTabId } from "@/app/features/shell/tabs";
 
 export type CompletionLink = {
   label: string;
