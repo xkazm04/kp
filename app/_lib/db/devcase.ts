@@ -175,6 +175,12 @@ export type LifecycleRecord = {
   lang: string | null;
   createdAt: string;
   updatedAt: string | null;
+  // D5 — the owning tenant. getLifecycle is a by-id point read (globally-unique id, so
+  // exempt from WHERE-scoping), but callers that then enumerate the lifecycle's CHILDREN
+  // must scope those reads to THIS workspace rather than the session's or the default —
+  // see the close route, which re-derived its postings from the default workspace and
+  // silently found none for any other team.
+  workspaceId: string;
 };
 
 function rowToLifecycle(r: Record<string, unknown>): LifecycleRecord {
@@ -193,6 +199,7 @@ function rowToLifecycle(r: Record<string, unknown>): LifecycleRecord {
     lang: (r.lang as string) ?? null,
     createdAt: r.created_at as string,
     updatedAt: (r.updated_at as string) ?? null,
+    workspaceId: (r.workspace_id as string) ?? DEFAULT_WORKSPACE_ID,
   };
 }
 

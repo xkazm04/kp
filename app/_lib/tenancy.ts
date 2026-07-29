@@ -39,6 +39,13 @@ export const TENANCY_SCOPED_TABLES: ReadonlySet<string> = new Set([
   // job_ingests dedup PK is (content_hash, workspace_id) — dedup never crosses teams.
   "jobs",
   "job_ingests",
+  // D5 — the dev-studio outcome/calibration corpus (dev-outcomes.ts). Reclassified from
+  // EXEMPT: it holds per-team hiring ground truth (who a team hired/rejected and how they
+  // performed), and the promote-floor recommendation a recruiter acts on is computed from
+  // it — pooling teams meant one team's floor advice came from another team's hires. Every
+  // read/write filters workspace_id; the pipeline auto-record derives the tenant from the
+  // submission the ref names (dev-outcomes-tenancy.test.ts).
+  "dev_outcomes",
   // Phase 1 — a team's Decisions "group evaluations", keyed by role. Reads filter by
   // workspace_id; the upsert is workspace-guarded so a shared role_key can't clobber
   // another team's row (group-eval-tenancy.test.ts).
@@ -189,15 +196,14 @@ export const TENANCY_EXEMPT_TABLES: ReadonlySet<string> = new Set([
   // and filtered to the caller's tenant on read (scheduler-store.decisionsForWorkspace).
   "scheduler_runs",
   "scheduler_heartbeat", // one row per deployment: the clock's liveness stamp, not tenant data
-  // The autonomous dev-case pipeline's CONTROL PLANE + CALIBRATION (Directions D/E,
-  // dev-control.ts / dev-outcomes.ts) — deliberately "independent of the main schema".
-  // The dev-case CANDIDATE data (dev_cases/lifecycle/postings/submissions/sessions/
-  // session_events) is per-team and scoped above; these three are global orchestrator
-  // state: ONE kill-switch + promote-floor, ONE decision log, ONE outcome-calibration
-  // corpus — the sibling of `scheduler`, not per-tenant customer data.
+  // The autonomous dev-case pipeline's CONTROL PLANE (Direction D, dev-control.ts) —
+  // deliberately "independent of the main schema". The dev-case CANDIDATE data
+  // (dev_cases/lifecycle/postings/submissions/sessions/session_events) is per-team and
+  // scoped above, as is dev_outcomes since D5; these two remain global orchestrator
+  // state: ONE kill-switch + promote-floor and ONE decision log — the sibling of
+  // `scheduler`, not per-tenant customer data.
   "dev_control", // autonomy kill-switch + promote-floor (key/value, deployment control)
   "dev_audit", // the orchestrator's immutable auto/human decision log
-  "dev_outcomes", // predicted-vs-actual outcomes that calibrate the global promote-floor
   "schema_migrations",
   "_migrations",
   "sqlite_sequence", // sqlite internal
