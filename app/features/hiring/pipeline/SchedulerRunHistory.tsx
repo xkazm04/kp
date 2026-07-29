@@ -54,6 +54,14 @@ export function SchedulerRunHistory({
                       {run.summary?.evaluated != null ? (
                         <span className="text-xs">{t("runEvaluated", { n: run.summary.evaluated })}</span>
                       ) : null}
+                      {/* Multi-tenant install: the badges above are the whole sweep,
+                          the rows below only this team's. Named when they differ;
+                          on a single-tenant install they're equal and nothing shows. */}
+                      {run.decisionCount != null && run.summary?.evaluated != null && run.decisionCount !== run.summary.evaluated ? (
+                        <span className="rounded-full bg-stone-100 px-1.5 py-0.5 text-xs text-steel">
+                          {t("runScope", { mine: run.decisionCount, total: run.summary.evaluated })}
+                        </span>
+                      ) : null}
                     </span>
                   )}
                 </summary>

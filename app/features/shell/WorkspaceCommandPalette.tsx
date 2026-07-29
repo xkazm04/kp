@@ -29,7 +29,7 @@ export function CommandPalette() {
   const search = searchParams.toString();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const { hits, error, loading, reset: resetSearch } = useWorkspaceCommandPaletteSearch(open, query, t);
+  const { hits, error, loading, reset: resetSearch, markPending } = useWorkspaceCommandPaletteSearch(open, query, t);
   const [selected, setSelected] = useState(0);
   const inputRef = useRef<HTMLInputElement | null>(null);
   // The server renders "Ctrl K"; an Apple client computes "⌘K" at hydration.
@@ -169,6 +169,11 @@ export function CommandPalette() {
                 setSelected(0);
                 if (e.target.value.trim().length < 2) {
                   resetSearch();
+                } else {
+                  // Pending from the first keystroke (the search effect only schedules
+                  // the debounced fetch), so the list can't sit on the prior query's
+                  // results without a signal that a newer term is being fetched.
+                  markPending();
                 }
               }}
               onKeyDown={onInputKey}

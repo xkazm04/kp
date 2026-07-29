@@ -24,6 +24,12 @@ export function useWorkspaceCommandPaletteSearch(
     setLoading(false);
   }, []);
 
+  // Pending from the first keystroke (debounce included), so the list can't sit on
+  // the prior query's results without a signal that a newer term is being fetched.
+  // Raised by the caller's onChange EVENT — the effect below only schedules the
+  // debounced fetch, it never sets state synchronously during render/commit.
+  const markPending = useCallback(() => setLoading(true), []);
+
   // Debounced server search. Sub-minimum queries never reach here — the caller's
   // onChange handler resets synchronously (an event, not an effect), so this
   // effect only schedules async work and sets state from its callbacks.
@@ -31,9 +37,6 @@ export function useWorkspaceCommandPaletteSearch(
     if (!open) return;
     const q = query.trim();
     if (q.length < 2) return;
-    // Pending from the first keystroke (debounce included), so the list can't sit on
-    // the prior query's results without a signal that a newer term is being fetched.
-    setLoading(true);
     const controller = new AbortController();
     const timer = setTimeout(() => {
       fetch(`/api/search?q=${encodeURIComponent(q)}`, { signal: controller.signal })
@@ -62,5 +65,5 @@ export function useWorkspaceCommandPaletteSearch(
     };
   }, [open, query, t]);
 
-  return { hits, error, loading, reset };
+  return { hits, error, loading, reset, markPending };
 }

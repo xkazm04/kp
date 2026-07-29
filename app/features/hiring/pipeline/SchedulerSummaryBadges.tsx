@@ -22,6 +22,13 @@ export type SchedulerRun = {
   decisions: RunDecision[] | null;
   error: string | null;
   startedAt: string;
+  /** TENANCY (a43408d) — `summary` stays the GLOBAL record of what the sweep did, while
+   *  `decisions` is filtered to the caller's workspace by listRuns({ workspace }). These
+   *  two say so: `decisionCount` is how many rows this read may see, `decisionsWorkspace`
+   *  which tenant they were narrowed to. Without them the history showed "evaluated 40"
+   *  over four rows with nothing to explain the gap. */
+  decisionCount?: number;
+  decisionsWorkspace?: string | null;
 };
 export type Schedule = {
   enabled: boolean;

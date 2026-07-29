@@ -56,6 +56,7 @@ export function SchedulerControl({
         sched={st.sched}
         busy={st.busy}
         onToggleEnabled={() => st.update({ enabled: !st.sched!.enabled })}
+        scheduleScope={st.scheduleScope}
         intervalDraft={st.intervalDraft}
         onIntervalChange={st.setIntervalDraft}
         onIntervalFocus={() => st.setIntervalFocused(true)}

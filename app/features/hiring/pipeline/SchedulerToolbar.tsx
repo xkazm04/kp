@@ -16,6 +16,7 @@ export function SchedulerToolbar({
   sched,
   busy,
   onToggleEnabled,
+  scheduleScope,
   intervalDraft,
   onIntervalChange,
   onIntervalFocus,
@@ -33,6 +34,8 @@ export function SchedulerToolbar({
   sched: Schedule;
   busy: boolean;
   onToggleEnabled: () => void;
+  /** The route's declared blast radius for the clock ("global" in phase-1 tenancy). */
+  scheduleScope: string | null;
   intervalDraft: string;
   onIntervalChange: (value: string) => void;
   onIntervalFocus: () => void;
@@ -74,6 +77,15 @@ export function SchedulerToolbar({
       >
         {sched.enabled ? t("on") : t("off")}
       </button>
+      {/* The switch is installation-wide (one schedule row, phase-1 tenancy): flipping
+          it starts or stops automation for every team, not just this one. The route
+          declares that as `scheduleScope`; render it as a caption rather than leaving
+          the blast radius implicit. */}
+      {scheduleScope === "global" ? (
+        <span className="rounded-full bg-stone-100 px-1.5 py-0.5 text-xs text-steel" title={t("scopeGlobalTitle")}>
+          {t("scopeGlobal")}
+        </span>
+      ) : null}
       <label className="flex items-center gap-1">
         {t("every")}
         <input

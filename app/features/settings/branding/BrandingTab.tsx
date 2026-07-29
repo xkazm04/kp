@@ -62,11 +62,6 @@ export function BrandingTab() {
       .catch(() => setLoadFailed(true));
   }, []);
 
-  // Retry the preview logo whenever the URL changes (clears a prior load error).
-  useEffect(() => {
-    setLogoError(false);
-  }, [logo]);
-
   // The color the preview + <input type=color> show — the typed accent normalized to
   // 6-digit hex (so `${accent}1a` alpha suffixes and the color input never break),
   // else the product default coral (so the swatch is never blank).
@@ -114,6 +109,7 @@ export function BrandingTab() {
       setName(saved.displayName ?? "");
       setAccent(saved.accentColor ?? "");
       setLogo(saved.logoUrl ?? "");
+      setLogoError(false); // retry the preview against the newly stored URL
       setBaseline({ name: saved.displayName ?? "", accent: saved.accentColor ?? "", logo: saved.logoUrl ?? "" });
       applyLiveAccent(saved.accentColor);
       setStatus({ kind: "saved", text: t("saved") });
@@ -131,6 +127,7 @@ export function BrandingTab() {
     setName(baseline.name);
     setAccent(baseline.accent);
     setLogo(baseline.logo);
+    setLogoError(false); // retry the preview against the reverted URL
     setStatus(null);
   }, [baseline]);
 
@@ -163,7 +160,12 @@ export function BrandingTab() {
             effectiveAccent={effectiveAccent}
             accentIllegible={accentIllegible}
             logo={logo}
-            onLogoChange={setLogo}
+            onLogoChange={(v) => {
+              setLogo(v);
+              // Retry the preview whenever the URL changes (clears a prior load
+              // error) — done in the event, not an effect.
+              setLogoError(false);
+            }}
             dirty={dirty}
             saving={saving}
             status={status}

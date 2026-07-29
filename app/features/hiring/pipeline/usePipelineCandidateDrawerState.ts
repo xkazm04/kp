@@ -9,7 +9,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useDialogA11y } from "@/app/_components/useDialogA11y";
-import type { CandidateConsentView, CandidateTimelineItem, RematchLink } from "@/app/_lib/candidate-timeline";
+import type { CandidateComm, CandidateConsentView, CandidateTimelineItem, RematchLink } from "@/app/_lib/candidate-timeline";
 import type { InterviewTelemetry } from "@/app/_lib/interview-telemetry";
 import type { ScorecardCoverage } from "@/app/_lib/interview-transcript";
 import { useTasks, useTaskResult } from "@/app/features/shell/tasks/TasksProvider";
@@ -144,9 +144,11 @@ export function usePipelineCandidateDrawerState({
 
   // W6-2 (SIM1) — the actual letters this candidate received (events say
   // "rejection_sent"; this shows the rejection). Best-effort, hides when empty.
-  const [comms, setComms] = useState<
-    { id: string; kind: string | null; status: string; channel: string | null; subject: string | null; body: string | null; createdAt: string }[] | null
-  >(null);
+  // failure-truth-everywhere: the bundle now carries the DERIVED delivery verdict
+  // (server-side, from the same comms-view derivation the Comms Center reads) instead
+  // of only the raw `status` column — which is why a bounced offer used to render a
+  // green "sent" here while Channels showed it red.
+  const [comms, setComms] = useState<CandidateComm[] | null>(null);
 
   // drawer-note-fresh-hydration — the recruiter note as it stands ON THE SERVER,
   // carried on the one-call bundle. The board prop (entry.notes) that seeds candNote
@@ -446,6 +448,13 @@ export function usePipelineCandidateDrawerState({
   // refetch the whole board behind the still-open drawer and defeat the deliberate
   // 30s-poll pause the open drawer is meant to hold.
   const noteSavedRef = useRef(false);
+  // Keep the freshest note in a ref so the unmount flush sends it. Declared BEFORE
+  // the debounce effect that reads it — React Compiler treats a ref captured ahead
+  // of its declaration as an immutable value and rejects the later mirror write.
+  const latestNoteRef = useRef(candNote);
+  useEffect(() => {
+    latestNoteRef.current = candNote;
+  }, [candNote]);
   useEffect(() => {
     if (!noteDirtyRef.current) return;
     const value = candNote; // the exact content this debounced save will persist
@@ -473,12 +482,6 @@ export function usePipelineCandidateDrawerState({
     }, 600);
     return () => window.clearTimeout(h);
   }, [candNote, entry.id]);
-
-  // Keep the freshest note in a ref so the unmount flush sends it.
-  const latestNoteRef = useRef(candNote);
-  useEffect(() => {
-    latestNoteRef.current = candNote;
-  }, [candNote]);
 
   // drawer-note-fresh-hydration — reconcile candNote with the SERVER-truth note that
   // rode the bundle. The rule: overwrite candNote from the bundle ONLY when the user

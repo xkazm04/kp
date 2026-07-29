@@ -31,6 +31,11 @@ export function useSchedulerControlState(t: SchedulerTranslator, onRan?: () => v
   // AUTO2 — run history (already on every schedule GET; previously discarded).
   const [runs, setRuns] = useState<SchedulerRun[]>([]);
   const [historyOpen, setHistoryOpen] = useState(false);
+  // The clock's blast radius, as the route declares it (`scheduleScope`). It is "global"
+  // by design in phase 1 — one schedule row for the whole installation behind
+  // requireOperator — so flipping this toggle stops or starts automation for EVERY team.
+  // The button gave no hint of that; the caption in the toolbar states it.
+  const [scheduleScope, setScheduleScope] = useState<string | null>(null);
   // Draft string for the interval field so the user can clear/retype freely — a
   // number-bound input can't hold an empty string. Parsed + clamped on blur.
   const [intervalDraft, setIntervalDraft] = useState("");
@@ -53,6 +58,7 @@ export function useSchedulerControlState(t: SchedulerTranslator, onRan?: () => v
         if (Array.isArray(p.runs)) setRuns(p.runs as SchedulerRun[]);
         if (p.reminders) setReminders(p.reminders as Schedule);
         if (Array.isArray(p.reminderRuns)) setReminderRuns(p.reminderRuns as SchedulerRun[]);
+        if (typeof p.scheduleScope === "string") setScheduleScope(p.scheduleScope);
         setError(null);
       })
       .catch(() => setError(t("engineUnreachable")));
@@ -98,6 +104,7 @@ export function useSchedulerControlState(t: SchedulerTranslator, onRan?: () => v
       if (Array.isArray(p.runs)) setRuns(p.runs as SchedulerRun[]);
       if (p.reminders) setReminders(p.reminders as Schedule);
       if (Array.isArray(p.reminderRuns)) setReminderRuns(p.reminderRuns as SchedulerRun[]);
+      if (typeof p.scheduleScope === "string") setScheduleScope(p.scheduleScope);
       setError(null);
       if (body.tick) {
         onRan?.();
@@ -131,7 +138,7 @@ export function useSchedulerControlState(t: SchedulerTranslator, onRan?: () => v
 
   return {
     sched, reminders, reminderRuns, busy, result, error,
-    runs, historyOpen, setHistoryOpen,
+    runs, historyOpen, setHistoryOpen, scheduleScope,
     intervalDraft, setIntervalDraft, setIntervalFocused,
     update, commitInterval,
   };
