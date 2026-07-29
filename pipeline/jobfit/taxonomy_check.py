@@ -121,6 +121,40 @@ SKILL_COVERAGE_FLOORS: dict[str, int] = {
 }
 
 
+# Per-family PARENT-LINK floors: how many of a family's terms carry a ``parents``
+# edge. Parent links are what make the sibling / graded-fallback credit work at all
+# — without one, a near-miss falls back to 0/1 string equality. The three tech
+# families used to sit at 24% / 18% / 7% while every non-tech family ran 42-85%, so
+# the payoff had inverted: a backend engineer listing Fastify against an Express JD
+# scored a flat zero where an equivalent nurse or accountant earned honest partial
+# credit. tech-hierarchy-parity closed that (60% / 74% / 55%).
+#
+# Same convention as SKILL_COVERAGE_FLOORS: an EXACT pin to the live count, gated
+# with ``>=`` in tests/test_taxonomy_coverage_gate.py (catches a between-commit
+# regression) and ``==`` in tests/test_role_family_parity.py (forbids silent slack,
+# which would let links be deleted down to the floor unnoticed). Any commit that
+# adds or removes a parent edge re-pins the affected families here, in that commit.
+# Regenerate the numbers with `python -m pipeline.jobfit.taxonomy_check`.
+PARENT_COVERAGE_FLOORS: dict[str, int] = {
+    "software_engineering": 50,  # 60% — tech-hierarchy-parity (was 20 / 24%)
+    "data_ai": 28,  # 74% — tech-hierarchy-parity (was 7 / 18%)
+    "product_project": 16,  # 55% — tech-hierarchy-parity (was 2 / 7%)
+    "healthcare_clinical": 40,
+    "life_sciences_research": 20,
+    "skilled_trades": 31,
+    "operations_logistics": 19,
+    "frontline_service": 27,
+    "sales_marketing": 15,
+    "finance_accounting": 35,
+    "legal_compliance": 38,
+    "hr_people": 37,
+    "education_academic": 31,
+    "creative_design": 23,
+    "customer_support": 14,
+    "general_professional": 7,
+}
+
+
 @dataclass
 class LintResult:
     """Outcome of :func:`lint_taxonomy`. ``ok`` is true when there are no errors."""
@@ -545,6 +579,12 @@ def coverage_by_family(taxonomy: dict[str, Any]) -> list[FamilyCoverage]:
 
 def skill_counts_by_family(taxonomy: dict[str, Any]) -> dict[str, int]:
     return {row.family: row.skill_terms for row in coverage_by_family(taxonomy)}
+
+
+def parent_counts_by_family(taxonomy: dict[str, Any]) -> dict[str, int]:
+    """Terms carrying a ``parents`` edge, per family — the number
+    :data:`PARENT_COVERAGE_FLOORS` pins."""
+    return {row.family: row.with_parents for row in coverage_by_family(taxonomy)}
 
 
 def render_coverage_table(taxonomy: dict[str, Any]) -> str:

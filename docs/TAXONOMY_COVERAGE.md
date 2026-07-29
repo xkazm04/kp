@@ -6,9 +6,9 @@ Per-role-family coverage of `data/taxonomy.json`. A term counts toward every fam
 
 | Role family | Skill terms | Total terms | % with parents | Bilingual (>=2 forms) | Bilingual parity |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| `software_engineering` | 83 (floor 83) | 83 | 24% | 47 (57%) | 83 +36 exempt (100%) |
-| `data_ai` | 38 (floor 38) | 38 | 18% | 21 (55%) | 38 +17 exempt (100%) |
-| `product_project` | 28 (floor 28) | 29 | 7% | 25 (86%) | 29 +4 exempt (100%) |
+| `software_engineering` | 83 (floor 83) | 83 | 60% | 47 (57%) | 83 +36 exempt (100%) |
+| `data_ai` | 38 (floor 38) | 38 | 74% | 21 (55%) | 38 +17 exempt (100%) |
+| `product_project` | 28 (floor 28) | 29 | 55% | 25 (86%) | 29 +4 exempt (100%) |
 | `healthcare_clinical` | 44 (floor 44) | 47 | 85% | 47 (100%) | 47 (100%) |
 | `life_sciences_research` | 38 (floor 38) | 39 | 51% | 39 (100%) | 39 (100%) |
 | `skilled_trades` | 40 (floor 40) | 43 | 72% | 43 (100%) | 43 (100%) |

@@ -97,5 +97,28 @@ class SkillFloorExactPinTest(unittest.TestCase):
                 )
 
 
+class ParentFloorExactPinTest(unittest.TestCase):
+    """Same exact-pin discipline for PARENT_COVERAGE_FLOORS: a floor below the live
+    count is silent slack that would let parent links — the whole basis of sibling /
+    graded-fallback credit — be deleted down to it unnoticed."""
+
+    def setUp(self) -> None:
+        self.counts = tc.parent_counts_by_family(tc.load_taxonomy())
+
+    def test_floors_equal_live_counts(self) -> None:
+        slack = {
+            fam: (floor, self.counts.get(fam, 0))
+            for fam, floor in tc.PARENT_COVERAGE_FLOORS.items()
+            if self.counts.get(fam, 0) != floor
+        }
+        self.assertEqual(
+            slack,
+            {},
+            "PARENT_COVERAGE_FLOORS must equal the live parent-link count (fam -> "
+            f"(floor, actual)): {slack}. Re-pin in the SAME commit that changed the "
+            "hierarchy.",
+        )
+
+
 if __name__ == "__main__":
     unittest.main()
