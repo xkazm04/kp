@@ -25,7 +25,7 @@ export function IngestAdPanel({
   onIngested?: (result: IngestResult) => void;
   onBulkComplete?: () => void;
 }) {
-  const { t, open, setOpen, adText, setAdText, busy, error, note, bulk, toggleBulk, results, progress, bulkCount, submit, submitBulk, close } =
+  const { t, open, setOpen, adText, setAdText, busy, error, note, bulk, toggleBulk, results, progress, bulkCount, submit, submitBulk, cancelRun, close } =
     useIngestAdPanelLogic({ onIngested, onBulkComplete });
 
   if (!open) {
@@ -83,13 +83,16 @@ export function IngestAdPanel({
             <Plus size={14} /> {busy ? t("parsing") : t("addToCatalog")}
           </button>
         )}
+        {/* Two jobs, one button — and the busy one is the one that matters. A bulk
+            import is minutes of billed LLM time per ad; while it runs this ABORTS the
+            run (the signal is threaded to the route, which SIGKILLs the parser child)
+            and leaves the panel + partial results standing. Idle, it closes the panel. */}
         <button
           type="button"
-          onClick={close}
-          disabled={busy}
-          className="focus-ring inline-flex h-9 items-center rounded-md border border-stone-300 bg-white px-3 text-sm font-semibold text-steel hover:text-ink disabled:opacity-50"
+          onClick={busy ? cancelRun : close}
+          className="focus-ring inline-flex h-9 items-center rounded-md border border-stone-300 bg-white px-3 text-sm font-semibold text-steel hover:text-ink"
         >
-          {t("cancel")}
+          {busy ? t("cancelRun") : t("cancel")}
         </button>
         <span className="text-meta text-steel">{t("parsingNote")}</span>
       </div>

@@ -26,10 +26,14 @@ test("POST /api/jobs/[id]/close distinguishes a failed withdrawal from a genuine
 });
 
 test("the posting modal renders the zero-withdrawal and failed-withdrawal close states", () => {
-  const src = read("..", "..", "features", "sub_jobs", "JobPostingModal.tsx");
-  assert.match(src, /withdrawalFailed\?: boolean/, "the modal must read the route's failure flag");
-  assert.match(src, /t\("withdrawFailed"\)/, "a failed withdrawal must be surfaced");
-  assert.match(src, /t\("closedNow"\)/, "withdrawn:0 must still confirm the close (the orphan key)");
+  // The modal is split across a logic hook (state + the close call) and a footer
+  // (the rendered outcome), so the two halves of this contract are asserted where
+  // each now lives.
+  const logic = read("..", "..", "features", "library", "jobs", "jobsPostingModalLogic.ts");
+  assert.match(logic, /withdrawalFailed\?: boolean/, "the modal must read the route's failure flag");
+  const footer = read("..", "..", "features", "library", "jobs", "JobsPostingModalFooter.tsx");
+  assert.match(footer, /t\("withdrawFailed"\)/, "a failed withdrawal must be surfaced");
+  assert.match(footer, /t\("closedNow"\)/, "withdrawn:0 must still confirm the close (the orphan key)");
 });
 
 test("GET /api/jobs/[id] exists and is scoped like the list query", () => {
@@ -40,8 +44,11 @@ test("GET /api/jobs/[id] exists and is scoped like the list query", () => {
 });
 
 test("the Jobs tab falls back to the by-id fetch when a ?job= deep link misses the slice", () => {
-  const src = read("..", "..", "features", "sub_jobs", "JobsTab.tsx");
-  assert.match(src, /fetch\(`\/api\/jobs\/\$\{encodeURIComponent\(lookupId\)\}`\)/, "the miss must point-fetch the target");
-  assert.match(src, /setLookupMissed\(true\)/, "only a failed point-fetch is a real miss");
-  assert.match(src, /td\("notFound"\)/, "a real miss must be told to the user");
+  // Deep-link resolution lives in the tab's extracted hook; the notice it drives is
+  // rendered by the tab itself.
+  const hook = read("..", "..", "features", "library", "jobs", "jobsTabDeepLink.ts");
+  assert.match(hook, /fetch\(`\/api\/jobs\/\$\{encodeURIComponent\(lookupId\)\}`\)/, "the miss must point-fetch the target");
+  assert.match(hook, /setLookupMissed\(true\)/, "only a failed point-fetch is a real miss");
+  const tab = read("..", "..", "features", "library", "jobs", "JobsTab.tsx");
+  assert.match(tab, /td\("notFound"\)/, "a real miss must be told to the user");
 });

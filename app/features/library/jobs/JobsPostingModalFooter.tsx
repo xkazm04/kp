@@ -29,6 +29,7 @@ export function JobsPostingModalFooter({
     closed,
     closedCount,
     closeError,
+    withdrawFailed,
     publishing,
     published,
     packExists,
@@ -72,9 +73,17 @@ export function JobsPostingModalFooter({
           {closeError}
         </span>
       ) : null}
-      {closed && closedCount !== null && closedCount > 0 ? (
+      {closed && withdrawFailed ? (
+        // The role IS closed; its in-flight candidates are not. Amber, like publish's
+        // sourcingWarning — a partial success the recruiter has to act on.
+        <span aria-live="polite" className="min-w-0 text-sm text-amber-800">
+          {t("withdrawFailed")}
+        </span>
+      ) : closed && closedCount !== null ? (
+        // withdrawn:0 is a real outcome (nobody was in flight) and used to render
+        // NOTHING — indistinguishable from a failed close. Confirm the close itself.
         <span aria-live="polite" className="text-sm text-steel">
-          {t("withdrewCount", { count: closedCount })}
+          {closedCount > 0 ? t("withdrewCount", { count: closedCount }) : t("closedNow")}
         </span>
       ) : null}
       {publishNote ? (

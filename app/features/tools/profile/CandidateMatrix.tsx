@@ -1,9 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { UserPlus, Users } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { archetypeDisplayKey } from "@/app/_lib/archetypes";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
@@ -16,10 +13,14 @@ export function CandidateMatrix({
   onEditProfile,
   reloadKey = 0,
   archivedArchetypeIds,
+  onNewProfile,
 }: {
   archetypes: ArchetypeDef[];
   /** Open the editor for a saved profile cell (same ?edit= flow the roster uses). */
   onEditProfile: (id: string) => void;
+  /** Create CTA for the EMPTY state only — the always-on create button lives next
+   *  to the projection toggle on ProfileTab, reachable from List and Matrix alike. */
+  onNewProfile?: () => void;
   /** Bump to force a refetch (e.g. after a roster delete elsewhere on the tab). */
   reloadKey?: number;
   /** Ids of retired archetypes — mirrors the roster: a retired column with

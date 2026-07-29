@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { X } from "lucide-react";
 import { formatPercent } from "@/app/_lib/format";
 import { Chip } from "./JobsShared";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
@@ -17,11 +18,14 @@ import { JobsTabResults } from "./JobsTabResults";
 
 export function JobsTab() {
   const t = useTranslations("jobs.tab");
+  // Deep-link (?job=) resolution messages — their own namespace: they belong to the
+  // link, not to the table chrome.
+  const td = useTranslations("jobs.deeplink");
   const enumLabel = useEnumLabel();
   const list = useJobsList();
   const { jobs, stats, error, fetching, openOnly, setOpenOnly, anyFilter, clearAll, reload, patchJobStatus } = list;
 
-  const { openJob, setOpenJob, armPendingOpen } = useJobsTabDeepLink(jobs);
+  const { openJob, setOpenJob, armPendingOpen, lookupMissed, dismissLookupMissed } = useJobsTabDeepLink(jobs);
 
   return (
     // Tier 1 (docs/LOADING_CHOREOGRAPHY.md): header, filters and the table's
@@ -39,6 +43,25 @@ export function JobsTab() {
           {t.rich("intro", { strong: (chunks) => <strong>{chunks}</strong> })}
         </p>
       </header>
+
+      {lookupMissed ? (
+        // Deep link to a role that no longer resolves (deleted, or another team's).
+        // Says so instead of opening nothing — amber, the app's "partial/attention" tone.
+        <div
+          role="status"
+          className="mt-4 flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-base text-amber-800"
+        >
+          <span className="flex-1">{td("notFound")}</span>
+          <button
+            type="button"
+            onClick={dismissLookupMissed}
+            aria-label={td("dismiss")}
+            className="focus-ring shrink-0 rounded-md p-0.5 text-amber-800 hover:text-ink"
+          >
+            <X size={14} aria-hidden />
+          </button>
+        </div>
+      ) : null}
 
       {stats ? (
         <div className="mt-4 flex flex-wrap gap-2">
@@ -59,7 +82,14 @@ export function JobsTab() {
           the primary jobs list fetch below. Both render nothing while empty, so
           there is no placeholder to reserve. */}
       <Defer strategy="next-frame">
-        <DraftsPanel />
+        <DraftsPanel
+          onPublished={(jobId) => {
+            // Same pair the modal publish path uses (below): flip the row's badge
+            // instantly, then reconcile stats + the openOnly filter against the server.
+            patchJobStatus(jobId, "published");
+            reload();
+          }}
+        />
       </Defer>
 
       <Defer strategy="idle">

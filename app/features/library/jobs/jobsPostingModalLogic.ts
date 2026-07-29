@@ -45,16 +45,22 @@ export function useJobPostingModalLogic(
   // knows the pipeline was reconciled, not silently abandoned. null until a close runs.
   const [closedCount, setClosedCount] = useState<number | null>(null);
   const [closeError, setCloseError] = useState<string | null>(null);
+  // The close committed but reconciling the pipeline threw (route: withdrawalFailed) —
+  // an amber note, mirroring publish's "published, but sourcing failed" tone. Distinct
+  // from withdrawn:0, which is the honest "nobody was in flight" success.
+  const [withdrawFailed, setWithdrawFailed] = useState(false);
   const closeRole = async () => {
     if (closing || closed) return;
     setClosing(true);
     setCloseError(null);
+    setWithdrawFailed(false);
     try {
       const r = await fetch(`/api/jobs/${encodeURIComponent(job.id)}/close`, { method: "POST" });
-      const p = (await r.json().catch(() => null)) as { withdrawn?: number } | null;
+      const p = (await r.json().catch(() => null)) as { withdrawn?: number; withdrawalFailed?: boolean } | null;
       if (!r.ok) throw new Error();
       setClosed(true);
       setClosedCount(typeof p?.withdrawn === "number" ? p.withdrawn : null);
+      setWithdrawFailed(p?.withdrawalFailed === true);
       // Tell the Jobs table the row is now closed so its badge/openOnly filter update.
       onChanged?.("closed");
     } catch {
@@ -106,6 +112,7 @@ export function useJobPostingModalLogic(
       // the footer/links flip back to live (the cap is re-checked above on reopen).
       setClosed(false);
       setClosedCount(null);
+      setWithdrawFailed(false);
       setPublished(true);
       // Publish AND reopen both land the role at 'published' — refresh the table row.
       onChanged?.("published");
@@ -207,6 +214,7 @@ export function useJobPostingModalLogic(
     closed,
     closedCount,
     closeError,
+    withdrawFailed,
     closeRole,
     publishing,
     published,

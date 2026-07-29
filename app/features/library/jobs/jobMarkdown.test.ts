@@ -19,7 +19,7 @@ import { fileURLToPath } from "node:url";
 // Same minimal module hooks as JobsTypes.test.ts: resolve the tsconfig "@/*" alias
 // and extensionless local imports, and load .json without an import attribute, so we
 // exercise the real modules instead of reimplementing them.
-const ROOT = new URL("../../../", import.meta.url).href; // app/features/sub_jobs/ -> repo root
+const ROOT = new URL("../../../../", import.meta.url).href; // app/features/library/jobs/ -> repo root
 registerHooks({
   resolve(specifier, context, nextResolve) {
     let spec = specifier;

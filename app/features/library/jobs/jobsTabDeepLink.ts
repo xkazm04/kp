@@ -4,7 +4,7 @@
 // bounded to a single refresh) and a Pipeline deep link (?tab=jobs&job=<id>).
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import type { Job } from "./JobsTypes";
 import { resolveIngestLatch, type IngestLatch } from "./jobsIngestLatch";
@@ -36,13 +36,45 @@ export function useJobsTabDeepLink(jobs: Job[] | null) {
   const search = useSearchParams();
   const jobParam = search.get("job");
   const [appliedJobParam, setAppliedJobParam] = useState<string | null>(null);
+  // The list is a ranked LIMIT-300 slice (and the active filters narrow it further),
+  // so a perfectly real role can be absent from `jobs` — the guard above then stamped
+  // the param and did NOTHING, silently. Miss → point-fetch it by id; only a 404 from
+  // that is a genuine "no such role", which gets a dismissible notice.
+  const [lookupId, setLookupId] = useState<string | null>(null);
+  const [lookupMissed, setLookupMissed] = useState(false);
   if (jobs && jobParam !== appliedJobParam) {
     setAppliedJobParam(jobParam);
+    setLookupMissed(false);
     const match = jobParam ? jobs.find((j) => j.id === jobParam) : null;
-    if (match) setOpenJob(match);
+    if (match) {
+      setOpenJob(match);
+      setLookupId(null);
+    } else {
+      setLookupId(jobParam);
+    }
   }
+  useEffect(() => {
+    if (!lookupId) return;
+    let cancelled = false;
+    fetch(`/api/jobs/${encodeURIComponent(lookupId)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((payload: { job?: Job } | null) => {
+        if (cancelled) return;
+        if (payload?.job) setOpenJob(payload.job);
+        else setLookupMissed(true);
+        setLookupId(null);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setLookupMissed(true);
+        setLookupId(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [lookupId]);
 
   const armPendingOpen = (id: string) => setPendingOpen({ id, sawJobs: jobs });
 
-  return { openJob, setOpenJob, armPendingOpen };
+  return { openJob, setOpenJob, armPendingOpen, lookupMissed, dismissLookupMissed: () => setLookupMissed(false) };
 }
