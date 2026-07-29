@@ -1,11 +1,11 @@
 "use client";
-/* eslint-disable i18next/no-literal-string -- prototype-stage copy; threaded into
-   the channels namespace on a later i18n pass. */
 
 // The icon-pill section switcher of ChannelsTab: each channel carries its own
 // accent + live status. Split out of ChannelsTab.tsx to keep the tab file
-// under the 200-line cap.
+// under the 200-line cap. channels-i18n-honesty: the section LABEL is not on
+// ChannelSection any more — it lives in `channels.sections.<id>.label` ×4 locales.
 
+import { useTranslations } from "next-intl";
 import type { BadgeTone } from "@/app/_components/Badge";
 import { CHANNEL_SECTIONS, type ChannelSectionId } from "./channelsSections";
 import { CHANNEL_ACCENT } from "./channelsAccent";
@@ -19,8 +19,9 @@ export function ChannelsTabSwitcher({
   setSection: (id: ChannelSectionId) => void;
   statusFor: (id: ChannelSectionId, channel?: string) => { tone: BadgeTone; label: string } | null | "pending";
 }) {
+  const t = useTranslations("channels");
   return (
-    <div role="tablist" aria-label="Integration" className="flex flex-wrap gap-2">
+    <div role="tablist" aria-label={t("tablist")} className="flex flex-wrap gap-2">
       {CHANNEL_SECTIONS.map((s) => {
         const selected = s.id === section;
         const acc = CHANNEL_ACCENT[s.id];
@@ -42,7 +43,9 @@ export function ChannelsTabSwitcher({
               <s.icon size={16} className={selected ? acc.text : "text-steel"} aria-hidden />
             </span>
             <span className="text-left">
-              <span className={`block text-sm font-semibold ${selected ? "text-ink" : "text-steel"}`}>{s.label}</span>
+              <span className={`block text-sm font-semibold ${selected ? "text-ink" : "text-steel"}`}>
+                {t(`sections.${s.id}.label`)}
+              </span>
               {st === "pending" ? (
                 // Status source hasn't settled yet — hold the line's height, say
                 // nothing (never guess "Off"/"Nothing published" ahead of data).
@@ -53,7 +56,7 @@ export function ChannelsTabSwitcher({
                   {st.label}
                 </span>
               ) : (
-                <span className="block text-xs text-steel">Ledger</span>
+                <span className="block text-xs text-steel">{t("ledger")}</span>
               )}
             </span>
           </button>

@@ -1,6 +1,4 @@
 "use client";
-/* eslint-disable i18next/no-literal-string -- prototype-stage copy; threaded into
-   the channels.comms namespace on consolidation (matches the JD Ledger's own disable). */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertTriangle, Inbox } from "lucide-react";
@@ -8,7 +6,7 @@ import { useTranslations } from "next-intl";
 import { useLiveRefresh } from "@/app/features/shell/live-refresh";
 import { CHIP_TOGGLE } from "@/app/_components/ui/recipes";
 import { ChannelEmpty } from "./ChannelsEmpty";
-import { isActionable, statusTone, PAGE_SIZE, type Message, type RefInfo } from "./channelsCommsHelpers";
+import { commsStatusLabels, isActionable, statusTone, PAGE_SIZE, type Message, type RefInfo } from "./channelsCommsHelpers";
 import { ChannelsCommsMessageModal } from "./ChannelsCommsMessageModal";
 import { ChannelsCommsRows } from "./ChannelsCommsRows";
 
@@ -17,6 +15,10 @@ import { ChannelsCommsRows } from "./ChannelsCommsRows";
 // message, filter by channel / role / name, click a row to read the full body and
 // resend a dead letter. Self-fetching so either prototype variant can just drop it
 // in. (Native <select> filters are round-1 — a themed dropdown is a later upgrade.)
+//
+// channels-i18n-honesty: the column headers, the status vocabulary and the date column
+// all resolve through `channels.comms.*` in four locales. The date column is also the
+// one that used to lie by omission — see formatRecordedAt in channelsCommsHelpers.ts.
 
 export function CommsTable() {
   const t = useTranslations("channels.comms");
@@ -69,8 +71,12 @@ export function CommsTable() {
     [messages]
   );
   // Status options mirror the displayed labels (Sent / Failed / Bounced / …) so the
-  // Status column filter reads the same as the column it filters.
-  const statuses = useMemo(() => [...new Set((messages ?? []).map((m) => statusTone(m).label))].sort(), [messages]);
+  // Status column filter reads the same as the column it filters, in every locale.
+  const statusLabels = useMemo(() => commsStatusLabels(t), [t]);
+  const statuses = useMemo(
+    () => [...new Set((messages ?? []).map((m) => statusTone(m, statusLabels).label))].sort(),
+    [messages, statusLabels]
+  );
 
   if (error) {
     return <p className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{t("loadFailed")}</p>;
@@ -103,7 +109,7 @@ export function CommsTable() {
       (!channelFilter || m.channel === channelFilter) &&
       (!roleFilter || roleOf(m) === roleFilter) &&
       (!kindFilter || m.kind === kindFilter) &&
-      (!statusFilter || statusTone(m).label === statusFilter) &&
+      (!statusFilter || statusTone(m, statusLabels).label === statusFilter) &&
       matchesQuery(m)
   );
   const shown = filtered.slice(0, visibleCount);
@@ -164,6 +170,7 @@ export function CommsTable() {
           statusFilter={statusFilter}
           setStatusFilter={setStatusFilter}
           statuses={statuses}
+          statusLabels={statusLabels}
           onOpen={setOpenId}
         />
       )}
@@ -182,7 +189,14 @@ export function CommsTable() {
       ) : null}
 
       {open ? (
-        <ChannelsCommsMessageModal message={open} name={nameOf(open)} roleLabel={roleOf(open)} onClose={() => setOpenId(null)} onResent={load} />
+        <ChannelsCommsMessageModal
+          message={open}
+          name={nameOf(open)}
+          roleLabel={roleOf(open)}
+          statusLabels={statusLabels}
+          onClose={() => setOpenId(null)}
+          onResent={load}
+        />
       ) : null}
     </div>
   );

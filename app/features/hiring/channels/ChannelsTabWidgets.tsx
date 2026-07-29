@@ -1,15 +1,15 @@
 "use client";
-/* eslint-disable i18next/no-literal-string -- prototype-stage copy; threaded into
-   the channels namespace on a later i18n pass. */
 
 // Small shared widgets for the Channels tab stage: a copy-link button and a
 // stat tile. Split out of ChannelsTab.tsx to keep the tab file under the
 // 200-line cap.
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { Check, Copy } from "lucide-react";
 
 export function CopyLink({ url }: { url: string }) {
+  const t = useTranslations("channels");
   const [copied, setCopied] = useState(false);
   const copy = async () => {
     try {
@@ -26,7 +26,7 @@ export function CopyLink({ url }: { url: string }) {
       onClick={copy}
       className="focus-ring inline-flex items-center gap-1 rounded-md border border-stone-200 bg-white px-2 py-1 text-xs font-semibold text-ink hover:border-coral/40"
     >
-      {copied ? <Check size={12} /> : <Copy size={12} />} {copied ? "Copied" : "Copy link"}
+      {copied ? <Check size={12} /> : <Copy size={12} />} {copied ? t("copied") : t("copyLink")}
     </button>
   );
 }

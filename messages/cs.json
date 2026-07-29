@@ -3531,6 +3531,7 @@
     "statusLive": "Aktivní",
     "statusConfigured": "Nastaveno",
     "statusOff": "Vypnuto",
+    "statusNothingPublished": "Nic nepublikováno",
     "statusWaiting": "Čeká",
     "copyLink": "Kopírovat odkaz",
     "copy": "Kopírovat",
@@ -3569,7 +3570,8 @@
     },
     "careers": {
       "empty": "Zatím žádné publikované pozice — publikujte pozici a její odkaz pro přihlášení se objeví zde.",
-      "applyLink": "odkaz pro přihlášení"
+      "applyLink": "odkaz pro přihlášení",
+      "publishRole": "Publikovat pozici"
     },
     "receivers": {
       "role": "Pozice",

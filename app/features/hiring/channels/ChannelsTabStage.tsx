@@ -1,13 +1,14 @@
 "use client";
-/* eslint-disable i18next/no-literal-string -- prototype-stage copy; threaded into
-   the channels namespace on a later i18n pass. */
 
 // The Channels tab's stage: hero band (sticker glyph, serif headline, status,
 // CTA), a stat cluster of what's flowing, and the section body (comms
 // ledger / email wizard / ad forms / careers links). Split out of
 // ChannelsTab.tsx to keep the tab file under the 200-line cap.
+// channels-i18n-honesty: the section label + blurb come from
+// `channels.sections.<id>.*`, not from the ChannelSection record.
 
 import { AnimatePresence, motion } from "framer-motion";
+import { useTranslations } from "next-intl";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight, ExternalLink, Link2 } from "lucide-react";
 import { buildTabSwitchUrl } from "@/app/features/shell/tabs";
@@ -57,6 +58,7 @@ export function ChannelsTabStage({
   base: string;
   reload: () => void;
 }) {
+  const t = useTranslations("channels");
   const router = useRouter();
   const search = useSearchParams();
 
@@ -78,14 +80,14 @@ export function ChannelsTabStage({
           </span>
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <h3 className="font-serif text-h2 text-ink">{active.label}</h3>
+              <h3 className="font-serif text-h2 text-ink">{t(`sections.${active.id}.label`)}</h3>
               {activeStatus === "pending" ? (
                 <span className="reveal-quiet inline-block h-5 w-20 rounded-full bg-stone-100" aria-hidden />
               ) : activeStatus ? (
                 <Badge {...activeStatus} dot={activeStatus.tone === "positive"} />
               ) : null}
             </div>
-            <p className="mt-1 max-w-xl text-body text-steel">{active.blurb}</p>
+            <p className="mt-1 max-w-xl text-body text-steel">{t(`sections.${active.id}.blurb`)}</p>
           </div>
         </div>
 
@@ -93,16 +95,16 @@ export function ChannelsTabStage({
         <div className="mt-4 flex flex-wrap gap-2">
           {active.id === "careers" ? (
             <>
-              <Stat label="Published roles" value={jobs === null ? "—" : jobs.length} />
-              <Stat label="Waiting" value={accepted ?? "—"} />
+              <Stat label={t("stats.publishedRoles")} value={jobs === null ? "—" : jobs.length} />
+              <Stat label={t("stats.waiting")} value={accepted ?? "—"} />
             </>
           ) : active.id === "comms" ? (
-            <Stat label="Waiting in pipeline" value={accepted ?? "—"} />
+            <Stat label={t("stats.waiting")} value={accepted ?? "—"} />
           ) : (
             <>
-              <Stat label="Receivers" value={activeHooksCount} />
-              <Stat label="Received" value={received} />
-              <Stat label="Leads filed" value={leads} />
+              <Stat label={t("stats.receivers")} value={activeHooksCount} />
+              <Stat label={t("stats.received")} value={received} />
+              <Stat label={t("stats.leads")} value={leads} />
             </>
           )}
         </div>
@@ -111,7 +113,7 @@ export function ChannelsTabStage({
         {active.id === "careers" ? (
           <div className="mt-4 flex flex-wrap items-center gap-3">
             <button type="button" data-sim-click="simulate-inbound" onClick={simulate} disabled={simBusy} className={`${BTN_PRIMARY} h-9 px-4 text-sm`}>
-              <Link2 size={15} aria-hidden /> {simBusy ? "Receiving…" : "Receive a test application"}
+              <Link2 size={15} aria-hidden /> {simBusy ? t("sim.running") : t("sim.run")}
             </button>
             {simNote ? (
               <span role="status" aria-live="polite" className={`text-sm font-medium ${simNote.ok ? "text-moss" : "text-coral"}`}>
@@ -153,7 +155,7 @@ export function ChannelsTabStage({
                     onClick={() => router.push(buildTabSwitchUrl("jobs", search.toString()))}
                     className={`${BTN_SECONDARY} h-9 px-3 text-sm`}
                   >
-                    Publish a role <ArrowRight size={14} aria-hidden />
+                    {t("careers.publishRole")} <ArrowRight size={14} aria-hidden />
                   </button>
                 }
               />
@@ -165,7 +167,7 @@ export function ChannelsTabStage({
                     <li key={j.id} className="flex flex-wrap items-center gap-2 rounded-md border border-stone-100 bg-paper/40 px-3 py-1.5 text-sm">
                       <span className="font-semibold text-ink">{j.title}</span>
                       <a href={url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-coral hover:underline">
-                        <Link2 size={12} aria-hidden /> apply link <ExternalLink size={11} aria-hidden />
+                        <Link2 size={12} aria-hidden /> {t("careers.applyLink")} <ExternalLink size={11} aria-hidden />
                       </a>
                       <span className="ml-auto">
                         <CopyLink url={url} />

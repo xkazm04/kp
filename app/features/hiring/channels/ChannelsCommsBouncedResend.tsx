@@ -1,6 +1,4 @@
 "use client";
-/* eslint-disable i18next/no-literal-string -- prototype-stage copy; threaded into
-   the channels.comms namespace on consolidation (matches the JD Ledger's own disable). */
 
 // A bounced message is a `sent` row the relay later rejected — resending it to
 // the SAME address just bounces again, so this control asks for a corrected
@@ -16,21 +14,40 @@ import { BTN_PRIMARY, FIELD, META_LABEL } from "@/app/_components/ui/recipes";
 export function BouncedResend({ id, defaultRecipient, onResent }: { id: string; defaultRecipient: string | null; onResent: () => void }) {
   const t = useTranslations("channels.comms");
   const [recipient, setRecipient] = useState(defaultRecipient ?? "");
-  const [state, setState] = useState<"idle" | "busy" | "done" | "error">("idle");
+  const [state, setState] = useState<"idle" | "busy" | "done" | "deadLettered" | "error">("idle");
+  const [message, setMessage] = useState<string | null>(null);
   const valid = isDeliverableAddress(recipient.trim());
+  // Same honesty fix as ResendButton: surface the server's own refusal reason, and
+  // claim success only when the corrected address actually took.
   const resend = async () => {
     if (state === "busy" || state === "done" || !valid) return;
     setState("busy");
+    setMessage(null);
     try {
       const r = await fetch(`/api/comms/${encodeURIComponent(id)}/resend`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ recipient: recipient.trim() }),
       });
-      if (!r.ok) throw new Error();
+      const payload = (await r.json().catch(() => null)) as
+        | { error?: string; entry?: { status?: string; failureDetail?: string | null } }
+        | null;
+      if (!r.ok) {
+        setMessage(t("resendRejected", { reason: payload?.error ?? t("resendFailed") }));
+        setState("error");
+        return;
+      }
+      if (payload?.entry?.status === "failed") {
+        const detail = payload.entry.failureDetail;
+        setMessage(detail ? `${t("resendDeadLettered")} ${t("failureDetail", { detail })}` : t("resendDeadLettered"));
+        setState("deadLettered");
+        onResent();
+        return;
+      }
       setState("done");
       onResent();
     } catch {
+      setMessage(t("resendFailed"));
       setState("error");
     }
   };
@@ -51,8 +68,11 @@ export function BouncedResend({ id, defaultRecipient, onResent }: { id: string; 
         />
       </label>
       <div className="flex items-center justify-between gap-2">
-        <span className="text-xs text-steel" role={state === "error" ? "alert" : undefined}>
-          {state === "error" ? t("resendFailed") : recipient.trim() && !valid ? t("bouncedResendInvalid") : ""}
+        <span
+          className={`text-xs ${state === "error" || state === "deadLettered" ? "text-red-800" : "text-steel"}`}
+          role={message ? "alert" : undefined}
+        >
+          {message ?? (recipient.trim() && !valid ? t("bouncedResendInvalid") : "")}
         </span>
         <button
           type="button"

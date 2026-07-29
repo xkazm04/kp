@@ -3531,6 +3531,7 @@
     "statusLive": "Actif",
     "statusConfigured": "Configuré",
     "statusOff": "Inactif",
+    "statusNothingPublished": "Rien de publié",
     "statusWaiting": "En attente",
     "copyLink": "Copier le lien",
     "copy": "Copier",
@@ -3569,7 +3570,8 @@
     },
     "careers": {
       "empty": "Aucun poste publié pour l’instant — publiez un poste et son lien de candidature apparaîtra ici.",
-      "applyLink": "lien de candidature"
+      "applyLink": "lien de candidature",
+      "publishRole": "Publier un poste"
     },
     "receivers": {
       "role": "Poste",

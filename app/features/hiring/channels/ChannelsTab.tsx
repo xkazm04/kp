@@ -1,8 +1,7 @@
 "use client";
-/* eslint-disable i18next/no-literal-string -- prototype-stage copy; threaded into
-   the channels namespace on a later i18n pass. */
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight } from "lucide-react";
 import { buildUrl } from "@/app/features/shell/tabs";
@@ -12,6 +11,7 @@ import { type BadgeTone } from "@/app/_components/Badge";
 import { EYEBROW, TITLE_DISPLAY } from "@/app/_components/ui/recipes";
 import { CHANNEL_SECTIONS, type ChannelSectionId } from "./channelsSections";
 import { useChannelData, simulateInbound } from "./useChannelsData";
+import { isReceiverLive } from "./useChannelsReceivers";
 import { ChannelsTabSwitcher } from "./ChannelsTabSwitcher";
 import { ChannelsTabStage } from "./ChannelsTabStage";
 import { CHANNEL_ACCENT } from "./channelsAccent";
@@ -22,8 +22,13 @@ import { CHANNEL_ACCENT } from "./channelsAccent";
 // cluster of what's flowing, then the manager. Proactive sourcing + Manual add are
 // intentionally out of this page (they live in Match / Profile). Accents are drawn
 // only from Badge-mapped tones (coral/moss/blue/amber) so both themes stay honest.
+//
+// channels-i18n-honesty: every string on this surface now resolves through the
+// `channels.*` catalog in all four locales — the tab was hardcoded English behind an
+// eslint-disable while ~49 already-translated keys sat orphaned.
 
 export function ChannelsTab() {
+  const t = useTranslations("channels");
   const router = useRouter();
   const search = useSearchParams();
   const reduced = useReducedMotion();
@@ -43,25 +48,43 @@ export function ChannelsTab() {
   // careers list).
   const hooksFor = (ch?: string) => (ch ? (webhooks ?? []).filter((w) => w.channel === ch) : []);
 
+  // ONE "Listening" definition on this page (channels-i18n-honesty). The section badge
+  // used to say Listening the moment a receiver ROW existed, while the row's own badge
+  // said Listening only once it had taken traffic — two contradictory claims about the
+  // same thing, side by side. The row semantics win: Listening means liveness is
+  // PROVEN (isReceiverLive, an authenticated POST has arrived — see db/channels.ts);
+  // a receiver that exists but has never been reached reads as the neutral "Configured".
   const statusFor = (id: ChannelSectionId, channel?: string): { tone: BadgeTone; label: string } | null | "pending" => {
     if (id === "comms") return null;
     if (id === "careers") {
       if (jobs === null) return "pending";
       // A careers page with nothing published is not live — there is no public link
       // to hand anyone. Say so rather than showing a green "Live" over an empty page.
-      return jobs.length > 0 ? { tone: "positive", label: "Live" } : { tone: "neutral", label: "Nothing published" };
+      return jobs.length > 0
+        ? { tone: "positive", label: t("statusLive") }
+        : { tone: "neutral", label: t("statusNothingPublished") };
     }
     if (webhooks === null) return "pending";
-    const n = hooksFor(channel).length;
-    return n > 0 ? { tone: "positive", label: "Listening" } : { tone: "neutral", label: "Off" };
+    const hooks = hooksFor(channel);
+    if (hooks.length === 0) return { tone: "neutral", label: t("statusOff") };
+    return hooks.some(isReceiverLive)
+      ? { tone: "positive", label: t("statusListening") }
+      : { tone: "info", label: t("statusConfigured") };
   };
 
   const simulate = async () => {
     setSimBusy(true);
     setSimNote(null);
-    const note = await simulateInbound(jobs?.[0]?.id);
-    if (note.ok) reload();
-    setSimNote(note);
+    const result = await simulateInbound(jobs?.[0]?.id);
+    if (result.ok) {
+      reload();
+      setSimNote({ ok: true, text: t("sim.filed", { label: result.label, score: result.score, role: result.jobTitle }) });
+    } else {
+      setSimNote({
+        ok: false,
+        text: result.reason === "noJob" ? t("sim.noJob") : result.message ?? t("sim.failed"),
+      });
+    }
     setSimBusy(false);
   };
 
@@ -80,8 +103,8 @@ export function ChannelsTab() {
     <section data-sim="channels" className="stagger-children space-y-5" aria-busy={firstLoad}>
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className={EYEBROW}>Inbound studio</p>
-          <h2 className={`mt-1 ${TITLE_DISPLAY}`}>Where candidates come in</h2>
+          <p className={EYEBROW}>{t("eyebrow")}</p>
+          <h2 className={`mt-1 ${TITLE_DISPLAY}`}>{t("title")}</h2>
         </div>
         {/* data-sim hook: the guided simulation spotlights this inbound indicator. */}
         <button
@@ -90,7 +113,7 @@ export function ChannelsTab() {
           onClick={() => router.push(buildUrl({ tab: "pipeline" }, search.toString()))}
           className="focus-ring inline-flex items-center gap-1.5 text-sm font-semibold text-coral hover:underline"
         >
-          {accepted ?? "—"} waiting in the pipeline <ArrowRight size={14} aria-hidden />
+          {t("waiting", { count: accepted ?? "—" })} <ArrowRight size={14} aria-hidden />
         </button>
       </header>
 

@@ -47,6 +47,7 @@ const PLAIN: [string, Record<string, unknown>][] = [
   ["statusListening", {}],
   ["statusConfigured", {}],
   ["statusOff", {}],
+  ["statusNothingPublished", {}],
   ["statusWaiting", {}],
   ["copy", {}],
   ["copied", {}],
@@ -63,6 +64,7 @@ const PLAIN: [string, Record<string, unknown>][] = [
   ["sim.failed", {}],
   ["careers.empty", {}],
   ["careers.applyLink", {}],
+  ["careers.publishRole", {}],
   ["receivers.role", {}],
   ["receivers.lang", {}],
   ["receivers.status", {}],
@@ -134,6 +136,11 @@ const PLAIN: [string, Record<string, unknown>][] = [
   ["comms.statusRecovered", {}],
   ["comms.statusBounced", {}],
   ["comms.orphanBadge", {}],
+  ["comms.orphanHint", {}],
+  ["comms.failureDetail", { detail: "550 5.1.1 unknown recipient" }],
+  ["comms.failureDetailUnknown", {}],
+  ["comms.resendRejected", { reason: "No deliverable address." }],
+  ["comms.resendDeadLettered", {}],
 ];
 
 const RICH: [string, Record<string, unknown>][] = [
@@ -201,15 +208,26 @@ for (const locale of LOCALES) {
 }
 
 test("no prototype-stage literal-string disable survives on the Channels surface", () => {
+  // The Jul-28 restructure re-prefixed these files by area and SPLIT the tab and the
+  // Comms ledger into children — the guarantee is per SURFACE, so every child that
+  // now owns a piece of that markup is held to it too.
   const files = [
     "ChannelsTab.tsx",
-    "EmailIntakeWizard.tsx",
-    "AdFormsPane.tsx",
-    "CvSimCard.tsx",
-    "channel-receivers.tsx",
-    "filters.tsx",
-    "CommsTable.tsx",
-    "SetupGuide.tsx",
+    "ChannelsTabStage.tsx",
+    "ChannelsTabSwitcher.tsx",
+    "ChannelsTabWidgets.tsx",
+    "ChannelsEmailIntakeWizard.tsx",
+    "ChannelsAdFormsPane.tsx",
+    "ChannelsCvSimCard.tsx",
+    "ChannelsReceiverTable.tsx",
+    "ChannelsAddReceiverModal.tsx",
+    "ChannelsFilters.tsx",
+    "ChannelsFilterMenu.tsx",
+    "ChannelsCommsTable.tsx",
+    "ChannelsCommsRows.tsx",
+    "ChannelsCommsMessageModal.tsx",
+    "ChannelsCommsBouncedResend.tsx",
+    "ChannelsSetupGuide.tsx",
   ];
   for (const f of files) {
     const src = readFileSync(path.join(dir, f), "utf8");
