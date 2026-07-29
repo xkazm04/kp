@@ -1,8 +1,6 @@
 import { Crown } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { Crown } from "lucide-react";
 import { formatSalaryRange } from "@/app/_lib/format";
-import { computeSalaryScale } from "@/app/features/hiring/decisions/groupEval/groupEvalSalaryScale";
 import {
   ConfidenceCell,
   CoverageCell,

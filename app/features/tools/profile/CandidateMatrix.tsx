@@ -14,7 +14,6 @@ export function CandidateMatrix({
   onNewProfile,
   reloadKey = 0,
   archivedArchetypeIds,
-  onNewProfile,
 }: {
   archetypes: ArchetypeDef[];
   /** Open the editor for a saved profile cell (same ?edit= flow the roster uses). */
