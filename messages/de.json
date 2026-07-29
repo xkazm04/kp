@@ -3729,6 +3729,50 @@
       "searchColumn": "{column} durchsuchen…",
       "allOf": "Alle — {column}",
       "select": "Auswählen…"
+    },
+    "empty": {
+      "notConnected": "Nicht verbunden",
+      "connectedIdle": "Verbunden — noch nichts da",
+      "comms": {
+        "promise": "Jede Nachricht an Kandidaten in einem prüfbaren Protokoll",
+        "proof": "Sobald das Relay eingerichtet ist, wird jede Einladung, Absage und Erinnerung hier mit dem tatsächlich erzielten Zustellergebnis protokolliert.",
+        "actionHint": "Relay-Endpunkt unten eintragen",
+        "step1": "Fügen Sie die URL Ihres Zustell-Endpunkts unten in die Relay-Karte ein.",
+        "step2": "Hinterlegen Sie einen Signaturschlüssel, damit ein Empfänger nachweisen kann, dass der Aufruf von kp stammt.",
+        "step3": "Senden Sie den Test-Ping und prüfen Sie, dass er grün zurückkommt.",
+        "effort": "Etwa 2 Minuten — ein Endpunkt genügt für den gesamten Arbeitsbereich",
+        "waiting": "Das Relay ist eingerichtet und es wurde noch nichts gesendet. Nachrichten erscheinen hier, sobald Sie mit einem Kandidaten etwas tun."
+      },
+      "careers": {
+        "promise": "Ein öffentlicher Bewerbungslink, überall einbettbar",
+        "proof": "Veröffentlichen Sie eine Stelle, dann erscheint ihr Bewerbungslink hier — bereit für einen Post, eine E-Mail-Signatur oder Ihre eigene Website.",
+        "actionHint": "Stelle veröffentlichen, um ihren Link zu erzeugen",
+        "step1": "Entwerfen oder importieren Sie eine Stellenbeschreibung in der Bibliothek.",
+        "step2": "Veröffentlichen Sie die Stelle — erst die Veröffentlichung erzeugt ihren öffentlichen Bewerbungslink.",
+        "step3": "Kopieren Sie diesen Link in Ihren Post, auf Ihre Website oder in Ihre E-Mail-Signatur.",
+        "effort": "Etwa eine Minute, sobald eine Stelle existiert",
+        "waiting": "Die Links sind aktiv und es hat sich noch niemand beworben. Die erste Bewerbung landet direkt in der Pipeline."
+      },
+      "email": {
+        "promise": "Bewerbungen direkt aus Ihrem Postfach weitergeleitet",
+        "proof": "Jede E-Mail, die Ihrer Regel entspricht, wird zu einer Kandidatenkarte samt angehängtem CV — niemand tippt eine Bewerbung erneut ab.",
+        "actionHint": "Stellen-Postfach anlegen, um seine Adresse zu erhalten",
+        "step1": "Legen Sie ein Stellen-Postfach an — kp erzeugt eine Verarbeitungsadresse, die an diese Stelle gebunden ist.",
+        "step2": "Leiten Sie in Gmail oder Outlook passende Mails an diese Adresse weiter.",
+        "step3": "Bestätigen Sie die Regel; die Einrichtungsanleitung zeigt die genauen Schritte je Mail-Client.",
+        "effort": "Etwa 3 Minuten — eine Regel pro Stelle",
+        "waiting": "Die Regel steht und es wurde noch nichts weitergeleitet. Die erste Bewerbung erscheint in der Pipeline."
+      },
+      "ads": {
+        "promise": "Lead-Formulare legen ihre Leads selbst ab",
+        "proof": "Ein LinkedIn- oder Meta-Lead wird Sekunden nach dem Absenden des Anzeigenformulars zu einer Kandidatenkarte.",
+        "actionHint": "Empfänger anlegen, um seine Webhook-URL zu erhalten",
+        "step1": "Legen Sie einen Empfänger für die Stelle an, für die Sie werben.",
+        "step2": "Lösen Sie in Zapier oder Make einen Flow bei einem neuen Lead aus dem Anzeigenformular aus.",
+        "step3": "Senden Sie diesen Lead per POST an die Empfänger-URL, die kp Ihnen ausgibt.",
+        "effort": "Etwa 5 Minuten — ein Empfänger pro beworbener Stelle",
+        "waiting": "Der Empfänger ist bereit und es sind noch keine Leads eingegangen. Der erste legt sich selbst in der Pipeline ab."
+      }
     }
   },
   "interviewSim": {

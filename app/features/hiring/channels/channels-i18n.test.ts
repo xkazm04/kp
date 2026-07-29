@@ -17,6 +17,7 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { createTranslator } from "next-intl";
 import { LOCALES, type Locale } from "@/i18n/locales";
+import { CHANNEL_EMPTY_SPECS } from "./channelsEmptySpecs";
 
 const dir = path.dirname(fileURLToPath(import.meta.url));
 
@@ -121,6 +122,9 @@ const PLAIN: [string, Record<string, unknown>][] = [
   ["filters.searchColumn", { column: "Role" }],
   ["filters.allOf", { column: "Role" }],
   ["filters.select", {}],
+  // Intake-brief empty states (channels.empty.*, keys carried by channelsEmptySpecs).
+  ["empty.notConnected", {}],
+  ["empty.connectedIdle", {}],
   // Comms Center chrome (rendered from the channels.comms sub-namespace).
   ["comms.colName", {}],
   ["comms.colRole", {}],
@@ -176,6 +180,18 @@ const RICH: [string, Record<string, unknown>][] = [
 
 const SECTION_IDS = ["comms", "careers", "email", "ads"] as const;
 
+// Pinned against the real spec table rather than a copy of it: if a spec ever names
+// a key the catalogs don't carry, this fails instead of shipping a raw key to a
+// recruiter. (channelsEmptySpecs is pure + locale-free, so importing it is free.)
+const EMPTY_KEYS = Object.values(CHANNEL_EMPTY_SPECS).flatMap((s) => [
+  s.promise,
+  s.proof,
+  s.actionHint,
+  ...s.steps,
+  s.effort,
+  s.waiting,
+]);
+
 for (const locale of LOCALES) {
   test(`channels catalog (${locale}): every plain message renders with the values the UI passes`, () => {
     const { plain } = translator(locale);
@@ -205,6 +221,15 @@ for (const locale of LOCALES) {
       }
     }
   });
+
+  test(`channels catalog (${locale}): every empty-state spec key resolves to real copy`, () => {
+    const { plain } = translator(locale);
+    for (const key of EMPTY_KEYS) {
+      const out = String(plain(`empty.${key}`));
+      assert.ok(out.trim().length > 0, `${locale} channels.empty.${key} rendered empty`);
+      assert.ok(!out.includes("channels."), `${locale} channels.empty.${key} is missing (next-intl echoed the key): ${out}`);
+    }
+  });
 }
 
 test("no prototype-stage literal-string disable survives on the Channels surface", () => {
@@ -228,6 +253,7 @@ test("no prototype-stage literal-string disable survives on the Channels surface
     "ChannelsCommsMessageModal.tsx",
     "ChannelsCommsBouncedResend.tsx",
     "ChannelsSetupGuide.tsx",
+    "ChannelsEmpty.tsx",
   ];
   for (const f of files) {
     const src = readFileSync(path.join(dir, f), "utf8");
