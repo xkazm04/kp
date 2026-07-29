@@ -19,10 +19,10 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
-const REPO_ROOT = path.resolve(DIR, "..", "..", "..");
+const REPO_ROOT = path.resolve(DIR, "..", "..", "..", "..");
 const read = (p: string) => readFileSync(p, "utf8");
 
-const view = read(path.join(DIR, "CandidateResultView.tsx"));
+const view = read(path.join(DIR, "PipelineCandidateResultView.tsx"));
 /** Comment-free source: the fix's own post-mortem comment quotes the old `?? "CZK"`
  *  default deliberately, and must not read as the defect still being present. */
 const viewCode = view.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
