@@ -14,12 +14,15 @@ import { CandidateMatrixCell } from "./CandidateMatrixCell";
 export function CandidateMatrix({
   archetypes,
   onEditProfile,
+  onNewProfile,
   reloadKey = 0,
   archivedArchetypeIds,
 }: {
   archetypes: ArchetypeDef[];
   /** Open the editor for a saved profile cell (same ?edit= flow the roster uses). */
   onEditProfile: (id: string) => void;
+  /** Open the editor in create mode — the empty state's primary action. */
+  onNewProfile: () => void;
   /** Bump to force a refetch (e.g. after a roster delete elsewhere on the tab). */
   reloadKey?: number;
   /** Ids of retired archetypes — mirrors the roster: a retired column with

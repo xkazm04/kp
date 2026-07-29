@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { AlarmClock, Archive, Eye, RefreshCw } from "lucide-react";
 import { Modal } from "@/app/_components/Modal";
 import { DevLifecycleReviewPanel } from "./DevLifecycleReviewPanel";
@@ -20,6 +21,13 @@ export function LifecycleRow({
   onApprove: () => void;
   onChanged?: () => void;
 }) {
+  const t = useTranslations("devcase");
+  // Stage ids are DB values; STAGE_LABEL stays the last-resort fallback for a stage the
+  // catalog doesn't know yet (the engine can introduce one before its strings land).
+  const stageLabel = (stage: string) => {
+    const key = `stage.${stage}` as Parameters<typeof t>[0];
+    return t.has(key) ? t(key) : STAGE_LABEL[stage] ?? stage;
+  };
   const mapped = lc.stage === "awaiting_approval" ? "designed" : lc.stage === "published" ? "collecting" : lc.stage;
   const idx = LIFECYCLE_STEPS.indexOf(mapped);
   const awaiting = lc.stage === "awaiting_approval";
@@ -56,10 +64,10 @@ export function LifecycleRow({
         body: JSON.stringify({ caseId: lc.caseId }),
       });
       const payload = (await r.json().catch(() => null)) as { error?: string } | null;
-      if (!r.ok) throw new Error(payload?.error ?? "Re-source failed.");
+      if (!r.ok) throw new Error(payload?.error ?? t("lifecycle.reSourceFailed"));
       onChanged?.();
     } catch (caught) {
-      setSourceError(caught instanceof Error ? caught.message : "Re-source failed.");
+      setSourceError(caught instanceof Error ? caught.message : t("lifecycle.reSourceFailed"));
     } finally {
       setSourcing(false);
     }
@@ -71,36 +79,41 @@ export function LifecycleRow({
     try {
       const r = await fetch(`/api/devcase/lifecycle/${encodeURIComponent(lc.id)}/close`, { method: "POST" });
       const payload = (await r.json().catch(() => null)) as { error?: string } | null;
-      if (!r.ok) throw new Error(payload?.error ?? "Close failed.");
+      if (!r.ok) throw new Error(payload?.error ?? t("lifecycle.closeFailed"));
       onChanged?.();
     } catch (caught) {
-      setCloseError(caught instanceof Error ? caught.message : "Close failed.");
+      setCloseError(caught instanceof Error ? caught.message : t("lifecycle.closeFailed"));
     } finally {
       setClosing(false);
     }
   };
   // Describe the dot-rail for screen readers, since the steps are otherwise
   // conveyed purely by color/position.
-  const railLabel = `Lifecycle progress — ${LIFECYCLE_STEPS.map(
-    (s, i) => `${s}: ${i < idx ? "done" : i === idx ? "current" : "upcoming"}`
-  ).join(", ")}`;
+  const railLabel = t("lifecycle.railLabel", {
+    steps: LIFECYCLE_STEPS.map((s, i) =>
+      t("lifecycle.railStep", {
+        step: stageLabel(s),
+        state: t(`stepState.${i < idx ? "done" : i === idx ? "current" : "upcoming"}` as Parameters<typeof t>[0]),
+      })
+    ).join(", "),
+  });
   return (
     <div className="animate-fade-in rounded-lg border border-stone-200 bg-white p-3 shadow-panel transition-shadow motion-reduce:animate-none hover:shadow-lg">
       <div className="flex items-center gap-2">
-        <span className="min-w-0 flex-1 truncate text-base font-semibold text-ink">{lc.title || "Role"}</span>
+        <span className="min-w-0 flex-1 truncate text-base font-semibold text-ink">{lc.title || t("lifecycle.untitledRole")}</span>
         <span
           className={`rounded-full px-2 py-0.5 text-micro font-semibold uppercase ${
             awaiting ? "bg-amber-100 text-amber-700" : done ? "bg-moss/15 text-moss" : "bg-paper text-steel"
           }`}
         >
-          {STAGE_LABEL[lc.stage] ?? lc.stage}
+          {stageLabel(lc.stage)}
         </span>
         {stall.stalled ? (
           <span
-            title={`Open and empty for ${stall.ageDays} days — re-source the candidate pool or close the case.`}
+            title={t("lifecycle.stalledTitle", { days: stall.ageDays ?? 0 })}
             className="inline-flex shrink-0 items-center gap-1 rounded-full bg-coral/15 px-2 py-0.5 text-micro font-semibold uppercase text-coral"
           >
-            <AlarmClock size={11} aria-hidden /> stalled {stall.ageDays}d
+            <AlarmClock size={11} aria-hidden /> {t("lifecycle.stalledBadge", { days: stall.ageDays ?? 0 })}
           </span>
         ) : null}
         {stall.stalled && lc.caseId ? (
@@ -108,10 +121,10 @@ export function LifecycleRow({
             type="button"
             onClick={reSource}
             disabled={sourcing}
-            title="Rank the existing candidate DB against this role and seed the pipeline again"
+            title={t("lifecycle.reSourceTitle")}
             className="focus-ring inline-flex h-7 shrink-0 items-center gap-1 rounded-md border border-coral/40 bg-white px-2.5 text-micro font-semibold text-coral hover:bg-coral/5 disabled:opacity-50"
           >
-            <RefreshCw size={12} /> {sourcing ? "Re-sourcing…" : "Re-source"}
+            <RefreshCw size={12} /> {sourcing ? t("lifecycle.reSourcing") : t("lifecycle.reSource")}
           </button>
         ) : null}
         {awaiting ? (
@@ -124,7 +137,7 @@ export function LifecycleRow({
             aria-expanded={reviewOpen}
             className="focus-ring inline-flex h-7 shrink-0 items-center gap-1 rounded-md bg-moss px-2.5 text-micro font-semibold text-white hover:opacity-90"
           >
-            <Eye size={12} /> {reviewOpen ? "Hide review" : "Review & approve"}
+            <Eye size={12} /> {reviewOpen ? t("lifecycle.hideReview") : t("lifecycle.review")}
           </button>
         ) : null}
         {closable ? (
@@ -132,10 +145,10 @@ export function LifecycleRow({
             type="button"
             onClick={() => setConfirmingClose(true)}
             disabled={closing}
-            title="Wrap up non-promoted submitters and stop the apply link"
+            title={t("lifecycle.closeTitle")}
             className="focus-ring inline-flex h-7 shrink-0 items-center gap-1 rounded-md border border-stone-200 bg-white px-2.5 text-micro font-semibold text-steel hover:border-coral/40 hover:text-ink disabled:opacity-50"
           >
-            <Archive size={12} /> {closing ? "Closing…" : "Close case"}
+            <Archive size={12} /> {closing ? t("lifecycle.closing") : t("lifecycle.close")}
           </button>
         ) : null}
       </div>
@@ -156,7 +169,7 @@ export function LifecycleRow({
       <div className="mt-2 flex items-center" role="img" aria-label={railLabel}>
         {LIFECYCLE_STEPS.map((s, i) => (
           <div key={s} aria-hidden className={`flex items-center ${i < LIFECYCLE_STEPS.length - 1 ? "flex-1" : ""}`}>
-            <span className={`h-2 w-2 shrink-0 rounded-full ${i <= idx ? "bg-coral" : "bg-stone-200"}`} title={s} />
+            <span className={`h-2 w-2 shrink-0 rounded-full ${i <= idx ? "bg-coral" : "bg-stone-200"}`} title={stageLabel(s)} />
             {i < LIFECYCLE_STEPS.length - 1 ? <span className={`h-0.5 flex-1 ${i < idx ? "bg-coral/40" : "bg-stone-200"}`} /> : null}
           </div>
         ))}
@@ -164,7 +177,7 @@ export function LifecycleRow({
       <p className="mt-1.5 text-micro text-steel">{lc.detail}</p>
       {confirmingClose ? (
         <Modal
-          title="Close case"
+          title={t("lifecycle.closeModalTitle")}
           onClose={() => setConfirmingClose(false)}
           size="md"
           footer={
@@ -174,7 +187,7 @@ export function LifecycleRow({
                 onClick={() => setConfirmingClose(false)}
                 className="focus-ring inline-flex h-9 items-center rounded-md border border-stone-200 bg-white px-3 text-sm font-semibold text-steel hover:text-ink"
               >
-                Cancel
+                {t("lifecycle.cancel")}
               </button>
               <button
                 type="button"
@@ -184,14 +197,13 @@ export function LifecycleRow({
                 }}
                 className="focus-ring inline-flex h-9 items-center rounded-md bg-coral px-3 text-sm font-semibold text-white hover:opacity-90"
               >
-                Close case
+                {t("lifecycle.close")}
               </button>
             </>
           }
         >
           <p className="text-base text-steel">
-            Close this case? Non-promoted submitters get a wrap-up note and the apply link stops accepting submissions. The wrap-up
-            comms can&apos;t be unsent.
+            {t("lifecycle.closeConfirm")} {t("lifecycle.closeIrreversible")}
           </p>
         </Modal>
       ) : null}

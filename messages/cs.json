@@ -5111,7 +5111,11 @@
       "closing": "Uzavírání…",
       "close": "Uzavřít případ",
       "closeConfirm": "Uzavřít tento případ? Nepostupující uchazeči dostanou závěrečnou zprávu a odkaz na přihlášení přestane přijímat řešení.",
-      "closeFailed": "Uzavření se nezdařilo."
+      "closeFailed": "Uzavření se nezdařilo.",
+      "cancel": "Zrušit",
+      "closeModalTitle": "Uzavřít případ",
+      "closeIrreversible": "Závěrečné zprávy už nelze vzít zpět.",
+      "reSourceFailed": "Opětovné vyhledání se nezdařilo."
     },
     "stage": {
       "intake": "příjem",

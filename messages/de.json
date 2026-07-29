@@ -5111,7 +5111,11 @@
       "closing": "Wird geschlossen…",
       "close": "Fall schließen",
       "closeConfirm": "Diesen Fall schließen? Nicht weitergeleitete Einreichende erhalten eine abschließende Nachricht und der Bewerbungslink nimmt keine Einreichungen mehr an.",
-      "closeFailed": "Schließen fehlgeschlagen."
+      "closeFailed": "Schließen fehlgeschlagen.",
+      "cancel": "Abbrechen",
+      "closeModalTitle": "Fall schließen",
+      "closeIrreversible": "Die Abschlussnachrichten lassen sich nicht zurücknehmen.",
+      "reSourceFailed": "Erneute Suche fehlgeschlagen."
     },
     "stage": {
       "intake": "Aufnahme",

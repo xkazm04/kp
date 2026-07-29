@@ -5111,7 +5111,11 @@
       "closing": "Closing…",
       "close": "Close case",
       "closeConfirm": "Close this case? Non-promoted submitters get a wrap-up note and the apply link stops accepting submissions.",
-      "closeFailed": "Close failed."
+      "closeFailed": "Close failed.",
+      "cancel": "Cancel",
+      "closeModalTitle": "Close case",
+      "closeIrreversible": "The wrap-up comms can't be unsent.",
+      "reSourceFailed": "Re-source failed."
     },
     "stage": {
       "intake": "intake",
