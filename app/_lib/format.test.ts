@@ -84,6 +84,58 @@ test("formatRelativeTime returns empty string for blank or unparseable input", (
   assert.equal(formatRelativeTime("not a date"), "");
 });
 
+// --- locale awareness: the age reads in the surface's own language ----------
+//
+// Every table these strings land in is already localized, so an English "23d
+// ago" under a "Gesendet"/"Odesláno" header was the last untranslated word on
+// the surface. Rendering goes through Intl.RelativeTimeFormat (CLDR) rather
+// than a hand-written table precisely because the grammar — not just the
+// vocabulary — differs per locale: the past marker is a suffix in English
+// ("… ago"), a prefix in Czech ("před …"), an infix in French ("il y a …"),
+// and Czech inflects the unit itself by plural category.
+
+test("formatRelativeTime renders Czech, German, and French, not English", () => {
+  assert.equal(formatRelativeTime(ago(30_000), "cs"), "před 30 s");
+  assert.equal(formatRelativeTime(ago(3 * 3_600_000), "cs"), "před 3 h");
+  assert.equal(formatRelativeTime(ago(30_000), "de"), "vor 30 s");
+  assert.equal(formatRelativeTime(ago(2 * 86_400_000), "de"), "vor 2 Tagen");
+  // French: CLDR's narrow French form is a bare signed number ("-3 j"), so the
+  // formatter drops to `short` for fr — prose, at the same width. The space
+  // before the unit is a non-breaking one (U+00A0), as CLDR emits it.
+  assert.equal(formatRelativeTime(ago(3 * 3_600_000), "fr"), "il y a 3 h");
+  assert.equal(formatRelativeTime(ago(2 * 86_400_000), "fr"), "il y a 2 j");
+});
+
+test("formatRelativeTime applies Czech plural morphology (one vs few vs other)", () => {
+  // The whole reason Intl owns this: Czech declines the unit noun by plural
+  // category, so a hand-rolled "před {n} dny" template would render the
+  // one-case as the ungrammatical "před 1 dny". 2–4 (few) and 5+ (other) share
+  // the instrumental "dny" here — which is exactly the kind of per-locale
+  // detail a hand-written table gets wrong in the other direction.
+  assert.equal(formatRelativeTime(ago(86_400_000), "cs"), "před 1 dnem");
+  assert.equal(formatRelativeTime(ago(3 * 86_400_000), "cs"), "před 3 dny");
+  assert.equal(formatRelativeTime(ago(5 * 86_400_000), "cs"), "před 5 dny");
+  assert.equal(formatRelativeTime(ago(23 * 86_400_000), "cs"), "před 23 dny");
+  // German draws its own line at the same boundary: singular "Tag", plural "Tagen".
+  assert.equal(formatRelativeTime(ago(86_400_000), "de"), "vor 1 Tag");
+  assert.equal(formatRelativeTime(ago(3 * 86_400_000), "de"), "vor 3 Tagen");
+});
+
+test("formatRelativeTime falls back to English for an unsupported or regional tag", () => {
+  // A regional tag narrows to its primary subtag; anything outside the app's
+  // four locales renders English rather than throwing on an unknown tag.
+  assert.equal(formatRelativeTime(ago(2 * 86_400_000), "cs-CZ"), "před 2 dny");
+  assert.equal(formatRelativeTime(ago(2 * 86_400_000), "xx"), "2d ago");
+  assert.equal(formatRelativeTime(ago(2 * 86_400_000)), "2d ago");
+});
+
+test("formatRelativeTime keeps the future clamp and the empty contract per locale", () => {
+  const future = new Date(Date.now() + 60 * 60_000).toISOString();
+  assert.equal(formatRelativeTime(future, "cs"), "před 0 s");
+  assert.equal(formatRelativeTime("", "cs"), "");
+  assert.equal(formatRelativeTime("not a date", "de"), "");
+});
+
 // --- the contract assertion: warns on violations, stays quiet otherwise -----
 
 function captureContractWarnings(fn: () => void): string[] {

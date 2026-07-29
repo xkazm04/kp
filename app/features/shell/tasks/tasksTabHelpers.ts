@@ -32,8 +32,9 @@ export const ACTIVE = (t: Task) => t.status === "running" || t.status === "queue
 
 // Tasks show "—" for a never-run/invalid timestamp; otherwise the shared
 // relative-time renderer (formatRelativeTime, which returns "" on invalid).
-export function relTime(iso: string | null): string {
-  return (iso && formatRelativeTime(iso)) || "—";
+// `locale` is the active next-intl locale, threaded from the rendering row.
+export function relTime(iso: string | null, locale: string): string {
+  return (iso && formatRelativeTime(iso, locale)) || "—";
 }
 
 // Wall-clock a task took (or has been running). Falls back gracefully when a

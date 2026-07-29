@@ -2,6 +2,7 @@
 // before it reaches the UI, so figures share one typographic rhythm (grouping,
 // symbols, casing) and a locale/currency change is a one-line edit. Components
 // should reach for these helpers instead of formatting values ad-hoc.
+import { DEFAULT_LOCALE, isLocale, type Locale } from "@/i18n/locales";
 
 const LOCALE = "cs-CZ";
 
@@ -296,13 +297,66 @@ function warnTimestampContract(message: string): void {
 const FUTURE_SKEW_TOLERANCE_S = 120;
 
 /**
- * A coarse "time ago" label from an ISO-8601 **UTC** timestamp — e.g. "5s ago",
- * "12m ago", "3h ago", "2d ago". The single relative-time renderer for the
- * control page, audit log, outbox, tasks, history, etc. (previously a
- * `rel()`/`relTime()` copy hand-rolled in each). Buckets: seconds < 60,
- * minutes < 60, hours < 24, then days. A blank/unparseable input returns "" —
- * callers wanting a placeholder use `formatRelativeTime(x) || "—"`, and callers
- * wanting an absolute date past some age compose this with their own threshold.
+ * Relative-time rendering is delegated wholesale to `Intl.RelativeTimeFormat`
+ * rather than to a hand-written `${n}${unit} ago` template or a pile of ICU
+ * message keys. The unit words are not the hard part — the PLURAL AGREEMENT is:
+ * Czech alone splits one/few/many/other ("před 1 dnem" vs "před 3 dny"), and the
+ * past marker is a prefix there ("před …"), an infix in French ("il y a …"), and
+ * a suffix in English ("… ago"). CLDR already encodes all of that per locale, so
+ * `Intl` gets it right for free in every locale the app ships (and in any locale
+ * added later) with no new message keys to translate or keep in sync.
+ *
+ * The one per-locale choice we make is the STYLE. `narrow` is the compact form
+ * these dense tables/chips were built for and reproduces the app's prior English
+ * output verbatim ("23d ago"). French is the exception: CLDR's French narrow
+ * form is a bare signed number ("-23 j"), meant for numeric timelines, not for
+ * prose — so French uses `short` ("il y a 23 j"), which reads correctly at the
+ * same width.
+ */
+const RELATIVE_TIME_STYLE: Partial<Record<Locale, Intl.RelativeTimeFormatStyle>> = {
+  fr: "short",
+};
+
+// Intl formatters are expensive to construct and these strings re-render every
+// few seconds in the control room, so keep one per locale.
+const relativeTimeFormatters = new Map<Locale, Intl.RelativeTimeFormat>();
+
+function relativeTimeFormatter(locale: Locale): Intl.RelativeTimeFormat {
+  const cached = relativeTimeFormatters.get(locale);
+  if (cached) return cached;
+  const created = new Intl.RelativeTimeFormat(locale, {
+    numeric: "always",
+    style: RELATIVE_TIME_STYLE[locale] ?? "narrow",
+  });
+  relativeTimeFormatters.set(locale, created);
+  return created;
+}
+
+/**
+ * Narrow an arbitrary locale tag ("cs-CZ", "FR", undefined) to one of the app's
+ * supported locales, falling back to English. Matches on the primary subtag like
+ * {@link resolveAcceptLanguage}, so a regional tag from the browser still lands
+ * on the right language instead of silently rendering English.
+ */
+function relativeTimeLocale(locale: string | undefined): Locale {
+  const primary = locale?.split("-")[0]?.toLowerCase();
+  return isLocale(primary) ? primary : DEFAULT_LOCALE;
+}
+
+/**
+ * A coarse "time ago" label from an ISO-8601 **UTC** timestamp, rendered in the
+ * ACTIVE LOCALE — "5s ago" / "před 5 s" / "vor 5 s" / "il y a 5 s". The single
+ * relative-time renderer for the control page, audit log, outbox, tasks,
+ * history, etc. (previously a `rel()`/`relTime()` copy hand-rolled in each).
+ * Buckets: seconds < 60, minutes < 60, hours < 24, then days. A blank/
+ * unparseable input returns "" — callers wanting a placeholder use
+ * `formatRelativeTime(x, locale) || "—"`, and callers wanting an absolute date
+ * past some age compose this with their own threshold.
+ *
+ * `locale` defaults to English so a non-UI caller (a test, a log line) keeps
+ * working; every RENDERED call site threads the active locale — client
+ * components via {@link useRelativeTime} (app/_lib/use-relative-time.ts), server
+ * ones via next-intl's `getLocale()`.
  *
  * Asserts the timestamp contract documented above: a naive (zone-less),
  * unparseable, or far-future input is reported via {@link warnTimestampContract}
@@ -310,7 +364,7 @@ const FUTURE_SKEW_TOLERANCE_S = 120;
  * keeps a future timestamp from reading "-12h ago", but the skew that produced
  * it is no longer swallowed in silence.
  */
-export function formatRelativeTime(iso: string): string {
+export function formatRelativeTime(iso: string, locale: string = DEFAULT_LOCALE): string {
   const cls = classifyTimestamp(iso);
   if (cls === "empty") return "";
   if (cls === "unparseable") {
@@ -330,10 +384,14 @@ export function formatRelativeTime(iso: string): string {
       `future timestamp ${JSON.stringify(iso)} (${Math.round(-seconds)}s ahead) — clamped to "0s ago"; this usually means client/server clock or timezone skew`
     );
   }
-  if (seconds < 60) return `${Math.max(0, Math.floor(seconds))}s ago`;
-  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
-  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
-  return `${Math.floor(seconds / 86400)}d ago`;
+  // Same buckets and same rounding as before — only the rendering of the
+  // (value, unit) pair moved into Intl. The negated value is what marks the
+  // duration as PAST; `-0` still formats as a past "0s ago" after the clamp.
+  const format = relativeTimeFormatter(relativeTimeLocale(locale));
+  if (seconds < 60) return format.format(-Math.max(0, Math.floor(seconds)), "second");
+  if (seconds < 3600) return format.format(-Math.floor(seconds / 60), "minute");
+  if (seconds < 86400) return format.format(-Math.floor(seconds / 3600), "hour");
+  return format.format(-Math.floor(seconds / 86400), "day");
 }
 
 /**

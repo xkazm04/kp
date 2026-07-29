@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronRight } from "lucide-react";
-import { formatRelativeTime } from "@/app/_lib/format";
+import { useRelativeTime } from "@/app/_lib/use-relative-time";
 import type { LoadState } from "@/app/_lib/useLoader";
 import { CasesEmpty } from "./DevCasesEmpty";
 import { LIVE_STAGES, STAGE_LABEL } from "./DevTypes";
@@ -33,6 +33,7 @@ export function CasesTable({
   onOpen: (id: string) => void;
   onDefine: () => void;
 }) {
+  const rel = useRelativeTime();
   // Tier 2 (docs/LOADING_CHOREOGRAPHY.md): useLoader's `data` starts as `[]`, so
   // an empty list is ambiguous between "still loading" and "genuinely no cases
   // yet" — `state.lastUpdated` disambiguates. Never loaded + healthy: hold the
@@ -95,7 +96,7 @@ export function CasesTable({
                   </span>
                 </td>
                 <td className="hidden px-3 py-2.5 text-sm nums text-ink sm:table-cell">{submissions > 0 ? submissions : "—"}</td>
-                <td className="hidden whitespace-nowrap px-3 py-2.5 text-sm text-steel lg:table-cell">{formatRelativeTime(c.createdAt)}</td>
+                <td className="hidden whitespace-nowrap px-3 py-2.5 text-sm text-steel lg:table-cell">{rel(c.createdAt)}</td>
                 <td className="px-2 py-2.5 text-steel"><ChevronRight size={15} aria-hidden /></td>
               </tr>
             );

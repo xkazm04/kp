@@ -3,7 +3,7 @@
 // The case-detail header: back button, provenance badges, Publish/Source DB
 // actions, and the confirm-before-publish dialog — split out of DevCaseDetail.tsx.
 import { AlertTriangle, ArrowLeft, FileWarning, MicVocal, Send, Users } from "lucide-react";
-import { formatRelativeTime } from "@/app/_lib/format";
+import { useRelativeTime } from "@/app/_lib/use-relative-time";
 import type { DevCaseDetail } from "./DevTypes";
 
 export function DevCaseDetailHeader({
@@ -47,6 +47,7 @@ export function DevCaseDetailHeader({
   confirmPublish: () => void;
   cancelPublish: () => void;
 }) {
+  const rel = useRelativeTime();
   return (
     <>
       <div className="flex flex-wrap items-center gap-2">
@@ -57,7 +58,7 @@ export function DevCaseDetailHeader({
         >
           <ArrowLeft size={14} /> All cases
         </button>
-        <span className="text-micro text-steel">created {formatRelativeTime(kase.createdAt) || "—"}</span>
+        <span className="text-micro text-steel">created {rel(kase.createdAt) || "—"}</span>
         {hasScenario ? (
           scenarioDegraded ? (
             <span
