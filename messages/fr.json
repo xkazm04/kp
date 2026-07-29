@@ -3729,6 +3729,50 @@
       "searchColumn": "Rechercher : {column}…",
       "allOf": "Tout — {column}",
       "select": "Sélectionner…"
+    },
+    "empty": {
+      "notConnected": "Non connecté",
+      "connectedIdle": "Connecté — rien pour l’instant",
+      "comms": {
+        "promise": "Chaque message aux candidats dans un registre auditable",
+        "proof": "Une fois le relais configuré, chaque invitation, refus et relance est consigné ici avec le résultat de distribution réellement obtenu.",
+        "actionHint": "Configurez l’endpoint du relais ci-dessous",
+        "step1": "Collez l’URL de votre endpoint de distribution dans la carte du relais ci-dessous.",
+        "step2": "Ajoutez un secret de signature pour qu’un récepteur puisse prouver que l’appel vient de kp.",
+        "step3": "Envoyez le ping de test et vérifiez qu’il revient au vert.",
+        "effort": "Environ 2 minutes — un seul endpoint sert tout l’espace de travail",
+        "waiting": "Le relais est configuré et rien n’a encore été envoyé. Les messages apparaîtront ici dès que vous agirez sur un candidat."
+      },
+      "careers": {
+        "promise": "Un lien de candidature public, intégrable partout",
+        "proof": "Publiez un poste et son lien de candidature apparaît ici, prêt à être collé dans une annonce, une signature e-mail ou votre propre site.",
+        "actionHint": "Publiez un poste pour générer son lien",
+        "step1": "Rédigez ou importez une fiche de poste dans la Bibliothèque.",
+        "step2": "Publiez le poste — c’est la publication qui génère son lien de candidature public.",
+        "step3": "Copiez ce lien dans votre annonce, sur votre site ou dans votre signature e-mail.",
+        "effort": "Environ une minute, une fois qu’un poste existe",
+        "waiting": "Les liens sont actifs et personne n’a encore postulé. La première candidature arrive directement dans le pipeline."
+      },
+      "email": {
+        "promise": "Des candidatures transférées directement depuis votre boîte mail",
+        "proof": "Chaque e-mail correspondant à votre règle devient une fiche candidat avec son CV joint — plus personne ne ressaisit une candidature.",
+        "actionHint": "Ajoutez une boîte de poste pour obtenir son adresse",
+        "step1": "Ajoutez une boîte de poste — kp génère une adresse de traitement liée à ce poste.",
+        "step2": "Dans Gmail ou Outlook, transférez les e-mails correspondants vers cette adresse.",
+        "step3": "Confirmez la règle ; le guide d’installation détaille les étapes exactes pour chaque client mail.",
+        "effort": "Environ 3 minutes — une règle par poste",
+        "waiting": "La règle est en place et rien n’a encore été transféré. La première candidature apparaîtra dans le pipeline."
+      },
+      "ads": {
+        "promise": "Les formulaires de leads déposent leurs leads eux-mêmes",
+        "proof": "Un lead LinkedIn ou Meta devient une fiche candidat quelques secondes après l’envoi du formulaire publicitaire.",
+        "actionHint": "Ajoutez un récepteur pour obtenir son URL de webhook",
+        "step1": "Ajoutez un récepteur pour le poste que vous mettez en avant.",
+        "step2": "Dans Zapier ou Make, déclenchez un flux à chaque nouveau lead du formulaire publicitaire.",
+        "step3": "Envoyez ce lead en POST vers l’URL de récepteur que kp vous fournit.",
+        "effort": "Environ 5 minutes — un récepteur par poste mis en avant",
+        "waiting": "Le récepteur est prêt et aucun lead n’est encore arrivé. Le premier se déposera tout seul dans le pipeline."
+      }
     }
   },
   "interviewSim": {

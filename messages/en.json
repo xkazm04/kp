@@ -3729,6 +3729,50 @@
       "searchColumn": "Search {column}…",
       "allOf": "All — {column}",
       "select": "Select…"
+    },
+    "empty": {
+      "notConnected": "Not connected",
+      "connectedIdle": "Connected — nothing yet",
+      "comms": {
+        "promise": "Every candidate message on one auditable record",
+        "proof": "Once the relay is set, each invite, rejection and reminder is logged here with the delivery result it actually got.",
+        "actionHint": "Set the relay endpoint below",
+        "step1": "Paste your delivery endpoint URL into the relay card below.",
+        "step2": "Add a signing secret so a receiver can prove the call came from kp.",
+        "step3": "Send the test ping and confirm it comes back green.",
+        "effort": "About 2 minutes — one endpoint serves the whole workspace",
+        "waiting": "The relay is set and nothing has been sent yet. Messages appear here the moment you act on a candidate."
+      },
+      "careers": {
+        "promise": "One public apply link, embeddable anywhere",
+        "proof": "Publish a role and its apply link shows up here, ready to paste into a post, an email signature or your own site.",
+        "actionHint": "Publish a role to mint its link",
+        "step1": "Draft or import a job description in the Library.",
+        "step2": "Publish the role — publishing is what mints its public apply link.",
+        "step3": "Copy that link into your post, your site or your email signature.",
+        "effort": "About a minute once a role exists",
+        "waiting": "The links are live and no one has applied yet. The first application lands straight in the pipeline."
+      },
+      "email": {
+        "promise": "Applications forwarded straight out of your mailbox",
+        "proof": "Every email matching your rule becomes a candidate card with its CV attached — nobody re-types an application again.",
+        "actionHint": "Add a role inbox to get its address",
+        "step1": "Add a role inbox — kp mints a parse address bound to that role.",
+        "step2": "In Gmail or Outlook, forward matching mail to that address.",
+        "step3": "Confirm the rule; the setup guide walks the exact steps per client.",
+        "effort": "About 3 minutes — one rule per role",
+        "waiting": "The rule is in place and nothing has been forwarded yet. The first application shows up in the pipeline."
+      },
+      "ads": {
+        "promise": "Lead-gen ad forms file their own leads",
+        "proof": "A LinkedIn or Meta lead becomes a candidate card seconds after someone submits the ad form.",
+        "actionHint": "Add a receiver to get its webhook URL",
+        "step1": "Add a receiver for the role you are advertising.",
+        "step2": "In Zapier or Make, trigger a flow on a new lead from the ad form.",
+        "step3": "POST that lead to the receiver URL kp hands you.",
+        "effort": "About 5 minutes — one receiver per advertised role",
+        "waiting": "The receiver is armed and no leads have arrived yet. The first one files itself into the pipeline."
+      }
     }
   },
   "interviewSim": {

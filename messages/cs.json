@@ -3729,6 +3729,50 @@
       "searchColumn": "Hledat: {column}…",
       "allOf": "Vše — {column}",
       "select": "Vyberte…"
+    },
+    "empty": {
+      "notConnected": "Nepřipojeno",
+      "connectedIdle": "Připojeno — zatím nic",
+      "comms": {
+        "promise": "Každá zpráva kandidátovi v jedné auditovatelné evidenci",
+        "proof": "Jakmile nastavíte relé, každá pozvánka, zamítnutí i připomínka se sem zapíše i s tím, jak dopadlo doručení.",
+        "actionHint": "Nastavte adresu relé níže",
+        "step1": "Vložte adresu svého doručovacího endpointu do karty relé níže.",
+        "step2": "Přidejte podpisový klíč, aby příjemce poznal, že volání přišlo z kp.",
+        "step3": "Odešlete testovací ping a ověřte, že se vrátí zeleně.",
+        "effort": "Asi 2 minuty — jeden endpoint obslouží celý pracovní prostor",
+        "waiting": "Relé je nastavené a zatím nic neodešlo. Zprávy se tu objeví ve chvíli, kdy s kandidátem něco uděláte."
+      },
+      "careers": {
+        "promise": "Jeden veřejný odkaz pro přihlášení, vložitelný kamkoli",
+        "proof": "Publikujte pozici a její odkaz pro přihlášení se objeví zde — připravený vložit do příspěvku, do e-mailového podpisu nebo na vlastní web.",
+        "actionHint": "Publikujte pozici a vznikne její odkaz",
+        "step1": "Připravte nebo naimportujte popis pozice v Knihovně.",
+        "step2": "Publikujte pozici — teprve publikací vznikne veřejný odkaz pro přihlášení.",
+        "step3": "Zkopírujte tento odkaz do svého příspěvku, na svůj web nebo do e-mailového podpisu.",
+        "effort": "Necelou minutu, jakmile pozice existuje",
+        "waiting": "Odkazy jsou aktivní a zatím se nikdo nepřihlásil. První přihláška dorazí rovnou do pipeline."
+      },
+      "email": {
+        "promise": "Přihlášky přeposlané rovnou z vaší schránky",
+        "proof": "Každý e-mail, který odpovídá vašemu pravidlu, se změní v kartu kandidáta i s přiloženým CV — přihlášku už nikdo nemusí přepisovat.",
+        "actionHint": "Přidejte schránku pozice a získáte její adresu",
+        "step1": "Přidejte schránku pozice — kp vytvoří adresu pro zpracování navázanou na tuto pozici.",
+        "step2": "V Gmailu nebo Outlooku nastavte přeposílání odpovídající pošty na tuto adresu.",
+        "step3": "Potvrďte pravidlo; průvodce nastavením provede přesnými kroky pro každého klienta.",
+        "effort": "Asi 3 minuty — jedno pravidlo na pozici",
+        "waiting": "Pravidlo je nastavené a zatím nic nepřišlo. První přihláška se objeví v pipeline."
+      },
+      "ads": {
+        "promise": "Lead formuláře si zakládají leady samy",
+        "proof": "Lead z LinkedInu nebo Meta se pár vteřin po odeslání reklamního formuláře změní v kartu kandidáta.",
+        "actionHint": "Přidejte přijímač a získáte jeho webhook URL",
+        "step1": "Přidejte přijímač pro pozici, kterou inzerujete.",
+        "step2": "V Zapieru nebo Make spusťte flow při novém leadu z reklamního formuláře.",
+        "step3": "Odešlete tento lead metodou POST na adresu přijímače, kterou vám kp dá.",
+        "effort": "Asi 5 minut — jeden přijímač na inzerovanou pozici",
+        "waiting": "Přijímač je připravený a zatím nedorazily žádné leady. První se do pipeline založí sám."
+      }
     }
   },
   "interviewSim": {
