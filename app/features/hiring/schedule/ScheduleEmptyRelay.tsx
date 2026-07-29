@@ -50,11 +50,11 @@ export function ScheduleEmptyRelay() {
   return (
     <div className="space-y-4">
       <div>
-        <p className={META_LABEL}>Where the baton is</p>
+        <p className={META_LABEL}>{t("relay.label")}</p>
         <ol className="mt-2 flex flex-col gap-3 border-t border-stone-200 pt-3 sm:flex-row sm:gap-6">
-          <RelayStop label="Decisions" note="Waiting here" state="waiting" />
-          <RelayStop label="Schedule" note="You are here" state="here" />
-          <RelayStop label="Interview" note="Next" state="ahead" />
+          <RelayStop label={t("relay.stopDecisions")} note={t("relay.noteWaiting")} state="waiting" />
+          <RelayStop label={t("relay.stopSchedule")} note={t("relay.noteHere")} state="here" />
+          <RelayStop label={t("relay.stopInterview")} note={t("relay.noteNext")} state="ahead" />
         </ol>
       </div>
       <div className="grid items-center gap-4 sm:grid-cols-[auto_1fr]">

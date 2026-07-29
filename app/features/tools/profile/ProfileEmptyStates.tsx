@@ -29,6 +29,7 @@
  */
 
 import { useRouter, useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { ArrowRight, Plus } from "lucide-react";
 import { Meter } from "@/app/_components/Meter";
 import { MotionizedGlyph } from "@/app/_components/glyph/MotionizedGlyph";
@@ -88,28 +89,30 @@ function BuildProfileButton({ onNewProfile, label }: { onNewProfile?: () => void
 /* ─────────────────── the record card and the drawers it files into ────────── */
 
 function SpecimenCard() {
+  const t = useTranslations("profile");
   return (
     <div className={`${PANEL} ${CARD_PAD} mx-auto max-w-md text-left opacity-70`} aria-hidden>
-      <p className={META_LABEL}>Every saved profile carries</p>
+      <p className={META_LABEL}>{t("empty.specimenLabel")}</p>
       <div className="mt-3 flex items-center gap-3">
         <span className="h-9 w-9 shrink-0 rounded-full bg-coral/20" />
         <div className="min-w-0 flex-1">
           <span className="block h-3 w-32 rounded-full bg-stone-200" />
           <div className="mt-2 flex flex-wrap items-center gap-1.5">
-            <span className={CHIP_QUIET}>Archetype</span>
-            <span className={CHIP_QUIET}>Role family</span>
+            <span className={CHIP_QUIET}>{t("empty.chipArchetype")}</span>
+            <span className={CHIP_QUIET}>{t("empty.chipRoleFamily")}</span>
           </div>
         </div>
       </div>
       <div className="mt-3 flex items-center gap-2">
         <Meter value={0} tone="null" className="h-1.5 w-32" />
-        <span className="text-sm text-steel">0% complete</span>
+        <span className="text-sm text-steel">{t("roster.completenessPct", { pct: 0 })}</span>
       </div>
     </div>
   );
 }
 
 function DossierList({ onNewProfile }: ProfileEmptyProps) {
+  const t = useTranslations("profile");
   return (
     <div className={`${PANEL_SUNKEN} p-8 text-center`}>
       <MotionizedGlyph
@@ -118,18 +121,15 @@ function DossierList({ onNewProfile }: ProfileEmptyProps) {
         className="mx-auto h-32 w-32"
         entrance="staggered-draw"
       />
-      <p className={`${EYEBROW} mt-4`}>Saved profiles</p>
-      <h3 className={`${TITLE_DISPLAY} mt-1`}>No cards in the drawer yet</h3>
-      <p className={`${INTRO} mx-auto mt-2 max-w-lg`}>
-        A profile is one structured record of a candidate — the thing you match against open roles.
-        Nothing has been filed here yet.
-      </p>
+      <p className={`${EYEBROW} mt-4`}>{t("roster.eyebrow")}</p>
+      <h3 className={`${TITLE_DISPLAY} mt-1`}>{t("empty.listTitle")}</h3>
+      <p className={`${INTRO} mx-auto mt-2 max-w-lg`}>{t("empty.listBody")}</p>
       <div className="mt-6">
         <SpecimenCard />
       </div>
       <div className="mt-5 flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
-        <BuildProfileButton onNewProfile={onNewProfile} label="Build a profile" />
-        <ChainLink tab="analyze" label="Or analyze a CV and promote it" />
+        <BuildProfileButton onNewProfile={onNewProfile} label={t("empty.listCta")} />
+        <ChainLink tab="analyze" label={t("empty.listCtaAnalyze")} />
       </div>
     </div>
   );
@@ -137,15 +137,17 @@ function DossierList({ onNewProfile }: ProfileEmptyProps) {
 
 /** One archetype column, standing open and empty. */
 function Pigeonhole({ label }: { label: string }) {
+  const t = useTranslations("profile");
   return (
     <div className="rounded-lg border border-dashed border-stone-300 bg-white/50 px-3 py-4 text-center">
       <p className="truncate text-sm font-semibold text-ink">{label}</p>
-      <p className="mt-2 text-sm text-steel">0 filed</p>
+      <p className="mt-2 text-sm text-steel">{t("empty.filed", { count: 0 })}</p>
     </div>
   );
 }
 
 function DossierMatrix({ archetypes, onNewProfile }: ProfileEmptyProps) {
+  const t = useTranslations("profile");
   const live = archetypes.filter((a) => !a.archived);
   const shown = live.slice(0, 4);
   const rest = live.length - shown.length;
@@ -157,12 +159,10 @@ function DossierMatrix({ archetypes, onNewProfile }: ProfileEmptyProps) {
         className="mx-auto h-32 w-32"
         entrance="staggered-draw"
       />
-      <p className={`${EYEBROW} mt-4`}>Candidates by archetype</p>
-      <h3 className={`${TITLE_DISPLAY} mt-1`}>The drawers are ready, the cards aren&apos;t</h3>
+      <p className={`${EYEBROW} mt-4`}>{t("matrix.title")}</p>
+      <h3 className={`${TITLE_DISPLAY} mt-1`}>{t("empty.matrixTitle")}</h3>
       <p className={`${INTRO} mx-auto mt-2 max-w-lg`}>
-        {live.length > 0
-          ? `You've defined ${live.length} archetype${live.length === 1 ? "" : "s"} above. Every candidate gets filed into exactly one — then this view can compare them side by side.`
-          : "Each candidate is filed into exactly one archetype, and this view compares them side by side. Define an archetype above to open the first drawer."}
+        {live.length > 0 ? t("empty.matrixBodyDefined", { count: live.length }) : t("empty.matrixBodyNone")}
       </p>
       {shown.length > 0 ? (
         <div className="mx-auto mt-6 grid max-w-2xl gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -171,10 +171,10 @@ function DossierMatrix({ archetypes, onNewProfile }: ProfileEmptyProps) {
           ))}
         </div>
       ) : null}
-      {rest > 0 ? <p className="mt-2 text-sm text-steel">+{rest} more</p> : null}
+      {rest > 0 ? <p className="mt-2 text-sm text-steel">{t("empty.moreArchetypes", { count: rest })}</p> : null}
       <div className="mt-5 flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
-        <BuildProfileButton onNewProfile={onNewProfile} label="File the first card" />
-        <ChainLink tab="analyze" label="Or analyze a CV" />
+        <BuildProfileButton onNewProfile={onNewProfile} label={t("empty.matrixCta")} />
+        <ChainLink tab="analyze" label={t("empty.matrixCtaAnalyze")} />
       </div>
     </div>
   );

@@ -4,6 +4,7 @@
 // SetupGettingStartedNextMove.tsx so it stays under the 200-line file cap. Its
 // state is read straight off the payload — verbatim markup, just relocated.
 import { Check } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { META_LABEL } from "@/app/_components/ui/recipes";
 import type { Step, StepKey } from "./setupGettingStartedModel";
 
@@ -26,6 +27,7 @@ export function SetupGettingStartedRailStep({
   optional: boolean;
   onSelect: (key: StepKey) => void;
 }) {
+  const t = useTranslations("setup.checklist");
   const marker = done
     ? "border-moss bg-moss/15 text-moss"
     : pending
@@ -58,7 +60,7 @@ export function SetupGettingStartedRailStep({
           >
             {label}
           </span>
-          {optional ? <span className={`block ${META_LABEL}`}>Optional</span> : null}
+          {optional ? <span className={`block ${META_LABEL}`}>{t("optional")}</span> : null}
         </span>
       </button>
     </li>

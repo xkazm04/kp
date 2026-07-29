@@ -31,13 +31,15 @@ export type DecisionsEmptyProps = {
 };
 
 /**
- * Why a recruiter would go to each destination. The link labels come from the
- * decisions catalog; these one-liners are prototype copy (round 1), deliberately
- * plain English so no shared message catalog is touched mid-prototype.
+ * Why a recruiter would go to each destination. Both the link labels and these
+ * one-liners come from the decisions catalog — the map holds the KEY (relative
+ * to the `decisions.empty` namespace) so the caller resolves it with its own `t`.
  */
-const DESTINATION_HINT: Partial<Record<WorkspaceTabId, string>> = {
-  schedule: "Accepted screenings waiting on a confirmed slot.",
-  pipeline: "The live board — every candidate and the stage they sit in.",
+type DestinationHintKey = "hintSchedule" | "hintPipeline";
+
+const DESTINATION_HINT: Partial<Record<WorkspaceTabId, DestinationHintKey>> = {
+  schedule: "hintSchedule",
+  pipeline: "hintPipeline",
 };
 
 const DESTINATION_ICON: Partial<Record<WorkspaceTabId, LucideIcon>> = {
@@ -45,7 +47,8 @@ const DESTINATION_ICON: Partial<Record<WorkspaceTabId, LucideIcon>> = {
   pipeline: Users,
 };
 
-export const hintFor = (tab: WorkspaceTabId): string | null => DESTINATION_HINT[tab] ?? null;
+/** The `decisions.empty.*` key explaining a destination, or null if it has none. */
+export const hintFor = (tab: WorkspaceTabId): DestinationHintKey | null => DESTINATION_HINT[tab] ?? null;
 /**
  * Exported as the map, not as an `iconFor(tab)` helper: the React compiler rejects
  * calling a function that returns a component during render ("Cannot create

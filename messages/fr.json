@@ -1592,7 +1592,9 @@
       "renameViewTitle": "Renommer la vue",
       "previewScope": "{mine} des {total} décisions de cette exécution appartiennent à votre équipe — les compteurs ci-dessus couvrent toute l'installation.",
       "previewOtherTeamsOnly": "{count, plural, one {Aucun changement pour votre équipe. Cette exécution comporte # changement en attente pour une autre équipe.} other {Aucun changement pour votre équipe. Cette exécution comporte # changements en attente pour d'autres équipes.}}",
-      "previewApplyGlobal": "{count, plural, one {Appliquer # changement (toutes les équipes)} other {Appliquer # changements (toutes les équipes)}}"
+      "previewApplyGlobal": "{count, plural, one {Appliquer # changement (toutes les équipes)} other {Appliquer # changements (toutes les équipes)}}",
+      "emptyBoardWaiting": "Votre tableau, en attente",
+      "emptyFirstCandidate": "Premier candidat"
     },
     "today": {
       "eyebrow": "Aujourd'hui",
@@ -2268,6 +2270,12 @@
         "highestFit": "Correspondance la plus élevée ({score}) pour ce poste.",
         "unscored": "En tête du champ, mais aucune correspondance n'a encore été calculée."
       }
+    },
+    "empty": {
+      "batonEyebrow": "Témoin passé",
+      "reconsiderLine": "{count, plural, one {# candidat rejeté automatiquement peut encore être réexaminé ci-dessous.} other {# candidats rejetés automatiquement peuvent encore être réexaminés ci-dessous.}}",
+      "hintSchedule": "Présélections acceptées en attente d’un créneau confirmé.",
+      "hintPipeline": "Le tableau en direct — chaque candidat et l’étape où il se trouve."
     }
   },
   "scheduleTab": {
@@ -2470,6 +2478,15 @@
       "readbackUnconfirmedFlag": "non confirmé",
       "readbackUnconfirmedHint": "Mentionné plus tôt mais non repris lors de la relecture — peut-être une erreur de transcription",
       "readbackNote": "D'après la relecture finale : le candidat a confirmé ou corrigé les technologies entendues par l'intervieweur."
+    },
+    "relay": {
+      "label": "Où se trouve le témoin",
+      "stopDecisions": "Décisions",
+      "stopSchedule": "Planification",
+      "stopInterview": "Entretien",
+      "noteWaiting": "En attente ici",
+      "noteHere": "Vous êtes ici",
+      "noteNext": "Ensuite"
     }
   },
   "library": {
@@ -2592,7 +2609,18 @@
       "chipClosedAria": "Poste fermé",
       "chipLinkedAria": "Poste lié — statut {status}",
       "chipUnlinked": "Analyse seule",
-      "chipUnlinkedAria": "Analyse seule — pas encore intégré comme poste appariable"
+      "chipUnlinkedAria": "Analyse seule — pas encore intégré comme poste appariable",
+      "shelfEyebrow": "Étagère vide",
+      "shelfTitle": "Rien sur l’étagère pour l’instant",
+      "shelfBody": "Une fiche de poste rédigée ici devient un actif : chaque poste que vous ouvrez, chaque CV que vous évaluez et chaque copie pour la prochaine ouverture part de l’une de ces fiches.",
+      "shelfRecordLabel": "L’enregistrement que vous allez créer",
+      "shelfWriteCta": "Rédiger la première fiche",
+      "shelfDraftCta": "Laisser le générateur la rédiger",
+      "shelfCtaNote": "Les deux ouvrent le panneau Générer — enregistrez un brouillon tel quel, ou laissez l’AI produire la description, une fourchette de salaire du marché et un cas d’entretien.",
+      "shelfReuseLabel": "Une fiche sert à",
+      "shelfReuseAnalyze": "Évaluer des CV par rapport à elle",
+      "shelfReuseIngest": "L’importer comme poste ouvert",
+      "shelfReuseDuplicate": "La dupliquer pour la prochaine ouverture"
     },
     "form": {
       "saveAjd": "Enregistrer une fiche de poste",
@@ -2765,7 +2793,23 @@
       "clearAllFilters": "Effacer tous les filtres",
       "noRolesEmptyTitle": "Aucun poste pour l'instant",
       "noRolesEmptyBody": "Un poste commence par une fiche de poste — rédigez-en une ou générez-la dans la bibliothèque, puis importez-la comme poste.",
-      "noRolesEmptyCta": "Ouvrir les fiches de poste"
+      "noRolesEmptyCta": "Ouvrir les fiches de poste",
+      "launchpad": {
+        "route": "Voie {step}",
+        "eyebrow": "Premier poste",
+        "title": "Votre catalogue attend son coup d’envoi",
+        "body": "Chaque recrutement dans kp repose sur un poste ouvert. Publiez le premier et le reste de l’espace de travail s’anime.",
+        "route1Title": "La rédiger depuis une fiche de poste",
+        "route1Body": "Choisissez une fiche de poste dans la bibliothèque, ajustez les exigences et publiez-la comme poste ouvert.",
+        "route1Cta": "Ouvrir les fiches de poste",
+        "route2Title": "Importer une annonce que vous avez déjà",
+        "route2Body": "Collez une annonce existante et kp en fait un poste structuré — exigences, séniorité, mode de travail.",
+        "route2Cta": "Utilisez le panneau d’import ci-dessus",
+        "unlocksLabel": "Un poste débloque",
+        "unlockChannels": "Canaux ouverts",
+        "unlockPipeline": "Flux de candidats",
+        "unlockDecisions": "File de décisions"
+      }
     },
     "table": {
       "caption": "Corpus de postes — annonces normalisées filtrables par famille de postes, séniorité, mode de travail et éligibilité débutant. Activez une ligne pour déployer ses exigences et son prisme jeune diplômé.",
@@ -3454,6 +3498,22 @@
       "createArchetype": "Créer un archétype",
       "saveChanges": "Enregistrer les modifications",
       "cancel": "Annuler"
+    },
+    "empty": {
+      "specimenLabel": "Chaque profil enregistré contient",
+      "chipArchetype": "Archétype",
+      "chipRoleFamily": "Famille de métiers",
+      "listTitle": "Aucune fiche dans le tiroir pour l’instant",
+      "listBody": "Un profil est un enregistrement structuré d’un candidat — ce que vous rapprochez des postes ouverts. Rien n’a encore été classé ici.",
+      "listCta": "Créer un profil",
+      "listCtaAnalyze": "Ou analyser un CV et le promouvoir",
+      "matrixTitle": "Les tiroirs sont prêts, les fiches manquent",
+      "matrixBodyDefined": "{count, plural, one {Vous avez défini # archétype ci-dessus.} other {Vous avez défini # archétypes ci-dessus.}} Chaque candidat est classé dans un seul — cette vue pourra alors les comparer côte à côte.",
+      "matrixBodyNone": "Chaque candidat est classé dans un seul archétype, et cette vue les compare côte à côte. Définissez un archétype ci-dessus pour ouvrir le premier tiroir.",
+      "filed": "{count, plural, one {# classée} other {# classées}}",
+      "moreArchetypes": "{count, plural, one {+# autre} other {+# autres}}",
+      "matrixCta": "Classer la première fiche",
+      "matrixCtaAnalyze": "Ou analyser un CV"
     }
   },
   "channels": {
@@ -4291,6 +4351,29 @@
       "reviewHolds": "Examiner les mises en attente en cours dans Décisions",
       "comms": "Messages remis",
       "commsQueued": "Messages enregistrés dans la boîte d'envoi (non remis)"
+    },
+    "empty": {
+      "willReport": "Ce que cet onglet rapportera",
+      "noValueYet": "aucune valeur pour l’instant",
+      "metricHireRate": "Taux de recrutement",
+      "metricHireRateBody": "La part des personnes qui postulent que vous recrutez réellement.",
+      "metricTimeToHire": "Délai de recrutement",
+      "metricTimeToHireBody": "Nombre de jours entre l’arrivée d’un candidat et la signature.",
+      "metricCostPerHire": "Coût par recrutement",
+      "metricCostPerHireBody": "Les dépenses du canal divisées par les recrutements qu’il a produits."
+    },
+    "funnelGuide": {
+      "title": "Votre entonnoir est prêt",
+      "body": "{count, plural, one {# candidat est arrivé} other {# candidats sont arrivés}}, mais personne n’a encore changé d’étape. La conversion mesure le mouvement — voici ce que chaque étape vous dira dès qu’elle bougera.",
+      "stepsLabel": "Ce que chaque étape vous dira",
+      "waiting": "{count, plural, one {# étape attend encore son premier candidat.} other {# étapes attendent encore leur premier candidat.}}",
+      "noDataYet": "aucune donnée pour l’instant",
+      "questionAccepted": "Qui est arrivé, et par quel canal.",
+      "questionScreened": "La part de vos candidatures qui passe la première évaluation.",
+      "questionInterview": "Si la présélection laisse passer les bonnes personnes.",
+      "questionOffer": "À quel point la série d’entretiens est réellement sélective.",
+      "questionHired": "Votre taux de recrutement de bout en bout, et le temps qu’il a pris.",
+      "questionFallback": "Combien de candidats arrivent jusqu’ici."
     }
   },
   "candidateOnboarding": {
@@ -4495,7 +4578,16 @@
     "noFits": "aucune correspondance",
     "colStatsTitle": "{count} évalués · meilleur {best} · médiane {median} · {strong} forts (≥{threshold})",
     "legendMatch": "Correspondance",
-    "inPipeline": "dans le pipeline"
+    "inPipeline": "dans le pipeline",
+    "emptyAxesTitle": "Deux axes, rien à croiser pour l’instant",
+    "emptyAxesBody": "Cette grille évalue chaque candidat face à chaque poste ouvert. Il lui faut les deux côtés avant de pouvoir tracer une seule cellule.",
+    "emptyAxisRows": "Lignes",
+    "emptyAxisColumns": "Colonnes",
+    "emptyAxisCandidates": "Candidats",
+    "emptyAxisRoles": "Postes ouverts",
+    "emptyAxisNone": "Rien pour l’instant — ce côté de la grille est vide.",
+    "emptyAxisReadyCandidates": "{count, plural, one {# prêt à être tracé.} other {# prêts à être tracés.}}",
+    "emptyAxisReadyRoles": "{count, plural, one {# prête à être tracée.} other {# prêtes à être tracées.}}"
   },
   "analyze": {
     "modeNew": "Nouvelle analyse",
@@ -5092,7 +5184,8 @@
       "completed": {
         "title": "Tout est prêt !",
         "body": "Entreprise, poste, cas et canaux sont connectés — bon recrutement."
-      }
+      },
+      "optional": "Facultatif"
     }
   },
   "devcase": {

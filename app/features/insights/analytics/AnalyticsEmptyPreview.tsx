@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { MotionizedGlyph } from "@/app/_components/glyph/MotionizedGlyph";
 import { ANALYTICS_GLYPH } from "@/app/_components/glyph/glyphs/analyticsGlyph";
 import { PANEL_SUNKEN, STAT_LABEL, STAT_VALUE } from "@/app/_components/ui/recipes";
@@ -19,19 +20,20 @@ import { UpstreamLinks, type AnalyticsEmptyProps } from "./AnalyticsEmptyShared"
 // lie the user only detects after trusting it once.
 
 // The three figures this tab leads with once a single candidate exists. Kept as
-// data (not markup) so the row is one map and the set is easy to re-order.
-const PROMISED_METRICS: { label: string; meaning: string }[] = [
-  { label: "Hire rate", meaning: "How many of the people who apply you actually hire." },
-  { label: "Time to hire", meaning: "Days from a candidate arriving to signing." },
-  { label: "Cost per hire", meaning: "Channel spend divided by the hires it produced." },
+// data (not markup) so the row is one map and the set is easy to re-order — each
+// entry is a pair of `analytics.empty.*` catalog keys, resolved at render.
+const PROMISED_METRICS: { labelKey: "metricHireRate" | "metricTimeToHire" | "metricCostPerHire"; meaningKey: "metricHireRateBody" | "metricTimeToHireBody" | "metricCostPerHireBody" }[] = [
+  { labelKey: "metricHireRate", meaningKey: "metricHireRateBody" },
+  { labelKey: "metricTimeToHire", meaningKey: "metricTimeToHireBody" },
+  { labelKey: "metricCostPerHire", meaningKey: "metricCostPerHireBody" },
 ];
 
 /** One promised-but-empty figure: label, an honest em-dash, and what it will mean. */
-function MetricPreviewTile({ label, meaning }: { label: string; meaning: string }) {
+function MetricPreviewTile({ label, meaning, noValue }: { label: string; meaning: string; noValue: string }) {
   return (
     <div className="rounded-md border border-dashed border-stone-300 bg-white px-3 py-2.5 text-left">
       <p className={STAT_LABEL}>{label}</p>
-      <p className={`mt-0.5 ${STAT_VALUE} text-stone-300`} aria-label="no value yet">
+      <p className={`mt-0.5 ${STAT_VALUE} text-stone-300`} aria-label={noValue}>
         —
       </p>
       <p className="mt-1 text-sm text-steel">{meaning}</p>
@@ -40,6 +42,7 @@ function MetricPreviewTile({ label, meaning }: { label: string; meaning: string 
 }
 
 export function AnalyticsEmptyPreview({ title, body, links }: AnalyticsEmptyProps) {
+  const t = useTranslations("analytics.empty");
   return (
     <div className={`${PANEL_SUNKEN} p-6 text-left`}>
       <div className="flex items-start gap-4">
@@ -54,10 +57,15 @@ export function AnalyticsEmptyPreview({ title, body, links }: AnalyticsEmptyProp
         </div>
       </div>
 
-      <p className="mt-5 text-meta uppercase tracking-wide text-steel">What this tab will report</p>
+      <p className="mt-5 text-meta uppercase tracking-wide text-steel">{t("willReport")}</p>
       <div className="mt-2 grid gap-2 sm:grid-cols-3">
         {PROMISED_METRICS.map((m) => (
-          <MetricPreviewTile key={m.label} label={m.label} meaning={m.meaning} />
+          <MetricPreviewTile
+            key={m.labelKey}
+            label={t(m.labelKey)}
+            meaning={t(m.meaningKey)}
+            noValue={t("noValueYet")}
+          />
         ))}
       </div>
 
