@@ -27,6 +27,19 @@ export type ScreeningRule = {
   rejectBottomPercent: number; // 0–100
   maxMatchToReject: number; // 0–100 match score
   familyFloors?: Record<string, number>; // role_family → maxMatchToReject override (0–100)
+  /** CALIBRATION HOLDOUT — the percentage of would-be auto-rejects that are spared
+   *  and allowed to proceed, so their outcomes are uncontaminated by the score that
+   *  would have rejected them (UAT 2026-07-20, KAT-L1-001/002).
+   *
+   *  Why this exists: calibration pairs the match score against an outcome label
+   *  where `rejected` counts as a negative — but the screening wave PRODUCES that
+   *  rejection by testing the score against a floor. The predictor causes its own
+   *  label, so a perfectly biased screener that favoured polished CVs would still
+   *  draw a near-perfect reliability curve. Every accuracy claim is unfalsifiable
+   *  until some below-floor candidates are observed WITHOUT the score acting on them.
+   *
+   *  This is the clean arm. 0 disables it (calibration then stays circular). */
+  holdoutPercent?: number; // 0–100
 };
 
 /** The auto-reject floor that actually applies to a candidate: the family override
@@ -43,6 +56,24 @@ export const SCREENING_DEFAULT: ScreeningRule = {
   rejectBottomPercent: 20,
   maxMatchToReject: 45,
 };
+
+/** Share of would-be auto-rejects spared as the calibration clean arm when a rule
+ *  doesn't state one. Deliberately NOT a key in SCREENING_DEFAULT: the persisted
+ *  rule shape is pinned "byte-identical, no phantom key" by the config tests, and a
+ *  saved rule from before the holdout existed must keep validating unchanged.
+ *  Resolved at point of use via `effectiveHoldoutPercent` instead. */
+export const DEFAULT_HOLDOUT_PERCENT = 5;
+
+/** The holdout rate actually in force. An absent value takes the default (an old
+ *  saved rule still gets a clean arm); an explicit 0 disables it, which is how a
+ *  workspace opts out. Non-finite / negative fails closed to 0 — a malformed config
+ *  must never spare an unbounded share of a wave. */
+export function effectiveHoldoutPercent(cfg: ScreeningRule): number {
+  const raw = cfg.holdoutPercent;
+  if (raw === undefined || raw === null) return DEFAULT_HOLDOUT_PERCENT;
+  if (typeof raw !== "number" || !Number.isFinite(raw) || raw < 0) return 0;
+  return Math.min(100, raw);
+}
 
 // P1-1 — the active compliance JURISDICTION (workspace setting). Drives the
 // candidate AI-disclosure framing + the recruiter compliance posture. Defaults to
@@ -61,7 +92,7 @@ export const COMPLIANCE_DEFAULT: ComplianceRule = {
 export const KNOWN_DECISION_PHASES = ["screening", "compliance"] as const;
 export type DecisionPhase = (typeof KNOWN_DECISION_PHASES)[number];
 
-const SCREENING_KEYS = ["autoRejectEnabled", "rejectBottomPercent", "maxMatchToReject", "familyFloors"] as const;
+const SCREENING_KEYS = ["autoRejectEnabled", "rejectBottomPercent", "maxMatchToReject", "familyFloors", "holdoutPercent"] as const;
 const COMPLIANCE_KEYS = ["jurisdiction"] as const;
 
 export type DecisionConfigResult =
@@ -171,6 +202,14 @@ function validateScreeningRule(raw: Record<string, unknown>): DecisionConfigResu
       return { ok: false, error: `${field} must be a finite number.` };
     }
   }
+  // holdoutPercent is OPTIONAL (like familyFloors): every rule saved before the
+  // calibration holdout existed must keep validating unchanged, and an absent value
+  // resolves via effectiveHoldoutPercent at point of use. Validated only when present.
+  if (raw.holdoutPercent !== undefined) {
+    if (typeof raw.holdoutPercent !== "number" || !Number.isFinite(raw.holdoutPercent)) {
+      return { ok: false, error: "holdoutPercent must be a finite number." };
+    }
+  }
   const floors = validateFamilyFloors(raw.familyFloors);
   if (!floors.ok) return { ok: false, error: floors.error };
   const config: ScreeningRule = {
@@ -181,6 +220,8 @@ function validateScreeningRule(raw: Record<string, unknown>): DecisionConfigResu
   // Only carry familyFloors when it was present — an absent map keeps the persisted
   // JSON (and a deepEqual against SCREENING_DEFAULT) byte-identical to before.
   if (floors.value !== undefined) config.familyFloors = floors.value;
+  // Same "no phantom key" contract for the holdout rate.
+  if (raw.holdoutPercent !== undefined) config.holdoutPercent = clampPercent(raw.holdoutPercent as number);
   return { ok: true, phase: "screening", config };
 }
 
@@ -222,7 +263,7 @@ export function validateScreeningOverride(raw: unknown): ScreeningOverrideResult
     }
     override.autoRejectEnabled = obj.autoRejectEnabled;
   }
-  for (const field of ["rejectBottomPercent", "maxMatchToReject"] as const) {
+  for (const field of ["rejectBottomPercent", "maxMatchToReject", "holdoutPercent"] as const) {
     const v = obj[field];
     if (v === undefined) continue;
     if (typeof v !== "number" || !Number.isFinite(v)) {

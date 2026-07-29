@@ -40,16 +40,92 @@ export type Fairness = {
 //                    is claimed and no lead is crowned (bug-ui-scan-2026-07-09 #4).
 export type RobustnessStatus = "assessed" | "not_varied" | "unavailable" | "not_applicable" | "insufficient_sample";
 
+/** Is a fairness blob actually renderable — i.e. do the parallel arrays the panel
+ *  indexes in lockstep (labels / candidateIds / schemes / mean, and the matrix's row
+ *  AND column counts) really agree in length?
+ *
+ *  The type above ASSERTS that alignment; nothing enforced it. The payload is
+ *  persisted as JSON (group-eval.ts) and re-parsed unvalidated on every open, so one
+ *  malformed blob — a Python-side shape change, a truncated write, a hand-edited row —
+ *  used to throw inside the panel's unguarded `schemes[j].skills` / `matrix[i][j]` /
+ *  `mean[i]` indexing and take the WHOLE modal down: comparison table, decide buttons
+ *  and the Re-run button that would have replaced the bad blob included. Returning
+ *  false here degrades that to the honest "could not assess" panel instead. */
+export function isFairnessAligned(fairness: Fairness | null | undefined): fairness is Fairness {
+  if (!fairness) return false;
+  const { labels, candidateIds, schemes, matrix, mean, ranking, weightNotes } = fairness;
+  if (!Array.isArray(labels) || labels.length === 0) return false;
+  const n = labels.length;
+  const sameLength = (a: unknown) => Array.isArray(a) && a.length === n;
+  if (!sameLength(candidateIds) || !sameLength(schemes) || !sameLength(mean) || !sameLength(matrix)) return false;
+  // Every row must span every column — the matrix is square by contract (each
+  // candidate re-scored under every candidate's scheme).
+  if (!matrix.every((row) => Array.isArray(row) && row.length === n)) return false;
+  // The scheme cells the header formats, and the two collections the notes list walks.
+  if (!schemes.every((s) => s != null && typeof s.skills === "number" && typeof s.career === "number" && typeof s.personal === "number")) return false;
+  if (!Array.isArray(ranking)) return false;
+  if (weightNotes != null && typeof weightNotes !== "object") return false;
+  return true;
+}
+
 /** The honest robustness status of a group eval, derived from whether the role had a
  *  job (so a ranker ran) and whether that ranker produced a fairness matrix whose
  *  weights actually vary. Single-sourced so the panel copy AND the sealed decision
- *  record agree, and so a no-op / a missing check can never read as a PASS. */
+ *  record agree, and so a no-op / a missing check can never read as a PASS. A
+ *  MISALIGNED matrix is treated exactly like a missing one — an unreadable check is
+ *  not a check. */
 export function assessRobustness(hasJob: boolean, fairness: Fairness | null): RobustnessStatus {
   if (!hasJob) return "not_applicable";
-  if (!fairness || !fairness.labels?.length || !fairness.matrix?.length) return "unavailable";
+  if (!isFairnessAligned(fairness)) return "unavailable";
   const varied = fairness.candidateIds.some((id) => (fairness.weightNotes?.[id]?.length ?? 0) > 0);
   return varied ? "assessed" : "not_varied";
 }
+
+// ---- Structured facts (eval-speaks-your-language) --------------------------
+//
+// The eval is PERSISTED once and re-rendered for whoever opens it, so any prose
+// baked into the payload is frozen in the language of the machine that produced
+// it. The AI compare narrative is generated in the org locale (group-eval-run →
+// group_compare_cli --lang), but the deterministic prose around it used to be
+// English literals appended to the payload — so a Czech workspace read a Czech
+// headline stacked on English risks and an English (compliance-critical)
+// governance banner in the same modal.
+//
+// The fix is the same shape the rest of the app uses for server-generated
+// display data (cf. useEnumLabel: the WIRE value stays canonical, only the
+// rendered label is localized): the server persists STRUCTURED FACTS and the
+// client composes the sentence through next-intl at render time. See
+// ./localize.ts for the composition and the legacy-prose fallback.
+
+/** One pool-level watch-out as facts. Legacy payloads carry the English sentence
+ *  as a bare string instead — both shapes are accepted by `risks` below. */
+export type RiskFact =
+  | { kind: "low_fit"; label: string; score: number }
+  | { kind: "early_career"; label: string }
+  | { kind: "gaps"; label: string; gaps: string[] };
+
+/** The deterministic summary as a branch discriminator + params (one entry per
+ *  branch in group-eval-run's summary switch), plus the separation caveat that
+ *  rides along with any crowned lead. `summary` keeps the English prose because
+ *  it is ALSO the sealed decision rationale (English by convention — see the
+ *  seal site in group-eval-run.ts); the client renders THIS when present. */
+export type SummaryFacts = {
+  kind: "empty" | "insufficient" | "no_lead" | "eligibility" | "committee" | "recommendation";
+  roleTitle: string;
+  count: number;
+  leadLabel?: string | null;
+  leadScore?: number | null;
+  differentiators?: string[];
+  riskCount?: number;
+  // Present (and "overlapping") only when the crown needs the confidence hedge —
+  // mirrors separationNote's "empty unless overlapping" rule.
+  separation?: { verdict: "separated" | "overlapping" | "unknown"; leadLabel: string; runnerUpLabel: string } | null;
+};
+
+/** Why the lead is the lead, when the LLM verdict was absent and the server fell
+ *  back to a canned line. `topPick.why` keeps that English prose for legacy
+ *  readers; this discriminator lets the client render the localized line. */
+export type TopPickWhyKind = "highest_fit" | "unscored";
 
 // One candidate as carried by a group evaluation. The base fields (score,
 // verdict, strengths, gaps) are always present; the recruiter breakdown fields
@@ -104,12 +180,40 @@ export type GroupEvalPayload = {
   governanceNote?: string | null;
   advisory?: boolean;
   eligibilityList?: { rank: number; entryId: string; label: string; score: number | null }[] | null;
-  topPick?: { label: string; score: number | null; why: string } | null;
+  // The crowned lead. `entryId` is the lead's stable pipeline-entry id — the SAME
+  // identity every other keyed surface in the modal uses (candIdentity). Without it a
+  // duplicate display name put the lead's "Unique strengths" chips on the rival's tab.
+  // Optional/additive: a payload saved before it existed (and the simulation's
+  // client-side runGroupEval) falls back to matching on `label`.
+  // `whyKind` (eval-speaks-your-language) is set when `why` is the server's canned
+  // fallback rather than the AI verdict — the client then renders the localized
+  // line and ignores the English prose. Absent ⇒ render `why` verbatim (an AI
+  // verdict, already produced in the org locale, or a legacy payload).
+  topPick?: { label: string; score: number | null; why: string; entryId?: string; whyKind?: TopPickWhyKind } | null;
+  // Whether the crowned lead is genuinely separated from the runner-up once BOTH
+  // confidence bands are taken into account (UAT L1-TOM-GEF-01). "overlapping" means
+  // the point-estimate gap is inside the measurement's own uncertainty — the top two
+  // are a tie on the evidence. "unknown" = not assessable (no band, no runner-up, or
+  // an unscored candidate) and must never be rendered as reassurance. Absent on evals
+  // saved before this existed → render no separation chrome at all.
+  // Read by ComparisonTable's CandidateHeader (the "effectively tied" chip beside the
+  // Lead crown) and by LegacyView's recommended-lead card, so the recruiter sees the
+  // same hedge the sealed record carries — the summary prose that used to carry it is
+  // discarded by AiVerdict whenever an LLM comparison exists.
+  leadSeparation?: "separated" | "overlapping" | "unknown";
   recommendedOrder?: string[];
   candidates?: EvalCandidate[];
   differentiators?: string[];
-  risks?: string[];
+  // Pool-level watch-outs. Evals produced after eval-speaks-your-language carry
+  // RiskFact objects (localized at render); evals saved before it carry the frozen
+  // English sentences as strings and are rendered verbatim.
+  risks?: (string | RiskFact)[];
+  // The deterministic summary as ENGLISH prose. Still persisted because it IS the
+  // sealed decision rationale (English by convention) and because a legacy reader
+  // has nothing else; the modal prefers `summaryFacts` when present.
   summary?: string;
+  // Structured twin of `summary` (absent on legacy payloads → the prose renders).
+  summaryFacts?: SummaryFacts | null;
   // Structured AI head-to-head narrative (the modal prefers it).
   comparison?: Comparison | null;
   comparisonSource?: string | null;

@@ -47,12 +47,18 @@ class BankComplianceScoreSkillsTest(unittest.TestCase):
     """End-to-end score_skills on a synthetic bank compliance officer."""
 
     def _candidate(self, skills: list[str]) -> MatchCandidate:
+        # provenance_default is explicit throughout this file: the shipped default is
+        # now `self_declared`, which applies an evidence discount. These tests are
+        # about non-tech taxonomy credit (exact / specialization / sibling / related),
+        # not about that discount, so they pin the professional tier and stay isolated
+        # from any future change to the default.
         return MatchCandidate(
             skills=skills,
             seniority="senior",
             role_family="finance_accounting",
             languages=["Czech", "English"],
             years_experience=6,
+            provenance_default="professional",
         )
 
     def test_related_skill_earns_graduated_credit(self) -> None:
@@ -112,6 +118,7 @@ class LegalComplianceGraduatedCreditTest(unittest.TestCase):
             skills=["prověření pep"],  # Czech surface for pep_screening
             seniority="senior", role_family="legal_compliance",
             languages=["Czech", "English"], years_experience=6,
+            provenance_default="professional",
         )
         job = mkjob(
             role_family="legal_compliance",
@@ -152,6 +159,7 @@ class HrPeopleGraduatedCreditTest(unittest.TestCase):
             skills=["vyhledávání kandidátů"],  # Czech surface for sourcing
             seniority="medior", role_family="hr_people",
             languages=["Czech", "English"], years_experience=4,
+            provenance_default="professional",
         )
         job = mkjob(
             role_family="hr_people",
@@ -196,6 +204,7 @@ class HealthcareGraduatedCreditTest(unittest.TestCase):
             skills=["intenzivní péče"],  # icu_nursing
             seniority="senior", role_family="healthcare_clinical",
             languages=["Czech", "English"], years_experience=7,
+            provenance_default="professional",
         )
         job = mkjob(
             role_family="healthcare_clinical",
@@ -213,6 +222,7 @@ class HealthcareGraduatedCreditTest(unittest.TestCase):
             skills=["intenzivní péče"],  # icu_nursing, a specialization
             seniority="senior", role_family="healthcare_clinical",
             languages=["Czech", "English"], years_experience=7,
+            provenance_default="professional",
         )
         job = mkjob(
             role_family="healthcare_clinical",
@@ -230,6 +240,7 @@ class HealthcareGraduatedCreditTest(unittest.TestCase):
             skills=["fyzioterapie"],  # physiotherapy — no claim to nursing
             seniority="senior", role_family="healthcare_clinical",
             languages=["Czech"], years_experience=7,
+            provenance_default="professional",
         )
         job = mkjob(
             role_family="healthcare_clinical",
@@ -262,6 +273,7 @@ class SkilledTradesGraduatedCreditTest(unittest.TestCase):
             skills=["svařování mig"],  # mig_welding
             seniority="medior", role_family="skilled_trades",
             languages=["Czech"], years_experience=5,
+            provenance_default="professional",
         )
         job = mkjob(
             role_family="skilled_trades",
@@ -278,6 +290,7 @@ class SkilledTradesGraduatedCreditTest(unittest.TestCase):
             skills=["cnc obrábění"],  # cnc_machining, a specialization of machining
             seniority="medior", role_family="skilled_trades",
             languages=["Czech"], years_experience=5,
+            provenance_default="professional",
         )
         job = mkjob(
             role_family="skilled_trades",
@@ -314,6 +327,7 @@ class CreativeDesignGraduatedCreditTest(unittest.TestCase):
             skills=["drátěné modely"],  # wireframing
             seniority="medior", role_family="creative_design",
             languages=["Czech", "English"], years_experience=4,
+            provenance_default="professional",
         )
         job = mkjob(
             role_family="creative_design",
@@ -330,6 +344,7 @@ class CreativeDesignGraduatedCreditTest(unittest.TestCase):
             skills=["ui design"],  # ui_design, a specialization of ux_design
             seniority="medior", role_family="creative_design",
             languages=["Czech", "English"], years_experience=4,
+            provenance_default="professional",
         )
         job = mkjob(
             role_family="creative_design",
@@ -367,6 +382,7 @@ class LifeSciencesGraduatedCreditTest(unittest.TestCase):
             skills=["kapalinová chromatografie"],  # hplc
             seniority="senior", role_family="life_sciences_research",
             languages=["Czech", "English"], years_experience=7,
+            provenance_default="professional",
         )
         job = mkjob(
             role_family="life_sciences_research",
@@ -383,6 +399,7 @@ class LifeSciencesGraduatedCreditTest(unittest.TestCase):
             skills=["kvantitativní pcr"],  # qpcr, a specialization of pcr
             seniority="senior", role_family="life_sciences_research",
             languages=["Czech", "English"], years_experience=7,
+            provenance_default="professional",
         )
         job = mkjob(
             role_family="life_sciences_research",

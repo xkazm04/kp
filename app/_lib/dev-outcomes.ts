@@ -1,5 +1,6 @@
 import Database from "better-sqlite3";
 import { openStore } from "./db-path";
+import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 import { z } from "zod";
 
 // Direction E — the outcome loop. Record what actually happened to promoted candidates
@@ -76,10 +77,25 @@ function db(): Database.Database {
       outcome TEXT NOT NULL,
       performance INTEGER,
       note TEXT,
-      recorded_at TEXT NOT NULL
+      recorded_at TEXT NOT NULL,
+      workspace_id TEXT NOT NULL DEFAULT '${DEFAULT_WORKSPACE_ID}'
     );
     CREATE INDEX IF NOT EXISTS idx_dev_outcomes_created ON dev_outcomes (id DESC);
   `);
+  // Tenancy scoping (D5): calibration is PER-TEAM, not deployment-global. Without the
+  // column two teams' hire/reject outcomes pooled into one corpus, so the promote-floor
+  // recommendation a recruiter acts on was computed from another team's hiring reality.
+  // Isolated store (own openStore connection, no core.ts migrator) → migrate here, the
+  // same shape onboarding-store.ts uses. Pre-existing rows backfill to the default
+  // workspace via the column DEFAULT — the tenant every row was implicitly written for
+  // while the studio was single-tenant, so no historical calibration is lost.
+  const cols = d.prepare(`PRAGMA table_info(dev_outcomes)`).all() as { name: string }[];
+  if (!cols.some((c) => c.name === "workspace_id")) {
+    d.exec(`ALTER TABLE dev_outcomes ADD COLUMN workspace_id TEXT NOT NULL DEFAULT '${DEFAULT_WORKSPACE_ID}'`);
+  }
+  // Every read is now (workspace_id, …); created after the ALTER so it also covers a
+  // migrated legacy table.
+  d.exec(`CREATE INDEX IF NOT EXISTS idx_dev_outcomes_ws ON dev_outcomes (workspace_id, id DESC)`);
   _db = d;
   return d;
 }
@@ -114,16 +130,20 @@ export type OutcomeRecord = {
 // Absent fields keep the existing row's values (an update never erases what it didn't say),
 // except performance, which only rides a "hired" outcome — flipping hired → rejected must
 // drop the stale score or the schema's cross-field rule would be violated at rest.
-export function recordOutcome(input: OutcomeInput): "inserted" | "updated" {
+//
+// TENANT SCOPE (D5): the dedup lookups AND the insert are workspace-scoped, so one team's
+// re-record can never update — nor be blocked by — another team's row for the same ref or
+// candidate name.
+export function recordOutcome(input: OutcomeInput, workspaceId: string = DEFAULT_WORKSPACE_ID): "inserted" | "updated" {
   const d = db();
   const candidate = input.candidateRef?.trim();
   let existing = (
     input.ref != null
-      ? d.prepare(`SELECT id, predicted_score, performance, note FROM dev_outcomes WHERE ref = ? ORDER BY id DESC LIMIT 1`).get(input.ref)
+      ? d.prepare(`SELECT id, predicted_score, performance, note FROM dev_outcomes WHERE workspace_id = ? AND ref = ? ORDER BY id DESC LIMIT 1`).get(workspaceId, input.ref)
       : candidate
         ? d
-            .prepare(`SELECT id, predicted_score, performance, note FROM dev_outcomes WHERE TRIM(COALESCE(candidate_ref, '')) = ? AND outcome = ? ORDER BY id DESC LIMIT 1`)
-            .get(candidate, input.outcome)
+            .prepare(`SELECT id, predicted_score, performance, note FROM dev_outcomes WHERE workspace_id = ? AND TRIM(COALESCE(candidate_ref, '')) = ? AND outcome = ? ORDER BY id DESC LIMIT 1`)
+            .get(workspaceId, candidate, input.outcome)
         : undefined
   ) as { id: number; predicted_score: number | null; performance: number | null; note: string | null } | undefined;
   // bug-ui-scan-2026-07-09 (dev-lifecycle-cohort-outcomes #3): the refless identity key
@@ -157,14 +177,15 @@ export function recordOutcome(input: OutcomeInput): "inserted" | "updated" {
     );
     return "updated";
   }
-  d.prepare(`INSERT INTO dev_outcomes (ref, candidate_ref, predicted_score, outcome, performance, note, recorded_at) VALUES (?, ?, ?, ?, ?, ?, ?)`).run(
+  d.prepare(`INSERT INTO dev_outcomes (ref, candidate_ref, predicted_score, outcome, performance, note, recorded_at, workspace_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run(
     input.ref ?? null,
     input.candidateRef ?? null,
     input.predictedScore ?? null,
     input.outcome,
     input.performance ?? null,
     input.note ?? null,
-    new Date().toISOString()
+    new Date().toISOString(),
+    workspaceId
   );
   return "inserted";
 }
@@ -185,9 +206,17 @@ export function recordPipelineOutcome(
   const cid = entry.candidateId;
   if (!cid || !cid.startsWith("ds-")) return false;
   const ref = cid.slice(3);
+  // Tenant DERIVATION (D5), the same pattern devcase.ts uses for outbox/postings/
+  // submissions: the auto-record's tenant is the workspace of the SUBMISSION the ref
+  // names, read straight from the shared sqlite file. Deriving it here (rather than
+  // threading a workspace argument) keeps the two callers — pipeline.actOnPipelineEntry
+  // and offer-finalize — unchanged: PipelineEntry carries no workspaceId, so a parameter
+  // would have silently defaulted anyway and every auto-recorded outcome would land in
+  // the default tenant's calibration corpus regardless of whose hire it was.
+  const workspaceId = workspaceForSubmissionRef(ref);
   // Idempotent across re-transitions (a re-add later re-rejected must not
   // double-count in the calibration bands).
-  const existing = db().prepare(`SELECT 1 FROM dev_outcomes WHERE ref = ? AND outcome = ? LIMIT 1`).get(ref, outcome);
+  const existing = db().prepare(`SELECT 1 FROM dev_outcomes WHERE workspace_id = ? AND ref = ? AND outcome = ? LIMIT 1`).get(workspaceId, ref, outcome);
   if (existing) return false;
   const predicted =
     typeof entry.matchScore === "number" && entry.matchScore >= 0 && entry.matchScore <= 100
@@ -199,12 +228,28 @@ export function recordPipelineOutcome(
     predictedScore: predicted,
     outcome,
     note: `auto-recorded from pipeline ${outcome === "hired" ? "hire" : "rejection"}`,
-  });
+  }, workspaceId);
   return true;
 }
 
-export function listOutcomes(limit = 80): OutcomeRecord[] {
-  const rows = db().prepare(`SELECT * FROM dev_outcomes ORDER BY id DESC LIMIT ?`).all(limit) as Array<Record<string, unknown>>;
+// The workspace a promoted submission belongs to. dev_submissions lives on db/core.ts's
+// connection but in the SAME sqlite file, so this store can read it directly (it already
+// shares the file with db.ts + dev-control). Falls back to the default tenant when the
+// table has not been created yet (a bare store process) or the ref is unknown — the
+// pre-D5 behaviour, never a throw: calibration must never fail a hire or a rejection.
+function workspaceForSubmissionRef(ref: string): string {
+  try {
+    const row = db().prepare(`SELECT workspace_id FROM dev_submissions WHERE id = ?`).get(ref) as { workspace_id?: string } | undefined;
+    return row?.workspace_id ?? DEFAULT_WORKSPACE_ID;
+  } catch {
+    return DEFAULT_WORKSPACE_ID;
+  }
+}
+
+export function listOutcomes(limit = 80, workspaceId: string = DEFAULT_WORKSPACE_ID): OutcomeRecord[] {
+  const rows = db()
+    .prepare(`SELECT * FROM dev_outcomes WHERE workspace_id = ? ORDER BY id DESC LIMIT ?`)
+    .all(workspaceId, limit) as Array<Record<string, unknown>>;
   return rows.map((r) => ({
     id: r.id as number,
     ref: (r.ref as string) ?? null,
@@ -230,13 +275,13 @@ export type OutcomeSummary = { outcome: Outcome; performance: number | null; rec
 // ref going forward, but rows written before that (or a legacy import) can repeat a
 // ref — scanning in id order and letting the map overwrite makes the newest row win
 // either way. Unknown refs are simply absent from the result.
-export function latestOutcomeByRefs(refs: string[]): Map<string, OutcomeSummary> {
+export function latestOutcomeByRefs(refs: string[], workspaceId: string = DEFAULT_WORKSPACE_ID): Map<string, OutcomeSummary> {
   const latest = new Map<string, OutcomeSummary>();
   if (refs.length === 0) return latest;
   const placeholders = refs.map(() => "?").join(", ");
   const rows = db()
-    .prepare(`SELECT ref, outcome, performance, recorded_at FROM dev_outcomes WHERE ref IN (${placeholders}) ORDER BY id ASC`)
-    .all(...refs) as Array<Record<string, unknown>>;
+    .prepare(`SELECT ref, outcome, performance, recorded_at FROM dev_outcomes WHERE workspace_id = ? AND ref IN (${placeholders}) ORDER BY id ASC`)
+    .all(workspaceId, ...refs) as Array<Record<string, unknown>>;
   for (const r of rows) {
     latest.set(r.ref as string, {
       outcome: r.outcome as Outcome,
@@ -310,8 +355,12 @@ export type Calibration = {
 // Treat a suggestion backed by low-`count` bands as a weak signal, not proof; prefer waiting for
 // more outcomes over reacting to a near-empty band. NOTE the MIN RESOLVED = 4 gate is on the
 // TOTAL in-range decided count, not per-band — individual bands can still be tiny once it passes.
-export function calibrate(currentFloor: number): Calibration {
-  const all = listOutcomes(1000);
+//
+// TENANT SCOPE (D5): the corpus is the CALLER'S workspace only. Pooling teams meant a
+// recruiter's "Apply suggested → N" button moved their live promote floor to a number
+// derived from another team's hires — the algorithm below is unchanged, only its input set.
+export function calibrate(currentFloor: number, workspaceId: string = DEFAULT_WORKSPACE_ID): Calibration {
+  const all = listOutcomes(1000, workspaceId);
   const decided = all.filter((o) => o.outcome === "hired" || o.outcome === "rejected"); // exclude pending/withdrawn
   // Only decided outcomes whose predicted score lands inside the banded range
   // [RANGE_LO, RANGE_HI) inform calibration. A null/absent score — or a legacy,

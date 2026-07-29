@@ -958,7 +958,31 @@
     "notSelectedTitle": "Not selected this time",
     "notSelectedBody": "Thank you for applying. The team has decided to move forward with other candidates for this role. We'd welcome a future application as our openings evolve.",
     "withdrawnTitle": "Application closed",
-    "withdrawnBody": "This application is closed. If that's not right, please contact the hiring team."
+    "withdrawnBody": "This application is closed. If that's not right, please contact the hiring team.",
+    "decisions": {
+      "title": "How decisions about your application were made",
+      "automated": "Automated",
+      "human": "Human decision",
+      "humanReviewNote": "You can request a human review of any decision at any time — just reply to any message from the hiring team.",
+      "reasons": {
+        "reject": "The decisive facts: your match score of {score} was below the screening threshold of {threshold}."
+      },
+      "kinds": {
+        "auto_rejected": "Application not progressed at automated screening",
+        "rejected": "Application not progressed",
+        "advanced": "Application advanced to the next stage",
+        "auto_advanced": "Application advanced to the next stage",
+        "reinstated": "Application reinstated after review",
+        "interview_scheduled": "Interview scheduled",
+        "interview_cancelled": "Interview cancelled",
+        "interview_no_show": "Interview recorded as missed",
+        "interview_proposal_declined": "Proposed interview time declined",
+        "ai_scorecard": "Interview assessed with AI assistance",
+        "human_scorecard": "Interview assessed by an interviewer",
+        "group_eval": "Application compared within the candidate group for this role",
+        "offer_terms": "Offer terms prepared"
+      }
+    }
   },
   "apply": {
     "eyebrow": "Apply",
@@ -1001,7 +1025,8 @@
       "acceptedMessageNoRelay": "Application received and on file! You can check where you stand anytime via the status link below — and boost your chances right now by completing your profile (about two minutes).",
       "enrichCta": "Complete your profile",
       "enrichNote": "About two minutes — it helps us assess you fairly and fast.",
-      "honeypotLabel": "Company URL (leave this field empty)"
+      "honeypotLabel": "Company URL (leave this field empty)",
+      "incompleteHint": "Almost there — please answer everything above. We've taken you to the first item that's still missing."
     },
     "archetypeBau": "An experienced professional",
     "archetypeStudent": "A student or early in my career",
@@ -1037,6 +1062,53 @@
       "koMode": "This role is {workMode}. Does that work for you?",
       "koLang": "The role works in {languages}. Are you comfortable with that?",
       "welcomeBack": "Welcome back, {name}! We already have your application — just a few more questions to complete your profile."
+    },
+    "gapFields": {
+      "hasProjectOrThesis": {
+        "prompt": "Tell us about a school project or thesis you're proud of",
+        "placeholder": "e.g. Bachelor thesis: a small REST API for lab scheduling…"
+      },
+      "hasAspirations": {
+        "prompt": "What kind of role are you aiming for?",
+        "placeholder": "e.g. junior backend developer"
+      },
+      "hasEducationDetail": {
+        "prompt": "What are you studying, and when do you expect to graduate?",
+        "placeholder": "e.g. Computer Science at CTU, graduating June 2027"
+      },
+      "hasActivity": {
+        "prompt": "Any internship, certification, club, or part-time work worth knowing about?",
+        "placeholder": "e.g. summer internship at a web agency"
+      },
+      "educationKnown": {
+        "prompt": "What's your highest education level (or the one in progress)?",
+        "placeholder": "e.g. bachelor"
+      },
+      "hasLanguages": {
+        "prompt": "Which languages do you work in? (comma-separated)",
+        "placeholder": "e.g. Czech, English"
+      },
+      "min3Skills": {
+        "prompt": "List a few skills we should know about (comma-separated)",
+        "placeholder": "e.g. Python, SQL, Git"
+      },
+      "hasYears": {
+        "prompt": "How many years of professional experience do you have?",
+        "placeholder": "e.g. 4"
+      },
+      "hasJob": {
+        "prompt": "What's your most relevant work experience?",
+        "placeholder": "e.g. 3 years as a backend developer at…"
+      }
+    },
+    "declinedRestartNote": "Answered something by mistake? You can go through the questions again — your earlier answers weren't kept, so you'll enter them fresh.",
+    "followup": {
+      "title": "One last thing — optional",
+      "subtitle": "Your application is already in. These few answers just help us assess you fairly; skip them and nothing is lost.",
+      "submit": "Send answers",
+      "skip": "No thanks",
+      "thanks": "Thank you — that's on your profile now.",
+      "saveFailed": "We couldn't save those answers just now. Your application is safely filed — feel free to try again."
     }
   },
   "interview": {
@@ -1403,12 +1475,11 @@
       "previewingPass": "Previewing…",
       "previewTitle": "Preview: what this pass would do",
       "previewSubtitle": "{evaluated} active candidates evaluated — nothing has been applied and no one has been emailed yet.",
-      "previewRejects": "{count, plural, one {Would reject # (sends a rejection email)} other {Would reject # (sends rejection emails)}}",
-      "previewRejectsQueued": "{count, plural, one {Would reject # (queues a rejection message in the Outbox — delivery not configured)} other {Would reject # (queues rejection messages in the Outbox — delivery not configured)}}",
+      "previewRejectsQueued": "{count, plural, one {Would queue # for your approval — the pass never rejects on its own} other {Would queue # for your approval — the pass never rejects on its own}}",
       "previewAdvances": "{count, plural, one {Would advance #} other {Would advance #}}",
       "previewHeld": "{count, plural, one {Held for review (#) — view reasons} other {Held for review (#) — view reasons}}",
       "previewFairnessBlocked": "{count, plural, one {# would-be reject held by the fairness backstop} other {# would-be rejects held by the fairness backstop}}",
-      "previewApply": "{count, plural, one {Apply # change & notify} other {Apply # changes & notify}}",
+      "previewApply": "{count, plural, one {Apply # change} other {Apply # changes}}",
       "previewCancel": "Cancel",
       "previewNothing": "Nothing to apply — every candidate is held or unchanged.",
       "previewNote": "Committing re-evaluates against the live board; a candidate moved meanwhile is skipped, never mis-applied.",
@@ -1518,7 +1589,10 @@
       "setDefaultViewTitle": "Open by default",
       "defaultViewTitle": "Default view — opens on arrival. Click to clear.",
       "renameView": "Rename view {name}",
-      "renameViewTitle": "Rename view"
+      "renameViewTitle": "Rename view",
+      "previewScope": "{mine} of this run's {total} decisions are your team's — the counts above cover the whole installation.",
+      "previewOtherTeamsOnly": "{count, plural, one {No changes for your team. This run has # change waiting for another team.} other {No changes for your team. This run has # changes waiting for other teams.}}",
+      "previewApplyGlobal": "{count, plural, one {Apply # change (all teams)} other {Apply # changes (all teams)}}"
     },
     "today": {
       "eyebrow": "Today",
@@ -1647,7 +1721,19 @@
       "editProfile": "Edit profile",
       "taskStartFailed": "Couldn't start the task.",
       "resultLoadFailed": "The task finished, but its result couldn't be loaded. Try the action again.",
-      "taskIncomplete": "Task did not complete."
+      "taskIncomplete": "Task did not complete.",
+      "commsVerdict": {
+        "sent": "sent",
+        "queued": "queued",
+        "failed": "failed",
+        "recovered": "recovered",
+        "bounced": "bounced",
+        "orphaned": "unmatched receipt"
+      },
+      "commsBounceLine": "The relay reported this as undeliverable: {detail}",
+      "commsFailureLine": "Delivery failed and wasn't retried: {detail}",
+      "commsRecoveredLine": "This send failed first, then a later resend went through.",
+      "commsReasonUnknown": "no reason recorded"
     },
     "actions": {
       "screen": "Screen with AI",
@@ -1716,7 +1802,10 @@
         "fairness_blocked": "fairness backstop",
         "queued": "queued for approval"
       },
-      "thisRun": "{label} this run"
+      "thisRun": "{label} this run",
+      "runScope": "{mine} of {total} yours",
+      "scopeGlobal": "applies to all teams",
+      "scopeGlobalTitle": "One clock runs for the whole installation: turning it on or off starts or stops automation for every team, not just yours."
     },
     "result": {
       "claudeCli": "Claude CLI",
@@ -1737,7 +1826,10 @@
         "scorecard": "Scorecard",
         "offer": "Offer",
         "rematch": "Rematch"
-      }
+      },
+      "noBand": "No salary band is configured for this role or market, so no figure was proposed. Set the amount when approving.",
+      "unpricedAmount": "Amount to be set",
+      "unpricedTitle": "No salary was proposed for this draft — set the amount when you approve the offer."
     },
     "applied": {
       "advanced": "Advanced a stage.",
@@ -1909,7 +2001,10 @@
       "confidenceAria": "AI confidence in this recommendation: {pct}%",
       "viewAnalysis": "Full analysis",
       "jdEditedBadge": "JD edited {date}",
-      "jdEditedTitle": "The JD was edited {date}, after this candidate was scored — the score reflects the earlier text. Re-run the analysis to refresh it."
+      "jdEditedTitle": "The JD was edited {date}, after this candidate was scored — the score reflects the earlier text. Re-run the analysis to refresh it.",
+      "noBand": "No salary band is configured for this role or market, so no figure was proposed. Set the amount when approving.",
+      "unpricedAmount": "Amount to be set",
+      "unpricedTitle": "No salary was proposed for this draft — set the amount when you approve the offer."
     },
     "rules": {
       "title": "Decision rules · Screening",
@@ -2024,7 +2119,8 @@
         "rejectDid": "Auto-rejected · bottom {pct}% of {n} → {count} (rank {rank}) and match {score} < {threshold} threshold.",
         "tieAdjustedNote": "(tie-adjusted from {from} so no equal score is split)",
         "staleSkipped": "Skipped — stage changed mid-wave (was {wasStage}); left untouched.",
-        "unscored": "unscored — no match score yet; excluded from auto-rejection (needs scoring)"
+        "unscored": "unscored — no match score yet; excluded from auto-rejection (needs scoring)",
+        "holdout": "kept — calibration holdout: {pct}% of would-be auto-rejects are spared so their real outcomes can test whether the score was right (match {score}, threshold {threshold})"
       }
     },
     "summary": {
@@ -2142,7 +2238,36 @@
       "robustAgrees": "Agrees with the headline fit order above.",
       "watchOuts": "Watch-outs · {n}",
       "recommendedLead": "Recommended lead",
-      "differentiators": "Differentiators (lead):"
+      "differentiators": "Differentiators (lead):",
+      "leadTied": "Effectively tied",
+      "leadTiedTitle": "The gap to the runner-up is inside both candidates' confidence bands — treat the top two as a tie on the evidence available.",
+      "risk": {
+        "lowFit": "{label}: lower fit ({score}) — confirm must-haves at interview.",
+        "earlyCareer": "{label}: early-career — assess potential and trajectory, not only current skills.",
+        "gaps": "{label}: gaps in {gaps}."
+      },
+      "summary": {
+        "leadScored": "{label} (fit {score})",
+        "leadUnscored": "{label} (unscored)",
+        "empty": "No candidates to evaluate for {role}.",
+        "insufficient": "Only {count, plural, one {# candidate} other {# candidates}} for {role} — a single candidate can't be ranked against a field, so no lead is crowned and the weighting-robustness check does not apply (insufficient sample). Add more candidates to compare.",
+        "noLead": "{count, plural, one {# candidate} other {# candidates}} for {role}, but none pass the role's must-haves (knockout) — no lead. Review the field below.",
+        "eligibility": "{count, plural, one {# candidate} other {# candidates}} for {role}, ranked into an ordinal eligibility list (top by fit: {lead}). Apply any statutory preferences before certifying — nothing is auto-sealed.",
+        "committee": "{count, plural, one {# candidate} other {# candidates}} for {role}. Top by fit (advisory): {lead}. The search committee decides — the AI does not pick or seal a hire.",
+        "recommendation": "{count, plural, one {# candidate} other {# candidates}} for {role}. Recommended lead: {lead}.",
+        "uniqueStrengths": "Unique strengths: {list}.",
+        "watchOuts": "{count, plural, one {# watch-out} other {# watch-outs}} flagged below.",
+        "noRisks": "No blocking risks flagged.",
+        "separationCaveat": "Confidence caveat: {lead} is not separated from {runnerUp} — their score bands overlap, so this ordering is within the measurement's own uncertainty. Treat the top two as a tie on the evidence available."
+      },
+      "governance": {
+        "committee": "Committee mode: the AI comparison is ADVISORY input for the search committee — it does not pick or seal a hire. Capture each evaluator's assessment and the committee's decision in your governance process.",
+        "eligibilityList": "Eligibility-list mode: candidates are an ordinal, fit-ranked list — not a discretionary AI pick, and nothing is auto-sealed. Apply any statutory preferences (e.g. veterans') before certifying; the app holds no such status and cannot compute it."
+      },
+      "topPickWhy": {
+        "highestFit": "Highest fit ({score}) in this role.",
+        "unscored": "Top of the field, but no fit score has been computed yet."
+      }
     }
   },
   "scheduleTab": {
@@ -2682,7 +2807,10 @@
       "bulkDone": "{added} added · {exists} already in catalog · {failed} failed",
       "resAdded": "added",
       "resExists": "in catalog",
-      "resFailed": "couldn't parse"
+      "resFailed": "couldn't parse",
+      "cancelRun": "Cancel run",
+      "cancelled": "Parsing cancelled — nothing was added.",
+      "bulkCancelled": "Cancelled after {done} of {total} ads. The results so far are kept below."
     },
     "drafts": {
       "heading": "Drafts awaiting sourcing",
@@ -2735,7 +2863,8 @@
       "tabRediscover": "Rediscover",
       "tabCompare": "Compare",
       "createCampaignPack": "Create campaign pack",
-      "viewCampaignPack": "View campaign pack"
+      "viewCampaignPack": "View campaign pack",
+      "withdrawFailed": "Role closed, but its in-flight candidates couldn't be withdrawn — check the Pipeline."
     },
     "coach": {
       "loadFailed": "Couldn't grade this role.",
@@ -2913,6 +3042,10 @@
       "couldntAdd": "Couldn't add to the pipeline — {error}",
       "couldntReach": "Couldn't reach out — {error}",
       "assumptions": "Assumptions:"
+    },
+    "deeplink": {
+      "notFound": "That role isn't in your catalog — it may have been removed, or it belongs to another team.",
+      "dismiss": "Dismiss"
     }
   },
   "scoreProvenance": {
@@ -3121,14 +3254,14 @@
       "rebuildWarnKeep": "Keep my edits",
       "projectionLabel": "Candidate view",
       "projectionList": "List",
-      "projectionMatrix": "Matrix"
+      "projectionMatrix": "Matrix",
+      "newProfile": "Build candidate profile"
     },
     "matrix": {
       "eyebrow": "Candidates",
       "title": "Candidates by archetype",
       "intro": "Every saved profile and analyzed CV, placed in the archetype it routed to. A chip marks which store each is from — open one to edit the profile or see its analysis.",
       "loadFailed": "Couldn't load candidates.",
-      "newProfile": "Build candidate profile",
       "emptyTitle": "No candidates yet",
       "emptyBody": "Build a profile above, or run a CV in the <b>Analyze</b> tab — each is routed to an archetype and appears here.",
       "openAnalysisTitle": "Open {name}'s analysis",
@@ -3144,7 +3277,7 @@
       "intro": "Profiles you've built and saved. Edit one, run it against open roles, or remove it.",
       "loadFailed": "Couldn't load saved profiles.",
       "emptyTitle": "No saved profiles yet",
-      "emptyBody": "Build a candidate profile below and it will appear here, ready to match.",
+      "emptyBody": "Build a candidate profile with the button above and it will appear here, ready to match.",
       "completenessAria": "Profile completeness {pct}%",
       "completenessPct": "{pct}% complete",
       "staleBadge": "Newer CV",
@@ -3200,7 +3333,10 @@
       "evidenceTextPlaceholder": "What you built / did, your role, the outcome",
       "evidenceSkillsPlaceholder": "skills: React, TypeScript",
       "evidenceLinkPlaceholder": "github / demo link",
-      "addEvidence": "+ evidence"
+      "addEvidence": "+ evidence",
+      "skillLevelAria": "Skill level",
+      "skillProvenanceAria": "Skill provenance",
+      "evidenceKindAria": "Evidence kind"
     },
     "editor": {
       "back": "Back to profiles",
@@ -3322,23 +3458,14 @@
   },
   "channels": {
     "comms": {
-      "title": "Communications",
       "count": "{count, plural, one {# message} other {# messages}}",
       "deadLetters": "{count, plural, one {# dead-letter — needs attention} other {# dead-letters — need attention}}",
-      "noAddress": "no address",
       "noAddressHint": "This candidate has no deliverable email — a real relay can't reach them. Capture an address before relying on this send.",
-      "addressIssues": "{count, plural, one {# with no address} other {# with no address}}",
-      "intro": "Every candidate-facing message the pipeline sent — acknowledgements, outreach, interview invites, rejections, offers. Expand a row to read the full letter; failed sends can be re-delivered.",
       "empty": "No messages sent yet — they'll appear here as candidates move through the funnel.",
       "loadFailed": "Couldn't load communications.",
       "relayNotConfigured": "No delivery relay configured — these messages are NOT being sent to candidates. Set COMMS_WEBHOOK_URL to enable delivery.",
       "loading": "Loading communications",
-      "recovered": "recovered",
-      "recoveredAt": "resent {time}",
-      "bounced": "bounced",
       "bouncedAt": "Relay reported a bounce {time}: {detail}",
-      "searchPlaceholder": "Search candidate, recipient, or subject",
-      "kindAll": "All kinds",
       "showing": "Showing {shown} of {total}",
       "showMore": "Show more",
       "resend": "Resend",
@@ -3348,73 +3475,37 @@
       "bouncedResendHint": "This address bounced — resending to the same one will bounce again. Enter a corrected email to try a different address.",
       "bouncedRecipientLabel": "Corrected email",
       "bouncedRecipientPlaceholder": "name@company.com",
-      "bouncedResendInvalid": "Enter a valid email address before resending."
+      "bouncedResendInvalid": "Enter a valid email address before resending.",
+      "orphanBadge": "Unmatched receipt",
+      "orphanHint": "The relay reported a delivery failure for a message kp never sent — its reference or type matches nothing here. Check the ref/kind mapping in the relay integration.",
+      "failureDetail": "Delivery failed: {detail}",
+      "failureDetailUnknown": "Delivery failed — no reason was recorded for this send.",
+      "resendRejected": "Couldn't resend: {reason}",
+      "resendDeadLettered": "Resent, but it dead-lettered again.",
+      "colName": "Name",
+      "colRole": "Role",
+      "colChannel": "Channel",
+      "colType": "Type",
+      "colStatus": "Status",
+      "colRecorded": "Recorded",
+      "recordedHint": "When kp recorded the message. A resend is its own row, so original and resend are distinguishable.",
+      "via": "via {channel}",
+      "statusSent": "Sent",
+      "statusQueued": "Queued",
+      "statusFailed": "Failed",
+      "statusRecovered": "Recovered",
+      "statusBounced": "Bounced"
     },
-    "eyebrow": "Workspace",
-    "title": "Channels & integrations",
-    "intro": "Where candidates enter the pipeline. Both inbound <b>applications</b> and proactively-sourced candidates arrive at <hl>Accepted</hl>, then flow into <hl>Screened</hl> for first-wave evaluation.",
-    "received": "{count, plural, one {application} other {applications}} received → <hl>Accepted</hl>",
-    "loadingInbound": "Loading inbound applications",
-    "openPipeline": "Open Pipeline",
-    "noJobNote": "Source a JD into the Pipeline first — then applications can arrive.",
-    "appliedNote": "{label} applied → Accepted (match {score}).",
-    "failed": "Failed.",
-    "open": "Open",
-    "receiving": "Receiving…",
-    "simulate": "Simulate an application",
-    "channelAriaLive": "{name}: live — {status}",
-    "channelAriaOff": "{name}: not configured — {status}",
+    "eyebrow": "Inbound studio",
+    "title": "Where candidates come in",
     "statusListening": "Listening",
-    "webhooks": {
-      "connect": "Connect",
-      "manage": "Manage ({count})",
-      "hide": "Hide",
-      "intro": "POST leads to a webhook URL — each URL is bound to one role and candidate language. Accepts plain JSON or Meta lead-form payloads; leads land at ‘Accepted’ as enrichable stubs and get an instant acknowledgement with a full-apply link.",
-      "job": "Role",
-      "language": "Candidate language",
-      "create": "Create webhook URL",
-      "creating": "Creating…",
-      "copyUrl": "Copy URL",
-      "copied": "Copied",
-      "revoke": "Revoke webhook",
-      "received": "{count, plural, one {# received} other {# received}}",
-      "leads": "{count, plural, one {# lead} other {# leads}}",
-      "neverReceived": "nothing received yet",
-      "firstLeadMins": "first lead {mins} min after setup",
-      "firstLeadHours": "first lead {hours} h after setup",
-      "noJobs": "No roles available — ingest or publish a job first.",
-      "noJobsCta": "Create a job description",
-      "createFailed": "Couldn't create the webhook.",
-      "revokeFailed": "Couldn't revoke the webhook."
-    },
+    "webhooks": {},
     "items": {
-      "apply": {
-        "name": "Careers page · Apply link",
-        "status": "Listening",
-        "desc": "A conversational apply link — submitted applications land at ‘Accepted’."
-      },
-      "email": {
-        "name": "Email intake",
-        "status": "Not configured",
-        "desc": "Pipe an email-parsing integration (or any form) into a per-role webhook URL — parsed applicants land at ‘Accepted’."
-      },
-      "boards": {
-        "name": "Job boards & ad forms",
-        "status": "Not configured",
-        "desc": "Receive applicants from job boards and ad lead forms (Meta lead-form payloads supported) via a per-role webhook URL — leads land at ‘Accepted’."
-      },
-      "sourcing": {
-        "name": "Proactive sourcing",
-        "status": "Active",
-        "desc": "Rank the candidate pool against the role in Match — proactively sourced candidates land at ‘Accepted’.",
-        "cta": "Open Match"
-      },
-      "manual": {
-        "name": "Manual add",
-        "status": "Recruiter",
-        "desc": "Build a candidate profile by hand (Profile) and add them to a role.",
-        "cta": "Build a profile"
-      }
+      "apply": {},
+      "email": {},
+      "boards": {},
+      "sourcing": {},
+      "manual": {}
     },
     "relay": {
       "title": "Delivery relay",
@@ -3433,6 +3524,149 @@
       "test": "Send test ping",
       "testOk": "Delivered — HTTP {status}",
       "testFailed": "Test failed: {reason}"
+    },
+    "tablist": "Integration",
+    "waiting": "{count} waiting in the pipeline",
+    "ledger": "Ledger",
+    "statusLive": "Live",
+    "statusConfigured": "Configured",
+    "statusOff": "Off",
+    "statusWaiting": "Waiting",
+    "copyLink": "Copy link",
+    "copy": "Copy",
+    "copied": "Copied",
+    "sections": {
+      "comms": {
+        "label": "Communications",
+        "blurb": "Every candidate-facing message, in one auditable ledger."
+      },
+      "careers": {
+        "label": "Careers page",
+        "blurb": "Your public apply page — one link, embeddable anywhere."
+      },
+      "email": {
+        "label": "Email intake",
+        "blurb": "Forward applications from a mailbox straight into the pipeline."
+      },
+      "ads": {
+        "label": "Ad forms",
+        "blurb": "Lead-gen ad forms (LinkedIn / Meta) post their leads in."
+      }
+    },
+    "stats": {
+      "publishedRoles": "Published roles",
+      "waiting": "Waiting",
+      "receivers": "Receivers",
+      "received": "Received",
+      "leads": "Leads filed"
+    },
+    "sim": {
+      "run": "Receive a test application",
+      "running": "Receiving…",
+      "noJob": "Create a job first — inbound applications need a role to land on.",
+      "filed": "Received {label} — matched at {score}. Filed at Accepted on {role}.",
+      "failed": "Couldn’t receive a test application."
+    },
+    "careers": {
+      "empty": "No published roles yet — publish a job and its apply link appears here.",
+      "applyLink": "apply link"
+    },
+    "receivers": {
+      "role": "Role",
+      "lang": "Lang",
+      "status": "Status",
+      "received": "Received",
+      "receivedHint": "Authenticated POSTs this receiver has taken — probes and rejected payloads included. “Leads filed” is the candidate count.",
+      "copyEndpoint": "Copy endpoint",
+      "remove": "Remove",
+      "removeAria": "Remove receiver for {role}",
+      "confirmTitle": "Remove this receiver?",
+      "confirmBody": "This deletes the intake endpoint for <b>{role}</b>. The <b>{endpoint}</b> stops accepting applications immediately and can’t be restored — you’d have to add a new receiver and re-point the source at its new address.",
+      "confirmLive": "{count, plural, one {This receiver is live — it has taken # inbound application.} other {This receiver is live — it has taken # inbound applications.}} The forwarding rule / ad flow pointing at it will keep POSTing to a dead URL and new applications will be dropped until it’s re-wired.",
+      "cancel": "Cancel",
+      "confirm": "Remove receiver"
+    },
+    "add": {
+      "roleLabel": "Role",
+      "rolePlaceholder": "Select a role…",
+      "langLabel": "Candidate language",
+      "noJobs": "Publish a role first — each receiver binds to one job.",
+      "noJobsCta": "Go to the JD library",
+      "cancel": "Cancel",
+      "create": "Create",
+      "creating": "Creating…",
+      "createFailed": "Couldn’t create it — try again.",
+      "removeFailed": "Couldn’t remove it — try again."
+    },
+    "email": {
+      "title": "Add role inbox",
+      "add": "Add inbox",
+      "introWired": "Forward applications from Outlook or Gmail — set <b>one rule per role</b> and every application flows into the pipeline automatically.",
+      "introUnwired": "One receiver per role. Email forwarding isn’t wired on this deployment, so each role’s receiver is an <b>HTTP endpoint</b> anything can POST an application to.",
+      "emptyWired": "No role inboxes yet — add one to get a forwarding address.",
+      "emptyUnwired": "No role inboxes yet — add one to get its receiver URL.",
+      "endpointWired": "Forwarding address",
+      "endpointUnwired": "Receiver URL",
+      "lead": "Forward <b>{role}</b> applications to",
+      "waiting": "Waiting for the first forward…",
+      "notWiredTitle": "Email forwarding isn’t wired yet — there is no mailbox to forward to.",
+      "notWiredBody": "This deployment has no inbound-email provider, so a Gmail or Outlook rule would send <b>{role}</b> applications to an address that accepts nothing. The real receiver is an HTTP endpoint:",
+      "notWiredHowTo": "Anything that can POST reaches it today — an automation (Zapier/Make), a form, or a mail-parsing service. To turn on real forwarding, route an inbound-email provider (Postmark, SendGrid or Mailgun inbound) at this endpoint and set <code>EMAIL_INBOUND_DOMAIN</code> to the domain it accepts mail on. The forwarding address and the Gmail/Outlook steps appear here once it is set.",
+      "gmail1": "Open Gmail → <b>Settings ⚙ → See all settings → Forwarding and POP/IMAP</b>.",
+      "gmail2": "Click <b>Add a forwarding address</b>, paste <endpoint></endpoint>, then <b>Next → Proceed</b>.",
+      "gmail3": "Gmail emails a <b>confirmation code</b> to that address. Retrieve it from your inbound-email provider’s log — kp records outgoing messages, not the provider’s own mail — then enter it back in Gmail to confirm.",
+      "gmail4": "Create a <b>Filter</b> (e.g. <i>Subject contains “application”</i>) → <b>Forward it to</b> <endpoint></endpoint>. Every matching email now flows in automatically.",
+      "outlook1": "Open Outlook on the web → <b>Settings ⚙ → Mail → Rules → Add new rule</b>.",
+      "outlook2": "Name it <i>“Applications → KP”</i> and add a condition (e.g. <i>Subject includes “application”</i>).",
+      "outlook3": "Set the action to <b>Redirect to</b> (or <b>Forward to</b>) <endpoint></endpoint>.",
+      "outlook4": "Click <b>Save</b>. Matching mail is now redirected automatically — no code to confirm."
+    },
+    "ads": {
+      "title": "Add ad-form receiver",
+      "add": "Add receiver",
+      "intro": "Point a LinkedIn or Meta lead-gen ad form’s webhook at a role’s <b>receiver URL</b> — every lead lands in the pipeline automatically.",
+      "empty": "No ad-form receivers yet — add one to get a webhook URL.",
+      "endpoint": "Receiver URL",
+      "lead": "Point the <b>{role}</b> ad form at",
+      "waiting": "Waiting for the first lead…",
+      "footnote": "Advanced: skip the connector and POST leads to this URL directly — LinkedIn’s Lead Sync API, or a Meta app subscribed to the <code>leadgen</code> webhook, can target it once verified.",
+      "linkedin1": "In <b>Zapier</b> or <b>Make</b>, create a flow: trigger <b>LinkedIn Lead Gen Forms → New Lead</b> (connect your ad account).",
+      "linkedin2": "Add an action <b>Webhooks → POST</b> and set the URL to <endpoint></endpoint>.",
+      "linkedin3": "Map the lead’s <b>name</b>, <b>email</b> and résumé/CV file into the request body.",
+      "linkedin4": "Turn it on — new LinkedIn leads now post into the pipeline automatically.",
+      "meta1": "In <b>Zapier</b> or <b>Make</b>, create a flow: trigger <b>Facebook Lead Ads → New Lead</b> (connect your Page).",
+      "meta2": "Add an action <b>Webhooks → POST</b> and set the URL to <endpoint></endpoint>.",
+      "meta3": "Map the lead’s <b>name</b>, <b>email</b> and any CV upload field into the request body.",
+      "meta4": "Turn it on — new Meta leads now post into the pipeline automatically."
+    },
+    "guide": {
+      "setupFor": "Setup for",
+      "live": "Receiving"
+    },
+    "cvSim": {
+      "open": "Test with a real CV",
+      "title": "Simulate a CV for",
+      "close": "Close",
+      "choose": "Choose a CV — PDF, DOCX, TXT or MD",
+      "namePlaceholder": "Name (optional)",
+      "emailPlaceholder": "Email (optional)",
+      "run": "Receive this CV",
+      "running": "Parsing & filing…",
+      "hint": "Parses the file, builds a matchable candidate, lands them at Accepted.",
+      "failed": "Couldn’t file it: {reason}",
+      "failedStatus": "Failed ({status}).",
+      "requestFailed": "Request failed.",
+      "landed": "<b>{name}</b> landed at <b>Accepted</b> on {role}{suffix}",
+      "stub": " (as a stub — CV text was thin)",
+      "openInPipeline": "Open in pipeline"
+    },
+    "filters": {
+      "search": "Search…",
+      "searchOptions": "Search options",
+      "noMatches": "No matches",
+      "searchColumn": "Search {column}…",
+      "allOf": "All — {column}",
+      "select": "Select…"
     }
   },
   "interviewSim": {
@@ -4857,6 +5091,121 @@
         "title": "You're all set!",
         "body": "Company, role, case, and channels are wired — happy hiring."
       }
+    }
+  },
+  "devcase": {
+    "lifecycle": {
+      "sectionTitle": "Automated lifecycle",
+      "intro": "Each case advances under policy — auto-approving clean designs, routing flagged ones to you, publishing, and (as submissions arrive) evaluating → ranking → promoting the top candidates into Decisions. No manual steps between.",
+      "untitledRole": "Role",
+      "railLabel": "Lifecycle progress — {steps}",
+      "railStep": "{step}: {state}",
+      "stalledBadge": "stalled {days}d",
+      "stalledTitle": "{days, plural, one {Open and empty for # day} other {Open and empty for # days}} — re-source the candidate pool or close the case.",
+      "reSourceTitle": "Rank the existing candidate DB against this role and seed the pipeline again",
+      "reSourcing": "Re-sourcing…",
+      "reSource": "Re-source",
+      "hideReview": "Hide review",
+      "review": "Review & approve",
+      "closeTitle": "Wrap up non-promoted submitters and stop the apply link",
+      "closing": "Closing…",
+      "close": "Close case",
+      "closeConfirm": "Close this case? Non-promoted submitters get a wrap-up note and the apply link stops accepting submissions.",
+      "closeFailed": "Close failed."
+    },
+    "stage": {
+      "intake": "intake",
+      "analyzed": "analyzed",
+      "designed": "designed",
+      "awaiting_approval": "needs approval",
+      "approved": "approved",
+      "published": "published",
+      "collecting": "collecting",
+      "ranked": "ranked",
+      "promoted": "promoted"
+    },
+    "stepState": {
+      "done": "done",
+      "current": "current",
+      "upcoming": "upcoming"
+    },
+    "review": {
+      "flagged": "Why this was flagged",
+      "flaggedWithConfidence": "Why this was flagged · confidence {pct}%",
+      "fieldTitle": "Title",
+      "fieldBrief": "Brief",
+      "fieldTasks": "Tasks (one per line)",
+      "fieldTimebox": "Timebox (hours)",
+      "internalProbes": "Internal — cover probes ({count})",
+      "engineOwned": "Probes and rubric are engine-owned — to change them, regenerate with a note.",
+      "previewTitle": "Candidate-safe preview (live)",
+      "approving": "Approving…",
+      "approveWithEdits": "Approve with edits",
+      "approve": "Approve",
+      "approveFailed": "Approve failed.",
+      "feedbackPlaceholder": "What should change? e.g. “too broad for a junior — narrow task 2 to one endpoint”",
+      "redesignTitle": "Re-run only the design step with this note — no full lifecycle re-run",
+      "redesigning": "Redesigning…",
+      "redesign": "Regenerate with note",
+      "redesignFailed": "Redesign failed."
+    },
+    "outbox": {
+      "emptyTitle": "No messages yet",
+      "emptyBody": "The pipeline writes every intake acknowledgement, promote invite, recruiter outreach and rejection here as cases collect submissions.",
+      "relayHint": "“queued” = recorded locally (terminal until a relay is wired); set <code>COMMS_WEBHOOK_URL</code> to relay through a real channel (email / ATS), where messages resolve to <sent>sent</sent> or, on a dropped delivery, <failed>failed</failed> (dead-lettered — needs attention).",
+      "colKind": "Kind",
+      "colRecipient": "Recipient",
+      "colSubject": "Subject",
+      "colStatus": "Status",
+      "colSent": "Sent",
+      "resendTitle": "Re-deliver this message through the active channel (recorded as a new outbox row)",
+      "retryResend": "Retry resend"
+    },
+    "outboxKind": {
+      "acknowledgement": "acknowledgement",
+      "outreach": "outreach",
+      "rejection": "rejection",
+      "ko_decline": "screening decline",
+      "offer": "offer",
+      "offer_reminder": "offer reminder",
+      "interview_confirmation": "interview confirmation",
+      "interview_reminder": "interview reminder",
+      "interview_invite": "interview invite",
+      "interviewer_brief": "interviewer brief",
+      "schedule_invite": "scheduling invite",
+      "onboarding": "onboarding",
+      "onboarding_reminder": "onboarding reminder"
+    },
+    "cohort": {
+      "title": "Cohort probe insights",
+      "evaluated": "· {count} evaluated",
+      "notScored": "not yet scored",
+      "missed": "{pct}% missed · {band}",
+      "missedAria": "{pct} percent missed, {band} miss rate",
+      "weak": "{pct}% weak",
+      "weakTitle": "Detected but mishandled, or missed",
+      "sample": "n={count}",
+      "miscalibrationLabel": "Possible miscalibration:",
+      "miscalibration": "{count, plural, one {# probe was} other {# probes were}} missed by every evaluated candidate — the seam may be too hidden to read, or the option space too narrow to force a real choice."
+    },
+    "band": {
+      "high": "high",
+      "some": "some",
+      "low": "low"
+    },
+    "interviewKit": {
+      "title": "Interview kit — top candidate",
+      "fit": "· fit {score}",
+      "copied": "Copied",
+      "copy": "Copy",
+      "export": "Export",
+      "intro": "Each question verifies the candidate owns a real decision from their submission. Listen-for / red-flag notes are interviewer-internal."
+    },
+    "probeAudit": {
+      "label": "Probe-strength audit",
+      "strong": "{loadBearing} of {total} probes are load-bearing — this case discriminates.",
+      "weak": "Only {loadBearing} of {total} probes are load-bearing — most won't separate strong from naive.",
+      "none": "No load-bearing probes — this case can't tell a strong submission from a naive one."
     }
   }
 }

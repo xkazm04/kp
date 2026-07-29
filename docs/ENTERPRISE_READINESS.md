@@ -277,7 +277,10 @@ config-driven retention (`KP_CONSENT_TTL_DAYS`), working erasure links (UAT item
 35 fixed), a GDPR extensions doc (`docs/GDPR_AND_HIRING_EXTENSIONS.md`), and —
 critically — **a human on every decision gate**, which is the strongest possible
 answer to GDPR Art. 22 ("no solely-automated decision with legal/significant
-effect"). The AI-Act conformity mapping is already backlogged (#26).
+effect"). The AI-Act conformity mapping is DONE (#26, 2026-07-27): see
+**`docs/AI_ACT_CONFORMITY.md`** — Annex III pt. 4 classification, per-article
+conformity map with code evidence, gap register G1–G14, Annex IV skeleton, and
+a deployer quick-sheet. E-GDPR-2's DPIA folds into its G1.
 
 **Gap.** Legal artifacts (DPA template, RoPA, DPIA), sub-processor list + change
 notification, full data-subject-rights flow (access/portability/rectification, not

@@ -2,14 +2,19 @@ import { NextRequest, NextResponse } from "next/server";
 import { activePromoteFloor } from "@/app/_lib/devcase-orchestrator";
 import { recordAudit, setPromoteFloor } from "@/app/_lib/dev-control";
 import { calibrate, listOutcomes, outcomeInputSchema, recordOutcome } from "@/app/_lib/dev-outcomes";
+import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 
 
 const activeFloor = activePromoteFloor;
 
 // Direction E — the outcome loop: record what happened + read the calibration.
+// TENANT SCOPE (D5): both are the CALLER'S workspace — the outcome corpus (and so the
+// promote-floor recommendation derived from it) is per-team, not deployment-wide. The
+// promote FLOOR itself stays global (dev_control is a declared deployment-level table).
 export async function GET() {
   try {
-    return NextResponse.json({ outcomes: listOutcomes(), calibration: calibrate(activeFloor()), activeFloor: activeFloor() });
+    const ws = await currentWorkspace();
+    return NextResponse.json({ outcomes: listOutcomes(80, ws), calibration: calibrate(activeFloor(), ws), activeFloor: activeFloor() });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Failed." }, { status: 500 });
   }
@@ -49,9 +54,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: message }, { status: 400 });
     }
     const outcome = parsed.data;
-    recordOutcome(outcome);
+    const ws = await currentWorkspace();
+    recordOutcome(outcome, ws);
     recordAudit({ actor: "human", action: "outcome_recorded", reason: `${outcome.candidateRef ?? "candidate"}: ${outcome.outcome}${outcome.performance ? ` (perf ${outcome.performance})` : ""}` });
-    return NextResponse.json({ ok: true, calibration: calibrate(activeFloor()) });
+    return NextResponse.json({ ok: true, calibration: calibrate(activeFloor(), ws) });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Failed." }, { status: 500 });
   }

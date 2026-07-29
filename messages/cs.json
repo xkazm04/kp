@@ -958,7 +958,31 @@
     "notSelectedTitle": "Tentokrát jste nebyl/a vybrán/a",
     "notSelectedBody": "Děkujeme za vaši přihlášku. Tým se rozhodl pokračovat s jinými kandidáty na tuto roli. Budeme rádi za vaši přihlášku na budoucí pozice.",
     "withdrawnTitle": "Přihláška uzavřena",
-    "withdrawnBody": "Tato přihláška je uzavřena. Pokud to není správně, kontaktujte prosím náborový tým."
+    "withdrawnBody": "Tato přihláška je uzavřena. Pokud to není správně, kontaktujte prosím náborový tým.",
+    "decisions": {
+      "title": "Jak vznikala rozhodnutí o vaší přihlášce",
+      "automated": "Automatizované",
+      "human": "Lidské rozhodnutí",
+      "humanReviewNote": "Kdykoli můžete požádat o lidské přezkoumání kteréhokoli rozhodnutí — stačí odpovědět na libovolnou zprávu od náborového týmu.",
+      "reasons": {
+        "reject": "Rozhodující skutečnosti: vaše skóre shody {score} bylo pod prahem pro postup {threshold}."
+      },
+      "kinds": {
+        "auto_rejected": "Přihláška nepostoupila při automatizovaném předvýběru",
+        "rejected": "Přihláška nepostoupila",
+        "advanced": "Přihláška postoupila do další fáze",
+        "auto_advanced": "Přihláška postoupila do další fáze",
+        "reinstated": "Přihláška obnovena po přezkoumání",
+        "interview_scheduled": "Pohovor naplánován",
+        "interview_cancelled": "Pohovor zrušen",
+        "interview_no_show": "Pohovor zaznamenán jako zmeškaný",
+        "interview_proposal_declined": "Navržený termín pohovoru odmítnut",
+        "ai_scorecard": "Pohovor vyhodnocen s asistencí AI",
+        "human_scorecard": "Pohovor vyhodnocen tazatelem",
+        "group_eval": "Přihláška porovnána v rámci skupiny uchazečů o tuto pozici",
+        "offer_terms": "Připraveny podmínky nabídky"
+      }
+    }
   },
   "apply": {
     "eyebrow": "Přihláška",
@@ -1001,7 +1025,8 @@
       "acceptedMessageNoRelay": "Přihláška přijata a zaznamenána! Kde se vaše přihláška nachází, můžete kdykoli zjistit přes odkaz níže — a své šance můžete zvýšit hned teď doplněním profilu (zabere asi dvě minuty).",
       "enrichCta": "Doplnit profil",
       "enrichNote": "Asi dvě minuty — pomůže nám posoudit vás spravedlivě a rychle.",
-      "honeypotLabel": "Web společnosti (toto pole nechte prázdné)"
+      "honeypotLabel": "Web společnosti (toto pole nechte prázdné)",
+      "incompleteHint": "Ještě kousek — vyplňte prosím vše výše. Přesunuli jsme vás na první chybějící položku."
     },
     "archetypeBau": "Zkušený/á profesionál/ka",
     "archetypeStudent": "Student/ka nebo na začátku kariéry",
@@ -1037,6 +1062,53 @@
       "koMode": "Tato role je {workMode}. Vyhovuje vám to?",
       "koLang": "Tato role probíhá v jazyce {languages}. Je vám to příjemné?",
       "welcomeBack": "Vítejte zpět, {name}! Vaši přihlášku už máme — zbývá jen pár otázek k doplnění profilu."
+    },
+    "gapFields": {
+      "hasProjectOrThesis": {
+        "prompt": "Popište nám školní projekt nebo práci, na které si zakládáte",
+        "placeholder": "např. bakalářská práce: malé REST API pro rezervaci laboratoří…"
+      },
+      "hasAspirations": {
+        "prompt": "Jakou pozici hledáte?",
+        "placeholder": "např. junior backend vývojář"
+      },
+      "hasEducationDetail": {
+        "prompt": "Co studujete a kdy plánujete dostudovat?",
+        "placeholder": "např. Informatika na ČVUT, dokončení červen 2027"
+      },
+      "hasActivity": {
+        "prompt": "Máte za sebou stáž, certifikaci, spolkovou činnost nebo brigádu, o které bychom měli vědět?",
+        "placeholder": "např. letní stáž ve webové agentuře"
+      },
+      "educationKnown": {
+        "prompt": "Jaké je vaše nejvyšší dosažené vzdělání (nebo to právě studované)?",
+        "placeholder": "např. bakalářské"
+      },
+      "hasLanguages": {
+        "prompt": "V jakých jazycích pracujete? (oddělte čárkami)",
+        "placeholder": "např. čeština, angličtina"
+      },
+      "min3Skills": {
+        "prompt": "Uveďte pár dovedností, o kterých bychom měli vědět (oddělte čárkami)",
+        "placeholder": "např. Python, SQL, Git"
+      },
+      "hasYears": {
+        "prompt": "Kolik let profesní praxe máte?",
+        "placeholder": "např. 4"
+      },
+      "hasJob": {
+        "prompt": "Jaká je vaše nejrelevantnější pracovní zkušenost?",
+        "placeholder": "např. 3 roky jako backend vývojář ve firmě…"
+      }
+    },
+    "declinedRestartNote": "Odpověděli jste omylem? Můžete otázky projít znovu — dřívější odpovědi jsme neuchovali, takže je vyplníte od začátku.",
+    "followup": {
+      "title": "Ještě jedna věc — nepovinně",
+      "subtitle": "Vaše přihláška už je u nás. Těchto pár odpovědí nám jen pomůže posoudit vás spravedlivě; když je přeskočíte, o nic nepřijdete.",
+      "submit": "Odeslat odpovědi",
+      "skip": "Děkuji, ne",
+      "thanks": "Děkujeme — máme to ve vašem profilu.",
+      "saveFailed": "Odpovědi se nám teď nepodařilo uložit. Vaše přihláška je v pořádku uložená — klidně to zkuste znovu."
     }
   },
   "interview": {
@@ -1402,12 +1474,11 @@
       "previewingPass": "Náhled…",
       "previewTitle": "Náhled: co by tento průchod udělal",
       "previewSubtitle": "Vyhodnoceno {evaluated} aktivních kandidátů — zatím se nic nepoužilo a nikomu nebyl odeslán e-mail.",
-      "previewRejects": "{count, plural, one {Zamítl by # (odešle e-mail o zamítnutí)} few {Zamítl by # (odešle e-maily o zamítnutí)} other {Zamítl by # (odešle e-maily o zamítnutí)}}",
-      "previewRejectsQueued": "{count, plural, one {Zamítl by # (zamítnutí se uloží do Outboxu — doručování není nastaveno)} few {Zamítl by # (zamítnutí se uloží do Outboxu — doručování není nastaveno)} other {Zamítl by # (zamítnutí se uloží do Outboxu — doručování není nastaveno)}}",
+      "previewRejectsQueued": "{count, plural, one {# by čekal na vaše schválení — průchod sám nikdy nezamítá} few {# by čekali na vaše schválení — průchod sám nikdy nezamítá} other {# by čekalo na vaše schválení — průchod sám nikdy nezamítá}}",
       "previewAdvances": "{count, plural, one {Posunul by #} few {Posunul by #} other {Posunul by #}}",
       "previewHeld": "{count, plural, one {Pozdrženo k posouzení (#) — zobrazit důvody} few {Pozdrženo k posouzení (#) — zobrazit důvody} other {Pozdrženo k posouzení (#) — zobrazit důvody}}",
       "previewFairnessBlocked": "{count, plural, one {# zamítnutí zadrženo férovou pojistkou} few {# zamítnutí zadržena férovou pojistkou} other {# zamítnutí zadrženo férovou pojistkou}}",
-      "previewApply": "{count, plural, one {Použít # změnu a upozornit} few {Použít # změny a upozornit} other {Použít # změn a upozornit}}",
+      "previewApply": "{count, plural, one {Použít # změnu} few {Použít # změny} other {Použít # změn}}",
       "previewCancel": "Zrušit",
       "previewNothing": "Není co použít — všichni kandidáti jsou pozdrženi nebo beze změny.",
       "previewNote": "Potvrzení se vyhodnotí proti aktuální nástěnce; kandidát mezitím přesunutý se přeskočí, nikdy se nepoužije špatně.",
@@ -1518,7 +1589,10 @@
       "setDefaultViewTitle": "Otevírat jako výchozí",
       "defaultViewTitle": "Výchozí pohled — otevře se při příchodu. Kliknutím jej zrušíte.",
       "renameView": "Přejmenovat pohled {name}",
-      "renameViewTitle": "Přejmenovat pohled"
+      "renameViewTitle": "Přejmenovat pohled",
+      "previewScope": "{mine} z {total} rozhodnutí tohoto běhu patří vašemu týmu — počty výše zahrnují celou instalaci.",
+      "previewOtherTeamsOnly": "{count, plural, one {Pro váš tým žádné změny. Tento běh má # změnu čekající pro jiný tým.} few {Pro váš tým žádné změny. Tento běh má # změny čekající pro jiné týmy.} other {Pro váš tým žádné změny. Tento běh má # změn čekajících pro jiné týmy.}}",
+      "previewApplyGlobal": "{count, plural, one {Použít # změnu (všechny týmy)} few {Použít # změny (všechny týmy)} other {Použít # změn (všechny týmy)}}"
     },
     "today": {
       "eyebrow": "Dnes",
@@ -1647,7 +1721,19 @@
       "editProfile": "Upravit profil",
       "taskStartFailed": "Úlohu se nepodařilo spustit.",
       "resultLoadFailed": "Úloha doběhla, ale její výsledek se nepodařilo načíst. Zkuste akci spustit znovu.",
-      "taskIncomplete": "Úloha nebyla dokončena."
+      "taskIncomplete": "Úloha nebyla dokončena.",
+      "commsVerdict": {
+        "sent": "odesláno",
+        "queued": "ve frontě",
+        "failed": "selhalo",
+        "recovered": "napraveno",
+        "bounced": "nedoručeno",
+        "orphaned": "nespárované potvrzení"
+      },
+      "commsBounceLine": "Relay tuto zprávu označil za nedoručitelnou: {detail}",
+      "commsFailureLine": "Doručení selhalo a nebylo zopakováno: {detail}",
+      "commsRecoveredLine": "Toto odeslání nejprve selhalo, pozdější opakování ale prošlo.",
+      "commsReasonUnknown": "důvod nezaznamenán"
     },
     "actions": {
       "screen": "Prověřit pomocí AI",
@@ -1716,7 +1802,10 @@
         "fairness_blocked": "férová pojistka",
         "queued": "čeká na schválení"
       },
-      "thisRun": "{label} v tomto běhu"
+      "thisRun": "{label} v tomto běhu",
+      "runScope": "{mine} z {total} vašich",
+      "scopeGlobal": "platí pro všechny týmy",
+      "scopeGlobalTitle": "Pro celou instalaci běží jediné hodiny: zapnutí či vypnutí spustí nebo zastaví automatizaci pro všechny týmy, nejen pro váš."
     },
     "result": {
       "claudeCli": "Claude CLI",
@@ -1737,7 +1826,10 @@
         "scorecard": "Hodnoticí karta",
         "offer": "Nabídka",
         "rematch": "Přepárování"
-      }
+      },
+      "noBand": "Pro tuto roli ani trh není nastavené mzdové pásmo, takže nebyla navržena žádná částka. Doplňte ji při schvalování.",
+      "unpricedAmount": "Částku je třeba doplnit",
+      "unpricedTitle": "Pro tento návrh nebyla navržena žádná mzda — částku nastavte při schvalování nabídky."
     },
     "applied": {
       "advanced": "Postoupil/a o fázi.",
@@ -1909,7 +2001,10 @@
       "confidenceAria": "Jistota AI v tomto doporučení: {pct} %",
       "viewAnalysis": "Celá analýza",
       "jdEditedBadge": "Inzerát upraven {date}",
-      "jdEditedTitle": "Inzerát byl upraven {date}, až po ohodnocení tohoto kandidáta — skóre odráží dřívější text. Pro aktualizaci spusťte analýzu znovu."
+      "jdEditedTitle": "Inzerát byl upraven {date}, až po ohodnocení tohoto kandidáta — skóre odráží dřívější text. Pro aktualizaci spusťte analýzu znovu.",
+      "noBand": "Pro tuto roli ani trh není nastavené mzdové pásmo, takže nebyla navržena žádná částka. Doplňte ji při schvalování.",
+      "unpricedAmount": "Částku je třeba doplnit",
+      "unpricedTitle": "Pro tento návrh nebyla navržena žádná mzda — částku nastavte při schvalování nabídky."
     },
     "rules": {
       "title": "Pravidla rozhodování · Screening",
@@ -2024,7 +2119,8 @@
         "rejectDid": "Automaticky zamítnuto · spodních {pct} % z {n} → {count} (pořadí {rank}) a shoda {score} < práh {threshold}.",
         "tieAdjustedNote": "(upraveno kvůli shodě z {from}, aby se stejná skóre nerozdělila)",
         "staleSkipped": "Přeskočeno — fáze se během vlny změnila (byla {wasStage}); ponecháno beze změny.",
-        "unscored": "bez skóre — shoda zatím nezměřena; vyloučeno z automatického zamítání (nejprve ohodnotit)"
+        "unscored": "bez skóre — shoda zatím nezměřena; vyloučeno z automatického zamítání (nejprve ohodnotit)",
+        "holdout": "ponecháno — kalibrační kontrolní vzorek: {pct} % kandidátů určených k automatickému zamítnutí je záměrně ponecháno, aby jejich skutečné výsledky ověřily správnost skóre (shoda {score}, práh {threshold})"
       }
     },
     "summary": {
@@ -2142,7 +2238,36 @@
       "robustAgrees": "Souhlasí s pořadím podle shody výše.",
       "watchOuts": "Na co si dát pozor · {n}",
       "recommendedLead": "Doporučený vedoucí",
-      "differentiators": "Odlišovače (vedoucí):"
+      "differentiators": "Odlišovače (vedoucí):",
+      "leadTied": "Prakticky nerozhodně",
+      "leadTiedTitle": "Rozdíl oproti druhému v pořadí leží uvnitř pásem jistoty obou kandidátů — berte první dva jako rovnocenné.",
+      "risk": {
+        "lowFit": "{label}: nižší shoda ({score}) — ověřte povinné požadavky na pohovoru.",
+        "earlyCareer": "{label}: začátek kariéry — posuzujte potenciál a směřování, nejen současné dovednosti.",
+        "gaps": "{label}: mezery v oblastech: {gaps}."
+      },
+      "summary": {
+        "leadScored": "{label} (shoda {score})",
+        "leadUnscored": "{label} (bez hodnocení)",
+        "empty": "Pro roli {role} nejsou žádní kandidáti k vyhodnocení.",
+        "insufficient": "Pouze {count, plural, one {# kandidát} few {# kandidáti} other {# kandidátů}} pro roli {role} — jediného kandidáta nelze porovnat s polem, takže se nekoruje žádný vedoucí a kontrola robustnosti vážení se neuplatní (nedostatečný vzorek). Přidejte další kandidáty k porovnání.",
+        "noLead": "{count, plural, one {# kandidát} few {# kandidáti} other {# kandidátů}} pro roli {role}, ale nikdo nesplňuje povinné požadavky role (vyřazovací kritéria) — žádný vedoucí. Projděte si pole níže.",
+        "eligibility": "{count, plural, one {# kandidát} few {# kandidáti} other {# kandidátů}} pro roli {role}, seřazeno do pořadového seznamu způsobilosti (nejvyšší shoda: {lead}). Před certifikací uplatněte případné zákonné preference — nic se neschvaluje automaticky.",
+        "committee": "{count, plural, one {# kandidát} few {# kandidáti} other {# kandidátů}} pro roli {role}. Nejvyšší shoda (poradně): {lead}. Rozhoduje výběrová komise — AI nevybírá ani nezpečeťuje přijetí.",
+        "recommendation": "{count, plural, one {# kandidát} few {# kandidáti} other {# kandidátů}} pro roli {role}. Doporučený vedoucí: {lead}.",
+        "uniqueStrengths": "Jedinečné silné stránky: {list}.",
+        "watchOuts": "Níže je {count, plural, one {# upozornění} few {# upozornění} other {# upozornění}}.",
+        "noRisks": "Nebyla označena žádná blokující rizika.",
+        "separationCaveat": "Upozornění na spolehlivost: {lead} se neodděluje od {runnerUp} — jejich intervaly spolehlivosti se překrývají, takže toto pořadí spadá do nejistoty samotného měření. Považujte první dva za rovnocenné na základě dostupných podkladů."
+      },
+      "governance": {
+        "committee": "Režim komise: porovnání AI je PORADNÍM podkladem pro výběrovou komisi — nevybírá ani nezpečeťuje přijetí. Zaznamenejte hodnocení každého posuzovatele i rozhodnutí komise ve svém procesu řízení.",
+        "eligibilityList": "Režim seznamu způsobilosti: kandidáti tvoří pořadový seznam seřazený podle shody — nejde o diskreční výběr AI a nic se neschvaluje automaticky. Před certifikací uplatněte případné zákonné preference (např. pro veterány); aplikace tyto údaje nemá a nedokáže je vypočítat."
+      },
+      "topPickWhy": {
+        "highestFit": "Nejvyšší shoda ({score}) v této roli.",
+        "unscored": "Nejlepší v poli, ale shoda zatím nebyla vypočítána."
+      }
     }
   },
   "scheduleTab": {
@@ -2682,7 +2807,10 @@
       "bulkDone": "{added} přidáno · {exists} již v katalogu · {failed} selhalo",
       "resAdded": "přidáno",
       "resExists": "v katalogu",
-      "resFailed": "nepodařilo se"
+      "resFailed": "nepodařilo se",
+      "cancelRun": "Zrušit běh",
+      "cancelled": "Zpracování zrušeno — nic nebylo přidáno.",
+      "bulkCancelled": "Zrušeno po {done} z {total} inzerátů. Dosavadní výsledky zůstávají níže."
     },
     "drafts": {
       "heading": "Koncepty čekající na vyhledávání",
@@ -2735,7 +2863,8 @@
       "tabRediscover": "Znovuobjevení",
       "tabCompare": "Porovnání",
       "createCampaignPack": "Vytvořit balíček kampaně",
-      "viewCampaignPack": "Zobrazit balíček kampaně"
+      "viewCampaignPack": "Zobrazit balíček kampaně",
+      "withdrawFailed": "Pozice byla uzavřena, ale její kandidáty v procesu se nepodařilo stáhnout – zkontrolujte Pipeline."
     },
     "coach": {
       "loadFailed": "Roli se nepodařilo vyhodnotit.",
@@ -2913,6 +3042,10 @@
       "couldntAdd": "Nepodařilo se přidat do pipeline — {error}",
       "couldntReach": "Nepodařilo se oslovit — {error}",
       "assumptions": "Předpoklady:"
+    },
+    "deeplink": {
+      "notFound": "Tuto pozici ve svém katalogu nemáte – mohla být odstraněna, nebo patří jinému týmu.",
+      "dismiss": "Zavřít"
     }
   },
   "scoreProvenance": {
@@ -3121,14 +3254,14 @@
       "rebuildWarnKeep": "Ponechat mé úpravy",
       "projectionLabel": "Zobrazení kandidátů",
       "projectionList": "Seznam",
-      "projectionMatrix": "Matice"
+      "projectionMatrix": "Matice",
+      "newProfile": "Vytvořit profil kandidáta"
     },
     "matrix": {
       "eyebrow": "Kandidáti",
       "title": "Kandidáti podle archetypu",
       "intro": "Každý uložený profil i analyzované CV, zařazené do archetypu, do kterého byly směrovány. Štítek značí, z kterého úložiště pochází — otevřením upravíte profil nebo zobrazíte analýzu.",
       "loadFailed": "Kandidáty se nepodařilo načíst.",
-      "newProfile": "Vytvořit profil kandidáta",
       "emptyTitle": "Zatím žádní kandidáti",
       "emptyBody": "Vytvořte profil výše nebo spusťte CV v záložce <b>Analýza</b> — každý je směrován do archetypu a objeví se zde.",
       "openAnalysisTitle": "Otevřít analýzu — {name}",
@@ -3144,7 +3277,7 @@
       "intro": "Profily, které jste vytvořili a uložili. Upravte je, spusťte je proti otevřeným pozicím nebo je odstraňte.",
       "loadFailed": "Uložené profily se nepodařilo načíst.",
       "emptyTitle": "Zatím žádné uložené profily",
-      "emptyBody": "Vytvořte profil kandidáta níže a objeví se zde, připravený k párování.",
+      "emptyBody": "Vytvořte profil kandidáta tlačítkem výše a objeví se zde, připravený k párování.",
       "completenessAria": "Úplnost profilu {pct} %",
       "completenessPct": "{pct} % hotovo",
       "staleBadge": "Novější CV",
@@ -3200,7 +3333,10 @@
       "evidenceTextPlaceholder": "Co jste vytvořili / dělali, vaše role, výsledek",
       "evidenceSkillsPlaceholder": "dovednosti: React, TypeScript",
       "evidenceLinkPlaceholder": "github / odkaz na demo",
-      "addEvidence": "+ evidence"
+      "addEvidence": "+ evidence",
+      "skillLevelAria": "Úroveň dovednosti",
+      "skillProvenanceAria": "Původ dovednosti",
+      "evidenceKindAria": "Typ evidence"
     },
     "editor": {
       "back": "Zpět na profily",
@@ -3322,23 +3458,14 @@
   },
   "channels": {
     "comms": {
-      "title": "Komunikace",
       "count": "{count, plural, one {# zpráva} few {# zprávy} other {# zpráv}}",
       "deadLetters": "{count, plural, one {# nedoručená — vyžaduje pozornost} few {# nedoručené — vyžadují pozornost} other {# nedoručených — vyžadují pozornost}}",
-      "noAddress": "bez adresy",
       "noAddressHint": "Tento kandidát nemá doručitelný e-mail — skutečné relé ho nezastihne. Před odesláním doplňte adresu.",
-      "addressIssues": "{count, plural, one {# bez adresy} few {# bez adresy} other {# bez adresy}}",
-      "intro": "Každá zpráva kandidátům, kterou pipeline odeslala — potvrzení, oslovení, pozvánky na pohovor, zamítnutí, nabídky. Rozbalením řádku zobrazíte celý dopis; neodeslané lze doručit znovu.",
       "empty": "Zatím žádné zprávy — objeví se zde, jak budou kandidáti procházet náborem.",
       "loadFailed": "Komunikaci se nepodařilo načíst.",
       "relayNotConfigured": "Není nakonfigurováno doručovací relé — tyto zprávy se NEodesílají kandidátům. Doručování zapnete nastavením COMMS_WEBHOOK_URL.",
       "loading": "Načítání komunikace",
-      "recovered": "obnoveno",
-      "recoveredAt": "znovu odesláno {time}",
-      "bounced": "nedoručeno",
       "bouncedAt": "Relé nahlásilo nedoručení {time}: {detail}",
-      "searchPlaceholder": "Hledat kandidáta, příjemce nebo předmět",
-      "kindAll": "Všechny typy",
       "showing": "Zobrazeno {shown} z {total}",
       "showMore": "Zobrazit více",
       "resend": "Odeslat znovu",
@@ -3348,73 +3475,37 @@
       "bouncedResendHint": "Tato adresa se vrátila jako nedoručitelná — odeslání na stejnou adresu se opět vrátí. Zadejte opravený e-mail a zkuste jinou adresu.",
       "bouncedRecipientLabel": "Opravený e-mail",
       "bouncedRecipientPlaceholder": "jmeno@firma.cz",
-      "bouncedResendInvalid": "Před odesláním zadejte platnou e-mailovou adresu."
+      "bouncedResendInvalid": "Před odesláním zadejte platnou e-mailovou adresu.",
+      "orphanBadge": "Nespárované potvrzení",
+      "orphanHint": "Relay ohlásil selhání doručení u zprávy, kterou kp nikdy neodeslala — její reference ani typ zde ničemu neodpovídají. Zkontrolujte mapování ref/kind v integraci relaye.",
+      "failureDetail": "Doručení selhalo: {detail}",
+      "failureDetailUnknown": "Doručení selhalo — u tohoto odeslání nebyl zaznamenán žádný důvod.",
+      "resendRejected": "Nepodařilo se odeslat znovu: {reason}",
+      "resendDeadLettered": "Odesláno znovu, ale znovu skončilo jako nedoručené.",
+      "colName": "Jméno",
+      "colRole": "Pozice",
+      "colChannel": "Kanál",
+      "colType": "Typ",
+      "colStatus": "Stav",
+      "colRecorded": "Zaznamenáno",
+      "recordedHint": "Kdy kp zprávu zaznamenal. Opětovné odeslání je samostatný řádek, takže původní zprávu a opakování rozlišíte.",
+      "via": "přes {channel}",
+      "statusSent": "Odesláno",
+      "statusQueued": "Ve frontě",
+      "statusFailed": "Selhalo",
+      "statusRecovered": "Napraveno",
+      "statusBounced": "Nedoručeno"
     },
-    "eyebrow": "Pracovní prostor",
-    "title": "Kanály a integrace",
-    "intro": "Kudy kandidáti vstupují do pipeline. Příchozí <b>přihlášky</b> i proaktivně vyhledaní kandidáti přicházejí do stavu <hl>Přijato</hl> a poté přecházejí do stavu <hl>Prověřeno</hl> pro první vlnu hodnocení.",
-    "received": "{count, plural, one {příchozí přihláška} few {příchozí přihlášky} many {příchozích přihlášek} other {příchozích přihlášek}} → <hl>Přijato</hl>",
-    "loadingInbound": "Načítání příchozích přihlášek",
-    "openPipeline": "Otevřít Pipeline",
-    "noJobNote": "Nejprve nasaďte popis pozice do Pipeline — poté mohou přicházet přihlášky.",
-    "appliedNote": "{label} se přihlásil/a → Přijato (shoda {score}).",
-    "failed": "Selhalo.",
-    "open": "Otevřít",
-    "receiving": "Přijímání…",
-    "simulate": "Simulovat přihlášku",
-    "channelAriaLive": "{name}: aktivní — {status}",
-    "channelAriaOff": "{name}: nenakonfigurováno — {status}",
+    "eyebrow": "Příchozí studio",
+    "title": "Kudy kandidáti přicházejí",
     "statusListening": "Naslouchá",
-    "webhooks": {
-      "connect": "Připojit",
-      "manage": "Spravovat ({count})",
-      "hide": "Skrýt",
-      "intro": "Posílejte leady POSTem na webhook URL — každá URL je vázaná na jednu pozici a jazyk kandidáta. Přijímá prostý JSON i payload z Meta lead formulářů; leady přicházejí do stavu „Přijato“ jako doplnitelné záznamy a okamžitě dostávají potvrzení s odkazem na plnou přihlášku.",
-      "job": "Pozice",
-      "language": "Jazyk kandidáta",
-      "create": "Vytvořit webhook URL",
-      "creating": "Vytvářím…",
-      "copyUrl": "Kopírovat URL",
-      "copied": "Zkopírováno",
-      "revoke": "Zrušit webhook",
-      "received": "{count, plural, one {# požadavek} few {# požadavky} many {# požadavku} other {# požadavků}}",
-      "leads": "{count, plural, one {# lead} few {# leady} many {# leadu} other {# leadů}}",
-      "neverReceived": "zatím nic nepřišlo",
-      "firstLeadMins": "první lead {mins} min od zřízení",
-      "firstLeadHours": "první lead {hours} h od zřízení",
-      "noJobs": "Žádné dostupné pozice — nejprve načtěte nebo publikujte pozici.",
-      "noJobsCta": "Vytvořit popis pozice",
-      "createFailed": "Webhook se nepodařilo vytvořit.",
-      "revokeFailed": "Webhook se nepodařilo zrušit."
-    },
+    "webhooks": {},
     "items": {
-      "apply": {
-        "name": "Kariérní stránka · Odkaz pro přihlášení",
-        "status": "Naslouchá",
-        "desc": "Konverzační odkaz pro přihlášení — odeslané přihlášky přicházejí do stavu „Přijato“."
-      },
-      "email": {
-        "name": "E-mailový příjem",
-        "status": "Nenakonfigurováno",
-        "desc": "Napojte e-mailovou integraci (či jiný formulář) na webhook URL vázanou na pozici — zpracovaní uchazeči přicházejí do stavu „Přijato“."
-      },
-      "boards": {
-        "name": "Pracovní portály a reklamní formuláře",
-        "status": "Nenakonfigurováno",
-        "desc": "Přijímejte uchazeče z pracovních portálů a reklamních lead formulářů (podporovány payloady Meta) přes webhook URL vázanou na pozici — leady přicházejí do stavu „Přijato“."
-      },
-      "sourcing": {
-        "name": "Proaktivní vyhledávání",
-        "status": "Aktivní",
-        "desc": "Seřaďte pool kandidátů vůči pozici v Párování — proaktivně vyhledaní kandidáti přicházejí do stavu „Přijato“.",
-        "cta": "Otevřít Párování"
-      },
-      "manual": {
-        "name": "Ruční přidání",
-        "status": "Náborář",
-        "desc": "Vytvořte profil kandidáta ručně (Profil) a přidejte jej k pozici.",
-        "cta": "Vytvořit profil"
-      }
+      "apply": {},
+      "email": {},
+      "boards": {},
+      "sourcing": {},
+      "manual": {}
     },
     "relay": {
       "title": "Doručovací relé",
@@ -3433,6 +3524,149 @@
       "test": "Odeslat testovací ping",
       "testOk": "Doručeno — HTTP {status}",
       "testFailed": "Test selhal: {reason}"
+    },
+    "tablist": "Integrace",
+    "waiting": "{count} čeká v pipeline",
+    "ledger": "Přehled",
+    "statusLive": "Aktivní",
+    "statusConfigured": "Nastaveno",
+    "statusOff": "Vypnuto",
+    "statusWaiting": "Čeká",
+    "copyLink": "Kopírovat odkaz",
+    "copy": "Kopírovat",
+    "copied": "Zkopírováno",
+    "sections": {
+      "comms": {
+        "label": "Komunikace",
+        "blurb": "Každá zpráva pro kandidáty v jednom auditovatelném přehledu."
+      },
+      "careers": {
+        "label": "Kariérní stránka",
+        "blurb": "Vaše veřejná stránka pro přihlášení — jeden odkaz, vložitelný kamkoli."
+      },
+      "email": {
+        "label": "E-mailový příjem",
+        "blurb": "Přeposílejte přihlášky ze schránky rovnou do pipeline."
+      },
+      "ads": {
+        "label": "Reklamní formuláře",
+        "blurb": "Lead formuláře (LinkedIn / Meta) posílají své leady sem."
+      }
+    },
+    "stats": {
+      "publishedRoles": "Publikované pozice",
+      "waiting": "Čeká",
+      "receivers": "Přijímače",
+      "received": "Přijato požadavků",
+      "leads": "Zapsané leady"
+    },
+    "sim": {
+      "run": "Přijmout testovací přihlášku",
+      "running": "Přijímání…",
+      "noJob": "Nejprve vytvořte pozici — příchozí přihlášky potřebují, kam dorazit.",
+      "filed": "Přijat/a {label} — shoda {score}. Zapsáno do stavu Přijato u pozice {role}.",
+      "failed": "Testovací přihlášku se nepodařilo přijmout."
+    },
+    "careers": {
+      "empty": "Zatím žádné publikované pozice — publikujte pozici a její odkaz pro přihlášení se objeví zde.",
+      "applyLink": "odkaz pro přihlášení"
+    },
+    "receivers": {
+      "role": "Pozice",
+      "lang": "Jazyk",
+      "status": "Stav",
+      "received": "Přijato",
+      "receivedHint": "Ověřené požadavky POST, které tento přijímač obsloužil — včetně testů a odmítnutých dat. Počet kandidátů udávají „Zapsané leady“.",
+      "copyEndpoint": "Kopírovat adresu",
+      "remove": "Odebrat",
+      "removeAria": "Odebrat přijímač pro pozici {role}",
+      "confirmTitle": "Odebrat tento přijímač?",
+      "confirmBody": "Tím smažete příjmový bod pro pozici <b>{role}</b>. <b>{endpoint}</b> okamžitě přestane přijímat přihlášky a obnovit ho nelze — museli byste přidat nový přijímač a přesměrovat na jeho novou adresu.",
+      "confirmLive": "{count, plural, one {Tento přijímač je aktivní — přijal # příchozí přihlášku.} few {Tento přijímač je aktivní — přijal # příchozí přihlášky.} many {Tento přijímač je aktivní — přijal # příchozí přihlášky.} other {Tento přijímač je aktivní — přijal # příchozích přihlášek.}} Pravidlo pro přeposílání či reklamní tok, který na něj míří, bude dál posílat data na mrtvou URL a nové přihlášky se budou ztrácet, dokud ho nepřepojíte.",
+      "cancel": "Zrušit",
+      "confirm": "Odebrat přijímač"
+    },
+    "add": {
+      "roleLabel": "Pozice",
+      "rolePlaceholder": "Vyberte pozici…",
+      "langLabel": "Jazyk kandidáta",
+      "noJobs": "Nejprve publikujte pozici — každý přijímač je vázán na jednu pozici.",
+      "noJobsCta": "Přejít do knihovny popisů pozic",
+      "cancel": "Zrušit",
+      "create": "Vytvořit",
+      "creating": "Vytvářím…",
+      "createFailed": "Nepodařilo se vytvořit — zkuste to znovu.",
+      "removeFailed": "Nepodařilo se odebrat — zkuste to znovu."
+    },
+    "email": {
+      "title": "Přidat schránku pozice",
+      "add": "Přidat schránku",
+      "introWired": "Přeposílejte přihlášky z Outlooku nebo Gmailu — nastavte <b>jedno pravidlo na pozici</b> a každá přihláška poteče do pipeline automaticky.",
+      "introUnwired": "Jeden přijímač na pozici. Přeposílání e-mailů na tomto nasazení není zapojeno, takže přijímačem každé pozice je <b>HTTP adresa</b>, na kterou může přihlášku poslat cokoli.",
+      "emptyWired": "Zatím žádné schránky pozic — přidejte jednu a získáte adresu pro přeposílání.",
+      "emptyUnwired": "Zatím žádné schránky pozic — přidejte jednu a získáte její adresu přijímače.",
+      "endpointWired": "Adresa pro přeposílání",
+      "endpointUnwired": "Adresa přijímače",
+      "lead": "Přeposílejte přihlášky na pozici <b>{role}</b> na",
+      "waiting": "Čeká se na první přeposlaný e-mail…",
+      "notWiredTitle": "Přeposílání e-mailů zatím není zapojeno — neexistuje schránka, kam přeposílat.",
+      "notWiredBody": "Toto nasazení nemá poskytovatele příchozí pošty, takže pravidlo v Gmailu či Outlooku by posílalo přihlášky na pozici <b>{role}</b> na adresu, která nic nepřijímá. Skutečným přijímačem je HTTP adresa:",
+      "notWiredHowTo": "Cokoli, co umí poslat POST, se na ni dostane už dnes — automatizace (Zapier/Make), formulář nebo služba pro zpracování e-mailů. Skutečné přeposílání zapnete tak, že na tuto adresu nasměrujete poskytovatele příchozí pošty (Postmark, SendGrid nebo Mailgun inbound) a nastavíte <code>EMAIL_INBOUND_DOMAIN</code> na doménu, na které přijímá poštu. Adresa pro přeposílání a kroky pro Gmail/Outlook se pak objeví zde.",
+      "gmail1": "Otevřete Gmail → <b>Nastavení ⚙ → Zobrazit všechna nastavení → Přeposílání a POP/IMAP</b>.",
+      "gmail2": "Klikněte na <b>Přidat adresu pro přeposílání</b>, vložte <endpoint></endpoint> a poté <b>Další → Pokračovat</b>.",
+      "gmail3": "Gmail pošle na tuto adresu <b>potvrzovací kód</b>. Najdete ho v logu svého poskytovatele příchozí pošty — kp eviduje odchozí zprávy, nikoli poštu poskytovatele — a zadáte ho zpět do Gmailu.",
+      "gmail4": "Vytvořte <b>filtr</b> (např. <i>Předmět obsahuje „přihláška“</i>) → <b>Přeposlat na</b> <endpoint></endpoint>. Každý odpovídající e-mail nyní přichází automaticky.",
+      "outlook1": "Otevřete Outlook na webu → <b>Nastavení ⚙ → Pošta → Pravidla → Přidat nové pravidlo</b>.",
+      "outlook2": "Pojmenujte ho <i>„Přihlášky → KP“</i> a přidejte podmínku (např. <i>Předmět obsahuje „přihláška“</i>).",
+      "outlook3": "Jako akci zvolte <b>Přesměrovat na</b> (nebo <b>Přeposlat na</b>) <endpoint></endpoint>.",
+      "outlook4": "Klikněte na <b>Uložit</b>. Odpovídající pošta se nyní přesměrovává automaticky — žádný kód se nepotvrzuje."
+    },
+    "ads": {
+      "title": "Přidat přijímač reklamních formulářů",
+      "add": "Přidat přijímač",
+      "intro": "Nasměrujte webhook lead formuláře na LinkedIn nebo Meta na <b>adresu přijímače</b> dané pozice — každý lead dorazí do pipeline automaticky.",
+      "empty": "Zatím žádné přijímače reklamních formulářů — přidejte jeden a získáte webhook URL.",
+      "endpoint": "Adresa přijímače",
+      "lead": "Nasměrujte reklamní formulář pozice <b>{role}</b> na",
+      "waiting": "Čeká se na první lead…",
+      "footnote": "Pokročilé: konektor můžete vynechat a posílat leady POSTem přímo na tuto URL — po ověření na ni může mířit LinkedIn Lead Sync API nebo aplikace Meta přihlášená k webhooku <code>leadgen</code>.",
+      "linkedin1": "V <b>Zapieru</b> nebo <b>Make</b> vytvořte tok: spouštěč <b>LinkedIn Lead Gen Forms → New Lead</b> (propojte svůj reklamní účet).",
+      "linkedin2": "Přidejte akci <b>Webhooks → POST</b> a nastavte URL na <endpoint></endpoint>.",
+      "linkedin3": "Namapujte do těla požadavku <b>jméno</b>, <b>e-mail</b> a soubor s životopisem.",
+      "linkedin4": "Zapněte tok — nové leady z LinkedInu nyní přicházejí do pipeline automaticky.",
+      "meta1": "V <b>Zapieru</b> nebo <b>Make</b> vytvořte tok: spouštěč <b>Facebook Lead Ads → New Lead</b> (propojte svou stránku).",
+      "meta2": "Přidejte akci <b>Webhooks → POST</b> a nastavte URL na <endpoint></endpoint>.",
+      "meta3": "Namapujte do těla požadavku <b>jméno</b>, <b>e-mail</b> a případné pole s nahraným životopisem.",
+      "meta4": "Zapněte tok — nové leady z Meta nyní přicházejí do pipeline automaticky."
+    },
+    "guide": {
+      "setupFor": "Nastavení pro",
+      "live": "Přijímá"
+    },
+    "cvSim": {
+      "open": "Vyzkoušet se skutečným životopisem",
+      "title": "Simulovat životopis pro",
+      "close": "Zavřít",
+      "choose": "Vyberte životopis — PDF, DOCX, TXT nebo MD",
+      "namePlaceholder": "Jméno (nepovinné)",
+      "emailPlaceholder": "E-mail (nepovinný)",
+      "run": "Přijmout tento životopis",
+      "running": "Zpracovávám a zapisuji…",
+      "hint": "Zpracuje soubor, sestaví kandidáta pro párování a zapíše ho do stavu Přijato.",
+      "failed": "Nepodařilo se zapsat: {reason}",
+      "failedStatus": "Selhalo ({status}).",
+      "requestFailed": "Požadavek selhal.",
+      "landed": "<b>{name}</b> byl/a zapsán/a do stavu <b>Přijato</b> u pozice {role}{suffix}",
+      "stub": " (jako neúplný záznam — text životopisu byl příliš strohý)",
+      "openInPipeline": "Otevřít v pipeline"
+    },
+    "filters": {
+      "search": "Hledat…",
+      "searchOptions": "Hledat v možnostech",
+      "noMatches": "Žádné shody",
+      "searchColumn": "Hledat: {column}…",
+      "allOf": "Vše — {column}",
+      "select": "Vyberte…"
     }
   },
   "interviewSim": {
@@ -4857,6 +5091,121 @@
         "title": "Vše je připraveno!",
         "body": "Společnost, role, úloha i kanály jsou zapojené — šťastný nábor."
       }
+    }
+  },
+  "devcase": {
+    "lifecycle": {
+      "sectionTitle": "Automatizovaný průběh",
+      "intro": "Každý případ postupuje podle pravidel — čisté návrhy schvaluje automaticky, označené směruje k vám, publikuje je a (jak přicházejí řešení) vyhodnocuje → řadí → posouvá nejlepší kandidáty do Rozhodnutí. Mezi tím žádné ruční kroky.",
+      "untitledRole": "Pozice",
+      "railLabel": "Průběh případu — {steps}",
+      "railStep": "{step}: {state}",
+      "stalledBadge": "stagnuje {days} d",
+      "stalledTitle": "{days, plural, one {Otevřeno a prázdné # den} few {Otevřeno a prázdné # dny} other {Otevřeno a prázdné # dní}} — obnovte sourcing kandidátů, nebo případ uzavřete.",
+      "reSourceTitle": "Seřadit stávající databázi kandidátů podle této pozice a znovu naplnit pipeline",
+      "reSourcing": "Probíhá sourcing…",
+      "reSource": "Nový sourcing",
+      "hideReview": "Skrýt kontrolu",
+      "review": "Zkontrolovat a schválit",
+      "closeTitle": "Uzavřít nepostupující uchazeče a vypnout odkaz na přihlášení",
+      "closing": "Uzavírání…",
+      "close": "Uzavřít případ",
+      "closeConfirm": "Uzavřít tento případ? Nepostupující uchazeči dostanou závěrečnou zprávu a odkaz na přihlášení přestane přijímat řešení.",
+      "closeFailed": "Uzavření se nezdařilo."
+    },
+    "stage": {
+      "intake": "příjem",
+      "analyzed": "analyzováno",
+      "designed": "navrženo",
+      "awaiting_approval": "čeká na schválení",
+      "approved": "schváleno",
+      "published": "publikováno",
+      "collecting": "sběr řešení",
+      "ranked": "seřazeno",
+      "promoted": "postoupeno"
+    },
+    "stepState": {
+      "done": "hotovo",
+      "current": "aktuální",
+      "upcoming": "čeká"
+    },
+    "review": {
+      "flagged": "Proč bylo označeno",
+      "flaggedWithConfidence": "Proč bylo označeno · jistota {pct} %",
+      "fieldTitle": "Název",
+      "fieldBrief": "Zadání",
+      "fieldTasks": "Úkoly (jeden na řádek)",
+      "fieldTimebox": "Časový limit (hodiny)",
+      "internalProbes": "Interní — skryté sondy ({count})",
+      "engineOwned": "Sondy a hodnoticí tabulku spravuje engine — pokud je chcete změnit, nechte případ přegenerovat s poznámkou.",
+      "previewTitle": "Náhled pro kandidáta (živý)",
+      "approving": "Schvalování…",
+      "approveWithEdits": "Schválit s úpravami",
+      "approve": "Schválit",
+      "approveFailed": "Schválení se nezdařilo.",
+      "feedbackPlaceholder": "Co je třeba změnit? Např. „příliš široké pro juniora — zužte úkol 2 na jeden endpoint“",
+      "redesignTitle": "Spustit znovu jen krok návrhu s touto poznámkou — bez opakování celého průběhu",
+      "redesigning": "Přegenerování…",
+      "redesign": "Přegenerovat s poznámkou",
+      "redesignFailed": "Přegenerování se nezdařilo."
+    },
+    "outbox": {
+      "emptyTitle": "Zatím žádné zprávy",
+      "emptyBody": "Jak případy sbírají řešení, zapisuje sem pipeline každé potvrzení příjmu, pozvánku po postupu, oslovení od recruitera i zamítnutí.",
+      "relayHint": "„queued“ = zaznamenáno lokálně (koncový stav, dokud není zapojen relay); nastavením <code>COMMS_WEBHOOK_URL</code> zapnete doručování reálným kanálem (e-mail / ATS), kde zprávy skončí jako <sent>sent</sent> nebo — při ztraceném doručení — jako <failed>failed</failed> (dead-letter, vyžaduje pozornost).",
+      "colKind": "Typ",
+      "colRecipient": "Příjemce",
+      "colSubject": "Předmět",
+      "colStatus": "Stav",
+      "colSent": "Odesláno",
+      "resendTitle": "Doručit tuto zprávu znovu aktivním kanálem (zaznamená se jako nový řádek odchozí pošty)",
+      "retryResend": "Zkusit odeslat znovu"
+    },
+    "outboxKind": {
+      "acknowledgement": "Potvrzení přijetí",
+      "outreach": "Oslovení",
+      "rejection": "Zamítnutí",
+      "ko_decline": "Zamítnutí ve screeningu",
+      "offer": "Nabídka",
+      "offer_reminder": "Připomínka nabídky",
+      "interview_confirmation": "Potvrzení pohovoru",
+      "interview_reminder": "Připomínka pohovoru",
+      "interview_invite": "Pozvánka na pohovor",
+      "interviewer_brief": "Podklady pro tazatele",
+      "schedule_invite": "Pozvánka k výběru termínu",
+      "onboarding": "Nástup",
+      "onboarding_reminder": "Připomínka nástupu"
+    },
+    "cohort": {
+      "title": "Přehled sond napříč kohortou",
+      "evaluated": "· vyhodnoceno {count}",
+      "notScored": "zatím nehodnoceno",
+      "missed": "{pct} % přehlédnuto · {band}",
+      "missedAria": "{pct} procent přehlédnuto, {band} míra přehlédnutí",
+      "weak": "{pct} % slabě",
+      "weakTitle": "Odhaleno, ale zpracováno špatně, nebo přehlédnuto",
+      "sample": "n={count}",
+      "miscalibrationLabel": "Možná špatná kalibrace:",
+      "miscalibration": "{count, plural, one {# sondu} few {# sondy} other {# sond}} přehlédl každý vyhodnocený kandidát — švy mohou být příliš skryté, nebo je prostor voleb příliš úzký na skutečné rozhodnutí."
+    },
+    "band": {
+      "high": "vysoká",
+      "some": "střední",
+      "low": "nízká"
+    },
+    "interviewKit": {
+      "title": "Podklady k pohovoru — nejlepší kandidát",
+      "fit": "· shoda {score}",
+      "copied": "Zkopírováno",
+      "copy": "Kopírovat",
+      "export": "Exportovat",
+      "intro": "Každá otázka ověřuje, že kandidát skutečně stojí za konkrétním rozhodnutím ve svém řešení. Poznámky „na co si dát pozor“ a varovné signály jsou určeny jen pro tazatele."
+    },
+    "probeAudit": {
+      "label": "Audit síly sond",
+      "strong": "Nosných sond: {loadBearing} z {total} — tento případ rozlišuje.",
+      "weak": "Nosné jsou jen {loadBearing} z {total} sond — většina silné od naivních neodliší.",
+      "none": "Žádné nosné sondy — tento případ nerozezná silné řešení od naivního."
     }
   }
 }

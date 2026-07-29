@@ -44,6 +44,21 @@ function markStaleSkip(d: AutomationDecision): void {
   d.reason = `Skipped: stage changed mid-pass. Original policy decision: ${d.reason}`;
 }
 
+// THE single encoding of "a fairness-cleared reject is ROUTED TO THE HUMAN gate,
+// never applied", shared by the dry-run preview loop and the commit loop — the
+// same write-once trick applyFairnessVerdict uses for the refusal path, and for
+// the same reason: the preview must forecast exactly what the commit produces.
+// Both callers get outcome "queued" and `summary.held += 1`; `summary.rejected`
+// is incremented by NEITHER, because the pass no longer produces a rejection.
+// `preview` selects only the "would be queued" vs "queued" wording. The commit
+// caller additionally writes the rejection_review approval (a dry run writes
+// nothing) — that side effect is the ONLY difference between the two paths.
+export function markQueuedForApproval(d: AutomationDecision, summary: AutomationSummary, preview: boolean): void {
+  d.outcome = "queued";
+  d.reason = `${preview ? "Would be queued" : "Queued"} for approval: ${d.reason}`;
+  summary.held += 1;
+}
+
 function applyFairnessVerdict(
   d: AutomationDecision,
   verdict: AutoRejectVerdict,
@@ -75,11 +90,24 @@ export type AutomationDecision = {
    *  run. Rows persisted before the field existed derive it from the reason
    *  prefix (deriveDecisionOutcome in decision-attribution.ts). */
   outcome?: DecisionOutcome;
+  /** The tenant this decision belongs to — the entry's OWN workspace, stamped by
+   *  executeAutomationPass from the snapshot (Python never sees it). The pass is a
+   *  deliberate GLOBAL sweep, so one run's decision list spans teams; this is what
+   *  lets every READ of that list (scheduler-store.listRuns, /api/automation/run)
+   *  hand a caller only their own rows instead of leaking other tenants' candidate
+   *  labels and rejection reasons. Absent only on rows persisted before the stamp
+   *  existed — those are attributed to the default workspace on read. */
+  workspaceId?: string;
 };
 // `evaluated` = how many active entries the pass actually scanned. It distinguishes a
 // healthy idle pass (evaluated N, 0 actions) from a pass that saw NOTHING (evaluated 0 —
 // empty/terminal board, or a status-filter regression), which otherwise both logged an
 // all-zero "ok" run — the exact success-theater the orchestration status surface should prevent.
+// `rejected` is structurally 0 since unattended auto-reject was retired (UAT M6 /
+// GDPR Art. 22): a fairness-cleared reject is QUEUED as a held rejection_review,
+// counted in `held`. The field is kept because scheduler_runs rows persisted before
+// the retirement carry real values, and the run history must still read them. Neither
+// the preview nor the commit increments it — that parity is the point.
 export type AutomationSummary = { advanced: number; rejected: number; held: number; alerts: number; errors: number; evaluated: number };
 export type AutomationPassResult = { summary: AutomationSummary; decisions: AutomationDecision[] };
 
@@ -223,6 +251,18 @@ async function executeAutomationPass(dryRun: boolean): Promise<AutomationPassRes
     // fairness invariant against the SAME archetype/score the policy pass saw.
     const byId = new Map(entries.map((e) => [e.id, e]));
 
+    // TENANCY (phase 1) — stamp each decision with its entry's own workspace, in ONE
+    // place, before either branch below can return or persist the list. The sweep
+    // itself stays global by design (listActiveEntriesForAutomation), but a decision
+    // row carries a candidate label and a rejection reason, so every reader of the
+    // list (the run log, the dry-run preview) must be able to filter it to the asking
+    // tenant. Python computes the verdict and never sees a workspace; the snapshot is
+    // the only authority for it.
+    for (const d of decisions) {
+      const ws = byId.get(d.entryId)?.workspaceId;
+      if (ws) d.workspaceId = ws;
+    }
+
     // AUTO3 — dry run: identical snapshot → Python → decisions flow, but the
     // apply/dispatch loop is replaced by annotation. The fairness backstop is
     // still consulted per reject (the preview must show the verdict the commit
@@ -230,17 +270,31 @@ async function executeAutomationPass(dryRun: boolean): Promise<AutomationPassRes
     if (dryRun) {
       for (const d of decisions) {
         if (!d.entryId) continue;
+        const entrySnap = byId.get(d.entryId);
         if (d.action === "advance") {
           summary.advanced += 1;
         } else if (d.action === "reject") {
-          const verdict = assertAutoRejectFair(byId.get(d.entryId));
+          const verdict = assertAutoRejectFair(entrySnap);
           if (!applyFairnessVerdict(d, verdict, summary, true)) {
-            summary.rejected += 1;
+            // PREVIEW/COMMIT PARITY: the commit NEVER applies a reject — every
+            // fairness-cleared one is queued as a held rejection_review (see the
+            // unconditional rule below), so `summary.rejected` is 0 in every
+            // committed run. The preview used to forecast `rejected += 1`, an
+            // outcome the system can no longer produce: the recruiter was shown N
+            // rejections and got 0 rejections + N approval cards. Mirror the
+            // commit exactly — the SAME encoding the commit loop calls below.
+            markQueuedForApproval(d, summary, true);
           }
         } else if (d.action === "hold") {
           summary.held += 1;
         }
-        summary.alerts += (d.alerts ?? []).length;
+        // Alerts are deduped per entry+kind+day on commit (hasEventToday below), so
+        // an undeduped preview count over-forecast the alerts a commit would write.
+        // Apply the SAME gate — hasEventToday is a pure read, so the dry run stays
+        // read-only: it writes no event, it only declines to count one it wouldn't write.
+        for (const alert of d.alerts ?? []) {
+          if (!hasEventToday(d.entryId, alert, entrySnap?.workspaceId)) summary.alerts += 1;
+        }
       }
       return { summary, decisions };
     }
@@ -284,9 +338,11 @@ async function executeAutomationPass(dryRun: boolean): Promise<AutomationPassRes
         // Refused → the shared helper downgrades to a hold + dedup alert (sets
         // outcome=fairness_blocked, bumps summary.held, appends the alert recorded
         // by the loop below), routed to the human Decisions gate rather than
-        // actioned. Otherwise, in supervised "approve" mode (the default) the
-        // fairness-cleared reject is QUEUED for a human click instead of applied;
-        // only "auto" mode applies + emails it unattended.
+        // actioned. CLEARED → also not applied: the reject is QUEUED for a human
+        // click, unconditionally. There is no mode that applies or emails a reject
+        // unattended (the opt-in "auto" mode was retired — see the note above the
+        // loop); both branches therefore land on the human Decisions gate and
+        // `summary.rejected` is 0 in every committed run.
         if (applyFairnessVerdict(d, verdict, summary, false)) {
           // refused — the helper already downgraded this decision to a hold.
         } else {
@@ -307,9 +363,9 @@ async function executeAutomationPass(dryRun: boolean): Promise<AutomationPassRes
             }),
             entryWs
           );
-          d.outcome = "queued";
-          d.reason = `Queued for approval: ${d.reason}`;
-          summary.held += 1; // routed to the human Decisions gate, not actioned
+          // Routed to the human Decisions gate, not actioned — the SAME encoding
+          // the preview loop uses, so the forecast and the record can't diverge.
+          markQueuedForApproval(d, summary, false);
         }
       } else if (d.action === "hold") {
         summary.held += 1;
@@ -322,9 +378,10 @@ async function executeAutomationPass(dryRun: boolean): Promise<AutomationPassRes
         }
       }
       } catch (applyError) {
-        // A reject's DB transition may already be committed (rejected count stands);
-        // a post-commit comm failure is recorded here and the pass continues rather
-        // than aborting. The errors count surfaces the partial in the run summary.
+        // A decision's DB transition may already be committed (the advance landed,
+        // or the rejection_review was queued) when a later step throws; the failure
+        // is recorded here and the pass continues rather than aborting. The errors
+        // count surfaces the partial in the run summary.
         summary.errors += 1;
         const reason = applyError instanceof Error ? applyError.message : String(applyError);
         d.outcome = "failed";

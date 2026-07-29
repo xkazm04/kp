@@ -179,7 +179,14 @@ def build_match_candidate(profile: CandidateProfileV2) -> MatchCandidate:
         languages=profile.languages,
         years_experience=profile.years_experience or 0.0,
         archetype=profile.archetype,
-        provenance_default="self_declared" if is_early else "professional",
+        # Was `"self_declared" if is_early else "professional"` — the discount for an
+        # uncorroborated claim fell ONLY on juniors, while an experienced candidate's
+        # bare skill list was credited at full professional weight. That is backwards:
+        # the same unevidenced claim was penalised for the person least able to
+        # evidence it and waived for the person the market already advantages
+        # (UAT 2026-07-20 cs-jana-02 / LUC-GEF-L1-05). One honest default for
+        # everyone; recorded provenance still overrides it per skill.
+        provenance_default="self_declared",
         potential_score=potential,
         learning_signals=signals,
         aspirations=profile.aspirations,

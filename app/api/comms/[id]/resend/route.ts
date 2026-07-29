@@ -66,6 +66,11 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       body: original.body,
       kind: original.kind,
       ref: original.ref ?? undefined,
+      // The original was read from THIS workspace (getOutboxEntry(id, ws)), so the
+      // recovery row belongs beside it. Only consulted when `ref` names no entry —
+      // an entry-less comm (a KO decline) would otherwise resend into the default
+      // team's Comms Center and vanish from the one that triggered it.
+      workspaceId: ws,
     });
     if (original.ref && getPipelineEntry(original.ref, ws)) {
       recordAutomationEvent(original.ref, "comm_resent", `${original.kind}: ${resent.status}`, ws);

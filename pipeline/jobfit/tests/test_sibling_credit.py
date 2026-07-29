@@ -60,9 +60,14 @@ class SiblingScoreSkillsBoundaryTest(unittest.TestCase):
     NOT missing — it nudges the sub-score but is never claimed as possession."""
 
     def _cand(self, skills: list[str]) -> MatchCandidate:
+        # provenance_default is explicit: the shipped default is now `self_declared`,
+        # which discounts every match. These tests are about where SIBLING credit
+        # lands relative to the match threshold, not about the evidence discount,
+        # so they pin the professional tier.
         return MatchCandidate(
             skills=skills, seniority="medior", role_family="sales_marketing",
             languages=["English"], years_experience=4,
+            provenance_default="professional",
         )
 
     def test_sibling_only_is_neither_matched_nor_missing(self) -> None:
@@ -94,6 +99,79 @@ class SiblingScoreSkillsBoundaryTest(unittest.TestCase):
         self.assertAlmostEqual(score, 1.0)
         self.assertIn("ppc", matched)
         self.assertEqual(strength["ppc"], 1.0)
+
+
+class TechHierarchyParityTest(unittest.TestCase):
+    """tech-hierarchy-parity: the graded credit above must work for TECH too.
+
+    Sibling/graded credit rides on parent links, and the three tech families used
+    to carry them on 24% / 18% / 7% of their terms against 42-85% for every
+    non-tech family. The payoff had inverted: a near-miss TECH specialist fell back
+    to 0/1 string equality more often than an equivalent nurse or accountant. These
+    mirror the non-tech assertions above on tech pairs — graduated credit, not 0/1.
+    """
+
+    def _graduated(self, a: str, b: str, expected: float) -> None:
+        score = tax.term_match_score(a, b)
+        self.assertGreater(score, 0.0, f"{a} vs {b} fell back to zero credit")
+        self.assertLess(score, 1.0, f"{a} vs {b} was credited as an exact match")
+        self.assertAlmostEqual(score, expected)
+
+    def test_sibling_backend_frameworks(self) -> None:
+        # The direction's headline case: two frameworks on the same runtime. (The
+        # brief's Fastify is not modelled; Nest.js is its taxonomy equivalent — both
+        # are Express-adjacent Node web frameworks under the node_js parent.)
+        self.assertEqual(tax._PARENTS["express"], tax._PARENTS["nest_js"])
+        self._graduated("express", "nest_js", tax._SIBLING_MATCH)
+        self._graduated("nest_js", "express", tax._SIBLING_MATCH)
+
+    def test_sibling_frontend_frameworks(self) -> None:
+        # React vs Vue: both JavaScript frameworks. Pre-parity this was a flat 0.
+        self._graduated("react", "vue", tax._SIBLING_MATCH)
+
+    def test_sibling_relational_stores(self) -> None:
+        self._graduated("postgresql", "mysql", tax._SIBLING_MATCH)
+
+    def test_sibling_cloud_platforms(self) -> None:
+        self._graduated("aws", "azure", tax._SIBLING_MATCH)
+
+    def test_sibling_data_and_product_families(self) -> None:
+        # data_ai and product_project were the two thinnest hierarchies (18% / 7%).
+        self._graduated("llm", "nlp", tax._SIBLING_MATCH)
+        self._graduated("snowflake", "bigquery", tax._SIBLING_MATCH)
+        self._graduated("scrum", "kanban", tax._SIBLING_MATCH)
+        self._graduated("product_owner", "product_manager", tax._SIBLING_MATCH)
+
+    def test_specialization_and_generalization_are_directional(self) -> None:
+        # Knowing the specialization implies the general skill (0.9); the reverse is
+        # weaker (0.55) — the same asymmetry the non-tech kyc/aml pair proves.
+        self._graduated("typescript", "javascript", 0.9)
+        self._graduated("javascript", "typescript", tax._GENERALIZATION_MATCH)
+        self._graduated("postgresql", "sql", 0.9)
+        self._graduated("kubernetes", "docker", 0.9)
+
+    def test_unrelated_tech_terms_still_score_zero(self) -> None:
+        # Non-vacuity: the new links must not make everything tech-adjacent.
+        self.assertEqual(tax.term_match_score("react", "python"), 0.0)
+        self.assertEqual(tax.term_match_score("kubernetes", "scrum"), 0.0)
+
+    def test_sibling_credit_lands_below_the_match_threshold_for_tech_too(self) -> None:
+        # A sibling nudges the skills sub-score but is never REPORTED as possessed —
+        # the same honesty boundary the sales_marketing fixture pins.
+        cand = MatchCandidate(
+            skills=["vue"], seniority="medior", role_family="software_engineering",
+            languages=["English"], years_experience=4, provenance_default="professional",
+        )
+        job = mkjob(
+            role_family="software_engineering",
+            requirements=[{"skill": "react", "kind": "must_have", "hardness": "prerequisite"}],
+        )
+        score, matched, missing, strength, _unproven = score_skills(cand, job)
+        self.assertAlmostEqual(score, tax._SIBLING_MATCH)
+        self.assertLess(tax._SIBLING_MATCH, _MATCH_THRESHOLD)
+        self.assertNotIn("react", matched)
+        self.assertNotIn("react", strength)
+        self.assertNotIn("react", missing)
 
 
 if __name__ == "__main__":

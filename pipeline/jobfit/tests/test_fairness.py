@@ -8,7 +8,13 @@ from __future__ import annotations
 
 import unittest
 
-from pipeline.jobfit.eval.matching_eval import THRESHOLDS, Report, ScenarioResult, run
+from pipeline.jobfit.eval.matching_eval import (
+    SCENARIOS,
+    THRESHOLDS,
+    Report,
+    ScenarioResult,
+    run,
+)
 
 
 class GateHonestyTest(unittest.TestCase):
@@ -65,6 +71,24 @@ class MatchingEvalTest(unittest.TestCase):
 
     def test_overall_passes(self) -> None:
         self.assertTrue(self.report.passes())
+
+    def test_scenarios_span_non_tech_families(self) -> None:
+        # The eval used to fixture EXCLUSIVELY on software_engineering / data_ai, so
+        # the archetype -> weights -> confidence -> fairness interplay was measured on
+        # tech only and a non-tech regression would ship green. Pin the coverage so it
+        # cannot be quietly deleted back to tech-only.
+        families = {s.profile.role_family for s in SCENARIOS}
+        self.assertTrue(
+            {"finance_accounting", "customer_support", "sales_marketing"} <= families,
+            f"non-tech eval coverage lost: {sorted(families)}",
+        )
+        # …and the non-tech scenarios must span archetypes, not all be one shape.
+        non_tech = {
+            s.expected_archetype
+            for s in SCENARIOS
+            if s.profile.role_family not in ("software_engineering", "data_ai", "product_project")
+        }
+        self.assertTrue({"bau", "career_switcher"} <= non_tech, non_tech)
 
 
 if __name__ == "__main__":

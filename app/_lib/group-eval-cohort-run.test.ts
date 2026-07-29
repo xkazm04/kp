@@ -52,6 +52,10 @@ test("a two-candidate field clears the floor — a lead is crowned and sealed", 
   });
   assert.notEqual(res.robustness, "insufficient_sample", "a real field is comparable");
   assert.ok(res.topPick, "a lead is crowned once the field clears the floor");
+  // The crown carries the lead's stable IDENTITY, not just its (non-unique) display
+  // label — the modal keys the lead's "Unique strengths" chips on it, so with two
+  // same-named candidates the label alone decorated the rival's tab.
+  assert.equal((res.topPick as { entryId?: string }).entryId, lead, "topPick must carry the lead's entryId");
   const kinds = sealedKinds(lead);
   assert.ok(kinds.includes("group_eval_lead"), `recommendation over a real field auto-seals a lead, got [${kinds.join(", ")}]`);
 });

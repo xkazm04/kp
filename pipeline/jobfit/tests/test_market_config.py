@@ -154,6 +154,44 @@ class ExtractionPromptPeriodFollowsMarketTest(unittest.TestCase):
         self.assertEqual(gross_period_phrase("year"), "gross annual")
         self.assertEqual(gross_period_phrase("hour"), "gross hourly")
 
+    def test_phrase_is_localized_and_degrades_honestly(self) -> None:
+        # The offer letter's Czech body needs the period word too — it used to
+        # hardcode "hrubá měsíční" beside a market-driven currency.
+        self.assertEqual(gross_period_phrase("month", "cs"), "hrubá měsíční")
+        self.assertEqual(gross_period_phrase("year", "cs"), "hrubá roční")
+        # An unmapped language falls back to English (period still named correctly),
+        # an unmapped period to the bare code — never a silently wrong period word.
+        self.assertEqual(gross_period_phrase("month", "de"), "gross monthly")
+        self.assertEqual(gross_period_phrase("fortnight"), "gross fortnight")
+
+
+class SeniorityFallbackBandsAreMarketHomedTest(unittest.TestCase):
+    """The offer drafter's seniority fallback bands live on MarketConfig. They were
+    CZK/month magnitudes stamped with the ACTIVE market's currency, so a re-homed
+    deploy drafted a candidate-facing "95,000 EUR gross monthly" — wrong by ~25x."""
+
+    def test_czech_default_reproduces_the_previous_literals(self) -> None:
+        self.assertEqual(
+            dict(CZECH_MARKET.seniority_default_bands),
+            {
+                "junior": (45_000, 65_000),
+                "medior": (65_000, 95_000),
+                "senior": (95_000, 140_000),
+                "lead": (130_000, 185_000),
+            },
+        )
+
+    def test_an_uncalibrated_market_configures_none(self) -> None:
+        # We hold no real German benchmark bands, so the honest configuration is
+        # EMPTY — draft_offer then proposes no figure at all rather than relabelling
+        # the Czech magnitudes in EUR.
+        self.assertEqual(dict(BERLIN_MARKET.seniority_default_bands), {})
+
+    def test_the_bands_are_read_only(self) -> None:
+        # Shared module-level records: a consumer must not be able to mutate them.
+        with self.assertRaises(TypeError):
+            CZECH_MARKET.seniority_default_bands["junior"] = (1, 2)  # type: ignore[index]
+
 
 class CurrencyUnitFollowsMarketTest(unittest.TestCase):
     """The candidate-facing salary unit ('Kč/měsíc', 'CZK/month') is

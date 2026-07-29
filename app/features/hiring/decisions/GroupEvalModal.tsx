@@ -3,16 +3,17 @@
 import { useTranslations } from "next-intl";
 import { AlertTriangle, Loader2, RefreshCw, Scale } from "lucide-react";
 import { Modal } from "@/app/_components/Modal";
-import { AiVerdict } from "./groupEval/GroupEvalAiVerdict";
-import { ComparisonTable } from "./groupEval/GroupEvalComparisonTable";
-import { FairnessPanel } from "./groupEval/GroupEvalFairnessPanel";
-import { sourceLabelKey } from "./groupEval/groupEvalHelpers";
-import { LegacyView } from "./groupEval/GroupEvalLegacyView";
-import { Notices } from "./groupEval/GroupEvalNotices";
-import { PerCandidateTabs } from "./groupEval/GroupEvalPerCandidateTabs";
-import { Risks } from "./groupEval/GroupEvalRisks";
+import { AiVerdict } from "@/app/features/hiring/decisions/groupEval/GroupEvalAiVerdict";
+import { ComparisonTable } from "@/app/features/hiring/decisions/groupEval/GroupEvalComparisonTable";
+import { FairnessPanel } from "@/app/features/hiring/decisions/groupEval/GroupEvalFairnessPanel";
+import { sourceLabelKey } from "@/app/features/hiring/decisions/groupEval/groupEvalHelpers";
+import { governanceText, summaryText, type Translate } from "./groupEval/localize";
+import { LegacyView } from "@/app/features/hiring/decisions/groupEval/GroupEvalLegacyView";
+import { Notices } from "@/app/features/hiring/decisions/groupEval/GroupEvalNotices";
+import { PerCandidateTabs } from "@/app/features/hiring/decisions/groupEval/GroupEvalPerCandidateTabs";
+import { Risks } from "@/app/features/hiring/decisions/groupEval/GroupEvalRisks";
 import type { GroupEvalPayload } from "@/app/features/shared/groupEvalTypes";
-import { useGroupEval } from "./groupEval/useGroupEval";
+import { useGroupEval } from "@/app/features/hiring/decisions/groupEval/useGroupEval";
 
 // The group-eval contract (payload, candidates, fairness) and the candIdentity
 // keying rule live in ./group-eval/types; re-exported here so consumers keep
@@ -53,6 +54,10 @@ export function GroupEvalModal({
   onDecide?: (identity: string, action: "accept" | "reject") => boolean;
 }) {
   const t = useTranslations("decisions.groupEval");
+  // eval-speaks-your-language — the persisted eval carries structured facts, not
+  // prose; the localize composers turn them into sentences in the reader's
+  // language (and pass a legacy payload's stored English through unchanged).
+  const tt = t as unknown as Translate;
   const { ranAt, decided, decide, drift, candidates, enriched, skillRows, mustRows, aiBacked } = useGroupEval({
     evaluation,
     createdAt,
@@ -101,13 +106,13 @@ export function GroupEvalModal({
           <Notices drift={drift} ranAt={ranAt} evaluation={evaluation} />
           {/* Governance (P1-3): in committee / eligibility-list mode the AI is advisory —
               a banner makes clear it didn't pick or seal a hire. */}
-          {evaluation.governanceNote ? (
+          {governanceText(tt, evaluation) ? (
             <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-base text-amber-900">
               <Scale size={18} className="mt-0.5 shrink-0" aria-hidden />
-              <span>{evaluation.governanceNote}</span>
+              <span>{governanceText(tt, evaluation)}</span>
             </div>
           ) : null}
-          <AiVerdict comparison={evaluation.comparison} fallback={evaluation.summary} aiBacked={aiBacked} />
+          <AiVerdict comparison={evaluation.comparison} fallback={summaryText(tt, evaluation)} aiBacked={aiBacked} />
           {evaluation.eligibilityList?.length ? (
             <section className="rounded-xl border border-stone-200 bg-white p-4">
               <p className="text-sm font-semibold uppercase tracking-wide text-steel">{t("eligibilityList")}</p>
@@ -127,7 +132,14 @@ export function GroupEvalModal({
 
           {enriched ? (
             <>
-              <ComparisonTable candidates={candidates} skillRows={skillRows} mustRows={mustRows} roleBand={evaluation.roleSalaryBand ?? []} hasLead={evaluation.topPick != null} />
+              <ComparisonTable
+                candidates={candidates}
+                skillRows={skillRows}
+                mustRows={mustRows}
+                roleBand={evaluation.roleSalaryBand ?? []}
+                hasLead={evaluation.topPick != null}
+                leadSeparation={evaluation.leadSeparation}
+              />
               <FairnessPanel
                 fairness={evaluation.fairness ?? null}
                 headlineOrder={evaluation.recommendedOrder ?? []}
@@ -136,7 +148,7 @@ export function GroupEvalModal({
               <PerCandidateTabs
                 candidates={candidates}
                 differentiators={evaluation.differentiators ?? []}
-                topPick={evaluation.topPick?.label}
+                topPick={evaluation.topPick}
                 decided={decided}
                 onDecide={decide || undefined}
               />

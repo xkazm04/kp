@@ -958,7 +958,31 @@
     "notSelectedTitle": "Diesmal nicht ausgewählt",
     "notSelectedBody": "Vielen Dank für Ihre Bewerbung. Das Team hat sich für diese Position für andere Kandidatinnen und Kandidaten entschieden. Über eine erneute Bewerbung auf künftige Stellen freuen wir uns.",
     "withdrawnTitle": "Bewerbung geschlossen",
-    "withdrawnBody": "Diese Bewerbung ist geschlossen. Sollte das nicht korrekt sein, wenden Sie sich bitte an das Recruiting-Team."
+    "withdrawnBody": "Diese Bewerbung ist geschlossen. Sollte das nicht korrekt sein, wenden Sie sich bitte an das Recruiting-Team.",
+    "decisions": {
+      "title": "Wie Entscheidungen zu Ihrer Bewerbung getroffen wurden",
+      "automated": "Automatisiert",
+      "human": "Menschliche Entscheidung",
+      "humanReviewNote": "Sie können jederzeit eine menschliche Überprüfung jeder Entscheidung anfordern — antworten Sie einfach auf eine beliebige Nachricht des Recruiting-Teams.",
+      "reasons": {
+        "reject": "Die entscheidenden Fakten: Ihr Match-Score von {score} lag unter dem Screening-Schwellenwert von {threshold}."
+      },
+      "kinds": {
+        "auto_rejected": "Bewerbung im automatisierten Screening nicht weitergekommen",
+        "rejected": "Bewerbung nicht weitergekommen",
+        "advanced": "Bewerbung in die nächste Phase weitergerückt",
+        "auto_advanced": "Bewerbung in die nächste Phase weitergerückt",
+        "reinstated": "Bewerbung nach Überprüfung wieder aufgenommen",
+        "interview_scheduled": "Interview geplant",
+        "interview_cancelled": "Interview abgesagt",
+        "interview_no_show": "Interview als verpasst vermerkt",
+        "interview_proposal_declined": "Vorgeschlagener Interviewtermin abgelehnt",
+        "ai_scorecard": "Interview mit KI-Unterstützung ausgewertet",
+        "human_scorecard": "Interview von einer Interviewerin bzw. einem Interviewer ausgewertet",
+        "group_eval": "Bewerbung innerhalb der Kandidatengruppe für diese Stelle verglichen",
+        "offer_terms": "Angebotskonditionen vorbereitet"
+      }
+    }
   },
   "apply": {
     "eyebrow": "Bewerben",
@@ -1001,7 +1025,8 @@
       "acceptedMessageNoRelay": "Bewerbung eingegangen und gespeichert! Über den Status-Link unten können Sie jederzeit sehen, wo Sie stehen — und Ihre Chancen gleich jetzt verbessern, indem Sie Ihr Profil vervollständigen (etwa zwei Minuten).",
       "enrichCta": "Profil vervollständigen",
       "enrichNote": "Etwa zwei Minuten — so können wir Sie fair und schnell einschätzen.",
-      "honeypotLabel": "Firmen-URL (dieses Feld leer lassen)"
+      "honeypotLabel": "Firmen-URL (dieses Feld leer lassen)",
+      "incompleteHint": "Fast geschafft — bitte beantworten Sie alles oben. Wir haben Sie zur ersten noch fehlenden Angabe gebracht."
     },
     "archetypeBau": "Eine erfahrene Fachkraft",
     "archetypeStudent": "Studium oder Berufseinstieg",
@@ -1037,6 +1062,53 @@
       "koMode": "Diese Stelle ist {workMode}. Passt das für Sie?",
       "koLang": "Die Stelle arbeitet in {languages}. Kommen Sie damit zurecht?",
       "welcomeBack": "Willkommen zurück, {name}! Ihre Bewerbung liegt uns bereits vor — nur noch ein paar Fragen, um Ihr Profil zu vervollständigen."
+    },
+    "gapFields": {
+      "hasProjectOrThesis": {
+        "prompt": "Erzählen Sie uns von einem Studienprojekt oder einer Abschlussarbeit, auf die Sie stolz sind",
+        "placeholder": "z. B. Bachelorarbeit: eine kleine REST-API für die Laborplanung…"
+      },
+      "hasAspirations": {
+        "prompt": "Welche Art von Position streben Sie an?",
+        "placeholder": "z. B. Junior-Backend-Entwickler:in"
+      },
+      "hasEducationDetail": {
+        "prompt": "Was studieren Sie, und wann wollen Sie abschließen?",
+        "placeholder": "z. B. Informatik an der TU, Abschluss Juni 2027"
+      },
+      "hasActivity": {
+        "prompt": "Gibt es ein Praktikum, ein Zertifikat, ein Engagement oder einen Nebenjob, den wir kennen sollten?",
+        "placeholder": "z. B. Sommerpraktikum in einer Webagentur"
+      },
+      "educationKnown": {
+        "prompt": "Was ist Ihr höchster Bildungsabschluss (oder der laufende)?",
+        "placeholder": "z. B. Bachelor"
+      },
+      "hasLanguages": {
+        "prompt": "In welchen Sprachen arbeiten Sie? (durch Komma getrennt)",
+        "placeholder": "z. B. Tschechisch, Englisch"
+      },
+      "min3Skills": {
+        "prompt": "Nennen Sie ein paar Fähigkeiten, die wir kennen sollten (durch Komma getrennt)",
+        "placeholder": "z. B. Python, SQL, Git"
+      },
+      "hasYears": {
+        "prompt": "Wie viele Jahre Berufserfahrung haben Sie?",
+        "placeholder": "z. B. 4"
+      },
+      "hasJob": {
+        "prompt": "Was ist Ihre relevanteste Berufserfahrung?",
+        "placeholder": "z. B. 3 Jahre als Backend-Entwickler:in bei…"
+      }
+    },
+    "declinedRestartNote": "Versehentlich geantwortet? Sie können die Fragen noch einmal durchgehen — Ihre früheren Antworten haben wir nicht gespeichert, Sie geben sie also neu ein.",
+    "followup": {
+      "title": "Noch eine Sache — freiwillig",
+      "subtitle": "Ihre Bewerbung ist bereits eingegangen. Diese wenigen Antworten helfen uns nur, Sie fair einzuschätzen; überspringen Sie sie, geht nichts verloren.",
+      "submit": "Antworten senden",
+      "skip": "Nein, danke",
+      "thanks": "Vielen Dank — das steht jetzt in Ihrem Profil.",
+      "saveFailed": "Diese Antworten konnten wir gerade nicht speichern. Ihre Bewerbung ist sicher erfasst — versuchen Sie es gern noch einmal."
     }
   },
   "interview": {
@@ -1403,12 +1475,11 @@
       "previewingPass": "Vorschau…",
       "previewTitle": "Vorschau: Was dieser Durchlauf tun würde",
       "previewSubtitle": "{evaluated} aktive Kandidat/innen bewertet — nichts wurde angewendet und niemand wurde bisher per E-Mail benachrichtigt.",
-      "previewRejects": "{count, plural, one {Würde # ablehnen (sendet eine Absage-E-Mail)} other {Würde # ablehnen (sendet Absage-E-Mails)}}",
-      "previewRejectsQueued": "{count, plural, one {Würde # ablehnen (stellt eine Absage-Nachricht in den Postausgang — Zustellung nicht konfiguriert)} other {Würde # ablehnen (stellt Absage-Nachrichten in den Postausgang — Zustellung nicht konfiguriert)}}",
+      "previewRejectsQueued": "{count, plural, one {Würde # zur Freigabe vorlegen — der Durchlauf lehnt nie selbst ab} other {Würde # zur Freigabe vorlegen — der Durchlauf lehnt nie selbst ab}}",
       "previewAdvances": "{count, plural, one {Würde # weiterleiten} other {Würde # weiterleiten}}",
       "previewHeld": "{count, plural, one {Zur Prüfung zurückgehalten (#) — Gründe ansehen} other {Zur Prüfung zurückgehalten (#) — Gründe ansehen}}",
       "previewFairnessBlocked": "{count, plural, one {# geplante Ablehnung durch die Fairness-Sicherung zurückgehalten} other {# geplante Ablehnungen durch die Fairness-Sicherung zurückgehalten}}",
-      "previewApply": "{count, plural, one {# Änderung anwenden & benachrichtigen} other {# Änderungen anwenden & benachrichtigen}}",
+      "previewApply": "{count, plural, one {# Änderung anwenden} other {# Änderungen anwenden}}",
       "previewCancel": "Abbrechen",
       "previewNothing": "Nichts anzuwenden — jede/r Kandidat/in ist zurückgehalten oder unverändert.",
       "previewNote": "Beim Übernehmen wird erneut gegen das Live-Board bewertet; eine/r zwischenzeitlich verschobene/r Kandidat/in wird übersprungen, nie falsch angewendet.",
@@ -1518,7 +1589,10 @@
       "setDefaultViewTitle": "Standardmäßig öffnen",
       "defaultViewTitle": "Standardansicht — öffnet sich beim Ankommen. Zum Aufheben klicken.",
       "renameView": "Ansicht {name} umbenennen",
-      "renameViewTitle": "Ansicht umbenennen"
+      "renameViewTitle": "Ansicht umbenennen",
+      "previewScope": "{mine} von {total} Entscheidungen dieses Laufs gehören Ihrem Team — die Zahlen oben umfassen die gesamte Installation.",
+      "previewOtherTeamsOnly": "{count, plural, one {Keine Änderungen für Ihr Team. In diesem Lauf wartet # Änderung für ein anderes Team.} other {Keine Änderungen für Ihr Team. In diesem Lauf warten # Änderungen für andere Teams.}}",
+      "previewApplyGlobal": "{count, plural, one {# Änderung anwenden (alle Teams)} other {# Änderungen anwenden (alle Teams)}}"
     },
     "today": {
       "eyebrow": "Heute",
@@ -1647,7 +1721,19 @@
       "editProfile": "Profil bearbeiten",
       "taskStartFailed": "Aufgabe konnte nicht gestartet werden.",
       "resultLoadFailed": "Die Aufgabe wurde abgeschlossen, aber ihr Ergebnis konnte nicht geladen werden. Versuchen Sie die Aktion erneut.",
-      "taskIncomplete": "Aufgabe wurde nicht abgeschlossen."
+      "taskIncomplete": "Aufgabe wurde nicht abgeschlossen.",
+      "commsVerdict": {
+        "sent": "gesendet",
+        "queued": "in Warteschlange",
+        "failed": "fehlgeschlagen",
+        "recovered": "behoben",
+        "bounced": "unzustellbar",
+        "orphaned": "nicht zuordenbare Rückmeldung"
+      },
+      "commsBounceLine": "Das Relay hat diese Nachricht als unzustellbar gemeldet: {detail}",
+      "commsFailureLine": "Zustellung fehlgeschlagen und nicht erneut versucht: {detail}",
+      "commsRecoveredLine": "Dieser Versand schlug zuerst fehl, ein späterer Neuversand kam durch.",
+      "commsReasonUnknown": "kein Grund erfasst"
     },
     "actions": {
       "screen": "Mit AI prüfen",
@@ -1716,7 +1802,10 @@
         "fairness_blocked": "Fairness-Sicherung",
         "queued": "zur Genehmigung eingereiht"
       },
-      "thisRun": "{label} in diesem Lauf"
+      "thisRun": "{label} in diesem Lauf",
+      "runScope": "{mine} von {total} Ihre",
+      "scopeGlobal": "gilt für alle Teams",
+      "scopeGlobalTitle": "Für die gesamte Installation läuft eine einzige Uhr: Ein- oder Ausschalten startet bzw. stoppt die Automatisierung für alle Teams, nicht nur für Ihres."
     },
     "result": {
       "claudeCli": "Claude CLI",
@@ -1737,7 +1826,10 @@
         "scorecard": "Scorecard",
         "offer": "Angebot",
         "rematch": "Neu-Matching"
-      }
+      },
+      "noBand": "Für diese Rolle bzw. diesen Markt ist keine Gehaltsspanne hinterlegt, daher wurde kein Betrag vorgeschlagen. Legen Sie ihn bei der Freigabe fest.",
+      "unpricedAmount": "Betrag noch festzulegen",
+      "unpricedTitle": "Für diesen Entwurf wurde kein Gehalt vorgeschlagen — legen Sie den Betrag bei der Freigabe des Angebots fest."
     },
     "applied": {
       "advanced": "Um eine Phase weitergeleitet.",
@@ -1909,7 +2001,10 @@
       "confidenceAria": "KI-Konfidenz für diese Empfehlung: {pct} %",
       "viewAnalysis": "Vollständige Analyse",
       "jdEditedBadge": "Stellenanzeige {date} geändert",
-      "jdEditedTitle": "Die Stellenanzeige wurde am {date} geändert, nach der Bewertung dieser Kandidatin bzw. dieses Kandidaten — der Score spiegelt den früheren Text wider. Führen Sie die Analyse erneut aus, um ihn zu aktualisieren."
+      "jdEditedTitle": "Die Stellenanzeige wurde am {date} geändert, nach der Bewertung dieser Kandidatin bzw. dieses Kandidaten — der Score spiegelt den früheren Text wider. Führen Sie die Analyse erneut aus, um ihn zu aktualisieren.",
+      "noBand": "Für diese Rolle bzw. diesen Markt ist keine Gehaltsspanne hinterlegt, daher wurde kein Betrag vorgeschlagen. Legen Sie ihn bei der Freigabe fest.",
+      "unpricedAmount": "Betrag noch festzulegen",
+      "unpricedTitle": "Für diesen Entwurf wurde kein Gehalt vorgeschlagen — legen Sie den Betrag bei der Freigabe des Angebots fest."
     },
     "rules": {
       "title": "Entscheidungsregeln · Screening",
@@ -2024,7 +2119,8 @@
         "rejectDid": "Automatisch abgelehnt · unterste {pct}% von {n} → {count} (Rang {rank}) und Match {score} < Schwelle {threshold}.",
         "tieAdjustedNote": "(vom Gleichstand ab {from} angepasst, damit kein gleicher Score getrennt wird)",
         "staleSkipped": "Übersprungen — Phase hat sich während der Welle geändert (war {wasStage}); unverändert gelassen.",
-        "unscored": "nicht bewertet — noch kein Match-Score; von Auto-Ablehnung ausgeschlossen (Bewertung nötig)"
+        "unscored": "nicht bewertet — noch kein Match-Score; von Auto-Ablehnung ausgeschlossen (Bewertung nötig)",
+        "holdout": "beibehalten — Kalibrierungs-Kontrollgruppe: {pct}% der eigentlich automatisch abgelehnten Kandidaten werden bewusst behalten, damit ihre tatsächlichen Ergebnisse die Richtigkeit des Scores prüfen können (Match {score}, Schwelle {threshold})"
       }
     },
     "summary": {
@@ -2142,7 +2238,36 @@
       "robustAgrees": "Stimmt mit der oben genannten Eignungsreihenfolge überein.",
       "watchOuts": "Zu beachten · {n}",
       "recommendedLead": "Empfohlener Favorit",
-      "differentiators": "Alleinstellungsmerkmale (Favorit):"
+      "differentiators": "Alleinstellungsmerkmale (Favorit):",
+      "leadTied": "Praktisch gleichauf",
+      "leadTiedTitle": "Der Abstand zum Zweitplatzierten liegt innerhalb der Konfidenzbänder beider Kandidaten — betrachten Sie die ersten beiden als gleichwertig.",
+      "risk": {
+        "lowFit": "{label}: geringere Eignung ({score}) — Muss-Kriterien im Interview prüfen.",
+        "earlyCareer": "{label}: Berufseinstieg — Potenzial und Entwicklung bewerten, nicht nur die aktuellen Fähigkeiten.",
+        "gaps": "{label}: Lücken bei {gaps}."
+      },
+      "summary": {
+        "leadScored": "{label} (Eignung {score})",
+        "leadUnscored": "{label} (nicht bewertet)",
+        "empty": "Keine Kandidaten zur Bewertung für {role}.",
+        "insufficient": "Nur {count, plural, one {# Kandidat} other {# Kandidaten}} für {role} — eine einzelne Person lässt sich nicht gegen ein Feld einordnen, daher wird kein Favorit gekürt und die Prüfung der Gewichtungsrobustheit entfällt (unzureichende Stichprobe). Fügen Sie weitere Kandidaten zum Vergleich hinzu.",
+        "noLead": "{count, plural, one {# Kandidat} other {# Kandidaten}} für {role}, aber niemand erfüllt die Muss-Kriterien der Stelle (K.-o.) — kein Favorit. Prüfen Sie das Feld unten.",
+        "eligibility": "{count, plural, one {# Kandidat} other {# Kandidaten}} für {role}, geordnet zu einer ordinalen Eignungsliste (beste Eignung: {lead}). Wenden Sie etwaige gesetzliche Präferenzen vor der Zertifizierung an — nichts wird automatisch besiegelt.",
+        "committee": "{count, plural, one {# Kandidat} other {# Kandidaten}} für {role}. Beste Eignung (beratend): {lead}. Die Auswahlkommission entscheidet — die KI trifft und besiegelt keine Einstellung.",
+        "recommendation": "{count, plural, one {# Kandidat} other {# Kandidaten}} für {role}. Empfohlener Favorit: {lead}.",
+        "uniqueStrengths": "Alleinstellungsmerkmale: {list}.",
+        "watchOuts": "{count, plural, one {# Hinweis} other {# Hinweise}} unten markiert.",
+        "noRisks": "Keine blockierenden Risiken markiert.",
+        "separationCaveat": "Konfidenz-Hinweis: {lead} ist von {runnerUp} nicht getrennt — die Konfidenzbänder überlappen sich, diese Reihenfolge liegt also innerhalb der Messunsicherheit. Behandeln Sie die beiden Ersten nach der verfügbaren Evidenz als gleichauf."
+      },
+      "governance": {
+        "committee": "Kommissionsmodus: Der KI-Vergleich ist BERATENDER Input für die Auswahlkommission — er trifft und besiegelt keine Einstellung. Halten Sie die Bewertung jedes Prüfers und die Entscheidung der Kommission in Ihrem Governance-Prozess fest.",
+        "eligibilityList": "Eignungslisten-Modus: Die Kandidaten bilden eine ordinale, nach Eignung sortierte Liste — keine diskretionäre KI-Auswahl, und nichts wird automatisch besiegelt. Wenden Sie etwaige gesetzliche Präferenzen (z. B. für Veteranen) vor der Zertifizierung an; die App kennt diesen Status nicht und kann ihn nicht berechnen."
+      },
+      "topPickWhy": {
+        "highestFit": "Höchste Eignung ({score}) in dieser Rolle.",
+        "unscored": "An der Spitze des Feldes, aber es wurde noch keine Eignung berechnet."
+      }
     }
   },
   "scheduleTab": {
@@ -2682,7 +2807,10 @@
       "bulkDone": "{added} hinzugefügt · {exists} bereits im Katalog · {failed} fehlgeschlagen",
       "resAdded": "hinzugefügt",
       "resExists": "im Katalog",
-      "resFailed": "nicht lesbar"
+      "resFailed": "nicht lesbar",
+      "cancelRun": "Lauf abbrechen",
+      "cancelled": "Analyse abgebrochen — es wurde nichts hinzugefügt.",
+      "bulkCancelled": "Abgebrochen nach {done} von {total} Anzeigen. Die bisherigen Ergebnisse bleiben unten stehen."
     },
     "drafts": {
       "heading": "Entwürfe, die auf Sourcing warten",
@@ -2735,7 +2863,8 @@
       "tabRediscover": "Wiederentdecken",
       "tabCompare": "Vergleichen",
       "createCampaignPack": "Kampagnenpaket erstellen",
-      "viewCampaignPack": "Kampagnenpaket ansehen"
+      "viewCampaignPack": "Kampagnenpaket ansehen",
+      "withdrawFailed": "Stelle geschlossen, aber die laufenden Kandidat/innen konnten nicht zurückgezogen werden — prüfen Sie die Pipeline."
     },
     "coach": {
       "loadFailed": "Diese Stelle konnte nicht bewertet werden.",
@@ -2913,6 +3042,10 @@
       "couldntAdd": "Konnte nicht zur Pipeline hinzugefügt werden — {error}",
       "couldntReach": "Kontaktaufnahme fehlgeschlagen — {error}",
       "assumptions": "Annahmen:"
+    },
+    "deeplink": {
+      "notFound": "Diese Stelle ist nicht in Ihrem Katalog — sie wurde möglicherweise entfernt oder gehört einem anderen Team.",
+      "dismiss": "Schließen"
     }
   },
   "scoreProvenance": {
@@ -3121,14 +3254,14 @@
       "rebuildWarnKeep": "Meine Änderungen behalten",
       "projectionLabel": "Kandidatenansicht",
       "projectionList": "Liste",
-      "projectionMatrix": "Matrix"
+      "projectionMatrix": "Matrix",
+      "newProfile": "Kandidatenprofil erstellen"
     },
     "matrix": {
       "eyebrow": "Kandidaten",
       "title": "Kandidaten nach Archetyp",
       "intro": "Jedes gespeicherte Profil und jeder analysierte Lebenslauf, eingeordnet in den zugewiesenen Archetyp. Ein Chip zeigt die Herkunft — öffnen Sie eines, um das Profil zu bearbeiten oder die Analyse zu sehen.",
       "loadFailed": "Kandidaten konnten nicht geladen werden.",
-      "newProfile": "Kandidatenprofil erstellen",
       "emptyTitle": "Noch keine Kandidaten",
       "emptyBody": "Erstellen Sie oben ein Profil oder analysieren Sie einen Lebenslauf im Tab <b>Analyse</b> — jedes wird einem Archetyp zugewiesen und erscheint hier.",
       "openAnalysisTitle": "Analyse von {name} öffnen",
@@ -3144,7 +3277,7 @@
       "intro": "Profile, die Sie erstellt und gespeichert haben. Bearbeiten Sie eines, gleichen Sie es mit offenen Stellen ab oder entfernen Sie es.",
       "loadFailed": "Gespeicherte Profile konnten nicht geladen werden.",
       "emptyTitle": "Noch keine gespeicherten Profile",
-      "emptyBody": "Erstellen Sie unten ein Kandidatenprofil, und es erscheint hier, bereit zum Matchen.",
+      "emptyBody": "Erstellen Sie über die Schaltfläche oben ein Kandidatenprofil, und es erscheint hier, bereit zum Matchen.",
       "completenessAria": "Profilvollständigkeit {pct} %",
       "completenessPct": "{pct} % vollständig",
       "staleBadge": "Neueres CV",
@@ -3200,7 +3333,10 @@
       "evidenceTextPlaceholder": "Was Sie entwickelt / getan haben, Ihre Rolle, das Ergebnis",
       "evidenceSkillsPlaceholder": "Fähigkeiten: React, TypeScript",
       "evidenceLinkPlaceholder": "GitHub- / Demo-Link",
-      "addEvidence": "+ Nachweis"
+      "addEvidence": "+ Nachweis",
+      "skillLevelAria": "Kompetenzniveau",
+      "skillProvenanceAria": "Herkunft der Angabe",
+      "evidenceKindAria": "Art des Nachweises"
     },
     "editor": {
       "back": "Zurück zu Profilen",
@@ -3322,23 +3458,14 @@
   },
   "channels": {
     "comms": {
-      "title": "Kommunikation",
       "count": "{count, plural, one {# Nachricht} other {# Nachrichten}}",
       "deadLetters": "{count, plural, one {# Dead-Letter — erfordert Aufmerksamkeit} other {# Dead-Letters — erfordern Aufmerksamkeit}}",
-      "noAddress": "keine Adresse",
       "noAddressHint": "Diese/r Kandidat/in hat keine zustellbare E-Mail — ein echtes Relay erreicht sie/ihn nicht. Erfassen Sie eine Adresse, bevor Sie sich auf diesen Versand verlassen.",
-      "addressIssues": "{count, plural, one {# ohne Adresse} other {# ohne Adresse}}",
-      "intro": "Jede an Kandidat/innen gerichtete Nachricht, die die Pipeline versendet hat — Eingangsbestätigungen, Ansprache, Interview-Einladungen, Absagen, Angebote. Klappen Sie eine Zeile auf, um den vollständigen Text zu lesen; fehlgeschlagene Sendungen können erneut zugestellt werden.",
       "empty": "Noch keine Nachrichten versendet — sie erscheinen hier, sobald Kandidat/innen den Funnel durchlaufen.",
       "loadFailed": "Kommunikation konnte nicht geladen werden.",
       "relayNotConfigured": "Kein Zustell-Relay konfiguriert — diese Nachrichten werden NICHT an Kandidat/innen gesendet. Setzen Sie COMMS_WEBHOOK_URL, um die Zustellung zu aktivieren.",
       "loading": "Kommunikation wird geladen",
-      "recovered": "wiederhergestellt",
-      "recoveredAt": "erneut gesendet {time}",
-      "bounced": "Bounce",
       "bouncedAt": "Relay hat {time} einen Bounce gemeldet: {detail}",
-      "searchPlaceholder": "Kandidat/in, Empfänger/in oder Betreff suchen",
-      "kindAll": "Alle Arten",
       "showing": "{shown} von {total} angezeigt",
       "showMore": "Mehr anzeigen",
       "resend": "Erneut senden",
@@ -3348,73 +3475,37 @@
       "bouncedResendHint": "Diese Adresse ist unzustellbar — ein erneuter Versand an dieselbe Adresse schlägt wieder fehl. Geben Sie eine korrigierte E-Mail-Adresse ein, um eine andere Adresse zu versuchen.",
       "bouncedRecipientLabel": "Korrigierte E-Mail",
       "bouncedRecipientPlaceholder": "name@firma.de",
-      "bouncedResendInvalid": "Geben Sie vor dem Senden eine gültige E-Mail-Adresse ein."
+      "bouncedResendInvalid": "Geben Sie vor dem Senden eine gültige E-Mail-Adresse ein.",
+      "orphanBadge": "Nicht zuordenbare Rückmeldung",
+      "orphanHint": "Das Relay hat einen Zustellfehler für eine Nachricht gemeldet, die kp nie versendet hat — Referenz und Typ passen zu nichts hier. Prüfen Sie das ref/kind-Mapping in der Relay-Integration.",
+      "failureDetail": "Zustellung fehlgeschlagen: {detail}",
+      "failureDetailUnknown": "Zustellung fehlgeschlagen — für diesen Versand wurde kein Grund erfasst.",
+      "resendRejected": "Erneutes Senden nicht möglich: {reason}",
+      "resendDeadLettered": "Erneut gesendet, aber wieder unzustellbar.",
+      "colName": "Name",
+      "colRole": "Stelle",
+      "colChannel": "Kanal",
+      "colType": "Typ",
+      "colStatus": "Status",
+      "colRecorded": "Erfasst",
+      "recordedHint": "Wann kp die Nachricht erfasst hat. Ein erneuter Versand ist eine eigene Zeile — Original und Wiederholung bleiben unterscheidbar.",
+      "via": "über {channel}",
+      "statusSent": "Gesendet",
+      "statusQueued": "In Warteschlange",
+      "statusFailed": "Fehlgeschlagen",
+      "statusRecovered": "Behoben",
+      "statusBounced": "Unzustellbar"
     },
-    "eyebrow": "Arbeitsbereich",
-    "title": "Kanäle & Integrationen",
-    "intro": "Wo Kandidat/innen in die Pipeline gelangen. Sowohl eingehende <b>Bewerbungen</b> als auch proaktiv gesourcte Kandidat/innen kommen bei <hl>Angenommen</hl> an und fließen dann für die erste Bewertungswelle nach <hl>Geprüft</hl>.",
-    "received": "{count, plural, one {Bewerbung} other {Bewerbungen}} erhalten → <hl>Angenommen</hl>",
-    "loadingInbound": "Eingehende Bewerbungen werden geladen",
-    "openPipeline": "Pipeline öffnen",
-    "noJobNote": "Sourcen Sie zuerst eine Stellenbeschreibung in die Pipeline — dann können Bewerbungen eingehen.",
-    "appliedNote": "{label} hat sich beworben → Angenommen (Match {score}).",
-    "failed": "Fehlgeschlagen.",
-    "open": "Öffnen",
-    "receiving": "Wird empfangen…",
-    "simulate": "Bewerbung simulieren",
-    "channelAriaLive": "{name}: live — {status}",
-    "channelAriaOff": "{name}: nicht konfiguriert — {status}",
+    "eyebrow": "Eingangsstudio",
+    "title": "Wo Kandidat/innen hereinkommen",
     "statusListening": "Empfangsbereit",
-    "webhooks": {
-      "connect": "Verbinden",
-      "manage": "Verwalten ({count})",
-      "hide": "Ausblenden",
-      "intro": "POSTen Sie Leads an eine Webhook-URL — jede URL ist an eine Stelle und eine Kandidat/innen-Sprache gebunden. Akzeptiert reines JSON oder Meta-Lead-Formular-Payloads; Leads landen als anreicherbare Stubs bei „Angenommen“ und erhalten sofort eine Eingangsbestätigung mit einem Link zur vollständigen Bewerbung.",
-      "job": "Stelle",
-      "language": "Kandidat/innen-Sprache",
-      "create": "Webhook-URL erstellen",
-      "creating": "Wird erstellt…",
-      "copyUrl": "URL kopieren",
-      "copied": "Kopiert",
-      "revoke": "Webhook widerrufen",
-      "received": "{count, plural, one {# empfangen} other {# empfangen}}",
-      "leads": "{count, plural, one {# Lead} other {# Leads}}",
-      "neverReceived": "noch nichts empfangen",
-      "firstLeadMins": "erster Lead {mins} Min. nach Einrichtung",
-      "firstLeadHours": "erster Lead {hours} Std. nach Einrichtung",
-      "noJobs": "Keine Stellen verfügbar — lesen Sie zuerst eine Stelle ein oder veröffentlichen Sie eine.",
-      "noJobsCta": "Stellenbeschreibung erstellen",
-      "createFailed": "Webhook konnte nicht erstellt werden.",
-      "revokeFailed": "Webhook konnte nicht widerrufen werden."
-    },
+    "webhooks": {},
     "items": {
-      "apply": {
-        "name": "Karriereseite · Bewerbungslink",
-        "status": "Empfangsbereit",
-        "desc": "Ein dialogbasierter Bewerbungslink — eingereichte Bewerbungen landen bei „Angenommen“."
-      },
-      "email": {
-        "name": "E-Mail-Eingang",
-        "status": "Nicht konfiguriert",
-        "desc": "Leiten Sie eine E-Mail-Parsing-Integration (oder ein beliebiges Formular) an eine stellenspezifische Webhook-URL — geparste Bewerber/innen landen bei „Angenommen“."
-      },
-      "boards": {
-        "name": "Jobbörsen & Anzeigenformulare",
-        "status": "Nicht konfiguriert",
-        "desc": "Empfangen Sie Bewerber/innen von Jobbörsen und Anzeigen-Lead-Formularen (Meta-Lead-Formular-Payloads unterstützt) über eine stellenspezifische Webhook-URL — Leads landen bei „Angenommen“."
-      },
-      "sourcing": {
-        "name": "Proaktives Sourcing",
-        "status": "Aktiv",
-        "desc": "Reihen Sie den Kandidat/innen-Pool im Matching gegen die Stelle — proaktiv gesourcte Kandidat/innen landen bei „Angenommen“.",
-        "cta": "Matching öffnen"
-      },
-      "manual": {
-        "name": "Manuell hinzufügen",
-        "status": "Recruiter",
-        "desc": "Erstellen Sie ein Kandidat/innen-Profil von Hand (Profil) und fügen Sie es einer Stelle hinzu.",
-        "cta": "Profil erstellen"
-      }
+      "apply": {},
+      "email": {},
+      "boards": {},
+      "sourcing": {},
+      "manual": {}
     },
     "relay": {
       "title": "Zustellungs-Relay",
@@ -3433,6 +3524,149 @@
       "test": "Test-Ping senden",
       "testOk": "Zugestellt — HTTP {status}",
       "testFailed": "Test fehlgeschlagen: {reason}"
+    },
+    "tablist": "Integration",
+    "waiting": "{count} warten in der Pipeline",
+    "ledger": "Journal",
+    "statusLive": "Live",
+    "statusConfigured": "Konfiguriert",
+    "statusOff": "Aus",
+    "statusWaiting": "Wartet",
+    "copyLink": "Link kopieren",
+    "copy": "Kopieren",
+    "copied": "Kopiert",
+    "sections": {
+      "comms": {
+        "label": "Kommunikation",
+        "blurb": "Jede Nachricht an Kandidat/innen in einem prüfbaren Journal."
+      },
+      "careers": {
+        "label": "Karriereseite",
+        "blurb": "Ihre öffentliche Bewerbungsseite — ein Link, überall einbettbar."
+      },
+      "email": {
+        "label": "E-Mail-Eingang",
+        "blurb": "Leiten Sie Bewerbungen aus einem Postfach direkt in die Pipeline."
+      },
+      "ads": {
+        "label": "Anzeigenformulare",
+        "blurb": "Lead-Formulare (LinkedIn / Meta) liefern ihre Leads hier ein."
+      }
+    },
+    "stats": {
+      "publishedRoles": "Veröffentlichte Stellen",
+      "waiting": "Wartend",
+      "receivers": "Empfänger",
+      "received": "Empfangen",
+      "leads": "Erfasste Leads"
+    },
+    "sim": {
+      "run": "Testbewerbung empfangen",
+      "running": "Wird empfangen…",
+      "noJob": "Legen Sie zuerst eine Stelle an — eingehende Bewerbungen brauchen ein Ziel.",
+      "filed": "{label} empfangen — Match {score}. Bei „Angenommen“ zur Stelle {role} erfasst.",
+      "failed": "Testbewerbung konnte nicht empfangen werden."
+    },
+    "careers": {
+      "empty": "Noch keine veröffentlichten Stellen — veröffentlichen Sie eine Stelle, dann erscheint ihr Bewerbungslink hier.",
+      "applyLink": "Bewerbungslink"
+    },
+    "receivers": {
+      "role": "Stelle",
+      "lang": "Sprache",
+      "status": "Status",
+      "received": "Empfangen",
+      "receivedHint": "Authentifizierte POSTs, die dieser Empfänger angenommen hat — Tests und abgelehnte Payloads eingeschlossen. Die Kandidat/innen-Zahl steht unter „Erfasste Leads“.",
+      "copyEndpoint": "Adresse kopieren",
+      "remove": "Entfernen",
+      "removeAria": "Empfänger für {role} entfernen",
+      "confirmTitle": "Diesen Empfänger entfernen?",
+      "confirmBody": "Damit löschen Sie den Eingangspunkt für <b>{role}</b>. <b>{endpoint}</b> nimmt sofort keine Bewerbungen mehr an und lässt sich nicht wiederherstellen — Sie müssten einen neuen Empfänger anlegen und die Quelle auf dessen neue Adresse umstellen.",
+      "confirmLive": "{count, plural, one {Dieser Empfänger ist live — er hat # eingehende Bewerbung angenommen.} other {Dieser Empfänger ist live — er hat # eingehende Bewerbungen angenommen.}} Die Weiterleitungsregel bzw. der Anzeigen-Flow, der darauf zeigt, POSTet weiter an eine tote URL, und neue Bewerbungen gehen verloren, bis sie neu verdrahtet ist.",
+      "cancel": "Abbrechen",
+      "confirm": "Empfänger entfernen"
+    },
+    "add": {
+      "roleLabel": "Stelle",
+      "rolePlaceholder": "Stelle auswählen…",
+      "langLabel": "Kandidat/innen-Sprache",
+      "noJobs": "Veröffentlichen Sie zuerst eine Stelle — jeder Empfänger ist an genau eine gebunden.",
+      "noJobsCta": "Zur Stellenbeschreibungs-Bibliothek",
+      "cancel": "Abbrechen",
+      "create": "Erstellen",
+      "creating": "Wird erstellt…",
+      "createFailed": "Konnte nicht erstellt werden — bitte erneut versuchen.",
+      "removeFailed": "Konnte nicht entfernt werden — bitte erneut versuchen."
+    },
+    "email": {
+      "title": "Stellen-Postfach hinzufügen",
+      "add": "Postfach hinzufügen",
+      "introWired": "Leiten Sie Bewerbungen aus Outlook oder Gmail weiter — <b>eine Regel pro Stelle</b>, und jede Bewerbung fließt automatisch in die Pipeline.",
+      "introUnwired": "Ein Empfänger pro Stelle. E-Mail-Weiterleitung ist auf diesem Deployment nicht verdrahtet, deshalb ist der Empfänger jeder Stelle ein <b>HTTP-Endpunkt</b>, an den alles eine Bewerbung POSTen kann.",
+      "emptyWired": "Noch keine Stellen-Postfächer — legen Sie eines an, um eine Weiterleitungsadresse zu erhalten.",
+      "emptyUnwired": "Noch keine Stellen-Postfächer — legen Sie eines an, um seine Empfänger-URL zu erhalten.",
+      "endpointWired": "Weiterleitungsadresse",
+      "endpointUnwired": "Empfänger-URL",
+      "lead": "Leiten Sie Bewerbungen für <b>{role}</b> weiter an",
+      "waiting": "Warte auf die erste Weiterleitung…",
+      "notWiredTitle": "E-Mail-Weiterleitung ist noch nicht verdrahtet — es gibt kein Postfach, an das weitergeleitet werden könnte.",
+      "notWiredBody": "Dieses Deployment hat keinen Anbieter für eingehende E-Mails, eine Gmail- oder Outlook-Regel würde Bewerbungen für <b>{role}</b> also an eine Adresse schicken, die nichts annimmt. Der echte Empfänger ist ein HTTP-Endpunkt:",
+      "notWiredHowTo": "Alles, was POSTen kann, erreicht ihn schon heute — eine Automatisierung (Zapier/Make), ein Formular oder ein E-Mail-Parsing-Dienst. Für echte Weiterleitung leiten Sie einen Anbieter für eingehende E-Mails (Postmark, SendGrid oder Mailgun Inbound) auf diesen Endpunkt und setzen <code>EMAIL_INBOUND_DOMAIN</code> auf die Domain, unter der er Mail annimmt. Die Weiterleitungsadresse und die Gmail-/Outlook-Schritte erscheinen dann hier.",
+      "gmail1": "Öffnen Sie Gmail → <b>Einstellungen ⚙ → Alle Einstellungen aufrufen → Weiterleitung und POP/IMAP</b>.",
+      "gmail2": "Klicken Sie auf <b>Weiterleitungsadresse hinzufügen</b>, fügen Sie <endpoint></endpoint> ein und dann <b>Weiter → Fortfahren</b>.",
+      "gmail3": "Gmail schickt einen <b>Bestätigungscode</b> an diese Adresse. Holen Sie ihn aus dem Log Ihres Inbound-E-Mail-Anbieters — kp erfasst ausgehende Nachrichten, nicht die Mail des Anbieters — und geben Sie ihn in Gmail ein.",
+      "gmail4": "Legen Sie einen <b>Filter</b> an (z. B. <i>Betreff enthält „Bewerbung“</i>) → <b>Weiterleiten an</b> <endpoint></endpoint>. Jede passende E-Mail fließt nun automatisch herein.",
+      "outlook1": "Öffnen Sie Outlook im Web → <b>Einstellungen ⚙ → E-Mail → Regeln → Neue Regel hinzufügen</b>.",
+      "outlook2": "Nennen Sie sie <i>„Bewerbungen → KP“</i> und fügen Sie eine Bedingung hinzu (z. B. <i>Betreff enthält „Bewerbung“</i>).",
+      "outlook3": "Setzen Sie die Aktion auf <b>Umleiten an</b> (oder <b>Weiterleiten an</b>) <endpoint></endpoint>.",
+      "outlook4": "Klicken Sie auf <b>Speichern</b>. Passende Mail wird nun automatisch umgeleitet — kein Code zu bestätigen."
+    },
+    "ads": {
+      "title": "Anzeigenformular-Empfänger hinzufügen",
+      "add": "Empfänger hinzufügen",
+      "intro": "Richten Sie den Webhook eines LinkedIn- oder Meta-Lead-Formulars auf die <b>Empfänger-URL</b> einer Stelle — jeder Lead landet automatisch in der Pipeline.",
+      "empty": "Noch keine Anzeigenformular-Empfänger — legen Sie einen an, um eine Webhook-URL zu erhalten.",
+      "endpoint": "Empfänger-URL",
+      "lead": "Richten Sie das Anzeigenformular für <b>{role}</b> auf",
+      "waiting": "Warte auf den ersten Lead…",
+      "footnote": "Fortgeschritten: Sie können den Konnektor überspringen und Leads direkt an diese URL POSTen — LinkedIns Lead-Sync-API oder eine Meta-App mit <code>leadgen</code>-Webhook-Abo kann sie nach der Verifizierung ansprechen.",
+      "linkedin1": "Erstellen Sie in <b>Zapier</b> oder <b>Make</b> einen Flow: Trigger <b>LinkedIn Lead Gen Forms → New Lead</b> (verbinden Sie Ihr Werbekonto).",
+      "linkedin2": "Fügen Sie die Aktion <b>Webhooks → POST</b> hinzu und setzen Sie die URL auf <endpoint></endpoint>.",
+      "linkedin3": "Mappen Sie <b>Name</b>, <b>E-Mail</b> und die Lebenslauf-Datei des Leads in den Request-Body.",
+      "linkedin4": "Schalten Sie ihn ein — neue LinkedIn-Leads werden nun automatisch in die Pipeline gepostet.",
+      "meta1": "Erstellen Sie in <b>Zapier</b> oder <b>Make</b> einen Flow: Trigger <b>Facebook Lead Ads → New Lead</b> (verbinden Sie Ihre Seite).",
+      "meta2": "Fügen Sie die Aktion <b>Webhooks → POST</b> hinzu und setzen Sie die URL auf <endpoint></endpoint>.",
+      "meta3": "Mappen Sie <b>Name</b>, <b>E-Mail</b> und ein etwaiges Lebenslauf-Upload-Feld in den Request-Body.",
+      "meta4": "Schalten Sie ihn ein — neue Meta-Leads werden nun automatisch in die Pipeline gepostet."
+    },
+    "guide": {
+      "setupFor": "Einrichtung für",
+      "live": "Empfängt"
+    },
+    "cvSim": {
+      "open": "Mit einem echten Lebenslauf testen",
+      "title": "Lebenslauf simulieren für",
+      "close": "Schließen",
+      "choose": "Lebenslauf wählen — PDF, DOCX, TXT oder MD",
+      "namePlaceholder": "Name (optional)",
+      "emailPlaceholder": "E-Mail (optional)",
+      "run": "Diesen Lebenslauf empfangen",
+      "running": "Wird geparst und erfasst…",
+      "hint": "Parst die Datei, baut eine matchbare Kandidatur und erfasst sie bei „Angenommen“.",
+      "failed": "Konnte nicht erfasst werden: {reason}",
+      "failedStatus": "Fehlgeschlagen ({status}).",
+      "requestFailed": "Anfrage fehlgeschlagen.",
+      "landed": "<b>{name}</b> ist bei <b>Angenommen</b> zur Stelle {role} gelandet{suffix}",
+      "stub": " (als Stub — der Lebenslauftext war zu dünn)",
+      "openInPipeline": "In der Pipeline öffnen"
+    },
+    "filters": {
+      "search": "Suchen…",
+      "searchOptions": "Optionen durchsuchen",
+      "noMatches": "Keine Treffer",
+      "searchColumn": "{column} durchsuchen…",
+      "allOf": "Alle — {column}",
+      "select": "Auswählen…"
     }
   },
   "interviewSim": {
@@ -4857,6 +5091,121 @@
         "title": "Alles bereit!",
         "body": "Unternehmen, Stelle, Arbeitsprobe und Kanäle sind verbunden — viel Erfolg beim Einstellen."
       }
+    }
+  },
+  "devcase": {
+    "lifecycle": {
+      "sectionTitle": "Automatisierter Ablauf",
+      "intro": "Jeder Fall läuft regelbasiert weiter — saubere Entwürfe werden automatisch genehmigt, markierte an Sie weitergeleitet, dann veröffentlicht und (sobald Einreichungen eintreffen) bewertet → sortiert → die besten Kandidaten in Entscheidungen übernommen. Keine manuellen Schritte dazwischen.",
+      "untitledRole": "Position",
+      "railLabel": "Fortschritt des Ablaufs — {steps}",
+      "railStep": "{step}: {state}",
+      "stalledBadge": "stockt {days} T",
+      "stalledTitle": "{days, plural, one {Seit # Tag offen und leer} other {Seit # Tagen offen und leer}} — suchen Sie erneut nach Kandidaten oder schließen Sie den Fall.",
+      "reSourceTitle": "Die bestehende Kandidatendatenbank für diese Position bewerten und die Pipeline erneut befüllen",
+      "reSourcing": "Sourcing läuft…",
+      "reSource": "Neues Sourcing",
+      "hideReview": "Prüfung ausblenden",
+      "review": "Prüfen & genehmigen",
+      "closeTitle": "Nicht weitergeleitete Einreichende abschließen und den Bewerbungslink deaktivieren",
+      "closing": "Wird geschlossen…",
+      "close": "Fall schließen",
+      "closeConfirm": "Diesen Fall schließen? Nicht weitergeleitete Einreichende erhalten eine abschließende Nachricht und der Bewerbungslink nimmt keine Einreichungen mehr an.",
+      "closeFailed": "Schließen fehlgeschlagen."
+    },
+    "stage": {
+      "intake": "Aufnahme",
+      "analyzed": "analysiert",
+      "designed": "entworfen",
+      "awaiting_approval": "Genehmigung nötig",
+      "approved": "genehmigt",
+      "published": "veröffentlicht",
+      "collecting": "sammelt",
+      "ranked": "sortiert",
+      "promoted": "weitergeleitet"
+    },
+    "stepState": {
+      "done": "erledigt",
+      "current": "aktuell",
+      "upcoming": "ausstehend"
+    },
+    "review": {
+      "flagged": "Warum dies markiert wurde",
+      "flaggedWithConfidence": "Warum dies markiert wurde · Konfidenz {pct} %",
+      "fieldTitle": "Titel",
+      "fieldBrief": "Kurzbeschreibung",
+      "fieldTasks": "Aufgaben (eine pro Zeile)",
+      "fieldTimebox": "Zeitbudget (Stunden)",
+      "internalProbes": "Intern — verdeckte Prüfpunkte ({count})",
+      "engineOwned": "Prüfpunkte und Bewertungsraster verwaltet die Engine — zum Ändern mit einer Notiz neu generieren.",
+      "previewTitle": "Kandidatensichere Vorschau (live)",
+      "approving": "Wird genehmigt…",
+      "approveWithEdits": "Mit Änderungen genehmigen",
+      "approve": "Genehmigen",
+      "approveFailed": "Genehmigung fehlgeschlagen.",
+      "feedbackPlaceholder": "Was soll sich ändern? Z. B. „zu breit für einen Junior — Aufgabe 2 auf einen Endpunkt eingrenzen“",
+      "redesignTitle": "Nur den Entwurfsschritt mit dieser Notiz erneut ausführen — kein kompletter Neustart des Ablaufs",
+      "redesigning": "Wird neu erstellt…",
+      "redesign": "Mit Notiz neu generieren",
+      "redesignFailed": "Neu generieren fehlgeschlagen."
+    },
+    "outbox": {
+      "emptyTitle": "Noch keine Nachrichten",
+      "emptyBody": "Sobald Fälle Einreichungen sammeln, schreibt die Pipeline hier jede Eingangsbestätigung, Einladung nach Weiterleitung, Recruiter-Ansprache und Absage mit.",
+      "relayHint": "„queued“ = lokal erfasst (Endzustand, solange kein Relay eingerichtet ist); mit <code>COMMS_WEBHOOK_URL</code> wird über einen echten Kanal (E-Mail / ATS) zugestellt, wo Nachrichten als <sent>sent</sent> oder — bei fehlgeschlagener Zustellung — als <failed>failed</failed> enden (Dead Letter, erfordert Aufmerksamkeit).",
+      "colKind": "Typ",
+      "colRecipient": "Empfänger",
+      "colSubject": "Betreff",
+      "colStatus": "Status",
+      "colSent": "Gesendet",
+      "resendTitle": "Diese Nachricht erneut über den aktiven Kanal zustellen (wird als neue Postausgangszeile erfasst)",
+      "retryResend": "Erneut versuchen"
+    },
+    "outboxKind": {
+      "acknowledgement": "Bestätigung",
+      "outreach": "Ansprache",
+      "rejection": "Absage",
+      "ko_decline": "Absage im Screening",
+      "offer": "Angebot",
+      "offer_reminder": "Angebotserinnerung",
+      "interview_confirmation": "Interviewbestätigung",
+      "interview_reminder": "Interviewerinnerung",
+      "interview_invite": "Interview-Einladung",
+      "interviewer_brief": "Interviewer-Briefing",
+      "schedule_invite": "Termin-Einladung",
+      "onboarding": "Onboarding",
+      "onboarding_reminder": "Onboarding-Erinnerung"
+    },
+    "cohort": {
+      "title": "Kohorten-Auswertung der Prüfpunkte",
+      "evaluated": "· {count} bewertet",
+      "notScored": "noch nicht bewertet",
+      "missed": "{pct} % übersehen · {band}",
+      "missedAria": "{pct} Prozent übersehen, {band} Übersehensrate",
+      "weak": "{pct} % schwach",
+      "weakTitle": "Erkannt, aber falsch behandelt, oder übersehen",
+      "sample": "n={count}",
+      "miscalibrationLabel": "Mögliche Fehlkalibrierung:",
+      "miscalibration": "{count, plural, one {# Prüfpunkt wurde} other {# Prüfpunkte wurden}} von jedem bewerteten Kandidaten übersehen — die Bruchstelle ist möglicherweise zu gut versteckt oder der Entscheidungsraum zu eng für eine echte Wahl."
+    },
+    "band": {
+      "high": "hoch",
+      "some": "mittel",
+      "low": "niedrig"
+    },
+    "interviewKit": {
+      "title": "Interview-Kit — Top-Kandidat",
+      "fit": "· Eignung {score}",
+      "copied": "Kopiert",
+      "copy": "Kopieren",
+      "export": "Exportieren",
+      "intro": "Jede Frage prüft, ob der Kandidat eine echte Entscheidung aus seiner Einreichung wirklich verantwortet. Die Hinweise „worauf achten“ und die Warnsignale sind nur für die interviewende Person bestimmt."
+    },
+    "probeAudit": {
+      "label": "Prüfpunkt-Stärkeanalyse",
+      "strong": "{loadBearing} von {total} Prüfpunkten sind tragend — dieser Fall differenziert.",
+      "weak": "Nur {loadBearing} von {total} Prüfpunkten sind tragend — die meisten trennen Starke nicht von Naiven.",
+      "none": "Keine tragenden Prüfpunkte — dieser Fall unterscheidet eine starke Einreichung nicht von einer naiven."
     }
   }
 }

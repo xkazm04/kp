@@ -18,6 +18,10 @@ Design constraints, in priority order:
   enrichment must never take scoring down with it.
 * **Cached.** Texts are embedded once per process (the job description is
   shared across a whole pool), keyed by content hash.
+* **Batched.** ``embed`` takes a LIST, so a pool's texts are warmed in one
+  round-trip via ``prewarm`` instead of 2N sequential single-item calls (see
+  its docstring). Batching is an optimization only — a failed batch leaves the
+  cache untouched and every text still resolves through the old per-item path.
 """
 
 from __future__ import annotations
@@ -113,9 +117,69 @@ def default_provider() -> GeminiEmbeddingProvider | None:
 _CACHE: "weakref.WeakKeyDictionary[Any, dict[str, list[float]]]" = weakref.WeakKeyDictionary()
 
 
+def _cache_key(text: str) -> str:
+    return hashlib.sha1(text.encode("utf-8")).hexdigest()
+
+
+# Texts per ``embed`` request. The Gemini embeddings endpoint rejects oversized
+# batches (embed_content caps the instances per call), so a pool bigger than this
+# is chunked rather than sent as one doomed request. Kept well under the
+# documented ceiling because each text here is a whole CV/ad, not a sentence.
+MAX_EMBED_BATCH = 100
+
+
+def prewarm(texts: Any, provider: EmbeddingProvider | None) -> int:
+    """Embed a whole pool's texts in ONE call (per ``MAX_EMBED_BATCH`` chunk) and
+    fill the per-provider cache, so the subsequent ``semantic_overlap`` calls are
+    all cache hits.
+
+    Why: ``_cached_embed`` embeds one text per round-trip, and each candidate
+    triggers one ``semantic_overlap`` — a group eval over N candidates paid up to
+    2N SEQUENTIAL round-trips for texts that were all known upfront. Callers that
+    hold the whole pool (recruiter.rank_candidates_for_job) warm it here first.
+
+    Semantics deliberately match ``semantic_overlap``'s: texts are stripped,
+    blanks dropped, duplicates collapsed, and ALREADY-CACHED texts are never
+    re-sent — the batch is exactly the cache misses.
+
+    Fail-open, and no wider than the per-item path it replaces: a raising batch
+    (or a provider returning the wrong number of vectors) is swallowed and simply
+    leaves those texts uncached, so each one falls back to its own single-item
+    ``_cached_embed`` — i.e. exactly today's behaviour, per candidate. Warming can
+    never take down a pool's scoring. Returns the number of texts newly cached
+    (0 = nothing to do, or the provider is unavailable/failing).
+    """
+    if provider is None:
+        return 0
+    per_provider = _CACHE.setdefault(provider, {})
+    pending: dict[str, str] = {}  # cache key -> text, insertion-ordered, de-duped
+    for raw in texts:
+        text = (raw or "").strip()
+        if not text:
+            continue
+        key = _cache_key(text)
+        if key in per_provider or key in pending:
+            continue
+        pending[key] = text
+    items = list(pending.items())
+    warmed = 0
+    for start in range(0, len(items), MAX_EMBED_BATCH):
+        chunk = items[start : start + MAX_EMBED_BATCH]
+        try:
+            vectors = provider.embed([text for _key, text in chunk])
+        except Exception:
+            continue  # fail-open: leave uncached, the per-item path retries/degrades
+        if len(vectors) != len(chunk):
+            continue  # a misaligned response must not mis-key vectors to texts
+        for (key, _text), vector in zip(chunk, vectors):
+            per_provider[key] = vector
+            warmed += 1
+    return warmed
+
+
 def _cached_embed(text: str, provider: EmbeddingProvider) -> list[float]:
     per_provider = _CACHE.setdefault(provider, {})
-    key = hashlib.sha1(text.encode("utf-8")).hexdigest()
+    key = _cache_key(text)
     hit = per_provider.get(key)
     if hit is not None:
         return hit

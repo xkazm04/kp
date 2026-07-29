@@ -7,6 +7,9 @@
 // Runner: Node's built-in test runner with type stripping — npm run test:unit
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import path from "node:path";
 import { buildCommEnvelope, COMM_SCHEMA, KNOWN_COMM_KINDS, type CommEnvelopeContext } from "./comms-envelope.ts";
 
 const MSG = { to: "jana@example.cz", subject: "Offer — Backend Engineer", body: "Hi Jana,…", kind: "offer", ref: "m-appl-jana-job-1" };
@@ -67,9 +70,30 @@ test("a blank candidate label reads as null, not an empty string", () => {
   assert.equal(env.candidate?.label, null);
 });
 
-test("the documented kind vocabulary covers every pipeline dispatcher", () => {
-  assert.deepEqual(
-    [...KNOWN_COMM_KINDS],
-    ["acknowledgement", "outreach", "rejection", "offer", "interview_confirmation", "interview_reminder", "interview_invite", "onboarding"]
-  );
+// SOURCE GUARD (repo pattern, cf. channels-tenancy.test.ts / public-routes.test.ts):
+// the published kind vocabulary is asserted against the dispatchers themselves, not
+// against a copy of the list. The previous test re-asserted the literal array, so it
+// stayed green while the list drifted to 8 of 13 emitted kinds — a documented export
+// contract that quietly lied to integrators. Every `kind: "…"` handed to sendComm /
+// sendCandidateComm in comms-dispatch.ts must appear in KNOWN_COMM_KINDS and vice
+// versa: adding a dispatcher without documenting it now fails here.
+const dispatchSrc = readFileSync(
+  path.join(path.dirname(fileURLToPath(import.meta.url)), "comms-dispatch.ts"),
+  "utf8"
+);
+const emittedKinds = new Set([...dispatchSrc.matchAll(/\bkind:\s*"([a-z_]+)"/g)].map((m) => m[1]));
+
+test("every kind the dispatchers emit is in the documented vocabulary (and vice versa)", () => {
+  // Guard the guard: a rename/restructure that stops matching must fail loudly rather
+  // than pass on an empty set.
+  assert.ok(emittedKinds.size >= 13, `expected >=13 dispatched kinds, found ${emittedKinds.size}`);
+  const documented = new Set<string>(KNOWN_COMM_KINDS);
+  const undocumented = [...emittedKinds].filter((k) => !documented.has(k)).sort();
+  const phantom = [...documented].filter((k) => !emittedKinds.has(k)).sort();
+  assert.deepEqual(undocumented, [], `dispatched but absent from KNOWN_COMM_KINDS: ${undocumented.join(", ")}`);
+  assert.deepEqual(phantom, [], `documented but no dispatcher emits it: ${phantom.join(", ")}`);
+});
+
+test("the documented vocabulary has no duplicates", () => {
+  assert.equal(new Set(KNOWN_COMM_KINDS).size, KNOWN_COMM_KINDS.length);
 });

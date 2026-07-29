@@ -175,7 +175,14 @@ def _check_offer(out: dict, s: Scenario) -> list[str]:
     if not out.get("subject") or not out.get("body"):
         issues.append("empty subject/body")
     lo, hi, rec = out.get("salaryMin"), out.get("salaryMax"), out.get("recommended")
-    if not all(isinstance(v, int) for v in (lo, hi, rec)):
+    if lo is None and hi is None and rec is None:
+        # The honest un-priced draft: the active market configures no seniority band
+        # and the job carries none, so no figure was proposed (market_config
+        # .seniority_default_bands). That is CORRECT — but the letter must then be
+        # free of any number, or the "no band" claim and the prose disagree.
+        if any(ch.isdigit() for ch in str(out.get("body", ""))):
+            issues.append("INTEGRITY: no band configured, yet the letter states a figure")
+    elif not all(isinstance(v, int) for v in (lo, hi, rec)):
         issues.append("non-integer salary fields")
     elif not (lo <= rec <= hi):
         issues.append(f"INTEGRITY: recommended {rec} outside band {lo}-{hi}")

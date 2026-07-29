@@ -74,6 +74,7 @@ test("ALTER-loop migrations landed: pipeline_entries carries every post-launch c
     "github_handle",
     "source_channel",
     "lead_token",
+    "profile_gaps_json",
     "notes",
     "consent_given_at",
     "consent_expires_at",
@@ -93,6 +94,16 @@ test("ALTER-loop migrations landed: first-run onboarding flags (users + workspac
   }
   const wsCols = columnNames("workspaces");
   assert.ok(wsCols.has("onboarding_state"), `workspaces is missing migrated column "onboarding_state"`);
+});
+
+test("ALTER-loop migrations landed: dev_outbox carries tenancy + the failure reason", () => {
+  // failure-truth-everywhere: `failure_detail` is additive and nullable, so an existing
+  // DB gains it without touching a single stored row (legacy failures read as "no
+  // reason recorded"). A lost migration would silently drop every dead-letter reason.
+  const cols = columnNames("dev_outbox");
+  for (const col of ["workspace_id", "failure_detail"]) {
+    assert.ok(cols.has(col), `dev_outbox is missing migrated column "${col}"`);
+  }
 });
 
 test("ALTER-loop migrations landed: jds carries the backgrounded-analysis columns", () => {

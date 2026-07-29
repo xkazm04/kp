@@ -220,6 +220,10 @@ type PipelineRow = {
   // must never ride a list payload into the browser. Read via findEntryByLeadToken.
   lead_token?: string | null;
   lead_passed_ko_json?: string | null;
+  // Recorded unmet-checklist gaps for this entry's profile — read through
+  // findEntryByLeadToken (candidate follow-up) and entryProfileGaps (server-side),
+  // not mapped onto the PipelineEntry client view.
+  profile_gaps_json?: string | null;
   // GDPR consent lifecycle (consent.ts). The 4 dated fields map onto PipelineEntry;
   // erasure_token does NOT (capability token, internal-only, like lead_token).
   consent_given_at?: string | null;
@@ -323,17 +327,29 @@ export type CalibrationBandCandidate = {
 
 const CALIBRATION_ADVANCED_STAGES = new Set(["Interview", "Offer", "Hired"]);
 
-export function pipelineCalibrationPairs(workspaceId: string = DEFAULT_WORKSPACE_ID): PipelineCalibrationPair[] {
+export function pipelineCalibrationPairs(
+  workspaceId: string = DEFAULT_WORKSPACE_ID,
+  // CALIBRATION HOLDOUT (UAT KAT-L1-001). When present, restrict the pairs to this
+  // set of entry ids — the calibration CLEAN ARM. The screening wave spares a small
+  // random sample of would-be auto-rejects; their eventual advance/reject is a HUMAN
+  // decision, not one the score mechanically produced, so a curve over just these
+  // entries breaks the label leakage that makes the default (all-pairs) curve
+  // circular. The inclusion rule is IDENTICAL to the contaminated curve's — the only
+  // difference is which entries are eligible — so the two are directly comparable.
+  opts?: { onlyEntryIds?: ReadonlySet<string> }
+): PipelineCalibrationPair[] {
   const db = ensureDb();
   const rows = db
     .prepare(
-      `SELECT match_score AS score, stage, status, role_family, created_at FROM pipeline_entries
+      `SELECT id, match_score AS score, stage, status, role_family, created_at FROM pipeline_entries
        WHERE match_score IS NOT NULL AND workspace_id = ?`
     )
-    .all(workspaceId) as { score: number; stage: string; status: string; role_family: string | null; created_at: string }[];
+    .all(workspaceId) as { id: string; score: number; stage: string; status: string; role_family: string | null; created_at: string }[];
+  const only = opts?.onlyEntryIds;
   const pairs: PipelineCalibrationPair[] = [];
   for (const r of rows) {
     if (!Number.isFinite(r.score)) continue; // bad migration/manual edit — never NaN into the math
+    if (only && !only.has(r.id)) continue; // clean-arm filter (holdout source only)
     if (CALIBRATION_ADVANCED_STAGES.has(r.stage)) {
       pairs.push({ score: r.score, outcome: 1, roleFamily: r.role_family, at: r.created_at });
     } else if (r.status === "rejected") {
@@ -1043,7 +1059,79 @@ export type LeadEnrichTarget = {
   /** KO step ids the lead EXPLICITLY answered true at intake — recorded
    *  pass-state, never derived. Empty when nothing was verified. */
   passedKoIds: string[];
+  /** The archetype checklist's still-unmet items for this entry's profile
+   *  (profile_cli `missingGaps`) — what the candidate can still be asked. Empty
+   *  when nothing was recorded, or when every recorded gap has been answered. */
+  profileGaps: EntryProfileGap[];
 };
+
+/** One recorded, still-unmet checklist item. Structurally the pure module's
+ *  CompletenessGap; re-declared here so the DB layer stays import-free of app
+ *  logic (the two are asserted compatible at every call site by the compiler). */
+export type EntryProfileGap = { check: string; label: string };
+
+// Bounds on the recorded gap list, applied at write AND read — it rides a public
+// candidate payload, so a corrupt column can never balloon a response.
+const PROFILE_GAPS_MAX = 12;
+const PROFILE_GAP_CHECK_MAX = 64;
+const PROFILE_GAP_LABEL_MAX = 160;
+
+// Record (REPLACE) the entry's still-unmet checklist gaps. Rewritten wholesale
+// rather than merged: the list is always the authoritative output of the profile
+// build (or of the re-normalization after a gap answer merged), so appending
+// would resurrect gaps the candidate has already closed. An empty list clears the
+// column — "nothing left to ask". Best-effort by contract: the caller's
+// application/merge has already succeeded, so a failure here is logged upstream,
+// never fatal. Returns true when a row was touched.
+export function setEntryProfileGaps(
+  entryId: string,
+  gaps: readonly EntryProfileGap[],
+  workspaceId: string = DEFAULT_WORKSPACE_ID
+): boolean {
+  const db = ensureDb();
+  const bounded = gaps
+    .filter((g) => typeof g?.check === "string" && g.check.length > 0 && g.check.length <= PROFILE_GAP_CHECK_MAX)
+    .slice(0, PROFILE_GAPS_MAX)
+    .map((g) => ({ check: g.check, label: String(g.label ?? "").slice(0, PROFILE_GAP_LABEL_MAX) }));
+  const info = db
+    .prepare(`UPDATE pipeline_entries SET profile_gaps_json = ?, updated_at = ? WHERE id = ? AND workspace_id = ?`)
+    .run(bounded.length ? JSON.stringify(bounded) : null, new Date().toISOString(), entryId, workspaceId);
+  return Number(info.changes) > 0;
+}
+
+// Read the recorded gaps for an entry (server-side; the candidate path reads them
+// through findEntryByLeadToken's capability lookup instead).
+export function entryProfileGaps(entryId: string, workspaceId: string = DEFAULT_WORKSPACE_ID): EntryProfileGap[] {
+  const db = ensureDb();
+  const row = db
+    .prepare(`SELECT profile_gaps_json FROM pipeline_entries WHERE id = ? AND workspace_id = ?`)
+    .get(entryId, workspaceId) as { profile_gaps_json: string | null } | undefined;
+  return row ? parseProfileGaps(row.profile_gaps_json, entryId) : [];
+}
+
+// Revive the recorded gaps at the read boundary, same degrade-to-safe discipline
+// as parseLeadPassedKo: corrupt or mis-shaped JSON yields [] — the candidate is
+// simply asked nothing — never a fabricated question.
+function parseProfileGaps(json: string | null | undefined, entryId: string): EntryProfileGap[] {
+  if (!json) return [];
+  try {
+    const parsed = JSON.parse(json);
+    if (!Array.isArray(parsed)) return [];
+    const out: EntryProfileGap[] = [];
+    for (const item of parsed) {
+      if (out.length >= PROFILE_GAPS_MAX) break;
+      if (!item || typeof item !== "object") continue;
+      const check = (item as { check?: unknown }).check;
+      const label = (item as { label?: unknown }).label;
+      if (typeof check !== "string" || !check || check.length > PROFILE_GAP_CHECK_MAX) continue;
+      out.push({ check, label: typeof label === "string" ? label.slice(0, PROFILE_GAP_LABEL_MAX) : "" });
+    }
+    return out;
+  } catch (error) {
+    console.error(`[db] corrupt profile_gaps_json on pipeline entry "${entryId}"`, error);
+    return [];
+  }
+}
 
 // Resolve a lead-enrichment token back to its entry (+ recorded KO pass-state).
 // The caller-facing contract is deliberately soft: unknown/blank tokens return
@@ -1056,7 +1144,11 @@ export function findEntryByLeadToken(token: string): LeadEnrichTarget | null {
   const db = ensureDb();
   const row = db.prepare(`SELECT * FROM pipeline_entries WHERE lead_token = ?`).get(key) as PipelineRow | undefined;
   if (!row) return null;
-  return { entry: rowToEntry(row), passedKoIds: parseLeadPassedKo(row.lead_passed_ko_json, row.id) };
+  return {
+    entry: rowToEntry(row),
+    passedKoIds: parseLeadPassedKo(row.lead_passed_ko_json, row.id),
+    profileGaps: parseProfileGaps(row.profile_gaps_json, row.id),
+  };
 }
 
 // Revive the recorded KO pass-state at the read boundary (same degrade-to-safe
@@ -1532,12 +1624,21 @@ export function recordAutomationEvent(entryId: string, kind: string, detail?: st
 // and per-channel funnel analytics can count and inspect every discard. The
 // contact address is deliberately NOT recorded — no entry was created, so no
 // deliverable identity should be retained for a declined applicant.
+//
+// Tenant (P1): `workspaceId` is REQUIRED, deliberately un-defaulted. This event is
+// entry-less, so recordEvent's usual "derive the tenant from the linked entry"
+// fallback cannot fire and an omitted tenant would silently land in the DEFAULT
+// workspace — which both zeroes every other team's "turned away at the gate"
+// metric (the analytics read IS workspace-scoped) and bleeds their applicants'
+// names + role titles into the default team's activity feed. Callers hold the
+// opening's workspace already; make them pass it.
 const KO_DECLINE_DETAIL_MAX = 200;
 export function recordKnockoutDecline(input: {
   candidateLabel: string | null;
   jobTitle: string | null;
   channel: string;
   failedKoIds: readonly string[];
+  workspaceId: string;
 }): void {
   const db = ensureDb();
   const detail = `knockout declined via ${input.channel} — failed: ${input.failedKoIds.join(", ")}`;
@@ -1547,6 +1648,7 @@ export function recordKnockoutDecline(input: {
     jobTitle: input.jobTitle,
     kind: "ko_declined",
     detail: detail.length > KO_DECLINE_DETAIL_MAX ? `${detail.slice(0, KO_DECLINE_DETAIL_MAX - 1)}…` : detail,
+    workspaceId: input.workspaceId,
   });
 }
 

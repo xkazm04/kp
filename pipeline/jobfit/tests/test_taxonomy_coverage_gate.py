@@ -50,6 +50,39 @@ class CoverageGateTest(unittest.TestCase):
                 f"role family {family!r} has no floor in SKILL_COVERAGE_FLOORS",
             )
 
+    def test_parent_coverage_does_not_regress(self) -> None:
+        # Parent links are what make sibling / graded-fallback credit possible; losing
+        # them silently drops a family back to 0/1 string equality.
+        counts = tc.parent_counts_by_family(self.taxonomy)
+        for family, floor in tc.PARENT_COVERAGE_FLOORS.items():
+            self.assertGreaterEqual(
+                counts.get(family, 0),
+                floor,
+                f"parent-link coverage for {family!r} fell to {counts.get(family, 0)} "
+                f"below its floor of {floor}. If this drop is intentional, LOWER the "
+                f"floor in taxonomy_check.PARENT_COVERAGE_FLOORS in the same commit.",
+            )
+
+    def test_every_family_has_a_recorded_parent_floor(self) -> None:
+        for family in tc.ROLE_FAMILIES:
+            self.assertIn(
+                family,
+                tc.PARENT_COVERAGE_FLOORS,
+                f"role family {family!r} has no floor in PARENT_COVERAGE_FLOORS",
+            )
+
+    def test_tech_parent_coverage_reaches_non_tech_parity(self) -> None:
+        # The headline of tech-hierarchy-parity: the three tech families are no longer
+        # the WORST-connected in the graph. Pinned as a ratio so growing a family's
+        # vocabulary without linking it reddens the build.
+        rows = {r.family: r for r in tc.coverage_by_family(self.taxonomy)}
+        for family in ("software_engineering", "data_ai", "product_project"):
+            self.assertGreaterEqual(
+                rows[family].pct_parents, 50.0,
+                f"{family} parent coverage fell to {rows[family].pct_parents:.0f}% "
+                "— below the non-tech-comparable 50% target.",
+            )
+
     def test_coverage_doc_is_fresh(self) -> None:
         self.assertTrue(
             tc.COVERAGE_REPORT_PATH.exists(),

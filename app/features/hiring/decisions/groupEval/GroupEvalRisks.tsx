@@ -1,9 +1,15 @@
 import { useTranslations } from "next-intl";
 import { AlertTriangle } from "lucide-react";
+import { riskText, type Translate } from "./localize";
+import type { RiskFact } from "@/app/features/shared/groupEvalTypes";
 
 // Watch-outs strip at the bottom of the modal — the evaluation's pool-level risks.
-export function Risks({ risks }: { risks: string[] }) {
+// A risk arrives as a STRUCTURED FACT and is composed here in the reader's
+// language; a legacy payload's frozen English sentence renders verbatim
+// (eval-speaks-your-language — see ./localize.ts).
+export function Risks({ risks }: { risks: (string | RiskFact)[] }) {
   const t = useTranslations("decisions.groupEval");
+  const tt = t as unknown as Translate;
   if (!risks.length) return null;
   return (
     <section>
@@ -14,7 +20,7 @@ export function Risks({ risks }: { risks: string[] }) {
         {risks.map((r, i) => (
           <div key={i} className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50/60 p-2 text-base text-amber-900">
             <AlertTriangle size={15} className="mt-0.5 shrink-0" aria-hidden />
-            <span>{r}</span>
+            <span>{riskText(tt, r)}</span>
           </div>
         ))}
       </div>

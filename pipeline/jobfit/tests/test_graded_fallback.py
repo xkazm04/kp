@@ -183,10 +183,17 @@ class OneSideFalseZeroTest(unittest.TestCase):
         self.assertLessEqual(s, _FALLBACK_CAP)
 
     def test_score_skills_classifies_it_unproven_adjacency(self) -> None:
+        # provenance_default is explicit here (and on the fixtures below): the shipped
+        # default is now `self_declared`, which applies an evidence discount. These
+        # tests are about how the graded TOKEN FALLBACK is classified (matched /
+        # unproven-adjacency / missing), not about that discount, so they pin the
+        # professional tier — otherwise the reason flips to "both" for an unrelated
+        # reason and the fallback's own behaviour is no longer what is under test.
         cand = MatchCandidate(
             skills=["data science"],
             seniority="senior", role_family="data_ai",
             languages=["English"], years_experience=6,
+            provenance_default="professional",
         )
         job = mkjob(
             role_family="data_ai",
@@ -261,6 +268,7 @@ class ThreeStateUnprovenFixtureTest(unittest.TestCase):
             role_family="creative_design",
             languages=["English"],
             years_experience=8,
+            provenance_default="professional",
         )
 
     def _job(self):
@@ -303,6 +311,7 @@ class ThreeStateUnprovenFixtureTest(unittest.TestCase):
             role_family="creative_design",
             languages=["English"],
             years_experience=8,
+            provenance_default="professional",
             skill_provenance={"wibble identity design": WEAK},
         )
         _s, _m, _mi, _st, unproven = score_skills(cand, self._job())

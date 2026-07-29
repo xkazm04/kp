@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { activeJobsGate } from "@/app/_lib/billing";
-import { createPipelineEntry, ensureDb, getJob, reopenEntriesByJobId } from "@/app/_lib/db";
+import { canWriteJobLifecycle, createPipelineEntry, ensureDb, getJob, reopenEntriesByJobId } from "@/app/_lib/db";
 import { countPublishedJobs, getJobStatus, setJobStatus } from "@/app/_lib/job-ingest";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { runSourceForRole } from "@/app/_lib/devcase-run";
@@ -22,6 +22,13 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
   try {
     const job = getJob(id);
     if (!job) return NextResponse.json({ error: "Job not found." }, { status: 404 });
+    // Ownership gate (mirrors /close): setJobStatus is a bare by-id UPDATE, so without
+    // this workspace B could force workspace A's draft live — on B's quota — and the
+    // reopen below would restore A's withdrawn entries into B's scope. Seeded corpus
+    // rows (workspace_id NULL) stay publishable by every tenant: that is how a tenant
+    // adopts a shared corpus role. See canWriteJobLifecycle. 404 (not 403) so the
+    // endpoint doesn't confirm another tenant's job id exists.
+    if (!canWriteJobLifecycle(id, ws)) return NextResponse.json({ error: "Job not found." }, { status: 404 });
 
     // Billing hard gate: the free plan allows 1 concurrently-active authored job.
     // Re-publishing an already-live job is always allowed (idempotent). The count

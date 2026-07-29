@@ -14,10 +14,8 @@
 //       tenant B's in-flight analyze rows don't appear in tenant A's reservation count.
 //
 //   npm run test:unit
-import { test } from "node:test";
+import { test, after } from "node:test";
 import assert from "node:assert/strict";
-import os from "node:os";
-import path from "node:path";
 import fs from "node:fs";
 import { registerHooks } from "node:module";
 import { readFileSync } from "node:fs";
@@ -72,10 +70,18 @@ test("analyze route scopes the in-flight count, the meter read, and the task sta
 });
 
 // ── (b) Behavioral: prove the count is genuinely per-tenant on the real store ────
-// Throwaway DB BEFORE importing (db-path reads KP_DB_PATH at module load; node --test
-// isolates each file in its own process, so this can't leak).
-const TMP = path.join(os.tmpdir(), `kp-analyze-gate-tenancy-test-${process.pid}.sqlite`);
-process.env.KP_DB_PATH = TMP;
+// Throwaway DB BEFORE importing (db-path reads KP_DB_PATH at module load), so this MUST
+// stay the first project import.
+//
+// It used to be a hand-rolled `os.tmpdir()/kp-analyze-gate-tenancy-test-${process.pid}.sqlite`
+// that was never deleted. `--test-isolation=process` gives each FILE a fresh process, but the
+// OS RECYCLES pids: a later run drawing a pid this file had used before re-opened that run's
+// leftover database and inherited its committed task rows, inflating the per-tenant in-flight
+// counts this file asserts exactly. unit-db.ts is the repo-wide fix: a mkdtemp'd run directory
+// (unique by construction, never pid-derived), a liveness-gated sweep of abandoned dirs, and
+// cleanupUnitDb() to remove our own.
+const { cleanupUnitDb } = await import("../../_lib/testing/unit-db.ts");
+after(cleanupUnitDb);
 
 const { createTask, listRecentTasks, DEFAULT_WORKSPACE_ID } = await import("../../_lib/db.ts");
 

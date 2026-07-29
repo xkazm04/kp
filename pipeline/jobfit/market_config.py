@@ -16,7 +16,9 @@ data (see the module's non-goal).
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from collections.abc import Mapping
+from dataclasses import dataclass, field
+from types import MappingProxyType
 
 
 @dataclass(frozen=True)
@@ -59,6 +61,16 @@ class MarketConfig:
       its research prompt (``"Czech Republic (Prague)"``); a bare
       ``default_location`` ("Praha") is not the country-qualified phrase the prompt
       needs, so the market carries the full label.
+    * ``seniority_default_bands`` — ``seniority -> (low, high)`` gross pay per
+      ``period`` in ``currency``, used by the offer drafter when the JOB carries no
+      salary band of its own. These were CZK/month magnitudes hardcoded in
+      ``automation.draft_offer`` yet stamped with the ACTIVE market's currency, so a
+      re-homed deploy drafted a candidate-facing "95,000 EUR gross monthly" — wrong
+      by ~25× (the same stranded-literal defect ``plausibility_ceiling`` and
+      ``salary_step`` already fixed). **Empty is a valid, honest configuration**: a
+      market for which we hold no benchmark bands must produce NO number at all
+      (recommended ``None`` + a "no band configured" rationale routed to the human
+      offer_review gate) rather than an invented one.
     """
 
     market_id: str
@@ -77,6 +89,10 @@ class MarketConfig:
     market_descriptor: str = ""
     salary_step: int = 5000
     region_label: str = ""
+    # Read-only mapping so the shared market records can't be mutated by a consumer.
+    # Defaults to EMPTY — a market that has not been given bands fails safe (no
+    # invented figure) instead of inheriting another market's magnitudes.
+    seniority_default_bands: Mapping[str, tuple[int, int]] = field(default_factory=lambda: MappingProxyType({}))
 
 
 # The product default. These values reproduce the constants that were hardcoded in
@@ -104,6 +120,18 @@ CZECH_MARKET = MarketConfig(
     # market_salary_cli.REGION_DEFAULT ("Czech Republic (Prague)").
     salary_step=5000,
     region_label="Czech Republic (Prague)",
+    # Byte-identical to the previously-hardcoded automation._SENIORITY_DEFAULT_BAND
+    # (CZK/month gross) — do not "tidy" them or existing offer letters shift. An
+    # unmapped seniority resolves through "medior", which reproduces the old
+    # `.get(seniority, [65000, 95000])` fallback exactly.
+    seniority_default_bands=MappingProxyType(
+        {
+            "junior": (45_000, 65_000),
+            "medior": (65_000, 95_000),
+            "senior": (95_000, 140_000),
+            "lead": (130_000, 185_000),
+        }
+    ),
 )
 
 # A second sample market that exercises the seam end-to-end (different currency,
@@ -130,6 +158,12 @@ BERLIN_MARKET = MarketConfig(
     # we hold real German calibration.
     salary_step=500,
     region_label="Germany (Berlin)",
+    # DELIBERATELY EMPTY. We hold no real German benchmark bands (see the module
+    # non-goal), and the honest answer to "what should we offer?" for a market we
+    # have not calibrated is "we don't know" — NOT the Czech CZK magnitudes wearing
+    # a EUR label. draft_offer therefore returns recommended=None with a "no band
+    # configured" rationale and the draft still routes to the human offer_review
+    # gate, where a recruiter sets the real number.
 )
 
 
@@ -143,17 +177,25 @@ ACTIVE_MARKET: MarketConfig = CZECH_MARKET
 # period assumption re-homes with the market (a year-denominated market would ask
 # the parser for the "gross annual" range) instead of staying a stranded literal.
 # For the Czech default (period "month") this yields "gross monthly" byte-for-byte.
-_GROSS_PERIOD_PHRASE: dict[str, str] = {
-    "hour": "gross hourly",
-    "month": "gross monthly",
-    "year": "gross annual",
+# Keyed by output language, then period. The offer letter's deterministic Czech
+# body hardcoded "hrubá měsíční" beside an English-hardcoded "Gross monthly" in the
+# prompt, so a year- or hour-denominated market kept claiming a MONTHLY figure in
+# both languages. `cs` carries the adjective in the feminine form the offer letter's
+# noun ("mzda") takes — byte-identical to the previously-hardcoded literal.
+_GROSS_PERIOD_PHRASE: dict[str, dict[str, str]] = {
+    "en": {"hour": "gross hourly", "month": "gross monthly", "year": "gross annual"},
+    "cs": {"hour": "hrubá hodinová", "month": "hrubá měsíční", "year": "hrubá roční"},
 }
 
 
-def gross_period_phrase(period: str) -> str:
+def gross_period_phrase(period: str, lang: str = "en") -> str:
     """The 'gross monthly' / 'gross annual' / 'gross hourly' phrase for a pay
-    ``period``, defaulting to ``"gross <period>"`` for an unmapped value."""
-    return _GROSS_PERIOD_PHRASE.get(period, f"gross {period}")
+    ``period``, in ``lang``.
+
+    Defaults to ``"gross <period>"`` for an unmapped period, and to the English
+    table for an unmapped language — an honest degradation (the period is still
+    named correctly) rather than a silently wrong period word."""
+    return _GROSS_PERIOD_PHRASE.get(lang, _GROSS_PERIOD_PHRASE["en"]).get(period, f"gross {period}")
 
 
 # The candidate-facing period word per output language, for the salary-band unit

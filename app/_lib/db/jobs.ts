@@ -390,9 +390,50 @@ export function getJob(id: string): JobRecord | null {
  *  corpus job (workspace_id NULL) has no single owner, so its applicants fall back to
  *  the default workspace. */
 export function getJobWorkspace(id: string): string {
+  return getJobOwnerWorkspace(id) ?? DEFAULT_WORKSPACE_ID;
+}
+
+/** The RAW ownership fact behind getJobWorkspace: the owning team's id, or null for a
+ *  seeded corpus row (workspace_id NULL) AND for an unknown id. getJobWorkspace folds
+ *  both into the default workspace — correct for "where do this job's applicants go?",
+ *  but it destroys exactly the distinction an ownership CHECK needs (a seeded corpus
+ *  job is shared by every tenant; the default workspace is one tenant among many). */
+export function getJobOwnerWorkspace(id: string): string | null {
   const db = ensureDb();
   const row = db.prepare(`SELECT workspace_id FROM jobs WHERE id = ?`).get(id) as { workspace_id: string | null } | undefined;
-  return row?.workspace_id ?? DEFAULT_WORKSPACE_ID;
+  return row?.workspace_id ?? null;
+}
+
+/** Ownership gate for the LIFECYCLE WRITES (POST /api/jobs/[id]/close|publish).
+ *
+ *  setJobStatus is a by-id UPDATE with no workspace predicate (job-ingest.ts) — safe for
+ *  a by-id READ, but as a WRITE it let workspace B close workspace A's live role or force
+ *  A's draft live on B's quota (publish then reopened A's withdrawn entries into B's
+ *  scope). The routes gate on this instead of re-scoping the shared primitive, which the
+ *  seeded-corpus paths depend on.
+ *
+ *  DECISION (seeded rows, workspace_id NULL): allowed for every tenant. A seeded corpus
+ *  job is inserted with status NULL — i.e. already live and shared — and publishing one
+ *  is how a tenant adopts a corpus role into its own pipeline (publish sources candidates
+ *  into `ws`); closing one is reachable from the same modal today. Gating them off would
+ *  be a functional regression, so only an OTHER tenant's AUTHORED job is rejected.
+ *  (Residual, deliberately out of scope: the `status` column on a seeded row is itself
+ *  shared, so one tenant closing a corpus role affects all — that needs per-tenant
+ *  lifecycle state on shared rows, not an ownership check.) */
+export function canWriteJobLifecycle(id: string, workspaceId: string): boolean {
+  // Same predicate as visibility: a team may retire/adopt exactly the roles it can see.
+  return jobVisibleToWorkspace(id, workspaceId);
+}
+
+/** Is this job visible to a team? The by-id form of listJobs' `(workspace_id IS NULL OR
+ *  workspace_id = @workspaceId)` predicate — the shared seeded corpus plus the team's own
+ *  authored openings. Used by the by-id GET that resolves a ?job= deep link whose target
+ *  fell outside the list slice, so a point-fetch can't hand out what the list wouldn't.
+ *  An unknown id reads as "visible" (no owner to conflict with) — callers establish
+ *  existence with getJob first and 404 on a miss. */
+export function jobVisibleToWorkspace(id: string, workspaceId: string): boolean {
+  const owner = getJobOwnerWorkspace(id);
+  return owner === null || owner === workspaceId;
 }
 
 /** Batch getJob (idea-f946db9d): one IN-query — chunked under the SQLite

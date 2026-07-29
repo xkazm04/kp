@@ -69,7 +69,11 @@ const config = [
       "app/features/tools/analyze/**/*.tsx",
       "app/features/tools/interview/**/*.tsx",
       "app/features/insights/**/*.tsx",
-      "app/features/shared/**/*.tsx"
+      "app/features/shared/**/*.tsx",
+      // channels-i18n-honesty (main): the Channels tab + Comms Center graduated off
+      // their six prototype-stage `no-literal-string` disables — they are held at
+      // ERROR so a new hardcoded string cannot quietly re-English the surface. Their
+      // files now live under hiring/channels/**, already covered by the glob above.
     ],
     rules: {
       "i18next/no-literal-string": ["error", { mode: "jsx-text-only" }]

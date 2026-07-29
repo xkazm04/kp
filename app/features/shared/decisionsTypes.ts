@@ -33,7 +33,12 @@ export type Screening = { recommendation?: InterviewRecommendation; confidence?:
 // the salary — a genuinely different producer from the entry's canonical match
 // score (see app/_lib/match-score.ts), so the card renders it under its own
 // label instead of a second bare "match". Absent on cached/older drafts.
-export type Offer = { recommended?: number; salaryMin?: number; salaryMax?: number; currency?: string; rationale?: string; subject?: string; body?: string; matchBasis?: number };
+// `recommended` / `salaryMin` / `salaryMax` are explicitly NULLABLE and move as a
+// set: draft_offer's fail-safe path (pipeline/jobfit/automation.py) emits all three
+// as null when neither the posting nor the active market carries a salary band, so
+// no figure is invented and a human prices the offer at the approval gate. Consumers
+// must render that state honestly rather than coercing the nulls to 0.
+export type Offer = { recommended?: number | null; salaryMin?: number | null; salaryMax?: number | null; currency?: string; rationale?: string; subject?: string; body?: string; matchBasis?: number };
 
 // Direction 2 (queue-staleness) — the ONE staleness rule shared by every decision
 // surface (the AI review cards + the wave preview rows), byte-identical to the

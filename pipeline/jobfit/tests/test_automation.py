@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import unittest
+from dataclasses import replace
 from unittest import mock
 
 from pipeline.jobfit import automation
-from pipeline.jobfit.market_config import BERLIN_MARKET
+from pipeline.jobfit.market_config import BERLIN_MARKET, CZECH_MARKET
 from pipeline.jobfit.matching import MatchCandidate, score_job
 
 from pipeline.jobfit.tests._helpers import mkjob as _mkjob
@@ -18,9 +19,15 @@ def mkjob(**over):
     return _mkjob(**base)
 
 
+# provenance_default is explicit on BAU: the shipped default is now `self_declared`,
+# which discounts an unevidenced claim below the match threshold. This fixture is the
+# "experienced hire who clearly HAS the skills" input to the screening policy — these
+# tests are about the automation routing, not about the evidence discount — so it pins
+# the professional tier. STUDENT deliberately keeps the default: an early-career
+# candidate's self-declared skills are exactly the case the discount is for.
 BAU = MatchCandidate(
     skills=["Python", "Django"], seniority="senior", role_family="software_engineering",
-    languages=["English"], archetype="bau",
+    languages=["English"], archetype="bau", provenance_default="professional",
 )
 STUDENT = MatchCandidate(
     skills=["HTML"], seniority="junior", role_family="software_engineering", languages=["English"],
@@ -533,6 +540,66 @@ class OfferTest(unittest.TestCase):
         out, _ = automation.draft_offer(BAU, mkjob(role_family="other", seniority="lead"), score_job(BAU, mkjob(role_family="other", seniority="lead")), provider=None)
         self.assertGreater(out["recommended"], 0)
         self.assertLessEqual(out["salaryMin"], out["recommended"])
+
+    def test_seniority_fallback_bands_are_the_czech_market_config(self):
+        # The fallback bands moved from a hardcoded CZK dict onto MarketConfig; the
+        # Czech default must reproduce the previous literals EXACTLY (existing offer
+        # letters are byte-compatible).
+        self.assertEqual(
+            dict(CZECH_MARKET.seniority_default_bands),
+            {"junior": (45000, 65000), "medior": (65000, 95000), "senior": (95000, 140000), "lead": (130000, 185000)},
+        )
+        # An unmapped seniority resolves through "medior" — the old
+        # `.get(seniority, [65000, 95000])` fallback, unchanged.
+        job = mkjob(role_family="other", seniority="principal")
+        job.salary_band = []  # normalize_job always derives one; clear it to reach the fallback
+        out, _ = automation.draft_offer(BAU, job, score_job(BAU, job), provider=None)
+        self.assertEqual((out["salaryMin"], out["salaryMax"]), (65000, 95000))
+
+    def test_uncalibrated_market_proposes_no_figure_at_all(self):
+        # THE FIX: the fallback bands were CZK/month magnitudes stamped with the
+        # ACTIVE market's currency, so a Berlin deploy drafted a candidate-facing
+        # "95,000 EUR gross monthly" — wrong by ~25x. BERLIN_MARKET configures no
+        # bands, so the honest answer is NO number, not a relabelled Czech one.
+        job = mkjob(role_family="other", seniority="lead")
+        job.salary_band = []  # the posting states no pay range -> the MARKET must answer
+        with mock.patch.object(automation, "ACTIVE_MARKET", BERLIN_MARKET):
+            out, _ = automation.draft_offer(BAU, job, score_job(BAU, job), provider=None)
+        self.assertIsNone(out["recommended"])
+        self.assertIsNone(out["salaryMin"])
+        self.assertIsNone(out["salaryMax"])
+        # The rationale says WHY, in the recruiter's words, and still ships to the
+        # human offer_review gate (the TS seam approves every offer draft).
+        self.assertIn("No salary band is configured", out["rationale"])
+        # …and the candidate-facing letter names no figure whatsoever.
+        self.assertFalse(any(ch.isdigit() for ch in out["body"]), out["body"])
+        self.assertNotIn("95,000", out["body"])
+        # The draft-time fit check is still reported — only the PRICE is withheld.
+        self.assertEqual(out["matchBasis"], score_job(BAU, job).total)
+
+    def test_uncalibrated_market_withholds_the_figure_in_czech_too(self):
+        job = mkjob(role_family="other", seniority="lead")
+        job.salary_band = []
+        with mock.patch.object(automation, "ACTIVE_MARKET", BERLIN_MARKET):
+            out, _ = automation.draft_offer(BAU, job, score_job(BAU, job), lang="cs", provider=None)
+        self.assertEqual(out["language"], "Czech")
+        self.assertIsNone(out["recommended"])
+        self.assertNotIn("mzda je", out["body"])
+        self.assertFalse(any(ch.isdigit() for ch in out["body"]), out["body"])
+
+    def test_pay_period_word_follows_the_market_not_a_hardcoded_month(self):
+        # "Gross monthly" / "hrubá měsíční" were hardcoded beside a market-driven
+        # currency, so a year-denominated market claimed a MONTHLY figure. Both
+        # language paths now read the market's period.
+        yearly = replace(CZECH_MARKET, period="year")
+        job = mkjob()
+        with mock.patch.object(automation, "ACTIVE_MARKET", yearly):
+            en, _ = automation.draft_offer(BAU, job, score_job(BAU, job), provider=None)
+            cs, _ = automation.draft_offer(BAU, job, score_job(BAU, job), lang="cs", provider=None)
+        self.assertIn("gross annual", en["body"])
+        self.assertNotIn("gross monthly", en["body"])
+        self.assertIn("hrubá roční", cs["body"])
+        self.assertNotIn("hrubá měsíční", cs["body"])
 
     def test_letter_lang_override_beats_cv_guess(self):
         # Backlog #34: the TS seam passes the ENTRY's resolved comms locale; it must

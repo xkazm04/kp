@@ -19,7 +19,7 @@ export const MINUTES_SAVED_PER_KIND: Record<string, number> = {
   outreach_sent: 6, // composing + sending a first-touch message
   matched: 5, // shortlisting a candidate against a role
   rematched: 5, // re-shortlisting onto a new role
-  auto_rejected: 5, // reviewing + writing a considered pass
+  auto_rejected: 5, // reviewing + writing a considered pass. LIVE — produced by the screen-wave bulk reject (screen-wave.ts, actor "system"), NOT by the automation pass (which never rejects unattended; it queues a rejection_review).
   rejection_sent: 4, // composing + sending the rejection note
   interview_invite_sent: 4, // composing + sending the invite + link
   auto_advanced: 3, // the policy pass moving a candidate a stage on (the machine's OWN advance). The human `advanced` is a recruiter click — NOT saved automation labor — so it is deliberately absent (bug-ui-scan §hiring-automation #3).

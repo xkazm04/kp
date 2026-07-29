@@ -154,6 +154,8 @@ function db(): Database.Database {
     /* column already exists — idempotent */
   }
   d.exec(`CREATE INDEX IF NOT EXISTS idx_decision_records_ws_seq ON decision_records(workspace_id, seq)`);
+  // Clean-arm read (heldOutEntryIds) filters by (kind, workspace_id).
+  d.exec(`CREATE INDEX IF NOT EXISTS idx_decision_records_ws_kind ON decision_records(workspace_id, kind)`);
   _db = d;
   return d;
 }
@@ -381,4 +383,39 @@ export function verifyDecisionChain(workspaceId: string = DEFAULT_WORKSPACE_ID):
     prevHash = r.content_hash;
   }
   return { ok: true, count: rows.length, brokenAtSeq: null };
+}
+
+/** The kind the screening wave seals when it spares a would-be auto-reject to form
+ *  the calibration clean arm (screen-wave.ts). Kept here beside the store so the
+ *  reader and the writer agree on the literal. */
+export const SCREEN_WAVE_HOLDOUT_KIND = "screen_wave_holdout";
+/** The kind the wave seals for an actual auto-rejection. */
+export const AUTO_REJECTED_KIND = "auto_rejected";
+
+/** Entry ids that form the calibration CLEAN ARM for this workspace (UAT
+ *  KAT-L1-001): candidates the screening wave SPARED from auto-rejection, whose
+ *  eventual outcome the score therefore did not mechanically produce.
+ *
+ *  A candidate spared by one wave can be auto-rejected by a LATER wave (e.g. the
+ *  holdout rate was lowered) — at which point their reject IS score-caused again, so
+ *  they are removed from the clean arm. The set is therefore (holdout refs) MINUS
+ *  (auto-rejected refs): membership survives only while the sparing still stands. */
+export function heldOutEntryIds(workspaceId: string = DEFAULT_WORKSPACE_ID): Set<string> {
+  const d = db();
+  const spared = d
+    .prepare(`SELECT DISTINCT candidate_ref FROM decision_records WHERE kind = ? AND workspace_id = ?`)
+    .all(SCREEN_WAVE_HOLDOUT_KIND, workspaceId) as { candidate_ref: string }[];
+  if (spared.length === 0) return new Set();
+  const rejected = new Set(
+    (
+      d
+        .prepare(`SELECT DISTINCT candidate_ref FROM decision_records WHERE kind = ? AND workspace_id = ?`)
+        .all(AUTO_REJECTED_KIND, workspaceId) as { candidate_ref: string }[]
+    ).map((r) => r.candidate_ref)
+  );
+  const out = new Set<string>();
+  for (const r of spared) {
+    if (!rejected.has(r.candidate_ref)) out.add(r.candidate_ref);
+  }
+  return out;
 }

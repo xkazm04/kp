@@ -1,6 +1,7 @@
 import { useTranslations } from "next-intl";
 import { ArrowRight } from "lucide-react";
-import { Pill, SectionTitle } from "./GroupEvalPrimitives";
+import { Pill, SectionTitle } from "@/app/features/hiring/decisions/groupEval/GroupEvalPrimitives";
+import { isFairnessAligned } from "@/app/features/shared/groupEvalTypes";
 import type { Fairness, FairnessScheme, RobustnessStatus } from "@/app/features/shared/groupEvalTypes";
 
 // ---- Fairness check (cross-scheme dynamic-weight matrix) -------------------
@@ -36,12 +37,21 @@ export function FairnessPanel({
       </section>
     );
   }
-  if (!fairness || !fairness.labels?.length || !fairness.matrix?.length) {
-    // The role had a job (a matrix was expected) but the ranker produced no fairness
-    // data — surface "could not assess" explicitly so a sealed lead never reads as
-    // robustness-checked. A job-less role (not_applicable) or a legacy payload with no
-    // robustness signal renders nothing rather than a false claim.
-    if (robustness === "unavailable") {
+  if (!isFairnessAligned(fairness)) {
+    // The role had a job (a matrix was expected) but the ranker produced no USABLE
+    // fairness data — surface "could not assess" explicitly so a sealed lead never
+    // reads as robustness-checked. A job-less role (not_applicable) or a legacy payload
+    // with no robustness signal renders nothing rather than a false claim.
+    //
+    // "usable" now means the parallel arrays genuinely align (isFairnessAligned), not
+    // merely that labels/matrix are non-empty: this component indexes schemes[j],
+    // matrix[i][j] and mean[i] in lockstep, so a persisted blob whose arrays disagree
+    // used to throw and unmount the ENTIRE modal (comparison, decide buttons, and the
+    // Re-run that would have replaced the bad blob) on every reopen. A present-but-
+    // misaligned blob is a check that could not be assessed, so it degrades into this
+    // branch regardless of the persisted `robustness` value — that value was derived
+    // from the same broken data.
+    if (robustness === "unavailable" || fairness) {
       return (
         <section>
           <SectionTitle>{t("fairnessCheck")}</SectionTitle>

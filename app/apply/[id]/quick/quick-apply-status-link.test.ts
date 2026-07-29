@@ -28,6 +28,32 @@ test("quick-apply POST returns the status token and threads the status link into
   assert.match(src, /statusToken,?\s*\n?\s*\}\);|statusToken,/, "accept responses carry statusToken");
 });
 
+test("the emailed status links are pinned to the language the candidate applied in", () => {
+  // The ack email is read OUTSIDE the app, where no NEXT_LOCALE cookie exists —
+  // a bare /status/<token> drops a Czech applicant onto an English page. Both
+  // public apply routes must carry ?lang=, the same convention enrichLink uses
+  // (proxy.ts translates it back into the cookie).
+  const quick = read("../../../api/apply/[id]/quick/route.ts");
+  assert.match(
+    quick,
+    /\/status\/\$\{token\}\?lang=\$\{applicantLocale\}/,
+    "quick-apply's statusLinkFor pins ?lang=<applicantLocale>"
+  );
+  const conversational = read("../../../api/apply/[id]/route.ts");
+  assert.match(
+    conversational,
+    /\/status\/\$\{statusToken\}\?lang=\$\{applicantLocale\}/,
+    "the conversational route's ack statusLink pins ?lang=<applicantLocale>"
+  );
+});
+
+test("the status page gives the candidate a way back to their own language", () => {
+  // The one candidate surface with no chrome at all: a forwarded link or a stale
+  // cookie can still land them in a language they don't read.
+  const src = read("../../../status/[token]/StatusClient.tsx");
+  assert.match(src, /LanguageSwitcher/, "the status page renders the shared LanguageSwitcher");
+});
+
 test("quick-apply accepted copy is honest about delivery capability (REC-10)", () => {
   const src = read("../../../api/apply/[id]/quick/route.ts");
   assert.match(

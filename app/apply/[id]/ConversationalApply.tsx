@@ -1,13 +1,22 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { AiDisclosure } from "@/app/_components/AiDisclosure";
 import { TextInput } from "@/app/_components/TextInput";
 import type { ApplyStep } from "@/app/_lib/apply";
 // Imported straight from the registry-free intake module (not the apply.ts
 // barrel) so the candidate-facing bundle doesn't pull in the archetype registry.
-import { APPLY_EMAIL_RE, coerceGithubHandle, isRetryableApplyStatus, mergeDraftAnswers, nextVisibleStepIndex } from "@/app/_lib/apply-intake";
+import {
+  APPLY_EMAIL_RE,
+  applyDraftFingerprint,
+  coerceGithubHandle,
+  isRetryableApplyStatus,
+  mergeDraftAnswers,
+  nextVisibleStepIndex,
+} from "@/app/_lib/apply-intake";
+import { TextArea } from "@/app/_components/TextArea";
+import { gapFieldCopy, type CompletenessGap } from "@/app/_lib/completeness-followup";
 import { cvAutofill } from "@/app/_lib/cv-autofill";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 
@@ -37,7 +46,11 @@ export type ApplyPrefill = {
 const draftKey = (jobId: string, leadToken?: string | null) =>
   leadToken ? `kp:apply-draft:${jobId}:${leadToken}` : `kp:apply-draft:${jobId}`;
 
-type ApplyDraft = { idx: number; answers: Record<string, unknown>; msgs: Msg[]; answeredIds: string[] };
+// `fp` pins the SCRIPT the draft was recorded against (applyDraftFingerprint:
+// step ids + locale). Optional in the type because drafts saved before this
+// field existed are still in candidates' browsers — they're treated as a
+// mismatch and discarded, which is the same safe path a genuine desync takes.
+type ApplyDraft = { idx: number; answers: Record<string, unknown>; msgs: Msg[]; answeredIds: string[]; fp?: string };
 
 export function ConversationalApply({
   jobId,
@@ -51,11 +64,19 @@ export function ConversationalApply({
 
   const t = useTranslations("apply");
   const tCommon = useTranslations("common");
+  // The shared gap-question catalog (also read by the recruiter's ArchetypeBanner)
+  // — injected into the pure completeness-followup module, never imported by it.
+  const tGap = useTranslations("apply.gapFields");
   const errMsg = useErrorMessage();
   // The localStorage slot for this visit — namespaced by the enrichment lead
   // token (see draftKey) so a first-time draft and an enrichment draft for the
   // same job never share a slot. Stable across renders (both are props).
   const draftStorageKey = draftKey(jobId, prefill?.leadToken);
+  // The script this visit is actually running. A draft recorded against a
+  // different one (job edited, archetype options changed, language switched)
+  // cannot be replayed onto it — see applyDraftFingerprint.
+  const locale = useLocale();
+  const draftFingerprint = applyDraftFingerprint(steps.map((s) => s.id), locale);
   const [idx, setIdx] = useState(0);
   // Seeded from the server-built steps so the first prompt paints on hydration —
   // no initial fetch, no fatal load-error branch, no Loading… flash. The script
@@ -82,7 +103,17 @@ export function ConversationalApply({
     duplicate?: boolean;
     enriched?: boolean;
     statusToken?: string | null;
+    // The OPTIONAL post-accept profile-gap follow-up (see the block below the
+    // done card). Both fields arrive together or not at all.
+    followupToken?: string | null;
+    followupGaps?: CompletenessGap[];
   } | null>(null);
+  // Answers to the post-accept gap questions, keyed by check id. Purely
+  // additive: the application is ALREADY FILED before this block ever renders,
+  // so every state below is a courtesy — never a blocker.
+  const [gapAnswers, setGapAnswers] = useState<Record<string, string>>({});
+  const [gapState, setGapState] = useState<"open" | "sending" | "sent" | "dismissed">("open");
+  const [gapError, setGapError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   // A FAILED final submit — recoverable, rendered inline so the conversation and
   // every captured answer survive a blip on the last step. The recovery ACTION
@@ -148,6 +179,15 @@ export function ConversationalApply({
       if (!raw) return;
       const d = JSON.parse(raw) as ApplyDraft;
       if (!d || typeof d.idx !== "number" || d.idx < 0 || d.idx >= steps.length) return;
+      // Script identity, not just a bounds check: `idx` and the answer keys are
+      // only meaningful against the script that recorded them. A mismatch (or a
+      // pre-fingerprint draft) is discarded outright — replaying it would put the
+      // candidate on a different question than their transcript shows and could
+      // skip a KO gate positionally, declining someone who actually qualifies.
+      if (d.fp !== draftFingerprint) {
+        window.localStorage.removeItem(draftStorageKey);
+        return;
+      }
       if (!d.answers || typeof d.answers !== "object" || !Array.isArray(d.msgs) || d.msgs.length === 0) return;
       if (Object.keys(d.answers).length === 0) return;
       answeredRef.current = new Set(Array.isArray(d.answeredIds) ? d.answeredIds : []);
@@ -182,12 +222,12 @@ export function ConversationalApply({
     }
     if (Object.keys(answers).length === 0) return; // nothing worth saving yet
     try {
-      const draft: ApplyDraft = { idx, answers, msgs, answeredIds: [...answeredRef.current] };
+      const draft: ApplyDraft = { idx, answers, msgs, answeredIds: [...answeredRef.current], fp: draftFingerprint };
       window.localStorage.setItem(draftStorageKey, JSON.stringify(draft));
     } catch {
       /* quota / unavailable — best-effort */
     }
-  }, [idx, answers, msgs, done, draftStorageKey]);
+  }, [idx, answers, msgs, done, draftStorageKey, draftFingerprint]);
 
   // Move focus to the first control of a newly-rendered step so keyboard / screen-reader
   // users don't have to tab from the top of the page on every ko / choice / file step (only
@@ -250,6 +290,8 @@ export function ConversationalApply({
           duplicate: Boolean(d.duplicate),
           enriched: Boolean(d.enriched),
           statusToken: d.statusToken ?? null,
+          followupToken: typeof d.followupToken === "string" ? d.followupToken : null,
+          followupGaps: Array.isArray(d.followupGaps) ? (d.followupGaps as CompletenessGap[]) : undefined,
         });
       } else {
         // The server rejected the submit. isRetryableApplyStatus decides whether a
@@ -280,7 +322,8 @@ export function ConversationalApply({
   };
 
   // Reset the conversation to its first question, in place, after a NON-retryable
-  // failure — the server rejected the captured input, so resending it can't help.
+  // failure OR after a DECLINE — the server rejected the captured input (or the
+  // candidate mis-tapped a knockout answer), so resending it can't help.
   // Clearing answeredRef and the remembered final answers lets the candidate
   // re-walk every step and submit fresh, valid input, without the full page reload
   // that would otherwise be their only escape from a rejected payload. An
@@ -297,10 +340,46 @@ export function ConversationalApply({
     }
     setResumed(false);
     setSubmitError(null);
+    setGapAnswers({});
+    setGapState("open");
+    setGapError(null);
+    // Also clears a DECLINED outcome: the decline done-screen offers this same
+    // control, so a mis-tapped knockout on the last step isn't terminal.
+    setDone(null);
     setAnswers({ ...(prefill?.answers ?? {}) });
     setInput("");
     setIdx(0);
     setMsgs(initialMsgs());
+  };
+
+  // Post the answered gap questions. Runs AFTER the application is filed, so every
+  // failure mode is cosmetic: a network blip leaves an inline note and the answers
+  // in the boxes, and closing the tab costs the candidate nothing they had.
+  const submitGapAnswers = async () => {
+    if (gapState === "sending" || !done?.followupToken) return;
+    const filled = Object.fromEntries(
+      Object.entries(gapAnswers).filter(([, v]) => v.trim() !== "")
+    );
+    if (Object.keys(filled).length === 0) {
+      setGapState("dismissed");
+      return;
+    }
+    setGapState("sending");
+    setGapError(null);
+    try {
+      const res = await fetch(`/api/apply/${jobId}/followup`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        // The capability token, not the entry id — the server re-resolves it and
+        // requires the entry to belong to this job.
+        body: JSON.stringify({ lead: done.followupToken, answers: filled }),
+      });
+      if (!res.ok) throw new Error(String(res.status));
+      setGapState("sent");
+    } catch {
+      setGapState("open");
+      setGapError(t("followup.saveFailed"));
+    }
   };
 
   const advance = async (stepId: string, newAnswers: Record<string, unknown>, label: string) => {
@@ -465,10 +544,98 @@ export function ConversationalApply({
                 {t("trackStatus")}
               </a>
             ) : null}
+            {/* A decline used to be UNRECOVERABLE: `done` is set, the step
+                controls unmount, and the persist effect has already deleted the
+                draft — so a candidate who mis-tapped "No" on the last question
+                of an 8–11 step chat had no way back except finding the URL
+                again. Same start-over machinery the non-retryable submit
+                failure uses; the note is honest that the answers are gone. */}
+            {done.result === "declined" ? (
+              <div className="mt-4">
+                <button
+                  type="button"
+                  onClick={restartConversation}
+                  className="focus-ring rounded-md bg-ink px-4 py-2 text-base font-semibold text-white hover:bg-steel"
+                >
+                  {t("startOver")}
+                </button>
+                <p className="mt-1.5 text-sm text-steel">{t("declinedRestartNote")}</p>
+              </div>
+            ) : null}
           </div>
         ) : null}
         <div ref={endRef} />
       </div>
+
+      {/* The post-accept profile-gap follow-up. profile_cli reports which archetype
+          checklist items a built profile still misses on EVERY apply; the recruiter
+          could always fill them in, but the one person who knows the answers — the
+          candidate, standing right here — was never asked. Strictly optional and
+          strictly after the fact: the application is filed, the "You're in" card is
+          already above this, and Skip/close costs nothing. */}
+      {done && done.result === "accepted" && done.followupToken && (done.followupGaps?.length ?? 0) > 0 && gapState !== "dismissed" ? (
+        <div className="mt-4 rounded-lg border border-stone-200 bg-paper p-4">
+          {gapState === "sent" ? (
+            <p role="status" className="text-base text-steel">
+              {t("followup.thanks")}
+            </p>
+          ) : (
+            <>
+              <p className="font-serif text-h3 text-ink">{t("followup.title")}</p>
+              <p className="mt-1 text-sm text-steel">{t("followup.subtitle")}</p>
+              <div className="mt-3 space-y-3">
+                {(done.followupGaps ?? []).map((gap) => {
+                  const field = gapFieldCopy(gap.check, tGap);
+                  // An unknown/new checklist id has no question here — the server
+                  // already filters, this is the belt-and-braces half.
+                  if (!field) return null;
+                  const shared = {
+                    value: gapAnswers[gap.check] ?? "",
+                    onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+                      setGapAnswers((a) => ({ ...a, [gap.check]: e.target.value })),
+                    placeholder: field.placeholder,
+                    disabled: gapState === "sending",
+                  };
+                  return (
+                    <label key={gap.check} className="block text-base text-ink">
+                      <span className="text-steel">{field.prompt}</span>
+                      {field.multiline ? (
+                        <TextArea {...shared} rows={2} className="mt-1" />
+                      ) : (
+                        <TextInput {...shared} className="mt-1" />
+                      )}
+                    </label>
+                  );
+                })}
+              </div>
+              {gapError ? (
+                <p role="alert" className="mt-2 text-sm text-coral">
+                  {gapError}
+                </p>
+              ) : null}
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  disabled={gapState === "sending"}
+                  onClick={submitGapAnswers}
+                  className="focus-ring rounded-md bg-ink px-4 py-2 text-base font-semibold text-white hover:bg-steel disabled:opacity-50"
+                >
+                  {gapState === "sending" ? t("sending") : t("followup.submit")}
+                </button>
+                {/* The escape hatch, always available and never destructive. */}
+                <button
+                  type="button"
+                  disabled={gapState === "sending"}
+                  onClick={() => setGapState("dismissed")}
+                  className="focus-ring rounded-md px-3 py-2 text-base font-semibold text-steel hover:text-ink disabled:opacity-50"
+                >
+                  {t("followup.skip")}
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      ) : null}
 
       {!done && submitError ? (
         // A failed final submit. The conversation and every captured answer above
@@ -506,7 +673,13 @@ export function ConversationalApply({
                 type="button"
                 disabled={busy}
                 onClick={() => submitKo(true)}
-                className="focus-ring rounded-md border border-stone-200 bg-white px-5 py-2 text-base font-semibold text-ink hover:border-moss/50 disabled:opacity-50"
+                // NEUTRAL hover, deliberately the same coral affordance as No (and
+                // as the choice/quick-form buttons). Yes used to glow moss —
+                // the success tone — which on a KNOCKOUT question told the
+                // candidate which answer "passes" the eligibility gate before
+                // they answered it. moss stays reserved for OUTCOMES (the
+                // "You're in" card), never for steering an answer.
+                className="focus-ring rounded-md border border-stone-200 bg-white px-5 py-2 text-base font-semibold text-ink hover:border-coral/50 disabled:opacity-50"
               >
                 {tCommon("yes")}
               </button>

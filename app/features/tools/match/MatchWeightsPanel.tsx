@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { RotateCcw, SlidersHorizontal } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { isEarlyCareer, syncDraftToWeights, weightsDirty, type WeightVector } from "@/app/features/shared/matchTypes";
@@ -48,10 +48,14 @@ export function MatchWeightsPanel({
   // server renormalizes to sum-100 and the parent re-seeds `weights` from the response
   // (e.g. 60/20/20 -> 45/33/22); without this the sliders + labels kept showing the
   // stale pre-normalization draft and `dirty` stayed true, leaving the button falsely
-  // enabled and the numbers disagreeing with the ranking beneath them.
-  useEffect(() => {
+  // enabled and the numbers disagreeing with the ranking beneath them. Done with the
+  // adjust-state-during-render pattern (not an effect), so the re-anchor lands in the
+  // same render pass as the new prop.
+  const [anchor, setAnchor] = useState(weights);
+  if (anchor !== weights) {
+    setAnchor(weights);
     setDraft(syncDraftToWeights(weights));
-  }, [weights]);
+  }
 
   // Did the recruiter move anything off the in-effect vector? (rounded — the
   // sliders step in whole percent.)

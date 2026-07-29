@@ -148,8 +148,27 @@ later, out-of-band. `POST /api/comms/callback` is where a configured relay
 `ref` (pipeline entry id) + `kind`:
 
 - **Auth is fail-closed.** The endpoint returns `503` unless `COMMS_CALLBACK_SECRET`
-  is set; when it is, every call must present it as the `x-comms-secret` header
-  (or `?secret=`). An unconfigured deployment cannot be poked by a forged receipt.
+  is set; when it is, every call must present it as the `x-comms-secret` **header**
+  — the `?secret=` query form was dropped, because URLs are logged and forwarded by
+  design. The compare is constant-time; an `x-comms-timestamp` (ISO-8601 or epoch-ms)
+  must be within ±5 minutes, and an in-process nonce guard drops an exact replay
+  inside that window. An unconfigured deployment cannot be poked by a forged receipt.
+- **The path is on the public allow-list** (`app/_lib/auth/public-routes.ts`), same
+  rationale as `/api/billing/webhook` and `/api/devcase/inbound`: a machine posts
+  here with no session cookie, so the operator gate (`proxy.ts`) would `401` the
+  relay *before* the shared-secret auth above ever ran — which left the entire bounce
+  subsystem inert in any password-protected deployment. Only `/api/comms/callback`
+  is public; the recruiter read (`/api/comms`) and resend stay gated, and the entry
+  is pinned by `public-routes.test.ts`.
+- **Unmatched ("orphan") receipts are answered, not swallowed.** A receipt is keyed
+  only by `(ref, kind)`. If no send of ours matches that pair — an integrator on a
+  different ref scheme, or a `kind` kp does not emit — the response is
+  `{ recorded: false, reason: "no_matching_send", stored: true }`, so the vocabulary
+  mismatch surfaces on the FIRST call instead of accumulating invisible rows. The
+  receipt is still stored (append-only), and `deriveCommsView` surfaces it in the
+  Comms Center as an actionable **unmatched receipt** (`orphaned: true`) instead of
+  dropping it. Orphan state is *derived*, never frozen into a column, so a receipt
+  that arrives before its send folds normally once the send lands.
 - **Bounce-class outcomes** (`isBounceOutcome`: bounced/complaint/spam/dropped/failed)
   record an **append-only** `bounced` outbox RECEIPT row (`channel = relay-callback`,
   `body = the bounce detail`). Positive/soft outcomes (delivered/opened/deferred) are
@@ -167,3 +186,50 @@ later, out-of-band. `POST /api/comms/callback` is where a configured relay
 This is why "sent" is no longer read as success on its own: a hard bounce at the
 offer/rejection moment is exactly the reputation-sensitive failure a recruiter must
 chase, not trust as delivered.
+
+## 8. One delivery truth, on every surface
+
+Delivery truth used to exist in three places and die in two of them.
+
+- **The failure reason is persisted.** `comms.ts` computes a precise dead-letter
+  detail per relay attempt (`http 503`, `getaddrinfo ENOTFOUND relay.example`, a
+  timeout) and used to spend it entirely on the `console.error` + `comms.log` alert.
+  It now rides the row: `dev_outbox.failure_detail` (additive, nullable — legacy
+  failures read as *no reason recorded*, never a fabricated one) is written **only**
+  for `failed` rows, so a stale "http 503" from the retry before the one that worked
+  can never sit next to a green badge. The Comms Center modal shows it on the
+  synchronous-failure path exactly as it already showed `bounceDetail` on the bounce
+  path.
+- **`commsVerdict` is the single vocabulary.** One pure function (`comms-view.ts`)
+  turns a derived row into exactly one of `orphaned | bounced | recovered | failed |
+  sent | queued`, with the derived bits OUTRANKING the stored column. The Comms
+  Center maps it to a badge tone; the candidate drawer maps it to a label + reason
+  line. Neither re-derives anything. Before this, the drawer projected the raw
+  `status` column, so a bounced offer showed a green **sent** there while Channels
+  showed it red, and a recovered dead-letter stayed red in the drawer forever.
+- **The drawer payload carries the derived fields.** `candidate-timeline.ts` projects
+  the comms view through ONE exported mapping (`toCandidateComm`) that carries
+  `verdict` plus `recovered/recoveredAt`, `bounced/bouncedAt/bounceDetail`,
+  `failureDetail` and `deliverable`. Parity is locked by
+  `comms-delivery-truth.test.ts`: for a bounced and a recovered fixture, the drawer
+  projection must carry exactly the verdict `deriveCommsView` + `commsVerdict`
+  produce for the same row.
+- **Resend claims are honest.** Both resend clients (the Dev outbox `ResendButton`
+  and the Comms Center `BouncedResend`) used to throw away the server's 409/422/404
+  explanation and flip to "Resent" on any 2xx — including when the fresh row
+  dead-lettered again. They now surface the server's reason on refusal, and claim
+  success only when the new row is not itself `failed`; a re-failed resend reports it
+  (with the new row's reason) and stays retryable.
+
+## 9. Configuration summary
+
+| Variable | Direction | Unset (the honest default) | Set |
+|---|---|---|---|
+| `COMMS_WEBHOOK_URL` | outbound | local outbox only; every surface says messages are **not** being sent | messages POST to the relay as `kp.comm.v1` |
+| `COMMS_CALLBACK_SECRET` | inbound receipts | `POST /api/comms/callback` answers `503` (fail-closed) | relay receipts accepted with header auth + timestamp + nonce guard |
+| `EMAIL_INBOUND_DOMAIN` | inbound email | the Email intake wizard shows the HTTP receiver URL and says forwarding isn't wired — no fabricated mailbox | wizard hands out `<token>@<domain>`; you must route that domain's mail to `POST /api/channels/inbound/<token>` yourself |
+
+All three are documented in `.env.example`. The address capability deliberately
+mirrors `isRelayConfigured()` (`app/_lib/comms-truth.ts`): a mail route is a
+deployment fact, so the UI treats it as a capability bit, never a derivation from
+the browser's origin.

@@ -1,11 +1,12 @@
 import { actOnPipelineEntry, listPipeline, recordAutomationEvent } from "./db";
 import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 import { getDecisionConfig, type ScreeningRule } from "./decision-config-store";
-import { sealDecisionSafe } from "./decision-record-store";
-import { DecisionConfigError, effectiveFloor, screenBottomCount, tieSafeBottomCount, validateScreeningOverride } from "./decision-config-schema";
+import { sealDecisionSafe, SCREEN_WAVE_HOLDOUT_KIND, AUTO_REJECTED_KIND } from "./decision-record-store";
+import { DecisionConfigError, effectiveFloor, effectiveHoldoutPercent, screenBottomCount, tieSafeBottomCount, validateScreeningOverride } from "./decision-config-schema";
 import { dispatchRejection } from "./comms-dispatch";
 import { isFairnessProtected, isKnownArchetype } from "./archetypes";
 import { screenWaveApprovalToken, ScreenWaveApprovalError } from "./screen-wave-approval";
+import { selectHoldout } from "./screen-wave-holdout";
 import { operatorApprover } from "./auth/operator-approver";
 import { isScored } from "./match-score";
 import { withCanonicalScores } from "./match-score-resolve";
@@ -69,7 +70,9 @@ export type ScreenReasonCode =
   | "atThreshold"
   | "reject"
   | "staleSkipped"
-  | "unscored";
+  | "unscored"
+  // Spared from a would-be auto-reject to form the calibration clean arm.
+  | "holdout";
 
 // The keep rationale for a candidate with NO match score (audit-string register,
 // mirrored by `decisions.wave.reasons.unscored` for localized rendering). Exported
@@ -243,7 +246,12 @@ export async function runScreenWave(
   // floors so that changing a family floor (even one that leaves the reject SET
   // unchanged) forces a fresh preview+approval, never a stale rubber-stamp. Absent
   // familyFloors → empty suffix → byte-identical to the pre-family-floors token.
-  const policyVersion = `screen-wave/bottom${cfg.rejectBottomPercent}/maxMatch${cfg.maxMatchToReject}${familyFloorSuffix(cfg)}`;
+  // holdout rides the policyVersion so the sealed record attests to the rate in
+  // force, and changing that rate forces a fresh preview+approval rather than a
+  // stale rubber-stamp (same contract as the family floors). Omitted when 0, so a
+  // holdout-disabled wave signs a byte-identical token to the pre-holdout build.
+  const holdoutPct = effectiveHoldoutPercent(cfg);
+  const policyVersion = `screen-wave/bottom${cfg.rejectBottomPercent}/maxMatch${cfg.maxMatchToReject}${familyFloorSuffix(cfg)}${holdoutPct ? `/holdout${holdoutPct}` : ""}`;
   const wouldReject = new Set<string>();
   for (let rank = 0; rank < sorted.length; rank++) {
     const e = sorted[rank];
@@ -256,6 +264,17 @@ export async function runScreenWave(
       wouldReject.add(e.id);
     }
   }
+  // CALIBRATION HOLDOUT (UAT KAT-L1-001/002) — spare a small, stable sample of the
+  // would-be rejects so their outcomes are uncontaminated by the score that would
+  // have rejected them. Without this arm, calibration pairs the score against a
+  // label the score itself produced and can never falsify its own selection quality.
+  //
+  // Applied HERE, before the approval token is signed, so the token covers the set
+  // the recruiter actually sees and a commit re-derives byte-identically. Membership
+  // is a pure function of (jobId, entryId) — see screen-wave-holdout.ts for why it
+  // must not depend on the threshold or on Math.random.
+  const heldOut = new Set(selectHoldout(jobId, [...wouldReject], holdoutPct).spared);
+  for (const id of heldOut) wouldReject.delete(id);
   const approvalToken = screenWaveApprovalToken(jobId, policyVersion, [...wouldReject]);
   if (!dryRun) {
     if (!opts?.approval) {
@@ -294,6 +313,39 @@ export async function runScreenWave(
     // Inside the raw bottom-% but above the tie-safe cutoff → kept only because the
     // tie-break refused to split an equal score (idea-50062f77).
     const tieSpared = rank >= effectiveBottomCount && rank < bottomCount;
+
+    // Calibration clean arm: this candidate cleared every auto-reject test and was
+    // then SPARED at random so their outcome can be observed without the score
+    // acting on it. Reported explicitly — a silent exemption would look like a bug
+    // to the recruiter and would be invisible in the audit trail. Sealed on commit
+    // below so the clean arm is identifiable when calibration reads it back.
+    if (heldOut.has(e.id)) {
+      const holdoutRationale = `Kept — calibration holdout (${holdoutPct}% of would-be auto-rejects are spared so their outcomes can measure whether the score was right). Match ${score} was below the ${effectiveFloor(cfg, e.roleFamily)} threshold.`;
+      if (!dryRun) {
+        recordAutomationEvent(e.id, "screen_wave_holdout", holdoutRationale, workspaceId);
+        sealDecisionSafe({
+          kind: SCREEN_WAVE_HOLDOUT_KIND,
+          actor: "auto:screen-wave",
+          policyVersion,
+          candidateRef: e.id,
+          rationale: `${holdoutRationale} · approved by ${approvedBy}`,
+          reasonCode: "holdout",
+          inputs: { score, threshold: effectiveFloor(cfg, e.roleFamily), rank: rank + 1, holdoutPercent: holdoutPct, approvedBy },
+        });
+      }
+      decisions.push({
+        entryId: e.id,
+        label: e.candidateLabel,
+        archetype: e.archetype,
+        matchScore: score,
+        action: "keep",
+        rationale: holdoutRationale,
+        reasonCode: "holdout",
+        reasonParams: { score, threshold: effectiveFloor(cfg, e.roleFamily), pct: holdoutPct },
+        ...staleFields(e.id),
+      });
+      continue;
+    }
 
     // The reject gate is the SAME predicate already used to build `wouldReject`
     // (and to sign the approval token) — read from that set so the committed set
@@ -355,7 +407,7 @@ export async function runScreenWave(
       // already wrote (actor:"system"). Best-effort (sealDecisionSafe never throws):
       // a seal failure must NEVER abort the wave.
       sealDecisionSafe({
-        kind: "auto_rejected",
+        kind: AUTO_REJECTED_KIND,
         actor: "auto:screen-wave",
         // Per-record policyVersion carries the EFFECTIVE floor this candidate was
         // judged against (family override or global) — byte-identical when none.

@@ -38,7 +38,10 @@ export async function sendDueInterviewReminders(windowMs: number = REMINDER_LEAD
       await dispatchInterviewReminder(
         { id: inv.entryId, candidateLabel: inv.candidateLabel, jobTitle: inv.jobTitle, locale: inv.locale },
         inv.slot ?? "your scheduled time",
-        { durationMin: inv.durationMin }
+        // The invite's own team is the fallback tenant for the outbox row: when the
+        // linked entry has been deleted, `ref` degrades to the slot string and the
+        // entry-derived tenant is unavailable (comms-tenancy-pair).
+        { durationMin: inv.durationMin, workspaceId: inv.workspaceId }
       );
     } catch (err) {
       // Delivery did not complete. The claim already recorded this attempt and its

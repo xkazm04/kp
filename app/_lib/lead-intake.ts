@@ -78,6 +78,18 @@ export type LeadIntakeInput = {
    *  route (which owns the request origin + token store); best-effort — null
    *  simply omits the status line, never blocks the intake. */
   statusLinkFor?: (entryId: string) => string | null;
+  /** Schedule the acknowledgement OFF the response path. The ack is an SMTP/relay
+   *  round-trip that is already best-effort (its failure is logged and never
+   *  changes the intake outcome), so making the applicant wait on it only turns a
+   *  slow provider into a slow — or apparently broken — apply form for a lead that
+   *  has already been filed. A route handler passes next/server's post-response
+   *  hook (see afterResponse in after-response.ts).
+   *
+   *  OMITTED = the historical inline await, deliberately: this module is also
+   *  driven from surfaces with no request context, and a caller that hasn't opted
+   *  in keeps byte-identical ordering. Only the dispatch's TIMING moves — every
+   *  dispatch still happens, including the "newly reachable" re-ack below. */
+  defer?: (task: () => Promise<void>) => void;
   /** Webhook surfaces pass true so a KO-declined lead is TOLD the outcome — their
    *  only touchpoint said "submitted" on a third-party board. The own quick-apply
    *  form keeps this false: it shows the decline live in the UI (no double message). */
@@ -121,13 +133,25 @@ export async function intakeLead(input: LeadIntakeInput): Promise<LeadIntakeOutc
       jobTitle: job.title,
       channel: input.channelLabel,
       failedKoIds: input.failedKoIds,
+      // Same tenant the accepted path files into — a declined applicant is counted
+      // (and their name shown) only by the team that owns the opening.
+      workspaceId,
     });
     // The adverse outcome is where the never-ghost promise matters most — and the
     // email is in hand. Best-effort like the ack: a comms failure never changes
     // the intake verdict, and the outbox row makes the decline auditable.
     if (input.notifyDecline && email) {
       try {
-        await dispatchKnockoutDecline({ email, name: name || null, jobTitle: job.title, locale: input.locale });
+        // Same tenant the decline RECORD above was filed into: the notice is entry-less
+        // (no entry exists yet), so without this its outbox row lands in the DEFAULT
+        // team's Comms Center — invisible to the team that owns the opening.
+        await dispatchKnockoutDecline({
+          email,
+          name: name || null,
+          jobTitle: job.title,
+          locale: input.locale,
+          workspaceId,
+        });
       } catch (declineErr) {
         console.error(
           `[lead-intake] KO decline recorded but notification failed for ${email}:`,
@@ -157,6 +181,14 @@ export async function intakeLead(input: LeadIntakeInput): Promise<LeadIntakeOutc
     }
   };
 
+  // Send it — after the response when the caller gave us a scheduler, inline
+  // otherwise (see `defer`). One seam so BOTH ack sites below (the first-time
+  // dispatch and the newly-reachable re-ack) can never drift apart.
+  const sendAck = async (entry: Parameters<typeof dispatchApplicationReceived>[0], enrichLink: string | null) => {
+    if (input.defer) input.defer(() => ack(entry, enrichLink));
+    else await ack(entry, enrichLink);
+  };
+
   // Duplicate policy — same identity rules as the conversational flow. A repeat
   // backfills a missing contact onto the original entry; a newly-reachable entry
   // gets the ack its first application couldn't deliver (with the enrichment
@@ -171,7 +203,7 @@ export async function intakeLead(input: LeadIntakeInput): Promise<LeadIntakeOutc
     if (!existing.contact) {
       const merged = mergeReapplication(existing.id, { contact: email }, workspaceId);
       changes.push("contact email captured");
-      if (merged) await ack(merged, merged.intakeDegraded ? withLeadToken(input.enrichLink, leadToken) : null);
+      if (merged) await sendAck(merged, merged.intakeDegraded ? withLeadToken(input.enrichLink, leadToken) : null);
     }
     recordAutomationEvent(
       existing.id,
@@ -229,6 +261,6 @@ export async function intakeLead(input: LeadIntakeInput): Promise<LeadIntakeOutc
   // the candidate re-typing the identical email address.
   const leadToken = ensureLeadEnrichToken(entry.id, input.passedKoIds, workspaceId);
   recordLeadConsent(entry.id, input.sourceChannel, workspaceId);
-  await ack(entry, withLeadToken(input.enrichLink, leadToken));
+  await sendAck(entry, withLeadToken(input.enrichLink, leadToken));
   return { result: "accepted", duplicate: false, entryId: entry.id, leadToken };
 }

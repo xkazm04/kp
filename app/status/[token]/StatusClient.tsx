@@ -2,8 +2,11 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { Check, RefreshCw } from "lucide-react";
+import { Bot, Check, RefreshCw, UserRound } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
+import { AiDisclosure } from "@/app/_components/AiDisclosure";
+import { LanguageSwitcher } from "@/app/_components/LanguageSwitcher";
+import type { CandidateDecisionView } from "@/app/_lib/status-decisions";
 import {
   CANDIDATE_TIMELINE,
   classifyStatusError,
@@ -38,6 +41,12 @@ export function StatusClient() {
   // condition; a `retryable` fault (offline / 5xx) gets a Retry affordance.
   const [error, setError] = useState<StatusFetchError | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  // Art. 86 — the candidate's own REDACTED decision history (see
+  // /api/status/[token]/decisions). Fetched once per page view, not polled: the
+  // sealed history only grows when a decision is taken, and the status poll
+  // already signals stage movement. Best-effort: a failure (or an empty/withheld
+  // history) simply omits the section — the status itself must never depend on it.
+  const [decisions, setDecisions] = useState<CandidateDecisionView[]>([]);
 
   // Fetch (or re-fetch) the status. Stable across renders so the mount fetch, the
   // interval poll, the focus/visibility revalidation, and manual Refresh all share
@@ -69,8 +78,27 @@ export function StatusClient() {
   }, [token]);
 
   useEffect(() => {
-    void load();
+    // Scheduled (not called synchronously in the effect body) because load()
+    // sets `refreshing` before its first await.
+    const id = window.setTimeout(() => void load(), 0);
+    return () => window.clearTimeout(id);
   }, [load]);
+
+  useEffect(() => {
+    if (!token) return;
+    let alive = true;
+    fetch(`/api/status/${token}/decisions`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((p: { records?: CandidateDecisionView[] } | null) => {
+        if (alive && Array.isArray(p?.records)) setDecisions(p.records);
+      })
+      .catch(() => {
+        /* best-effort — the section is simply omitted */
+      });
+    return () => {
+      alive = false;
+    };
+  }, [token]);
 
   // Revalidate so a bookmarked/left-open status page doesn't freeze on a stale
   // stage (bug-ui-scan-2026-07-09 #3, idea-e76a6fb2's whole promise): poll on an
@@ -113,8 +141,37 @@ export function StatusClient() {
     hired: t("now.hired"),
   };
 
+  // Literal-key lookups for the candidate-visible sealed decision kinds (same
+  // next-intl constraint as stepLabels). The set mirrors
+  // CANDIDATE_VISIBLE_DECISION_KINDS (status-decisions.ts) — a kind the server
+  // starts exposing without copy here degrades to a de-snaked raw value below,
+  // never a broken key.
+  const decisionKindLabels: Record<string, string> = {
+    auto_rejected: t("decisions.kinds.auto_rejected"),
+    rejected: t("decisions.kinds.rejected"),
+    advanced: t("decisions.kinds.advanced"),
+    auto_advanced: t("decisions.kinds.auto_advanced"),
+    reinstated: t("decisions.kinds.reinstated"),
+    interview_scheduled: t("decisions.kinds.interview_scheduled"),
+    interview_cancelled: t("decisions.kinds.interview_cancelled"),
+    interview_no_show: t("decisions.kinds.interview_no_show"),
+    interview_proposal_declined: t("decisions.kinds.interview_proposal_declined"),
+    ai_scorecard: t("decisions.kinds.ai_scorecard"),
+    human_scorecard: t("decisions.kinds.human_scorecard"),
+    group_eval_lead: t("decisions.kinds.group_eval"),
+    group_eval_advisory: t("decisions.kinds.group_eval"),
+    offer_terms: t("decisions.kinds.offer_terms"),
+  };
+
   return (
     <main className="mx-auto max-w-xl px-4 py-12">
+      {/* The candidate's own escape hatch, mirroring the public apply page: the
+          status link is now ?lang=-pinned, but a forwarded/bookmarked link (or a
+          stale NEXT_LOCALE cookie from an earlier visit) can still land them in
+          a language they don't read — and this page has no other chrome. */}
+      <div className="mb-4 flex justify-end">
+        <LanguageSwitcher />
+      </div>
       <p className="text-meta uppercase tracking-wide text-coral">{t("eyebrow")}</p>
       {error && !view ? (
         // Only take over the page on the INITIAL load failure — a transient poll
@@ -219,8 +276,46 @@ export function StatusClient() {
               {t("refresh")}
             </button>
           </div>
+
+          {/* Art. 86 — how decisions about this application were made. Rendered
+              only when the (redacted, consent-gated) history has entries: an
+              empty/withheld history omits the section rather than promising a
+              log that shows nothing. */}
+          {decisions.length > 0 ? (
+            <section className="mt-8 rounded-lg border border-stone-200 bg-paper p-4" aria-labelledby="status-decisions-title">
+              <h2 id="status-decisions-title" className="text-body font-semibold text-ink">
+                {t("decisions.title")}
+              </h2>
+              <ol className="mt-3 space-y-3" role="list">
+                {decisions.map((d, i) => (
+                  <li key={`${d.kind}-${d.createdAt}-${i}`} className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                    <span className="text-base text-ink">{decisionKindLabels[d.kind] ?? d.kind.replace(/_/g, " ")}</span>
+                    {d.attribution !== "unknown" ? (
+                      <span className="inline-flex items-center gap-1 rounded-full border border-stone-300 bg-white px-2 py-0.5 text-meta text-steel">
+                        {d.attribution === "automated" ? <Bot size={11} aria-hidden /> : <UserRound size={11} aria-hidden />}
+                        {d.attribution === "automated" ? t("decisions.automated") : t("decisions.human")}
+                      </span>
+                    ) : null}
+                    <span className="text-meta text-steel">
+                      {new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(new Date(d.createdAt))}
+                    </span>
+                    {d.reasonCode === "reject" && d.facts ? (
+                      <span className="w-full text-base text-steel">
+                        {t("decisions.reasons.reject", { score: d.facts.score, threshold: d.facts.threshold })}
+                      </span>
+                    ) : null}
+                  </li>
+                ))}
+              </ol>
+              {/* Echoes aiDisclosure.body's promise on the surface where it matters most. */}
+              <p className="mt-3 border-t border-stone-200 pt-3 text-meta text-steel">{t("decisions.humanReviewNote")}</p>
+            </section>
+          ) : null}
         </>
       )}
+      {/* Art. 50 transparency note — same muted footer placement as the sibling
+          schedule/offer token pages; the component self-resolves its regime. */}
+      <AiDisclosure className="mt-8" />
     </main>
   );
 }

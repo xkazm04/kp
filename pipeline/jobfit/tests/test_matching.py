@@ -25,6 +25,12 @@ from pipeline.jobfit.tests._helpers import (
 )
 
 
+# provenance_default is explicit on the fixtures below: the shipped default is now
+# `self_declared`, which applies an evidence discount that would push even an exact
+# skill match under the match threshold. These scoring tests are about the matching
+# semantics (matched vs missing, hierarchy strength, weights), not about the evidence
+# discount, so the fixtures pin the professional tier — an experienced hire whose
+# skills came from production work.
 SENIOR_PY = MatchCandidate(
     skills=["Python", "Django", "PostgreSQL", "AWS"],
     seniority="senior",
@@ -32,6 +38,7 @@ SENIOR_PY = MatchCandidate(
     education_level="master",
     languages=["Czech", "English"],
     years_experience=8,
+    provenance_default="professional",
 )
 JUNIOR = MatchCandidate(
     skills=["Python"],
@@ -168,7 +175,10 @@ class ScoringTest(unittest.TestCase):
 
     def test_hierarchy_partial_match_counts(self) -> None:
         # Candidate knows Next.js; role wants React -> specialization implies it.
-        cand = MatchCandidate(skills=["Next.js"], seniority="medior", languages=["English"])
+        cand = MatchCandidate(
+            skills=["Next.js"], seniority="medior", languages=["English"],
+            provenance_default="professional",
+        )
         job = mkjob(requirements=[{"skill": "React", "kind": "must_have", "hardness": "prerequisite"}])
         score, matched, _, strength, _unproven = score_skills(cand, job)
         self.assertIn("React", matched)

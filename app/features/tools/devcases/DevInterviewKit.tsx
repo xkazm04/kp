@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Check, Copy, Download, MicVocal } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { downloadFile } from "@/app/_lib/export-utils";
 import { interviewKitMarkdown } from "@/app/_lib/devcase-interview-kit";
 import { FollowupQuestionItem } from "./DevShared";
@@ -13,6 +14,7 @@ import type { Submission } from "./DevTypes";
 // this surfaces the TOP candidate's set at the case level — copy/exportable —
 // instead of leaving it buried in one submission's expanded EvalPanel.
 export function InterviewKit({ caseTitle, top }: { caseTitle: string; top: Submission }) {
+  const t = useTranslations("devcase.interviewKit");
   const [copied, setCopied] = useState(false);
   const questions = top.evaluation?.followups?.questions ?? [];
   // No minted questions → nothing to assemble (an unevaluated or empty bundle).
@@ -40,11 +42,11 @@ export function InterviewKit({ caseTitle, top }: { caseTitle: string; top: Submi
     <section className="rounded-lg border border-moss/30 bg-moss/5 p-4">
       <div className="flex flex-wrap items-center gap-2">
         <h3 className="flex items-center gap-1.5 text-meta font-semibold uppercase tracking-wide text-moss">
-          <MicVocal size={13} /> Interview kit — top candidate
+          <MicVocal size={13} /> {t("title")}
         </h3>
         <span className="min-w-0 truncate text-micro text-steel">
           {candidateRef}
-          {top.transferScore != null ? ` · fit ${top.transferScore}` : ""}
+          {top.transferScore != null ? ` ${t("fit", { score: top.transferScore })}` : ""}
         </span>
         <div className="ml-auto flex gap-1.5">
           <button
@@ -52,21 +54,18 @@ export function InterviewKit({ caseTitle, top }: { caseTitle: string; top: Submi
             onClick={copy}
             className="focus-ring inline-flex h-8 items-center gap-1.5 rounded-md border border-stone-200 bg-white px-2.5 text-micro font-semibold text-ink hover:border-coral/40"
           >
-            {copied ? <Check size={12} /> : <Copy size={12} />} {copied ? "Copied" : "Copy"}
+            {copied ? <Check size={12} /> : <Copy size={12} />} {copied ? t("copied") : t("copy")}
           </button>
           <button
             type="button"
             onClick={() => downloadFile("interview-kit.md", markdown, "text/markdown")}
             className="focus-ring inline-flex h-8 items-center gap-1.5 rounded-md border border-stone-200 bg-white px-2.5 text-micro font-semibold text-ink hover:border-coral/40"
           >
-            <Download size={12} /> Export
+            <Download size={12} /> {t("export")}
           </button>
         </div>
       </div>
-      <p className="mt-1.5 text-micro text-steel">
-        Each question verifies the candidate owns a real decision from their submission. Listen-for / red-flag notes
-        are interviewer-internal.
-      </p>
+      <p className="mt-1.5 text-micro text-steel">{t("intro")}</p>
       <ol className="mt-2 space-y-2">
         {questions
           .filter((q) => (q.question ?? "").trim())

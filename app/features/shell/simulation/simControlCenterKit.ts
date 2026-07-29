@@ -46,7 +46,16 @@ export type PassSummary = {
 /** One row of the dry run: what the pass would do to a candidate and why. Shaped
  *  to satisfy PassPreviewModal's `Preview.decisions` structurally. */
 export type PassDecision = { entryId: string; action: string; toStage: string | null; reason: string; outcome?: string };
-export type PassPreview = { summary: PassSummary; decisions: PassDecision[] };
+/** TENANCY (a43408d): `summary` is the GLOBAL sweep; `decisions` arrives already filtered
+ *  to the caller's workspace. The route ships the two labels below so PassPreviewModal can
+ *  reconcile them ("N of the run's M decisions are yours") instead of pairing a global
+ *  headline with a partial list. Optional — the simulation builds fixtures of this shape. */
+export type PassPreview = {
+  summary: PassSummary;
+  decisions: PassDecision[];
+  workspaceDecisionCount?: number;
+  decisionsWorkspace?: string | null;
+};
 
 /** Automation pass, dry-run-first — mirrors PipelineTab's AUTO3 look-before-commit
  *  grammar: the pass auto-rejects AND emails candidates, so nothing commits from a
@@ -80,7 +89,13 @@ export function useAutomationPass(onCommitted?: () => void) {
           .catch(() => null),
       ]);
       if (pass?.summary) {
-        setPreview({ summary: pass.summary as PassSummary, decisions: (pass.decisions as PassDecision[]) ?? [] });
+        setPreview({
+          summary: pass.summary as PassSummary,
+          decisions: (pass.decisions as PassDecision[]) ?? [],
+          // Carried, not recomputed: the route knows how many rows it withheld.
+          workspaceDecisionCount: typeof pass.workspaceDecisionCount === "number" ? pass.workspaceDecisionCount : undefined,
+          decisionsWorkspace: typeof pass.decisionsWorkspace === "string" ? pass.decisionsWorkspace : null,
+        });
         setEntries((board?.entries as Entry[]) ?? []);
       } else {
         setError(t("errorPreview"));

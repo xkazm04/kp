@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import { useTranslations } from "next-intl";
 import { Check, Copy, Radio } from "lucide-react";
 import { useReducedMotion } from "@/app/_lib/useReducedMotion";
 import { SegmentedControl } from "@/app/_components/SegmentedControl";
@@ -11,8 +12,13 @@ import { SegmentedControl } from "@/app/_components/SegmentedControl";
 // a client picker (Gmail/Outlook, or LinkedIn/Meta), and the numbered steps for the
 // chosen client. Used by both the Email intake and Ad forms panes so the guided
 // experience reads identically; only the client set + step copy differ.
+//
+// channels-i18n-honesty: the guide's own chrome (copy button, "Setup for", the
+// live/waiting status) resolves through `channels.*`; the caller supplies the
+// already-localized lead-in, steps and waiting label for its channel.
 
-function CopyChip({ value }: { value: string }) {
+export function CopyChip({ value }: { value: string }) {
+  const t = useTranslations("channels");
   const [copied, setCopied] = useState(false);
   return (
     <span className="inline-flex items-center gap-1.5">
@@ -28,10 +34,10 @@ function CopyChip({ value }: { value: string }) {
             })
             .catch(() => undefined)
         }
-        aria-label="Copy"
+        aria-label={t("copy")}
         className="focus-ring inline-flex items-center gap-1 rounded-md border border-stone-200 bg-white px-1.5 py-0.5 text-xs font-semibold text-ink hover:border-coral/40"
       >
-        {copied ? <Check size={12} /> : <Copy size={12} />} {copied ? "Copied" : "Copy"}
+        {copied ? <Check size={12} /> : <Copy size={12} />} {copied ? t("copied") : t("copy")}
       </button>
     </span>
   );
@@ -45,8 +51,8 @@ export function SetupGuide({
   lead,
   clients,
   stepsFor,
-  liveLabel = "Receiving",
-  waitingLabel = "Waiting for the first inbound…",
+  liveLabel,
+  waitingLabel,
   footnote,
 }: {
   endpoint: string;
@@ -56,9 +62,12 @@ export function SetupGuide({
   clients: GuideClient[];
   stepsFor: (client: string, endpointNode: ReactNode) => ReactNode[];
   liveLabel?: string;
-  waitingLabel?: string;
+  /** Channel-specific "nothing has arrived yet" line — required so the honest
+   *  waiting state can never render blank. */
+  waitingLabel: string;
   footnote?: ReactNode;
 }) {
+  const t = useTranslations("channels");
   const reduced = useReducedMotion();
   const [client, setClient] = useState(clients[0]?.value ?? "");
   return (
@@ -69,7 +78,7 @@ export function SetupGuide({
         </p>
         {live ? (
           <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-moss">
-            <Radio size={14} aria-hidden /> {liveLabel}
+            <Radio size={14} aria-hidden /> {liveLabel ?? t("guide.live")}
           </span>
         ) : (
           <span className="text-sm text-steel">{waitingLabel}</span>
@@ -77,7 +86,7 @@ export function SetupGuide({
       </div>
 
       <div className="mt-3">
-        <SegmentedControl label="Setup for" value={client} onChange={setClient} options={clients} />
+        <SegmentedControl label={t("guide.setupFor")} value={client} onChange={setClient} options={clients} />
       </div>
 
       <AnimatePresence mode="wait" initial={false}>

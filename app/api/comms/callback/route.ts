@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { recordOutbox } from "@/app/_lib/db";
+import { hasOutboxSendFor, recordOutbox } from "@/app/_lib/db";
 import { isBounceOutcome } from "@/app/_lib/comms-status";
 import { jsonError, jsonOk, safeJsonError } from "@/app/_lib/api-response";
 import {
@@ -93,6 +93,18 @@ export async function POST(request: NextRequest) {
     }
     const recipient =
       typeof body.recipient === "string" && body.recipient.trim() ? body.recipient.trim() : "(relay callback)";
+    // ORPHAN RECEIPTS (callback-unblocked): (ref, kind) is the ONLY key a receipt
+    // carries, and the route used to validate it as merely non-empty — so a receipt
+    // naming a pair kp never sent (an integrator on a different ref scheme, or a kind
+    // we don't emit) was stored as truth and then displayed NOWHERE, because
+    // deriveCommsView drops every bounce row that folds onto no send. That is a silent
+    // integration failure: the relay reads 200 {recorded:true} while nothing lands.
+    // Now the mismatch is answered on the FIRST call. The receipt is still stored —
+    // append-only, and its orphan state is DERIVED (comms-view.ts), not frozen into a
+    // column, so it self-heals into a normal fold if the send shows up out of order —
+    // and comms-view surfaces it in the Comms Center's actionable set instead of
+    // dropping it.
+    const matched = hasOutboxSendFor(ref, kind);
     recordOutbox({
       recipient,
       subject: "Delivery receipt",
@@ -102,6 +114,7 @@ export async function POST(request: NextRequest) {
       status: "bounced",
       ref,
     });
+    if (!matched) return jsonOk({ recorded: false, reason: "no_matching_send", stored: true, outcome });
     return jsonOk({ recorded: true, outcome });
   } catch (error) {
     return safeJsonError(error, "api:comms:callback", "OUTREACH_FAILED");

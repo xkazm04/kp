@@ -14,7 +14,14 @@ import { buildUrl } from "@/app/features/shell/tabs";
 //
 // Self-contained: owns its own drafts/sourcing state and live-refreshes itself,
 // so JobsTab just drops it in. Renders nothing when there are no drafts.
-export function DraftsPanel() {
+//
+// onPublished (optional — the panel still works standalone without it) closes the
+// surface-agreement gap: going live from HERE used to refresh only this panel, so
+// the very same role in the table two lines below kept its DRAFT badge, the stat
+// chips stayed stale, and the "open only" filter went on hiding a role that was now
+// live. The modal path already had the fix pair (patchJobStatus + reload); this hands
+// the owner the same hook so both publish surfaces agree instantly.
+export function DraftsPanel({ onPublished }: { onPublished?: (jobId: string) => void } = {}) {
   const t = useTranslations("jobs.drafts");
   const router = useRouter();
   const search = useSearchParams();
@@ -55,6 +62,10 @@ export function DraftsPanel() {
         });
       }
       loadDrafts();
+      // The role IS live now (both the warn and ok branches above reached a 2xx
+      // /publish) — tell the owner so the table row, the badge and the stat chips
+      // stop disagreeing with this panel.
+      onPublished?.(id);
     } catch (e) {
       setDraftNote({ text: e instanceof Error ? e.message : t("sourcingFailed"), tone: "warn" });
     } finally {

@@ -152,9 +152,14 @@ export type Allowance = { allowed: boolean; remaining: number | null; reason?: "
 
 /** Ask before spending. Unlimited meters always allow; otherwise allowance =
  *  included remainder + credit balance. Callers degrade to deterministic mode
- *  when not allowed — never hard-block. */
-export function meterAllowance(meter: Meter, now: Date = new Date()): Allowance {
-  const overview = meterOverview(meter, entitledPlan(getBillingState(), now), now);
+ *  when not allowed — never hard-block.
+ *
+ *  `workspace` scopes the billing_state read to the asking tenant, exactly as
+ *  meterGate does (enforce.ts) — omitted (or the default workspace) it reads the
+ *  same row it always read, so the single-tenant path is byte-identical. Without
+ *  it every tenant's degrade switch was decided by the DEFAULT workspace's plan. */
+export function meterAllowance(meter: Meter, now: Date = new Date(), workspace?: string): Allowance {
+  const overview = meterOverview(meter, entitledPlan(getBillingState(workspace), now), now);
   if (overview.remaining === null) return { allowed: true, remaining: null };
   if (overview.remaining > 0) return { allowed: true, remaining: overview.remaining };
   return { allowed: false, remaining: 0, reason: "limit_reached" };

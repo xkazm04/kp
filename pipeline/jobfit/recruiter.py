@@ -13,7 +13,15 @@ from typing import Any
 
 from . import weight_proposal
 from .jobs import Job
-from .matching import _EARLY_CAREER, MatchCandidate, candidate_assumptions, fairness_matrix, ko_filter, score_job
+from .matching import (
+    _EARLY_CAREER,
+    MatchCandidate,
+    candidate_assumptions,
+    embedding_texts_for,
+    fairness_matrix,
+    ko_filter,
+    score_job,
+)
 
 
 def fairness_track(archetype: str) -> str:
@@ -54,6 +62,16 @@ def rank_candidates_for_job(
 
     ``embedder`` is the opt-in embedding bridge for the personal/motivation
     dimension (matching.score_job); omitted = the deterministic default."""
+    if embedder is not None:
+        # ONE embedding round-trip for the whole pool instead of two per candidate:
+        # every text score_job is about to embed is known upfront, so warm the
+        # per-provider cache in a single batched call and let the per-candidate
+        # semantic_overlap calls below hit it. Pure plumbing — prewarm only fills a
+        # cache _cached_embed would otherwise fill one text at a time, and it is
+        # fail-open, so a failing/absent provider degrades exactly as before.
+        from .embedding_bridge import prewarm
+
+        prewarm((text for _cid, cand in candidates for text in embedding_texts_for(cand, job)), embedder)
     rows: list[dict[str, Any]] = []
     for candidate_id, candidate in candidates:
         passed, reasons = ko_filter(candidate, job)

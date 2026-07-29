@@ -1,7 +1,5 @@
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
-import os from "node:os";
-import path from "node:path";
 import fs from "node:fs";
 import { registerHooks } from "node:module";
 import { fileURLToPath } from "node:url";
@@ -32,11 +30,17 @@ registerHooks({
   },
 });
 
-// Point the store at a throwaway DB BEFORE importing it: db-path reads KP_DB_PATH
-// at module load, and the store opens its connection lazily. node --test isolates
-// each file in its own process, so this can't leak to the pure tests.
-const TMP = path.join(os.tmpdir(), `kp-schedule-store-test-${process.pid}.sqlite`);
-process.env.KP_DB_PATH = TMP;
+// Point the store at a throwaway DB BEFORE importing it: db-path reads KP_DB_PATH at
+// module load (DB_PATH is frozen then), so this MUST stay the first project import;
+// the store opens its connection lazily.
+//
+// It used to be a hand-rolled `os.tmpdir()/kp-schedule-store-test-${process.pid}.sqlite`.
+// `--test-isolation=process` gives each FILE a fresh process, but the OS RECYCLES pids:
+// a later run drawing a pid this file used before re-opens that run's leftover database
+// and inherits its committed invites/booked slots (see 7c63692, the billing-suite flake).
+// unit-db.ts is the repo-wide fix: a mkdtemp'd run directory (unique by construction,
+// never pid-derived), a liveness-gated sweep of abandoned dirs, and cleanupUnitDb().
+const { cleanupUnitDb, UNIT_DB_PATH: TMP } = await import("./testing/unit-db.ts");
 
 const {
   createScheduleInvite,
@@ -66,15 +70,10 @@ function makeConfirmed(slotAt: string, slot = slotAt): string {
   return inv.token;
 }
 
-after(() => {
-  for (const f of [TMP, `${TMP}-wal`, `${TMP}-shm`]) {
-    try {
-      fs.rmSync(f, { force: true });
-    } catch {
-      /* locked / absent — disposable temp, process exits next */
-    }
-  }
-});
+// Closes the memoized main connection and removes this run's temp dir. The store's own
+// isolated handle has no close API, so on Windows the delete can fail — the fixture's
+// liveness-gated sweep reclaims the dir on a later run instead.
+after(cleanupUnitDb);
 
 // --- Direction 1: terminal state machine (decline / no_show / expired) ----------
 

@@ -1,7 +1,5 @@
 import { test, beforeEach, after } from "node:test";
 import assert from "node:assert/strict";
-import os from "node:os";
-import path from "node:path";
 import fs from "node:fs";
 import { registerHooks } from "node:module";
 import { fileURLToPath } from "node:url";
@@ -34,11 +32,18 @@ registerHooks({
 });
 
 // Point every store at a throwaway DB BEFORE importing offers-store: db-path reads
-// KP_DB_PATH at module load. markEntryStatus opens its connection lazily, so the
-// override is in force by the time it first runs. node --test isolates each test
-// file in its own process, so this env mutation can't leak to the pure tests.
-const TMP = path.join(os.tmpdir(), `kp-offers-store-test-${process.pid}.sqlite`);
-process.env.KP_DB_PATH = TMP;
+// KP_DB_PATH at module load (DB_PATH is frozen then), so this MUST stay the first
+// project import. markEntryStatus opens its connection lazily, so the override is in
+// force by the time it first runs.
+//
+// It used to be a hand-rolled `os.tmpdir()/kp-offers-store-test-${process.pid}.sqlite`.
+// `--test-isolation=process` gives each FILE a fresh process, but the OS RECYCLES pids:
+// a later run drawing a pid this file used before re-opens that run's leftover database
+// and inherits its committed state (see 7c63692, the billing-suite flake). unit-db.ts is
+// the repo-wide fix: a mkdtemp'd run directory (unique by construction, never
+// pid-derived), a liveness-gated sweep of abandoned dirs, and cleanupUnitDb() to remove
+// our own.
+const { cleanupUnitDb, UNIT_DB_PATH: TMP } = await import("./testing/unit-db.ts");
 
 const { markEntryStatus } = await import("./offers-store.ts");
 
@@ -89,18 +94,10 @@ beforeEach(() => {
   ]);
 });
 
-after(() => {
-  // Best-effort: the store's connection is still open (no close hook); on Windows an
-  // open SQLite file can't be unlinked, so swallow the error — the temp file is
-  // disposable and the process exits next.
-  for (const f of [TMP, `${TMP}-wal`, `${TMP}-shm`]) {
-    try {
-      fs.rmSync(f, { force: true });
-    } catch {
-      /* file locked / absent — fine */
-    }
-  }
-});
+// Best-effort: closes the memoized main connection and removes this run's temp dir.
+// The store's own handle has no close API, so on Windows the delete can fail — the
+// fixture's liveness-gated sweep reclaims the dir on a later run instead.
+after(cleanupUnitDb);
 
 test("transitions a live, mid-offer entry to declined (the legit path)", () => {
   const ok = markEntryStatus("e_offer", "declined");

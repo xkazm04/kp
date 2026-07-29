@@ -9,27 +9,25 @@
 //   npm run test:unit
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
-import os from "node:os";
-import path from "node:path";
-import fs from "node:fs";
 import Database from "better-sqlite3";
 
 // Point every store connection at a throwaway DB BEFORE importing them: db-path reads
-// KP_DB_PATH at module load. node --test isolates each file in its own process.
-const TMP = path.join(os.tmpdir(), `kp-rediscovery-alert-story-${process.pid}.sqlite`);
-process.env.KP_DB_PATH = TMP;
+// KP_DB_PATH at module load (DB_PATH is frozen then), so this MUST stay the first
+// project import.
+//
+// It used to be a hand-rolled `os.tmpdir()/kp-rediscovery-alert-story-${process.pid}.sqlite`.
+// `--test-isolation=process` gives each FILE a fresh process, but the OS RECYCLES pids:
+// a later run drawing a pid this file used before re-opens that run's leftover database
+// and inherits its committed alert rows (see 7c63692, the billing-suite flake). unit-db.ts is the
+// repo-wide fix: a mkdtemp'd run directory (unique by construction, never pid-derived),
+// a liveness-gated sweep of abandoned dirs, and cleanupUnitDb().
+const { cleanupUnitDb, UNIT_DB_PATH: TMP } = await import("./testing/unit-db.ts");
 
 const { recordRediscoveryAlerts, listRediscoveryAlerts } = await import("./rediscovery-alert-store.ts");
 
-after(() => {
-  for (const f of [TMP, `${TMP}-wal`, `${TMP}-shm`]) {
-    try {
-      fs.rmSync(f, { force: true });
-    } catch {
-      /* file locked / absent — fine */
-    }
-  }
-});
+// Closes the memoized main connection and removes this run's temp dir; a still-open
+// isolated handle only means the fixture's sweep reclaims the dir on a later run.
+after(cleanupUnitDb);
 
 test("record + list round-trips the prior stage and depth", () => {
   const added = recordRediscoveryAlerts("jobA", "Alpha Role", [

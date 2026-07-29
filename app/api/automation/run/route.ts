@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { AutomationPassError, isPassInFlight, runAutomationPass } from "@/app/_lib/automation-pass";
-import { recordRun } from "@/app/_lib/scheduler-store";
+import { decisionsForWorkspace, recordRun } from "@/app/_lib/scheduler-store";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
+import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 
 
 // Task 7 — deterministic policy pass over all active entries. LLM-free.
@@ -23,10 +24,24 @@ export async function POST(request: Request) {
   // in-flight pass, whoever started it records it — never twice.
   const joined = isPassInFlight();
   const startedAt = new Date().toISOString();
+  // TENANCY (phase 1): the sweep is global by design and the run log keeps the FULL
+  // decision list (it is the installation's audit record) — but the RESPONSE only
+  // ever hands this caller their own team's rows, so a preview or a committed pass
+  // can't ship another tenant's candidate labels and rejection reasons to the
+  // browser. `summary` stays the global count of what the pass actually did; it is
+  // labeled as such by `decisionsWorkspace` + `workspaceDecisionCount` beside it.
+  const workspace = await currentWorkspace();
   try {
     const { summary, decisions } = await runAutomationPass({ dryRun });
     if (!dryRun && !joined) recordRun({ status: "ok", summary, decisions, startedAt, trigger: "manual" });
-    return NextResponse.json({ summary, decisions, dryRun });
+    const visible = decisionsForWorkspace(decisions, workspace) as typeof decisions;
+    return NextResponse.json({
+      summary,
+      decisions: visible,
+      decisionsWorkspace: workspace,
+      workspaceDecisionCount: visible.length,
+      dryRun,
+    });
   } catch (error) {
     const status = error instanceof AutomationPassError ? error.status : 500;
     const message = error instanceof Error ? error.message : "Automation pass failed.";

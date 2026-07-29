@@ -1,5 +1,6 @@
 "use client";
 
+import { CircleDollarSign } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { RATING_MAX } from "@/app/_lib/format";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
@@ -30,6 +31,20 @@ export function ResultView({ result, roleFamily }: { result: Result; roleFamily?
       ? tApplied(appliedKey)
       : APPLIED_LABEL[result.applied]
     : undefined;
+
+  // UNPRICED DRAFTS (draft_offer's FAIL SAFE, pipeline/jobfit/automation.py) — the exact
+  // twin of the AiReviewCard case fixed in c693303. When the active market configures no
+  // seniority band AND the posting carries none, the drafter deliberately proposes NO
+  // figure: recommended / salaryMin / salaryMax come back null TOGETHER, the candidate
+  // letter names no number, and the draft routes to the human offer_review gate precisely
+  // so a recruiter sets the real one. This view used to pull those nulls through
+  // `Number(x ?? 0).toLocaleString()` — a literal "0" headline, a 0–0 band meter with the
+  // marker pinned at the floor, and a `?? "CZK"` default that additionally mislabelled the
+  // currency for a non-CZK market. So: no figure, no meter and no unit unless the payload
+  // genuinely carries them.
+  const unpriced = result.task === "offer" && d.recommended == null;
+  const hasBand = result.task === "offer" && d.salaryMin != null && d.salaryMax != null;
+
   return (
     <div className="animate-fade-in rounded-lg border border-stone-200 bg-white p-3 shadow-panel">
       <div className="mb-2 flex items-center justify-between">
@@ -86,25 +101,53 @@ export function ResultView({ result, roleFamily }: { result: Result; roleFamily?
 
       {result.task === "offer" && (
         <div className="space-y-2 text-sm text-ink">
-          <div className="flex items-baseline gap-2">
-            <span className="font-serif text-2xl text-ink">{Number(d.recommended ?? 0).toLocaleString()}</span>
-            <span className="text-steel">{String(d.currency ?? "CZK")} {t("perMonth")}</span>
-          </div>
-          <div className="h-1.5 overflow-hidden rounded-full bg-stone-200">
-            <div
-              className="h-full rounded-full bg-moss"
-              style={{
-                width: `${Math.max(4, Math.min(100, ((Number(d.recommended) - Number(d.salaryMin)) / Math.max(1, Number(d.salaryMax) - Number(d.salaryMin))) * 100))}%`,
-              }}
-            />
-          </div>
-          <p className="text-sm text-steel">
-            {t("band", {
-              min: Number(d.salaryMin ?? 0).toLocaleString(),
-              max: Number(d.salaryMax ?? 0).toLocaleString(),
-              currency: String(d.currency ?? ""),
-            })}
-          </p>
+          {unpriced ? (
+            // The exact twin of the AiReviewCard treatment (c693303), same chip grammar:
+            // no figure was proposed, so name that instead of formatting a zero. No
+            // currency and no "/ mo" either — both would describe an amount that
+            // doesn't exist.
+            <span
+              className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-meta font-semibold text-amber-800"
+              title={t("unpricedTitle")}
+            >
+              <CircleDollarSign size={11} aria-hidden /> {t("unpricedAmount")}
+            </span>
+          ) : (
+            <div className="flex items-baseline gap-2">
+              <span className="font-serif text-2xl text-ink">{Number(d.recommended).toLocaleString()}</span>
+              {/* The server deliberately refuses to fabricate a currency (draft_offer
+                  labels the offer in the ACTIVE market's currency), so this must not
+                  default to "CZK" — that mislabels every non-CZK market. Absent
+                  currency renders the bare amount and its period. The JSX shape is
+                  otherwise untouched, so a priced draft (which always carries a
+                  currency) emits character-for-character the markup it did before. */}
+              <span className="text-steel">{String(d.currency ?? "")} {t("perMonth")}</span>
+            </div>
+          )}
+          {/* The meter and the band caption are a POSITION-WITHIN-A-BAND readout; with no
+              band they'd be a 0–0 rail with the marker pinned at the floor. Rendered only
+              when the draft actually carries min AND max. */}
+          {hasBand ? (
+            <>
+              <div className="h-1.5 overflow-hidden rounded-full bg-stone-200">
+                <div
+                  className="h-full rounded-full bg-moss"
+                  style={{
+                    width: `${Math.max(4, Math.min(100, ((Number(d.recommended) - Number(d.salaryMin)) / Math.max(1, Number(d.salaryMax) - Number(d.salaryMin))) * 100))}%`,
+                  }}
+                />
+              </div>
+              <p className="text-sm text-steel">
+                {t("band", {
+                  min: Number(d.salaryMin).toLocaleString(),
+                  max: Number(d.salaryMax).toLocaleString(),
+                  currency: String(d.currency ?? ""),
+                })}
+              </p>
+            </>
+          ) : (
+            <p className="rounded-md border border-dashed border-stone-300 px-2 py-1.5 text-sm text-steel">{t("noBand")}</p>
+          )}
           {/* Phase 2 — the cross-company market band for this role, alongside the
               candidate's own analyzed band, so the recruiter sets comp against the market. */}
           {roleFamily ? <SalaryBenchmarkHint roleFamily={roleFamily} /> : null}

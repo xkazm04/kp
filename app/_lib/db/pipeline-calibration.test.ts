@@ -91,10 +91,15 @@ test("the calibration route reads the acting producer by default and labels what
     /pipelineCalibrationPairs\(\s*(ws|await currentWorkspace\(\))\s*\)/,
     "the route must read the pipeline (acting-score) producer, workspace-scoped (P1)"
   );
-  assert.match(
-    routeSrc,
-    /params\.get\("source"\)\s*===\s*"analysis"\s*\?\s*"analysis"\s*:\s*"pipeline"/,
-    "pipeline is the default; the analysis pairing is opt-in"
-  );
+  // Source resolution is now three-way (UAT KAT-L1-001): pipeline is still the
+  // default, analysis stays opt-in, and holdout — the calibration clean arm — is the
+  // added opt-in. The default must remain pipeline for anything that isn't an
+  // explicit analysis/holdout request.
+  assert.match(routeSrc, /rawSource\s*===\s*"analysis"\s*\?\s*"analysis"/, "analysis stays opt-in");
+  assert.match(routeSrc, /rawSource\s*===\s*"holdout"\s*\?\s*"holdout"\s*:\s*"pipeline"/, "holdout is opt-in; pipeline is the default");
   assert.ok(routeSrc.includes("measures: source"), "the response names which score the curve measures");
+  // The clean arm must actually be wired: the holdout source reads only the spared
+  // entries, and every source's label leakage is disclosed in the payload.
+  assert.ok(routeSrc.includes("heldOutEntryIds(ws)"), "the holdout source restricts to spared entries");
+  assert.ok(routeSrc.includes("leakage: calibrationLeakage(source)"), "the response discloses label leakage per source");
 });

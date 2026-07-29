@@ -4,15 +4,33 @@ import { getEntryIdByStatusToken } from "@/app/_lib/application-status-store";
 import { candidateStatusFor } from "@/app/_lib/application-status";
 import { isRelayConfigured } from "@/app/_lib/comms-relay";
 import { jsonOk, safeJsonError } from "@/app/_lib/api-response";
+import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
+
+// Abuse containment for the last PUBLIC token route that had none — the offer,
+// scheduling and onboarding token routes all throttle already. The token is a
+// strong CSPRNG capability, so this is not guessing prevention: it caps what a
+// single link-holder can extract from the DB per minute.
+//
+// Deliberately GENEROUS. StatusClient polls every 45s (~1.3 req/min), refetches
+// on tab focus/visibility, and offers a manual Refresh — 60/min leaves an order
+// of magnitude of headroom, so normal use (and a candidate impatiently mashing
+// Refresh) can never meet the limiter. Keyed by token AND client so the untrusted-
+// proxy fallback (every caller shares one client key — see resolveClientIp) still
+// gives each candidate their own bucket rather than one shared global cap.
+const STATUS_RATE_LIMIT = { limit: 60, windowMs: 60_000 };
 
 
 // Public, token-gated candidate application status (idea-e76a6fb2). Returns a
 // candidate-safe projection only — the friendly status, the role title/company,
 // and when it last changed. Never the internal entry id, candidate name, score,
 // archetype, or reasoning.
-export async function GET(_request: NextRequest, context: { params: Promise<{ token: string }> }) {
+export async function GET(request: NextRequest, context: { params: Promise<{ token: string }> }) {
   try {
     const { token } = await context.params;
+    // Throttle BEFORE the store reads, so a flood is rejected cheaply.
+    if (!rateLimit(`status:${clientIpFrom(request.headers)}:${token}`, STATUS_RATE_LIMIT)) {
+      return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+    }
     const entryId = getEntryIdByStatusToken(token);
     if (!entryId) return NextResponse.json({ error: "not found" }, { status: 404 });
     const entry = getPipelineEntry(entryId);

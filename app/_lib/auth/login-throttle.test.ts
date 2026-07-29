@@ -1,8 +1,5 @@
 import { test, beforeEach, after } from "node:test";
 import assert from "node:assert/strict";
-import os from "node:os";
-import path from "node:path";
-import fs from "node:fs";
 import Database from "better-sqlite3";
 
 // bug-ui-scan-2026-07-09 #4 — the persisted login throttle behind /api/auth/login.
@@ -23,10 +20,18 @@ import Database from "better-sqlite3";
 
 // Point every isolated store at a throwaway DB BEFORE importing the store: db-path
 // reads KP_DB_PATH at module load, and login-throttle opens its connection lazily.
-// node --test isolates each test file in its own process, so this env mutation is
-// local to this file.
-const TMP = path.join(os.tmpdir(), `kp-login-throttle-test-${process.pid}.sqlite`);
-process.env.KP_DB_PATH = TMP;
+// This MUST stay the first project import.
+//
+// It used to be a hand-rolled `os.tmpdir()/kp-login-throttle-test-${process.pid}.sqlite`.
+// `--test-isolation=process` gives each FILE a fresh process, but the OS RECYCLES pids: a
+// later run drawing a pid this file had used before re-opened that run's leftover database
+// and inherited its committed login_attempts rows (the after() unlink is best-effort and
+// silently loses to the store's still-open handle on Windows), so the count-based assertions
+// could start from a non-empty bucket. unit-db.ts is the repo-wide fix: a mkdtemp'd run
+// directory (unique by construction, never pid-derived), a liveness-gated sweep of abandoned
+// dirs, and cleanupUnitDb() to remove our own.
+const { cleanupUnitDb, UNIT_DB_PATH: TMP } = await import("../testing/unit-db.ts");
+after(cleanupUnitDb);
 
 const { isThrottled, recordFailedAttempt, clearFailures } = await import("./login-throttle.ts");
 
@@ -36,16 +41,6 @@ const T0 = 1_700_000_000_000; // fixed base "now" so tests are deterministic
 // Fresh state per test — the store persists across tests in one process.
 beforeEach(() => {
   for (const k of ["k:brute", "k:reset", "k:legit", "acct:a", "acct:b", "ip:x"]) clearFailures(k);
-});
-
-after(() => {
-  for (const f of [TMP, `${TMP}-wal`, `${TMP}-shm`]) {
-    try {
-      fs.rmSync(f, { force: true });
-    } catch {
-      /* locked/absent on Windows — disposable, process exits next */
-    }
-  }
 });
 
 test("under the limit is admitted; the Nth failure inside the window trips the N+1", () => {

@@ -17,6 +17,7 @@ function row(p: Partial<OutboxRow> & { id: string; status: OutboxRow["status"]; 
     kind: "offer",
     channel: "webhook",
     ref: "ent_1",
+    failureDetail: null,
     ...p,
   };
 }

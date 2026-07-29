@@ -68,6 +68,23 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
     const webhook = getActiveChannelWebhook(token);
     if (!webhook) return NextResponse.json({ error: "Unknown webhook." }, { status: 404 });
 
+    // LIVENESS, stamped here and ONLY here (inbound-setup-honesty). The receipt is the
+    // Channels tab's "is anything actually reaching this receiver?" signal — the
+    // "Received" column and the row's Listening badge — and db/channels.ts has always
+    // documented it as stamped for ANY POST. It wasn't: it was stamped only after a
+    // TERMINAL intake outcome, so every 400/410/413/422/429 and every duplicate
+    // returned unstamped. A mis-mapped Zapier flow 422-ing on every single lead was
+    // therefore indistinguishable from a receiver nobody ever connected — the exact
+    // case the signal exists to tell apart.
+    //
+    // The boundary is AUTHENTICATION: a request that presented a valid, unrevoked token
+    // proves something is wired and talking to this receiver, whatever happens to its
+    // payload next. Before this line there is no authenticated caller to attribute a
+    // receipt to (an unknown/revoked token, or a flood shed by the rate limiter), so
+    // those stamp nothing. accepted_count remains the honest LEAD metric — the two
+    // counters answer different questions and never merge.
+    recordChannelWebhookReceipt(token);
+
     const job = getJob(webhook.jobId);
     if (!job) return NextResponse.json({ error: "The webhook's role no longer exists." }, { status: 404 });
     if (!isJobOpenForApplications(getJobStatus(job.id))) {
@@ -142,9 +159,9 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
         // which is usually the same but authoritative here for a corpus-bound hook).
         workspaceId: webhook.workspaceId,
       });
-      recordChannelWebhookReceipt(token);
       // Stamp an ACCEPTED lead only for a genuinely new candidate (created), never a
       // duplicate re-send — so the Channels "leads" metric counts real candidates.
+      // (The liveness receipt was already stamped at authentication, above.)
       if (outcome.created) recordChannelWebhookAccepted(token);
       return NextResponse.json({
         result: "accepted",
@@ -200,12 +217,13 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
     }
 
     // Request-level idempotency: a provider retry or double-fire of the SAME valid
-    // delivery must not record a second receipt (inflating the Channels liveness
-    // signal), pile up another `re_applied`, or re-dispatch the acknowledgement. Claimed
-    // ONLY now that the role is open + the payload is valid, so the claim brackets exactly
-    // the real side-effects window (intakeLead + the receipt + the accepted stamp). A held
-    // key short-circuits to an idempotent 200 (intakeLead also dedupes the entry by email);
-    // released in the catch if intakeLead throws, so a genuine retry re-runs.
+    // delivery must not pile up another `re_applied`, re-dispatch the acknowledgement, or
+    // double-count the ACCEPTED lead. Claimed ONLY now that the role is open + the payload
+    // is valid, so the claim brackets exactly the real side-effects window (intakeLead +
+    // the accepted stamp). A held key short-circuits to an idempotent 200 (intakeLead also
+    // dedupes the entry by email); released in the catch if intakeLead throws, so a genuine
+    // retry re-runs. It does NOT suppress the liveness receipt — that is stamped at
+    // authentication and deliberately counts raw authenticated POSTs, retries included.
     const idemKey = `inbound:${token}:${webhookIdempotencyKey(
       rawBody,
       request.headers.get("idempotency-key") ?? request.headers.get("x-idempotency-key"),
@@ -241,13 +259,6 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
       // lead-intake appends the entry's opaque lead token before the ack goes out.
       enrichLink: `${publicBaseUrl(new URL(request.url).origin)}/apply/${job.id}?lang=${locale}`,
     });
-
-    // Record the receipt only AFTER intake reaches a terminal outcome (accepted OR
-    // declined), never before: a thrown intake (transient SQLite contention, a translator
-    // import error, …) records no receipt and releases the claim, so the provider's retry
-    // re-runs intake WITHOUT inflating received_count on every failed attempt. A true
-    // duplicate never reaches here (the held claim 200s above), so it's counted once.
-    recordChannelWebhookReceipt(token);
 
     if (outcome.result === "declined") {
       return NextResponse.json({ result: "declined", code: "knockout_failed", failed: lead.failedKoIds });

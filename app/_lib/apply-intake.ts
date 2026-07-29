@@ -279,6 +279,34 @@ export function trimSeededSteps<T extends { id: string }>(
 }
 
 /**
+ * Identity of the SCRIPT a saved draft was recorded against (idea-939d96e9).
+ *
+ * A draft stores answers keyed by step id plus a positional `idx` into the step
+ * array — both of which are meaningless against a DIFFERENT script. The script
+ * is rebuilt per visit from the live job and the request locale, so between
+ * abandoning and resuming it can legitimately change:
+ *   - the job was edited (a `ko_mode`/`ko_lang` gate appears or disappears —
+ *     they're conditional on workMode/languages), or its archetype options moved
+ *     (the registry changed, or the count crossed MIN_ARCHETYPE_OPTIONS_TO_OFFER);
+ *   - the candidate switched language, so every prompt — and therefore the whole
+ *     transcript the draft replays — is in the wrong one.
+ *
+ * A desynced restore is not cosmetic: `idx` lands the candidate on a different
+ * question than the one their transcript shows, and a KO gate that shifted
+ * position can be skipped positionally — the strict server verdict then declines
+ * a qualified applicant for a gate they were never asked. So the draft carries
+ * this fingerprint and a mismatch discards it (starting fresh is the existing,
+ * always-safe path — one restart beats a silent wrong decline).
+ *
+ * Deliberately the ids + locale and nothing else: prompt COPY changing (a
+ * reworded question) must not throw away a candidate's work, but a step
+ * appearing, disappearing, or moving must.
+ */
+export function applyDraftFingerprint(stepIds: readonly string[], locale: string): string {
+  return `${locale}|${stepIds.join(",")}`;
+}
+
+/**
  * Reconcile a restored in-progress draft (idea-939d96e9, localStorage) with an
  * incoming lead-enrichment prefill (the ?lead= hand-off). The invariant this
  * pins: the prefill's SEEDED keys — name/email and, critically, the KO gates the
