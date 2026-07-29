@@ -119,7 +119,7 @@ test("the automation schedule + run routes scope their decision reads to the cal
 // commit applies the pass installation-wide. These guards pin the consumption, and
 // that it stays conditional so a single-tenant install renders exactly as before.
 test("the automation UI consumes the tenancy labels the routes ship", () => {
-  const modal = read("../features/sub_pipeline/PassPreviewModal.tsx");
+  const modal = read("../features/hiring/pipeline/PassPreviewModal.tsx");
   assert.match(modal, /workspaceDecisionCount/, "the preview must read the per-tenant decision count");
   assert.match(modal, /mine !== total/, "the scope line must render ONLY when the tenant's count differs from the run's");
   assert.match(modal, /t\("previewScope"/, "…and say the ratio in localized copy");
@@ -131,10 +131,14 @@ test("the automation UI consumes the tenancy labels the routes ship", () => {
   );
   assert.match(modal, /t\("previewApplyGlobal"/, "…relabeled with the global change count so the click can't read as 'apply my 0'");
 
-  const kit = read("../features/simulation/controlCenterKit.ts");
+  const kit = read("../features/shell/simulation/simControlCenterKit.ts");
   assert.match(kit, /workspaceDecisionCount/, "the dry-run fetch must forward the label, not drop it");
 
-  const control = read("../features/sub_pipeline/SchedulerControl.tsx");
+  const control =
+    read("../features/hiring/pipeline/SchedulerControl.tsx") +
+    read("../features/hiring/pipeline/SchedulerRunHistory.tsx") +
+    read("../features/hiring/pipeline/SchedulerToolbar.tsx") +
+    read("../features/hiring/pipeline/SchedulerSummaryBadges.tsx");
   assert.match(control, /run\.decisionCount !== run\.summary\.evaluated/, "the run-history caption must be conditional on a real gap");
   assert.match(control, /t\("runScope"/, "…and localized");
   assert.match(control, /scheduleScope === "global"/, "the enable toggle must caption its installation-wide blast radius");
