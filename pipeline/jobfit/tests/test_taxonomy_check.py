@@ -225,6 +225,65 @@ class LiveNonTechCollisionGateTest(unittest.TestCase):
         corpus = tc.seed_corpus()
         self.assertGreater(len(corpus.word_compacts), 500)
         self.assertGreater(len(corpus.blobs), 100)
+        self.assertEqual(len(corpus.texts), len(corpus.blobs))
+
+
+class LiveCollisionGateTest(unittest.TestCase):
+    """The corpus-collision report is no longer INFORMATIONAL: any collision that is
+    LIVE under the current matcher and not explicitly blessed fails the build.
+
+    The static scan (above) answers "could this surface substring-hit the corpus";
+    the gate answers the consequential question "does ``_text_contains`` actually
+    award it". The word-grid guard neutralizes the interior/cross-word classes, so
+    the only live hits left are the three verified-benign separator spellings.
+    """
+
+    def test_every_live_collision_is_on_the_allow_list(self) -> None:
+        taxonomy = tc.load_taxonomy()
+        corpus = tc.seed_corpus()
+        gated = tc.gate_collisions(tc.scan_corpus_collisions(taxonomy, corpus), corpus)
+        self.assertEqual(
+            gated, [],
+            "live false-credit collision(s) — fix the surface or bless it in "
+            "BENIGN_COMPACT_SURFACES:\n  " + "\n  ".join(c.describe() for c in gated),
+        )
+
+    def test_allow_list_is_not_a_blanket(self) -> None:
+        # Non-vacuity: the allow-list is three named surfaces, not "everything that
+        # currently collides" — the 10 neutralized ones are fixed, not excused.
+        self.assertEqual(
+            tc.BENIGN_COMPACT_SURFACES,
+            frozenset({"node.js", "ci/cd", "cross-selling"}),
+        )
+
+    def test_gate_fails_on_a_live_false_credit_surface(self) -> None:
+        # Non-vacuity of the GATE itself. The word-grid guard kills interior and
+        # ragged cross-word hits, but an EXACT word-boundary span survives by
+        # design (it is how "nodejs" matches "Node.js") — and that same mechanism
+        # lets "iam" be read out of the prose "I am …". Not allow-listed -> gated.
+        corpus = tc.build_corpus(["I am responsible for access reviews."])
+        terms = [_good_term("iam", match=["iam", "identity and access management"])]
+        coll = tc.scan_corpus_collisions(_tax(terms), corpus, categories=None)
+        self.assertTrue(any(c.surface == "iam" for c in coll), coll)
+        gated = tc.gate_collisions(coll, corpus)
+        self.assertTrue(any(c.surface == "iam" for c in gated), gated)
+
+    def test_prefix_inflection_hit_is_not_gated(self) -> None:
+        # A hazard reported against word A ("pyspark") must not be judged LIVE by an
+        # unrelated benign inflection hit on word B ("ve sparku") — that was a real
+        # false positive while building this gate.
+        corpus = tc.build_corpus(["Vývoj transformací ve sparku nad pyspark joby."])
+        c = tc.Collision("spark", "spark", "spark", "interior", "pyspark")
+        self.assertFalse(tc.collision_is_live(c, corpus))
+
+    def test_cli_exits_clean(self) -> None:
+        import contextlib
+        import io
+
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            rc = tc.main([])
+        self.assertEqual(rc, 0, buf.getvalue())
 
 
 if __name__ == "__main__":

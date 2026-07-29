@@ -246,6 +246,69 @@ def _compact(text: str) -> str:
     return re.sub(r"\W+", "", text, flags=re.UNICODE)
 
 
+# The word runs whose concatenation IS ``_compact(text)`` — ``_compact`` strips
+# every ``\W`` char, so what survives is exactly the ``\w+`` runs, in order.
+_WORD_RUN_RE = re.compile(r"\w+", re.UNICODE)
+
+
+@lru_cache(maxsize=128)
+def _compact_word_grid(text_norm: str) -> tuple[dict[int, int], frozenset[int]]:
+    """Word boundaries of ``text_norm`` expressed in COMPACT coordinates.
+
+    Returns ``(starts, ends)`` where ``starts`` maps each word's start offset in
+    ``_compact(text_norm)`` to that word's end offset, and ``ends`` is the set of
+    all word-end offsets. This is the grid the compact fallback must align to.
+    """
+    starts: dict[int, int] = {}
+    ends: set[int] = set()
+    pos = 0
+    for word in _WORD_RUN_RE.findall(text_norm):
+        starts[pos] = pos + len(word)
+        pos += len(word)
+        ends.add(pos)
+    return starts, frozenset(ends)
+
+
+def _compact_fallback_hit(
+    text_norm: str, compact_text: str, compact_form: str, *, allow_inflection: bool
+) -> bool:
+    """Word-grid-aligned compact match — the false-skill-credit guard.
+
+    The compact fallback exists so a surface written with separators still matches
+    when the text spells it without them ("node.js" -> "node js" -> "nodejs",
+    "ci/cd" -> "cicd", "cross-selling" -> "crossselling"). Unguarded it degenerates
+    into a raw substring test over one giant spaceless blob, which awarded skills
+    nobody claimed: "curiosity" -> ios, "PostgreSQL" -> sql, "upselling" ->
+    selling, "Kubernetes, OpenShift" -> .net + sop.
+
+    The fix keeps the fallback but pins it to the text's word grid: the match must
+    START where a word starts, and END where a word ends. That is precisely the
+    "same concept, spelled without separators" case, and it structurally excludes
+    every interior/cross-word accident above.
+
+    ``allow_inflection`` relaxes only the END condition, and only for a surface
+    that is a single plain token (its compact form equals the surface itself, so
+    the fallback buys nothing but suffix tolerance): the match may then finish
+    inside the word it started, which is the benign Czech-inflection / derivation
+    pattern the fallback also serves ("python" -> "pythonu", "audit" -> "auditor").
+    A separator-bearing surface gets no such relaxation — ".net" ending inside
+    "networking" is always an accident, never an inflection.
+    """
+    starts, ends = _compact_word_grid(text_norm)
+    span = len(compact_form)
+    idx = compact_text.find(compact_form)
+    while idx >= 0:
+        word_end = starts.get(idx)
+        if word_end is not None:
+            end = idx + span
+            if end in ends:
+                return True
+            if allow_inflection and end < word_end:
+                return True
+        idx = compact_text.find(compact_form, idx + 1)
+    return False
+
+
 def _word_boundary_pattern(surface_norm: str, *, flexible_ws: bool) -> "re.Pattern[str] | None":
     """Compile a whole-token matcher for an already-normalized surface form.
 
@@ -304,7 +367,19 @@ def _text_contains(text: str, compact_text: str, surface: str) -> bool:
     # countless unrelated words and would match almost any text — which silently
     # voted software_engineering on every CV via the "c#" term. Such short skills
     # still match precisely through the whole-token branch above.
-    return len(compact_form) >= 3 and compact_form in compact_text
+    #
+    # Beyond the length guard, the fallback is pinned to the text's WORD GRID (see
+    # _compact_fallback_hit) so it can only fire as "the same concept, spelled
+    # without its separators" — never as a raw substring inside/across unrelated
+    # words. Suffix inflection stays allowed for single plain-token surfaces.
+    if len(compact_form) < 3:
+        return False
+    return _compact_fallback_hit(
+        text,
+        compact_text,
+        compact_form,
+        allow_inflection=compact_form == normalized,
+    )
 
 
 def _term_in_text(term: dict[str, Any], text: str, compact_text: str) -> bool:

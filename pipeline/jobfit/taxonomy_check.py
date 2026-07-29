@@ -19,7 +19,9 @@ Run as a CLI::
     python -m pipeline.jobfit.taxonomy_check              # lint + print coverage
     python -m pipeline.jobfit.taxonomy_check --write-report   # regenerate the doc
 
-Exit status is non-zero when the lint finds ERRORS, so it works as a CI gate. The
+Exit status is non-zero when the lint finds ERRORS **or** when a corpus collision is
+LIVE under the current matcher and is not on :data:`BENIGN_COMPACT_SURFACES`, so it
+works as a CI gate for both the taxonomy's shape and its false-credit surface. The
 per-family skill floors in :data:`SKILL_COVERAGE_FLOORS` are asserted by
 ``tests/test_taxonomy_coverage_gate.py`` so coverage can only grow, never silently
 regress.
@@ -35,7 +37,13 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from .taxonomy import ROLE_FAMILIES, ROLE_FAMILY_SET, normalize_text
+from .taxonomy import (
+    ROLE_FAMILIES,
+    ROLE_FAMILY_SET,
+    _text_contains,
+    contains_whole_token,
+    normalize_text,
+)
 
 _DATA_DIR = Path(__file__).resolve().parents[2] / "data"
 TAXONOMY_PATH = _DATA_DIR / "taxonomy.json"
@@ -182,19 +190,25 @@ class Corpus:
 
     word_compacts: frozenset[str]
     blobs: tuple[str, ...]
+    # The normalized source texts, index-aligned with ``blobs``. Kept so the gate can
+    # replay the LIVE matcher (``taxonomy._text_contains``) over the very text a
+    # static hazard was reported against — see :func:`collision_is_live`.
+    texts: tuple[str, ...] = ()
 
 
 def build_corpus(texts: list[str] | tuple[str, ...]) -> Corpus:
     words: set[str] = set()
     blobs: list[str] = []
+    normed: list[str] = []
     for text in texts:
         n = normalize_text(text or "")
         if not n:
             continue
+        normed.append(n)
         blobs.append(_compact(n))
         for w in _CORPUS_WORD_RE.findall(n):
             words.add(w)
-    return Corpus(frozenset(words), tuple(blobs))
+    return Corpus(frozenset(words), tuple(blobs), tuple(normed))
 
 
 def _seed_corpus_texts() -> list[str]:
@@ -242,6 +256,56 @@ class Collision:
         )
 
 
+# Surfaces whose compact fallback DOES fire against the seed corpus and is VERIFIED
+# BENIGN: each is the same concept spelled without its separators, which is exactly
+# what the compact fallback exists for. Anything else that fires live is a false-credit
+# bug and fails the gate — see :func:`gate_collisions`.
+#
+#   node.js  -> "Engineer (Node.js/AI)" tokenizes to node|js; "nodejs" is Node.js.
+#   ci/cd    -> "CI/CD, GitLab CI" tokenizes to ci|cd; "cicd" is CI/CD.
+#   cross-selling -> "cross-selling" tokenizes to cross|selling; "crossselling" is it.
+BENIGN_COMPACT_SURFACES: frozenset[str] = frozenset({"node.js", "ci/cd", "cross-selling"})
+
+
+def collision_is_live(collision: Collision, corpus: Corpus) -> bool:
+    """Does the LIVE matcher actually award ``collision.surface`` on some corpus text
+    purely through the compact fallback?
+
+    :func:`scan_corpus_collisions` is a STATIC hazard scan — it asks whether a
+    surface's compact form appears in the corpus outside a whole-token position. That
+    question is matcher-independent and is what makes the scan useful when authoring
+    new vocabulary. This function asks the consequential one: given
+    ``taxonomy._text_contains`` as it stands, is the hazard actually exploitable? The
+    word-grid guard neutralizes the interior/cross-word classes, so a live hazard now
+    means a genuine false-skill-credit path.
+    """
+    surface_norm = normalize_text(collision.surface)
+    for text, blob in zip(corpus.texts, corpus.blobs):
+        if collision.compact not in blob:
+            continue
+        if contains_whole_token(text, surface_norm):
+            continue  # the precise path already matches here — not a fallback hit
+        if any(w.startswith(collision.compact) for w in _CORPUS_WORD_RE.findall(text)):
+            # Benign prefix inflection/derivation ("ve sparku" -> spark, "auditor" ->
+            # audit): the same concept, which the fallback is meant to catch. Same
+            # exemption the static scan applies — a hazard reported against word A
+            # must not be judged "live" by an unrelated benign hit on word B.
+            continue
+        if _text_contains(text, blob, collision.surface):
+            return True
+    return False
+
+
+def gate_collisions(collisions: list[Collision], corpus: Corpus) -> list[Collision]:
+    """The subset of ``collisions`` that must FAIL the build: live under the current
+    matcher and not on :data:`BENIGN_COMPACT_SURFACES`."""
+    return [
+        c
+        for c in collisions
+        if c.surface not in BENIGN_COMPACT_SURFACES and collision_is_live(c, corpus)
+    ]
+
+
 def _first_cross_word_context(compact_form: str, blobs: tuple[str, ...]) -> str | None:
     for blob in blobs:
         idx = blob.find(compact_form)
@@ -284,9 +348,12 @@ def scan_corpus_collisions(
                 continue
             seen.add(cf)
             # interior/suffix inside a single word (non-prefix occurrence only).
-            interior = next(
+            # ``word_compacts`` is a frozenset, so pick the lexicographically first
+            # offender rather than an arbitrary one — the printed report must be
+            # reproducible run to run.
+            interior = min(
                 (w for w in corpus.word_compacts if cf in w and not w.startswith(cf)),
-                None,
+                default=None,
             )
             if interior is not None:
                 collisions.append(Collision(str(tid), surface, cf, "interior", interior))
@@ -556,17 +623,33 @@ def main(argv: list[str] | None = None) -> int:
     result = lint_taxonomy(taxonomy)
     _print_lint(result)
 
-    # Corpus-collision scan over every skill surface (informational — the live gate
-    # in tests/test_taxonomy_check.py scopes the FAIL to the non-tech families whose
-    # short abbreviations were authored through it; grandfathered tech terms such as
-    # sql-in-postgresql predate the scan).
-    collisions = scan_corpus_collisions(taxonomy)
+    # Corpus-collision scan over every skill surface. The scan itself is a STATIC
+    # hazard report (informational); the GATE is the live subset — hazards the current
+    # matcher would actually act on, minus the verified-benign allow-list. Anything
+    # there is a false-skill-credit path and fails the build.
+    corpus = seed_corpus()
+    collisions = scan_corpus_collisions(taxonomy, corpus)
+    gated = gate_collisions(collisions, corpus)
     if collisions:
         print(f"\nCORPUS COLLISIONS: {len(collisions)} skill surface(s) hit the seed corpus:")
         for c in collisions:
-            print(f"  {c.describe()}")
+            if c.surface in BENIGN_COMPACT_SURFACES:
+                status = "ALLOWED (verified benign)"
+            elif c in gated:
+                status = "LIVE — FALSE CREDIT"
+            else:
+                status = "neutralized by the word-grid guard"
+            print(f"  [{status}] {c.describe()}")
     else:
         print("\nCORPUS COLLISIONS: none across skill surfaces.")
+    if gated:
+        print(
+            f"\nERROR: {len(gated)} corpus collision(s) are LIVE under the current "
+            "matcher and are not on BENIGN_COMPACT_SURFACES:",
+            file=sys.stderr,
+        )
+        for c in gated:
+            print(f"  ERROR {c.describe()}", file=sys.stderr)
 
     print()
     print(render_coverage_table(taxonomy))
@@ -585,7 +668,7 @@ def main(argv: list[str] | None = None) -> int:
             )
             return 1
 
-    return 0 if result.ok else 1
+    return 0 if (result.ok and not gated) else 1
 
 
 if __name__ == "__main__":  # pragma: no cover
