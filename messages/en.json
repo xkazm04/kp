@@ -3823,10 +3823,19 @@
       "retryResend": "Retry resend"
     },
     "outboxKind": {
-      "invite": "invite",
       "acknowledgement": "acknowledgement",
       "outreach": "outreach",
-      "rejection": "rejection"
+      "rejection": "rejection",
+      "ko_decline": "screening decline",
+      "offer": "offer",
+      "offer_reminder": "offer reminder",
+      "interview_confirmation": "interview confirmation",
+      "interview_reminder": "interview reminder",
+      "interview_invite": "interview invite",
+      "interviewer_brief": "interviewer brief",
+      "schedule_invite": "scheduling invite",
+      "onboarding": "onboarding",
+      "onboarding_reminder": "onboarding reminder"
     },
     "cohort": {
       "title": "Cohort probe insights",

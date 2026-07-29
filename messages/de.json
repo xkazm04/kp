@@ -3865,10 +3865,19 @@
       "retryResend": "Erneut versuchen"
     },
     "outboxKind": {
-      "invite": "Einladung",
       "acknowledgement": "Bestätigung",
       "outreach": "Ansprache",
-      "rejection": "Absage"
+      "rejection": "Absage",
+      "ko_decline": "Absage im Screening",
+      "offer": "Angebot",
+      "offer_reminder": "Angebotserinnerung",
+      "interview_confirmation": "Interviewbestätigung",
+      "interview_reminder": "Interviewerinnerung",
+      "interview_invite": "Interview-Einladung",
+      "interviewer_brief": "Interviewer-Briefing",
+      "schedule_invite": "Termin-Einladung",
+      "onboarding": "Onboarding",
+      "onboarding_reminder": "Onboarding-Erinnerung"
     },
     "cohort": {
       "title": "Kohorten-Auswertung der Prüfpunkte",

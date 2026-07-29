@@ -3823,10 +3823,19 @@
       "retryResend": "Zkusit odeslat znovu"
     },
     "outboxKind": {
-      "invite": "pozvánka",
-      "acknowledgement": "potvrzení",
-      "outreach": "oslovení",
-      "rejection": "zamítnutí"
+      "acknowledgement": "Potvrzení přijetí",
+      "outreach": "Oslovení",
+      "rejection": "Zamítnutí",
+      "ko_decline": "Zamítnutí ve screeningu",
+      "offer": "Nabídka",
+      "offer_reminder": "Připomínka nabídky",
+      "interview_confirmation": "Potvrzení pohovoru",
+      "interview_reminder": "Připomínka pohovoru",
+      "interview_invite": "Pozvánka na pohovor",
+      "interviewer_brief": "Podklady pro tazatele",
+      "schedule_invite": "Pozvánka k výběru termínu",
+      "onboarding": "Nástup",
+      "onboarding_reminder": "Připomínka nástupu"
     },
     "cohort": {
       "title": "Přehled sond napříč kohortou",

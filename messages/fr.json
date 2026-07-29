@@ -3865,10 +3865,19 @@
       "retryResend": "Réessayer l'envoi"
     },
     "outboxKind": {
-      "invite": "invitation",
-      "acknowledgement": "accusé de réception",
-      "outreach": "prise de contact",
-      "rejection": "refus"
+      "acknowledgement": "Accusé de réception",
+      "outreach": "Prise de contact",
+      "rejection": "Refus",
+      "ko_decline": "Refus au tri",
+      "offer": "Offre",
+      "offer_reminder": "Relance d'offre",
+      "interview_confirmation": "Confirmation d'entretien",
+      "interview_reminder": "Rappel d'entretien",
+      "interview_invite": "Invitation à l'entretien",
+      "interviewer_brief": "Brief de l'intervieweur",
+      "schedule_invite": "Invitation à planifier",
+      "onboarding": "Intégration",
+      "onboarding_reminder": "Rappel d'intégration"
     },
     "cohort": {
       "title": "Analyse des sondes sur la cohorte",
