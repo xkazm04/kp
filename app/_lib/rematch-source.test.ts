@@ -11,8 +11,6 @@
 //   npm run test:unit
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
-import os from "node:os";
-import path from "node:path";
 import fs from "node:fs";
 import { registerHooks } from "node:module";
 import { fileURLToPath } from "node:url";
@@ -45,11 +43,17 @@ registerHooks({
   },
 });
 
-// Point db.ts at a throwaway DB BEFORE importing it: db-path reads KP_DB_PATH at
-// module load; ensureDb opens lazily on first use. node --test isolates each file in
-// its own process, so this env mutation can't leak to other tests.
-const TMP = path.join(os.tmpdir(), `kp-rematch-source-test-${process.pid}.sqlite`);
-process.env.KP_DB_PATH = TMP;
+// Point db.ts at a throwaway DB BEFORE importing it: db-path reads KP_DB_PATH at module
+// load (DB_PATH is frozen then), so this MUST stay the first project import; ensureDb
+// opens lazily on first use.
+//
+// It used to be a hand-rolled `os.tmpdir()/kp-rematch-source-test-${process.pid}.sqlite`.
+// `--test-isolation=process` gives each FILE a fresh process, but the OS RECYCLES pids:
+// a later run drawing a pid this file used before re-opens that run's leftover database
+// and inherits its committed entries/events (see 7c63692, the billing-suite flake).
+// unit-db.ts is the repo-wide fix: a mkdtemp'd run directory (unique by construction,
+// never pid-derived), a liveness-gated sweep of abandoned dirs, and cleanupUnitDb().
+const { cleanupUnitDb, UNIT_DB_PATH: TMP } = await import("./testing/unit-db.ts");
 
 const { createPipelineEntry, getPipelineEntry, actOnPipelineEntry, rematchSourceEntry } = await import("./db.ts");
 
@@ -83,17 +87,9 @@ function seedSource(stage: string): { id: string; jobId: string } {
 const TGT_ENTRY = "m-targetcand-targetjob";
 const TGT_JOB = "targetJob";
 
-after(() => {
-  // Best-effort: the module connection stays open (no close hook); on Windows an
-  // open SQLite file can't be unlinked, so swallow the error — the file is disposable.
-  for (const f of [TMP, `${TMP}-wal`, `${TMP}-shm`]) {
-    try {
-      fs.rmSync(f, { force: true });
-    } catch {
-      /* file locked / absent — fine */
-    }
-  }
-});
+// Closes the memoized main connection and removes this run's temp dir; a still-open
+// isolated handle only means the fixture's sweep reclaims the dir on a later run.
+after(cleanupUnitDb);
 
 test("closes an ACTIVE source to the terminal `rematched` status and stamps the link", () => {
   const src = seedSource("Screened");
