@@ -11,6 +11,7 @@ import { CandidateMatrixCell } from "./CandidateMatrixCell";
 export function CandidateMatrix({
   archetypes,
   onEditProfile,
+  onNewProfile,
   reloadKey = 0,
   archivedArchetypeIds,
   onNewProfile,

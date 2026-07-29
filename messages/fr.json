@@ -5113,7 +5113,11 @@
       "closing": "Clôture en cours…",
       "close": "Clôturer le cas",
       "closeConfirm": "Clôturer ce cas ? Les candidats non retenus recevront un message de clôture et le lien de candidature n'acceptera plus de rendus.",
-      "closeFailed": "Échec de la clôture."
+      "closeFailed": "Échec de la clôture.",
+      "cancel": "Annuler",
+      "closeModalTitle": "Clôturer le cas",
+      "closeIrreversible": "Les messages de clôture ne peuvent pas être annulés.",
+      "reSourceFailed": "Échec de la nouvelle recherche."
     },
     "stage": {
       "intake": "réception",

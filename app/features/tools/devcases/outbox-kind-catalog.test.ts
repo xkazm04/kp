@@ -22,7 +22,9 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { KNOWN_COMM_KINDS } from "@/app/_lib/comms-envelope.ts";
 
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
+// app/features/tools/devcases/ -> repo root is four levels up (the Jul-28 restructure
+// added the `tools/` area segment; a `..` too few silently resolved to app/features).
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "..");
 const LOCALES = ["en", "cs", "de", "fr"] as const;
 
 function outboxKinds(locale: string): Record<string, string> {
