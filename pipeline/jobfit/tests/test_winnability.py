@@ -151,6 +151,96 @@ class WinnabilityTest(unittest.TestCase):
         self.assertEqual([g for g in out["looseGates"] if g["value"] == "English"], [])
 
 
+def _nurse(label: str, skills: list[str], **kw) -> MatchCandidate:
+    kw.setdefault("provenance_default", "professional")
+    return MatchCandidate(label=label, skills=skills, role_family="healthcare_clinical", **kw)
+
+
+class NonTechWinnabilityTest(unittest.TestCase):
+    """The same winnability contracts on a NON-TECH family.
+
+    Every fixture above is a ``software_engineering`` pool matched against Python
+    and Kafka, so the coach's two levers (hard gates, must-have demotion) were only
+    ever proven on tech vocabulary. They are family-agnostic; this proves it for
+    healthcare_clinical, whose skill graph is the deepest non-tech one (44 skill
+    terms, 85% carrying parents).
+    """
+
+    def test_language_gate_is_sole_blocker_and_loosening_recovers_them(self) -> None:
+        pool = [
+            _nurse("DE", ["intensive care"], languages=["German", "English"]),
+            _nurse("CZ-1", ["intensive care"], languages=["Czech"]),
+            _nurse("CZ-2", ["intensive care"], languages=["Czech"]),
+        ]
+        job = _job(
+            title="Registered Nurse — ICU",
+            role_family="healthcare_clinical",
+            languages=["German"],
+            requirements=[JobRequirement(skill="intensive care")],
+        )
+        out = assess_winnability(pool, job)
+        self.assertEqual(out["poolSize"], 3)
+        self.assertEqual(out["eligible"], 1)
+        gate = next(g for g in out["looseGates"] if g["kind"] == "language" and g["value"] == "German")
+        self.assertEqual(gate["eligibleDelta"], 2)
+
+    def test_demoting_an_unmet_must_have_raises_the_qualified_count(self) -> None:
+        # A senior ICU role that hard-requires ventilator management against a pool of
+        # medior nurses who have the core stack but not that one skill.
+        pool = [
+            _nurse("flip1", ["intensive care", "patient care", "triage"], seniority="medior"),
+            _nurse("flip2", ["intensive care", "patient care", "triage"], seniority="medior"),
+            _nurse("flip3", ["intensive care", "patient care", "triage"], seniority="medior"),
+            _nurse("has_vent", ["intensive care", "ventilator management", "patient care"], seniority="medior"),
+        ]
+        job = _job(
+            title="Senior ICU Nurse",
+            role_family="healthcare_clinical",
+            seniority="senior",
+            requirements=[
+                JobRequirement(skill="intensive care"),
+                JobRequirement(skill="ventilator management"),  # only `has_vent` has this
+                JobRequirement(skill="anesthesia"),
+            ],
+        )
+        out = assess_winnability(pool, job)
+        self.assertEqual(out["eligible"], 4)  # all four clear the hard gates
+        self.assertEqual(out["qualified"], 1)  # only `has_vent` reaches the bar
+        lever = next(m for m in out["looseMustHaves"] if m["skill"] == "ventilator management")
+        self.assertEqual(lever["missingAmongEligible"], 3)
+        # Recount independently through the production scorer, exactly like the tech
+        # fixture does, so the coach's delta is pinned to a real change.
+        demoted = job.model_copy(
+            update={
+                "requirements": [
+                    r.model_copy(update={"kind": "nice_to_have"})
+                    if r.skill == "ventilator management"
+                    else r
+                    for r in job.requirements
+                ]
+            }
+        )
+        demoted_qualified = sum(
+            1
+            for c in pool
+            if ko_filter(c, demoted)[0] and score_job(c, demoted).total >= FIT_PROMISING_THRESHOLD
+        )
+        self.assertEqual(demoted_qualified, 4)  # the three blocked-only-by-vent flip in
+        self.assertGreater(lever["qualifiedDelta"], 0)
+        self.assertEqual(lever["qualifiedDelta"], demoted_qualified - out["qualified"])
+        self.assertEqual(lever["qualifiedDelta"], 3)
+
+    def test_no_false_loosen_suggestion_when_gate_blocks_nobody(self) -> None:
+        pool = [_nurse("c", ["intensive care"], languages=["Czech"])]
+        job = _job(
+            role_family="healthcare_clinical",
+            languages=["Czech"],
+            requirements=[JobRequirement(skill="intensive care")],
+        )
+        out = assess_winnability(pool, job)
+        self.assertEqual([g for g in out["looseGates"] if g["value"] == "Czech"], [])
+
+
 class WinnabilityCliSkippedTest(unittest.TestCase):
     """bug-ui-scan-2026-07-09 (pipeline-clis-script-bridges #4): a malformed candidate
     must be RECORDED in `skipped` (not silently dropped), so the grade's denominator is

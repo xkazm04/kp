@@ -106,6 +106,81 @@ def _senior_backend() -> CandidateProfileV2:
     )
 
 
+# -- non-tech scenario builders ---------------------------------------------
+#
+# The four scenarios above are ALL software_engineering / data_ai, so the whole
+# archetype -> weights -> confidence -> fairness interplay was only ever measured
+# on tech. The product serves 16 role families; a regression in the non-tech path
+# would ship green.
+#
+# The three families chosen here are the non-tech ones with BOTH real taxonomy
+# depth (finance 54 / sales 39 / support 37 skill terms) and real depth in the
+# committed job corpus (5 jobs each) — role_relevance_at5 is only meaningful when
+# the family HAS jobs to rank. healthcare_clinical and skilled_trades have the
+# vocabulary but zero corpus jobs, so scoring them here would measure the corpus,
+# not the engine; they stay covered at the taxonomy/unit layer instead.
+
+
+def _accountant_medior() -> CandidateProfileV2:
+    return CandidateProfileV2(
+        archetype="bau",
+        role_family="finance_accounting",
+        education_level="master",
+        education_detail="Accounting and Financial Management, VŠE",
+        languages=["Czech", "English"],
+        years_experience=6,
+        seniority="medior",
+        skill_claims=[
+            SkillClaim(skill=s, provenance="professional")
+            for s in ["účetnictví", "general ledger", "IFRS", "financial reporting", "MS Excel", "controlling"]
+        ],
+        evidence=[
+            Evidence(kind="job", title="Accountant (GL)", skills=["bank reconciliation", "accounts payable", "VAT"])
+        ],
+    )
+
+
+def _switcher_support() -> CandidateProfileV2:
+    """Retail store manager moving into a contact centre — the non-tech mirror of
+    ``_switcher_backend`` (prior professional track, target family reached through
+    transferable rather than domain skills)."""
+    return CandidateProfileV2(
+        archetype="career_switcher",
+        role_family="customer_support",
+        education_level="bachelor",
+        languages=["Czech", "English"],
+        aspirations=["Specialista klientského centra"],
+        years_experience=7,
+        skill_claims=[
+            SkillClaim(skill="customer service", provenance="professional"),
+            SkillClaim(skill="complaint resolution", provenance="professional"),
+            SkillClaim(skill="ticketing"),
+        ],
+        evidence=[
+            Evidence(kind="job", title="Retail store manager", text="Vedl jsem prodejnu a řešil reklamace zákazníků"),
+            Evidence(kind="project", title="Helpdesk volunteering", skills=["live chat", "knowledge base"]),
+        ],
+    )
+
+
+def _senior_sales() -> CandidateProfileV2:
+    return CandidateProfileV2(
+        archetype="bau",
+        role_family="sales_marketing",
+        education_level="master",
+        languages=["Czech", "English"],
+        years_experience=9,
+        seniority="senior",
+        skill_claims=[
+            SkillClaim(skill=s, provenance="professional")
+            for s in ["B2B sales", "account management", "negotiation", "cross-selling", "business development"]
+        ],
+        evidence=[
+            Evidence(kind="job", title="Corporate Account Manager", skills=["B2B sales", "account management"])
+        ],
+    )
+
+
 @dataclass
 class Scenario:
     name: str
@@ -129,6 +204,28 @@ SCENARIOS: list[Scenario] = [
         "senior_backend",
         _senior_backend(),
         {"years_relevant_experience": 8, "has_substantial_experience": True},
+        "bau",
+        False,
+    ),
+    # Non-tech: the same four axes, measured outside software_engineering/data_ai.
+    Scenario(
+        "accountant_medior",
+        _accountant_medior(),
+        {"years_relevant_experience": 6, "has_substantial_experience": True},
+        "bau",
+        False,
+    ),
+    Scenario(
+        "switcher_support",
+        _switcher_support(),
+        {"wants_domain_change": True, "has_substantial_experience": True},
+        "career_switcher",
+        True,
+    ),
+    Scenario(
+        "senior_sales",
+        _senior_sales(),
+        {"years_relevant_experience": 9, "has_substantial_experience": True},
         "bau",
         False,
     ),

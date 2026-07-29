@@ -621,6 +621,19 @@ def detected_signals(text: str) -> list[str]:
 
 
 def classify_role_family(skills: list[str], text: str, recent_text: str = "") -> str:
+    """Route a candidate/JD to one role family by weighted taxonomy votes.
+
+    TIE-BREAK (documented + pinned by tests/test_role_family_routing.py): a real CV
+    routinely votes near-equally for two families ("recruiter and accountant" scores
+    hr_people and finance_accounting identically). The winner is the highest-scoring
+    family, and on an exact tie the one declared FIRST in :data:`ROLE_FAMILIES` —
+    i.e. the order of ``salary_benchmarks.json::roles``. That order is the product's
+    own priority list (the three tech families lead, ``general_professional`` is
+    last), so first-declared-wins is a deliberate, stable rule rather than a hash
+    accident: the same text always routes the same way, in any interpreter, on any
+    platform. A family scoring 0 never wins — a signal-free text falls through to
+    :data:`DEFAULT_FAMILY`.
+    """
     skill_set = {_normalize(skill) for skill in skills}
     # Normalize the text up front (case/diacritic-fold) the same way detected_skills
     # does — _text_contains only folds the surface form, so a raw mixed-case CV would
@@ -652,6 +665,8 @@ def classify_role_family(skills: list[str], text: str, recent_text: str = "") ->
             if in_recent:
                 scores[family] += w if w < 0 else w * 0.5
 
+    # Strict `>` while walking ROLE_FAMILIES in declaration order IS the documented
+    # tie-break: the first-declared family holds the lead against an equal score.
     best = DEFAULT_FAMILY
     best_score = 0.0
     for family in ROLE_FAMILIES:

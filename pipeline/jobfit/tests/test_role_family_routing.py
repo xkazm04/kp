@@ -63,5 +63,67 @@ class RoleFamilyRoutingTest(unittest.TestCase):
             self.assertIn(fam, ROLE_FAMILIES, f"missing role family {fam!r}")
 
 
+class AmbiguousRoutingTest(unittest.TestCase):
+    """Every case above is an UNAMBIGUOUS one-family sentence. Real CVs are not:
+    a hybrid CV votes near-equally for two families and something has to break the
+    tie. Until now that behaviour was incidental (whatever ``ROLE_FAMILIES``
+    iteration happened to do first). It is now documented on
+    ``classify_role_family``: highest score wins, and an EXACT tie goes to the
+    family declared FIRST in ``ROLE_FAMILIES`` (= ``salary_benchmarks.json::roles``
+    order). These pin that rule so it cannot drift silently.
+    """
+
+    def _both_alone_route_as_expected(self, a: str, fam_a: str, b: str, fam_b: str) -> None:
+        # Non-vacuity: each half really does own its family on its own, so the
+        # combined sentence is a genuine tie and not one signal drowning the other.
+        self.assertEqual(classify_role_family([], a), fam_a)
+        self.assertEqual(classify_role_family([], b), fam_b)
+
+    def test_exact_tie_goes_to_the_first_declared_family(self) -> None:
+        # "recruiter" (hr_people) and "accountant" (finance_accounting) carry equal
+        # vote weight, so the text scores IDENTICALLY for both families.
+        self._both_alone_route_as_expected(
+            "recruiter", "hr_people", "accountant", "finance_accounting"
+        )
+        self.assertLess(
+            ROLE_FAMILIES.index("finance_accounting"), ROLE_FAMILIES.index("hr_people")
+        )
+        # Declaration order decides — and word order in the text does NOT.
+        self.assertEqual(classify_role_family([], "recruiter and accountant"), "finance_accounting")
+        self.assertEqual(classify_role_family([], "accountant and recruiter"), "finance_accounting")
+
+    def test_exact_tie_is_stable_across_a_second_family_pair(self) -> None:
+        # Same rule, different pair: healthcare_clinical is declared before skilled_trades.
+        self._both_alone_route_as_expected(
+            "Registered nurse in the ICU",
+            "healthcare_clinical",
+            "Licensed electrician wiring commercial sites",
+            "skilled_trades",
+        )
+        self.assertLess(
+            ROLE_FAMILIES.index("healthcare_clinical"), ROLE_FAMILIES.index("skilled_trades")
+        )
+        self.assertEqual(
+            classify_role_family([], "Registered nurse and licensed electrician"),
+            "healthcare_clinical",
+        )
+
+    def test_a_real_lead_beats_declaration_order(self) -> None:
+        # The tie-break must only apply to TIES: software_engineering is declared
+        # first, but the product signals genuinely outscore the one tech mention, so
+        # the hybrid "PM with an engineering background" routes to product_project.
+        self.assertLess(
+            ROLE_FAMILIES.index("software_engineering"), ROLE_FAMILIES.index("product_project")
+        )
+        self.assertEqual(
+            classify_role_family([], "Product manager with a software engineering background."),
+            "product_project",
+        )
+
+    def test_routing_is_deterministic_across_repeated_calls(self) -> None:
+        text = "recruiter and accountant"
+        self.assertEqual({classify_role_family([], text) for _ in range(20)}, {"finance_accounting"})
+
+
 if __name__ == "__main__":
     unittest.main()
