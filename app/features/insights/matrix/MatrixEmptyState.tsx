@@ -37,6 +37,8 @@ type Axis = {
   noun: string;
   count: number;
   linkLabel: string;
+  /** Localized "None yet…" / "N ready to plot." line for this side. */
+  countLine: string;
   icon: typeof Rows3;
 };
 
@@ -66,21 +68,28 @@ function ChainLink({ tab, label }: { tab: WorkspaceTabId; label: string }) {
 /** The two inputs the grid multiplies together, in chain order. */
 function useAxes({ candidateCount, positionCount }: MatrixEmptyStateProps): Axis[] {
   const t = useTranslations("matrix");
+  // One key per axis rather than one shared "{count} ready to plot": the counted
+  // noun is a candidate on one side and a role on the other, and the inflected
+  // locales agree the participle with it (cs/fr gender, de invariant).
+  const countLine = (count: number, readyKey: "emptyAxisReadyCandidates" | "emptyAxisReadyRoles") =>
+    count === 0 ? t("emptyAxisNone") : t(readyKey, { count });
   return [
     {
       tab: "pipeline",
-      axisLabel: "Rows",
-      noun: "Candidates",
+      axisLabel: t("emptyAxisRows"),
+      noun: t("emptyAxisCandidates"),
       count: candidateCount,
       linkLabel: t("emptyGridCtaPipeline"),
+      countLine: countLine(candidateCount, "emptyAxisReadyCandidates"),
       icon: Rows3,
     },
     {
       tab: "jobs",
-      axisLabel: "Columns",
-      noun: "Open roles",
+      axisLabel: t("emptyAxisColumns"),
+      noun: t("emptyAxisRoles"),
       count: positionCount,
       linkLabel: t("emptyGridCtaJobs"),
+      countLine: countLine(positionCount, "emptyAxisReadyRoles"),
       icon: Columns3,
     },
   ];
@@ -96,9 +105,7 @@ function AxisCard({ axis }: { axis: Axis }) {
         <Icon size={16} className="shrink-0 text-steel" aria-hidden />
         {axis.noun}
       </p>
-      <p className="mt-1 text-sm text-steel">
-        {axis.count === 0 ? "None yet — this side of the grid is empty." : `${axis.count} ready to plot.`}
-      </p>
+      <p className="mt-1 text-sm text-steel">{axis.countLine}</p>
       <div className="mt-3">
         <ChainLink tab={axis.tab} label={axis.linkLabel} />
       </div>
@@ -107,6 +114,7 @@ function AxisCard({ axis }: { axis: Axis }) {
 }
 
 export function MatrixEmptyState(props: MatrixEmptyStateProps) {
+  const t = useTranslations("matrix");
   const axes = useAxes(props);
   return (
     <div className={`${PANEL_SUNKEN} p-8 text-center`}>
@@ -117,12 +125,9 @@ export function MatrixEmptyState(props: MatrixEmptyStateProps) {
         entrance="staggered-draw"
         ambient="float"
       />
-      <p className={`${EYEBROW} mt-4`}>Fit matrix</p>
-      <h3 className={`${TITLE_DISPLAY} mt-1`}>Two axes, nothing to cross yet</h3>
-      <p className={`${INTRO} mx-auto mt-2 max-w-lg`}>
-        This grid scores every candidate against every open role. It needs both sides before it can draw a
-        single cell.
-      </p>
+      <p className={`${EYEBROW} mt-4`}>{t("title")}</p>
+      <h3 className={`${TITLE_DISPLAY} mt-1`}>{t("emptyAxesTitle")}</h3>
+      <p className={`${INTRO} mx-auto mt-2 max-w-lg`}>{t("emptyAxesBody")}</p>
       <div className="mx-auto mt-6 grid max-w-2xl gap-3 sm:grid-cols-2">
         {axes.map((axis) => (
           <AxisCard key={axis.tab} axis={axis} />

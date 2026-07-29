@@ -1592,7 +1592,9 @@
       "renameViewTitle": "Rename view",
       "previewScope": "{mine} of this run's {total} decisions are your team's — the counts above cover the whole installation.",
       "previewOtherTeamsOnly": "{count, plural, one {No changes for your team. This run has # change waiting for another team.} other {No changes for your team. This run has # changes waiting for other teams.}}",
-      "previewApplyGlobal": "{count, plural, one {Apply # change (all teams)} other {Apply # changes (all teams)}}"
+      "previewApplyGlobal": "{count, plural, one {Apply # change (all teams)} other {Apply # changes (all teams)}}",
+      "emptyBoardWaiting": "Your board, waiting",
+      "emptyFirstCandidate": "First candidate"
     },
     "today": {
       "eyebrow": "Today",
@@ -2268,6 +2270,12 @@
         "highestFit": "Highest fit ({score}) in this role.",
         "unscored": "Top of the field, but no fit score has been computed yet."
       }
+    },
+    "empty": {
+      "batonEyebrow": "Baton passed",
+      "reconsiderLine": "{count, plural, one {# auto-rejected candidate is still reconsiderable below.} other {# auto-rejected candidates are still reconsiderable below.}}",
+      "hintSchedule": "Accepted screenings waiting on a confirmed slot.",
+      "hintPipeline": "The live board — every candidate and the stage they sit in."
     }
   },
   "scheduleTab": {
@@ -2470,6 +2478,15 @@
       "readbackUnconfirmedFlag": "unconfirmed",
       "readbackUnconfirmedHint": "Mentioned earlier but not reached in the read-back — possibly a transcription error",
       "readbackNote": "From the closing read-back: the candidate confirmed or corrected the technologies the interviewer heard."
+    },
+    "relay": {
+      "label": "Where the baton is",
+      "stopDecisions": "Decisions",
+      "stopSchedule": "Schedule",
+      "stopInterview": "Interview",
+      "noteWaiting": "Waiting here",
+      "noteHere": "You are here",
+      "noteNext": "Next"
     }
   },
   "library": {
@@ -2592,7 +2609,18 @@
       "chipClosedAria": "Closed role",
       "chipLinkedAria": "Linked job — status {status}",
       "chipUnlinked": "Analysis-only",
-      "chipUnlinkedAria": "Analysis-only — not yet ingested as a matchable job"
+      "chipUnlinkedAria": "Analysis-only — not yet ingested as a matchable job",
+      "shelfEyebrow": "Empty shelf",
+      "shelfTitle": "Nothing on the shelf yet",
+      "shelfBody": "A job description written here becomes stock: every role you open, every CV you score, and every duplicate of the next opening starts from one of these sheets.",
+      "shelfRecordLabel": "The record you're about to create",
+      "shelfWriteCta": "Write the first spec",
+      "shelfDraftCta": "Have the builder draft it",
+      "shelfCtaNote": "Both open the Generate panel — save a draft as-is, or let the AI build the description, a market salary band and an interview case.",
+      "shelfReuseLabel": "One sheet is reusable for",
+      "shelfReuseAnalyze": "Score CVs against it",
+      "shelfReuseIngest": "Ingest it as an open role",
+      "shelfReuseDuplicate": "Duplicate it for the next opening"
     },
     "form": {
       "saveAjd": "Save a JD",
@@ -2765,7 +2793,23 @@
       "clearAllFilters": "Clear all filters",
       "noRolesEmptyTitle": "No roles yet",
       "noRolesEmptyBody": "Roles start as job descriptions — write or generate one in the library, then ingest it as a job.",
-      "noRolesEmptyCta": "Open Job descriptions"
+      "noRolesEmptyCta": "Open Job descriptions",
+      "launchpad": {
+        "route": "Route {step}",
+        "eyebrow": "First role",
+        "title": "Your catalog is waiting for its opening move",
+        "body": "Every hire in kp hangs off one open role. Post the first one and the rest of the workspace comes alive.",
+        "route1Title": "Draft it from a JD template",
+        "route1Body": "Pick a job description in the library, tune the requirements, and publish it as an open role.",
+        "route1Cta": "Open the JD library",
+        "route2Title": "Import an ad you already have",
+        "route2Body": "Paste an existing job ad and kp parses it into a structured role — requirements, seniority, work mode.",
+        "route2Cta": "Use the import panel above",
+        "unlocksLabel": "One role unlocks",
+        "unlockChannels": "Channels open",
+        "unlockPipeline": "Candidates flow",
+        "unlockDecisions": "Decisions queue"
+      }
     },
     "table": {
       "caption": "Job corpus — normalized job postings filterable by role family, seniority, work mode, and entry-eligibility. Activate a row to expand its requirements and graduate lens.",
@@ -3454,6 +3498,22 @@
       "createArchetype": "Create archetype",
       "saveChanges": "Save changes",
       "cancel": "Cancel"
+    },
+    "empty": {
+      "specimenLabel": "Every saved profile carries",
+      "chipArchetype": "Archetype",
+      "chipRoleFamily": "Role family",
+      "listTitle": "No cards in the drawer yet",
+      "listBody": "A profile is one structured record of a candidate — the thing you match against open roles. Nothing has been filed here yet.",
+      "listCta": "Build a profile",
+      "listCtaAnalyze": "Or analyze a CV and promote it",
+      "matrixTitle": "The drawers are ready, the cards aren't",
+      "matrixBodyDefined": "{count, plural, one {You've defined # archetype above.} other {You've defined # archetypes above.}} Every candidate gets filed into exactly one — then this view can compare them side by side.",
+      "matrixBodyNone": "Each candidate is filed into exactly one archetype, and this view compares them side by side. Define an archetype above to open the first drawer.",
+      "filed": "{count, plural, one {# filed} other {# filed}}",
+      "moreArchetypes": "{count, plural, one {+# more} other {+# more}}",
+      "matrixCta": "File the first card",
+      "matrixCtaAnalyze": "Or analyze a CV"
     }
   },
   "channels": {
@@ -4291,6 +4351,29 @@
       "reviewHolds": "Review pending holds in Decisions",
       "comms": "Comms delivered",
       "commsQueued": "Comms recorded in Outbox (not delivered)"
+    },
+    "empty": {
+      "willReport": "What this tab will report",
+      "noValueYet": "no value yet",
+      "metricHireRate": "Hire rate",
+      "metricHireRateBody": "How many of the people who apply you actually hire.",
+      "metricTimeToHire": "Time to hire",
+      "metricTimeToHireBody": "Days from a candidate arriving to signing.",
+      "metricCostPerHire": "Cost per hire",
+      "metricCostPerHireBody": "Channel spend divided by the hires it produced."
+    },
+    "funnelGuide": {
+      "title": "Your funnel is standing by",
+      "body": "{count, plural, one {# candidate has arrived} other {# candidates have arrived}} but none has changed stage yet. Conversion is a measure of movement — here is what each step will tell you the moment it starts moving.",
+      "stepsLabel": "What each step will tell you",
+      "waiting": "{count, plural, one {# step is still waiting for its first candidate.} other {# steps are still waiting for their first candidate.}}",
+      "noDataYet": "no data yet",
+      "questionAccepted": "Who arrived, and which channel sent them.",
+      "questionScreened": "What share of your applicants clear the first evaluation.",
+      "questionInterview": "Whether screening is letting the right people through.",
+      "questionOffer": "How selective the interview loop actually is.",
+      "questionHired": "Your end-to-end hire rate, and how long it took.",
+      "questionFallback": "How many candidates get this far."
     }
   },
   "candidateOnboarding": {
@@ -4495,7 +4578,16 @@
     "noFits": "no fits",
     "colStatsTitle": "{count} scored · best {best} · median {median} · {strong} strong (≥{threshold})",
     "legendMatch": "Match",
-    "inPipeline": "in pipeline"
+    "inPipeline": "in pipeline",
+    "emptyAxesTitle": "Two axes, nothing to cross yet",
+    "emptyAxesBody": "This grid scores every candidate against every open role. It needs both sides before it can draw a single cell.",
+    "emptyAxisRows": "Rows",
+    "emptyAxisColumns": "Columns",
+    "emptyAxisCandidates": "Candidates",
+    "emptyAxisRoles": "Open roles",
+    "emptyAxisNone": "None yet — this side of the grid is empty.",
+    "emptyAxisReadyCandidates": "{count, plural, one {# ready to plot.} other {# ready to plot.}}",
+    "emptyAxisReadyRoles": "{count, plural, one {# ready to plot.} other {# ready to plot.}}"
   },
   "analyze": {
     "modeNew": "New analysis",
@@ -5092,7 +5184,8 @@
       "completed": {
         "title": "You're all set!",
         "body": "Company, role, case, and channels are wired — happy hiring."
-      }
+      },
+      "optional": "Optional"
     }
   },
   "devcase": {

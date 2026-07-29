@@ -1592,7 +1592,9 @@
       "renameViewTitle": "Přejmenovat pohled",
       "previewScope": "{mine} z {total} rozhodnutí tohoto běhu patří vašemu týmu — počty výše zahrnují celou instalaci.",
       "previewOtherTeamsOnly": "{count, plural, one {Pro váš tým žádné změny. Tento běh má # změnu čekající pro jiný tým.} few {Pro váš tým žádné změny. Tento běh má # změny čekající pro jiné týmy.} other {Pro váš tým žádné změny. Tento běh má # změn čekajících pro jiné týmy.}}",
-      "previewApplyGlobal": "{count, plural, one {Použít # změnu (všechny týmy)} few {Použít # změny (všechny týmy)} other {Použít # změn (všechny týmy)}}"
+      "previewApplyGlobal": "{count, plural, one {Použít # změnu (všechny týmy)} few {Použít # změny (všechny týmy)} other {Použít # změn (všechny týmy)}}",
+      "emptyBoardWaiting": "Vaše nástěnka čeká",
+      "emptyFirstCandidate": "První kandidát"
     },
     "today": {
       "eyebrow": "Dnes",
@@ -2268,6 +2270,12 @@
         "highestFit": "Nejvyšší shoda ({score}) v této roli.",
         "unscored": "Nejlepší v poli, ale shoda zatím nebyla vypočítána."
       }
+    },
+    "empty": {
+      "batonEyebrow": "Štafeta předána",
+      "reconsiderLine": "{count, plural, one {# automaticky zamítnutého kandidáta lze níže ještě znovu posoudit.} few {# automaticky zamítnuté kandidáty lze níže ještě znovu posoudit.} other {# automaticky zamítnutých kandidátů lze níže ještě znovu posoudit.}}",
+      "hintSchedule": "Přijaté screeningy, které čekají na potvrzený termín.",
+      "hintPipeline": "Živá nástěnka — každý kandidát a fáze, ve které je."
     }
   },
   "scheduleTab": {
@@ -2470,6 +2478,15 @@
       "readbackUnconfirmedFlag": "nepotvrzeno",
       "readbackUnconfirmedHint": "Zmíněno dříve, ale při zopakování nepotvrzeno — možná chyba přepisu",
       "readbackNote": "Ze závěrečného zopakování: kandidát potvrdil nebo opravil technologie, které tazatel slyšel."
+    },
+    "relay": {
+      "label": "Kde je štafeta",
+      "stopDecisions": "Rozhodnutí",
+      "stopSchedule": "Plánování",
+      "stopInterview": "Pohovor",
+      "noteWaiting": "Čeká zde",
+      "noteHere": "Jste zde",
+      "noteNext": "Další"
     }
   },
   "library": {
@@ -2592,7 +2609,18 @@
       "chipClosedAria": "Uzavřená pozice",
       "chipLinkedAria": "Propojená pozice — stav {status}",
       "chipUnlinked": "Pouze analýza",
-      "chipUnlinkedAria": "Pouze analýza — dosud nezařazeno jako párovatelná pozice"
+      "chipUnlinkedAria": "Pouze analýza — dosud nezařazeno jako párovatelná pozice",
+      "shelfEyebrow": "Prázdná police",
+      "shelfTitle": "Na polici zatím nic není",
+      "shelfBody": "Popis pozice, který zde napíšete, se stává zásobou: každá otevřená pozice, každé hodnocené CV i každá kopie pro příští nábor vychází z jednoho z těchto listů.",
+      "shelfRecordLabel": "Záznam, který se chystáte vytvořit",
+      "shelfWriteCta": "Napsat první popis",
+      "shelfDraftCta": "Nechat návrh na AI",
+      "shelfCtaNote": "Obojí otevře panel Generovat — uložte koncept tak, jak je, nebo nechte AI vytvořit popis, tržní mzdové rozpětí a případovou studii k pohovoru.",
+      "shelfReuseLabel": "Jeden list využijete pro",
+      "shelfReuseAnalyze": "Hodnocení CV proti němu",
+      "shelfReuseIngest": "Načtení jako otevřené pozice",
+      "shelfReuseDuplicate": "Kopii pro příští nábor"
     },
     "form": {
       "saveAjd": "Uložit popis pozice",
@@ -2765,7 +2793,23 @@
       "clearAllFilters": "Vymazat všechny filtry",
       "noRolesEmptyTitle": "Zatím žádné pozice",
       "noRolesEmptyBody": "Pozice vznikají z popisů práce — napište nebo vygenerujte popis v knihovně a pak ho načtěte jako pozici.",
-      "noRolesEmptyCta": "Otevřít popisy pozic"
+      "noRolesEmptyCta": "Otevřít popisy pozic",
+      "launchpad": {
+        "route": "Cesta {step}",
+        "eyebrow": "První pozice",
+        "title": "Váš katalog čeká na první tah",
+        "body": "Každý nábor v kp stojí na jedné otevřené pozici. Vypište první a zbytek pracovní plochy ožije.",
+        "route1Title": "Sestavit ji z popisu pozice",
+        "route1Body": "Vyberte popis pozice v knihovně, dolaďte požadavky a zveřejněte ho jako otevřenou pozici.",
+        "route1Cta": "Otevřít popisy pozic",
+        "route2Title": "Importovat inzerát, který už máte",
+        "route2Body": "Vložte existující inzerát a kp z něj poskládá strukturovanou pozici — požadavky, senioritu i režim práce.",
+        "route2Cta": "Použijte panel importu výše",
+        "unlocksLabel": "Jedna pozice odemkne",
+        "unlockChannels": "Otevřené kanály",
+        "unlockPipeline": "Příliv kandidátů",
+        "unlockDecisions": "Frontu rozhodnutí"
+      }
     },
     "table": {
       "caption": "Korpus pozic — normalizované inzeráty filtrovatelné podle oboru, seniority, režimu práce a vhodnosti pro juniory. Aktivací řádku rozbalíte jeho požadavky a absolventskou optiku.",
@@ -3454,6 +3498,22 @@
       "createArchetype": "Vytvořit archetyp",
       "saveChanges": "Uložit změny",
       "cancel": "Zrušit"
+    },
+    "empty": {
+      "specimenLabel": "Každý uložený profil obsahuje",
+      "chipArchetype": "Archetyp",
+      "chipRoleFamily": "Rodina rolí",
+      "listTitle": "V kartotéce zatím nejsou žádné karty",
+      "listBody": "Profil je jeden strukturovaný záznam o kandidátovi — to, co porovnáváte s otevřenými pozicemi. Zatím sem nebylo nic založeno.",
+      "listCta": "Vytvořit profil",
+      "listCtaAnalyze": "Nebo analyzovat CV a povýšit ho na profil",
+      "matrixTitle": "Přihrádky jsou připravené, karty chybí",
+      "matrixBodyDefined": "{count, plural, one {Výše jste definovali # archetyp.} few {Výše jste definovali # archetypy.} other {Výše jste definovali # archetypů.}} Každý kandidát se zakládá právě do jednoho — a tento pohled je pak umí porovnat vedle sebe.",
+      "matrixBodyNone": "Každý kandidát se zakládá právě do jednoho archetypu a tento pohled je porovnává vedle sebe. Definujte archetyp výše a otevřete první přihrádku.",
+      "filed": "{count, plural, one {# založena} few {# založeny} other {# založeno}}",
+      "moreArchetypes": "{count, plural, one {+# další} few {+# další} other {+# dalších}}",
+      "matrixCta": "Založit první kartu",
+      "matrixCtaAnalyze": "Nebo analyzovat CV"
     }
   },
   "channels": {
@@ -4291,6 +4351,29 @@
       "reviewHolds": "Zkontrolovat čekající pozdržení v Rozhodnutích",
       "comms": "Doručená komunikace",
       "commsQueued": "Komunikace uložená v Outboxu (nedoručeno)"
+    },
+    "empty": {
+      "willReport": "Co bude tato záložka reportovat",
+      "noValueYet": "zatím žádná hodnota",
+      "metricHireRate": "Míra přijetí",
+      "metricHireRateBody": "Kolik z lidí, kteří se přihlásí, skutečně přijmete.",
+      "metricTimeToHire": "Doba do náboru",
+      "metricTimeToHireBody": "Počet dní od příchodu kandidáta po podpis.",
+      "metricCostPerHire": "Náklad na nábor",
+      "metricCostPerHireBody": "Výdaje na kanál dělené počtem náborů, které přinesl."
+    },
+    "funnelGuide": {
+      "title": "Váš trychtýř je připraven",
+      "body": "{count, plural, one {Dorazil # kandidát} few {Dorazili # kandidáti} other {Dorazilo # kandidátů}}, ale nikdo zatím nezměnil fázi. Konverze měří pohyb — níže je to, co vám každý krok řekne, jakmile se rozhýbe.",
+      "stepsLabel": "Co vám každý krok řekne",
+      "waiting": "{count, plural, one {# krok stále čeká na svého prvního kandidáta.} few {# kroky stále čekají na svého prvního kandidáta.} other {# kroků stále čeká na svého prvního kandidáta.}}",
+      "noDataYet": "zatím žádná data",
+      "questionAccepted": "Kdo dorazil a který kanál ho poslal.",
+      "questionScreened": "Jaká část uchazečů projde prvním hodnocením.",
+      "questionInterview": "Zda screening pouští dál ty správné lidi.",
+      "questionOffer": "Jak náročné je ve skutečnosti kolo pohovorů.",
+      "questionHired": "Vaše míra přijetí od začátku do konce a jak dlouho trvala.",
+      "questionFallback": "Kolik kandidátů se dostane až sem."
     }
   },
   "candidateOnboarding": {
@@ -4495,7 +4578,16 @@
     "noFits": "žádné shody",
     "colStatsTitle": "{count} ohodnoceno · nejlepší {best} · medián {median} · {strong} silných (≥{threshold})",
     "legendMatch": "Shoda",
-    "inPipeline": "v pipeline"
+    "inPipeline": "v pipeline",
+    "emptyAxesTitle": "Dvě osy, zatím není co zkřížit",
+    "emptyAxesBody": "Tato mřížka hodnotí každého kandidáta proti každé otevřené pozici. Než vykreslí jedinou buňku, potřebuje obě strany.",
+    "emptyAxisRows": "Řádky",
+    "emptyAxisColumns": "Sloupce",
+    "emptyAxisCandidates": "Kandidáti",
+    "emptyAxisRoles": "Otevřené pozice",
+    "emptyAxisNone": "Zatím nic — tato strana mřížky je prázdná.",
+    "emptyAxisReadyCandidates": "{count, plural, one {# připraven k vynesení.} few {# připraveni k vynesení.} other {# připraveno k vynesení.}}",
+    "emptyAxisReadyRoles": "{count, plural, one {# připravena k vynesení.} few {# připraveny k vynesení.} other {# připraveno k vynesení.}}"
   },
   "analyze": {
     "modeNew": "Nová analýza",
@@ -5092,7 +5184,8 @@
       "completed": {
         "title": "Vše je připraveno!",
         "body": "Společnost, role, úloha i kanály jsou zapojené — šťastný nábor."
-      }
+      },
+      "optional": "Volitelné"
     }
   },
   "devcase": {

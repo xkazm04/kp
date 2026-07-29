@@ -34,18 +34,27 @@ export function hasNoStageTransitions(funnel: FunnelRow[]): boolean {
 
 /**
  * What each funnel stage will let a recruiter decide, once a candidate first
- * reaches it. Keyed by the canonical FUNNEL_STAGES names. This is copy, not
- * data — no figure here is ever presented as a measurement.
+ * reaches it. Keyed by the canonical FUNNEL_STAGES names, valued by the
+ * `analytics.funnelGuide.*` catalog key that carries the copy — this module
+ * stays pure and locale-free; the component resolves the key with its own `t`.
  */
-const STAGE_QUESTION: Record<string, string> = {
-  Accepted: "Who arrived, and which channel sent them.",
-  Screened: "What share of your applicants clear the first evaluation.",
-  Interview: "Whether screening is letting the right people through.",
-  Offer: "How selective the interview loop actually is.",
-  Hired: "Your end-to-end hire rate, and how long it took.",
+export type StageQuestionKey =
+  | "questionAccepted"
+  | "questionScreened"
+  | "questionInterview"
+  | "questionOffer"
+  | "questionHired"
+  | "questionFallback";
+
+const STAGE_QUESTION: Record<string, StageQuestionKey> = {
+  Accepted: "questionAccepted",
+  Screened: "questionScreened",
+  Interview: "questionInterview",
+  Offer: "questionOffer",
+  Hired: "questionHired",
 };
 
 /** The question a stage answers; a neutral fallback keeps a custom axis safe. */
-export function stageQuestion(stage: string): string {
-  return STAGE_QUESTION[stage] ?? "How many candidates get this far.";
+export function stageQuestionKey(stage: string): StageQuestionKey {
+  return STAGE_QUESTION[stage] ?? "questionFallback";
 }

@@ -15,6 +15,7 @@
  */
 
 import { ArrowRight, RotateCcw } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { MotionizedGlyph } from "@/app/_components/glyph/MotionizedGlyph";
 import { DECISIONS_GLYPH } from "@/app/_components/glyph/glyphs/decisionsGlyph";
 import { CARD_PAD, EYEBROW, ICON_STICKER, PANEL, PANEL_SUNKEN } from "@/app/_components/ui/recipes";
@@ -23,8 +24,10 @@ import type { DecisionsEmptyProps } from "./DecisionsEmptyShared";
 
 /** One leg of the relay: where the work is now, and what is waiting there. */
 function DestinationCard({ link, onOpen }: { link: ChainLink; onOpen: () => void }) {
+  const t = useTranslations("decisions.empty");
   const Icon = DESTINATION_ICON[link.tab];
-  const hint = hintFor(link.tab);
+  const hintKey = hintFor(link.tab);
+  const hint = hintKey ? t(hintKey) : null;
   return (
     <button
       type="button"
@@ -48,6 +51,7 @@ function DestinationCard({ link, onOpen }: { link: ChainLink; onOpen: () => void
 }
 
 export function DecisionsEmptyHandoff({ title, body, links, reconsiderCount }: DecisionsEmptyProps) {
+  const t = useTranslations("decisions.empty");
   const go = useChainNav();
   return (
     <div className={`${PANEL_SUNKEN} p-8 text-center`}>
@@ -57,7 +61,7 @@ export function DecisionsEmptyHandoff({ title, body, links, reconsiderCount }: D
         viewBox={DECISIONS_GLYPH.viewBox}
         className="mx-auto h-32 w-32"
       />
-      <p className={`mt-3 ${EYEBROW}`}>Baton passed</p>
+      <p className={`mt-3 ${EYEBROW}`}>{t("batonEyebrow")}</p>
       <h3 className="mt-0.5 font-serif text-h2 text-ink">{title}</h3>
       <p className="mx-auto mt-2 max-w-lg text-base text-steel">{body}</p>
 
@@ -73,7 +77,7 @@ export function DecisionsEmptyHandoff({ title, body, links, reconsiderCount }: D
       {reconsiderCount > 0 ? (
         <p className="mx-auto mt-5 inline-flex items-center gap-1.5 text-sm text-steel">
           <RotateCcw size={13} aria-hidden className="text-coral" />
-          {reconsiderCount} auto-rejected {reconsiderCount === 1 ? "candidate is" : "candidates are"} still reconsiderable below.
+          {t("reconsiderLine", { count: reconsiderCount })}
         </p>
       ) : null}
     </div>

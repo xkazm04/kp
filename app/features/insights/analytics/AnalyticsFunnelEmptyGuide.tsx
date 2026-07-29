@@ -1,10 +1,11 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { MotionizedGlyph } from "@/app/_components/glyph/MotionizedGlyph";
 import { ANALYTICS_GLYPH } from "@/app/_components/glyph/glyphs/analyticsGlyph";
 import { META_LABEL, PANEL_SUNKEN } from "@/app/_components/ui/recipes";
 import { UpstreamLinks, type AnalyticsEmptyLink } from "./AnalyticsEmptyShared";
-import { stageQuestion, type FunnelRow } from "./analyticsFunnelEmptyState";
+import { stageQuestionKey, type FunnelRow } from "./analyticsFunnelEmptyState";
 
 // VARIANT B — "the questions this funnel is standing by to answer".
 //
@@ -35,6 +36,7 @@ type Props = {
 };
 
 export function FunnelEmptyGuide({ funnel, stageLabel, links }: Props) {
+  const t = useTranslations("analytics.funnelGuide");
   const [entry, ...waiting] = funnel;
 
   return (
@@ -46,16 +48,12 @@ export function FunnelEmptyGuide({ funnel, stageLabel, links }: Props) {
           className="hidden h-24 w-24 shrink-0 sm:block"
         />
         <div className="min-w-0">
-          <p className="text-base font-semibold text-ink">Your funnel is standing by</p>
-          <p className="mt-1 max-w-xl text-sm text-steel">
-            {entry.reached === 1 ? "1 candidate has arrived" : `${entry.reached} candidates have arrived`} but none has
-            changed stage yet. Conversion is a measure of movement — here is what each step will tell you the moment it
-            starts moving.
-          </p>
+          <p className="text-base font-semibold text-ink">{t("title")}</p>
+          <p className="mt-1 max-w-xl text-sm text-steel">{t("body", { count: entry.reached })}</p>
         </div>
       </div>
 
-      <p className={`mt-5 ${META_LABEL}`}>What each step will tell you</p>
+      <p className={`mt-5 ${META_LABEL}`}>{t("stepsLabel")}</p>
       {/* Hairline dividers via the tab's existing gap-px idiom: the list's own
           background shows through the 1px gaps between white rows. */}
       <ol className="mt-2 space-y-px overflow-hidden rounded-md border border-stone-200 bg-stone-200">
@@ -66,11 +64,11 @@ export function FunnelEmptyGuide({ funnel, stageLabel, links }: Props) {
           return (
             <li key={f.stage} className="flex items-baseline gap-3 bg-white px-3 py-2.5">
               <span className="w-28 shrink-0 text-base font-medium text-ink">{stageLabel(f.stage)}</span>
-              <span className="min-w-0 flex-1 text-sm text-steel">{stageQuestion(f.stage)}</span>
+              <span className="min-w-0 flex-1 text-sm text-steel">{t(stageQuestionKey(f.stage))}</span>
               {live ? (
                 <span className="shrink-0 text-sm font-semibold text-ink nums">{f.reached}</span>
               ) : (
-                <span className="shrink-0 text-sm text-stone-400" aria-label="no data yet">
+                <span className="shrink-0 text-sm text-stone-400" aria-label={t("noDataYet")}>
                   —
                 </span>
               )}
@@ -79,11 +77,7 @@ export function FunnelEmptyGuide({ funnel, stageLabel, links }: Props) {
         })}
       </ol>
       {waiting.length > 0 ? (
-        <p className="mt-2 text-sm text-steel">
-          {waiting.length === 1
-            ? "1 step is still waiting for its first candidate."
-            : `${waiting.length} steps are still waiting for their first candidate.`}
-        </p>
+        <p className="mt-2 text-sm text-steel">{t("waiting", { count: waiting.length })}</p>
       ) : null}
 
       <UpstreamLinks links={links} className="mt-4" />

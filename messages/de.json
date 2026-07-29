@@ -1592,7 +1592,9 @@
       "renameViewTitle": "Ansicht umbenennen",
       "previewScope": "{mine} von {total} Entscheidungen dieses Laufs gehören Ihrem Team — die Zahlen oben umfassen die gesamte Installation.",
       "previewOtherTeamsOnly": "{count, plural, one {Keine Änderungen für Ihr Team. In diesem Lauf wartet # Änderung für ein anderes Team.} other {Keine Änderungen für Ihr Team. In diesem Lauf warten # Änderungen für andere Teams.}}",
-      "previewApplyGlobal": "{count, plural, one {# Änderung anwenden (alle Teams)} other {# Änderungen anwenden (alle Teams)}}"
+      "previewApplyGlobal": "{count, plural, one {# Änderung anwenden (alle Teams)} other {# Änderungen anwenden (alle Teams)}}",
+      "emptyBoardWaiting": "Ihr Board wartet",
+      "emptyFirstCandidate": "Erste/r Kandidat/in"
     },
     "today": {
       "eyebrow": "Heute",
@@ -2268,6 +2270,12 @@
         "highestFit": "Höchste Eignung ({score}) in dieser Rolle.",
         "unscored": "An der Spitze des Feldes, aber es wurde noch keine Eignung berechnet."
       }
+    },
+    "empty": {
+      "batonEyebrow": "Staffelstab übergeben",
+      "reconsiderLine": "{count, plural, one {# automatisch abgelehnte/r Kandidat/in kann unten weiterhin erneut geprüft werden.} other {# automatisch abgelehnte Kandidat/innen können unten weiterhin erneut geprüft werden.}}",
+      "hintSchedule": "Angenommene Screenings, die auf einen bestätigten Termin warten.",
+      "hintPipeline": "Das Live-Board — alle Kandidat/innen und die Phase, in der sie stehen."
     }
   },
   "scheduleTab": {
@@ -2470,6 +2478,15 @@
       "readbackUnconfirmedFlag": "unbestätigt",
       "readbackUnconfirmedHint": "Früher erwähnt, aber beim Zurücklesen nicht bestätigt — möglicherweise ein Transkriptionsfehler",
       "readbackNote": "Aus dem abschließenden Zurücklesen: Die Kandidatin oder der Kandidat hat die vom Interviewer gehörten Technologien bestätigt oder korrigiert."
+    },
+    "relay": {
+      "label": "Wo der Staffelstab liegt",
+      "stopDecisions": "Entscheidungen",
+      "stopSchedule": "Planung",
+      "stopInterview": "Interview",
+      "noteWaiting": "Wartet hier",
+      "noteHere": "Sie sind hier",
+      "noteNext": "Als Nächstes"
     }
   },
   "library": {
@@ -2592,7 +2609,18 @@
       "chipClosedAria": "Geschlossene Stelle",
       "chipLinkedAria": "Verknüpfte Stelle — Status {status}",
       "chipUnlinked": "Nur Analyse",
-      "chipUnlinkedAria": "Nur Analyse — noch nicht als abgleichbare Stelle übernommen"
+      "chipUnlinkedAria": "Nur Analyse — noch nicht als abgleichbare Stelle übernommen",
+      "shelfEyebrow": "Leeres Regal",
+      "shelfTitle": "Noch nichts im Regal",
+      "shelfBody": "Eine hier verfasste Stellenbeschreibung wird zum Bestand: jede Stelle, die Sie öffnen, jeder Lebenslauf, den Sie bewerten, und jede Kopie für die nächste Vakanz geht von einem dieser Blätter aus.",
+      "shelfRecordLabel": "Der Datensatz, den Sie gleich anlegen",
+      "shelfWriteCta": "Erste Beschreibung schreiben",
+      "shelfDraftCta": "Vom Builder entwerfen lassen",
+      "shelfCtaNote": "Beides öffnet das Panel „Generieren“ — speichern Sie einen Entwurf unverändert, oder lassen Sie die AI die Beschreibung, eine marktübliche Gehaltsspanne und einen Interview-Case erstellen.",
+      "shelfReuseLabel": "Ein Blatt lässt sich nutzen für",
+      "shelfReuseAnalyze": "Lebensläufe dagegen bewerten",
+      "shelfReuseIngest": "Als offene Stelle einlesen",
+      "shelfReuseDuplicate": "Für die nächste Vakanz duplizieren"
     },
     "form": {
       "saveAjd": "Stellenbeschreibung speichern",
@@ -2765,7 +2793,23 @@
       "clearAllFilters": "Alle Filter zurücksetzen",
       "noRolesEmptyTitle": "Noch keine Stellen",
       "noRolesEmptyBody": "Stellen beginnen als Stellenbeschreibungen — schreiben oder generieren Sie eine in der Bibliothek und lesen Sie sie dann als Stelle ein.",
-      "noRolesEmptyCta": "Stellenbeschreibungen öffnen"
+      "noRolesEmptyCta": "Stellenbeschreibungen öffnen",
+      "launchpad": {
+        "route": "Weg {step}",
+        "eyebrow": "Erste Stelle",
+        "title": "Ihr Katalog wartet auf den Eröffnungszug",
+        "body": "Jede Einstellung in kp hängt an einer offenen Stelle. Veröffentlichen Sie die erste, und der Rest des Arbeitsbereichs erwacht.",
+        "route1Title": "Aus einer Stellenbeschreibung entwerfen",
+        "route1Body": "Wählen Sie eine Stellenbeschreibung in der Bibliothek, passen Sie die Anforderungen an und veröffentlichen Sie sie als offene Stelle.",
+        "route1Cta": "Stellenbeschreibungen öffnen",
+        "route2Title": "Vorhandene Anzeige importieren",
+        "route2Body": "Fügen Sie eine bestehende Stellenanzeige ein, und kp macht daraus eine strukturierte Stelle — Anforderungen, Seniorität, Arbeitsmodell.",
+        "route2Cta": "Import-Panel oben verwenden",
+        "unlocksLabel": "Eine Stelle schaltet frei",
+        "unlockChannels": "Kanäle offen",
+        "unlockPipeline": "Kandidaten kommen an",
+        "unlockDecisions": "Entscheidungs-Warteschlange"
+      }
     },
     "table": {
       "caption": "Stellenkorpus — normalisierte Stellenanzeigen, filterbar nach Berufsfamilie, Seniorität, Arbeitsmodell und Einstiegs-Eignung. Aktivieren Sie eine Zeile, um ihre Anforderungen und die Absolvent/innen-Perspektive aufzuklappen.",
@@ -3454,6 +3498,22 @@
       "createArchetype": "Archetyp erstellen",
       "saveChanges": "Änderungen speichern",
       "cancel": "Abbrechen"
+    },
+    "empty": {
+      "specimenLabel": "Jedes gespeicherte Profil enthält",
+      "chipArchetype": "Archetyp",
+      "chipRoleFamily": "Rollenfamilie",
+      "listTitle": "Noch keine Karten in der Ablage",
+      "listBody": "Ein Profil ist ein strukturierter Datensatz zu einer Kandidatin oder einem Kandidaten — das, was Sie mit offenen Stellen abgleichen. Hier wurde noch nichts abgelegt.",
+      "listCta": "Profil anlegen",
+      "listCtaAnalyze": "Oder einen Lebenslauf analysieren und übernehmen",
+      "matrixTitle": "Die Fächer stehen bereit, die Karten fehlen",
+      "matrixBodyDefined": "{count, plural, one {Sie haben oben # Archetyp definiert.} other {Sie haben oben # Archetypen definiert.}} Jede Kandidatin und jeder Kandidat wird genau einem zugeordnet — dann kann diese Ansicht sie nebeneinander vergleichen.",
+      "matrixBodyNone": "Jede Kandidatin und jeder Kandidat wird genau einem Archetyp zugeordnet, und diese Ansicht vergleicht sie nebeneinander. Definieren Sie oben einen Archetyp, um das erste Fach zu öffnen.",
+      "filed": "{count, plural, one {# abgelegt} other {# abgelegt}}",
+      "moreArchetypes": "{count, plural, one {+# weiterer} other {+# weitere}}",
+      "matrixCta": "Erste Karte ablegen",
+      "matrixCtaAnalyze": "Oder einen Lebenslauf analysieren"
     }
   },
   "channels": {
@@ -4291,6 +4351,29 @@
       "reviewHolds": "Offene Zurückhaltungen unter Entscheidungen prüfen",
       "comms": "Nachrichten zugestellt",
       "commsQueued": "Nachrichten im Postausgang erfasst (nicht zugestellt)"
+    },
+    "empty": {
+      "willReport": "Was dieser Tab berichten wird",
+      "noValueYet": "noch kein Wert",
+      "metricHireRate": "Einstellungsquote",
+      "metricHireRateBody": "Wie viele der Bewerbenden Sie tatsächlich einstellen.",
+      "metricTimeToHire": "Time-to-Hire",
+      "metricTimeToHireBody": "Tage vom Eingang einer Bewerbung bis zur Unterschrift.",
+      "metricCostPerHire": "Kosten je Einstellung",
+      "metricCostPerHireBody": "Kanalausgaben geteilt durch die daraus entstandenen Einstellungen."
+    },
+    "funnelGuide": {
+      "title": "Ihr Funnel steht bereit",
+      "body": "{count, plural, one {# Kandidat/in ist eingetroffen} other {# Kandidat/innen sind eingetroffen}}, aber niemand hat bisher die Phase gewechselt. Conversion misst Bewegung — hier steht, was Ihnen jeder Schritt sagt, sobald er sich bewegt.",
+      "stepsLabel": "Was Ihnen jeder Schritt sagen wird",
+      "waiting": "{count, plural, one {# Schritt wartet noch auf die erste Kandidatin oder den ersten Kandidaten.} other {# Schritte warten noch auf ihre ersten Kandidat/innen.}}",
+      "noDataYet": "noch keine Daten",
+      "questionAccepted": "Wer eingetroffen ist und über welchen Kanal.",
+      "questionScreened": "Welcher Anteil Ihrer Bewerbungen die erste Bewertung besteht.",
+      "questionInterview": "Ob das Screening die richtigen Personen durchlässt.",
+      "questionOffer": "Wie selektiv die Interview-Runde tatsächlich ist.",
+      "questionHired": "Ihre Einstellungsquote von Anfang bis Ende — und wie lange sie gedauert hat.",
+      "questionFallback": "Wie viele Kandidat/innen bis hierher kommen."
     }
   },
   "candidateOnboarding": {
@@ -4495,7 +4578,16 @@
     "noFits": "keine Treffer",
     "colStatsTitle": "{count} bewertet · beste {best} · Median {median} · {strong} stark (≥{threshold})",
     "legendMatch": "Match",
-    "inPipeline": "in Pipeline"
+    "inPipeline": "in Pipeline",
+    "emptyAxesTitle": "Zwei Achsen, noch nichts zu kreuzen",
+    "emptyAxesBody": "Dieses Raster bewertet jede Kandidatin und jeden Kandidaten gegen jede offene Stelle. Es braucht beide Seiten, bevor es eine einzige Zelle zeichnen kann.",
+    "emptyAxisRows": "Zeilen",
+    "emptyAxisColumns": "Spalten",
+    "emptyAxisCandidates": "Kandidaten",
+    "emptyAxisRoles": "Offene Stellen",
+    "emptyAxisNone": "Noch nichts — diese Seite des Rasters ist leer.",
+    "emptyAxisReadyCandidates": "{count, plural, one {# bereit zum Eintragen.} other {# bereit zum Eintragen.}}",
+    "emptyAxisReadyRoles": "{count, plural, one {# bereit zum Eintragen.} other {# bereit zum Eintragen.}}"
   },
   "analyze": {
     "modeNew": "Neue Analyse",
@@ -5092,7 +5184,8 @@
       "completed": {
         "title": "Alles bereit!",
         "body": "Unternehmen, Stelle, Arbeitsprobe und Kanäle sind verbunden — viel Erfolg beim Einstellen."
-      }
+      },
+      "optional": "Optional"
     }
   },
   "devcase": {

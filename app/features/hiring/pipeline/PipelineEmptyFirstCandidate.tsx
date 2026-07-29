@@ -18,6 +18,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight, UserPlus } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { PANEL_SUNKEN, EYEBROW, BTN_PRIMARY, BTN_SECONDARY, META_LABEL } from "@/app/_components/ui/recipes";
 import { MotionizedGlyph } from "@/app/_components/glyph/MotionizedGlyph";
 import { PIPELINE_GLYPH } from "@/app/_components/glyph/glyphs/pipelineGlyph";
@@ -36,6 +37,7 @@ export type PipelineEmptyProps = {
 // A single lane of the rehearsal board. The first lane carries the waiting slot;
 // the rest are drawn empty so the funnel's shape is legible at a glance.
 function GhostLane({ index, label, help, waiting }: { index: number; label: string; help: string; waiting: boolean }) {
+  const t = useTranslations("pipeline.tab");
   return (
     <li className="min-w-0 flex-1">
       <p className={`truncate ${META_LABEL}`} title={help}>
@@ -48,7 +50,7 @@ function GhostLane({ index, label, help, waiting }: { index: number; label: stri
       >
         {waiting ? (
           <span className="flex items-center gap-1.5 text-sm font-medium text-coral">
-            <UserPlus size={14} aria-hidden /> First candidate
+            <UserPlus size={14} aria-hidden /> {t("emptyFirstCandidate")}
           </span>
         ) : (
           <span className="text-sm text-stone-400" aria-hidden>
@@ -61,6 +63,7 @@ function GhostLane({ index, label, help, waiting }: { index: number; label: stri
 }
 
 export function PipelineEmptyFirstCandidate({ title, body, links, extraAction }: PipelineEmptyProps) {
+  const t = useTranslations("pipeline.tab");
   const router = useRouter();
   const search = useSearchParams();
   const enumLabel = useEnumLabel();
@@ -76,7 +79,7 @@ export function PipelineEmptyFirstCandidate({ title, body, links, extraAction }:
           className="h-24 w-24 shrink-0"
         />
         <div className="min-w-0">
-          <p className={EYEBROW}>Your board, waiting</p>
+          <p className={EYEBROW}>{t("emptyBoardWaiting")}</p>
           <p className="mt-1 text-base font-semibold text-ink">{title}</p>
           <p className="mt-1 max-w-xl text-sm text-steel">{body}</p>
         </div>

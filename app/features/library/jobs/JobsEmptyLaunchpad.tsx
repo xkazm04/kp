@@ -14,6 +14,7 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { ArrowRight, ClipboardPaste, FileText, type LucideIcon } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { buildTabSwitchUrl, type WorkspaceTabId } from "@/app/features/shell/tabs";
 import { MotionizedGlyph } from "@/app/_components/glyph/MotionizedGlyph";
 import { JOBS_GLYPH } from "@/app/_components/glyph/glyphs/jobsGlyph";
@@ -38,10 +39,11 @@ function RouteCard({
   tab?: WorkspaceTabId;
   search: string;
 }) {
+  const t = useTranslations("jobs.tab.launchpad");
   return (
     <div className={`${PANEL} flex flex-col gap-2 p-4 text-left`}>
       <div className="flex items-center gap-2">
-        <span className={META_LABEL}>Route {step}</span>
+        <span className={META_LABEL}>{t("route", { step })}</span>
         <Icon size={14} className="text-moss" aria-hidden />
       </div>
       <p className="text-base font-semibold text-ink">{title}</p>
@@ -57,14 +59,16 @@ function RouteCard({
   );
 }
 
-// What a single live role switches on downstream — the payoff, as real tabs.
-const UNLOCKS: { tab: WorkspaceTabId; label: string }[] = [
-  { tab: "channels", label: "Channels open" },
-  { tab: "pipeline", label: "Candidates flow" },
-  { tab: "decisions", label: "Decisions queue" },
+// What a single live role switches on downstream — the payoff, as real tabs. The
+// label is a catalog key, resolved at render so the chips localize with the tab.
+const UNLOCKS: { tab: WorkspaceTabId; labelKey: "unlockChannels" | "unlockPipeline" | "unlockDecisions" }[] = [
+  { tab: "channels", labelKey: "unlockChannels" },
+  { tab: "pipeline", labelKey: "unlockPipeline" },
+  { tab: "decisions", labelKey: "unlockDecisions" },
 ];
 
 export function JobsEmptyLaunchpad() {
+  const t = useTranslations("jobs.tab.launchpad");
   const search = useSearchParams();
   const searchStr = search.toString();
   return (
@@ -76,11 +80,9 @@ export function JobsEmptyLaunchpad() {
           className="h-24 w-24 shrink-0 sm:h-28 sm:w-28"
         />
         <div>
-          <p className={EYEBROW}>First role</p>
-          <h3 className={`mt-1 ${TITLE_DISPLAY}`}>Your catalog is waiting for its opening move</h3>
-          <p className="mt-2 max-w-xl text-body text-steel">
-            Every hire in kp hangs off one open role. Post the first one and the rest of the workspace comes alive.
-          </p>
+          <p className={EYEBROW}>{t("eyebrow")}</p>
+          <h3 className={`mt-1 ${TITLE_DISPLAY}`}>{t("title")}</h3>
+          <p className="mt-2 max-w-xl text-body text-steel">{t("body")}</p>
         </div>
       </div>
 
@@ -88,27 +90,27 @@ export function JobsEmptyLaunchpad() {
         <RouteCard
           step={1}
           icon={FileText}
-          title="Draft it from a JD template"
-          body="Pick a job description in the library, tune the requirements, and publish it as an open role."
-          cta="Open the JD library"
+          title={t("route1Title")}
+          body={t("route1Body")}
+          cta={t("route1Cta")}
           tab="library"
           search={searchStr}
         />
         <RouteCard
           step={2}
           icon={ClipboardPaste}
-          title="Import an ad you already have"
-          body="Paste an existing job ad and kp parses it into a structured role — requirements, seniority, work mode."
-          cta="Use the import panel above"
+          title={t("route2Title")}
+          body={t("route2Body")}
+          cta={t("route2Cta")}
           search={searchStr}
         />
       </div>
 
       <div className="mt-5 flex flex-wrap items-center justify-center gap-2 border-t border-stone-200 pt-4 sm:justify-start">
-        <span className={META_LABEL}>One role unlocks</span>
+        <span className={META_LABEL}>{t("unlocksLabel")}</span>
         {UNLOCKS.map((u) => (
           <Link key={u.tab} href={buildTabSwitchUrl(u.tab, searchStr)} className={`${CHIP} hover:border-coral/40 hover:text-ink`}>
-            {u.label}
+            {t(u.labelKey)}
           </Link>
         ))}
       </div>

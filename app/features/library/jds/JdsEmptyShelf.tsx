@@ -37,11 +37,12 @@ function GhostCell({ label, wide }: { label: string; wide?: boolean }) {
 }
 
 // What one shelved spec is reusable FOR — the real downstream affordances, each a
-// live destination so the payoff is reachable, not just described.
-const REUSE: { tab: WorkspaceTabId; icon: LucideIcon; label: string }[] = [
-  { tab: "analyze", icon: Sparkles, label: "Score CVs against it" },
-  { tab: "jobs", icon: ArrowRight, label: "Ingest it as an open role" },
-  { tab: "library", icon: Copy, label: "Duplicate it for the next opening" },
+// live destination so the payoff is reachable, not just described. The label is a
+// catalog key, resolved at render so the row localizes with the rest of the tab.
+const REUSE: { tab: WorkspaceTabId; icon: LucideIcon; labelKey: "shelfReuseAnalyze" | "shelfReuseIngest" | "shelfReuseDuplicate" }[] = [
+  { tab: "analyze", icon: Sparkles, labelKey: "shelfReuseAnalyze" },
+  { tab: "jobs", icon: ArrowRight, labelKey: "shelfReuseIngest" },
+  { tab: "library", icon: Copy, labelKey: "shelfReuseDuplicate" },
 ];
 
 export function LibraryEmptyShelf({ onStartGenerate }: { onStartGenerate: () => void }) {
@@ -58,19 +59,16 @@ export function LibraryEmptyShelf({ onStartGenerate }: { onStartGenerate: () => 
           className="h-24 w-24 shrink-0 sm:h-28 sm:w-28"
         />
         <div>
-          <p className={EYEBROW}>Empty shelf</p>
-          <h3 className={`mt-1 ${TITLE_DISPLAY}`}>Nothing on the shelf yet</h3>
-          <p className="mt-2 max-w-xl text-body text-steel">
-            A job description written here becomes stock: every role you open, every CV you score, and every
-            duplicate of the next opening starts from one of these sheets.
-          </p>
+          <p className={EYEBROW}>{t("shelfEyebrow")}</p>
+          <h3 className={`mt-1 ${TITLE_DISPLAY}`}>{t("shelfTitle")}</h3>
+          <p className="mt-2 max-w-xl text-body text-steel">{t("shelfBody")}</p>
         </div>
       </div>
 
       {/* The ghost record — the ledger's own columns, empty. Teaches the shape of
           a shelved spec using the same localized headers the real table uses. */}
       <div className={`${PANEL} mt-6 p-4`}>
-        <p className={META_LABEL}>The record you&rsquo;re about to create</p>
+        <p className={META_LABEL}>{t("shelfRecordLabel")}</p>
         <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-7">
           <GhostCell label={t("colRole")} wide />
           <GhostCell label={t("colField")} />
@@ -83,27 +81,24 @@ export function LibraryEmptyShelf({ onStartGenerate }: { onStartGenerate: () => 
 
       <div className="mt-5 flex flex-wrap items-center gap-3">
         <button type="button" onClick={onStartGenerate} className={`${BTN_PRIMARY} h-10 px-4 text-base`}>
-          <PenLine size={15} aria-hidden /> Write the first spec
+          <PenLine size={15} aria-hidden /> {t("shelfWriteCta")}
         </button>
         <button type="button" onClick={onStartGenerate} className={`${BTN_SECONDARY} h-10 px-4 text-base`}>
-          <Sparkles size={15} aria-hidden /> Have the builder draft it
+          <Sparkles size={15} aria-hidden /> {t("shelfDraftCta")}
         </button>
-        <p className="text-sm text-steel">
-          Both open the Generate panel &mdash; save a draft as-is, or let the AI build the description, a market
-          salary band and an interview case.
-        </p>
+        <p className="text-sm text-steel">{t("shelfCtaNote")}</p>
       </div>
 
       <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-stone-200 pt-4">
-        <span className={META_LABEL}>One sheet is reusable for</span>
+        <span className={META_LABEL}>{t("shelfReuseLabel")}</span>
         {REUSE.map((r) => (
           <Link
-            key={r.label}
+            key={r.labelKey}
             href={buildTabSwitchUrl(r.tab, searchStr)}
             className={`${CHIP} hover:border-coral/40 hover:text-ink`}
           >
             <r.icon size={13} aria-hidden />
-            {r.label}
+            {t(r.labelKey)}
           </Link>
         ))}
       </div>
