@@ -493,6 +493,38 @@ _OVERLAP_DENOM_FLOOR = 5
 _NEUTRAL_LANGUAGE_COVERAGE = 0.5
 
 
+def _personal_embed_pair(candidate: MatchCandidate, job: Job) -> tuple[str, str]:
+    """The (candidate text, job text) score_personal's semantic term embeds.
+
+    Single-sourced so ``embedding_texts_for`` can pre-warm the exact same strings
+    the scorer will look up — a drifted copy here would silently miss the cache
+    and re-embed one text per candidate."""
+    return " ".join(candidate.traits + candidate.skills), job.description or ""
+
+
+def _motivation_embed_pair(candidate: MatchCandidate, job: Job) -> tuple[str, str] | None:
+    """score_motivation's semantic pair, or None when there is no aspiration text
+    to embed (the scorer skips the bridge entirely in that case)."""
+    asp = " ".join(candidate.aspirations).casefold()
+    if not asp.strip():
+        return None
+    return asp, f"{job.title or ''} {job.description or ''}"
+
+
+def embedding_texts_for(candidate: MatchCandidate, job: Job) -> list[str]:
+    """Every text ``score_job(..., embedder=...)`` would embed for this candidate.
+
+    Lets a caller holding the whole pool (recruiter.rank_candidates_for_job) batch
+    them into ONE provider round-trip via ``embedding_bridge.prewarm`` instead of
+    paying two sequential single-item calls per candidate. Mirrors
+    ``_score_dimensions``' archetype split, so it never warms a text the scorer
+    won't ask for."""
+    if candidate.archetype in _EARLY_CAREER:
+        pair = _motivation_embed_pair(candidate, job)
+        return list(pair) if pair else []
+    return list(_personal_embed_pair(candidate, job))
+
+
 def score_personal(candidate: MatchCandidate, job: Job, *, embedder: Any | None = None) -> float:
     """Keyword heuristic by default; the embedding bridge when opted in.
 
@@ -515,7 +547,7 @@ def score_personal(candidate: MatchCandidate, job: Job, *, embedder: Any | None 
     if embedder is not None:
         from .embedding_bridge import semantic_overlap
 
-        overlap = semantic_overlap(" ".join(candidate.traits + candidate.skills), job.description or "", embedder)
+        overlap = semantic_overlap(*_personal_embed_pair(candidate, job), embedder)
     if overlap is None:
         desc_words = _description_words(job.description or "")
         # Keep every non-empty token: _term_in_words is word-boundary based, so a
@@ -566,10 +598,11 @@ def score_motivation(candidate: MatchCandidate, job: Job, *, embedder: Any | Non
     asp = " ".join(candidate.aspirations).casefold()
     title = (job.title or "").casefold()
     aspiration_hit: float | None = None
-    if embedder is not None and asp.strip():
+    pair = _motivation_embed_pair(candidate, job) if embedder is not None else None
+    if pair is not None:
         from .embedding_bridge import semantic_overlap
 
-        aspiration_hit = semantic_overlap(asp, f"{job.title or ''} {job.description or ''}", embedder)
+        aspiration_hit = semantic_overlap(*pair, embedder)
     if aspiration_hit is None:
         asp_tokens = [t for t in asp.replace("/", " ").split() if len(t) > 3]
         aspiration_hit = 1.0 if asp_tokens and any(t in title for t in asp_tokens) else 0.0
