@@ -1,0 +1,140 @@
+# Hiring Pipeline & Automation
+
+The candidate funnel from a sourced/applied CV to a hire, plus the automation
+layer that assists recruiters at every stage without ever silently rejecting
+or advancing a candidate on its own. Local-first: the only runtime LLM is the
+Claude Code CLI (`pipeline/jobfit/claude_cli.py`); every automated task has a
+deterministic fallback so the pipeline never blocks when the CLI is missing.
+
+## Entry points
+
+- `/?tab=pipeline` — the pipeline board (`app/features/hiring/pipeline/PipelineTab.tsx`).
+- `/?tab=decisions` — the Decisions queue, where AI holds/recommendations land for
+  a human to approve or reject (`app/features/hiring/decisions/DecisionsTab.tsx`).
+- Per-candidate drawer — `app/features/hiring/pipeline/PipelineCandidateDrawer.tsx`.
+
+## Stage model
+
+Five canonical stages, defined once in `app/_lib/pipeline-stages.ts`:
+
+```
+Accepted → Screened → Interview → Offer → Hired
+```
+
+`Accepted` is the real funnel entry — a CV received either inbound (apply /
+quick-apply / channel webhook) or proactively sourced/rediscovered. This
+replaced an earlier `Sourced` → `AI-matched` → `Screening` naming (see
+"Corrections" below); legacy stage names are no longer used in code.
+
+## Flows
+
+1. **Screening (LLM-assisted, fairness-gated).** `screen_candidate()` in
+   `pipeline/jobfit/automation.py` scores a fresh `Accepted` entry. A **pre-LLM
+   fairness gate** forces `hold` for a learnable-gap early-career candidate
+   before the prompt ever runs. The LLM/fallback then returns a
+   `recommendation` (`advance` | `hold` | `reject`) + `confidence`; only
+   `advance` + `confidence ≥ 80` + a non-early-career archetype auto-advances
+   to `Screened` — everything else lands in the Decisions queue. Never an
+   automatic reject.
+2. **Policy pass (deterministic, no LLM).** `evaluate_entry()` in
+   `automation.py` batch-evaluates active entries ("Run automation pass" button
+   or `/api/automation/run`) against a `POLICY` dict (advance/hold/reject
+   thresholds, aging windows). An unscored entry (no match score yet) always
+   holds — it is never coerced into a fabricated zero. Applied server-side by
+   `app/_lib/automation-pass.ts` / `app/_lib/automation-run.ts`.
+3. **Screen wave — configurable bulk auto-reject.** `app/_lib/screen-wave.ts`
+   auto-rejects the bottom X% of a role's matched cohort that are *also* below
+   a configurable match floor — the one Phase-3 capability the original spec
+   only sketched. Thresholds are no longer hard-coded: they live in a
+   per-workspace decision-config store (`app/_lib/decision-config-store.ts`,
+   schema in `decision-config-schema.ts`), editable from the Decisions Rules
+   modal. The fairness gate is preserved and **fails closed**
+   (`isFairnessProtected`): early-career, unknown-archetype, and unscored
+   candidates are excluded from the rejectable cohort entirely, not silently
+   coerced to a rejectable score. An optional recruiter-audited holdout sample
+   (`screen-wave-holdout.ts`) is carved out of every auto-reject batch for
+   quality review.
+4. **On-demand tasks.** Outreach draft, rejection draft, interview prep pack,
+   interview scorecard synthesis, and re-match alternatives are all
+   recruiter-triggered, never automatic. One consolidated route dispatches all
+   of them (see Surface below); `app/_lib/automation-fairness.ts` re-asserts
+   the auto-reject invariant at the TS boundary (`assertAutoRejectFair`) as a
+   defense-in-depth check independent of the Python gate.
+5. **Offer-stage group evaluation.** `GroupEvalModal` /
+   `app/_lib/group-eval-run.ts` compares a role's candidates (incorporating the
+   interview scorecard, not just match score) before a recruiter extends an
+   offer.
+6. **Automation ROI ledger.** `app/_lib/automation-roi.ts` attaches a
+   per-action "minutes a recruiter would have spent doing this by hand"
+   estimate to each automated event kind and aggregates hours/CZK saved from
+   the real `pipeline_events` trail — a measurement layer added after the
+   original spec, answering "what is this automation actually worth."
+
+## Surface
+
+| Module / route | Purpose |
+|---|---|
+| `pipeline/jobfit/automation.py` | Task functions: `screen_candidate`, `draft_outreach`, `draft_rejection`, `interview_prep`, `interview_scorecard`, `rematch_candidate`, `evaluate_entry` (Task 7, deterministic). `POLICY` dict holds the hard-coded defaults. |
+| `pipeline/jobfit/automation_cli.py` | Sub-command CLI entry point (`screen`, `outreach`, `rejection`, `prep`, `scorecard`, `rematch`, `policy-pass`); UTF-8 stdio, JSON out, `{error,status,code}` on stderr. |
+| `app/api/automation/[task]/route.ts` | **Consolidated** per-entry task route (`POST {entryId, notes?}`) — replaced the one-route-per-task layout the original spec proposed. Operator-only (`requireOperator`). |
+| `app/api/automation/run/route.ts` | Task 7 policy pass over active entries. |
+| `app/api/automation/schedule/route.ts` | Scheduling-side automation hook. |
+| `app/api/tasks` (kind `"automation"`) | Hardened/background path sharing `runAutomationTask` with the synchronous route above — tracked, deduped, refresh-safe. |
+| `app/_lib/automation-run.ts` | `runAutomationTask` — shared dispatcher both routes call into. |
+| `app/_lib/automation-pass.ts` | Applies Task 7 policy-pass decisions to the DB in one transaction. |
+| `app/_lib/automation-fairness.ts` | `assertAutoRejectFair` — TS-side defense-in-depth fairness re-check before any reject is applied. |
+| `app/_lib/decision-config-store.ts` / `decision-config-schema.ts` | Per-workspace, data-driven screening/compliance rules (Phase 3). |
+| `app/_lib/screen-wave.ts`, `screen-wave-holdout.ts`, `screen-wave-approval.ts` | Configurable bulk auto-reject wave + audited holdout + approval token. |
+| `app/_lib/interview-recommendation.ts` | Single-sourced `recommendation`/`route` vocabulary + coercion (TS side). |
+| `app/_lib/automation-roi.ts` | Minutes/CZK-saved ledger over the automation event trail. |
+| `app/features/hiring/decisions/**` | Decisions queue UI, screen-wave modal, group-eval. |
+| `app/features/hiring/pipeline/**` | Pipeline board UI, activity feed, candidate drawer. |
+
+## Recommendation / route vocabulary
+
+A closed, single-sourced vocabulary validated at every parse boundary:
+
+| Concept | Legal values | Emitted by |
+|---|---|---|
+| `recommendation` (verdict) | `advance` \| `hold` \| `reject` | `screen_candidate`, `interview_scorecard` |
+| `route` (screen gate) | `advance` \| `hold` (subset) | `screen_candidate` only |
+
+Canonical fallback for both is **`hold`** — never `advance` (could silently
+auto-progress) and never `reject` (the fairness gate forbids a silent
+auto-reject). Python side: `RECOMMENDATIONS` / `RECOMMENDATION_FALLBACK` /
+`coerce_recommendation()` in `automation.py`. TS side:
+`INTERVIEW_RECOMMENDATIONS` / `coerceInterviewRecommendation` /
+`coerceScreenRoute` in `interview-recommendation.ts`. Pinned by
+`interview-recommendation.test.ts` and `test_automation.py`.
+
+## Data model
+
+`pipeline_entries` (stage, archetype, match score, `approval_kind` /
+`approval_detail`), `pipeline_events` (append-only audit: `screening_advance`,
+`screening_hold`, `outreach_drafted`, `rejection_drafted`,
+`interview_prep_generated`, `interview_scorecard`, `rematched`, `evaluated`,
+`advanced`, `stale_alert`, `aging_alert`, `auto_rejected`, `fairness_gate_blocked_reject`,
+…), `gemini_cache` (generic LLM prompt cache), plus the new
+`decision_config` store and the screen-wave audit records
+(`decision-record-store.ts`).
+
+## Known gaps
+
+- The route layer diverged from the original one-route-per-task design in
+  favor of a consolidated `/api/automation/[task]` handler — functionally
+  equivalent, just fewer files.
+- No ground-truth loop yet validates the `confidence ≥ 80` auto-advance band
+  against real interview/hire outcomes.
+
+## Fairness gates (why a reject can never happen unattended)
+
+- Task 1's pre-LLM gate forces `hold` for a learnable-gap early-career
+  candidate before the prompt runs.
+- Task 7 / the policy pass may only auto-reject a **BAU** archetype below the
+  reject-score floor; early-career always holds.
+- The screen wave (Phase 3 bulk reject) excludes early-career, unknown, and
+  unscored candidates from the rejectable cohort — not coerced, excluded.
+- `assertAutoRejectFair` (`automation-fairness.ts`) re-checks every reject at
+  the TS apply boundary independent of the Python gate; a violation is
+  downgraded to `hold` and logged as `fairness_gate_blocked_reject` — audit
+  that event kind for any refused (bug-caught) or, worse, missed case.

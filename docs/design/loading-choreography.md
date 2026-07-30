@@ -177,7 +177,7 @@ it, the primitive is missing something.
 
 ## The worked example
 
-`app/features/sub_models/ModelsTab.tsx` is the reference implementation — read it
+`app/features/settings/models/ModelsTab.tsx` is the reference implementation — read it
 before starting a tab. It shows all three tiers in ~40 lines of diff:
 
 - the section wrapper became `stagger-children space-y-6` with `aria-busy` on the

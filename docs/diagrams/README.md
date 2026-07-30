@@ -4,7 +4,7 @@ PlantUML sources that trace how **kp** works "in the background" for each major 
 both the current single-analysis app (**v1**) and the target **v2** matching platform
 with student / early-career support.
 
-These diagrams are the visual companion to [`../V2_PLAN.md`](../V2_PLAN.md). Read the plan
+These diagrams are the visual companion to [`../_archive/v2-plan.md`](../_archive/v2-plan.md). Read the plan
 for the narrative; read these for the data flow.
 
 ## Index

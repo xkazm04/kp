@@ -20,7 +20,7 @@ npm run test
 
 Add information about your project architecture, key patterns, and conventions.
 
-## Design system — dual theme (read docs/DESIGN.md before building UI)
+## Design system — dual theme (read docs/design/README.md before building UI)
 
 The app ships **two themes from one codebase**: **Studio Light** (default —
 calm, editorial; for corporate clients) and **Spark Dark** (experimental —
@@ -48,11 +48,68 @@ When writing or changing components, always assume **both** themes:
   outlines, sticker shadows, tilt, Bricolage display face, spring easing).
   Express a theme difference at the cheapest layer that holds it: token →
   `dark:` variant in a recipe (the `dark:` variant follows `data-theme`, not
-  the OS) → markup fork via `ThemeSplit` / a CSS-swapped component like
-  `SectionTitle` → behavioral fork via `useTheme()` (all in
-  `app/_components/ui/`). Never a JS fork where CSS suffices.
+  the OS) → markup fork via a CSS-swapped component like `SectionTitle` (or the
+  `.theme-light-only` / `.theme-dark-only` utilities in `app/globals.css`) →
+  behavioral fork via `useTheme()` (both in `app/_components/ui/`). Never a JS
+  fork where CSS suffices.
 - Verify new surfaces in both themes before finishing (toggle in the sidebar
   footer).
+
+## Documentation Sync — update the doc in the same change
+
+`docs/` is genre-partitioned and each feature area owns a folder. Read
+[`docs/README.md`](../docs/README.md) for the full layout; the short version:
+
+| Directory | Holds |
+| --- | --- |
+| `docs/features/<area>/` | What is implemented today, one folder per feature area |
+| `docs/architecture/` | Cross-cutting contracts (LLM layer, persistence, self-hosting, app structure) |
+| `docs/design/` | The dual-theme design system — **read before building UI** |
+| `docs/development/` | Eval/calibration harnesses and how to run them |
+| `docs/product/` | Market, roadmap, enterprise track |
+| `docs/concepts/` | Proposals not yet implemented |
+| `docs/harness/`, `docs/_archive/` | Dated evidence; superseded material. Do not treat as current |
+
+**The rule: when you change behavior, update the doc that describes it in the same
+change.** A feature doc that names a moved file or a renamed stage is worse than no doc —
+that drift is exactly why this tree was reorganized (the design doc had been claiming the
+wrong `paper` token for weeks; the pipeline spec still used stage names the code dropped).
+
+### Source → doc coupling
+
+[`scripts/docs/feature-doc-map.json`](../scripts/docs/feature-doc-map.json) maps source
+globs to the doc that documents them — e.g. `app/_lib/comms*.ts` + `app/api/comms/**` →
+`docs/features/comms/README.md`, `app/_lib/voice/**` + `app/api/interview/**` →
+`docs/features/interviews/README.md`.
+
+When you add a feature area, add its entry to that file **in the same change**, or nothing
+will watch it.
+
+### The Stop hook
+
+`.claude/settings.json` registers a Stop hook running
+`node scripts/docs/check-doc-sync.mjs` before each turn ends. It walks the turn's
+transcript for `Edit`/`Write`/`MultiEdit`/`NotebookEdit` calls, drops skip patterns (tests,
+generated code, `.claude/`, `app/landing/`, docs themselves), matches the rest against the
+map, and **exits 2 naming the affected doc(s)** when mapped source changed and no file
+under `docs/features/`, `docs/architecture/`, or `docs/design/` was touched.
+
+When you see the reminder, **either** update the named doc in that turn, **or** reply with
+one short sentence — `"internal-only, no doc update needed"` — explaining why. Do not
+ignore it silently. The dismiss path is the deliberate trade-off for catching drift
+per-session instead of via periodic cleanups.
+
+The hook honors `stop_hook_active`, so it cannot loop. Fixtures:
+`node scripts/docs/__tests__/check-doc-sync.test.mjs` (19 checks, no deps) — they also
+validate the map itself: every mapped doc must exist and every glob root must resolve.
+
+### Writing a feature doc
+
+Entry points → user flows → API/lib surface table → data model → a **short** Known gaps
+section. Cite real paths and verify they exist. State tier/env/dev-flag gating explicitly,
+and describe keyless behavior — degrading without API keys is a product property here.
+Anything future-looking belongs in `docs/concepts/` or `docs/BACKLOG.md`, not in a feature
+doc.
 
 ## Important Conventions
 

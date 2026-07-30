@@ -1,0 +1,188 @@
+# Candidates — CV intake, profile, and archetype detection
+
+Everything that turns a person into a scoreable candidate: CV upload/analysis,
+the manual/conversational profile, and the archetype (experienced / student /
+career-switcher) that other features key off. Downstream ranking is
+`docs/features/matching/README.md`.
+
+## Entry points
+
+- **CV analysis tool** — `app/features/tools/analyze/AnalyzeTab.tsx` (`AnalyzeWorkspace.tsx`,
+  `AnalyzeForm.tsx`), file intake via `AnalyzeFileDropZone.tsx` / `useAnalyzeCvFiles.ts`.
+- **Conversational apply** — `app/apply/[id]/ConversationalApply.tsx`, driven by
+  `app/_lib/apply-intake.ts` and `app/_lib/apply.ts`.
+- **Quick apply** — `app/apply/[id]/quick/QuickApplyForm.tsx`, `app/api/apply/[id]/quick/route.ts`.
+- **Profile editor** — `app/features/tools/profile/ProfileEditor.tsx` (+ `ProfileEditorFields.tsx`,
+  `ProfileEditorArchetypeOptions.tsx`).
+- **Profile roster / matrix** — `app/features/tools/profile/ProfileTab.tsx`,
+  `ProfileRoster.tsx`, `CandidateMatrix.tsx`.
+- **Archetype manager** (admin view of the archetype registry) —
+  `app/features/tools/profile/ArchetypeManager.tsx`.
+- **Saved analysis report** — `app/history/[slug]/page.tsx`; history list —
+  `app/features/tools/analyze/history/HistoryTab.tsx`.
+- **Public skill credential** — `app/skill/[token]/page.tsx`.
+
+## Flows
+
+### 1. CV upload → analysis
+`AnalyzeFileDropZone.tsx` accepts PDF/DOCX/TXT/MD → `AnalyzeApi.ts` /
+`analyzeRunAnalysis.ts` → `app/api/analyze/route.ts` → Gemini extraction in
+`pipeline/jobfit/gemini.py`. Extraction is archetype-aware: it emits structured
+`experiences` (including `thesis`/`project` kinds), skill claims **with
+per-skill provenance**, and archetype signals (`is_enrolled`,
+`expected_graduation`, `education_is_dominant`, `wants_domain_change`,
+`has_substantial_experience`). Orchestration lives in `app/_lib/analyze-run.ts`
+and `app/_lib/analyze-phases.ts`; results persist to the `analyses` table and
+render in `HistoryTab.tsx` / `app/history/[slug]/page.tsx`.
+
+### 2. Conversational / quick apply
+Conversational apply asks 4 universal questions (name, most relevant recent
+experience, skills, "which best describes you" archetype pick), then branches:
+students get project/thesis + education + aspirations questions, switchers get
+prior-field + direction questions, experienced candidates get the original
+flow. This branching is implemented as conditional steps in `apply.ts` /
+`apply-intake.ts` (`stepConditionMet` / `nextVisibleStepIndex`), not a
+per-archetype form. Quick apply (`QuickApplyForm.tsx`) is the short-form
+alternative behind `app/api/apply/[id]/quick/route.ts`.
+
+### 3. Manual profile editing
+`ProfileEditor.tsx` exposes the full structured profile: archetype-conditional
+required fields (education detail + aspirations for early-career; years/seniority
+for experienced) and a provenance dropdown per skill claim
+(`ProfileEditorFields.tsx`, `profileCompletenessFields.ts`).
+
+### 4. Archetype detection
+Single-sourced in `pipeline/jobfit/archetypes.json`, read by both Python
+(`pipeline/jobfit/registry.py`) and TS (`app/_lib/archetype-registry.ts`,
+`app/_lib/archetypes.ts`). Signal-scored, not rule-matched:
+
+| Signal | Effect |
+|---|---|
+| `is_enrolled` | student +2.0 |
+| `expected_graduation` present | student +1.0 |
+| years relevant experience < 1 | student +1.5 |
+| `education_is_dominant` | student +1.0 |
+| years relevant experience ≥ 3 | bau +1.5 |
+| `has_substantial_experience` | bau +1.0 |
+| wants domain change (± substantial experience) | career_switcher +3.0 / +1.0 |
+
+Rules (`pipeline/jobfit/registry.py`): a self-declared archetype (from the apply
+form) wins outright at confidence 0.9; CVs are read heuristically; contradictions
+lower confidence (e.g. "student" signal alongside 3+ years experience → 0.65);
+no signals defaults to `bau` at 0.4; confidence **< 0.55 flags the profile for
+manual review**. The conservative default (unclassifiable → experienced, not
+student) is deliberate: early-career archetypes are fairness-protected (see
+below), so misreading an ambiguous profile as `bau` is the safe direction.
+
+### 5. Completeness follow-up
+CV analysis emits unmet checklist items as structured gaps
+(`profile.completeness_gaps`); `ArchetypeBanner.tsx` renders one targeted field
+per gap, merged into the profile on save by `app/_lib/completeness-followup.ts`.
+Per-archetype checklist weights live in `archetypes.json` (e.g. early-career
+weights `has_project_or_thesis` highest, then `has_aspirations`, then
+`education_detail`/`has_activity`).
+
+### 6. Fairness protection
+`student` and `career_switcher` are fairness-protected: automation may never
+auto-reject or auto-advance them at the screening stages
+(`app/_lib/pipeline-stages.ts`, `app/_lib/archetypes.ts`). This is enforced at
+the pipeline-stage layer, independent of the score itself.
+
+## Surface
+
+| Concern | Files |
+|---|---|
+| CV extraction (Gemini) | `pipeline/jobfit/gemini.py`, `app/api/analyze/route.ts` |
+| Analysis orchestration | `app/_lib/analyze-run.ts`, `app/_lib/analyze-phases.ts`, `app/_lib/completeness-followup.ts`, `app/_lib/provenance-dossier.ts` |
+| Apply intake | `app/_lib/apply-intake.ts`, `app/_lib/apply.ts`, `app/apply/[id]/ConversationalApply.tsx`, `app/apply/[id]/quick/QuickApplyForm.tsx`, `app/api/apply/[id]/route.ts`, `app/api/apply/[id]/quick/route.ts` |
+| Apply session state | `app/_lib/apply-session-client.ts`, `app/_lib/apply-session-store.ts`, `app/api/apply/[id]/session/` |
+| Profile editing | `app/features/tools/profile/ProfileEditor.tsx`, `ProfileEditorFields.tsx`, `useProfileEditorSubmit.ts`, `profileEditorPayload.ts` |
+| Profile schema (shared) | `app/features/tools/profile/ProfileTabTypes.ts`, `pipeline/jobfit/profile.py` |
+| Archetype registry | `pipeline/jobfit/archetypes.json`, `pipeline/jobfit/registry.py`, `app/_lib/archetype-registry.ts`, `app/_lib/archetypes.ts` |
+| Archetype admin UI | `app/features/tools/profile/ArchetypeManager.tsx` + `ArchetypeManagerEditPanel.tsx`/`ArchetypeManagerList.tsx` |
+| GitHub evidence | `app/_lib/github-evidence.ts`, `github-handle.ts`, `github-summary.ts`, `repo-activity.ts`, `repo-snapshot.ts` |
+| Signal display | `app/_components/Badge.tsx`, `PotentialBadge.tsx`, `FactorChart.tsx`, `ScoreDial.tsx`, `ScoreBadge.tsx`, `ScoreProvenanceLabel.tsx` |
+| Saved analyses | `app/history/[slug]/page.tsx`, `app/features/tools/analyze/history/*` |
+| Public skill credential | `app/skill/[token]/page.tsx` |
+
+## Data model
+
+- `analyses` table — one row per CV analysis (~21 KB JSON payload: `jobFit`
+  overlay of matching/missing skills, salary assessment, role/seniority
+  alignment). Read via `/api/analyses` and the History tab.
+- `profiles` — structured candidate profile (archetype-conditional fields,
+  typed evidence list with `kind` + `provenance` per claim).
+- `pipeline_entries` — the per-job application record; carries the *snapshot*
+  `match_score` (see matching doc for why that snapshot matters after a scoring
+  change).
+
+## CV analysis quality (calibration facts worth keeping)
+
+From a seeded pilot (`pipeline/jobfit/eval/seed_cv_fixtures.py`, 50 candidates
+rendered→analyzed→scored on role/seniority/salary/skill-recall against real
+Gemini output): the pipeline was **materially miscalibrated on salary anchoring**
+and was fixed in two iterations, both landed in code:
+
+1. **Seniority-aware salary anchoring.** The deterministic seniority detector
+   used substring keyword matching that fired `lead` on tokens like `hlavní`,
+   `cto` (matched inside other words), and bare `vedoucí`, while `junior`
+   lacked `student`/`absolvent`/`graduate` markers — so entry-level CVs got no
+   anchor (LLM guessed high) or a false lead-tier anchor. Fixed in
+   `data/taxonomy.json` (moved terms between `sen_lead`/`sen_junior`) and
+   `pipeline/jobfit/taxonomy.py` (`has_seniority_junior_signal`); entry markers
+   now floor to junior, and `lead` requires a co-occurring `senior` signal.
+   Effect: student over-anchoring 10→0 candidates, `salary_overlap` eval score
+   66%→82%.
+2. **Aspiration disambiguation.** A CV naming a "Staff/Principal" aspiration was
+   read as already at that level. Fixed in `pipeline/jobfit/pipeline.py`
+   (`_current_level_text()` truncates at forward-looking goal markers like
+   "aiming toward" / "rád bych"), plus reordering precedence so genuine
+   senior/lead evidence beats an incidental junior mention ("mentored two junior
+   engineers"). Effect: `salary_overlap` 82%→97%.
+3. **Standing finding, not yet fixed:** a CV analysis anchors salary to the
+   **matched job's** salary band, which is only valid when candidate seniority
+   ≈ job seniority. A junior candidate matched to a lead-tier job still pulls
+   that job's (too-high) band as an anchor, even though Gemini's own rationale
+   often flags the mismatch and adjusts down. Anchoring to
+   `role_band(family, candidate_seniority)` instead of the job's band is the
+   open fix.
+
+Re-run the scorer: `python -m pipeline.jobfit.eval --fixtures-dir
+pipeline/jobfit/eval/fixtures_csas --strict`. Full corpus:
+`python -m pipeline.jobfit.eval.seed_cv_fixtures --all`.
+
+## Known gaps
+
+- Salary anchoring still uses the job's band rather than a candidate-seniority
+  band when the two diverge (see above) — the one open item from the pilot.
+- Bilingual skill-label recall (CZ claim text vs. EN Gemini output) is an
+  eval-harness measurement gap, not a scoring bug — matched skills are present,
+  the eval's substring matcher just can't bridge the language.
+- `master`'s-degree CVs are sometimes read as `university`/`bachelor`
+  (education softening) — cosmetic, not gated by any axis.
+- Student/career-switcher scoring mechanics (potential score, observed-evidence
+  minting, fairness matrix) are documented in `docs/features/matching/README.md`;
+  the harder-to-validate parts of that model (whether `potential_score`'s
+  35/25/25/15 weighting predicts outcomes) are tracked as an open question there,
+  not resolved.
+
+## doc-map
+
+```json
+{ "doc": "docs/features/candidates/README.md",
+  "sourceGlobs": [
+    "app/features/tools/analyze/**",
+    "app/features/tools/profile/**",
+    "app/_lib/apply-intake.ts", "app/_lib/apply.ts",
+    "app/_lib/apply-session-client.ts", "app/_lib/apply-session-store.ts",
+    "app/api/apply/**",
+    "app/_lib/analyze-run.ts", "app/_lib/analyze-phases.ts",
+    "app/_lib/completeness-followup.ts", "app/_lib/provenance-dossier.ts",
+    "app/_lib/archetype-registry.ts", "app/_lib/archetypes.ts",
+    "app/_lib/github-evidence.ts", "app/_lib/github-summary.ts",
+    "app/features/tools/profile/ProfileTabTypes.ts",
+    "pipeline/jobfit/profile.py", "pipeline/jobfit/registry.py",
+    "pipeline/jobfit/archetypes.json", "pipeline/jobfit/gemini.py",
+    "app/history/**", "app/skill/**"
+  ] }
+```

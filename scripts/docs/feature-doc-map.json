@@ -1,0 +1,274 @@
+{
+  "_comment": "Source -> doc map used by scripts/docs/check-doc-sync.mjs (Stop hook). Each entry couples a set of source globs to the doc that describes them: when a turn edits matching source and touches no file under docs/features/, docs/architecture/ or docs/design/, the hook exits 2 and names the doc. Globs support * (within a path segment) and ** (any depth) only — no brace expansion. Skip patterns (tests, generated code, .claude/, docs themselves, app/landing) live in the script. When you add a feature area, add its entry here in the same change.",
+  "entries": [
+    {
+      "doc": "docs/features/pipeline/README.md",
+      "sourceGlobs": [
+        "pipeline/jobfit/automation.py",
+        "pipeline/jobfit/automation_cli.py",
+        "app/api/automation/**",
+        "app/_lib/automation-run.ts",
+        "app/_lib/automation-pass.ts",
+        "app/_lib/automation-fairness.ts",
+        "app/_lib/automation-roi.ts",
+        "app/_lib/decision-config-store.ts",
+        "app/_lib/decision-config-schema.ts",
+        "app/_lib/screen-wave.ts",
+        "app/_lib/screen-wave-holdout.ts",
+        "app/_lib/screen-wave-approval.ts",
+        "app/_lib/interview-recommendation.ts",
+        "app/_lib/pipeline-stages.ts",
+        "app/_lib/pipeline-entry-action.ts",
+        "app/features/hiring/decisions/**",
+        "app/features/hiring/pipeline/**"
+      ]
+    },
+    {
+      "doc": "docs/features/jobs/README.md",
+      "sourceGlobs": [
+        "app/_lib/job-ingest.ts",
+        "app/_lib/jd-lint.ts",
+        "app/_lib/jd-limits.ts",
+        "app/_lib/db/jobs.ts",
+        "app/api/jds/**",
+        "app/api/jobs/**",
+        "app/jds/**",
+        "pipeline/jobfit/campaign.py",
+        "pipeline/jobfit/campaign_cli.py",
+        "app/features/library/jobs/**"
+      ]
+    },
+    {
+      "doc": "docs/features/comms/README.md",
+      "sourceGlobs": [
+        "app/_lib/comms.ts",
+        "app/_lib/comms-dispatch.ts",
+        "app/_lib/comms-status.ts",
+        "app/_lib/comms-relay.ts",
+        "app/_lib/comms-relay-store.ts",
+        "app/_lib/comms-view.ts",
+        "app/_lib/comms-truth.ts",
+        "app/_lib/outreach-halt.ts",
+        "app/_lib/interview-reminder-policy.ts",
+        "app/api/comms/**",
+        "app/api/channels/**",
+        "app/features/hiring/channels/**"
+      ]
+    },
+    {
+      "doc": "docs/features/comms/outbound-export.md",
+      "sourceGlobs": [
+        "app/_lib/comms-envelope.ts",
+        "app/_lib/ats-webhook.ts"
+      ]
+    },
+    {
+      "doc": "docs/features/candidates/README.md",
+      "sourceGlobs": [
+        "app/features/tools/analyze/**",
+        "app/features/tools/profile/**",
+        "app/_lib/apply-intake.ts",
+        "app/_lib/apply.ts",
+        "app/_lib/apply-session-client.ts",
+        "app/_lib/apply-session-store.ts",
+        "app/api/apply/**",
+        "app/apply/**",
+        "app/_lib/analyze-run.ts",
+        "app/_lib/analyze-phases.ts",
+        "app/_lib/completeness-followup.ts",
+        "app/_lib/archetype-registry.ts",
+        "app/_lib/archetypes.ts",
+        "app/_lib/github-evidence.ts",
+        "app/_lib/github-summary.ts",
+        "pipeline/jobfit/profile.py",
+        "pipeline/jobfit/registry.py",
+        "pipeline/jobfit/archetypes.json",
+        "pipeline/jobfit/gemini.py",
+        "app/history/**",
+        "app/skill/**"
+      ]
+    },
+    {
+      "doc": "docs/features/matching/README.md",
+      "sourceGlobs": [
+        "pipeline/jobfit/taxonomy.py",
+        "pipeline/jobfit/taxonomy_check.py",
+        "pipeline/jobfit/matching.py",
+        "pipeline/jobfit/transform.py",
+        "pipeline/jobfit/transferable.py",
+        "pipeline/jobfit/embedding_bridge.py",
+        "pipeline/jobfit/weight_proposal.py",
+        "pipeline/jobfit/match_reasoning.py",
+        "pipeline/jobfit/jobs.py",
+        "pipeline/jobfit/live_case.py",
+        "pipeline/jobfit/models.py",
+        "data/taxonomy.json",
+        "app/_lib/candidate-pool.ts",
+        "app/_lib/group-eval*.ts",
+        "app/features/tools/match/**",
+        "app/features/insights/matrix/**"
+      ]
+    },
+    {
+      "doc": "docs/features/dev-case/README.md",
+      "sourceGlobs": [
+        "app/_lib/devcase-*.ts",
+        "app/_lib/db/devcase.ts",
+        "app/_lib/dev-control.ts",
+        "app/_lib/dev-outcomes*.ts",
+        "app/_lib/code-review-status.ts",
+        "app/_lib/distribution.ts",
+        "app/api/devcase/**",
+        "app/features/tools/devcases/**",
+        "app/devcase/**",
+        "pipeline/jobfit/devcase/**"
+      ]
+    },
+    {
+      "doc": "docs/features/interviews/README.md",
+      "sourceGlobs": [
+        "app/_lib/voice/**",
+        "app/_lib/interview-*.ts",
+        "app/_lib/student-interview.ts",
+        "app/api/interview/**",
+        "app/api/interview-prep/**",
+        "app/interview/**",
+        "app/interview-lab/**",
+        "app/_components/voice/**",
+        "app/features/tools/interview/**"
+      ]
+    },
+    {
+      "doc": "docs/features/compliance/README.md",
+      "sourceGlobs": [
+        "app/_lib/consent.ts",
+        "app/_lib/data-held.ts",
+        "app/_lib/compliance-regimes.ts",
+        "app/_lib/db/pipeline.ts",
+        "app/data/**",
+        "app/api/data/**",
+        "app/status/**",
+        "app/_lib/status-decisions.ts",
+        "app/api/status/**",
+        "app/_lib/candidate-nps*.ts",
+        "app/onboarding/**",
+        "app/_lib/decision-record-store.ts",
+        "app/api/decisions/**",
+        "app/_lib/decision-attribution.ts",
+        "app/_lib/approval-kinds.ts",
+        "app/control/**",
+        "app/_lib/adverse-impact.ts",
+        "app/features/hiring/decisions/groupEval/**",
+        "app/_lib/calibration.ts",
+        "app/_components/AiDisclosure.tsx",
+        "app/_lib/provenance-dossier.ts",
+        "app/trust/**",
+        "app/_lib/trust-posture.ts",
+        "app/api/compliance/**",
+        "app/_lib/auth/operator-approver.ts"
+      ]
+    },
+    {
+      "doc": "docs/features/compliance/ai-act-conformity.md",
+      "sourceGlobs": [
+        "app/_lib/trust-posture.ts",
+        "app/trust/**",
+        "app/_lib/decision-record-store.ts",
+        "app/_lib/screen-wave-approval.ts",
+        "app/_lib/automation-pass.ts",
+        "app/_lib/status-decisions.ts",
+        "app/_components/AiDisclosure.tsx",
+        "app/_lib/archetypes.ts",
+        "app/_lib/adverse-impact.ts",
+        "app/_lib/auth/operator-approver.ts",
+        "app/api/workspace/export/route.ts",
+        "app/api/workspace/import/route.ts"
+      ]
+    },
+    {
+      "doc": "docs/features/billing/README.md",
+      "sourceGlobs": [
+        "app/_lib/billing/**",
+        "app/_lib/db/billing.ts",
+        "app/api/billing/**",
+        "app/features/settings/billing/**",
+        "scripts/polar-setup.mjs"
+      ]
+    },
+    {
+      "doc": "docs/features/organization/README.md",
+      "sourceGlobs": [
+        "app/_lib/db/organizations.ts",
+        "app/_lib/db/users.ts",
+        "app/_lib/db/memberships.ts",
+        "app/_lib/db/invites.ts",
+        "app/_lib/auth/session.ts",
+        "app/_lib/auth/roles.ts",
+        "app/_lib/auth/current-user.ts",
+        "app/_lib/auth/current-workspace.ts",
+        "app/_lib/tenancy.ts",
+        "app/_lib/workspace-lock.ts",
+        "app/_lib/org-actions.ts",
+        "app/_lib/org-service.ts",
+        "app/api/org/**",
+        "app/api/workspace/**",
+        "app/invite/**",
+        "app/features/settings/organization/**"
+      ]
+    },
+    {
+      "doc": "docs/architecture/llm-provider-layer.md",
+      "sourceGlobs": [
+        "pipeline/jobfit/llm/**",
+        "app/_lib/llm-config.ts",
+        "app/_lib/provider-key-precedence.ts",
+        "app/_lib/db/llm.ts",
+        "app/api/llm/**",
+        "app/features/settings/models/**"
+      ]
+    },
+    {
+      "doc": "docs/architecture/llm-model-matrix.md",
+      "sourceGlobs": [
+        "app/_lib/llm-quality.ts",
+        "app/_lib/llm-quality-scores.ts"
+      ]
+    },
+    {
+      "doc": "docs/architecture/postgres-backend.md",
+      "sourceGlobs": [
+        "app/_lib/db-path.ts",
+        "app/_lib/db/core.ts",
+        "app/_lib/db/pg-portability.ts",
+        "scripts/pg-portability-audit.mjs"
+      ]
+    },
+    {
+      "doc": "docs/architecture/self-hosting.md",
+      "sourceGlobs": [
+        "Dockerfile",
+        "docker-compose.yml",
+        "deploy/helm/kp/**",
+        "app/_lib/offline.ts",
+        ".env.example"
+      ]
+    },
+    {
+      "doc": "docs/architecture/app-structure.md",
+      "sourceGlobs": [
+        "app/features/shell/**",
+        "app/features/shared/**"
+      ]
+    },
+    {
+      "doc": "docs/design/README.md",
+      "sourceGlobs": [
+        "app/globals.css",
+        "app/_components/ui/recipes.ts",
+        "app/_components/ui/SectionTitle.tsx",
+        "app/_components/ui/useTheme.ts",
+        "app/_lib/theme.ts"
+      ]
+    }
+  ]
+}

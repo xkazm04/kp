@@ -1,0 +1,245 @@
+# Matching & scoring
+
+How a candidate profile turns into a match score against a job: skill/taxonomy
+matching, provenance weighting, the early-career dimension swap, bounded
+dynamic weights, and the cross-candidate fairness matrix. Candidate intake and
+archetype detection are `docs/features/candidates/README.md`.
+
+## Entry points
+
+- **Match tab** — `app/features/tools/match/MatchTab.tsx` (results:
+  `MatchResults.tsx`, `MatchCard.tsx`, per-skill provenance chips:
+  `MatchCardSkillChips.tsx`).
+- **Weights panel** (per-role weight tuning) — `app/features/tools/match/MatchWeightsPanel.tsx`.
+- **Fit matrix** (cross-candidate/cross-job grid) — `app/features/insights/matrix/MatrixTab.tsx`
+  (`MatrixGrid.tsx`, `MatrixReasoningPopover.tsx`).
+- **Group evaluation** (fairness matrix, weight rationale) —
+  `app/features/hiring/decisions/GroupEvalModal.tsx`, `GroupEvalComparisonCells.tsx`.
+- **Recruiter candidate list** (experienced vs. early-career columns) —
+  `app/features/library/jobs/JobsRecruiterCandidatesCard.tsx`.
+- **Interview compare** (per-cohort rubric) —
+  `app/features/library/jobs/JobsCompareInterviews.tsx`.
+- **About → Students** (worked example, public-facing explainer) —
+  `app/features/insights/about/AboutStudents.tsx`,
+  `AboutStudentsExampleScoring.tsx`, `AboutStudentsInterviewScript.tsx`.
+
+## Flows
+
+### 1. Skill matching over a shared taxonomy
+`pipeline/jobfit/taxonomy.py` resolves both CV skill claims and JD requirements
+to shared taxonomy terms with hierarchy credit: exact = 1.0, specialization =
+0.9, generalization = 0.55. This is what lets a thesis on "convolutional
+networks" match a JD asking for "machine learning" without text-similarity
+noise. Coverage is tracked per role family in `data/taxonomy.json` (16
+families, 676 terms total) — see below.
+
+### 2. Provenance weighting (evidence-gated, not presence-gated)
+Every matched skill is discounted by where the claim came from
+(`skill_match_score()` in `taxonomy.py`, multiplies taxonomy match × weight):
+
+| provenance | weight | | provenance | weight |
+|---|---|---|---|---|
+| observed | 1.00 | | personal_project | 0.70 |
+| professional | 1.00 | | extracurricular | 0.60 |
+| open_source / internship | 0.85 | | certification | 0.60 |
+| thesis | 0.75 | | coursework | 0.50 |
+| academic_project | 0.70 | | self_declared | 0.40 |
+
+`observed` (a skill demonstrated live in a case or case-grounded interview,
+minted by `pipeline/jobfit/live_case.py`) outranks even `professional` — the
+one path by which a candidate with no history can out-rank tenure on a specific
+skill.
+
+**Default provenance is `self_declared` (0.4), not `professional` (1.0).**
+This changed 2026-07-20 (`SCORING_REBASELINE`, driver: UAT run
+`uat/runs/2026-07-20-cases-scoring`): previously, a skill with **no recorded
+provenance at all** was silently credited as `professional` — level with five
+years in production — and the discount that did exist applied only to
+early-career candidates (`pipeline/jobfit/transform.py`), so the same
+unevidenced claim was penalised for the person least able to evidence it and
+waived for everyone else. Three call sites converged on one fix because they
+all inherit the shared default: `taxonomy.py:DEFAULT_PROVENANCE`,
+`transform.py`'s per-archetype default, and `app/_lib/candidate-pool.ts` (which
+emits no provenance and inherits the Python default). A skill at the default
+scores 0.4 → below `_MATCH_THRESHOLD` (0.5) → lands in `unproven_skills`, not
+`matched_skills`, but still contributes a discounted amount to the skills
+sub-score — it is never zeroed and never becomes a knockout `missing` (KO
+filtering runs on seniority/languages only, unaffected).
+
+Verified against the eval corpus at the time of the change: `matching_eval`
+8/8, fairness probes 4/4, archetype accuracy 100%, scenario scores
+byte-identical (curated fixtures already carry real provenance, so the default
+barely applied to them — confirming the change only bites unevidenced
+production data). **Operational consequence, not yet re-tuned as of this
+writing:** production CVs where `gemini.py`'s `skill_claims` extraction omits
+provenance will now score materially lower than before the change.
+`maxMatchToReject`/family-floor filters calibrated against the old (inflated)
+numbers, saved score-based filters, and any cross-boundary score trend need
+re-tuning; `pipeline_entries.match_score` is a snapshot, so cohorts scored
+before/after this change are not comparable in the same screening wave
+(`automation-pass.ts::scoreUnscoredEntries` only fills unscored rows — it will
+not refresh old snapshots). Re-score a mixed-vintage cohort before running a
+wave over it.
+
+### 3. Early-career dimension swap
+For `student`/`career_switcher` archetypes, `pipeline/jobfit/matching.py`
+(`_DIM_SLUG_EARLY`) replaces the `career` dimension (seniority/family fit —
+undefined for someone with no track record) with **`potential_score`**, and
+`personal` (JD keyword overlap) with **motivation** (aspirations coherence +
+role-family hit + language). `potential_score` is a deterministic rubric over
+the evidence structure — 35% depth + 25% learning velocity + 25% foundation +
+15% initiative — validated to `[0,1]` at the Pydantic boundary
+(`MatchCandidate.potential_score`), clamped so out-of-range values can't
+corrupt the 0–100 dial. It is a candidate-supplied score dimension, not derived
+from years of experience.
+
+The KO gate also swaps: instead of a seniority-gap check, early-career profiles
+get an **entry-eligibility** check (§4) — a student vs. a senior-only role is a
+clean KO with a reason, not a depressed score.
+
+### 4. Graduate-friendliness gate (the JD side of comparability)
+`compute_entry_profile` in `pipeline/jobfit/jobs.py` computes a deterministic,
+LLM-free `graduate_friendliness ∈ [0,1]` per job and an `is_entry_eligible`
+gate, pinned by golden tests (`pipeline/jobfit/tests/test_jobs.py`):
+
+```
+is_entry = seniority == "junior"  OR  years <= 1.0  OR  entry_signal
+```
+
+Score is additive then clamped: junior title +0.5, medior +0.2, years ≤1 +0.2
+(1–2y +0.1), learnable-must-have fraction × 0.2, explicit early-career language
+(`entry_signal`) +0.2. A role that fails the eligibility gate is capped at 0.15
+regardless of sub-scores, so it can never read as graduate-friendly even if a
+few signals fire. This directly orders which jobs an early-career candidate is
+shown — students are only matched against roles they can realistically land.
+
+### 5. Bounded dynamic weights + fairness matrix
+`pipeline/jobfit/weight_proposal.py` lets an LLM propose per-candidate weight
+adjustments (calibrated pool-wide in one call, with rationale), but each weight
+may move at most ±0.15 from the archetype baseline and is clamped to
+`[0.10, 0.60]` — no dimension can be zeroed. At compare time,
+`fairness_matrix()` (`matching.py`) re-scores every candidate under every
+candidate's own weight scheme and ranks by cross-scheme mean; if that robust
+order diverges from the headline order, the recruiter sees a divergence flag
+(surfaced in `GroupEvalModal.tsx` / `GroupEvalComparisonCells.tsx` alongside the
+per-candidate weight rationale and an "AI-tuned vs rule-based" pill). This is
+opt-in at group evaluation (`app/_lib/group-eval-run.ts`); the plain candidate
+list stays deterministic.
+
+### 6. Interview & reasoning per cohort
+`interview-rubrics.json` scores experienced candidates on the original 5
+competencies and early-career candidates on 6 BARS-anchored constructs
+(problem decomposition, learning agility, coachability, conceptual depth,
+motivation & direction, communication & collaboration); every rating requires a
+verbatim transcript quote, and "not assessed" is a legal answer. Match
+reasoning (`pipeline/jobfit/match_reasoning.py`) is archetype-conditional:
+experienced candidates get track-record verification, students get a
+"judge on potential" frame, career-switchers get a bridge narrative (prior-domain
+maturity de-risks the switch; new-domain hard skills read "learnable but
+unproven").
+
+## Surface
+
+| Concern | Files |
+|---|---|
+| Skill/taxonomy matching | `pipeline/jobfit/taxonomy.py`, `data/taxonomy.json` |
+| Core scoring | `pipeline/jobfit/matching.py`, `pipeline/jobfit/transform.py`, `pipeline/jobfit/models.py` |
+| Weight proposal (LLM, bounded) | `pipeline/jobfit/weight_proposal.py` |
+| Reasoning generation | `pipeline/jobfit/match_reasoning.py` |
+| Graduate-friendliness / entry gate | `pipeline/jobfit/jobs.py` |
+| Observed-evidence minting | `pipeline/jobfit/live_case.py` |
+| Candidate pool (TS, no-provenance path) | `app/_lib/candidate-pool.ts` |
+| Group evaluation + fairness matrix wiring | `app/_lib/group-eval.ts`, `group-eval-run.ts`, `group-eval-cohort.ts`, `group-eval-differentiators.ts`, `group-eval-governance.ts`, `group-eval-separation.ts` |
+| Match tab UI | `app/features/tools/match/*` |
+| Fit matrix UI | `app/features/insights/matrix/*` |
+| Match reasoning hook | `app/features/tools/match/useMatchCardReasoning.ts` |
+| Comparison / distribution / adverse-impact | `app/_lib/comparison.ts`, `app/_lib/distribution.ts`, `app/_lib/adverse-impact.ts`, `app/_lib/fit-thresholds.ts`, `app/_lib/factor-points.ts` |
+| Role taxonomy schemas (TS) | `app/_lib/role-families.ts`, `app/_lib/taxonomy.generated.ts` |
+
+## Data model
+
+- `pipeline_entries.match_score` — a **snapshot** at score time, not
+  recomputed live; a scoring-model change (like the rebaseline above) makes
+  cross-boundary cohorts non-comparable until re-scored.
+- `analyses.score` — same snapshot caveat applies to any trend line drawn
+  across a scoring-model change.
+- `data/taxonomy.json` — 12 top-level role families' worth of skill/seniority
+  vocabulary (see coverage table below); regenerated report, not hand-edited.
+
+## Taxonomy coverage (generated, verified current)
+
+`data/taxonomy.json` covers 16 role families / 676 total terms. The
+authoritative, machine-regenerated coverage table stays at
+**`docs/TAXONOMY_COVERAGE.md`** (root, not moved) — `pipeline/jobfit/taxonomy_check.py`
+hardcodes that path and `test_taxonomy_coverage_gate.py` fails CI if the file
+drifts from a fresh regen, so it cannot be relocated without touching the
+generator. Regenerate with `python -m pipeline.jobfit.taxonomy_check
+--write-report` (also `npm run taxonomy:report`) — running it while writing
+this doc reproduced the table below byte-for-byte, confirming both copies are
+current:
+
+| Role family | Skill terms (floor) | Bilingual parity |
+|---|---:|---:|
+| `software_engineering` | 83 | 100% (36 exempt) |
+| `data_ai` | 38 | 100% (17 exempt) |
+| `product_project` | 28 | 100% (4 exempt) |
+| `healthcare_clinical` | 44 | 100% |
+| `life_sciences_research` | 38 | 100% |
+| `skilled_trades` | 40 | 100% |
+| `operations_logistics` | 40 | 100% |
+| `frontline_service` | 33 | 100% |
+| `sales_marketing` | 39 | 100% |
+| `finance_accounting` | 54 | 100% |
+| `legal_compliance` | 46 | 100% (1 exempt) |
+| `hr_people` | 48 | 100% |
+| `education_academic` | 37 | 100% |
+| `creative_design` | 41 | 100% (5 exempt) |
+| `customer_support` | 37 | 100% |
+| `general_professional` | 29 | 100% |
+
+"Bilingual parity" credits terms with ≥2 surface forms plus terms explicitly
+flagged `bilingual_exempt` (proper nouns/tools identical in Czech and English —
+python, docker, kubernetes — flagged per-term, never inferred). Regression
+floors are enforced by `pipeline/jobfit/tests/test_taxonomy_coverage_gate.py`.
+Note the family list itself is broad (healthcare, legal, trades, education,
+etc.) — the taxonomy vocabulary is not narrowly tech-only — but compensation
+figures elsewhere in the pipeline are CZK-denominated by default
+(`pipeline/jobfit/market_config.py`); multi-currency support exists at the
+market-config layer (`automation.py` stamps offers in the *active* market's
+currency) but is not exercised by a second seeded market today.
+
+## Known gaps
+
+- Salary anchoring for CV analysis still uses the matched job's band rather
+  than a candidate-seniority band when the two diverge — tracked in
+  `docs/features/candidates/README.md`.
+- The scoring-model rebaseline (self_declared default) has not yet been
+  re-tuned against production `maxMatchToReject`/fit-tier thresholds — do this
+  before the next screening wave over real (not eval-corpus) data.
+- `potential_score`'s 35/25/25/15 weighting is deterministic and explainable
+  but unvalidated against outcomes; per-scorecard telemetry
+  (`interview-telemetry.ts`) and per-submission process traces are captured
+  precisely so this can be validated once outcomes accumulate — it is not
+  validated yet, and does not gate anything alone in the meantime.
+- Student/switcher end-to-end mechanics (observed-evidence minting from a
+  live case or case-grounded interview, the dev-case module itself) are only
+  summarized here; the devcase/interview build is owned by other feature docs
+  (developer assessment / voice interview).
+
+## doc-map
+
+```json
+{ "doc": "docs/features/matching/README.md",
+  "sourceGlobs": [
+    "pipeline/jobfit/taxonomy.py", "pipeline/jobfit/matching.py",
+    "pipeline/jobfit/transform.py", "pipeline/jobfit/weight_proposal.py",
+    "pipeline/jobfit/match_reasoning.py", "pipeline/jobfit/jobs.py",
+    "pipeline/jobfit/live_case.py", "pipeline/jobfit/models.py",
+    "data/taxonomy.json", "pipeline/jobfit/taxonomy_check.py",
+    "app/_lib/candidate-pool.ts", "app/_lib/group-eval*.ts",
+    "app/features/tools/match/**", "app/features/insights/matrix/**",
+    "app/features/library/jobs/JobsRecruiterCandidatesCard.tsx",
+    "app/features/library/jobs/JobsCompareInterviews*.tsx",
+    "app/features/insights/about/AboutStudents*.tsx"
+  ] }
+```
