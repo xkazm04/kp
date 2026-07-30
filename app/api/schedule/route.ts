@@ -17,6 +17,7 @@ import {
 import { actOnPipelineEntry, getPipelineEntry } from "@/app/_lib/db";
 import { plannedInterviewMinutes } from "@/app/_lib/interview-run";
 import { dateSlotToIso, gridSlotToIso, hourBucketKey, offeredSlotFor, proposedSlotFor, proposeSlots, scheduledSealOutcome } from "@/app/_lib/schedule-slots";
+import { proposeFreeSlots } from "@/app/_lib/calendar/available-slots";
 import { sealDecisionSafe } from "@/app/_lib/decision-record-store";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { jsonOk, safeJsonError } from "@/app/_lib/api-response";
@@ -36,7 +37,15 @@ export async function GET(request: Request) {
   try {
     const ws = await currentWorkspace();
     if (new URL(request.url).searchParams.has("slots")) {
-      return NextResponse.json({ slots: proposeSlots(bookedSlots(ws)) });
+      // W1.4 — also skips times the connected calendar is busy for. Degrades to the
+      // pre-integration list when no calendar is connected or the lookup fails, so the
+      // reschedule control never goes dark because Google did.
+      const proposed = await proposeFreeSlots(bookedSlots(ws), ws);
+      return NextResponse.json({
+        slots: proposed.slots,
+        calendarChecked: proposed.calendarChecked,
+        droppedForConflict: proposed.droppedForConflict,
+      });
     }
     return NextResponse.json({ invites: listScheduleInvites(200, ws) });
   } catch (error) {

@@ -20,6 +20,7 @@ import {
   type ScheduleInvite,
 } from "@/app/_lib/schedule-store";
 import { offeredSlotFor, proposeSlots, isScheduleInviteExpired, validateProposedSlots } from "@/app/_lib/schedule-slots";
+import { proposeFreeSlots } from "@/app/_lib/calendar/available-slots";
 import { isValidTimeZone } from "@/app/_lib/timezone";
 import { logScheduleNoSlots, logScheduleReconcile } from "@/app/_lib/logger";
 import { jsonOk, safeJsonError } from "@/app/_lib/api-response";
@@ -92,7 +93,14 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ to
   // the "propose your own times" escalation instead of the old "reply to your email".
   const rescheduleCapReached = invite.status === "confirmed" && invite.rescheduleCount >= MAX_RESCHEDULES;
   // Per-team calendar: only this invite's own team's confirmed slots block a time.
-  const slots = invite.status !== "confirmed" || canReschedule ? proposeSlots(bookedSlots(invite.workspaceId)) : [];
+  // W1.4 — the offered times now also respect the team's connected calendar, so a
+  // candidate cannot pick an hour the interviewer is already booked for. Degrades to the
+  // pre-integration list on any calendar failure (available-slots.ts).
+  const proposed =
+    invite.status !== "confirmed" || canReschedule
+      ? await proposeFreeSlots(bookedSlots(invite.workspaceId), invite.workspaceId)
+      : { slots: [], calendarChecked: false, droppedForConflict: 0 };
+  const slots = proposed.slots;
   // The busiest-calendar edge (idea-5df8e10f): a pending invite whose entire
   // proposal horizon is already booked yields zero slots. Rather than handing
   // the candidate a silent dead-end, flag the invite so the recruiter can open

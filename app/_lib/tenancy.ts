@@ -87,6 +87,13 @@ export const TENANCY_SCOPED_TABLES: ReadonlySet<string> = new Set([
   // The PK carries workspace_id so two tenants can connect the same ATS account without
   // colliding on the vendor's ids.
   "ats_links",
+  // W1.4 — the connected Google calendar per team (calendar-connections). Scoped because
+  // it holds a refresh token to a real person's calendar and decides which calendar's
+  // free/busy filters a team's offered interview slots: pooling it would leak one team's
+  // availability into another's booking page. PK is (workspace_id, provider) and every
+  // read/write in calendar/token-store.ts filters workspace_id. Lazy-store table (own
+  // connection), hence also listed in TENANCY_LAZY_TABLES.
+  "calendar_connections",
   // Phase 1 — the Channels surface. channel_webhooks (inbound lead bindings) +
   // channel_spend (per-team spend; PK widened to (channel, workspace_id)) filter on
   // workspace_id; dev_outbox (the comms outbox) auto-derives each message's tenant
@@ -263,6 +270,7 @@ export const TENANCY_LAZY_TABLES: ReadonlySet<string> = new Set([
   "ats_connections",
   "ats_delivery",
   "brand_settings",
+  "calendar_connections",
   "comms_relay_config",
   "decision_config",
   "decision_records",
