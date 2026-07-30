@@ -984,6 +984,18 @@
         "group_eval": "Bewerbung innerhalb der Kandidatengruppe für diese Stelle verglichen",
         "offer_terms": "Angebotskonditionen vorbereitet"
       }
+    },
+    "nps": {
+      "title": "Wie war dieser Prozess für Sie?",
+      "subtitle": "Eine Frage, im Reporting des Recruiting-Teams anonym. Sie hilft uns, es für die nächste Person besser zu machen.",
+      "scaleLow": "Überhaupt nicht wahrscheinlich",
+      "scaleHigh": "Äußerst wahrscheinlich",
+      "commentLabel": "Möchten Sie etwas ergänzen",
+      "commentPlaceholder": "Möchten Sie etwas ergänzen? (optional)",
+      "send": "Senden",
+      "sending": "Wird gesendet…",
+      "thanks": "Vielen Dank — Ihr Feedback wurde erfasst.",
+      "failed": "Das hat nicht geklappt. Bitte versuchen Sie es erneut."
     }
   },
   "apply": {

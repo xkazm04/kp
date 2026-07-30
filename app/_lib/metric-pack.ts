@@ -21,6 +21,8 @@
 //
 // Pure + dependency-free (structural inputs, no DB import) so it loads under `node --test`.
 
+import { NPS_MIN_SAMPLE } from "./candidate-nps";
+
 /** Below this many samples a metric is real but not certifiable. Eight hires is roughly
  *  a quarter of hiring for a mid-size team — enough to stop a single outlier hire from
  *  moving a headline number by tens of percent. */
@@ -64,6 +66,11 @@ export type MetricPackInput = {
   automationRoi: { hoursSaved: number; hoursSavedPerHire: number | null; pctOfManualBaseline: number | null; totalActions: number } | null;
   /** Open roles and the recruiters carrying them — the capacity ratio's two terms. */
   capacity?: { openRoles: number; recruiters: number } | null;
+  /** Candidate NPS over the same window. Pass candidate-nps.ts's `rawScore` (the
+   *  unwithheld figure), not `score`: the pack applies its own sample policy and labels a
+   *  thin metric rather than hiding it, which keeps the invariant that a null value always
+   *  means "no data" and never "we chose not to say". */
+  candidateNps?: { score: number | null; responses: number } | null;
   windowDays: number | null;
 };
 
@@ -128,6 +135,24 @@ export function buildMetricPack(input: MetricPackInput, generatedAt: string): Me
       MIN_OPEN_ROLES
     ),
   ];
+
+  // Candidate NPS. Only appears when the workspace has collected any response at all —
+  // a "candidate experience" row on a workspace that has never asked is noise, not a gap.
+  const nps = input.candidateNps;
+  if (nps && nps.responses > 0) {
+    metrics.push(
+      metric(
+        "candidate_nps",
+        nps.score,
+        "pct",
+        nps.responses,
+        `Net promoter score from ${nps.responses} candidate response(s) at a terminal outcome, on the standard -100..100 scale.`,
+        // Same floor candidate-nps.ts uses for its own withholding, so one number is not
+        // publishable in one place and not in the other.
+        NPS_MIN_SAMPLE
+      )
+    );
+  }
 
   const caveats: string[] = [];
   for (const m of metrics) {

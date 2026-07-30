@@ -984,6 +984,18 @@
         "group_eval": "Application compared within the candidate group for this role",
         "offer_terms": "Offer terms prepared"
       }
+    },
+    "nps": {
+      "title": "How was this process for you?",
+      "subtitle": "One question, anonymous to the hiring team's reporting. It helps us make this better for the next person.",
+      "scaleLow": "Not at all likely",
+      "scaleHigh": "Extremely likely",
+      "commentLabel": "Anything you'd like to add",
+      "commentPlaceholder": "Anything you'd like to add (optional)",
+      "send": "Send",
+      "sending": "Sending…",
+      "thanks": "Thank you — your feedback was recorded.",
+      "failed": "That didn't go through. Please try again."
     }
   },
   "apply": {

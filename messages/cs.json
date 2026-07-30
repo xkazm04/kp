@@ -984,6 +984,18 @@
         "group_eval": "Přihláška porovnána v rámci skupiny uchazečů o tuto pozici",
         "offer_terms": "Připraveny podmínky nabídky"
       }
+    },
+    "nps": {
+      "title": "Jaký pro vás tento proces byl?",
+      "subtitle": "Jedna otázka, v reportingu náborového týmu anonymní. Pomůže nám to zlepšit pro dalšího uchazeče.",
+      "scaleLow": "Vůbec ne",
+      "scaleHigh": "Rozhodně ano",
+      "commentLabel": "Cokoli, co chcete doplnit",
+      "commentPlaceholder": "Cokoli, co chcete doplnit (nepovinné)",
+      "send": "Odeslat",
+      "sending": "Odesílám…",
+      "thanks": "Děkujeme — vaši zpětnou vazbu jsme zaznamenali.",
+      "failed": "Odeslání se nezdařilo. Zkuste to prosím znovu."
     }
   },
   "apply": {

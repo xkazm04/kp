@@ -84,6 +84,11 @@ export const STORE_ERRORS = {
   STATUS_LOOKUP_FAILED: "Could not load your application status. Please try again.",
   // Art. 86 candidate decision history (public status-token sibling route).
   STATUS_DECISIONS_FAILED: "Could not load your decision history. Please try again.",
+  // W0.6b candidate-NPS capture (public status-token sibling route). Separate read and
+  // write codes: a failed submit must not read as "we could not load the question", or
+  // the candidate re-answers into the same error.
+  STATUS_NPS_READ_FAILED: "Could not load the feedback question. Please try again.",
+  STATUS_NPS_WRITE_FAILED: "Could not record your feedback. Please try again.",
   // The two PUBLIC apply submissions (conversational + quick lead form). Their
   // catch paths sit on better-sqlite3, a Python profile-build subprocess, an fs
   // temp write and the comms dispatcher — every one throws messages carrying

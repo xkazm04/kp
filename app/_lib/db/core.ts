@@ -870,6 +870,21 @@ export function ensureDb(): Database.Database {
       created_at TEXT NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_consent_events_entry ON consent_events (entry_id, id DESC);
+
+    -- W0.6b — candidate NPS. Captured on a TERMINAL outcome from the public status
+    -- page, so the candidate-experience claim the rejection-feedback work rests on is
+    -- measured rather than asserted. entry_id is the PRIMARY KEY: one response per
+    -- application, so a link-holder cannot ballot-stuff their own outcome. A resubmit
+    -- REPLACEs (people change their mind before they hit send twice); the original
+    -- created_at is not preserved because a rewritten answer is a new answer.
+    CREATE TABLE IF NOT EXISTS candidate_nps (
+      entry_id TEXT PRIMARY KEY,
+      score INTEGER NOT NULL,
+      comment TEXT,
+      created_at TEXT NOT NULL,
+      workspace_id TEXT NOT NULL DEFAULT 'workspace'
+    );
+    CREATE INDEX IF NOT EXISTS idx_candidate_nps_ws ON candidate_nps (workspace_id, created_at DESC);
   `);
   // Migration for dev_submissions evaluation + contact columns (Phase D6 / B),
   // plus the interview run-of-show column added when the voice screen grew a

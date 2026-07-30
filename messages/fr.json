@@ -984,6 +984,18 @@
         "group_eval": "Candidature comparée au sein du groupe de candidats pour ce poste",
         "offer_terms": "Conditions de l'offre préparées"
       }
+    },
+    "nps": {
+      "title": "Comment avez-vous vécu ce processus ?",
+      "subtitle": "Une seule question, anonyme dans les rapports de l'équipe de recrutement. Elle nous aide à faire mieux pour la prochaine personne.",
+      "scaleLow": "Pas du tout probable",
+      "scaleHigh": "Extrêmement probable",
+      "commentLabel": "Quelque chose à ajouter",
+      "commentPlaceholder": "Quelque chose à ajouter ? (facultatif)",
+      "send": "Envoyer",
+      "sending": "Envoi…",
+      "thanks": "Merci — votre retour a bien été enregistré.",
+      "failed": "L'envoi a échoué. Veuillez réessayer."
     }
   },
   "apply": {

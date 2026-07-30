@@ -105,3 +105,22 @@ test("a certifiable pack renders without the warning block", () => {
   assert.match(md, /Every metric above is measured/);
   assert.match(md, /all time|last 90 days/);
 });
+
+test("candidate NPS joins the pack only once a response exists", () => {
+  // A "candidate experience" row on a workspace that has never asked is noise, not a gap
+  // — so absence means no row, rather than a not_measurable one.
+  const none = buildMetricPack(input({ candidateNps: { score: null, responses: 0 } }), AT);
+  assert.equal(none.metrics.some((m) => m.key === "candidate_nps"), false);
+
+  // A real score off four responses: the pack SHOWS it and labels it thin, rather than
+  // hiding it. Callers pass candidate-nps's rawScore precisely so this stays possible.
+  const thin = buildMetricPack(input({ candidateNps: { score: -25, responses: 4 } }), AT);
+  assert.equal(byKey(thin, "candidate_nps").status, "thin");
+  assert.equal(byKey(thin, "candidate_nps").value, -25);
+  assert.equal(thin.certifiable, false);
+
+  const solid = buildMetricPack(input({ candidateNps: { score: 42, responses: 30 } }), AT);
+  assert.equal(byKey(solid, "candidate_nps").value, 42);
+  assert.equal(byKey(solid, "candidate_nps").status, "measured");
+  assert.equal(solid.certifiable, true);
+});

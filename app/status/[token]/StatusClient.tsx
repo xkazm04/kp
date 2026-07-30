@@ -6,6 +6,7 @@ import { Bot, Check, RefreshCw, UserRound } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { AiDisclosure } from "@/app/_components/AiDisclosure";
 import { LanguageSwitcher } from "@/app/_components/LanguageSwitcher";
+import { StatusNpsCard } from "./StatusNpsCard";
 import type { CandidateDecisionView } from "@/app/_lib/status-decisions";
 import {
   CANDIDATE_TIMELINE,
@@ -311,6 +312,11 @@ export function StatusClient() {
               <p className="mt-3 border-t border-stone-200 pt-3 text-meta text-steel">{t("decisions.humanReviewNote")}</p>
             </section>
           ) : null}
+
+          {/* W0.6b — cNPS, asked only on a terminal outcome (the route decides). This is
+              where "telling a rejected candidate why beats ghosting them" stops being an
+              assertion and becomes a measured number. */}
+          {token ? <StatusNpsCard token={token} /> : null}
         </>
       )}
       {/* Art. 50 transparency note — same muted footer placement as the sibling

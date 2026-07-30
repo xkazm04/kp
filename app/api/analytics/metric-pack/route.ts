@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { listJobs, pipelineAnalytics } from "@/app/_lib/db";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { listMembershipsForWorkspace } from "@/app/_lib/db/memberships";
+import { candidateNpsSummary } from "@/app/_lib/candidate-nps-store";
 import { buildMetricPack, renderMetricPack, type MetricPackInput } from "@/app/_lib/metric-pack";
 
 // W0.4 — the metric pack: the four numbers a buyer asks for, assembled into one
@@ -48,6 +49,12 @@ export async function GET(request: Request) {
       costPerHireCzk: analytics.costPerHireCzk,
       automationRoi: analytics.automationRoi,
       capacity: { openRoles, recruiters },
+      candidateNps: (() => {
+        const s = candidateNpsSummary(windowDays, ws);
+        // rawScore, not score: the pack applies its own thin/measured policy and LABELS a
+        // thin metric rather than hiding it, so it needs the unwithheld figure.
+        return { score: s.rawScore, responses: s.responses };
+      })(),
       windowDays,
     };
 
