@@ -407,16 +407,28 @@ export async function runGroupEval(
   // concurrency bound. Per-candidate failures degrade to the deterministic
   // source exactly as before.
   const reasonings = await Promise.all(
-    input.map(async (c): Promise<{ reasoning: Reasoning; source: string | null }> => {
-      if (!jobId || !c.candidateId) return { reasoning: {}, source: null };
+    input.map(async (c): Promise<{ reasoning: Reasoning; source: string | null; promptVersion: string | null }> => {
+      if (!jobId || !c.candidateId) return { reasoning: {}, source: null, promptVersion: null };
       try {
         const out = await runReasoning({ jobId, profileId: c.candidateId }, signal, workspaceId);
-        return { reasoning: (out.reasoning as Reasoning) ?? {}, source: String(out.source ?? "deterministic") };
+        return {
+          reasoning: (out.reasoning as Reasoning) ?? {},
+          source: String(out.source ?? "deterministic"),
+          // W0.3 — reasoning_cli stamps the prompt version that produced this verdict.
+          // It used to be dropped here, which is why the sealed lead could not say WHICH
+          // prompt generated the reasoning behind it (EU AI Act Art. 12 traceability).
+          promptVersion: typeof out.promptVersion === "string" ? out.promptVersion : null,
+        };
       } catch {
-        return { reasoning: {}, source: "deterministic" };
+        return { reasoning: {}, source: "deterministic", promptVersion: null };
       }
     })
   );
+
+  // The distinct prompt versions behind this cohort's reasoning. Normally one; a mixed
+  // set (a cache straddling a prompt bump) is recorded as-is rather than collapsed to
+  // the first — the record must not imply one prompt when two produced the ranking.
+  const promptVersions = [...new Set(reasonings.map((r) => r.promptVersion).filter((v): v is string => !!v))].sort();
 
   const sources: string[] = [];
   const candidates: PerCandidate[] = [];
@@ -594,6 +606,27 @@ export async function runGroupEval(
   // policy version. Best-effort; this is the real (non-sim) eval path — the sim has
   // its own client-side runGroupEval. Only sealed when there IS a ko-passing lead —
   // a knockout-failed field must not seal a "lead" into the decision record.
+  // W0.3 — AI Act Art. 12 traceability for the sealed record. `rationale` is and stays
+  // the DETERMINISTIC summary (a localized or model-authored string must never become the
+  // record's own account of itself). But a record that says only "the AI led with X" is
+  // not reconstructible: an auditor cannot see WHICH prompt produced the ranking, nor what
+  // the model actually SAID about the candidate it crowned. Both were computed and then
+  // dropped on the floor. They ride in `inputs` alongside the other machine facts:
+  //   promptVersion  — the reasoning prompt(s) behind this cohort ([] when no LLM ran)
+  //   leadReasoning  — the model's own verdict/strengths/gaps for the crowned lead,
+  //                    VERBATIM and clipped, never re-narrated by us.
+  // Clipped because a decision record is an audit artifact, not a transcript store.
+  const MAX_REASON_ITEMS = 6;
+  const MAX_REASON_CHARS = 400;
+  const clip = (s: unknown) => String(s ?? "").slice(0, MAX_REASON_CHARS);
+  const clipList = (xs: unknown) => (Array.isArray(xs) ? xs.slice(0, MAX_REASON_ITEMS).map(clip) : []);
+  const traceability = {
+    promptVersion: promptVersions,
+    leadReasoning: lead
+      ? { verdict: clip(lead.verdict), strengths: clipList(lead.strengths), gaps: clipList(lead.gaps) }
+      : null,
+  };
+
   if (lead && sealsLead(governanceMode)) {
     sealDecisionSafe({
       kind: "group_eval_lead",
@@ -614,7 +647,7 @@ export async function runGroupEval(
       // whether that lead actually clears the runner-up's band — so a record can never
       // read as a decisive crown when the two top candidates were a tie on the
       // evidence. "unknown" is recorded as such, never silently as separation.
-      inputs: { score: lead.score, confidence: lead.confidence ?? null, separation, candidates: candidates.length, roleTitle, robustness, cohortSource: useSelection ? "selection" : "top", cohortSize: totalCandidates },
+      inputs: { score: lead.score, confidence: lead.confidence ?? null, separation, candidates: candidates.length, roleTitle, robustness, cohortSource: useSelection ? "selection" : "top", cohortSize: totalCandidates, ...traceability },
     });
   } else if (lead) {
     // Governance mode (P1-3): the AI is advisory and must NOT seal a winner. Record
@@ -629,7 +662,7 @@ export async function runGroupEval(
       reasonCode: "advisory",
       // Same confidence/separation honesty as the recommendation branch above — an
       // advisory ranking is still a ranking someone will read as a shortlist.
-      inputs: { score: lead.score, confidence: lead.confidence ?? null, separation, candidates: candidates.length, roleTitle, governanceMode, robustness, cohortSource: useSelection ? "selection" : "top", cohortSize: totalCandidates },
+      inputs: { score: lead.score, confidence: lead.confidence ?? null, separation, candidates: candidates.length, roleTitle, governanceMode, robustness, cohortSource: useSelection ? "selection" : "top", cohortSize: totalCandidates, ...traceability },
     });
   }
 

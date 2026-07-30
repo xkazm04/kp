@@ -257,6 +257,54 @@ export function parseCohortProvenance(payloadJson: string): CohortProvenance | n
   return { source, compared, field };
 }
 
+// (a2) AI Act Art. 12 traceability (W0.3). A sealed group-eval record states the
+// OUTCOME (who led, over what cohort, how separated). Reconstructing the decision also
+// needs the two things that produced it: WHICH prompt version generated the reasoning,
+// and what the model actually SAID about the candidate it crowned. Both are now written
+// into `inputs` at seal time (group-eval-run.ts); this reads them back.
+//
+// Absent on pre-W0.3 seals and on runs where no LLM produced reasoning — the honest
+// answer there is "not recorded", never a reconstruction after the fact, so the parser
+// returns null rather than inventing an empty-but-present block.
+export type SealTraceability = {
+  /** Reasoning prompt version(s) behind the cohort. Plural: a cache straddling a prompt
+   *  bump can legitimately mix two, and collapsing that would misreport the record. */
+  promptVersion: string[];
+  /** The model's own words for the crowned lead, verbatim (clipped at seal time). */
+  leadReasoning: { verdict: string; strengths: string[]; gaps: string[] } | null;
+};
+
+const strList = (v: unknown): string[] =>
+  Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
+
+/** Read Art. 12 traceability out of a sealed record's payload_json, or null when the
+ *  record predates it / carried no model reasoning. */
+export function parseSealTraceability(payloadJson: string): SealTraceability | null {
+  let inputs: unknown;
+  try {
+    inputs = (JSON.parse(payloadJson) as { inputs?: unknown }).inputs;
+  } catch {
+    return null;
+  }
+  if (!inputs || typeof inputs !== "object") return null;
+  const o = inputs as Record<string, unknown>;
+  const promptVersion = strList(o.promptVersion);
+  const lr = o.leadReasoning;
+  const leadReasoning =
+    lr && typeof lr === "object"
+      ? {
+          verdict: typeof (lr as Record<string, unknown>).verdict === "string" ? ((lr as Record<string, unknown>).verdict as string) : "",
+          strengths: strList((lr as Record<string, unknown>).strengths),
+          gaps: strList((lr as Record<string, unknown>).gaps),
+        }
+      : null;
+  // A block with neither a prompt version nor any model text carries no traceability —
+  // report its absence instead of an empty shell that reads as "recorded, but blank".
+  const hasReasoning = !!leadReasoning && (leadReasoning.verdict !== "" || leadReasoning.strengths.length > 0 || leadReasoning.gaps.length > 0);
+  if (promptVersion.length === 0 && !hasReasoning) return null;
+  return { promptVersion, leadReasoning: hasReasoning ? leadReasoning : null };
+}
+
 // The minimal structural shape of a sealed record this module needs — declared
 // locally so this pure module never imports the server-side decision-record-store.
 type SealedRecordLike = { kind: string; reasonCode: string; createdAt: string; payloadJson: string };

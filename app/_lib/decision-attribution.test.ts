@@ -7,6 +7,7 @@ import {
   decisionAttribution,
   summarizeAutomationImpact,
   parseCohortProvenance,
+  parseSealTraceability,
   matchCohortProvenance,
   sealedReasonOf,
   parseRematchCounterpartId,
@@ -120,6 +121,49 @@ test("parseCohortProvenance reads selection/top provenance and rejects bad shape
   assert.equal(parseCohortProvenance(groupEvalPayload({ cohortSource: "bogus", candidates: 4, cohortSize: 12 })), null);
   assert.equal(parseCohortProvenance(groupEvalPayload({ cohortSource: "top", candidates: 0, cohortSize: 12 })), null);
   assert.equal(parseCohortProvenance("not json"), null);
+});
+
+// W0.3 — Art. 12 traceability: a sealed group-eval record must be reconstructible, i.e.
+// carry the prompt version that produced the reasoning and the model's own words about
+// the lead it crowned. Before this, both were computed and discarded.
+test("parseSealTraceability reads the prompt version and the lead's raw model reasoning", () => {
+  const t = parseSealTraceability(
+    groupEvalPayload({
+      cohortSource: "top",
+      candidates: 4,
+      cohortSize: 9,
+      promptVersion: ["match-reasoning-v2"],
+      leadReasoning: { verdict: "Strongest on payments depth", strengths: ["ran a migration"], gaps: ["no K8s"] },
+    })
+  );
+  assert.deepEqual(t, {
+    promptVersion: ["match-reasoning-v2"],
+    leadReasoning: { verdict: "Strongest on payments depth", strengths: ["ran a migration"], gaps: ["no K8s"] },
+  });
+});
+
+test("parseSealTraceability keeps a MIXED prompt-version set rather than collapsing it", () => {
+  // A cache straddling a prompt bump legitimately produces two; reporting one would
+  // claim a single prompt ranked the cohort when two did.
+  const t = parseSealTraceability(groupEvalPayload({ promptVersion: ["match-reasoning-v1", "match-reasoning-v2"] }));
+  assert.deepEqual(t?.promptVersion, ["match-reasoning-v1", "match-reasoning-v2"]);
+  assert.equal(t?.leadReasoning, null);
+});
+
+test("parseSealTraceability reports ABSENCE rather than an empty shell", () => {
+  // Pre-W0.3 seals, and deterministic runs where no model spoke: "not recorded" must be
+  // distinguishable from "recorded, and the model said nothing".
+  assert.equal(parseSealTraceability(groupEvalPayload({ cohortSource: "top", candidates: 4, cohortSize: 9 })), null);
+  assert.equal(parseSealTraceability(groupEvalPayload({ promptVersion: [], leadReasoning: { verdict: "", strengths: [], gaps: [] } })), null);
+  assert.equal(parseSealTraceability("not json"), null);
+});
+
+test("parseSealTraceability ignores non-string junk inside the reasoning arrays", () => {
+  const t = parseSealTraceability(
+    groupEvalPayload({ promptVersion: ["v2", 7, null], leadReasoning: { verdict: 5, strengths: ["ok", {}], gaps: null } })
+  );
+  assert.deepEqual(t?.promptVersion, ["v2"]);
+  assert.deepEqual(t?.leadReasoning, { verdict: "", strengths: ["ok"], gaps: [] });
 });
 
 test("matchCohortProvenance picks the nearest group-eval record within the window", () => {
