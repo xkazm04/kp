@@ -319,6 +319,8 @@
       "opening": "Dobrý den {name},\n\nděkujeme za váš zájem o pozici {role} a za čas, který jste přihlášce věnovali. Po pečlivém zvážení v tuto chvíli nebudeme pokračovat dál.\n\n",
       "early": "Není to odraz vašeho potenciálu. Na začátku kariéry je nejsilnějším signálem směřování a upřímně vás povzbuzujeme, abyste se přihlásili znovu, až získáte více praktických zkušeností — váš profil si ponecháme.\n\n",
       "standard": "Rozhodnutí vycházelo z toho, jak profil odpovídá konkrétním potřebám této pozice právě teď, nikoli z posouzení vašich schopností. Budoucí přihlášku bychom uvítali, jak se naše týmy a pozice vyvíjejí, a váš profil si ponecháme.\n\n",
+      "feedbackIntro": "Na čem rozhodnutí stálo, podle toho, co jsme si k této pozici zaznamenali:",
+      "feedbackOutro": "Jde o poznámky k souladu s touto konkrétní pozicí, nikoli o hodnocení vašich schopností.",
       "closing": "Přejeme vám vše dobré,\n{team}"
     },
     "koDecline": {

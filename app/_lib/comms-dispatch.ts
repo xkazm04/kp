@@ -1,7 +1,8 @@
 import { createTranslator } from "next-intl";
 import { sendComm } from "./comms";
 import type { OutboxStatus } from "./comms-status";
-import { ensureErasureToken, recordAutomationEvent, type PipelineEntry } from "./db";
+import { ensureErasureToken, entryProfileGaps, recordAutomationEvent, type PipelineEntry } from "./db";
+import { buildRejectionFeedback, renderRejectionFeedback } from "./rejection-feedback";
 import { isEarlyCareer } from "./archetypes";
 import { candidateOutreachSuppression } from "./rediscovery-alert-store";
 import { extractDeliverableAddress, extractRecipientName } from "./comms-recipient";
@@ -252,6 +253,12 @@ export async function dispatchOutreach(
  * respectful template — no LLM, so it works in a batch policy pass and never
  * ghosts a rejected candidate. Early-career archetypes get an encouraging line,
  * keeping the fairness lever consistent through to the adverse comm.
+ *
+ * W0.6 — when the record holds a REASON (the recruiter's own still-unmet checklist
+ * items), the letter now says it. Sourced from what was recorded, never generated: a
+ * fresh LLM call here would be slow in a batch pass and would invent a rationale that
+ * was never the actual reason. Protected-attribute lines are dropped whole, and with
+ * nothing recorded the template ships exactly as before (rejection-feedback.ts).
  */
 export async function dispatchRejection(entry: PipelineEntry, opts?: { automated?: boolean }): Promise<void> {
   const t = await commsTranslator(entry.locale);
@@ -259,11 +266,30 @@ export async function dispatchRejection(entry: PipelineEntry, opts?: { automated
   const role = entry.jobTitle ?? t("theRole");
   const middle = isEarlyCareer(entry.archetype) ? t("rejection.early") : t("rejection.standard");
 
+  // Workspace resolution matches every sibling dispatcher in this module (they all let
+  // recordAutomationEvent take the default): PipelineEntry carries no workspaceId, and a
+  // lone deviation here would read as a tenancy fix while being a guess.
+  const feedback = buildRejectionFeedback({ profileGaps: entryProfileGaps(entry.id) });
+  const feedbackBlock = renderRejectionFeedback(feedback, t("rejection.feedbackIntro"), t("rejection.feedbackOutro"));
+
   const subject = t("rejection.subject", { role });
-  const body = t("rejection.opening", { name, role }) + middle + t("rejection.closing", { team: t("team") });
+  const body = t("rejection.opening", { name, role }) + middle + feedbackBlock + t("rejection.closing", { team: t("team") });
 
   await sendCandidateComm(entry, t, { subject, body, kind: "rejection" });
-  recordAutomationEvent(entry.id, "rejection_sent", opts?.automated ? "policy auto-reject" : "manual reject");
+  recordAutomationEvent(
+    entry.id,
+    "rejection_sent",
+    // The detail records whether the candidate got a reason and where it came from, so
+    // the decision log can answer "was this rejection explained?" without reopening the
+    // outbox body. `filtered` is recorded too — a dropped line is a fairness event.
+    [
+      opts?.automated ? "policy auto-reject" : "manual reject",
+      `feedback:${feedback.source}`,
+      feedback.filtered ? "protected-filter:fired" : null,
+    ]
+      .filter(Boolean)
+      .join(" · ")
+  );
 }
 
 /** Tell a KO-declined lead the outcome — entry-less by design. Channel leads are

@@ -319,6 +319,8 @@
       "opening": "Bonjour {name},\n\nMerci de l'intérêt que vous portez à {role} et du temps consacré à votre candidature. Après un examen attentif, nous ne poursuivrons pas à ce stade.\n\n",
       "early": "Cela ne reflète en rien votre potentiel. En début de carrière, le signal le plus fort est la trajectoire, et nous vous encourageons sincèrement à postuler de nouveau à mesure que vous acquerrez de l'expérience concrète — nous conserverons votre profil dans nos dossiers.\n\n",
       "standard": "La décision a reposé sur l'adéquation avec les besoins précis de ce poste actuellement, et non sur un jugement de vos compétences. Nous accueillerons volontiers une future candidature à mesure que nos équipes et nos postes évoluent, et nous conserverons votre profil dans nos dossiers.\n\n",
+      "feedbackIntro": "Ce qui a motivé la décision, d'après ce que nous avons consigné pour ce poste :",
+      "feedbackOutro": "Il s'agit de remarques sur l'adéquation à ce poste précis, et non d'un jugement sur vos compétences.",
       "closing": "Nous vous souhaitons le meilleur,\n{team}"
     },
     "koDecline": {

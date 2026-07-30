@@ -319,6 +319,8 @@
       "opening": "Hallo {name},\n\nvielen Dank für Ihr Interesse an {role} und für die Zeit, die Sie in Ihre Bewerbung investiert haben. Nach sorgfältiger Prüfung werden wir Ihre Bewerbung zu diesem Zeitpunkt nicht weiterverfolgen.\n\n",
       "early": "Das ist kein Urteil über Ihr Potenzial. Am Anfang einer Laufbahn ist die Entwicklung das stärkste Signal, und wir ermutigen Sie ausdrücklich, sich erneut zu bewerben, sobald Sie mehr praktische Erfahrung gesammelt haben — wir behalten Ihr Profil in unseren Unterlagen.\n\n",
       "standard": "Ausschlaggebend war die Passung zu den konkreten Anforderungen dieser Stelle im Moment, kein Urteil über Ihre Fähigkeiten. Über eine künftige Bewerbung freuen wir uns, wenn sich unsere Teams und Stellen weiterentwickeln, und wir behalten Ihr Profil in unseren Unterlagen.\n\n",
+      "feedbackIntro": "Worauf die Entscheidung beruhte, basierend auf unseren Aufzeichnungen zu dieser Position:",
+      "feedbackOutro": "Dies sind Anmerkungen zur Passung für genau diese Stelle, kein Urteil über Ihre Fähigkeiten.",
       "closing": "Alles Gute für Sie,\n{team}"
     },
     "koDecline": {

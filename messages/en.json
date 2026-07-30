@@ -319,6 +319,8 @@
       "opening": "Hi {name},\n\nThank you for your interest in {role} and for the time you put into your application. After careful review, we won't be moving forward at this stage.\n\n",
       "early": "This is not a reflection of your potential. Early in a career the strongest signal is trajectory, and we'd genuinely encourage you to apply again as you build out more hands-on experience — we'll keep your profile on file.\n\n",
       "standard": "The decision came down to fit against the specific needs of this role right now, not a judgement of your ability. We'd welcome a future application as our teams and openings evolve, and we'll keep your profile on file.\n\n",
+      "feedbackIntro": "Where the decision landed, based on what we recorded for this role:",
+      "feedbackOutro": "These are notes on fit for this specific opening, not a judgement of your ability.",
       "closing": "Wishing you the very best,\n{team}"
     },
     "koDecline": {
