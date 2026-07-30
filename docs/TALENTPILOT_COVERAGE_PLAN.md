@@ -34,8 +34,10 @@ packaging, and frees the remediation budget for what tiger says is *actually* op
    and they are load-bearing for everything we say afterwards.
 2. **Sell what we already built before building what we lack.** kp has more shipped
    surface than the competitive story admits. W0 is almost entirely packaging.
-3. **Buy the commodity, build the wedge.** 40 ATS connectors is a purchase. Work-sample
-   verification is not for sale anywhere — that is where engineering time goes.
+3. **Prove a seam before buying one.** Hand-build the first ATS connector (D1): a unified
+   API is a subscription and a dependency taken on before a single customer has named a
+   specific ATS. Work-sample verification, meanwhile, is not for sale anywhere — that is
+   where the engineering time goes regardless.
 4. **Every wave ends sellable.** No wave is a pure prerequisite for a later wave.
 5. **De-locking gates the commercial waves, not the technical ones.** W5 can run in
    parallel; it blocks revenue, not code.
@@ -50,7 +52,7 @@ in §9. Canonical numbering is this document's.
 | Wave | Name | Closes | Effort | Blocked by |
 |---|---|---|---|---|
 | **W0** | Integrity & proof | A11, A13↑, C3, C4↑, C6, C7↑ + tiger #11/#12/#13 | M | nothing — **start here** |
-| **W1** | Integration parity | C1, C2, A12 | L | vendor decision D1, D2 |
+| **W1** | Integration parity | C1, C2, A12 | L | credentials only (D1/D2 decided) |
 | **W2** | Sourcing without a pool | A2, A3 | M | W1.1 (shared credential seam) |
 | **W3** | Fit assessment | A7, A8, A9 | L | nothing |
 | **W4** | AI economics & model governance | C5↑, plus bets 4+5 | M | nothing |
@@ -93,12 +95,14 @@ so in its own header. We do not rewrite it — we **invert** it: the same normal
 | ID | Item | Anchors | Acceptance |
 |---|---|---|---|
 | **W1.1** | **Bidirectional ATS seam.** Add ingest alongside egress: an inbound mapper to `kp.ats.v1`, an OAuth/credential store reusing the write-only secret doctrine, and a field-map config per connection. | `ats-record.ts`, `ats-config-store.ts`, `app/_lib/llm-secret.ts` (doctrine), `app/api/ats/*` | Round-trip test: external record → kp entity → egress record is stable; secrets never round-trip to client |
-| **W1.2** | **Unified ATS API adapter** (decision D1). One integration buys ~40 connectors. | new `app/_lib/ats/providers/` | Two named systems sync candidates + stages two-way in a sandbox |
-| **W1.3** | **Recruitis + Teamio native.** Home-market table stakes; already ship-loop backlog item 25. | same seam as W1.2 | Job publish + candidate ingest verified against both sandboxes |
-| **W1.4** | **Calendar OAuth** (decision D2): Google + Microsoft free/busy read and event write, replacing link-only scheduling. | `app/_lib/calendar-links.ts`, `schedule-store.ts`, `app/features/hiring/schedule/*` | Slot suggestions respect real free/busy; confirmed slot writes a real event both sides |
+| **W1.2** | **First hand-built connector: Recruitee** (D1/D1a). Proves the seam end to end against a real ATS with a self-serve token and a free trial — no sales conversation, no subscription. | new `app/_lib/ats/providers/recruitee.ts` | Jobs + candidates sync two-way against a free-trial account; the mapper round-trips through `kp.ats.v1` |
+| **W1.3** | **Recruitis, then Teamio.** The home-market logos (ship-loop backlog item 25). Deliberately AFTER Recruitee: a Recruitis company token requires already being their customer, so this one waits on a design partner rather than blocking the seam. | same seam as W1.2 | Job publish + candidate ingest verified against a real account |
+| **W1.4** | **Google Calendar OAuth first** (D2): free/busy read + event write, replacing link-only scheduling. Microsoft reuses the seam later. | `app/_lib/calendar-links.ts`, `schedule-store.ts`, `app/features/hiring/schedule/*` | Slot suggestions respect real free/busy; a confirmed slot writes a real event on both sides |
 
-**Dependencies:** D1 and D2 in §7 must be answered before W1.2/W1.4 start. W1.1 and W1.3
-scoping can proceed regardless.
+**Dependencies (§7 answered them).** W1.4 needs a Google Cloud OAuth client (id + secret,
+consent screen, redirect URI); everything else is env-var driven and testable with a
+throwaway account. W1.2 needs a free-trial Recruitee account + a personal API token —
+both self-serve. W1.1 needs neither and can start immediately.
 
 ---
 
@@ -151,11 +155,13 @@ on silence.
 
 | ID | Decision | Recommendation |
 |---|---|---|
-| **D1** | Unified ATS API vendor vs hand-built connectors | **Buy** a unified ATS API. 40 hand-built connectors is their moat, not ours; one integration reaches parity. |
-| **D2** | Calendar: direct Google/MS OAuth vs Cronofy/Nylas | **Direct OAuth** for Google + Microsoft (covers ~all of our market), no vendor fee, no PII intermediary — which also strengthens the W0.5 trust story. |
+| **D1** | Unified ATS API vendor vs hand-built connectors | **DECIDED 2026-07-30 (user): hand-build, one vendor first.** Prove the seam against a single ATS, then let demand decide whether a unified API or our own wrapper earns its keep. Overrides the earlier "buy" recommendation — a unified API is a subscription and a dependency taken on before one customer has named a specific ATS. |
+| **D1a** | Which vendor forges the path | **Recruitee (Tellent).** The only candidate that is free and easy *today*: self-serve personal API token from the settings UI, non-expiring, a free trial account so the connector can be built and tested end to end with no sales conversation, and public REST docs. Recruitis is the more important Czech logo but its company token requires already being a customer, so it cannot be developed against cold — connector #2, once a design partner provides an account. Teamio (LMC) is enterprise-gated and last. |
+| **D2** | Calendar: direct OAuth vs Cronofy/Nylas | **DECIDED (user): direct Google OAuth first**, leaning on the existing Google Cloud project and gcloud CLI. Microsoft follows the same seam. No vendor fee and no PII intermediary — which also keeps the W0.5 subprocessor list short. |
 | **D3** | W3 psychometrics: license a validated instrument vs public-domain IPIP | **IPIP** (public domain, validated, free) — their authority claim is unmatched either way, so spend the money elsewhere. |
 | **D4** | Does W5 de-locking start in parallel now, or after W1? | **Parallel** — it is mostly data/content work and blocks revenue, not code. |
 | **D5** | ISO 27001: start readiness now or after W1? | **Now** (readiness assessment only). Long lead time; it is a live deal-blocker vs their certification. |
+| **D6** | Is `/trust` public? | **DECIDED (user): internal.** Noindexed, no openGraph, kept as a posture board and **deleted once nothing is outstanding** — at which point anything public should be written as marketing copy, not left as a gap register with no gaps. |
 
 ---
 
@@ -181,13 +187,13 @@ on silence.
 | Gap | Description | Wave item | Status |
 |---|---|---|---|
 | A2 | 800M external pool | W2.1, W2.2, W2.4 (sidestep) | ☐ |
-| A3 | Outreach at scale + reply halt | W2.3 | ☐ |
+| A3 | Outreach at scale + reply halt | W2.3 | ✅ |
 | A5 | AI-native application | W0.7 packaging, W1.4 | ☐ |
 | A7 / A8 / A9 | Big Five / Hofstede / team impact | W3.1, W3.2, W3.3 | ☐ |
 | A10 | 12–14 languages, mid-interview switch | W5 | ☐ |
 | A11 | Personalized rejection | W0.6 | ✅ |
 | A12 | Zero-touch scheduling | W1.4 | ☐ |
-| A13 | Anti-cheating (we lead) | W0.1, W0.2 ✅ · W0.7 ☐ | ◐ |
+| A13 | Anti-cheating (we lead) | W0.1, W0.2, W0.7 content | ✅ |
 | B1 / B2 | Skills graph, calibration | W6 | ☐ |
 | B3–B5 | Reviews, planning, succession | **declined** | — |
 | C1 / C2 | ATS + HCM connectors | W1.1, W1.2, W1.3 | ☐ |
@@ -195,7 +201,7 @@ on silence.
 | C4 | Explainability (we lead) | W0.3, W0.5 | ✅ |
 | C5 | Data posture (we lead) | W4.3 ✅ · W4.2, W4.4 ☐ | ◐ |
 | C6 | Proof / metrics | W0.4 | ✅ |
-| C7 / C8 | Price + segment (we lead) | W0.7 | ☐ |
+| C7 / C8 | Price + segment (we lead) | W0.7 (content pass) | ◐ |
 | tiger #11 | Devcase judge self-grades | W0.1 | ✅ |
 | tiger #12 | Devcase grades blind | W0.2 | ✅ |
 | tiger #13 | Group-eval seal traceability | W0.3 | ✅ |
@@ -213,6 +219,8 @@ on silence.
 | W0.6b | `579ccd38` | Candidate NPS captured at terminal outcomes, folded into the pack |
 | W0 gate | `20da9f33` | `candidate_nps` registered as tenancy-scoped; `/trust` prerender blocked |
 | W4.3 | `5fe0f4e0` | BYOM catalog-drift guard across the TS/Python boundary |
+| W0.7 | `77a721a3` | `/` and `/about` content audit — three shipped-but-unadvertised capabilities added (verified work samples, rediscovery, offer→onboarded); `/trust` noindexed |
+| W2.3 | `9421027d` | Outreach memory + reply-halt; `outreach_suppressed` finally mapped in the decision log |
 
 **Gate:** typecheck ✓ · lint 0 errors (359 warnings, pre-existing) ✓ · unit 2662/2663 ✓ ·
 python 1287 ✓ · build ✓ · i18n 4 locales in parity ✓ · **e2e not run** (a parallel session
