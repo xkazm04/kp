@@ -20,7 +20,11 @@ export const metadata: Metadata = {
   },
 };
 
-// Fully static: the page holds no per-request or per-workspace data, so it prerenders.
+// The CONTENT is static (no per-request or per-workspace data), but the per-request
+// locale layout reads cookies, so under Cache Components this route is dynamic like its
+// /about sibling. Block it rather than prerender a skeleton flash of a compliance page.
+export const instant = false;
+
 export default function TrustPage() {
   return <TrustContent />;
 }

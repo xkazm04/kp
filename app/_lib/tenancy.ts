@@ -64,6 +64,16 @@ export const TENANCY_SCOPED_TABLES: ReadonlySet<string> = new Set([
   // needs no per-call-site threading (pipeline-events-tenancy.test.ts).
   "pipeline_events",
   "consent_events",
+  // W0.6b — candidate NPS captured on the public status page. Scoped because it feeds a
+  // team's metric pack: pooling it would let one team's candidate-experience number be
+  // computed from another team's rejections. Every read/write in candidate-nps-store.ts
+  // filters workspace_id, and the recruiter-side summary reads the caller's workspace.
+  // NOTE — same known limitation as the inbound channel receiver above: the PUBLIC write
+  // (/api/status/[token]/nps) still records on the DEFAULT workspace, because
+  // PipelineEntry carries no workspaceId to derive from. Thread the entry's tenant
+  // through before KP_MULTI_WORKSPACE is enabled, or a second team's candidate feedback
+  // lands in the default team's pack.
+  "candidate_nps",
   // Phase 1 — the Channels surface. channel_webhooks (inbound lead bindings) +
   // channel_spend (per-team spend; PK widened to (channel, workspace_id)) filter on
   // workspace_id; dev_outbox (the comms outbox) auto-derives each message's tenant
