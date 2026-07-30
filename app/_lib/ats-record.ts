@@ -5,10 +5,18 @@
 // maps FROM: one candidate, one role, the pipeline state, the SEALED decision with
 // its tamper-evident hash + auto/human attribution, and the offer comp.
 //
-// CEILING — this is vendor-neutral EGRESS, not a certified per-vendor connector.
-// We don't hold each ATS's OAuth creds or field map; we emit a stable, documented
-// record + a signed webhook, and the customer's connector/iPaaS lands it in their
-// system of record. The schemaVersion lets that mapping pin a contract.
+// CEILING (revised by W1.1) — this file is still EGRESS-only, and the vendor-neutral
+// webhook path above is unchanged: emit a stable, documented record, let the customer's
+// connector or iPaaS land it. What HAS changed is the claim that "we don't hold each ATS's
+// creds or field map" — we now do, for the ingest direction: `app/_lib/ats/` holds the
+// per-provider token + field map (connections-store.ts), the inbound record shape
+// (inbound.ts) and the external-id link table that makes a re-sync idempotent
+// (links-store.ts).
+//
+// The two directions meet at `toAtsEntryInput`, which projects an inbound record onto the
+// input this mapper reads — so a candidate imported from an ATS emits exactly the same
+// kp.ats.v1 shape as one who applied directly. That round trip is pinned by
+// app/_lib/ats/inbound.test.ts; keep it true if you change this record.
 //
 // Pure + dependency-free (structural input types, no DB import) so it loads under
 // `node --test` and can't drag better-sqlite3 into a bundle.

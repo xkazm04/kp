@@ -611,7 +611,7 @@ export function ensureDb(): Database.Database {
     CREATE INDEX IF NOT EXISTS idx_interview_token ON interview_sessions (token);
     CREATE INDEX IF NOT EXISTS idx_interview_entry ON interview_sessions (entry_id);
 
-    -- Multi-provider LLM layer (docs/LLM_PROVIDER_LAYER.md). llm_config pins
+    -- Multi-provider LLM layer (docs/architecture/llm-provider-layer.md). llm_config pins
     -- provider+model per use case (explicit rows only — absence means the
     -- built-in default, i.e. Claude CLI locally); provider_keys holds
     -- UI-entered keys encrypted with KP_SECRET (env keys keep working without
@@ -660,7 +660,7 @@ export function ensureDb(): Database.Database {
     CREATE INDEX IF NOT EXISTS idx_llm_usage_ts ON llm_usage (ts);
     CREATE INDEX IF NOT EXISTS idx_llm_usage_use_case ON llm_usage (use_case, provider);
 
-    -- Payment gate (docs/BILLING.md). Single-workspace model mirrors the rest
+    -- Payment gate (docs/features/billing/README.md). Single-workspace model mirrors the rest
     -- of the app: billing_state is a one-row subscription snapshot synced from
     -- provider webhooks (never trusted from the client); billing_events is the
     -- webhook idempotency gate + audit; billing_credits is the prepaid ledger
@@ -900,6 +900,28 @@ export function ensureDb(): Database.Database {
       workspace_id TEXT NOT NULL DEFAULT 'workspace'
     );
     CREATE INDEX IF NOT EXISTS idx_outreach_state_ws ON outreach_state (workspace_id);
+
+    -- W1.1 — the external-id link table: the piece that makes an ATS sync IDEMPOTENT.
+    -- ats-record.ts emits candidates outward keyed by kp's own entry id, which is fine for
+    -- egress. Pulling candidates IN needs the other direction: the vendor's id for an
+    -- application, so the second sync UPDATES the person it already imported instead of
+    -- creating a twin. Without this table a nightly sync duplicates the entire pipeline
+    -- every night, which is how an integration destroys a customer's funnel metrics.
+    --
+    -- The PK is (provider, external_id, workspace_id): ids are only unique within a
+    -- vendor, and two tenants can legitimately connect the same ATS account.
+    -- last_seen_stage is what the vendor last told us, so a re-sync can tell an actual
+    -- stage change from a no-op re-send.
+    CREATE TABLE IF NOT EXISTS ats_links (
+      provider TEXT NOT NULL,
+      external_id TEXT NOT NULL,
+      workspace_id TEXT NOT NULL DEFAULT 'workspace',
+      entry_id TEXT NOT NULL,
+      last_seen_stage TEXT,
+      last_synced_at TEXT NOT NULL,
+      PRIMARY KEY (provider, external_id, workspace_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_ats_links_entry ON ats_links (entry_id, workspace_id);
   `);
   // Migration for dev_submissions evaluation + contact columns (Phase D6 / B),
   // plus the interview run-of-show column added when the voice screen grew a

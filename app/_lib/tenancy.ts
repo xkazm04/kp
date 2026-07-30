@@ -81,6 +81,12 @@ export const TENANCY_SCOPED_TABLES: ReadonlySet<string> = new Set([
   // workspace_id, and the inbound receiver passes the webhook's own workspace — this one
   // is NOT subject to the default-workspace caveat above.
   "outreach_state",
+  // W1.1 — the ATS external-id link table. Scoped because it decides WHICH kp entry a
+  // vendor application maps to: a cross-tenant read would either attach another team's
+  // candidate to this team's pipeline, or fail to recognise an import and duplicate it.
+  // The PK carries workspace_id so two tenants can connect the same ATS account without
+  // colliding on the vendor's ids.
+  "ats_links",
   // Phase 1 — the Channels surface. channel_webhooks (inbound lead bindings) +
   // channel_spend (per-team spend; PK widened to (channel, workspace_id)) filter on
   // workspace_id; dev_outbox (the comms outbox) auto-derives each message's tenant
@@ -215,6 +221,11 @@ export const TENANCY_EXEMPT_TABLES: ReadonlySet<string> = new Set([
   "brand_settings", // the org's candidate-facing brand (name/accent/logo)
   "ats_config", // the org's outbound ATS webhook integration (one endpoint)
   "ats_delivery", // the ATS webhook delivery ledger (sibling of ats_config; deployment/org-level, not per-tenant)
+  // W1.1 — the INBOUND sibling of ats_config: per-provider base URL, encrypted API token
+  // and field map. Org-level for the same reason as its egress twin — an ATS account is
+  // connected once for the company, not per hiring team. It holds no candidate data; the
+  // per-candidate rows it produces land in ats_links, which IS workspace-scoped.
+  "ats_connections",
   "comms_relay_config", // the org's outbound comms delivery relay (one endpoint; sibling of ats_config)
   "login_attempts", // brute-force throttle counters keyed by email/IP — deployment-global, no tenant dimension
   "llm_usage", // deployment-level LLM metering ledger (sibling of billing_usage; written off-request from Python)
@@ -249,6 +260,7 @@ export const TENANCY_LAZY_TABLES: ReadonlySet<string> = new Set([
   "application_status_links",
   "apply_sessions",
   "ats_config",
+  "ats_connections",
   "ats_delivery",
   "brand_settings",
   "comms_relay_config",
