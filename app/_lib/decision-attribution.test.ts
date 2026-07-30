@@ -35,7 +35,7 @@ test("the kinds the writers produce are all mapped (the drift this module exists
     "screening_hold", "interview_scorecard", "interview_prep_generated",
     "interview_scheduled", "interview_invite_sent", "schedule_invite_sent", "interview_reminder_sent",
     "interviewer_brief_sent", "interviewer_brief_skipped", "onboarding_reminder_sent",
-    "outreach_sent", "rejection_sent", "rejection_comms_failed",
+    "outreach_sent", "outreach_halted", "outreach_suppressed", "rejection_sent", "rejection_comms_failed",
     "acknowledgement_sent", "comm_resent", "offer_drafted", "offer_sent",
     "offer_accepted", "offer_declined", "offer_expired", "onboarding_started", "onboarding_failed",
     "rematched", "rematched_from", "fairness_gate_unknown_archetype", "observed_minted",

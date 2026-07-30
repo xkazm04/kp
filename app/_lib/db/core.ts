@@ -885,6 +885,21 @@ export function ensureDb(): Database.Database {
       workspace_id TEXT NOT NULL DEFAULT 'workspace'
     );
     CREATE INDEX IF NOT EXISTS idx_candidate_nps_ws ON candidate_nps (workspace_id, created_at DESC);
+
+    -- W2.3 — outreach memory, per pipeline entry (candidate × role). dispatchOutreach
+    -- used to gate on consent and fire with no record that it had ever run, so a campaign
+    -- re-run mailed the same people again, including the ones who had already written
+    -- back. The sends counter is what makes an inbound message a REPLY rather than a
+    -- re-application (outreach-halt.ts); replied_at/manual_halt_at stop the sequence.
+    CREATE TABLE IF NOT EXISTS outreach_state (
+      entry_id TEXT PRIMARY KEY,
+      sends INTEGER NOT NULL DEFAULT 0,
+      last_sent_at TEXT,
+      replied_at TEXT,
+      manual_halt_at TEXT,
+      workspace_id TEXT NOT NULL DEFAULT 'workspace'
+    );
+    CREATE INDEX IF NOT EXISTS idx_outreach_state_ws ON outreach_state (workspace_id);
   `);
   // Migration for dev_submissions evaluation + contact columns (Phase D6 / B),
   // plus the interview run-of-show column added when the voice screen grew a
@@ -915,6 +930,13 @@ export function ensureDb(): Database.Database {
     // against; authored JDs (a status was set) are backfilled to the default team
     // below. job-ingest.ts mirrors this ALTER on its own connection.
     "ALTER TABLE jobs ADD COLUMN workspace_id TEXT",
+    // When the role first went live. status alone says whether a job is published
+    // now, never since when, so any publish-anchored cycle metric (publish→hire,
+    // publish→first offer) had no start date — which is why pipelineAnalytics
+    // measures entry→hire instead. Stamped by setJobStatus on the first flip to
+    // 'published' and left alone afterwards, so a close/republish keeps the
+    // original cycle start. NULL = seeded corpus, or authored before this column.
+    "ALTER TABLE jobs ADD COLUMN published_at TEXT",
     // Human disposition + reason on a saved analysis (RES5) — see the table CREATE.
     "ALTER TABLE analyses ADD COLUMN disposition TEXT",
     "ALTER TABLE analyses ADD COLUMN decision_note TEXT",

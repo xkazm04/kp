@@ -4367,6 +4367,8 @@
         "rematched": "Přepárováno na jinou pozici",
         "rematched_from": "Přepárováno z jiné pozice",
         "outreach_sent": "Oslovení odesláno",
+        "outreach_halted": "Oslovování zastaveno — kandidát odpověděl",
+        "outreach_suppressed": "Oslovení zadrženo",
         "rejection_sent": "Zamítnutí odesláno",
         "rejected": "Zamítnuto",
         "applied": "Přihlášeno",

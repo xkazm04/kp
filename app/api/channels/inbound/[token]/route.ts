@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getTranslations } from "next-intl/server";
-import { getActiveChannelWebhook, getJob, recordChannelWebhookAccepted, recordChannelWebhookReceipt } from "@/app/_lib/db";
+import {
+  getActiveChannelWebhook,
+  getJob,
+  recordAutomationEvent,
+  recordChannelWebhookAccepted,
+  recordChannelWebhookReceipt,
+} from "@/app/_lib/db";
+import { recordOutreachReply } from "@/app/_lib/outreach-state-store";
 import { applyKoSteps } from "@/app/_lib/apply";
 import { getJobStatus, isJobOpenForApplications } from "@/app/_lib/job-ingest";
 import { intakeLead } from "@/app/_lib/lead-intake";
@@ -267,6 +274,21 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
     // 422'd above), a KO-decline, or a duplicate re-apply — so the Channels "leads"
     // metric and time-to-first-lead count real candidates, not raw POSTs.
     if (!outcome.duplicate) recordChannelWebhookAccepted(token);
+    // W2.3 — a message from someone we already reached out to is a REPLY, and the
+    // sequence stops. Guarded on `duplicate` (a brand-new lead cannot be answering
+    // anything) and, inside the store, on having actually sent outreach first — a
+    // second portal application is a duplicate too, and halting a sequence that never
+    // ran would mark an inbound-sourced candidate as contacted. Best-effort: failing to
+    // halt must not fail the webhook, or the provider retries a lead we already filed.
+    if (outcome.duplicate) {
+      try {
+        if (recordOutreachReply(outcome.entryId, webhook.workspaceId)) {
+          recordAutomationEvent(outcome.entryId, "outreach_halted", "candidate replied", webhook.workspaceId);
+        }
+      } catch (err) {
+        console.error(`[channels:inbound] could not record a reply for entry "${outcome.entryId}":`, err);
+      }
+    }
     return NextResponse.json({ result: "accepted", duplicate: outcome.duplicate, entryId: outcome.entryId });
   } catch (error) {
     // Processing failed → the provider will retry; release the claim so the retry

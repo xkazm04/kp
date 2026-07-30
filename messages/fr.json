@@ -4367,6 +4367,8 @@
         "rematched": "Rematché vers un autre poste",
         "rematched_from": "Rematché depuis un autre poste",
         "outreach_sent": "Prise de contact envoyée",
+        "outreach_halted": "Prise de contact arrêtée — le candidat a répondu",
+        "outreach_suppressed": "Prise de contact retenue",
         "rejection_sent": "Refus envoyé",
         "rejected": "Rejeté",
         "applied": "Candidature déposée",

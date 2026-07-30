@@ -4367,6 +4367,8 @@
         "rematched": "Neu auf andere Stelle gematcht",
         "rematched_from": "Von anderer Stelle neu gematcht",
         "outreach_sent": "Ansprache gesendet",
+        "outreach_halted": "Ansprache gestoppt — Kandidat hat geantwortet",
+        "outreach_suppressed": "Ansprache zurückgehalten",
         "rejection_sent": "Absage gesendet",
         "rejected": "Abgelehnt",
         "applied": "Beworben",

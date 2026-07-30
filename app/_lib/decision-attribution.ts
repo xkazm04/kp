@@ -27,6 +27,11 @@ export const DECISION_META: Record<string, DecisionMeta> = {
   rematched: { auto: true, tone: "text-steel" },
   rematched_from: { auto: true, tone: "text-steel" },
   outreach_sent: { auto: true, tone: "text-steel" },
+  // W2.3 — the two ways an outreach does NOT go out. Both are automated refusals, and
+  // both must render in the log: "we chose not to contact this person" is a decision, and
+  // an unmapped kind renders UNKNOWN and drops out of the attribution rollup entirely.
+  outreach_halted: { auto: true, tone: "text-steel" },
+  outreach_suppressed: { auto: true, tone: "text-amber-600" },
   rejection_sent: { auto: true, tone: "text-coral" },
   rejected: { auto: false, tone: "text-coral" },
   applied: { auto: false, tone: "text-steel" },

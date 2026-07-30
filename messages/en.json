@@ -4367,6 +4367,8 @@
         "rematched": "Re-matched to another role",
         "rematched_from": "Re-matched from another role",
         "outreach_sent": "Outreach sent",
+        "outreach_halted": "Outreach stopped — candidate replied",
+        "outreach_suppressed": "Outreach withheld",
         "rejection_sent": "Rejection sent",
         "rejected": "Rejected",
         "applied": "Applied",

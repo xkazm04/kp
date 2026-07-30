@@ -74,6 +74,13 @@ export const TENANCY_SCOPED_TABLES: ReadonlySet<string> = new Set([
   // through before KP_MULTI_WORKSPACE is enabled, or a second team's candidate feedback
   // lands in the default team's pack.
   "candidate_nps",
+  // W2.3 — per-entry outreach memory (sends / replied / manually halted). Scoped because
+  // it decides whether a real message goes to a real person: a cross-tenant read would
+  // either re-mail someone who already replied to another team, or silence a sequence
+  // that team never ran. Every read/write in outreach-state-store.ts filters
+  // workspace_id, and the inbound receiver passes the webhook's own workspace — this one
+  // is NOT subject to the default-workspace caveat above.
+  "outreach_state",
   // Phase 1 — the Channels surface. channel_webhooks (inbound lead bindings) +
   // channel_spend (per-team spend; PK widened to (channel, workspace_id)) filter on
   // workspace_id; dev_outbox (the comms outbox) auto-derives each message's tenant
@@ -134,6 +141,12 @@ export const TENANCY_SCOPED_TABLES: ReadonlySet<string> = new Set([
   // derived from the linked entity so a future recruiter enumeration is scopable.
   "offers", // offer letters (offers-tenancy.test.ts)
   "application_status_links", // public status link (application-status-tenancy.test.ts)
+  // The apply funnel's start rows (apply-session-store.ts). Minted from the public
+  // apply surface, so workspace_id is derived from the OPENING (getJobWorkspace) —
+  // the same rule the submit routes file the resulting entry under. The rate read
+  // filters workspace_id; the back-link write is by the session's own
+  // client-generated PK, which carries no tenant meaning and grants nothing.
+  "apply_sessions",
   "skill_profiles", // durable skill credentials (skill-profiles-tenancy.test.ts)
   // Phase 1 — interview_sessions (voice AI interviews): the by-job enumeration
   // (interviewedForJob) filters workspace_id + create stamps it (derived from the entry);
@@ -234,6 +247,7 @@ export const TENANCY_EXEMPT_TABLES: ReadonlySet<string> = new Set([
  *  class — each still appears in exactly one of SCOPED / EXEMPT above. */
 export const TENANCY_LAZY_TABLES: ReadonlySet<string> = new Set([
   "application_status_links",
+  "apply_sessions",
   "ats_config",
   "ats_delivery",
   "brand_settings",

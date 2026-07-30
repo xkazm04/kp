@@ -3,6 +3,8 @@ import { sendComm } from "./comms";
 import type { OutboxStatus } from "./comms-status";
 import { ensureErasureToken, entryProfileGaps, recordAutomationEvent, type PipelineEntry } from "./db";
 import { buildRejectionFeedback, renderRejectionFeedback } from "./rejection-feedback";
+import { outreachHaltFor, recordOutreachSend } from "./outreach-state-store";
+import type { HaltReason } from "./outreach-halt";
 import { isEarlyCareer } from "./archetypes";
 import { candidateOutreachSuppression } from "./rediscovery-alert-store";
 import { extractDeliverableAddress, extractRecipientName } from "./comms-recipient";
@@ -205,7 +207,10 @@ export async function dispatchApplicationReceived(
 
 /** Outcome of an outreach dispatch: delivered, or SUPPRESSED for a consent reason
  *  (so the caller/UI shows "cannot contact" rather than a false "reached out"). */
-export type OutreachResult = { sent: true } | { sent: false; reason: "anonymized" | "consent_expired" };
+// `replied`/`manual` join the consent reasons (W2.3): every way a send can be refused
+// is one union, so a caller cannot handle the compliance refusals and silently miss the
+// sequence-stopped ones.
+export type OutreachResult = { sent: true } | { sent: false; reason: "anonymized" | "consent_expired" | HaltReason };
 
 /** Dispatch an outreach message — the LLM/deterministic draft just generated.
  *  The body is the model's; only the fallback subject (used when the draft has
@@ -239,11 +244,23 @@ export async function dispatchOutreach(
     recordAutomationEvent(entry.id, "outreach_suppressed", suppress);
     return { sent: false, reason: suppress };
   }
+  // W2.3 — the sequence stops once the person answers it (or a recruiter stops it by
+  // hand). Checked AFTER consent so the irreversible gate stays first, and audited the
+  // same way: a send that did not happen must be visible in the log.
+  const halt = outreachHaltFor(entry.id);
+  if (halt) {
+    recordAutomationEvent(entry.id, "outreach_suppressed", halt);
+    return { sent: false, reason: halt };
+  }
   const t = await commsTranslator(entry.locale);
   const role = entry.jobTitle ?? t("aRole");
   const subject = String(draft.subject ?? t("outreach.subjectFallback", { role })).trim();
   const body = String(draft.body ?? "").trim();
   await sendCandidateComm(entry, t, { subject, body, kind: "outreach" });
+  // Recorded only after the send actually happened — counting an attempt would make a
+  // failed send look like a contact, and `sends > 0` is what later distinguishes a reply
+  // from a fresh application.
+  recordOutreachSend(entry.id);
   recordAutomationEvent(entry.id, "outreach_sent", entry.jobTitle ?? "");
   return { sent: true };
 }
