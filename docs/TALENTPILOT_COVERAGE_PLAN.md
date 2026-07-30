@@ -185,17 +185,42 @@ on silence.
 | A5 | AI-native application | W0.7 packaging, W1.4 | ☐ |
 | A7 / A8 / A9 | Big Five / Hofstede / team impact | W3.1, W3.2, W3.3 | ☐ |
 | A10 | 12–14 languages, mid-interview switch | W5 | ☐ |
-| A11 | Personalized rejection | W0.6 | ☐ |
+| A11 | Personalized rejection | W0.6 | ✅ |
 | A12 | Zero-touch scheduling | W1.4 | ☐ |
-| A13 | Anti-cheating (we lead) | W0.1, W0.2, W0.7 | ☐ |
+| A13 | Anti-cheating (we lead) | W0.1, W0.2 ✅ · W0.7 ☐ | ◐ |
 | B1 / B2 | Skills graph, calibration | W6 | ☐ |
 | B3–B5 | Reviews, planning, succession | **declined** | — |
 | C1 / C2 | ATS + HCM connectors | W1.1, W1.2, W1.3 | ☐ |
-| C3 | ISO 27001 / trust artifacts | W0.5, D5 | ☐ |
-| C4 | Explainability (we lead) | W0.3, W0.5 | ☐ |
-| C5 | Data posture (we lead) | W4.2, W4.3, W4.4 | ☐ |
-| C6 | Proof / metrics | W0.4 | ☐ |
+| C3 | ISO 27001 / trust artifacts | W0.5 ✅ · D5 ☐ | ◐ |
+| C4 | Explainability (we lead) | W0.3, W0.5 | ✅ |
+| C5 | Data posture (we lead) | W4.3 ✅ · W4.2, W4.4 ☐ | ◐ |
+| C6 | Proof / metrics | W0.4 | ✅ |
 | C7 / C8 | Price + segment (we lead) | W0.7 | ☐ |
-| tiger #11 | Devcase judge self-grades | W0.1 | ☐ |
-| tiger #12 | Devcase grades blind | W0.2 | ☐ |
-| tiger #13 | Group-eval seal traceability | W0.3 | ☐ |
+| tiger #11 | Devcase judge self-grades | W0.1 | ✅ |
+| tiger #12 | Devcase grades blind | W0.2 | ✅ |
+| tiger #13 | Group-eval seal traceability | W0.3 | ✅ |
+
+### Landed 2026-07-30 (branch `wave/w0-integrity-proof`)
+
+| Item | Commit | What shipped |
+|---|---|---|
+| W0.1 | `7ea6e24d` | Judge seat resolves through `devcase_judge`; independence measured and reported; `--strict` refuses a self-graded gate |
+| W0.2 | `c8e67c56` | `submission_excerpts` threads the candidate's own contributed lines into both graders; evaluation context now fenced as untrusted |
+| W0.3 | `8c6e3559` | Sealed group-eval records carry promptVersion (as a set) + the model's verbatim reasoning; `parseSealTraceability` reports absence honestly |
+| W0.4 | `c361105d` | Metric pack + `/api/analytics/metric-pack`; new recruiter-capacity metric; per-metric honesty status |
+| W0.5 | `20bd9a0c` | `/trust` — article-by-article posture including unmet obligations; claims pinned by tests |
+| W0.6 | `0b664f59` | Rejections cite recorded reasons; protected-attribute lines dropped whole |
+| W0.6b | `579ccd38` | Candidate NPS captured at terminal outcomes, folded into the pack |
+| W0 gate | `20da9f33` | `candidate_nps` registered as tenancy-scoped; `/trust` prerender blocked |
+| W4.3 | `5fe0f4e0` | BYOM catalog-drift guard across the TS/Python boundary |
+
+**Gate:** typecheck ✓ · lint 0 errors (359 warnings, pre-existing) ✓ · unit 2662/2663 ✓ ·
+python 1287 ✓ · build ✓ · i18n 4 locales in parity ✓ · **e2e not run** (a parallel session
+holds the dev server on :3100; not killed).
+The single unit failure is `app/api/rate-limit-contract.test.ts` against another session's
+uncommitted self-hosted-voice work in `app/api/interview/connect/route.ts` — not from this
+wave, and not this branch's to fix.
+
+**W0.7 is deliberately not done** — repositioning the landing page and pricing around the
+work-sample controls is a brand decision, not an engineering one. It is the first question
+in the follow-up batch.
