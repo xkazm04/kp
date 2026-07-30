@@ -101,7 +101,7 @@ export function DecisionRecordsPanel() {
           </button>
         </div>
       ) : !data ? (
-        // Loading choreography (docs/LOADING_CHOREOGRAPHY.md, tier 2): a quiet
+        // Loading choreography (docs/design/loading-choreography.md, tier 2): a quiet
         // reserved box — invisible for 150ms — instead of a bare "loading" line.
         <div className="reveal-quiet mt-4 min-h-[10rem]" aria-hidden />
       ) : (

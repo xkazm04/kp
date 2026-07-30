@@ -18,7 +18,7 @@ import type { WeightVector } from "@/app/features/shared/matchTypes";
 // blocker inline; a full corpus that simply hits the limit shouldn't trigger it.
 const THIN_RESULT_MAX = 4;
 
-// Tier 3 (docs/LOADING_CHOREOGRAPHY.md): the role-compare table only mounts once the
+// Tier 3 (docs/design/loading-choreography.md): the role-compare table only mounts once the
 // recruiter ticks 2+ roles and hits "Compare" — most result views never open it — so
 // it gets its own chunk instead of riding along with every match run. The gap is a
 // quiet reserved box; the "Compare" toggle itself is the click that starts it, so

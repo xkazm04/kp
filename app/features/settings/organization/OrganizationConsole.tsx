@@ -11,7 +11,7 @@ import { OrganizationMemberConfirmModals } from "./OrganizationMemberConfirmModa
 import { readError } from "./organizationMemberHelpers";
 import { useOrganizationMembers, type MemberTeam, type OrgMemberDto } from "./useOrganizationMembers";
 
-// Tier 3 (docs/LOADING_CHOREOGRAPHY.md): the permissions editor is a click-only
+// Tier 3 (docs/design/loading-choreography.md): the permissions editor is a click-only
 // dialog — most sessions never open it — so it gets its own chunk instead of
 // riding along in the tab's entry payload. No reserved-height loading affordance:
 // it is an overlay, not a region in the page's flow.

@@ -12,7 +12,7 @@ export type ChannelJob = { id: string; title: string };
 // channel so sim/automation arrivals refresh without a remount.
 //
 // The three fields start `null` (not `[]`/`0`) so the tab can tell "haven't fetched
-// yet" apart from "genuinely empty" (docs/LOADING_CHOREOGRAPHY.md, tier 2) — a
+// yet" apart from "genuinely empty" (docs/design/loading-choreography.md, tier 2) — a
 // re-fetch from useLiveRefresh only ever REPLACES a settled value, never resets it
 // back to null, so populated regions never blank on refresh.
 export function useChannelData() {

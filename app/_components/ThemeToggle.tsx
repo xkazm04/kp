@@ -8,7 +8,7 @@ import { TOGGLE_GROUP, toggleBtn } from "@/app/_components/ui/recipes";
 
 // Compact theme toggle for the studio sidebar, styled to sit beside the
 // LanguageSwitcher. Flips data-theme on <html> — the token override seam in
-// globals.css (docs/DESIGN.md: Studio Light vs Spark Dark) — and persists the
+// globals.css (docs/design/README.md: Studio Light vs Spark Dark) — and persists the
 // explicit choice; the inline script in layout.tsx replays it before first
 // paint, defaulting from prefers-color-scheme. The DOM attribute is the source
 // of truth, read through useSyncExternalStore: the server snapshot renders the

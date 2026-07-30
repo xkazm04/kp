@@ -7,7 +7,7 @@ import type { CoverageItem } from "./AboutCoverageData";
 import { AboutStudentsExampleScoring } from "./AboutStudentsExampleScoring";
 import { AboutStudentsInterviewScript } from "./AboutStudentsInterviewScript";
 
-// Tier 3 (docs/LOADING_CHOREOGRAPHY.md): same PlantUML-chain split as AboutTab —
+// Tier 3 (docs/design/loading-choreography.md): same PlantUML-chain split as AboutTab —
 // the Overview tab's Markdown is the only tab that can render a `puml` fence, so
 // it gets its own chunk instead of pulling the diagram engine into every tab.
 const Markdown = dynamic(() => import("../../../_components/Markdown").then((m) => ({ default: m.Markdown })), {

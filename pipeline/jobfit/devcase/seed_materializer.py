@@ -1,7 +1,7 @@
 """repoSeed prose -> a MATERIALIZED seed: real starter files for the take-home.
 
-The honest LLM-test verdict on the dev case (docs/DEV_D3_HARDENING_FINDINGS.md,
-STUDENT_SCORING_CONCEPT.md): with ``repoSeed`` as PROSE the take-home is
+The honest LLM-test verdict on the dev case (docs/_archive/dev-d3-hardening-findings.md,
+docs/_archive/STUDENT_SCORING_CONCEPT.md): with ``repoSeed`` as PROSE the take-home is
 essay-grading a model can ace — there is nothing concrete the tasks, the cover
 probes, or the evaluation can point INTO. Materializing the seed turns the case
 into work on concrete starting materials: a small file tree (code for software

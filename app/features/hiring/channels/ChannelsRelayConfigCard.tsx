@@ -77,7 +77,7 @@ export function RelayConfigCard() {
     }
   }, [t]);
 
-  // Tier 2 (docs/LOADING_CHOREOGRAPHY.md): the config fetch is in flight (or an
+  // Tier 2 (docs/design/loading-choreography.md): the config fetch is in flight (or an
   // operator-gated read failed — demo session / restricted member, same shape as
   // "no data" here). Hold the card's height so the ledger below doesn't jump when
   // it lands, and stay invisible for 150ms so a fast response paints nothing.

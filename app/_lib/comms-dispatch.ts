@@ -53,7 +53,7 @@ async function commsTranslator(locale: string | null | undefined): Promise<Comms
   return t;
 }
 
-// RECIPIENT CONTRACT (full write-up in docs/COMMS_DELIVERY.md). Resolved in
+// RECIPIENT CONTRACT (full write-up in docs/features/comms/README.md). Resolved in
 // priority:
 //   1. contact        — a real address captured at inbound apply (idea APP2). When
 //      present this is a directly-deliverable recipient, not just an identifier —

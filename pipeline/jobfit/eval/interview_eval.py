@@ -26,7 +26,7 @@ golden transcripts (``interview_golden.json``) so the reliability gate runs offl
     python -m pipeline.jobfit.eval.interview_eval --judge --strict --json
     python -m pipeline.jobfit.eval.interview_eval --scenario adversarial_injection
 
-Design: docs/VOICE_INTERVIEW_TEST_FRAMEWORK.md.
+Design: docs/development/voice-interview-testing.md.
 """
 
 from __future__ import annotations

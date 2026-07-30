@@ -1,4 +1,4 @@
-// Multi-provider LLM layer — TS half (docs/LLM_PROVIDER_LAYER.md).
+// Multi-provider LLM layer — TS half (docs/architecture/llm-provider-layer.md).
 //
 // This module owns: the provider/use-case catalogs (kept in sync with
 // pipeline/jobfit/llm/capabilities.py) and assembly of the KP_LLM_CONFIG env

@@ -107,7 +107,7 @@ export async function runReasoning(
       await writeFile(jobsPath, JSON.stringify(corpusJobs), "utf-8");
       args.push("--jobs-json", jobsPath);
     }
-    // Billing degrade (docs/BILLING.md): past the AI-candidates allowance the
+    // Billing degrade (docs/features/billing/README.md): past the AI-candidates allowance the
     // rationale falls back to the deterministic template via --no-llm — the
     // same path a provider outage takes — and stays uncached (source !=
     // "llm"), so it upgrades the moment allowance returns. No extra debit:

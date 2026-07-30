@@ -3,7 +3,7 @@
 // analyses sidebar, the status lookup and the re-ingest path all line up on this).
 // Single-sourced here so the prefix (or any future encoding) lives in one place
 // instead of being hand-interpolated at every call site. Documented in
-// docs/JD_LIFECYCLE.md.
+// docs/features/jobs/README.md.
 export const jdJobId = (slug: string): string => `jd-${slug}`;
 
 /** The inverse of `jdJobId`: the JD slug a job id encodes, or null when the job

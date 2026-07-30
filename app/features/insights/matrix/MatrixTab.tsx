@@ -17,7 +17,7 @@ export function MatrixTab() {
 
   return (
     <>
-    {/* Tier 1 (docs/LOADING_CHOREOGRAPHY.md): the header, filter/action controls and
+    {/* Tier 1 (docs/design/loading-choreography.md): the header, filter/action controls and
         (once the fetch lands) the grid's row/column headers are direct children here —
         none of them sit inside a loading branch. aria-busy covers the first load only;
         a later refresh never blanks what's already on screen. */}

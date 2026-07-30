@@ -9,7 +9,7 @@ import type { LoadState } from "@/app/_lib/load-state";
 import { CasesTable } from "./DevCasesTable";
 import type { DevCaseDetail, Lifecycle, Posting } from "./DevTypes";
 
-// Tier 3 (docs/LOADING_CHOREOGRAPHY.md): the automated-lifecycle list is
+// Tier 3 (docs/design/loading-choreography.md): the automated-lifecycle list is
 // secondary to the cases table it sits under, and the case detail reader (with
 // its submissions/eval/compare panels) is heavy and only ever needed after a
 // click. Both get their own chunk so the "cases" view's first paint carries the

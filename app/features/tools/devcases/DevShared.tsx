@@ -25,7 +25,7 @@ export function DevSection({
   label: string;
   children: ReactNode;
 }) {
-  // Tier 2 (docs/LOADING_CHOREOGRAPHY.md): distinguish "the first fetch hasn't
+  // Tier 2 (docs/design/loading-choreography.md): distinguish "the first fetch hasn't
   // landed yet" from "genuinely nothing here" — the former holds the section's
   // space invisibly instead of collapsing straight to nothing.
   if (count === 0 && state.lastUpdated == null && !state.failed) {

@@ -86,7 +86,7 @@ export function HistoryTab() {
   };
 
   return (
-    // Tier 1 (docs/LOADING_CHOREOGRAPHY.md): header + the fetch-dependent
+    // Tier 1 (docs/design/loading-choreography.md): header + the fetch-dependent
     // region cascade in as this section's direct children. aria-busy covers
     // only the FIRST load — rows, once loaded, are never nulled out by this
     // component again, so a later render never re-blanks what's on screen.

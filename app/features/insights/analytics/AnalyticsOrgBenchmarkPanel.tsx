@@ -78,7 +78,7 @@ export function OrgBenchmarkPanel() {
       </section>
     );
   }
-  // Loading choreography (docs/LOADING_CHOREOGRAPHY.md, tier 2): a quiet reserved
+  // Loading choreography (docs/design/loading-choreography.md, tier 2): a quiet reserved
   // box while the fetch is in flight — invisible for 150ms, so a fast response
   // never flashes it — instead of the skeleton the primary funnel doesn't use either.
   if (!data) return <div className={`${PANEL} reveal-quiet min-h-[10rem] p-5`} aria-hidden />;

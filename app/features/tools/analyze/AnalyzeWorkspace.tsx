@@ -11,7 +11,7 @@ const MODES = [
   { id: "history", labelKey: "modeHistory" },
 ] as const;
 
-// Tier 3 (docs/LOADING_CHOREOGRAPHY.md): only one of these two panes is on
+// Tier 3 (docs/design/loading-choreography.md): only one of these two panes is on
 // screen at a time (the segmented switch above), so each gets its own chunk —
 // entering on "new" must not pull History's fetch/table code into the entry
 // bundle, and vice versa. The loading gap is a quiet reserved-height box, never

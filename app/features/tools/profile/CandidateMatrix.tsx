@@ -104,7 +104,7 @@ export function CandidateMatrix({
         {error ? (
           <p className="rounded-md bg-red-50 p-3 text-base text-red-700">{error}</p>
         ) : candidates == null ? (
-          // Tier 2 (docs/LOADING_CHOREOGRAPHY.md): first fetch in flight — hold the
+          // Tier 2 (docs/design/loading-choreography.md): first fetch in flight — hold the
           // matrix's height, invisible for 150ms. `reloadKey` bumps re-run the
           // effect but never reset `candidates` to null, so a refetch settles
           // silently behind whatever is already on screen.

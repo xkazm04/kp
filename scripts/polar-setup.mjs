@@ -1,4 +1,4 @@
-// Headless Polar setup (docs/BILLING.md) — idempotent; safe to re-run.
+// Headless Polar setup (docs/features/billing/README.md) — idempotent; safe to re-run.
 //
 //   npm run polar:setup -- --tunnel https://<your>.trycloudflare.com
 //

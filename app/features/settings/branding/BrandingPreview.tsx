@@ -4,7 +4,7 @@ import { useTranslations } from "next-intl";
 import { PANEL, META_LABEL } from "@/app/_components/ui/recipes";
 import { EXTERNAL_LOGO_IMG_ATTRS, shouldRenderLogo } from "@/app/_lib/brand-config";
 
-// Tier 3 (docs/LOADING_CHOREOGRAPHY.md): the live preview is a secondary
+// Tier 3 (docs/design/loading-choreography.md): the live preview is a secondary
 // surface — the editor form is what the operator came to use — so it gets its
 // own chunk and mounts a beat after the primary content (see the next/dynamic
 // import + <Defer> in BrandingTab.tsx).

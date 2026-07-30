@@ -6,7 +6,7 @@ surnames), ethnicity, and migration background, and the product's own blind-mode
 threat model (redact.py) treats it as protected — yet until this test nothing
 asserted the deterministic engine actually ignores it (docs/harness/
 ambiguity-biz-2026-06-25/pipeline-test-suite-python.md, finding #2; AI-Act pack
-gaps G3+G10 in docs/AI_ACT_CONFORMITY.md).
+gaps G3+G10 in docs/features/compliance/ai-act-conformity.md).
 
 Mechanism under test: ``profile.display_name`` survives the transform as
 ``MatchCandidate.label`` (transform.py — ``label=profile.display_name or

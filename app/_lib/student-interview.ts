@@ -152,7 +152,7 @@ export const PERSONA_ONE_QUESTION =
   "Ask exactly ONE question per turn and wait for the answer before asking the next — never bundle a second question or a follow-up into the same turn. This matters most with nervous, terse, or quiet candidates: keep each prompt short and single, and give them room to answer.";
 
 // The interviewer-craft rules (P4–P6 + the ASR read-back from
-// docs/INTERVIEW_IMPROVEMENT_INPUTS.md §1/§2/§5), SHIPPED AS ONE CONDENSED PARAGRAPH.
+// docs/_archive/interview-improvement-inputs.md §1/§2/§5), SHIPPED AS ONE CONDENSED PARAGRAPH.
 // Harness-validated form (2026-07-13, runs/perfect-p4p7 + targeted re-runs): the initial
 // one-constant-per-rule form made hostile English candidates drift the agent into Czech on the
 // acknowledge-and-redirect turns the rules themselves create (language-consistency is a hard

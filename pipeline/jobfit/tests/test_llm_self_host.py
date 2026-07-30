@@ -1,4 +1,4 @@
-"""E-SH-5: self-hosted OpenAI-compatible endpoints (docs/SELF_HOSTING.md).
+"""E-SH-5: self-hosted OpenAI-compatible endpoints (docs/architecture/self-hosting.md).
 
 The OpenAI adapter can target vLLM / Ollama / LiteLLM / an in-VPC proxy via a
 `base_url` from KP_LLM_CONFIG (keys.openai.baseUrl) or the OPENAI_BASE_URL env, and

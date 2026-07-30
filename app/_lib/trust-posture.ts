@@ -10,7 +10,7 @@
 // serious buyer than one that admits none, and it is the only version we can defend when
 // they ask for evidence.
 //
-// Source of truth: docs/AI_ACT_CONFORMITY.md (compiled against the repo, with file:line
+// Source of truth: docs/features/compliance/ai-act-conformity.md (compiled against the repo, with file:line
 // evidence). This module carries the PUBLIC projection: the posture and the plain-English
 // summary, never the internal evidence paths or the gap ids.
 //

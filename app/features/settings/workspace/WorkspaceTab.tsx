@@ -66,7 +66,7 @@ export function WorkspaceTab() {
   }
 
   return (
-    // Tier 1 (docs/LOADING_CHOREOGRAPHY.md): header, the lock/scope note and the
+    // Tier 1 (docs/design/loading-choreography.md): header, the lock/scope note and the
     // list/error/placeholder region are the section's direct children, so they
     // cascade in together; the header and note need no data and never wait on the
     // fetch. aria-busy covers the first load only (mirrors useJsonFetch's own

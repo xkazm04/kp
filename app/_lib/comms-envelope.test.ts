@@ -2,7 +2,7 @@
 // survive verbatim, entry context maps onto candidate/job/stage (contact →
 // candidate.email), and a non-entry ref degrades to null context — never a
 // missing field. This IS the wire contract documented in
-// docs/OUTBOUND_EXPORT.md; a relay is written against exactly these shapes.
+// docs/features/comms/outbound-export.md; a relay is written against exactly these shapes.
 //
 // Runner: Node's built-in test runner with type stripping — npm run test:unit
 import { test } from "node:test";

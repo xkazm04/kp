@@ -180,7 +180,7 @@ Repo law (non-negotiable):
 - This is NOT the Next.js you know: it's 16.3 canary with cacheComponents +
   partialPrefetching. Read the relevant guide in node_modules/next/dist/docs/
   before writing Next-specific code; `runtime`/`dynamic` route configs are banned.
-- Read docs/DESIGN.md before any UI. The app ships TWO themes (Studio Light +
+- Read docs/design/README.md before any UI. The app ships TWO themes (Studio Light +
   Spark Dark) from one codebase: never hardcode colors outside app/landing/;
   use brand tokens (ink, paper, steel, coral, moss, limewash, dial-*, score-*)
   and theme-mapped neutrals; compose surfaces from app/_components/ui/recipes.ts

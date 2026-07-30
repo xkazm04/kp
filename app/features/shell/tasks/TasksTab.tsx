@@ -11,7 +11,7 @@ import { TaskHistory } from "./TasksHistory";
 import { TasksFilterBar } from "./TasksFilterBar";
 import { TasksResultsSection } from "./TasksResultsSection";
 
-// Tier 3 (docs/LOADING_CHOREOGRAPHY.md): the three operator panels below the
+// Tier 3 (docs/design/loading-choreography.md): the three operator panels below the
 // task list (System/Backup/Integrations) are secondary — nobody opens
 // Background tasks to read cache-hit rates first. Each gets its own chunk so
 // the tab's entry payload is the running/done lists, and they mount an idle

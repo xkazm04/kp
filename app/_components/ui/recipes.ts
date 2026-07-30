@@ -1,6 +1,6 @@
 /*
  * Shared surface recipes — the "write once, apply multiple times" seam
- * (docs/DESIGN.md). These are the canonical class strings for the recurring
+ * (docs/design/README.md). These are the canonical class strings for the recurring
  * visual patterns found across the workspace (panel ~94 call sites, meta
  * label ~101, secondary pill ~64, section header ~55 at extraction time).
  * Restyling a recipe here re-skins every consumer — in BOTH themes, because

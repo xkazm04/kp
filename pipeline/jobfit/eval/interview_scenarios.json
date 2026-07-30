@@ -1,6 +1,6 @@
 {
   "version": "interview-eval-scenarios-v1",
-  "_note": "The user-side persona bank for the voice-interview eval (docs/VOICE_INTERVIEW_TEST_FRAMEWORK.md). Each scenario drives a simulated candidate against the real interviewer brief. `brief` picks which production brief renders (student = early-career six-phase script; default = generic quick screen). `expect.must_hold` lists the deterministic reliability invariants that MUST pass; `handles` is the behaviour the judge scores the interviewer's handling of. Grow this to ~100 (Phase 1) seeded from the archetype corpus.",
+  "_note": "The user-side persona bank for the voice-interview eval (docs/development/voice-interview-testing.md). Each scenario drives a simulated candidate against the real interviewer brief. `brief` picks which production brief renders (student = early-career six-phase script; default = generic quick screen). `expect.must_hold` lists the deterministic reliability invariants that MUST pass; `handles` is the behaviour the judge scores the interviewer's handling of. Grow this to ~100 (Phase 1) seeded from the archetype corpus.",
   "scenarios": [
     {
       "name": "swe_senior_strong",

@@ -11,7 +11,7 @@ import {
 
 /*
  * <Defer> — keep a subtree out of the FIRST DOM commit and let it arrive a beat
- * later (docs/LOADING_CHOREOGRAPHY.md, tier 3).
+ * later (docs/design/loading-choreography.md, tier 3).
  *
  * This is the "no big bang" primitive. A tab's chrome and primary content commit
  * on the first frame; everything secondary — charts, long tables, collapsed

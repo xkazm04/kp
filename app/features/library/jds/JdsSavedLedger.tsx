@@ -27,7 +27,7 @@ import { useLedgerLogic } from "./jdsLedgerLogic";
 import { LedgerDetailModal } from "./JdsLedgerDetailModal";
 import { JdsSavedLedgerPanel } from "./JdsSavedLedgerPanel";
 
-// Tier 3 (docs/LOADING_CHOREOGRAPHY.md): both are click/tab-gated, not part of the
+// Tier 3 (docs/design/loading-choreography.md): both are click/tab-gated, not part of the
 // ledger's first paint — the JD editor only mounts once a row's "Edit" is pressed,
 // and the Generate builder (RichTextEditor, template management) is hidden behind
 // the Saved/Generate switcher on first arrival. Each gets its own chunk with a

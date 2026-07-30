@@ -10,7 +10,7 @@ import { buildUrl } from "@/app/features/shell/tabs";
 // Phase 1: authored-JD drafts awaiting sourcing. "Source into Pipeline" marks
 // a draft live and pulls matching candidates in (the API route is /publish;
 // the DB status it sets is 'published'). Distinct from external "Publish to
-// job boards" distribution. See docs/JD_LIFECYCLE.md.
+// job boards" distribution. See docs/features/jobs/README.md.
 //
 // Self-contained: owns its own drafts/sourcing state and live-refreshes itself,
 // so JobsTab just drops it in. Renders nothing when there are no drafts.

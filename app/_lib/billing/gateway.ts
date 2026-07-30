@@ -1,4 +1,4 @@
-// The hedge seam (docs/BILLING.md): everything provider-specific sits behind
+// The hedge seam (docs/features/billing/README.md): everything provider-specific sits behind
 // this interface so a later Paddle (or other MoR) migration is a bounded swap —
 // implement BillingGateway + a product map, and the routes, reducer, DB tables,
 // and entitlement math stay untouched. Keep provider types OUT of this file.

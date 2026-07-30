@@ -1,4 +1,4 @@
-// Payment gate (docs/BILLING.md) — public surface of the billing module.
+// Payment gate (docs/features/billing/README.md) — public surface of the billing module.
 // Provider-agnostic by construction: routes and product code import from here
 // and gateway.ts only; polar.ts is an implementation detail behind
 // polarGatewayFromEnv().

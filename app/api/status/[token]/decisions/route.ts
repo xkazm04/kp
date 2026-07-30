@@ -6,7 +6,7 @@ import { candidateDecisionHistory } from "@/app/_lib/status-decisions";
 import { jsonOk, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
 
-// EU AI-Act Art. 86 (docs/AI_ACT_CONFORMITY.md G11) — the candidate's own
+// EU AI-Act Art. 86 (docs/features/compliance/ai-act-conformity.md) — the candidate's own
 // decision history, REDACTED, on their status token. Sibling of the status
 // route: the SAME CSPRNG status token is the whole credential (it already
 // gates the candidate's status projection; no operator session exists on this

@@ -1,5 +1,6 @@
 // EU AI-Act Art. 86 — the candidate-facing, REDACTED view of their own sealed
-// decision history (docs/AI_ACT_CONFORMITY.md G11). The operator dossier
+// decision history (docs/features/compliance/ai-act-conformity.md, formerly gap G11/G9).
+// The operator dossier
 // (/api/decisions/records) exposes the full sealed record: rationale text (which
 // names the approving operator), payload snapshots, chain hashes, policy
 // versions. None of that may cross the public token boundary — a candidate is

@@ -1,5 +1,5 @@
 // Client-side theme store — the runtime half of the [data-theme="dark"] token
-// seam in globals.css (docs/DESIGN.md: Studio Light vs Spark Dark). The DOM
+// seam in globals.css (docs/design/README.md: Studio Light vs Spark Dark). The DOM
 // attribute IS the source of truth (the pre-hydration script in layout.tsx
 // sets it before React boots); this module wraps it in a subscribable store so
 // components read it via useSyncExternalStore instead of effect-and-setState.

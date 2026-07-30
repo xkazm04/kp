@@ -143,7 +143,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Billing debit (docs/BILLING.md): interview minutes are metered on the
+    // Billing debit (docs/features/billing/README.md): interview minutes are metered on the
     // completion whose write APPLIED (the row-level guard above also makes the
     // debit idempotent across duplicate POSTs) and only for real "completed"
     // calls — a dropped/failed call doesn't bill. Minutes = wall time from

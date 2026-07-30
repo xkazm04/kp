@@ -4,7 +4,7 @@
 # container (the app spawns `python -m pipeline.jobfit.*` at request time, so the
 # runtime needs both toolchains). Multi-stage: a builder that installs deps,
 # compiles the native better-sqlite3 module and runs `next build`, then a slim
-# runner. Full deployment guide: docs/SELF_HOSTING.md.
+# runner. Full deployment guide: docs/architecture/self-hosting.md.
 #
 # Versions track CI (.github/workflows/ci.yml): Node 24 and Python 3.x. This image
 # uses Debian bookworm's python3 (3.11); CI validates on 3.12 and the pipeline

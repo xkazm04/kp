@@ -108,7 +108,7 @@ export function ProfileRoster({
           </p>
         ) : null}
         {profiles == null ? (
-          // Tier 2 (docs/LOADING_CHOREOGRAPHY.md): first fetch in flight, nothing to
+          // Tier 2 (docs/design/loading-choreography.md): first fetch in flight, nothing to
           // show yet — hold the roster's height and stay invisible for 150ms so a
           // fast response never flashes. A later refetch (a delete) never returns
           // here: it prunes `profiles` locally instead of resetting it to null.

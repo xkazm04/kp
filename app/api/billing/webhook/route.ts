@@ -6,7 +6,7 @@ import { WebhookVerificationError } from "@/app/_lib/billing/webhook-verify";
 // Provider → us. The ONLY write path for money state (billing_state /
 // billing_credits): signature-verified (standard-webhooks HMAC), idempotent on
 // the provider event id, reduced by the pure reducer, applied in sync.ts.
-// Register this endpoint + secret in the Polar dashboard (docs/BILLING.md).
+// Register this endpoint + secret in the Polar dashboard (docs/features/billing/README.md).
 
 export async function POST(request: NextRequest) {
   const gateway = polarGatewayFromEnv();

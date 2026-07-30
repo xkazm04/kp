@@ -1,5 +1,5 @@
 // KP_OFFLINE — hard no-egress mode for air-gapped self-host installs (E-SH-4,
-// docs/SELF_HOSTING.md §7). When on, the app makes NO outbound network call except
+// docs/architecture/self-hosting.md §7). When on, the app makes NO outbound network call except
 // to loopback and the private endpoints the operator explicitly configured. This
 // is the TS half: a global `fetch` guard installed once at server startup
 // (instrumentation.ts) that catches ALL fetch-based egress — GitHub repo analysis,

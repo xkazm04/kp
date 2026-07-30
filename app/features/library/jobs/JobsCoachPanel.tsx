@@ -58,7 +58,7 @@ export function CoachPanel({ jobId, jobTitle }: { jobId: string; jobTitle: strin
   if (!data)
     // Multi-second CLI winnability grade: reserve the verdict + stat-tile
     // shape quietly (no skeleton bars) — the short copy line is the only
-    // signal, per docs/LOADING_CHOREOGRAPHY.md (a long-expected LLM/CLI wait
+    // signal, per docs/design/loading-choreography.md (a long-expected LLM/CLI wait
     // is the one case that earns a line of real copy over bare silence).
     return (
       <div className="reveal-quiet min-h-[14rem] space-y-3" aria-busy="true">

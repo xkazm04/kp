@@ -4,7 +4,7 @@
 // group-eval modal, the rules modal and the screening-wave modal. Split out
 // of DecisionsTab so that shell stays under the 200-line cap. The two heavy
 // modals (analysis summary, screen wave) load as separate chunks — see the
-// Tier 3 note in DecisionsTab.tsx / docs/LOADING_CHOREOGRAPHY.md.
+// Tier 3 note in DecisionsTab.tsx / docs/design/loading-choreography.md.
 import dynamic from "next/dynamic";
 import { DecisionRulesModal } from "./DecisionsRulesModal";
 import { GroupEvalModal, type GroupEvalPayload } from "./GroupEvalModal";

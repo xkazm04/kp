@@ -10,7 +10,7 @@ import { deriveCollapseDecision } from "./analyzeCollapse";
 import { deriveAnalyzePipelineAffordance } from "./analyzePipelineRef";
 import { useAnalyzeForm } from "./useAnalyzeForm";
 
-// Tier 3 (docs/LOADING_CHOREOGRAPHY.md): the result renderers are heavy and
+// Tier 3 (docs/design/loading-choreography.md): the result renderers are heavy and
 // only ever needed once a run has produced something to show — they must not
 // sit in the entry chunk of a tab whose first paint is just an empty form.
 // (Not a loading state: these are ready by the time `result.analysis` /
@@ -65,7 +65,7 @@ export function AnalyzeTab() {
   }, [idle]);
 
   return (
-    // Tier 1 (docs/LOADING_CHOREOGRAPHY.md): the form/progress/result sections
+    // Tier 1 (docs/design/loading-choreography.md): the form/progress/result sections
     // cascade in as this container's direct children. There is no tab-entry
     // fetch here — the analysis run itself is user-triggered, so no aria-busy;
     // AnalysisProgress/ScanAnimation stay exactly as they were for that run.

@@ -5,7 +5,7 @@
 // `action:"reject"` VERBATIM — so any Python regression that emitted a reject for
 // an early-career candidate, an unscored entry, or a score at/above the reject
 // floor would be auto-applied, silently violating the fairness guarantee the
-// DecisionRulesModal advertises and the spec pins (docs/AUTOMATION_SPEC.md §risks).
+// DecisionRulesModal advertises and the spec pins (docs/features/pipeline/README.md §risks).
 //
 // THE INVARIANT. `evaluate_entry` only ever returns `action:"reject"` on a single
 // path: stage == "Screened", NOT fairness-protected (BAU), a GENUINE match score

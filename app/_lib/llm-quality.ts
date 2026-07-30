@@ -6,7 +6,7 @@
  *  score, per-model overalls, per-op winners, and a per-routing-use-case pick.
  *  Pure + client-safe: NO data and NO I/O here — the measured data is baked into
  *  ./llm-quality-scores by `bake_quality.py`; re-bake (don't hand-edit) after a run.
- *  See docs/LLM_MODEL_MATRIX.md. */
+ *  See docs/architecture/llm-model-matrix.md. */
 
 export interface QualityDims {
   relevance: number;

@@ -28,7 +28,7 @@ export function JobsTab() {
   const { openJob, setOpenJob, armPendingOpen, lookupMissed, dismissLookupMissed } = useJobsTabDeepLink(jobs);
 
   return (
-    // Tier 1 (docs/LOADING_CHOREOGRAPHY.md): header, filters and the table's
+    // Tier 1 (docs/design/loading-choreography.md): header, filters and the table's
     // column headers are chrome — they render on the first frame regardless of
     // the corpus fetch. aria-busy covers the first load only; a later refetch
     // (filter change) never blanks what is already on screen.

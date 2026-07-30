@@ -3,14 +3,14 @@
 // uses these lives in db/pipeline.ts (recordEntryConsent / anonymizeEntry /
 // anonymizeExpiredConsents); the borrowed pattern (anonymize-on-expiry but RETAIN
 // the non-identifying scoring artifacts for re-engagement) is documented in
-// docs/GDPR_AND_HIRING_EXTENSIONS.md. See the DPO note there before enabling in prod.
+// docs/_archive/GDPR_AND_HIRING_EXTENSIONS.md. See the DPO note there before enabling in prod.
 
 /** Default retention window for a recruitment consent: 12 months from grant
  *  (Recruitis/Sloneek both default to ~1 year). This is a GLOBAL default, blind to
  *  jurisdiction and source — the lawful retention period varies by country and by how
  *  the candidate was acquired, so a deployment SHOULD set it for its legal basis via
  *  KP_CONSENT_TTL_DAYS (whole days, 1..3650). The per-call `ttlDays` arg overrides it
- *  for a future per-jurisdiction/per-source policy. See docs/GDPR_AND_HIRING_EXTENSIONS.md. */
+ *  for a future per-jurisdiction/per-source policy. See docs/_archive/GDPR_AND_HIRING_EXTENSIONS.md. */
 export function consentTtlDays(): number {
   const raw = Number(process.env.KP_CONSENT_TTL_DAYS);
   return Number.isFinite(raw) && raw >= 1 && raw <= 3650 ? Math.floor(raw) : 365;

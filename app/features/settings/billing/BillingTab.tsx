@@ -14,7 +14,7 @@ import { BillingStatusBanners } from "./BillingStatusBanners";
 import { useBillingPortal } from "./useBillingPortal";
 import type { BillingPayload } from "./billingTypes";
 
-// Tier 3 (docs/LOADING_CHOREOGRAPHY.md): the plan catalog + minutes pack is the
+// Tier 3 (docs/design/loading-choreography.md): the plan catalog + minutes pack is the
 // heaviest, most-below-the-fold region of this tab (a card grid) — its own
 // chunk, mounted an idle beat after the current-plan/usage panels above. The
 // chunk gap is a quiet reserved box, never a skeleton.

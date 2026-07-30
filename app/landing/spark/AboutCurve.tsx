@@ -13,7 +13,7 @@ import { enterWorkspace } from "@/app/_lib/auth/session-nav";
 /*
  * /about — the public concept introduction as a scroll-drawn curved timeline of
  * the seven pipeline phases the app actually walks (SIM_PHASES). Same Spark art
- * direction as the home landing (literal hexes — the docs/DESIGN.md exemption);
+ * direction as the home landing (literal hexes — the docs/design/README.md exemption);
  * all copy resolves through the `aboutPage` i18n namespace. The spine draws with
  * scroll and each step grows to full size at centre, then shrinks as it passes.
  */

@@ -1,4 +1,4 @@
-// SQL-portability audit for the Postgres migration (E-SH-3, docs/POSTGRES_BACKEND.md).
+// SQL-portability audit for the Postgres migration (E-SH-3, docs/architecture/postgres-backend.md).
 //
 // Scans the data layer for the SQLite-specific constructs that need a dialect tweak
 // when porting to Postgres. This is NOT run in the request path — it's a living
@@ -7,7 +7,7 @@
 //
 // IMPORTANT framing: the audit below confirms the DIALECT surface is small. The real
 // blocker for Postgres is the sync→async DB API (better-sqlite3 is synchronous;
-// node-postgres is not), NOT the SQL. See docs/POSTGRES_BACKEND.md.
+// node-postgres is not), NOT the SQL. See docs/architecture/postgres-backend.md.
 
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";

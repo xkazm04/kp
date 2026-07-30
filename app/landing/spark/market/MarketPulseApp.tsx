@@ -3,7 +3,7 @@
 /*
  * Market Pulse host — shared Spark chrome (header, hero, CC BY attribution
  * footer) around the page body. Fixed Spark art direction (literal hexes, the
- * docs/DESIGN.md exemption); all copy resolves through the `jobMarket` i18n
+ * docs/design/README.md exemption); all copy resolves through the `jobMarket` i18n
  * namespace. The "Atlas" direction won the prototype round, so the body is the
  * map-led editorial scroll; the earlier variant switcher has been consolidated
  * away.

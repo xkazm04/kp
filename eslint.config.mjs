@@ -52,7 +52,7 @@ const config = [
       "app/apply/**/*.tsx",
       "app/interview/**/*.tsx",
       "app/_components/voice/**/*.tsx",
-      // The workspace, by menu group (docs/FEATURE_STRUCTURE_REFACTOR.md). Same
+      // The workspace, by menu group (docs/architecture/app-structure.md). Same
       // seventeen surfaces the old `sub_*` globs covered, re-pointed at the menu
       // tree — NOT the whole tree: `tools/devcases` and `hiring/onboarding` were
       // deliberately outside this rule (dev-facing copy) and stay outside it.

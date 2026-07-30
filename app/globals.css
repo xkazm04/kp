@@ -105,7 +105,7 @@ body {
 }
 
 /*
- * Theme override seam — "Spark Dark" (see docs/DESIGN.md).
+ * Theme override seam — "Spark Dark" (see docs/design/README.md).
  * The default (light) palette is defined in @theme above, which Tailwind
  * emits onto :root. Every color utility compiles to var(--color-*) —
  * including stock `white`/`stone-*`/status shades — so re-declaring those
@@ -187,7 +187,7 @@ body {
 
 /*
  * Spark Dark structural register — the parts of the landing's sticker-sheet
- * language a color token cannot carry (docs/DESIGN.md). These ride existing
+ * language a color token cannot carry (docs/design/README.md). These ride existing
  * class seams so ALL surfaces pick them up before the recipe sweep finishes:
  *
  * 1. Panels become stickers: every `.shadow-panel` surface (the workspace's
@@ -216,7 +216,7 @@ body {
 }
 
 /*
- * Spark Dark data-surface rides (tables, matrices, lists — docs/DESIGN.md
+ * Spark Dark data-surface rides (tables, matrices, lists — docs/design/README.md
  * "Data visuals"). Same blanket-seam idea as the .shadow-panel sticker ride:
  *
  * - Table headers pick up the display face (--font-serif resolves to
@@ -389,7 +389,7 @@ textarea {
 /* Content that ARRIVES after its container is already on screen (a fetch
    resolving, a deferred section committing): a plain opacity fade, no rise, so
    it settles into the space the layout already holds instead of sliding.
-   Loading choreography tier 2 — see docs/LOADING_CHOREOGRAPHY.md. */
+   Loading choreography tier 2 — see docs/design/loading-choreography.md. */
 .animate-arrive-in {
   animation: arrive-in 200ms ease-out both;
 }

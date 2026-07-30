@@ -482,7 +482,7 @@ PROVENANCE_WEIGHTS: dict[str, float] = {
 # (contributing 0.4 × weight) instead of `matched_skills`. It never becomes
 # `missing` — that stays reserved for a claim the candidate never made — so
 # knockout filtering is unaffected. Recruiter-facing thresholds calibrated against
-# the old inflated numbers need re-tuning; see docs/SCORING_REBASELINE.md.
+# the old inflated numbers need re-tuning; see docs/features/matching/README.md.
 DEFAULT_PROVENANCE = "self_declared"
 
 # The user-selectable provenance values, in dropdown display order (weakest →

@@ -4,7 +4,7 @@ import AboutCurve from "./AboutCurve";
 /*
  * The public /about marketing page wrapped in Spark's scoped type system — the
  * same fonts SparkHome loads, so /about reads as a sibling of the home landing.
- * Kept in this folder (the docs/DESIGN.md art-direction exemption) so the
+ * Kept in this folder (the docs/design/README.md art-direction exemption) so the
  * literal-hex marketing components stay together; the /about route is a thin
  * shell that just renders this.
  */

@@ -5,7 +5,7 @@ surfaces. Read this before generating so every traced glyph belongs to the same
 world. Inspiration + memory, not a rigid spec.
 
 kp is **not** the neon-on-dark app this skill came from. Do not port that art
-direction. kp ships **two themes from one geometry** (see `docs/DESIGN.md`):
+direction. kp ships **two themes from one geometry** (see `docs/design/README.md`):
 
 - **Studio Light** (default) — calm, editorial, warm paper, ink line-work.
   Fraunces serif display, quiet shadows. This is what corporate clients see.

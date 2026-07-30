@@ -27,7 +27,7 @@ export const FAIRNESS_BLOCKED_REJECT_ALERT = FAIRNESS_GATE_BLOCKED_REJECT;
 // THE single encoding of the fairness-backstop downgrade, shared by the dry-run
 // preview loop and the commit loop so the preview provably shows the SAME verdict
 // the commit enforces (the spec-pinned "preview must match commit" guarantee —
-// docs/AUTOMATION_SPEC.md §risks). On an allowed verdict it does nothing and
+// docs/features/pipeline/README.md §risks). On an allowed verdict it does nothing and
 // returns false; on a refused verdict it downgrades the decision to a hold,
 // rewrites the reason, appends the dedup alert, bumps `summary.held`, and returns
 // true. `preview` selects only the "would be refused" vs "refused" wording so a

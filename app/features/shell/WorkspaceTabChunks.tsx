@@ -4,12 +4,12 @@
 // shell orchestrator stays under the 200-line file cap. Lazy-loads each tab so the
 // initial bundle only carries the shell + the active tab's chunk; the rest are
 // fetched on demand when navigated to. A shared skeleton fills the swap. (Named
-// exports → map to a default for next/dynamic.) See docs/LOADING_CHOREOGRAPHY.md.
+// exports → map to a default for next/dynamic.) See docs/design/loading-choreography.md.
 import dynamic from "next/dynamic";
 import { ErrorBoundary } from "@/app/_components/ErrorBoundary";
 import type { WorkspaceTabId } from "./tabs";
 
-// The gap while a tab's code-split chunk loads (docs/LOADING_CHOREOGRAPHY.md).
+// The gap while a tab's code-split chunk loads (docs/design/loading-choreography.md).
 //
 // Deliberately EMPTY. The old three-bar skeleton drew a header + card silhouette
 // that matched no tab in particular, so a cold navigation showed two unrelated

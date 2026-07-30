@@ -7,7 +7,7 @@ import { ONBOARDING_PRESETS } from "@/app/_lib/onboarding";
 import { Select } from "@/app/_components/Select";
 import { TextInput } from "@/app/_components/TextInput";
 
-// Tier 3 (docs/LOADING_CHOREOGRAPHY.md): this is a click-only editor — nobody
+// Tier 3 (docs/design/loading-choreography.md): this is a click-only editor — nobody
 // sees it until "New template" is pressed — so it lives in its own chunk and
 // is code-split out of the tab's initial bundle (see the next/dynamic import
 // in OnboardingTab.tsx).

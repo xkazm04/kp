@@ -5,7 +5,7 @@
 // wiring. All state/mutation logic lives in useDecisionsQueue.ts; the header,
 // banners, AI-review batch section and reconsider queue render via their own
 // split-out components — kept that way so this shell stays under the
-// 200-line cap (docs/FEATURE_STRUCTURE_REFACTOR.md).
+// 200-line cap (docs/architecture/app-structure.md).
 import { useState } from "react";
 import { DecisionsEmptyHandoff } from "./DecisionsEmptyHandoff";
 import { Empty } from "./DecisionsShared";
@@ -43,7 +43,7 @@ export function DecisionsTab() {
     : pending.length;
 
   return (
-    // Tier 1 (docs/LOADING_CHOREOGRAPHY.md): the header, filters and queue
+    // Tier 1 (docs/design/loading-choreography.md): the header, filters and queue
     // chrome below are direct children of this stagger-children container so
     // they cascade in on the first frame regardless of whether the fetch has
     // resolved. aria-busy covers the FIRST load only — useLiveRefresh re-fetches

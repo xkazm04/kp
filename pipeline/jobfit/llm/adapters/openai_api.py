@@ -1,7 +1,7 @@
 """OpenAI Chat Completions adapter (official ``openai`` SDK).
 
 Also serves any **OpenAI-compatible** endpoint via ``base_url`` — the enterprise
-self-host path (docs/SELF_HOSTING.md, E-SH-5): point it at Azure OpenAI's
+self-host path (docs/architecture/self-hosting.md, E-SH-5): point it at Azure OpenAI's
 OpenAI-compatible gateway, vLLM, Ollama (``/v1``), LiteLLM, or an in-VPC proxy so
 inference never leaves the customer's network. The base URL comes from
 ``KP_LLM_CONFIG`` (keys.<provider>.baseUrl) or the ``OPENAI_BASE_URL`` env var; such

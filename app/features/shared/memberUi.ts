@@ -4,7 +4,7 @@ import type { Capability, MemberRole } from "@/app/_lib/auth/roles";
 
 // Presentational helpers for the REAL role slugs (auth/roles), replacing the mock
 // module on the Organization page. Colours resolve through the token seam, so both
-// themes hold (docs/DESIGN.md).
+// themes hold (docs/design/README.md).
 
 export type AppLanguage = "en" | "cs";
 export const APP_LANGUAGES: { value: AppLanguage; native: string }[] = [

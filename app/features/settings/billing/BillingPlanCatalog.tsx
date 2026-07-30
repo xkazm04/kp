@@ -9,7 +9,7 @@ import type { PlanDef } from "@/app/_lib/billing";
 import { PlanPrice } from "./BillingPlanPrice";
 import type { BillingPayload } from "./billingTypes";
 
-// Tier 3 (docs/LOADING_CHOREOGRAPHY.md): the plan catalog + minutes pack is the
+// Tier 3 (docs/design/loading-choreography.md): the plan catalog + minutes pack is the
 // heaviest, most-below-the-fold part of Billing — a grid of cards nobody needs
 // to see before the current-plan/usage panels above. Split into its own chunk
 // so the tab's entry payload is the current plan + usage meters alone.

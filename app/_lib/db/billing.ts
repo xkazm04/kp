@@ -1,7 +1,7 @@
 import { ensureDb } from "./core";
 import { DEFAULT_WORKSPACE_ID } from "./workspaces";
 
-// ---- Payment gate (docs/BILLING.md) ----------------------------------------
+// ---- Payment gate (docs/features/billing/README.md) ----------------------------------------
 // Plain row accessors only; plan catalog, entitlement math, gateway calls, and
 // webhook reduction live in app/_lib/billing/ so this file stays a dumb store.
 // Single-workspace model: billing_state has exactly one row, keyed by the default

@@ -1,4 +1,4 @@
-// Route-boundary enforcement (docs/BILLING.md → Entitlement semantics).
+// Route-boundary enforcement (docs/features/billing/README.md → Entitlement semantics).
 //
 // Pure decision helpers — routes turn a non-null verdict into a 402 JSON
 // response. Two enforcement shapes, by what the action costs us:

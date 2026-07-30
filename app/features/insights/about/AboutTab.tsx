@@ -9,7 +9,7 @@ import { Defer } from "@/app/_components/ui/Defer";
 import { useSimulation } from "@/app/features/shell/simulation/SimulationProvider";
 import { allCoverageItems, coverageGroups, GROUP_EARLY, type CoverageItem } from "./AboutCoverageData";
 
-// Tier 3 (docs/LOADING_CHOREOGRAPHY.md): Markdown pulls in the PlantUML
+// Tier 3 (docs/design/loading-choreography.md): Markdown pulls in the PlantUML
 // diagram chain (parse/layout/measure — ~600 lines of layout code) to render
 // every capability's `puml` fence. That chain gets its own chunk so the tab's
 // entry payload is the header + nav, not a diagram engine nobody asked for yet.

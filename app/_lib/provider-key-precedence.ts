@@ -1,5 +1,5 @@
 // Pure precedence logic for resolving ONE provider's API key on the TS side,
-// following the repo's documented key layering (docs/LLM_PROVIDER_LAYER.md,
+// following the repo's documented key layering (docs/architecture/llm-provider-layer.md,
 // `buildLlmConfigEnv` in llm-config.ts):
 //
 //   UI-entered 'byom' row → 'platform' row → provider env var(s)

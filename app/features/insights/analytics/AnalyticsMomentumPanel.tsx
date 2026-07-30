@@ -7,7 +7,7 @@ import { momentumWeekLabel, type MomentumWeek } from "@/app/_lib/analytics-momen
 // one bar per series. Heights normalize against the single largest weekly count
 // so weeks compare honestly across the whole span.
 //
-// Loading choreography (docs/LOADING_CHOREOGRAPHY.md, tier 3): split out of
+// Loading choreography (docs/design/loading-choreography.md, tier 3): split out of
 // AnalyticsTab.tsx so it can be its own next/dynamic chunk — the SVG-free bar
 // chart is still real render work the tab's first paint shouldn't wait on.
 const MOMENTUM_SERIES = [

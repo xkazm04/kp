@@ -1,7 +1,7 @@
 // E8 (Erika gap) — the versioned wire envelope the WebhookChannel POSTs to
 // COMMS_WEBHOOK_URL. This is kp's outbound EXPORT SCHEMA: one documented JSON
 // shape a relay maps onto any ATS / mail provider, instead of per-vendor
-// connectors. Full contract in docs/OUTBOUND_EXPORT.md.
+// connectors. Full contract in docs/features/comms/outbound-export.md.
 //
 // Stability rules:
 //   - `schema` names the version; kp.comm.v1 evolves ADDITIVELY only (new
@@ -74,7 +74,7 @@ export type CommEnvelope = {
     label: string | null;
     /** The captured contact address (E4) — the directly-deliverable recipient
      *  when present; `to` may hold a mere identifier (see the recipient
-     *  contract in docs/COMMS_DELIVERY.md). */
+     *  contract in docs/features/comms/README.md). */
     email: string | null;
     locale: string | null;
     sourceChannel: string | null;

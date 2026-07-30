@@ -38,7 +38,7 @@ const replayGuard: ReplayGuard = (replayStore.__commsCallbackReplayGuard ??= cre
 // inside that window — so a captured valid callback can't be replayed to forge or
 // re-forge a bounce. A deployment opts in deliberately; an unconfigured one can't
 // be poked. Document the secret + timestamp header alongside COMMS_WEBHOOK_URL in
-// docs/COMMS_DELIVERY.md.
+// docs/features/comms/README.md.
 export async function POST(request: NextRequest) {
   try {
     const secret = process.env.COMMS_CALLBACK_SECRET;

@@ -41,7 +41,7 @@ function barColor(ratio: number): string {
 
 // Recharts wants literal color strings for its chrome (grid, ticks, tooltip),
 // so the chart can't ride the CSS token seam like the bar fills do — it forks
-// on useTheme() instead (the behavioral-fork layer in docs/DESIGN.md). Values
+// on useTheme() instead (the behavioral-fork layer in docs/design/README.md). Values
 // mirror the light beiges / dark hairlines the rest of the UI resolves to.
 const CHROME = {
   light: { grid: "#ded6c6", tick: STEEL, cursor: "#f0ebe1", tooltipBg: "#ffffff", tooltipText: INK },

@@ -153,7 +153,7 @@ function DecisionLogList({
         relayConfigured={relayConfigured}
       />
 
-      {/* Loading choreography (docs/LOADING_CHOREOGRAPHY.md, tier 2): the initial
+      {/* Loading choreography (docs/design/loading-choreography.md, tier 2): the initial
           page load holds a quiet reserved box instead of pulsing skeleton rows —
           useInfiniteScroll's own 300ms grace already keeps a fast/empty response
           from ever painting this at all. */}

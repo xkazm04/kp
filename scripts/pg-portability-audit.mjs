@@ -1,4 +1,4 @@
-// SQL-portability audit for the SQLite → Postgres migration (docs/POSTGRES_BACKEND.md).
+// SQL-portability audit for the SQLite → Postgres migration (docs/architecture/postgres-backend.md).
 // Prints every SQLite-specific construct in the data layer, grouped, with file:line
 // and the Postgres equivalent — the checklist a migration engineer works from.
 //
@@ -12,7 +12,7 @@ import { auditPgPortability } from "@/app/_lib/db/pg-portability.ts";
 const root = path.resolve(process.cwd(), "app", "_lib");
 const categories = auditPgPortability(root);
 
-console.log("SQL-portability audit — SQLite → Postgres (docs/POSTGRES_BACKEND.md)");
+console.log("SQL-portability audit — SQLite → Postgres (docs/architecture/postgres-backend.md)");
 console.log(`Scanned: ${path.relative(process.cwd(), root).replace(/\\/g, "/")}\n`);
 
 let total = 0;
@@ -29,4 +29,4 @@ for (const category of categories) {
 
 console.log(`Total dialect sites: ${total}.`);
 console.log("NOTE: the real Postgres blocker is the sync→async DB API (better-sqlite3 is");
-console.log("synchronous; node-postgres is not), NOT this SQL. See docs/POSTGRES_BACKEND.md.");
+console.log("synchronous; node-postgres is not), NOT this SQL. See docs/architecture/postgres-backend.md.");

@@ -13,7 +13,7 @@ import type { Job } from "./JobsTypes";
 import { useJobPostingModalLogic } from "./jobsPostingModalLogic";
 import { JobsPostingModalFooter } from "./JobsPostingModalFooter";
 
-// Tier 3 (docs/LOADING_CHOREOGRAPHY.md): these two tabs are click-only (only the
+// Tier 3 (docs/design/loading-choreography.md): these two tabs are click-only (only the
 // active tab mounts) and are each >250 lines, so they get their own chunk — the
 // modal's default "posting" tab never pays for either bundle. The chunk gap is a
 // quiet reserved-height box, never a skeleton.

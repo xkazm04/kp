@@ -24,7 +24,7 @@ brief — plus the before/after VALIDATION pass-rates and a per-round accept/rej
     python -m pipeline.jobfit.eval.interview_optimize --scenario adversarial_asks_score --ablate no_decision
       # self-test: strip a guardrail, watch the loop re-derive it.
 
-Design: docs/VOICE_INTERVIEW_TEST_FRAMEWORK.md §4.4.
+Design: docs/development/voice-interview-testing.md §4.4.
 """
 
 from __future__ import annotations

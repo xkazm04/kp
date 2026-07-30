@@ -133,7 +133,7 @@ export const viewport: Viewport = {
 // an explicit choice in localStorage wins, otherwise prefers-color-scheme
 // decides — so a dark-theme user never sees a light flash. Must stay a plain
 // string evaluated synchronously; a React effect would run after paint.
-// The marketing surfaces are hard-exempt (docs/DESIGN.md): a fixed Spark art
+// The marketing surfaces are hard-exempt (docs/design/README.md): a fixed Spark art
 // direction in literal hexes that must always render in the light register, so
 // the dark attribute is never set there regardless of the visitor's stored choice
 // or OS preference. Those surfaces are the public /about page (always) and the

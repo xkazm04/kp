@@ -220,7 +220,7 @@ class GraduateFriendlinessGoldenTest(unittest.TestCase):
     """Locks graduate_friendliness for representative junior/medior/senior specs so
     the score bands — which order the opportunities a zero-experience student sees —
     can't drift silently. Every constant exercised here is justified in
-    docs/GRADUATE_FRIENDLINESS.md; keep the doc, these values, and the formula in
+    docs/features/matching/README.md; keep the doc, these values, and the formula in
     pipeline/jobfit/jobs.compute_entry_profile in sync on any deliberate change.
     """
 

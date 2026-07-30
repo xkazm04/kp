@@ -7,7 +7,7 @@ import { useScheduleTab } from "./useScheduleTab";
 import { ScheduleTabPendingList } from "./ScheduleTabPendingList";
 import { ScheduleTabInterviewedList } from "./ScheduleTabInterviewedList";
 
-// Tier 3 (docs/LOADING_CHOREOGRAPHY.md): the calendar grid is the heaviest piece
+// Tier 3 (docs/design/loading-choreography.md): the calendar grid is the heaviest piece
 // of this tab's primary content (framer-motion layout animation + the week
 // pager), and the two modals only ever mount once the recruiter clicks into
 // prep or a transcript — neither belongs in the tab's entry chunk. The invite
@@ -56,7 +56,7 @@ export function ScheduleTab() {
   } = useScheduleTab();
 
   return (
-    // Tier 1 (docs/LOADING_CHOREOGRAPHY.md): header, and the tab's real sections
+    // Tier 1 (docs/design/loading-choreography.md): header, and the tab's real sections
     // as direct children of the stagger cascade. aria-busy covers the first
     // load only — the error/empty/content swap below never re-triggers it.
     <div data-sim="schedule" className="stagger-children space-y-6" aria-busy={entries == null && !error}>

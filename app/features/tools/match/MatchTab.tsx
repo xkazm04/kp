@@ -8,7 +8,7 @@ import { Select } from "@/app/_components/Select";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { useMatchTabRun } from "./useMatchTabRun";
 
-// Tier 3 (docs/LOADING_CHOREOGRAPHY.md): MatchResults.tsx (plus the MatchCard/
+// Tier 3 (docs/design/loading-choreography.md): MatchResults.tsx (plus the MatchCard/
 // MatchWeightsPanel/MatchJobCompare subtree it pulls in) is a heavy, purely
 // post-action payload — it never renders on the tab's first frame, only once a
 // match run has returned. Splitting it out of the tab's own chunk keeps tier-1

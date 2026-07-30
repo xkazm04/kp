@@ -37,7 +37,7 @@ export function RediscoverPanel({ jobId, jobTitle }: { jobId: string; jobTitle: 
   if (!data)
     // The rediscovery scan is a CLI sweep over the pool: reserve the result
     // list's shape quietly (no skeleton bars) with a short copy line, per
-    // docs/LOADING_CHOREOGRAPHY.md.
+    // docs/design/loading-choreography.md.
     return (
       <div className="reveal-quiet min-h-[12rem] space-y-2" aria-busy="true">
         <p className="text-sm text-steel">{t("scanning")}</p>

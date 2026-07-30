@@ -8,7 +8,7 @@ match_reasoning.generate) so the pipeline never blocks when the CLI is absent
 Fairness is enforced in code, not left to the model: early-career candidates
 (student / career_switcher) are never silently advanced or rejected by automation.
 
-See docs/AUTOMATION_SPEC.md for the full design.
+See docs/features/pipeline/README.md for the full design.
 """
 
 from __future__ import annotations
@@ -74,7 +74,7 @@ _EARLY_CAREER = registry.early_career_archetypes()
 # ONCE here (previously an inline literal repeated in each prompt + a duplicated
 # coerce tuple) and mirrored on the TS side in
 # app/_lib/interview-recommendation.ts; the cross-language contract + fallback are
-# documented in docs/AUTOMATION_SPEC.md §2.5.
+# documented in docs/features/pipeline/README.md §2.5.
 RECOMMENDATIONS: tuple[str, ...] = ("advance", "hold", "reject")
 # Fallback for an unknown / empty / malformed verdict: the safe middle state.
 # Never silently `advance` (could auto-progress a candidate) or `reject` (the
@@ -796,7 +796,7 @@ def interview_scorecard(candidate: MatchCandidate, job: Job, notes: str, *, lang
         "Ground every rating in the transcript: the evidence MUST be a short, near-verbatim quote of the "
         "candidate's own words that justifies the score — do not paraphrase or invent. If the transcript "
         "does not cover a competency, set its evidence to an empty string and rate it 3 (not assessed).\n"
-        # Read-back trust rule (docs/INTERVIEW_IMPROVEMENT_INPUTS.md §2/§5): the brief now has the
+        # Read-back trust rule (docs/_archive/interview-improvement-inputs.md §2/§5): the brief now has the
         # agent read back the technologies it heard before closing; that confirmation turn — not the
         # raw ASR earlier in the call — is the authoritative record of the candidate's stack.
         "The transcript comes from voice recognition, which can corrupt technology and product names "

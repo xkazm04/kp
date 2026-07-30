@@ -101,7 +101,7 @@ function ResolvedReasoning({ r, source, cached, narrativeLang }: { r: Reasoning;
 // The gap while an explanation is being generated. Reserves roughly the height
 // ResolvedReasoning will take (header + verdict line + three bullet columns) so
 // the swap barely nudges the card, and stays invisible for its first 150ms so a
-// cached answer never flashes it (docs/LOADING_CHOREOGRAPHY.md).
+// cached answer never flashes it (docs/design/loading-choreography.md).
 //
 // Was a nine-bar pulsing skeleton drawing a reasoning card nobody was getting
 // yet. aria-hidden: the sibling sr-only line already voices the wait.

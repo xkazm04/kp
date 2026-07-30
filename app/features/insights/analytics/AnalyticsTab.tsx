@@ -66,7 +66,7 @@ export function AnalyticsTab() {
   const convDeltaByStage = new Map((data?.deltas?.funnel ?? []).map((f) => [f.stage, f.conversionPct]));
 
   return (
-    // Tier 1 (docs/LOADING_CHOREOGRAPHY.md): the header + window switcher render
+    // Tier 1 (docs/design/loading-choreography.md): the header + window switcher render
     // on the first frame regardless of the fetch; aria-busy covers the initial
     // load only — a later refresh (window switch, reload()) never blanks what's
     // already on screen.
@@ -109,7 +109,7 @@ export function AnalyticsTab() {
         />
       ) : null}
 
-      {/* Tier 3 (docs/LOADING_CHOREOGRAPHY.md): MomentumPanel is just below the
+      {/* Tier 3 (docs/design/loading-choreography.md): MomentumPanel is just below the
           primary grid — its own chunk, one frame later so it never competes with
           the funnel/forecast paint. */}
       {data ? (

@@ -13,7 +13,7 @@ import { PipelineStatHeader } from "./PipelineStatHeader";
 import { PipelineFilterBar } from "./PipelineFilterBar";
 import { PipelinePopulatedBoard } from "./PipelinePopulatedBoard";
 
-// Tier 3 (docs/LOADING_CHOREOGRAPHY.md): the candidate drawer is a 1300+ line
+// Tier 3 (docs/design/loading-choreography.md): the candidate drawer is a 1300+ line
 // subtree (scorecards, interview transcript, consent panel, GitHub evidence,
 // token-link management…) that most board views never open — it's reachable
 // only by clicking a card. Code-split it out of the tab's entry chunk so a
@@ -123,7 +123,7 @@ export function PipelineTab() {
         /* Tier 2: the board fetch is in flight and there is nothing to show yet.
            Hold roughly the board's height so the page doesn't jump when it lands,
            and stay invisible for 150ms so a warm response paints nothing at all.
-           (Was a bare "Loading…" line — docs/LOADING_CHOREOGRAPHY.md law 4.) */
+           (Was a bare "Loading…" line — docs/design/loading-choreography.md law 4.) */
         <div className="reveal-quiet min-h-[28rem]" aria-hidden />
       ) : s.entries.length === 0 ? (
         /* The empty board rehearses the real stage lanes with a slot waiting in

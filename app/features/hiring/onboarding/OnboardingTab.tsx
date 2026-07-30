@@ -11,7 +11,7 @@ import { OnboardingRunsList } from "./OnboardingRunsList";
 import { OnboardingTemplatesSection } from "./OnboardingTemplatesSection";
 import type { HiredCandidate, RunSummary, Template } from "./onboardingTabTypes";
 
-// Tier 3 (docs/LOADING_CHOREOGRAPHY.md): both are click-triggered secondary
+// Tier 3 (docs/design/loading-choreography.md): both are click-triggered secondary
 // surfaces (a new-template editor opened from a button, a run's detail "page"
 // opened by clicking a row) — neither belongs in this tab's first payload, so
 // each gets its own chunk. The chunk gap is a quiet reserved box, never a spinner.

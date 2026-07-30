@@ -24,7 +24,7 @@
 // DRIFT. The branching literals (e.g. `route === "advance"`) necessarily live in
 // each language, but the validation set + fallback are single-sourced per side
 // (here for TS, `RECOMMENDATIONS`/`RECOMMENDATION_FALLBACK` for Python) and the
-// cross-language contract is documented in docs/AUTOMATION_SPEC.md §2.5. The TS
+// cross-language contract is documented in docs/features/pipeline/README.md §2.5. The TS
 // half is pinned by interview-recommendation.test.ts; the Python half by
 // pipeline/jobfit/tests/test_automation.py.
 

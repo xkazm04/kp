@@ -11,7 +11,7 @@ import { logComms } from "./logger";
 // mail relay / Zapier / an ATS). Every message is recorded either way.
 //
 // DELIVERY CONTRACT (statuses defined once in comms-status.ts; full write-up in
-// docs/COMMS_DELIVERY.md):
+// docs/features/comms/README.md):
 //   • queued  — local outbox, no relay configured. A *terminal* dev state: the outbox
 //               IS the delivery target (dev inbox + audit log); nothing dequeues it.
 //   • sent    — relayed successfully (HTTP 2xx).
@@ -66,7 +66,7 @@ class OutboxChannel implements CommsChannel {
 // alert — a dropped offer/rejection must never look as benign as a local `queued` row.
 //
 // E8 — the wire payload is the versioned kp.comm.v1 envelope (comms-envelope.ts,
-// documented in docs/OUTBOUND_EXPORT.md): the flat legacy fields verbatim, plus
+// documented in docs/features/comms/outbound-export.md): the flat legacy fields verbatim, plus
 // candidate/job/stage context enriched from the pipeline entry the message
 // references — so a relay can map kp → any ATS without calling back.
 class WebhookChannel implements CommsChannel {

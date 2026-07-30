@@ -59,7 +59,7 @@ export function useJsonFetch<T>(
 
   // Re-run the request. The last-good `data` is deliberately KEPT on the wire:
   // a refresh must never blank content that is already on screen (loading
-  // choreography law 2, docs/LOADING_CHOREOGRAPHY.md) — the new payload simply
+  // choreography law 2, docs/design/loading-choreography.md) — the new payload simply
   // replaces it when it lands. A retry from the error state has no data to keep,
   // so it still reads as `data === null && error === null` (the loading
   // condition) exactly as before. Done in this handler rather than inside the

@@ -15,7 +15,7 @@ import { ProfileTabRebuildWarnModal } from "./ProfileTabRebuildWarnModal";
 import { useProfileTabDeepLinks } from "./useProfileTabDeepLinks";
 import { NOTE_TONE, type EditorState, type NoteTone, type RebuildWarn } from "./ProfileTabTypes";
 
-// Tier 3 (docs/LOADING_CHOREOGRAPHY.md): the editor is a click-only surface (a
+// Tier 3 (docs/design/loading-choreography.md): the editor is a click-only surface (a
 // deep link, "New profile", or a roster/matrix row action) — never the tab's
 // first paint — and it's a heavy form (~450 lines), so it gets its own chunk.
 // The loading gap is a quiet reserved box, never a skeleton; it resolves fast

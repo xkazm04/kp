@@ -121,7 +121,7 @@ def bake(dirs: list[str], *, judge: str = "claude-cli") -> str:
         "/** Measured LLM quality scores — the output of the Python bench matrix\n"
         " *  (`pipeline/jobfit/llm/bench`), judged by the Claude CLI, baked by\n"
         " *  `bake_quality.py`. GENERATED — re-bake, don't hand-edit. See\n"
-        " *  docs/LLM_MODEL_MATRIX.md.\n"
+        " *  docs/architecture/llm-model-matrix.md.\n"
         f" *  Baked from a run at {payload['measuredAt']}. */\n"
         'import type { QualityScores } from "./llm-quality";\n\n'
         f"export const QUALITY_SCORES: QualityScores = {body};\n\n"

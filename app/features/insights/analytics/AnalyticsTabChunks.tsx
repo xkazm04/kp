@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 
-// Tier 3 (docs/LOADING_CHOREOGRAPHY.md): AnalyticsTab is the chart-heaviest
+// Tier 3 (docs/design/loading-choreography.md): AnalyticsTab is the chart-heaviest
 // surface in the app — a reliability diagram, a sealed floor-over-time strip, a
 // paged decision log, several tables. Every panel below the primary
 // funnel/forecast grid gets its own chunk (next/dynamic) and mounts a beat

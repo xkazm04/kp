@@ -42,7 +42,7 @@ export function ChannelsTab() {
   const base = publicBaseUrl(typeof window !== "undefined" ? window.location.origin : "");
   const active = CHANNEL_SECTIONS.find((s) => s.id === section)!;
   const accent = CHANNEL_ACCENT[section];
-  // webhooks/jobs are null until their first fetch settles (docs/LOADING_CHOREOGRAPHY.md,
+  // webhooks/jobs are null until their first fetch settles (docs/design/loading-choreography.md,
   // tier 2) — `?? []` here is only for the arithmetic below; the actual "not fetched
   // yet vs. genuinely empty" branch happens where these render (statusFor + the
   // careers list).
@@ -97,7 +97,7 @@ export function ChannelsTab() {
   const firstLoad = webhooks === null || jobs === null || accepted === null;
 
   return (
-    // Tier 1 (docs/LOADING_CHOREOGRAPHY.md): the header, switcher and stage frame
+    // Tier 1 (docs/design/loading-choreography.md): the header, switcher and stage frame
     // are direct children of this stagger-children wrapper, so they cascade in on
     // the first frame regardless of the three fetches below.
     <section data-sim="channels" className="stagger-children space-y-5" aria-busy={firstLoad}>

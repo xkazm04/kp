@@ -1,5 +1,5 @@
 /*
- * Pure decisions behind <Defer> and the loading choreography (docs/LOADING_CHOREOGRAPHY.md).
+ * Pure decisions behind <Defer> and the loading choreography (docs/design/loading-choreography.md).
  * Kept apart from the component so the rules are unit-testable and so a tab can
  * import the timing constants without pulling a client component into its chunk.
  */

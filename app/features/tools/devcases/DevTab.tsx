@@ -11,7 +11,7 @@ import { DevTabCasesView } from "./DevTabCasesView";
 import { DevTabDefineView } from "./DevTabDefineView";
 import { VIEW_HEADING, type DevView } from "./DevTabViews";
 
-// Tier 3 (docs/LOADING_CHOREOGRAPHY.md): the comms outbox is a whole sub-tab's
+// Tier 3 (docs/design/loading-choreography.md): the comms outbox is a whole sub-tab's
 // worth of table + resend wiring that's only ever needed once the recruiter
 // switches to it, so it gets its own chunk. The gap is a quiet reserved box.
 const OutboxTable = dynamic(() => import("./OutboxSection").then((m) => ({ default: m.OutboxTable })), {

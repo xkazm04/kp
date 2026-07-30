@@ -17,7 +17,7 @@ Reminders:
     `existingSecret` so secrets aren't stored in Helm release data.
 {{- end }}
   • SINGLE REPLICA by design: state is one SQLite file on a ReadWriteOnce volume.
-    Do not scale up without a Postgres backend (docs/POSTGRES_BACKEND.md).
+    Do not scale up without a Postgres backend (docs/architecture/postgres-backend.md).
 {{- if not .Values.persistence.enabled }}
   • persistence.enabled=false — the DB is on an emptyDir and is LOST when the pod
     restarts. Enable persistence for any real use.
@@ -26,4 +26,4 @@ Reminders:
   • Set env.NEXT_PUBLIC_APP_BASE_URL to your public origin so candidate links resolve.
 {{- end }}
 
-Full guide: docs/SELF_HOSTING.md.
+Full guide: docs/architecture/self-hosting.md.

@@ -15,7 +15,7 @@ export const maxDuration = 60;
 //
 // User-facing this is "Source into Pipeline" (internal go-live), NOT external
 // "Publish to job boards". The route name and the 'published' DB status are kept
-// as a stable contract. See docs/JD_LIFECYCLE.md.
+// as a stable contract. See docs/features/jobs/README.md.
 export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
   const ws = await currentWorkspace();

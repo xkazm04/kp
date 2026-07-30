@@ -90,7 +90,7 @@ GATE = {
 # A complex senior case (e.g. an Account Delivery Manager with a rich context) can take
 # >200s; a timeout falls back to the deterministic template, so the budget is generous
 # to keep the corpus on the LLM path. (Production routes at 120s — see the follow-up note
-# in docs/CASE_CALIBRATION.md: the prod timeout + fallback is a separate robustness gap.)
+# in docs/development/case-calibration.md: the prod timeout + fallback is a separate robustness gap.)
 _ANALYZE_TIMEOUT = 150
 _CASE_TIMEOUT = 360
 

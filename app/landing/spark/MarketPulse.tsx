@@ -4,7 +4,7 @@ import MarketPulseApp from "./market/MarketPulseApp";
 /*
  * The public /market "Market Pulse" page wrapped in Spark's scoped type system —
  * the same fonts SparkHome/AboutHome load, so /market reads as a sibling of the
- * home landing and /about. Kept in this folder (the docs/DESIGN.md art-direction
+ * home landing and /about. Kept in this folder (the docs/design/README.md art-direction
  * exemption) so the literal-hex marketing components stay together; the /market
  * route is a thin shell that just renders this.
  */

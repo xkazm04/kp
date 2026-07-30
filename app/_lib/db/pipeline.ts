@@ -1222,7 +1222,7 @@ export function setEntryNotes(id: string, notes: string | null, workspaceId: str
 // Capture data-processing consent at apply, sweep it on expiry, and anonymize
 // the candidate while RETAINING the non-identifying scoring artifacts so talent
 // rediscovery can re-surface a re-consenting candidate (Recruitis pattern, see
-// docs/GDPR_AND_HIRING_EXTENSIONS.md — read the DPO note before enabling in prod).
+// docs/_archive/GDPR_AND_HIRING_EXTENSIONS.md — read the DPO note before enabling in prod).
 
 export type ConsentEventKind =
   | "granted"

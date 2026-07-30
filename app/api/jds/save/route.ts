@@ -11,7 +11,7 @@ export const maxDuration = 60;
 // Save a generated JD to the library and ingest its role as a structured Job —
 // as a DRAFT. It does NOT source candidates yet; "Source into Pipeline" (POST
 // /api/jobs/[id]/publish) is what takes it live and sources it into the
-// pipeline. See docs/JD_LIFECYCLE.md.
+// pipeline. See docs/features/jobs/README.md.
 //
 // The save-vs-ingest contract: saving the JD draft is authoritative (it succeeds
 // or the whole request 4xx/5xx-es), but the structured-Job ingest below is
@@ -19,7 +19,7 @@ export const maxDuration = 60;
 // false the draft exists but the matchable `jd-<slug>` Job row does NOT, so
 // "Source into Pipeline" would dead-end (POST /api/jobs/jd-<slug>/publish 404s).
 // The builder reads this flag and offers a retry (re-POST with `slug`) rather
-// than letting the user click into that dead end. See docs/JD_LIFECYCLE.md.
+// than letting the user click into that dead end. See docs/features/jobs/README.md.
 export async function POST(request: NextRequest) {
   // Saving a generated JD as a draft (and ingesting its Job) is a recruiter write,
   // so it shares the same operator gate as POST /api/jds. The guided sim drives this

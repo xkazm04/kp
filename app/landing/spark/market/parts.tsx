@@ -3,7 +3,7 @@
 /*
  * Shared Market Pulse building blocks — the data-viz vocabulary both the Atlas
  * and Board variants compose from. All Spark art direction (literal hexes, the
- * docs/DESIGN.md exemption). Every user-facing string resolves through the
+ * docs/design/README.md exemption). Every user-facing string resolves through the
  * `jobMarket` i18n namespace; region/occupation/employer names come straight
  * from the (Czech) source data.
  */

@@ -82,7 +82,7 @@ export function CommsTable() {
     return <p className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{t("loadFailed")}</p>;
   }
   if (messages === null) {
-    // Tier 2 (docs/LOADING_CHOREOGRAPHY.md): first fetch in flight, nothing to show
+    // Tier 2 (docs/design/loading-choreography.md): first fetch in flight, nothing to show
     // yet — hold the ledger's height, stay invisible for 150ms so a fast response
     // never flashes a placeholder at all. Was two pulsing Skeleton slabs.
     return <div className="reveal-quiet min-h-[22rem]" aria-hidden />;

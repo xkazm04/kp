@@ -23,7 +23,7 @@ export function useJobPostingModalLogic(
 ) {
   const t = useTranslations("jobs.posting");
   // The in-modal publish action reuses DraftsPanel's strings — same /publish
-  // call, same "Source into Pipeline" verb. See docs/JD_LIFECYCLE.md.
+  // call, same "Source into Pipeline" verb. See docs/features/jobs/README.md.
   const td = useTranslations("jobs.drafts");
   const router = useRouter();
   const search = useSearchParams();

@@ -15,7 +15,7 @@ import { SpendInput } from "./AnalyticsChannelSpendInput";
 // denominator; below it the per-creative variant table and the 72h pause
 // recommendations (a suggestion, never an actuator — see source-analytics.ts).
 //
-// Loading choreography (docs/LOADING_CHOREOGRAPHY.md, tier 3): split out of
+// Loading choreography (docs/design/loading-choreography.md, tier 3): split out of
 // AnalyticsTab.tsx into its own next/dynamic chunk — two tables + a
 // recommendations block, below the fold, that most sessions scroll past.
 export function ChannelEconomicsPanel({

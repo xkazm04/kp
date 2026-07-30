@@ -219,7 +219,7 @@ def _extract(text: str, lang: str = "en") -> dict[str, Any]:
         f"- {language_directive(lang)}\n\n"
         f"Notes:\n{text.strip()}\n"
     )
-    # Multi-provider routing (docs/LLM_PROVIDER_LAYER.md): ONLY an explicit
+    # Multi-provider routing (docs/architecture/llm-provider-layer.md): ONLY an explicit
     # KP_LLM_CONFIG row for profile_draft re-routes this call — the
     # unconfigured default stays the direct Gemini path below, byte-for-byte
     # the pre-registry behavior (resolve_provider's fallback is the Claude

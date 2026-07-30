@@ -58,7 +58,7 @@ export function OrganizationTab() {
   }
 
   return (
-    // Tier 1 (docs/LOADING_CHOREOGRAPHY.md): this tab has no fetch of its own (name
+    // Tier 1 (docs/design/loading-choreography.md): this tab has no fetch of its own (name
     // is cookie-hydrated, language is the app locale), so both children below are
     // chrome — the cascade just gives tab entry the same rhythm every other tab has.
     // The real first-load boundary (the member roster) lives one level down, in

@@ -21,7 +21,7 @@ import { InterviewModeCards, type SimMode } from "./InterviewModeCards";
 import { InterviewStartPanel } from "./InterviewStartPanel";
 import { InterviewAttachToCandidate } from "./InterviewAttachToCandidate";
 
-// Tier 3 (docs/LOADING_CHOREOGRAPHY.md): the realtime voice surface (WebRTC /
+// Tier 3 (docs/design/loading-choreography.md): the realtime voice surface (WebRTC /
 // AudioContext client, transcript, controls) is only needed once a session is
 // started, so it gets its own chunk instead of riding in the tab's entry
 // bundle. VoiceInterviewClient already skips SSR and lazy-loads the actual
@@ -96,7 +96,7 @@ export function InterviewSimTab() {
   }
 
   return (
-    // Tier 1 (docs/LOADING_CHOREOGRAPHY.md): header, mode picker and the
+    // Tier 1 (docs/design/loading-choreography.md): header, mode picker and the
     // sidebar/panel grid are the tab's three real sections — none depend on a
     // fetch, so they all commit on the first frame and cascade in via
     // stagger-children. No aria-busy: nothing here is ever "loading" on tab

@@ -7,7 +7,7 @@ import { OnboardingRunQuestionnaire } from "./OnboardingRunQuestionnaire";
 import { OnboardingRunSignatures } from "./OnboardingRunSignatures";
 import type { RunDetail } from "./onboardingRunDetailTypes";
 
-// Tier 3 (docs/LOADING_CHOREOGRAPHY.md): the run detail is a full secondary
+// Tier 3 (docs/design/loading-choreography.md): the run detail is a full secondary
 // "page" reached only by clicking a run — it lives in its own chunk (see the
 // next/dynamic import in OnboardingTab.tsx) so selecting a candidate's
 // onboarding run doesn't cost the list view anything upfront.

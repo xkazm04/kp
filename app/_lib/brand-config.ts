@@ -1,4 +1,4 @@
-// White-label brand configuration (E3 / E-BRD, docs/ENTERPRISE_READINESS.md §4).
+// White-label brand configuration (E3 / E-BRD, docs/product/enterprise-readiness.md §4).
 // (Distinct from app/_lib/brand.ts, which is the fixed design-system color palette.)
 //
 // Single-workspace today — like billing_state (id='workspace'); a workspace key gets

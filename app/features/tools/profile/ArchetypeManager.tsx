@@ -117,7 +117,7 @@ export function ArchetypeManager({
       </header>
 
       {loading ? (
-        // Tier 2 (docs/LOADING_CHOREOGRAPHY.md): first-load gap only — `loading`
+        // Tier 2 (docs/design/loading-choreography.md): first-load gap only — `loading`
         // (the parent's archLoading) settles false once and stays false, so a
         // later onChanged refresh never re-shows this and never blanks the panel.
         <div className="mt-4 h-40 reveal-quiet" aria-hidden />

@@ -12,7 +12,7 @@ import type { Analytics } from "./AnalyticsTab";
 // side by side WITHOUT summing across currencies. The manual leg keeps the CPA
 // windowing discipline (all-time only; "—" + note in a windowed view).
 //
-// Loading choreography (docs/LOADING_CHOREOGRAPHY.md, tier 3): split out of
+// Loading choreography (docs/design/loading-choreography.md, tier 3): split out of
 // AnalyticsTab.tsx into its own next/dynamic chunk — it's a secondary, below-the-fold
 // readout nobody opens Analytics to see first.
 export function ComputeCostPanel({

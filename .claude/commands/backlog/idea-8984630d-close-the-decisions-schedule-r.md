@@ -38,7 +38,7 @@ This is the heart of the "standalone features" feeling: the system silently move
 
 ## Recommended Skills
 
-Use Claude Code skills as appropriate for implementation guidance. Check `.claude/skills/` directory for available skills. Verify both themes (Studio Light / Spark Dark) per docs/DESIGN.md before finishing.
+Use Claude Code skills as appropriate for implementation guidance. Check `.claude/skills/` directory for available skills. Verify both themes (Studio Light / Spark Dark) per docs/design/README.md before finishing.
 
 ## Notes
 

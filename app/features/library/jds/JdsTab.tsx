@@ -11,7 +11,7 @@ export function JdsTab() {
   const t = useTranslations("library.tab");
 
   return (
-    // Tier 1 (docs/LOADING_CHOREOGRAPHY.md): header + the ledger cascade in as this
+    // Tier 1 (docs/design/loading-choreography.md): header + the ledger cascade in as this
     // section's direct children. The ledger owns its own fetch (useJdLibrary lives
     // inside LibrarySavedJdsLedger), so aria-busy for the first load sits there,
     // right where that fetch does, rather than being threaded up through a prop.

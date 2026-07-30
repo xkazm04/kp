@@ -155,7 +155,7 @@ export function reduceBillingEvent(event: BillingEvent, products: ProductMap): B
       // Grant only on the PAID signal: Polar fires order.created before the
       // payment is captured — crediting there would hand out minutes for an
       // order that may never settle. Subscribing to order.paid is part of the
-      // endpoint checklist (docs/BILLING.md).
+      // endpoint checklist (docs/features/billing/README.md).
       if (event.type === "order.paid") {
         return {
           kind: "grant_credits",

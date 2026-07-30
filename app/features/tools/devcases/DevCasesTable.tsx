@@ -34,7 +34,7 @@ export function CasesTable({
   onDefine: () => void;
 }) {
   const rel = useRelativeTime();
-  // Tier 2 (docs/LOADING_CHOREOGRAPHY.md): useLoader's `data` starts as `[]`, so
+  // Tier 2 (docs/design/loading-choreography.md): useLoader's `data` starts as `[]`, so
   // an empty list is ambiguous between "still loading" and "genuinely no cases
   // yet" — `state.lastUpdated` disambiguates. Never loaded + healthy: hold the
   // table's height, invisibly, rather than jumping straight to the empty state.

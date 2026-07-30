@@ -32,7 +32,7 @@ PROVIDER_CAPABILITIES: dict[str, frozenset[str]] = {
     "openrouter": frozenset({CAP_JSON}),
 }
 
-# The use-case catalog (docs/LLM_PROVIDER_LAYER.md). Unknown use cases default
+# The use-case catalog (docs/architecture/llm-provider-layer.md). Unknown use cases default
 # to {json} so new text call sites work without touching this file; the rows
 # here exist to (a) gate multimodal/grounded cases and (b) document the set.
 USE_CASE_REQUIREMENTS: dict[str, frozenset[str]] = {

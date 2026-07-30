@@ -10,7 +10,7 @@ import { labelize } from "@/app/_lib/format";
 import type { LlmConfigRow } from "@/app/_lib/db";
 import { ModelsRoutingRow } from "./ModelsRoutingRow";
 
-// Tier 3 (docs/LOADING_CHOREOGRAPHY.md): the three panels below the routing
+// Tier 3 (docs/design/loading-choreography.md): the three panels below the routing
 // table are secondary — nobody opens Models to read the usage ledger first. They
 // get their own chunks so the tab's first paint carries the routing table alone,
 // and each mounts an idle beat later via <Defer> instead of piling onto the same
@@ -30,7 +30,7 @@ const UsagePanel = dynamic(() => import("./ModelsUsagePanel").then((m) => ({ def
   loading: chunkGap("min-h-[12rem]"),
 });
 
-// Models tab — the LLM provider layer's admin surface (docs/LLM_PROVIDER_LAYER.md):
+// Models tab — the LLM provider layer's admin surface (docs/architecture/llm-provider-layer.md):
 // pin a provider/model per use case (rows in GET /api/llm/config are EXPLICIT
 // pins; a use case without a row runs the built-in default, Claude CLI locally)
 // and manage the write-only provider key store. The "*" use case is the

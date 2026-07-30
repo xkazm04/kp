@@ -12,7 +12,7 @@ import { useJdBuilderLogic } from "./jdsBuilderLogic";
 import { JdsBuilderChecklist } from "./JdsBuilderChecklist";
 import { Field, JdsBuilderFieldsGrid } from "./JdsBuilderFields";
 
-// Tier 3 (docs/LOADING_CHOREOGRAPHY.md): the template manager only mounts once
+// Tier 3 (docs/design/loading-choreography.md): the template manager only mounts once
 // "Manage" is clicked — it never rides the builder's own entry payload.
 const JdTemplateManager = dynamic(() => import("./JdsTemplateManager").then((m) => ({ default: m.JdTemplateManager })), {
   loading: () => <div className="reveal-quiet min-h-[16rem]" aria-hidden />,

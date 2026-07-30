@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
   const gateway = polarGatewayFromEnv();
   if (!gateway) {
     return NextResponse.json(
-      { error: "Billing is not configured (set POLAR_ACCESS_TOKEN — see docs/BILLING.md)." },
+      { error: "Billing is not configured (set POLAR_ACCESS_TOKEN — see docs/features/billing/README.md)." },
       { status: 503 }
     );
   }

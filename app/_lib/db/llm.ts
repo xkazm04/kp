@@ -2,7 +2,7 @@ import { readFileSync, rmSync } from "node:fs";
 import { parseLedgerLine, type LlmUsageInput } from "../llm-usage-ledger";
 import { ensureDb, safeRowParse } from "./core";
 
-// ---- Multi-provider LLM layer (docs/LLM_PROVIDER_LAYER.md) -----------------
+// ---- Multi-provider LLM layer (docs/architecture/llm-provider-layer.md) -----------------
 // Plain row accessors only; validation, key encryption, and KP_LLM_CONFIG
 // assembly live in llm-config.ts so this file stays a dumb store.
 

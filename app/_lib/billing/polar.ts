@@ -8,7 +8,7 @@
 // POLAR_PRODUCT_STARTER / _GROWTH / _BYOM / _MINUTE_PACK.
 //
 // NOTE: field mapping below follows Polar's documented payloads; validate the
-// end-to-end flow against the SANDBOX before going live (docs/BILLING.md has
+// end-to-end flow against the SANDBOX before going live (docs/features/billing/README.md has
 // the checklist) — mapPolarEvent reads defensively on purpose.
 
 import { BillingConfigError } from "./gateway";

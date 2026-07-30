@@ -690,7 +690,7 @@ async function runCodeReview(
   // Documented only for paths where the review actually assembles evidence; the
   // disabled / no-repos branches read nothing, so they advertise no basis.
   const evidenceBasis = describeEvidenceBasis();
-  // Key resolution follows the app's documented layering (docs/LLM_PROVIDER_LAYER.md,
+  // Key resolution follows the app's documented layering (docs/architecture/llm-provider-layer.md,
   // resolveProviderKey): UI-entered BYOM key row → platform key row → env var
   // (GEMINI_API_KEY, then GOOGLE_API_KEY). This route used to read only the env
   // vars, so a workspace running purely on a BYOM Gemini key silently got the

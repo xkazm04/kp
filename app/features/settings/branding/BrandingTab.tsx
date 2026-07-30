@@ -10,7 +10,7 @@ import { CORAL } from "@/app/_lib/brand";
 import { accentIsLegible, isBrandFormDirty, normalizeHex6, type BrandConfig, type BrandFormValues } from "@/app/_lib/brand-config";
 import { BrandingEditorForm } from "./BrandingEditorForm";
 
-// Tier 3 (docs/LOADING_CHOREOGRAPHY.md): the live preview panel is secondary to
+// Tier 3 (docs/design/loading-choreography.md): the live preview panel is secondary to
 // the editor form, so it gets its own chunk and mounts a beat later via <Defer>.
 const BrandPreview = dynamic(() => import("./BrandingPreview").then((m) => ({ default: m.BrandPreview })), {
   loading: () => <div className="reveal-quiet min-h-[14rem]" aria-hidden />,

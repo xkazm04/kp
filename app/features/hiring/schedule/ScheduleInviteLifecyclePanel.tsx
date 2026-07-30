@@ -47,7 +47,7 @@ export function InviteLifecyclePanel() {
   if (invites === null) {
     // Fetch in flight, nothing to show yet: hold this panel's rough height and
     // stay invisible for 150ms so a fast response never flashes a placeholder
-    // (docs/LOADING_CHOREOGRAPHY.md, tier 2 — no skeletons, no pulse).
+    // (docs/design/loading-choreography.md, tier 2 — no skeletons, no pulse).
     return <div className="reveal-quiet min-h-[4rem]" aria-hidden />;
   }
   if (invites.length === 0) return null;

@@ -10,5 +10,5 @@ Because the harness GENERATES the speech from known text, it knows the ground tr
 ASR fidelity (word error rate) a deterministic, gateable number that no text test and no human
 vibecheck can produce.
 
-Design: docs/VOICE_INTERVIEW_TEST_FRAMEWORK.md §9.
+Design: docs/development/voice-interview-testing.md §9.
 """

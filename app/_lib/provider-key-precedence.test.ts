@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { resolveProviderApiKey, type ProviderKeyRowLike } from "./provider-key-precedence.ts";
 
-// The documented key layering (docs/LLM_PROVIDER_LAYER.md; buildLlmConfigEnv):
+// The documented key layering (docs/architecture/llm-provider-layer.md; buildLlmConfigEnv):
 // UI-entered 'byom' row → 'platform' row → provider env var(s), first-set-wins.
 
 const decrypt = (ciphertext: string) => ciphertext.replace(/^enc:/, "");

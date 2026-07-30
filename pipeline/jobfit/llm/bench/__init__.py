@@ -4,7 +4,7 @@ Compares providers/models per use case on SEEDED data (driving the REAL
 production functions) so the default models in capabilities.py are picked from
 measurements, not vibes. Spends provider tokens — never wired into CI. Run via
 ``bench_cli`` (the runnable example + flags live in its docstring); see
-``docs/LLM_PROVIDER_LAYER.md`` for the wider design.
+``docs/architecture/llm-provider-layer.md`` for the wider design.
 """
 
 from .runner import BenchRecord, BenchTarget, run_matrix, summarize, to_markdown, write_outputs

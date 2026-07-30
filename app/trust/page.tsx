@@ -3,7 +3,7 @@ import { TrustContent } from "./TrustContent";
 
 /*
  * /trust — the compliance posture board (W0.5). The internal conformity pack
- * (docs/AI_ACT_CONFORMITY.md) carries file:line evidence and a gap register; this is its
+ * (docs/features/compliance/ai-act-conformity.md) carries file:line evidence and a gap register; this is its
  * readable projection: article-by-article posture, subprocessors, data handling, and the
  * disclaimer that refuses to claim certified conformance.
  *

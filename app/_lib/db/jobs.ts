@@ -76,7 +76,7 @@ export function saveJd(input: SaveJdInput, workspaceId: string = DEFAULT_WORKSPA
 // Backgrounded AI generation writers. The generate route inserts a placeholder JD
 // up front (analysis_status='analyzing', empty body) so it appears in the Ledger
 // immediately; the detached jd_build handler then flips it to ready/failed — which
-// is why the JD survives the user navigating away (see docs/JD_LIFECYCLE.md).
+// is why the JD survives the user navigating away (see docs/features/jobs/README.md).
 
 /** Create the up-front placeholder for a backgrounded build. `options` (the ticked
  *  checklist) is stashed in analysis_json so the row knows what was requested even

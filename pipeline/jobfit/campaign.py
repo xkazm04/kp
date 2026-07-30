@@ -18,7 +18,7 @@ Honesty contract (stricter than the marketing genre it imitates):
 
 Mirrors the automation.py task pattern: ClaudeCliProvider when available, a
 deterministic builder otherwise, coerce() validating the LLM result at the
-trust boundary. See docs/ERIKA_GAP_BACKLOG.md (E1).
+trust boundary. See docs/features/jobs/README.md (E1).
 """
 
 from __future__ import annotations

@@ -8,7 +8,7 @@
 // resolve, so the enum must NOT live there.
 //
 // THREE mutually-exclusive, self-describing terminal states (full rationale in
-// docs/COMMS_DELIVERY.md):
+// docs/features/comms/README.md):
 //
 //   queued — recorded in the local outbox because NO relay is configured
 //            (COMMS_WEBHOOK_URL unset). This is a *terminal dev state*, NOT a
