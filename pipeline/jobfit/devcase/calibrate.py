@@ -14,10 +14,13 @@ It reuses the existing lifecycle machinery wholesale — the ``_check_*`` valida
      ``devcase_cli``), so it calibrates the real production engine, not the raw CLI
      default ``lifecycle_eval`` uses.
 
-The automated ``--judge`` runs on the SAME engine that generated the case (a
-self-grading blind spot — see the tiger audit). The calibration-grade judgment is
-done by a HIGHER-vantage judge (Claude Opus, out of band) reading the per-case JSON
-this writes; the automated scores are a cheap breadth signal, not the gate's heart.
+The automated ``--judge`` now runs on the ``devcase_judge`` seat
+(``llm_judge.resolve_judge_provider``), so ``KP_LLM_CONFIG`` can pin a different model
+than the one that generated the case; the run reports ``judgeIndependence`` and, when
+both seats resolve to the same engine, says so rather than passing the self-grade off
+as a verdict. The calibration-grade judgment is still done by a HIGHER-vantage judge
+(Claude Opus, out of band) reading the per-case JSON this writes; the automated scores
+are a cheap breadth signal, not the gate's heart.
 
     python -m pipeline.jobfit.devcase.calibrate --count 12 --judge        # pilot
     python -m pipeline.jobfit.devcase.calibrate --count 100 --judge --strict --freeze
@@ -42,6 +45,7 @@ from ..llm import resolve_provider
 from .analyze import ANALYZE_NEED_PROMPT_VERSION, analyze_need
 from .design import CASE_DESIGN_PROMPT_VERSION, ROLE_DESIGN_PROMPT_VERSION, design_case, design_role
 from .lifecycle_audits import judge as judge_artifacts, quality_summary, role_fit_verdicts
+from .llm_judge import judge_independence, resolve_judge_provider
 from .lifecycle_eval import Row, _check_analysis, _check_case, _check_role, signals
 from .models import NeedAnalysis
 from .provenance import collect_fallback_reasons, combine_source
@@ -351,15 +355,27 @@ def main(argv: list[str] | None = None) -> int:
     sig = signals(rows)
 
     qual = None
+    independence = None
     role_fit = {"rate": None, "judged": 0, "total": 0, "verdicts": []}
     if args.judge:
         if case_provider is None:
             sys.stderr.write("calibrate: --judge needs the Claude CLI; skipping judged metrics\n")
         else:
             done = [r for r in rows if r.source != "error" and r.case]
-            judge_artifacts(rows, case_provider, workers=args.workers)
+            # Judge seat resolved separately from the case generator — see llm_judge.py.
+            judge_provider = resolve_judge_provider()
+            if not judge_provider.available():
+                sys.stderr.write("calibrate: devcase_judge provider unavailable -> judging with the generator (NOT independent)\n")
+                judge_provider = case_provider
+            independence = judge_independence(case_provider, judge_provider)
+            if not independence["independent"]:
+                sys.stderr.write(
+                    f"calibrate: SELF-GRADING — judge {independence['judge']} == generator {independence['generator']}; "
+                    "the judged metrics below share the generator's blind spots\n"
+                )
+            judge_artifacts(rows, judge_provider, workers=args.workers)
             qual = quality_summary(rows)
-            verdicts = role_fit_verdicts(done, case_provider, workers=args.workers)
+            verdicts = role_fit_verdicts(done, judge_provider, workers=args.workers)
             judged = [v for v in verdicts if v["matchesRole"] is not None]
             rate = round(sum(1 for v in judged if v["matchesRole"]) / len(judged), 3) if judged else None
             role_fit = {"rate": rate, "judged": len(judged), "total": len(done), "verdicts": verdicts}
@@ -367,7 +383,7 @@ def main(argv: list[str] | None = None) -> int:
     passed, reasons = evaluate_gate(sig, role_fit["rate"], qual, judged=args.judge and case_provider is not None)
 
     (OUT_DIR / "judge_report.json").write_text(
-        json.dumps({"signals": sig, "quality": qual, "roleFit": role_fit}, ensure_ascii=False, indent=2), encoding="utf-8"
+        json.dumps({"signals": sig, "quality": qual, "roleFit": role_fit, "judgeIndependence": independence}, ensure_ascii=False, indent=2), encoding="utf-8"
     )
     report_md = _report_md(rows, sig, role_fit, qual, passed, reasons)
     (OUT_DIR / "JUDGE_REPORT.md").write_text(report_md, encoding="utf-8")

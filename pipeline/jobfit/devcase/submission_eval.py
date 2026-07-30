@@ -43,7 +43,7 @@ from typing import Any
 from .._cli import configure_stdio
 from ..claude_cli import ClaudeCliProvider
 from .evaluate import evaluate_submission, score_transfer
-from .llm_judge import run_judge
+from .llm_judge import judge_independence, resolve_judge_provider, run_judge
 from .models import RUBRIC_DIMENSIONS
 from .provenance import SOURCE_DETERMINISTIC, collect_fallback_reasons, combine_source
 from .reflect import assess_tooling, reflect_commits
@@ -395,7 +395,7 @@ def _quality_summary(rows: list[Row]) -> dict[str, Any]:
     }
 
 
-def _report_md(rows: list[Row], sig: dict, qual: dict | None) -> str:
+def _report_md(rows: list[Row], sig: dict, qual: dict | None, independence: dict | None = None) -> str:
     f = sig["fairness"]
     d = sig["discrimination"]
     L = [
@@ -448,6 +448,17 @@ def _report_md(rows: list[Row], sig: dict, qual: dict | None) -> str:
         L.append(f"- mean quality: {qual.get('mean')} · fair-to-AI-use rate: {qual.get('fair_to_ai_use_rate')}")
         for n in qual.get("unfair_notes", []):
             L.append(f"- UNFAIR: {n}")
+    if independence is not None:
+        L.append(
+            f"- judge seat: {independence['judge']} · generator: {independence['generator']} · "
+            f"**independent: {independence['independent']}**"
+        )
+        if not independence["independent"]:
+            L.append(
+                "- > **SELF-GRADING: the judge is the same engine that produced these artifacts**, so this "
+                "quality/fairness reading shares its blind spots and does NOT certify the gate. Pin a different "
+                "model for the `devcase_judge` use case in KP_LLM_CONFIG."
+            )
     return "\n".join(L)
 
 
@@ -473,14 +484,24 @@ def main(argv: list[str] | None = None) -> int:
     rows = run(generate_submissions(args.count, args.domain), provider, workers=args.workers)
     sig = signals(rows)
     qual = None
+    independence = None
     if args.judge and provider is not None:
-        judge(rows, provider, workers=args.workers)
+        # The judge seat is resolved SEPARATELY from the generator (llm_judge.py): a gate
+        # graded by the engine under test is self-grading. If the configured judge is
+        # unavailable we still judge — with the generator, as before — but the reported
+        # independence is False and --strict refuses to certify the run.
+        judge_provider = resolve_judge_provider()
+        if not judge_provider.available():
+            sys.stderr.write("submission_eval: devcase_judge provider unavailable -> judging with the generator (NOT independent)\n")
+            judge_provider = provider
+        independence = judge_independence(provider, judge_provider)
+        judge(rows, judge_provider, workers=args.workers)
         qual = _quality_summary(rows)
 
     if args.json:
-        print(json.dumps({"signals": sig, "quality": qual, "rows": [{"id": r.id, "source": r.source, "reliable": r.reliable, "issues": r.issues, "judgment": r.judgment} for r in rows]}, indent=2, ensure_ascii=False))
+        print(json.dumps({"signals": sig, "quality": qual, "judgeIndependence": independence, "rows": [{"id": r.id, "source": r.source, "reliable": r.reliable, "issues": r.issues, "judgment": r.judgment} for r in rows]}, indent=2, ensure_ascii=False))
     else:
-        print(_report_md(rows, sig, qual))
+        print(_report_md(rows, sig, qual, independence))
 
     if args.strict:
         reasons = []
@@ -497,6 +518,14 @@ def main(argv: list[str] | None = None) -> int:
         for name in ("fairness", "discrimination"):
             if sig[name]["status"] in ("fail", "inconclusive"):
                 reasons.append(f"{name} gate {sig[name]['status']}")
+        # A self-graded quality gate is not a gate. Only enforced when --judge actually
+        # ran: --strict alone certifies the deterministic fairness/discrimination gates,
+        # which need no judge at all.
+        if independence is not None and not independence["independent"]:
+            reasons.append(
+                f"judge is not independent of the generator ({independence['judge']} == {independence['generator']}) "
+                "— pin a different model for the devcase_judge use case"
+            )
         if reasons:
             sys.stderr.write("submission_eval --strict failed: " + "; ".join(reasons) + "\n")
             return 1

@@ -29,6 +29,7 @@ from .._cli import configure_stdio
 from ..claude_cli import ClaudeCliProvider
 from .analyze import analyze_need
 from .design import design_case, design_role
+from .llm_judge import judge_independence, resolve_judge_provider
 from .models import RUBRIC_DIMENSIONS, NeedAnalysis
 from .provenance import collect_fallback_reasons, combine_source
 from .scenarios import DOMAINS, Scenario, generate_mixed, generate_scenarios
@@ -250,16 +251,28 @@ def main(argv: list[str] | None = None) -> int:
 
     scenarios = generate_mixed(args.count) if args.domain == "mixed" else generate_scenarios(args.count, args.domain)
 
+    # The judge seat is resolved SEPARATELY from the generator (llm_judge.py): a gate
+    # graded by the engine that produced the artifacts is self-grading. An unavailable
+    # judge falls back to the generator — as before — but reports independence False.
+    def _judge_seat() -> Any:
+        seat = resolve_judge_provider()
+        if not seat.available():
+            sys.stderr.write("lifecycle_eval: devcase_judge provider unavailable -> judging with the generator (NOT independent)\n")
+            return provider
+        return seat
+
     if args.audit == "role-fit":
         if provider is None:
             sys.stderr.write("lifecycle_eval: --audit role-fit needs the Claude CLI\n")
             return 1
-        res = audit_role_fit(scenarios, provider, workers=args.workers)
+        res = audit_role_fit(scenarios, provider, workers=args.workers, judge_provider=_judge_seat())
         if args.json:
             print(json.dumps(res, indent=2, ensure_ascii=False))
         else:
+            ind = res["independence"]
             print(f"# Role-fit audit\n\nmismatch/incoherent scenarios: {res['subset']} · judged: {res['judged']}")
-            print(f"**role-fit rate: {res['role_fit_rate']}** (tasks match the ROLE's function, not the context's domain)\n")
+            print(f"**role-fit rate: {res['role_fit_rate']}** (tasks match the ROLE's function, not the context's domain)")
+            print(f"judge seat: {ind['judge']} · generator: {ind['generator']} · independent: {ind['independent']}\n")
             for v in res["verdicts"]:
                 mark = "OK " if v["matchesRole"] else ("?? " if v["matchesRole"] is None else "XX ")
                 print(f"- {mark} {v['id']}: {v['note']}")
@@ -268,11 +281,14 @@ def main(argv: list[str] | None = None) -> int:
     rows = run(scenarios, provider, workers=args.workers)
     sig = signals(rows)
     qual = None
+    independence = None
     if args.judge:
         if provider is None:
             sys.stderr.write("lifecycle_eval: --judge needs the Claude CLI; skipping\n")
         else:
-            judge(rows, provider, workers=args.workers)
+            judge_provider = _judge_seat()
+            independence = judge_independence(provider, judge_provider)
+            judge(rows, judge_provider, workers=args.workers)
             qual = quality_summary(rows)
 
     if args.json:
@@ -281,6 +297,7 @@ def main(argv: list[str] | None = None) -> int:
                 {
                     "signals": sig,
                     "quality": qual,
+                    "judgeIndependence": independence,
                     "rows": [
                         {"id": r.id, "label": r.label, "source": r.source, "reliable": r.reliable, "issues": r.issues, "quality": r.quality}
                         for r in rows
@@ -292,11 +309,27 @@ def main(argv: list[str] | None = None) -> int:
         )
     else:
         print(_report_md(rows, sig, qual))
+        if independence is not None:
+            print(
+                f"\n- judge seat: {independence['judge']} · generator: {independence['generator']} · "
+                f"**independent: {independence['independent']}**"
+            )
+            if not independence["independent"]:
+                print(
+                    "- > **SELF-GRADING: the judge is the same engine that produced these artifacts** — this "
+                    "quality reading shares its blind spots. Pin a different model for `devcase_judge`."
+                )
 
     if args.strict:
         reasons = []
         if sig["reliability"] < 1.0:
             reasons.append(f"reliability {sig['reliability']:.0%} < 100%")
+        # A self-graded quality gate is not a gate — enforced only when --judge ran.
+        if independence is not None and not independence["independent"]:
+            reasons.append(
+                f"judge is not independent of the generator ({independence['judge']} == {independence['generator']}) "
+                "— pin a different model for the devcase_judge use case"
+            )
         # The dangerous false-green: a run whose LLM path ERROR-fell-back to the
         # deterministic templates still reports healthy reliability, yet the LLM under
         # test never actually ran — a degraded provider certifying a prompt/model.
