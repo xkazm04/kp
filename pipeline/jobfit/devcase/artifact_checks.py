@@ -176,6 +176,84 @@ def baseline_similarity(baseline: dict | None, seed: dict | None, files: list[di
     return {"available": True, "bestSimilarity": best, "perBaseline": per}
 
 
+# --- submission excerpts (W0.2) ---------------------------------------------
+#
+# The evaluation used to grade a summary of a summary: reflect_commits inferred
+# behaviour from commit METADATA, assess_tooling read that inference, and
+# evaluate_submission scored the two inferences — the candidate's actual work never
+# reached any prompt (tiger devcase#2). The submitted tree was already parsed here for
+# canaries and baseline distance; these excerpts hand the same tree to the graders so a
+# probe verdict can cite a real file instead of the shape of a commit subject.
+#
+# Budgets are deliberate: the whole point is a bounded, highest-signal slice, not the
+# repo. Added lines only (the author's contribution against the seed), biggest
+# contribution first, hard-capped per file and overall.
+
+_EXCERPT_MAX_FILES = 6
+_EXCERPT_MAX_LINES_PER_FILE = 40
+_EXCERPT_MAX_CHARS = 6000
+
+
+def submission_excerpts(
+    seed: dict | None,
+    files: list[dict] | None,
+    *,
+    max_files: int = _EXCERPT_MAX_FILES,
+    max_lines_per_file: int = _EXCERPT_MAX_LINES_PER_FILE,
+    max_chars: int = _EXCERPT_MAX_CHARS,
+) -> list[dict]:
+    """The candidate's own contribution, excerpted for an evaluation prompt.
+
+    One entry per changed file — ``{path, addedLines, addedLineCount, truncated}`` —
+    ordered by how much was contributed, capped at ``max_files`` files /
+    ``max_lines_per_file`` lines each / ``max_chars`` total. Returns ``[]`` when no tree
+    was submitted (repo-link submissions), so every caller stays optional.
+
+    Unlike :func:`baseline_similarity` the decision log is KEPT: there it would let a
+    shared template inflate a similarity score, here it is the candidate's own reasoning
+    and among the most gradable things they wrote.
+
+    The content is candidate-authored and therefore adversarial — callers must fence it
+    (``provenance.fenced_untrusted``) before it enters a prompt.
+    """
+    submitted = _by_path(files)
+    if not submitted:
+        return []
+    seeded = _by_path((seed or {}).get("files"))
+    changed = _delta_paths(submitted, seeded)
+
+    ranked = sorted(
+        ((p, sorted(_added_lines(seeded.get(p, ""), body))) for p, body in changed.items()),
+        key=lambda item: (-len(item[1]), item[0]),
+    )
+
+    out: list[dict] = []
+    budget = max_chars
+    for path, added in ranked:
+        if len(out) >= max_files or budget <= 0:
+            break
+        if not added:
+            continue  # changed only by deletion/whitespace — no contributed line to show
+        kept: list[str] = []
+        for line in added[:max_lines_per_file]:
+            clipped = line[:400]
+            if len(clipped) > budget:
+                break
+            kept.append(clipped)
+            budget -= len(clipped)
+        if not kept:
+            break
+        out.append(
+            {
+                "path": path,
+                "addedLines": kept,
+                "addedLineCount": len(added),
+                "truncated": len(kept) < len(added),
+            }
+        )
+    return out
+
+
 def check_evidence(canaries: list[dict], baseline: dict) -> list[str]:
     """Human-readable lines for the evaluation context / UI."""
     out: list[str] = []

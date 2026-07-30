@@ -411,8 +411,16 @@ def main(argv: list[str] | None = None) -> int:
                 else None
             )
             seed_paths = [str(f["path"]) for f in ((seed_obj or {}).get("files") or []) if isinstance(f, dict) and f.get("path")]
+            # The submitted tree loads HERE (before the graders) rather than beside the
+            # other LLM-era controls below: W0.2 threads the candidate's contributed
+            # lines into assess_tooling as well as evaluate_submission, so probe verdicts
+            # are read off the work instead of inferred from commit-subject shape.
+            files_list = _require_list_of_dicts(json.loads(args.files_json.read_text(encoding="utf-8")), "--files-json") if args.files_json else None
+            from . import artifact_checks as _checks
+
+            submission_work = _checks.submission_excerpts(seed_obj, files_list)
             reflection, rsrc = _reflect.reflect_commits(commits, repo, provider=provider)
-            tooling, tsrc = _reflect.assess_tooling(reflection, commits, probes, repo, events=events, seed_paths=seed_paths or None, provider=provider)
+            tooling, tsrc = _reflect.assess_tooling(reflection, commits, probes, repo, events=events, seed_paths=seed_paths or None, submission=submission_work or None, provider=provider)
             if args.command == "reflect-commits":
                 _emit(
                     {"reflection": reflection, "tooling": tooling},
@@ -428,11 +436,9 @@ def main(argv: list[str] | None = None) -> int:
             # LLM-era controls — assemble the OBSERVED ground-truth checks (all optional;
             # each quietly no-ops on absent inputs): the captured prompt channel, the
             # planted-canary verdicts, and the distance from the one-shot baseline.
-            from . import artifact_checks as _checks
             from . import prompt_signals as _psig
 
             chat_msgs = _require_list_of_dicts(json.loads(args.chat_json.read_text(encoding="utf-8")), "--chat-json") if args.chat_json else []
-            files_list = _require_list_of_dicts(json.loads(args.files_json.read_text(encoding="utf-8")), "--files-json") if args.files_json else None
             baseline_obj = _require_object(json.loads(args.baseline_json.read_text(encoding="utf-8")), "--baseline-json") if args.baseline_json else None
             psig = _psig.derive_prompt_signals(chat_msgs, case) if chat_msgs else None
             canaries = _checks.canary_outcomes(seed_obj, files_list, chat_msgs) if seed_obj else []
@@ -448,7 +454,7 @@ def main(argv: list[str] | None = None) -> int:
             if canaries or basesim.get("available"):
                 extras["checkEvidence"] = _checks.check_evidence(canaries, basesim)
             extras = extras or None
-            evaluation, esrc = _evaluate.evaluate_submission(reflection, tooling, case, role, extras=extras, provider=provider)
+            evaluation, esrc = _evaluate.evaluate_submission(reflection, tooling, case, role, extras=extras, submission=submission_work or None, provider=provider)
             transfer, xsrc = _evaluate.score_transfer(evaluation, role, provider=provider)
             # The interview hand-off: candidate-specific authorship questions minted from
             # THIS submission's observed decisions — the scores above are hypotheses the

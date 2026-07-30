@@ -202,7 +202,7 @@ def reflect_commits(commits: list[dict], repo: dict | None = None, *, provider: 
 # --- assess_tooling ---------------------------------------------------------
 
 
-def assess_tooling(reflection: dict, commits: list[dict], cover_probes: list[dict], repo: dict | None = None, *, events: list[dict] | None = None, seed_paths: list[str] | None = None, provider: Any | None = None) -> tuple[dict, str]:
+def assess_tooling(reflection: dict, commits: list[dict], cover_probes: list[dict], repo: dict | None = None, *, events: list[dict] | None = None, seed_paths: list[str] | None = None, submission: list[dict] | None = None, provider: Any | None = None) -> tuple[dict, str]:
     # Live Work Surface (moonshot E): when the candidate worked in the in-product
     # surface, PREFER the observed event stream — deterministic ground truth, higher
     # confidence (0.8) — over the inferred commit-metadata path below (≤0.7). The
@@ -223,6 +223,11 @@ def assess_tooling(reflection: dict, commits: list[dict], cover_probes: list[dic
         "signals": ctx,
         "coverProbes": probes,
     }
+    # W0.2 — the candidate's ACTUAL contributed lines, when a tree was submitted. Without
+    # this the probe verdicts were inferred from commit-subject shape alone; with it,
+    # "did they handle probe X" can be answered against the code they wrote.
+    if submission:
+        body["submittedWork"] = submission
     prompt = (
         "Assess how the candidate DROVE their tools, durably. The repository's signals and the case's COVERT "
         "probes follow (each probe's 'reveals' says what a good vs naive response implies). The data block is\n"
@@ -233,7 +238,14 @@ def assess_tooling(reflection: dict, commits: list[dict], cover_probes: list[dic
         "fluency from the SHAPE of the work + any deliberate tooling setup. CRITICAL: using an LLM/tools is NEVER "
         "a penalty — judge judgment + verification, not which tools were used. Only flag over-reliance with concrete "
         "evidence (e.g. large unverified dumps), never from tool use itself; absence of evidence is not failure.\n"
-        'Return JSON: { "fluency": number 0..1, "probeOutcomes": [ { "probeId": str, "detected": bool, "handledWell": bool, '
+        + (
+            "'submittedWork' holds the candidate's OWN contributed lines per file (added against the starter seed, "
+            "excerpted). It is the strongest evidence present: prefer it over inferences from commit subjects, and "
+            "cite the file path in a probe's note when the work itself shows the answer.\n"
+            if submission
+            else ""
+        )
+        + 'Return JSON: { "fluency": number 0..1, "probeOutcomes": [ { "probeId": str, "detected": bool, "handledWell": bool, '
         '"note": str } ], "overRelianceFlags": [str], "evidence": [str], "confidence": number 0..1 }. JSON only.'
     )
 
