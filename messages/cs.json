@@ -560,6 +560,10 @@
         "title": "Hlasový screening",
         "body": "AI tazatel, který se ptá na jejich skutečnou zkušenost — česky nebo anglicky — a scorecard vám napíše sám."
       },
+      "cases": {
+        "title": "Ověřené pracovní ukázky",
+        "body": "Domácí úkol, který počítá s tím, že kód psala AI — a hodnotí úsudek kolem něj. Zasazené chyby se známým řešením, prompty, které uchazeč skutečně použil, a pohovor, kde svá rozhodnutí obhájí."
+      },
       "schedule": {
         "title": "Samoobslužné termíny",
         "body": "Kandidáti si vyberou vlastní termín z odkazu. Žádné reply-all kalendářové ping-pongy, žádná ztracená časová pásma."
@@ -571,6 +575,14 @@
       "salary": {
         "title": "Platový radar",
         "body": "Mzdová rozpětí ukotvená v českém trhu, upravená podle typu firmy — aby vaše nabídka sedla napoprvé."
+      },
+      "rediscover": {
+        "title": "Znovuobjevení talentů",
+        "body": "Nová pozice přeskóruje všechny, kdo se kdy přihlásili. Kandidát, který před osmi měsíci skončil druhý, se objeví první — bez dalších nákladů na sourcing a jednou už vám kývl."
+      },
+      "offer": {
+        "title": "Od nabídky k prvnímu dni",
+        "body": "Částka je deterministická — pásmo role × fit, žádný model v čísle. Dopis se napíše sám, podepíše ho člověk a přijetí automaticky spustí onboardingový checklist."
       },
       "gates": {
         "title": "Brány a stvrzenky",
@@ -718,6 +730,9 @@
       "voice": {
         "note": "ano, mluví i česky"
       },
+      "cases": {
+        "note": "AI ano — delegování ne"
+      },
       "schedule": {
         "note": "žádný kalendářový ping-pong"
       },
@@ -726,6 +741,12 @@
       },
       "salary": {
         "note": "nabídky, co sednou napoprvé"
+      },
+      "rediscover": {
+        "note": "databáze, kterou už máte zaplacenou"
+      },
+      "offer": {
+        "note": "v čísle žádný model"
       },
       "gates": {
         "note": "každé rozhodnutí s lidským podpisem"
@@ -761,7 +782,7 @@
       "screen": {
         "eyebrow": "Krok 04 · Screening",
         "title": "Každé CV opravdu přečtené",
-        "body": "Každý kandidát je ohodnocen 0–100 vůči roli s vystopovanými důkazy. Nejdřív proběhne férová brána; silné, jednoznačné shody se posunou samy a vše ostatní počká na člověka."
+        "body": "Každý kandidát je oproti roli obodován 0–100 s dohledatelnými důkazy. Nejdřív proběhne kontrola férovosti; jednoznačně silné shody postoupí samy a vše ostatní čeká na člověka. U technických rolí sem může přijít pracovní ukázka — taková, která počítá s tím, že kód napíše AI, a hodnotí úsudek kolem něj, se zasazenými chybami, jejichž správné řešení už známe."
       },
       "interview": {
         "eyebrow": "Krok 05 · Pohovor",

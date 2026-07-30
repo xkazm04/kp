@@ -6,7 +6,10 @@ import { useTranslations } from "next-intl";
 import {
   Check,
   FileSearch,
+  FileSignature,
+  FlaskConical,
   Gauge,
+  History,
   Inbox,
   Mail,
   Mic,
@@ -27,7 +30,11 @@ import { AMBER, CORAL, CREAM, DISPLAY, HAND, INK, LIMEWASH, MOSS, STEEL } from "
  * click/tap (or Enter) pins it so touch and keyboard users get the same show.
  * Content remounts per preview, so every entrance replays on each peek.
  */
-export type PreviewKey = "score" | "voice" | "schedule" | "inbox" | "salary" | "gates";
+// The grid is the app's shop window, so it has to keep pace with the app. `cases`,
+// `offer` and `rediscover` were shipped features with no card — and `cases` in
+// particular is the one capability no competitor has, sitting invisible behind a
+// "Dev cases" tab. Nine keys also squares the lg:grid-cols-3 layout.
+export type PreviewKey = "score" | "voice" | "cases" | "schedule" | "inbox" | "salary" | "rediscover" | "offer" | "gates";
 
 const pop = (delay: number) => ({
   initial: { opacity: 0, scale: 0.6, y: 14 },
@@ -401,6 +408,120 @@ function GatesPreview() {
   );
 }
 
+/* ── 03 · Verified work-sample cases — the authorship receipt ────── */
+function CasesPreview() {
+  // The differentiator, drawn honestly: the point is NOT "we detect AI", it is that the
+  // case ASSUMES the code is AI-written and grades the judgment around it, with
+  // mechanical checks that have known ground truth.
+  const checks = [
+    { label: "Planted flaw in the seed", verdict: "caught & fixed", color: MOSS },
+    { label: "Second planted flaw", verdict: "shipped untouched", color: CORAL },
+    { label: "Distance from a bare one-shot", verdict: "0.38 — own work visible", color: MOSS }
+  ];
+  return (
+    <div>
+      <div className="flex items-center justify-between">
+        <p className="text-[15px] font-bold">Take-home · authorship checks</p>
+        <motion.span
+          {...stamp(0.2)}
+          className="rounded-full border-[3px] border-[#17202a] px-3 py-1 text-sm font-extrabold uppercase tracking-wide text-white shadow-[2px_2px_0_#17202a]"
+          style={{ background: MOSS }}
+        >
+          AI allowed
+        </motion.span>
+      </div>
+      <div className="mt-4 space-y-3">
+        {checks.map((c, i) => (
+          <motion.div
+            key={c.label}
+            initial={{ opacity: 0, x: -18 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.3 + i * 0.14, type: "spring", bounce: 0.4 }}
+            className="flex items-center justify-between gap-3 rounded-xl border-[3px] border-[#17202a] bg-white p-3 shadow-[3px_3px_0_#17202a]"
+          >
+            <p className="text-[15px] font-semibold">{c.label}</p>
+            <span className="whitespace-nowrap text-sm font-extrabold" style={{ color: c.color }}>
+              {c.verdict}
+            </span>
+          </motion.div>
+        ))}
+      </div>
+      <motion.p {...pop(0.75)} className={`${HAND} mt-4 text-base`} style={{ color: STEEL }}>
+        Then the interview asks them to defend the two decisions they actually made.
+      </motion.p>
+    </div>
+  );
+}
+
+/* ── 07 · Talent rediscovery — the pool you already paid for ─────── */
+function RediscoverPreview() {
+  const hits = [
+    { name: "Marek D.", why: "Applied 8 months ago · now matches 91", color: MOSS },
+    { name: "Lucie H.", why: "Silver medallist, Backend II · matches 84", color: AMBER }
+  ];
+  return (
+    <div>
+      <p className="text-[15px] font-bold">New role opened · 2 people you already know</p>
+      <div className="mt-4 space-y-3">
+        {hits.map((h, i) => (
+          <motion.div
+            key={h.name}
+            {...pop(0.3 + i * 0.16)}
+            className="rounded-xl border-[3px] border-[#17202a] bg-white p-3.5 shadow-[3px_3px_0_#17202a]"
+          >
+            <p className="text-[15px] font-bold">{h.name}</p>
+            <p className="text-sm font-semibold" style={{ color: h.why.includes("91") ? MOSS : AMBER }}>
+              {h.why}
+            </p>
+          </motion.div>
+        ))}
+      </div>
+      <motion.p {...pop(0.7)} className={`${HAND} mt-4 text-base`} style={{ color: STEEL }}>
+        No new sourcing spend — and they already said yes to you once.
+      </motion.p>
+    </div>
+  );
+}
+
+/* ── 08 · Offer to onboarded — the last mile ─────────────────────── */
+function OfferPreview() {
+  const steps = [
+    { label: "Offer figure", detail: "band × fit · no model in the number", done: true },
+    { label: "Letter drafted, human signs", detail: "sent as a secure link", done: true },
+    { label: "Accepted", detail: "candidate flips to Hired", done: true },
+    { label: "Onboarding fired", detail: "checklist + pre-boarding form", done: false }
+  ];
+  return (
+    <div>
+      <p className="text-[15px] font-bold">Petr K. · offer → day one</p>
+      <div className="mt-4 space-y-2.5">
+        {steps.map((s, i) => (
+          <motion.div
+            key={s.label}
+            initial={{ opacity: 0, x: -16 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.28 + i * 0.13, type: "spring", bounce: 0.4 }}
+            className="flex items-center gap-3 rounded-xl border-[3px] border-[#17202a] bg-white p-3 shadow-[3px_3px_0_#17202a]"
+          >
+            <span
+              className="grid h-7 w-7 shrink-0 place-items-center rounded-full border-[3px] border-[#17202a]"
+              style={{ background: s.done ? MOSS : AMBER }}
+            >
+              <Check className="h-3.5 w-3.5 text-white" />
+            </span>
+            <div>
+              <p className="text-[15px] font-bold">{s.label}</p>
+              <p className="text-sm" style={{ color: STEEL }}>
+                {s.detail}
+              </p>
+            </div>
+          </motion.div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /* ── Registry + spotlight modal ─────────────────────────────────── */
 type PreviewDef = {
   icon: ComponentType<{ className?: string; style?: React.CSSProperties }>;
@@ -414,9 +535,12 @@ type PreviewDef = {
 export const PREVIEWS: Record<PreviewKey, PreviewDef> = {
   score: { icon: FileSearch, Body: ScorePreview },
   voice: { icon: Mic, Body: VoicePreview },
+  cases: { icon: FlaskConical, Body: CasesPreview },
   schedule: { icon: Check, Body: SchedulePreview },
   inbox: { icon: Inbox, Body: InboxPreview },
   salary: { icon: Gauge, Body: SalaryPreview },
+  rediscover: { icon: History, Body: RediscoverPreview },
+  offer: { icon: FileSignature, Body: OfferPreview },
   gates: { icon: ShieldCheck, Body: GatesPreview }
 };
 

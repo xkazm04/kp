@@ -560,6 +560,10 @@
         "title": "Sprach-Screening",
         "body": "Ein AI-Interviewer, der nach der tatsächlichen Erfahrung fragt — auf Tschechisch oder Englisch — und die Scorecard für Sie schreibt."
       },
+      "cases": {
+        "title": "Geprüfte Arbeitsproben",
+        "body": "Eine Aufgabe, die davon ausgeht, dass der Code von einer KI stammt — und das Urteilsvermögen drumherum bewertet. Eingebaute Fehler mit bekannter Lösung, die tatsächlich genutzten Prompts und ein Interview, in dem eigene Entscheidungen verteidigt werden."
+      },
       "schedule": {
         "title": "Selbstbuchung",
         "body": "Kandidaten wählen ihren Termin selbst über einen Link. Kein Kalender-Pingpong per Antwort-an-alle, kein Zeitzonen-Chaos."
@@ -571,6 +575,14 @@
       "salary": {
         "title": "Gehalts-Radar",
         "body": "Marktbasierte Gehaltsbänder für den tschechischen Markt, angepasst an den Unternehmenstyp — damit Ihr Angebot gleich beim ersten Mal sitzt."
+      },
+      "rediscover": {
+        "title": "Talente wiederentdecken",
+        "body": "Eine neue Stelle bewertet alle früheren Bewerbungen neu. Die Zweitplatzierte von vor acht Monaten erscheint zuerst — ohne neues Sourcing-Budget, und sie hat Ihnen schon einmal zugesagt."
+      },
+      "offer": {
+        "title": "Vom Angebot zum ersten Tag",
+        "body": "Die Zahl ist deterministisch — Rollenband × Passung, kein Modell in der Summe. Das Schreiben entsteht von selbst, ein Mensch unterschreibt, und die Zusage startet die Onboarding-Checkliste."
       },
       "gates": {
         "title": "Freigaben & Nachweise",
@@ -718,6 +730,9 @@
       "voice": {
         "note": "ja, es spricht auch Tschechisch"
       },
+      "cases": {
+        "note": "KI ja — Delegieren nein"
+      },
       "schedule": {
         "note": "kein Kalender-Pingpong"
       },
@@ -726,6 +741,12 @@
       },
       "salary": {
         "note": "Angebote, die gleich sitzen"
+      },
+      "rediscover": {
+        "note": "der Pool, den Sie schon bezahlt haben"
+      },
+      "offer": {
+        "note": "kein Modell in der Zahl"
       },
       "gates": {
         "note": "jede Entscheidung trägt eine menschliche Unterschrift"
@@ -761,7 +782,7 @@
       "screen": {
         "eyebrow": "Schritt 04 · Screening",
         "title": "Jeder Lebenslauf, wirklich gelesen",
-        "body": "Jeder Kandidat wird mit 0–100 gegen die Stelle bewertet, mit nachverfolgten Nachweisen. Zuerst läuft ein Fairness-Gate; starke, offensichtliche Matches werden von selbst weitergeleitet, alles andere wird für einen Menschen zurückgehalten."
+        "body": "Jede Bewerbung wird mit nachvollziehbaren Belegen von 0–100 gegen die Rolle bewertet. Zuerst läuft eine Fairness-Prüfung; eindeutig starke Treffer rücken selbst vor, alles andere wartet auf einen Menschen. Für technische Rollen kann hier eine Arbeitsprobe rausgehen — eine, die davon ausgeht, dass der Code von einer KI stammt, und das Urteilsvermögen drumherum bewertet, mit eingebauten Fehlern, deren richtige Antwort wir bereits kennen."
       },
       "interview": {
         "eyebrow": "Schritt 05 · Interview",

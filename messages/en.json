@@ -560,6 +560,10 @@
         "title": "Voice screening",
         "body": "An AI interviewer that asks about their actual experience — in Czech or English — and writes the scorecard for you."
       },
+      "cases": {
+        "title": "Verified work samples",
+        "body": "A take-home that assumes the code is AI-written — and grades the judgment around it. Planted flaws with known answers, the prompts they actually used, and an interview that asks them to defend their own decisions."
+      },
       "schedule": {
         "title": "Self-scheduling",
         "body": "Candidates pick their own slot from a link. No reply-all calendar tennis, no ghosted timezones."
@@ -571,6 +575,14 @@
       "salary": {
         "title": "Salary radar",
         "body": "Market-grounded salary bands for the Czech market, adjusted to company type — so your offer lands the first time."
+      },
+      "rediscover": {
+        "title": "Talent rediscovery",
+        "body": "A new role re-scores everyone who ever applied. The silver medallist from eight months ago surfaces first — no fresh sourcing spend, and they already said yes to you once."
+      },
+      "offer": {
+        "title": "Offer to day one",
+        "body": "The figure is deterministic — role band × fit, no model in the number. The letter drafts itself, a person signs it, and accepting fires the onboarding checklist automatically."
       },
       "gates": {
         "title": "Gates & receipts",
@@ -718,6 +730,9 @@
       "voice": {
         "note": "yes, it speaks Czech too"
       },
+      "cases": {
+        "note": "AI allowed — delegation isn't"
+      },
       "schedule": {
         "note": "no calendar tennis"
       },
@@ -726,6 +741,12 @@
       },
       "salary": {
         "note": "offers that land first time"
+      },
+      "rediscover": {
+        "note": "the pool you already paid for"
+      },
+      "offer": {
+        "note": "no model in the number"
       },
       "gates": {
         "note": "every call gets a human signature"
@@ -761,7 +782,7 @@
       "screen": {
         "eyebrow": "Step 04 · Screen",
         "title": "Every CV, read for real",
-        "body": "Each candidate is scored 0–100 against the role with the evidence traced. A fairness gate runs first; strong, obvious matches advance themselves and everything else is held for a human."
+        "body": "Each candidate is scored 0–100 against the role with the evidence traced. A fairness gate runs first; strong, obvious matches advance themselves and everything else is held for a human. For technical roles a work-sample case can go out here — one that assumes the code will be AI-written and grades the judgment around it, with planted flaws whose right answer we already know."
       },
       "interview": {
         "eyebrow": "Step 05 · Interview",

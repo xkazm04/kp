@@ -9,7 +9,10 @@ import {
   CalendarCheck,
   Eye,
   FileSearch,
+  FileSignature,
+  FlaskConical,
   Gauge,
+  History,
   Inbox,
   Languages,
   Mic,
@@ -45,13 +48,20 @@ const STEPS = [
   { key: "call", color: "#526b4f" }
 ] as const;
 
+// Nine cards, three clean rows — and, more to the point, the grid now matches the app.
+// `cases` (verified work-sample), `rediscover` and `offer` were all shipped and all
+// missing from the shop window; `cases` sits third rather than last because it is the
+// capability nobody else sells, not an afterthought.
 const FEATURES = [
   { icon: FileSearch, rotate: -1.5, preview: "score" },
   { icon: Mic, rotate: 1, preview: "voice" },
-  { icon: CalendarCheck, rotate: -1, preview: "schedule" },
-  { icon: Inbox, rotate: 1.5, preview: "inbox" },
-  { icon: Gauge, rotate: -1.5, preview: "salary" },
-  { icon: ShieldCheck, rotate: 1, preview: "gates" }
+  { icon: FlaskConical, rotate: -1, preview: "cases" },
+  { icon: CalendarCheck, rotate: 1.5, preview: "schedule" },
+  { icon: Inbox, rotate: -1.5, preview: "inbox" },
+  { icon: Gauge, rotate: 1, preview: "salary" },
+  { icon: History, rotate: -1, preview: "rediscover" },
+  { icon: FileSignature, rotate: 1.5, preview: "offer" },
+  { icon: ShieldCheck, rotate: -1.5, preview: "gates" }
 ] as const satisfies ReadonlyArray<{ icon: typeof FileSearch; rotate: number; preview: PreviewKey }>;
 
 // Responsible-AI pillars (UAT B2): the public compliance story a regulated buyer

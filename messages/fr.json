@@ -560,6 +560,10 @@
         "title": "Présélection vocale",
         "body": "Un intervieweur AI qui interroge sur l'expérience réelle du candidat — en tchèque ou en anglais — et rédige la scorecard à votre place."
       },
+      "cases": {
+        "title": "Travaux vérifiés",
+        "body": "Un exercice qui présuppose que le code vient d'une IA — et qui évalue le jugement autour. Des défauts implantés dont la réponse est connue, les prompts réellement utilisés, et un entretien où le candidat défend ses propres décisions."
+      },
       "schedule": {
         "title": "Rendez-vous en libre-service",
         "body": "Les candidats choisissent leur créneau depuis un lien. Fini le ping-pong d'agendas, fini les fuseaux horaires ignorés."
@@ -571,6 +575,14 @@
       "salary": {
         "title": "Radar des salaires",
         "body": "Des fourchettes de salaire ancrées dans le marché tchèque, ajustées au type d'entreprise — pour que votre offre soit la bonne du premier coup."
+      },
+      "rediscover": {
+        "title": "Redécouverte de talents",
+        "body": "Un nouveau poste réévalue toutes les candidatures passées. Le second d'il y a huit mois remonte en tête — sans budget de sourcing supplémentaire, et il vous avait déjà dit oui."
+      },
+      "offer": {
+        "title": "De l'offre au premier jour",
+        "body": "Le montant est déterministe — fourchette du poste × adéquation, aucun modèle dans le chiffre. La lettre se rédige seule, une personne la signe, et l'acceptation déclenche la checklist d'onboarding."
       },
       "gates": {
         "title": "Contrôles et justificatifs",
@@ -718,6 +730,9 @@
       "voice": {
         "note": "oui, il parle aussi tchèque"
       },
+      "cases": {
+        "note": "l'IA oui, la délégation non"
+      },
       "schedule": {
         "note": "fini le ping-pong d'agendas"
       },
@@ -726,6 +741,12 @@
       },
       "salary": {
         "note": "des offres qui font mouche du premier coup"
+      },
+      "rediscover": {
+        "note": "le vivier déjà payé"
+      },
+      "offer": {
+        "note": "aucun modèle dans le chiffre"
       },
       "gates": {
         "note": "chaque décision reçoit une signature humaine"
@@ -761,7 +782,7 @@
       "screen": {
         "eyebrow": "Étape 04 · Présélection",
         "title": "Chaque CV, lu pour de vrai",
-        "body": "Chaque candidat est noté de 0 à 100 face au poste, preuves à l'appui. Un contrôle d'équité s'exécute en premier ; les correspondances fortes et évidentes avancent d'elles-mêmes, tout le reste est mis en attente pour un humain."
+        "body": "Chaque candidature est notée de 0 à 100 face au poste, preuves à l'appui. Un contrôle d'équité passe en premier ; les correspondances nettes avancent seules et tout le reste attend un humain. Pour les postes techniques, un exercice pratique peut partir d'ici — un exercice qui présuppose que le code viendra d'une IA et qui évalue le jugement autour, avec des défauts implantés dont nous connaissons déjà la bonne réponse."
       },
       "interview": {
         "eyebrow": "Étape 05 · Entretien",
