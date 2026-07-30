@@ -42,6 +42,16 @@ export function AnalyticsHeader({
             </button>
           ))}
         </div>
+        {/* W0.4 — the metric pack. The four numbers a buyer asks for (time-to-hire,
+            cost-per-hire, recruiter hours saved, roles per recruiter) as one page, each
+            carrying its sample and whether it is publishable. A plain link, not a fetch:
+            the route streams the Markdown as a download. */}
+        <a
+          href={`/api/analytics/metric-pack?format=md${days ? `&days=${days}` : ""}`}
+          className="focus-ring mt-3 inline-flex items-center gap-1.5 rounded-full border border-stone-200 px-3 py-1 text-sm font-semibold text-steel transition-colors hover:border-coral/40 hover:text-coral"
+        >
+          {t("metricPackDownload")}
+        </a>
       </div>
 
       {/* Tier 2: nested inside the (always-rendering) header — quiet reserved

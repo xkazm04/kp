@@ -4041,6 +4041,7 @@
     "windowLabel": "Zeitfenster",
     "windowAll": "Gesamt",
     "windowDays": "Letzte {days} Tage",
+    "metricPackDownload": "Kennzahlen-Paket herunterladen",
     "deltaPts": "{sign}{n} Pkt.",
     "deltaDays": "{sign}{n} T",
     "deltaFlat": "•",
