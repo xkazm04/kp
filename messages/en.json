@@ -2437,8 +2437,7 @@
       "saved": "Saved",
       "gatedMoved": "Verdict recorded — moved to the Decisions queue.",
       "saveFailed": "Couldn't save the scorecard.",
-      "saveFailedStatus": "Save failed ({status}).",
-      "genericRubricNote": "Generic rubric — this candidate has no role family, so the industry-specific axes aren't included. You're scoring the base rubric only."
+      "saveFailedStatus": "Save failed ({status})."
     },
     "prep": {
       "title": "Interview prep · {name}",
@@ -5515,5 +5514,9 @@
       "weak": "Only {loadBearing} of {total} probes are load-bearing — most won't separate strong from naive.",
       "none": "No load-bearing probes — this case can't tell a strong submission from a naive one."
     }
+  },
+  "rubricCoverage": {
+    "no_family": "Generic rubric — no role family is set for this candidate, so the industry-specific axes (clinical judgment, safety, scientific rigor…) could not be added. You're scoring the base rubric only.",
+    "family_unrecognized": "Unrecognized role family “{family}” — it isn't in the canonical taxonomy, so no industry-specific axes could be matched. You're scoring the base rubric only."
   }
 }

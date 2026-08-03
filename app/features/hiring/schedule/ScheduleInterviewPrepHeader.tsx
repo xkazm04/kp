@@ -8,11 +8,14 @@
 import { AlertTriangle, History } from "lucide-react";
 import { Meter } from "@/app/_components/Meter";
 import { PrepSourceBadge } from "@/app/_components/Badge";
+import { RubricCoverageNote } from "@/app/_components/RubricCoverageNote";
+import type { RubricCoverage } from "@/app/_lib/interview-rubric";
 import type { useTranslations } from "next-intl";
 import type { Prep } from "./scheduleInterviewPrepTypes";
 
 export function PrepHeader({
   prep,
+  coverage,
   fallback,
   stale,
   jdEditedLabel,
@@ -23,6 +26,10 @@ export function PrepHeader({
   t,
 }: {
   prep: Prep;
+  // What the pack's scorecard rubric actually covers. Resolved LIVE from the
+  // entry's role family (not read off the stored payload) so a pack generated
+  // before the family was set discloses today's truth, not generation-time truth.
+  coverage: RubricCoverage;
   fallback: boolean;
   stale: boolean;
   jdEditedLabel: string;
@@ -71,6 +78,10 @@ export function PrepHeader({
           </span>
         </div>
       ) : null}
+      {/* The pack promises a role-tuned interview; if its rubric has no industry
+          axes, say so here — beside the other provenance notices — rather than
+          only at the scoring step below. */}
+      <RubricCoverageNote coverage={coverage} />
       <p className="text-base text-ink">{prep.scenario}</p>
       {/* Ambient coverage bar: fills moss (score-strong) as topics/signals check off,
           so the interviewer can read progress without breaking eye contact. */}

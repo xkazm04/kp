@@ -70,6 +70,9 @@ voice service — see [Self-hosted voice](#self-hosted-voice)).
 | `app/_lib/voice/connect-failover.ts`, `preflight.ts` | Provider failover + pre-connect capability checks |
 | `app/_lib/voice/minute-prices.ts` | Per-minute cost estimates for the usage ledger |
 | `app/_lib/interview-scorecard.ts`, `interview-telemetry.ts`, `interview-transcript.ts` | Post-call scoring + telemetry |
+| `app/_lib/interview-rubric.ts` | The scorecard rubric resolved from `pipeline/jobfit/interview-rubrics.json` (base axes by scoring model + industry axes by role family), its version hash, and `rubricCoverage` (below) |
+| `app/_lib/interview-prep-run.ts` | Builds the prep pack (run-of-show + checklist) and stamps its provenance |
+| `app/_components/RubricCoverageNote.tsx` | The shared rubric-coverage disclosure, rendered by the prep pack header and the human scorecard form |
 | `app/_lib/interview-reminders.ts`, `interview-reminder-policy.ts` | Scheduling reminders |
 | `app/_components/voice/VoiceInterview.tsx` | The live-call UI |
 
@@ -78,6 +81,65 @@ voice service — see [Self-hosted voice](#self-hosted-voice)).
 - Interview sessions (token, provider, mode, status) — `app/_lib/db` (`createInterviewSession`, `getInterviewSessionByToken`, etc.)
 - Transcript + scorecard rows, linked to a pipeline entry when candidate-mode
 - `llm_usage` ledger rows for voice minutes (`interview_realtime` use case)
+
+## Rubric coverage — when the scorecard is generic, it says so
+
+A resolved rubric is the archetype's base axes (`experienced` or `early_career`)
+plus the **industry axes** for the entry's role family — clinical judgment,
+safety, scientific rigor, and so on. `pipeline/jobfit/interview-rubrics.json`
+defines `industryAxes` for exactly **6** of the **16** canonical role families
+(`data/taxonomy.json` → `role_families`), all from the care/trades/frontline arc.
+`industryAxesFor()` returns `[]` for an absent family, for one of the other ten,
+and for an unrecognized string alike, and that empty list concatenates into the
+rubric leaving no trace.
+
+`rubricCoverage(roleFamily)` (`app/_lib/interview-rubric.ts`) reports the
+distinction the empty array erased, as `{ gap, roleFamily, axisKeys }` — and it is
+**three** cases, because only two of them are problems:
+
+| `gap` | Meaning | How it surfaces |
+|---|---|---|
+| `null` | Industry axes applied; `axisKeys` lists them | Nothing rendered |
+| `no_family` | The entry has **no** role family, so which axes apply is unknowable | Amber notice (`role="status"`) |
+| `family_no_axes` | A canonical family with no axes defined — the designed state for 10 of 16 | **Nothing rendered** |
+| `family_unrecognized` | The family string is not in the canonical taxonomy at all — a data anomaly | Quiet factual line naming the value |
+
+`family_no_axes` is silent on purpose. For `software_engineering`, `data_ai`,
+`finance_accounting`, `legal_compliance` and the rest of that cohort the base
+rubric is not a degraded fallback — it **is** the intended rubric. Disclosing it
+would fire on the majority of interviews and turn the notice into wallpaper,
+training recruiters to ignore it on `no_family`, where it genuinely matters. The
+silence is structural, not a UI branch: `RUBRIC_COVERAGE_DISCLOSED_GAPS` drives
+both the component's `isDisclosedGap` gate and the message catalog, so a silent
+gap has no string it could render.
+
+The disclosure renders in **both** places a recruiter meets the rubric — the prep
+pack header (`ScheduleInterviewPrepHeader`) and the human scorecard form
+(`ScheduleHumanScorecardForm`) — through one component,
+`app/_components/RubricCoverageNote.tsx`, translated in all four locales under the
+`rubricCoverage` message namespace. The `gap` is **persisted for all three cases**
+— on the prep payload (a generator-owned key, `interview-prep-run.ts`) and on the
+stored human `Scorecard` beside `rubricVersion`/`rubricKeys` — so the record stays
+complete even where the UI stays quiet.
+
+`rubricCoverage` is a pure *report*: it never infers or defaults a role family,
+and it leaves `rubricForArchetype()` output byte-identical (pinned by the
+`REGRESSION:` case in `app/_lib/interview-rubric.test.ts`, which re-checks every
+archetype × family combination's version hash). Guards:
+
+- `app/_lib/role-families.test.ts` — pins `ROLE_FAMILY_SLUGS` (the canonical set
+  `rubricCoverage` tests membership against) by set equality to
+  `data/taxonomy.json::role_families`, the same file `pipeline/jobfit/taxonomy.py`
+  reads. The TS mirror previously had no guard at all while the Python half did.
+- `app/_lib/interview-rubric.test.ts` — asserts the 6 / 10 / 16 cohort shape and
+  that each cohort lands in the right case, so the partition cannot silently invert.
+- `app/_components/rubric-coverage-catalog.test.ts` — pins the message catalog to
+  `RUBRIC_COVERAGE_DISCLOSED_GAPS`, and asserts the silent gap has **no** key.
+
+**Not covered yet:** the AI-synthesized scorecard written by the Python scorer
+(`pipeline/jobfit/automation.py`, which mirrors `industry_axes_for`) carries no
+`rubricCoverage` stamp — the field is optional and consumers must treat it as
+absent there.
 
 ## Self-hosted voice
 

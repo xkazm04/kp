@@ -18,6 +18,9 @@
 // only the shape.
 
 import type { InterviewRecommendation } from "@/app/_lib/interview-recommendation";
+// Type-only, and therefore erased at compile — interview-rubric.ts imports
+// ScorecardRating back from here, so a VALUE import either way would be a cycle.
+import type { RubricCoverage } from "@/app/_lib/interview-rubric";
 
 /** One competency scored on the fixed interview rubric: a 1..RATING_MAX rating
  *  and the verbatim evidence quote behind it. `evidence` is absent on a
@@ -129,4 +132,10 @@ export type Scorecard = {
   // behaving exactly as before.
   rubricVersion?: string;
   rubricKeys?: string[];
+  // WHAT that rubric actually covered — specifically whether the role-family
+  // industry axes were in it, and if not, why (rubricCoverage). `rubricKeys` shows
+  // the axes that WERE scored; this states the ones that weren't, which a key list
+  // can never do. Absent on a legacy row and on the AI-synthesized scorecard (the
+  // Python scorer does not stamp it yet), so consumers must treat it as optional.
+  rubricCoverage?: RubricCoverage;
 };

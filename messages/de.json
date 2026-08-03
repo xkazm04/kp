@@ -2437,8 +2437,7 @@
       "saved": "Gespeichert",
       "gatedMoved": "Urteil erfasst — in die Entscheidungs-Warteschlange verschoben.",
       "saveFailed": "Scorecard konnte nicht gespeichert werden.",
-      "saveFailedStatus": "Speichern fehlgeschlagen ({status}).",
-      "genericRubricNote": "Generische Rubrik — für diese Person ist keine Rollenfamilie hinterlegt, daher fehlen die branchenspezifischen Achsen. Sie bewerten nur die Basisrubrik."
+      "saveFailedStatus": "Speichern fehlgeschlagen ({status})."
     },
     "prep": {
       "title": "Interview-Vorbereitung · {name}",
@@ -5515,5 +5514,9 @@
       "weak": "Nur {loadBearing} von {total} Prüfpunkten sind tragend — die meisten trennen Starke nicht von Naiven.",
       "none": "Keine tragenden Prüfpunkte — dieser Fall unterscheidet eine starke Einreichung nicht von einer naiven."
     }
+  },
+  "rubricCoverage": {
+    "no_family": "Generische Rubrik — für diese Person ist keine Rollenfamilie hinterlegt, daher konnten die branchenspezifischen Achsen (klinisches Urteil, Arbeitssicherheit, wissenschaftliche Sorgfalt …) nicht ergänzt werden. Sie bewerten nur die Basisrubrik.",
+    "family_unrecognized": "Unbekannte Rollenfamilie „{family}“ — sie steht nicht in der kanonischen Taxonomie, daher konnten keine branchenspezifischen Achsen zugeordnet werden. Sie bewerten nur die Basisrubrik."
   }
 }

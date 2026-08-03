@@ -14,6 +14,7 @@
 
 import rubricData from "@/pipeline/jobfit/interview-rubrics.json";
 import { isEarlyCareer } from "@/app/_lib/archetypes";
+import { ROLE_FAMILY_SLUGS } from "@/app/_lib/role-families";
 import type { ScorecardRating } from "@/app/_lib/interview-scorecard";
 
 export type RubricCompetency = {
@@ -42,6 +43,95 @@ export const INDUSTRY_AXES = (rubricData as { industryAxes?: Record<string, Rubr
 /** The extra industry axes for a role-family (empty for an unknown/blank family). */
 export function industryAxesFor(roleFamily: string | null | undefined): RubricCompetency[] {
   return INDUSTRY_AXES[(roleFamily ?? "").trim()] ?? [];
+}
+
+/** WHY a resolved rubric has no industry axes. `industryAxesFor` returns `[]` for
+ *  an absent family, a recognized family with none defined, AND an unrecognized
+ *  string alike; the empty list then concatenates into the rubric leaving no trace.
+ *  This enum is the distinction that empty array erased — and it is THREE cases,
+ *  not two, because only two of them are actually problems:
+ *
+ *    • `no_family`           — the entry carries no role family at all, so which
+ *                              axes apply is UNKNOWABLE. A genuine gap. Disclosed.
+ *    • `family_no_axes`      — the family is canonical (ROLE_FAMILY_SLUGS) and
+ *                              interview-rubrics.json defines no industry axes for
+ *                              it. This is BY DESIGN: the axes exist for the six
+ *                              care/trades/frontline families, and for the other
+ *                              ten — software_engineering, data_ai,
+ *                              finance_accounting, legal_compliance … — the base
+ *                              rubric IS the intended rubric, not a degraded
+ *                              fallback. Nothing is missing, so nothing is said.
+ *                              SILENT: see RUBRIC_COVERAGE_DISCLOSED_GAPS.
+ *    • `family_unrecognized` — the family string is not in the canonical taxonomy
+ *                              at all. A real data anomaly (a typo, a stale import,
+ *                              a since-renamed slug) worth surfacing quietly.
+ *
+ *  Splitting `family_no_axes` out of what used to be one "unmapped" case is the
+ *  point: ten of sixteen families live there, so disclosing it fired on the
+ *  MAJORITY of interviews and told the recruiter something was missing when
+ *  nothing was. A notice that cries wolf on most rows trains people to ignore it —
+ *  including on `no_family`, where it genuinely matters. The stamp still records
+ *  the case (the data stays complete); only the human-facing noise goes away.
+ *
+ *  Absent from this list, on purpose: any notion of a GUESSED family. Nothing here
+ *  ever infers or defaults a role family to make a disclosure go away; refusing to
+ *  invent is the point. */
+export const RUBRIC_COVERAGE_GAPS = ["no_family", "family_no_axes", "family_unrecognized"] as const;
+export type RubricCoverageGap = (typeof RUBRIC_COVERAGE_GAPS)[number];
+
+/** The subset of gaps that are actually SHOWN to a human — the message catalog is
+ *  pinned to exactly this list by set equality (rubric-coverage-catalog.test.ts),
+ *  so a gap that must stay silent structurally cannot acquire a string to render.
+ *  RubricCoverageNote gates on `isDisclosedGap`, so this tuple governs render; it
+ *  is not documentation of a decision made elsewhere. */
+export const RUBRIC_COVERAGE_DISCLOSED_GAPS = ["no_family", "family_unrecognized"] as const;
+export type DisclosedRubricCoverageGap = (typeof RUBRIC_COVERAGE_DISCLOSED_GAPS)[number];
+
+/** Whether a coverage gap is one a human should be told about. `null` (axes
+ *  applied) and `family_no_axes` (by design bare) both render nothing. */
+export function isDisclosedGap(gap: RubricCoverageGap | null): gap is DisclosedRubricCoverageGap {
+  return gap !== null && (RUBRIC_COVERAGE_DISCLOSED_GAPS as readonly string[]).includes(gap);
+}
+
+/** What a resolved rubric actually covers. `gap: null` means the industry axes
+ *  resolved normally. `roleFamily` is the entry's own value, trimmed — never
+ *  substituted. `axisKeys` lists the industry axes that were genuinely appended,
+ *  so a reader can see the coverage rather than trust it. */
+export type RubricCoverage = {
+  gap: RubricCoverageGap | null;
+  roleFamily: string | null;
+  axisKeys: string[];
+};
+
+// The canonical role-family vocabulary, taken from the repo's existing TS single
+// source (role-families.ts), which role-families.test.ts pins by set equality to
+// data/taxonomy.json::role_families — the same file pipeline/jobfit/taxonomy.py
+// reads. Deliberately NOT derived from `Object.keys(INDUSTRY_AXES)`: that is the
+// very conflation this split exists to fix (having axes ≠ being a real family).
+// And deliberately not a direct import of data/taxonomy.json, which is 230 KB and
+// would land in the client bundle — this module is client-bundled via
+// HumanScorecardPanel (see rubricVersionHash's note on avoiding node:crypto).
+const CANONICAL_FAMILIES: ReadonlySet<string> = new Set(ROLE_FAMILY_SLUGS);
+
+/** Resolve the industry-axis coverage for a role-family. Pure + side-effect free,
+ *  and deliberately SEPARATE from `rubricForArchetype` so the resolved rubric stays
+ *  byte-identical to what it has always been — this reports on that resolution, it
+ *  does not alter it. */
+export function rubricCoverage(roleFamily: string | null | undefined): RubricCoverage {
+  const family = (roleFamily ?? "").trim() || null;
+  const axes = family ? industryAxesFor(family) : [];
+  // Note the ORDER: a recognized family with an empty axis list is `family_no_axes`
+  // (by design, silent), and only a family outside the canonical vocabulary is an
+  // anomaly. A JSON entry that exists but is empty covers nothing, so it is treated
+  // as no-axes rather than as applied coverage.
+  const gap: RubricCoverageGap | null = !family
+    ? "no_family"
+    : axes.length > 0
+      ? null
+      : CANONICAL_FAMILIES.has(family)
+        ? "family_no_axes"
+        : "family_unrecognized";
+  return { gap, roleFamily: family, axisKeys: axes.map((c) => c.competency) };
 }
 
 /** Backwards-compatible: the historical flat rubric IS the experienced one. The

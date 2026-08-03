@@ -2437,8 +2437,7 @@
       "saved": "Enregistré",
       "gatedMoved": "Verdict enregistré — déplacé vers la file Décisions.",
       "saveFailed": "Impossible d'enregistrer la scorecard.",
-      "saveFailedStatus": "Échec de l'enregistrement ({status}).",
-      "genericRubricNote": "Barème générique — ce candidat n'a pas de famille de postes, les axes propres au métier ne sont donc pas inclus. Vous n'évaluez que le barème de base."
+      "saveFailedStatus": "Échec de l'enregistrement ({status})."
     },
     "prep": {
       "title": "Préparation d'entretien · {name}",
@@ -5515,5 +5514,9 @@
       "weak": "Seules {loadBearing} sondes sur {total} sont porteuses — la plupart ne sépareront pas les bons des naïfs.",
       "none": "Aucune sonde porteuse — ce cas ne distingue pas un rendu solide d'un rendu naïf."
     }
+  },
+  "rubricCoverage": {
+    "no_family": "Barème générique — aucune famille de postes n'est renseignée pour ce candidat, les axes propres au métier (jugement clinique, sécurité, rigueur scientifique…) n'ont donc pas pu être ajoutés. Vous n'évaluez que le barème de base.",
+    "family_unrecognized": "Famille de postes inconnue « {family} » — elle ne figure pas dans la taxonomie canonique, aucun axe propre au métier n'a donc pu être associé. Vous n'évaluez que le barème de base."
   }
 }

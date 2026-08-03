@@ -3,7 +3,7 @@ import { getPipelineEntry, recordAutomationEvent, setApproval } from "@/app/_lib
 import { saveHumanScorecard } from "@/app/_lib/interview-prep";
 import { sealDecisionSafe } from "@/app/_lib/decision-record-store";
 import { coerceInterviewRecommendation, isInterviewRecommendation } from "@/app/_lib/interview-recommendation";
-import { flagOffRubricRatings, rubricForArchetype, rubricVersionHash } from "@/app/_lib/interview-rubric";
+import { flagOffRubricRatings, rubricCoverage, rubricForArchetype, rubricVersionHash } from "@/app/_lib/interview-rubric";
 import { RATING_MAX } from "@/app/_lib/format";
 import { MAX_ENTRY_ID_LEN } from "@/app/_lib/entries-param";
 import { safeJsonError } from "@/app/_lib/api-response";
@@ -64,6 +64,7 @@ export async function POST(request: NextRequest) {
     // write time AND is the snapshot we stamp so this record can be re-evaluated
     // against the exact scale later, after the rubric revises (Direction 2).
     const rubric = pipelineEntry ? rubricForArchetype(pipelineEntry.archetype, pipelineEntry.roleFamily) : null;
+    const coverage = pipelineEntry ? rubricCoverage(pipelineEntry.roleFamily) : null;
     const ratings: ScorecardRating[] = rubric ? flagOffRubricRatings(parsed, rubric) : parsed;
 
     const scorecard: Scorecard = { ratings, source: "human" };
@@ -73,6 +74,11 @@ export async function POST(request: NextRequest) {
     if (rubric) {
       scorecard.rubricVersion = rubricVersionHash(rubric);
       scorecard.rubricKeys = rubric.map((c) => c.competency);
+      // …and WHAT it covered. The recruiter saw the coverage note in the form; the
+      // stored record must say the same thing, or a later reader re-opening this
+      // scorecard sees five generic axes with nothing marking the industry axes as
+      // never-applied. Same pure resolver the form renders from.
+      if (coverage) scorecard.rubricCoverage = coverage;
     }
     if (typeof body.summary === "string" && body.summary.trim()) {
       scorecard.summary = body.summary.slice(0, MAX_SUMMARY).trim();

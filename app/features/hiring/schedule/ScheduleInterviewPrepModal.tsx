@@ -3,6 +3,7 @@
 import { Check, Copy, RefreshCw } from "lucide-react";
 import { HumanScorecardPanel } from "./ScheduleHumanScorecardPanel";
 import { Modal } from "@/app/_components/Modal";
+import { rubricCoverage } from "@/app/_lib/interview-rubric";
 import type { SchedEntry } from "./ScheduleTypes";
 import { useScheduleInterviewPrep } from "./useScheduleInterviewPrep";
 import { PrepLoadStates } from "./ScheduleInterviewPrepLoadStates";
@@ -78,6 +79,7 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
         <div className="space-y-4">
           <PrepHeader
             prep={prep}
+            coverage={rubricCoverage(entry.roleFamily)}
             fallback={fallback}
             stale={stale}
             jdEditedLabel={jdEditedLabel}

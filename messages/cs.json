@@ -2437,8 +2437,7 @@
       "saved": "Uloženo",
       "gatedMoved": "Verdikt zaznamenán — přesunuto do fronty Rozhodnutí.",
       "saveFailed": "Hodnoticí kartu se nepodařilo uložit.",
-      "saveFailedStatus": "Uložení selhalo ({status}).",
-      "genericRubricNote": "Obecná rubrika — tento kandidát nemá rodinu rolí, takže oborově specifické osy nejsou zahrnuty. Hodnotíte pouze základní rubriku."
+      "saveFailedStatus": "Uložení selhalo ({status})."
     },
     "prep": {
       "title": "Příprava na pohovor · {name}",
@@ -5515,5 +5514,9 @@
       "weak": "Nosné jsou jen {loadBearing} z {total} sond — většina silné od naivních neodliší.",
       "none": "Žádné nosné sondy — tento případ nerozezná silné řešení od naivního."
     }
+  },
+  "rubricCoverage": {
+    "no_family": "Obecná rubrika — tento kandidát nemá nastavenou rodinu rolí, takže oborově specifické osy (klinický úsudek, bezpečnost, vědecká přísnost…) nešlo doplnit. Hodnotíte pouze základní rubriku.",
+    "family_unrecognized": "Neznámá rodina rolí „{family}“ — není v kanonické taxonomii, takže nešlo přiřadit žádné oborově specifické osy. Hodnotíte pouze základní rubriku."
   }
 }

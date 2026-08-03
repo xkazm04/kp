@@ -5,6 +5,7 @@ import { getInterviewPrep, saveInterviewPrep } from "./interview-prep";
 import { isEarlyCareer } from "./archetypes";
 import { studentPrepRunOfShow } from "./student-interview";
 import { buildRunOfShow, type PrepQuestion, type RunOfShow } from "./run-of-show";
+import { rubricCoverage, type RubricCoverage } from "./interview-rubric";
 
 // Build the interview-prep artifact: take the AI-generated, CV-derived interview
 // questions (the existing "prep" automation) and design a timed run-of-show
@@ -50,7 +51,7 @@ export async function runInterviewPrep(params: Record<string, unknown>, signal?:
   // keys are overwritten on Regenerate. saveInterviewPrep is a full-payload upsert
   // and the plan is rebuilt from scratch, so everything else on the row must be
   // carried forward — see mergeRegeneratedPrep.
-  const generated: RunOfShow & { source: string; lang: string } = {
+  const generated: RunOfShow & { source: string; lang: string; rubricCoverage: RubricCoverage } = {
     scenario: plan.scenario,
     durationMin: plan.durationMin,
     focusAreas: plan.focusAreas,
@@ -58,6 +59,13 @@ export async function runInterviewPrep(params: Record<string, unknown>, signal?:
     signals: plan.signals,
     source: prep.source,
     lang,
+    // What the pack's scorecard rubric covers at build time: whether the industry
+    // axes were appended, and if not, WHY (no role family vs. a family with none
+    // defined). Stamped alongside `source` because it is the same class of fact —
+    // provenance of the artifact — and a pack read outside the modal (the copy-out,
+    // the voice brief, an export) must carry it too, not just the rendered UI.
+    // Never a guessed family; see rubricCoverage.
+    rubricCoverage: rubricCoverage(entry?.roleFamily),
   };
   const prev = getInterviewPrep(entryId);
   const payload = mergeRegeneratedPrep(prev?.payload, generated);

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Check, ClipboardCheck, Loader2 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
-import { rubricForArchetype, localizedRubric, localizedRatingAnchors } from "@/app/_lib/interview-rubric";
+import { rubricForArchetype, localizedRubric, localizedRatingAnchors, rubricCoverage } from "@/app/_lib/interview-rubric";
 import { RATING_MAX } from "@/app/_lib/format";
 import type { InterviewRecommendation } from "@/app/_lib/interview-recommendation";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
@@ -38,12 +38,12 @@ export function HumanScorecardPanel({
   // it below), so localizing display can't corrupt the scoring contract.
   const rubric = localizedRubric(rubricForArchetype(archetype, roleFamily), locale);
   const ratingAnchors = localizedRatingAnchors(locale);
-  // Honest coverage cue: with no role-family the industry axes (clinical / trades /
-  // scientific …) can't be appended, so the recruiter is scoring a GENERIC rubric.
-  // Say so, rather than let it read as full coverage. Keyed on the family being
-  // genuinely ABSENT — a family that simply has no industry axes defined is a valid
-  // generic rubric, not an error, so it draws no note.
-  const familyMissing = !(roleFamily && roleFamily.trim());
+  // Honest coverage cue, resolved by the SAME pure function the prep header and the
+  // scorecard write path use (rubricCoverage), so the pack, the form and the stored
+  // record can never disagree about what this rubric covers. It distinguishes "we
+  // don't know the role family" from "this family has no industry axes defined" —
+  // and never guesses a family to make either go away.
+  const coverage = rubricCoverage(roleFamily);
   const seed = (): { ratings: Record<string, number>; evidence: Record<string, string> } => {
     const ratings: Record<string, number> = {};
     const evidence: Record<string, string> = {};
@@ -126,7 +126,7 @@ export function HumanScorecardPanel({
         rubric={rubric}
         ratingAnchors={ratingAnchors}
         ratingMax={RATING_MAX}
-        familyMissing={familyMissing}
+        coverage={coverage}
         ratings={ratings}
         evidence={evidence}
         setRating={setRating}

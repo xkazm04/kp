@@ -3,6 +3,7 @@
 // 200-line cap; owns the Prep/ImportedQuestion shapes and normImported.
 
 import type { Scorecard } from "@/app/_lib/interview-scorecard";
+import type { RubricCoverage } from "@/app/_lib/interview-rubric";
 import type { RunOfShow } from "@/app/_lib/run-of-show";
 import type { InterviewPrepProgress } from "@/app/_lib/interview-prep";
 
@@ -14,6 +15,11 @@ import type { InterviewPrepProgress } from "@/app/_lib/interview-prep";
 // is single-sourced from the server type rather than re-declared and left to drift.
 export type Prep = RunOfShow & {
   source?: string;
+  // Generator-owned provenance of the pack's scorecard rubric: whether the
+  // role-family industry axes made it in, and if not why (interview-prep-run.ts).
+  // Optional — packs generated before this stamp existed simply omit it, and the
+  // modal discloses from the entry's LIVE role family anyway.
+  rubricCoverage?: RubricCoverage;
   userProgress?: Omit<InterviewPrepProgress, "interviewer">;
   humanScorecard?: Scorecard;
   interviewer?: string;

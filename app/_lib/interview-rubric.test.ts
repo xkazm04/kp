@@ -79,7 +79,17 @@ const {
   flagOffRubricRatingsWithKeys,
   rubricCompetencyKeys,
   rubricVersionHash,
+  rubricCoverage,
+  isDisclosedGap,
+  RUBRIC_COVERAGE_GAPS,
+  RUBRIC_COVERAGE_DISCLOSED_GAPS,
 } = await import("@/app/_lib/interview-rubric.ts");
+
+// The canonical role-family vocabulary. Imported from the repo's TS single source,
+// which role-families.test.ts pins by set equality to data/taxonomy.json —
+// deliberately NOT re-derived from Object.keys(INDUSTRY_AXES), since "has industry
+// axes" vs "is a real family" is exactly the conflation under test here.
+const { ROLE_FAMILY_SLUGS } = await import("@/app/_lib/role-families.ts");
 
 // All competency objects across base rubrics AND industry axes — the canonical
 // set the CS overlay + scoring contract are pinned against (P2-3).
@@ -393,4 +403,152 @@ test("flagOffRubricRatingsWithKeys: prefers the stored scale; legacy rows fall b
 
   // Case-insensitive match against the stored keys, like the compare grid's join.
   assert.equal(flagOffRubricRatingsWithKeys([{ competency: "technical DEPTH", rating: 3 }], ["Technical depth"], current)[0].offRubric, undefined);
+});
+
+// ---------------------------------------------------------------------------
+// rubricCoverage — the honest report on WHY a rubric has no industry axes.
+//
+// The defect: industryAxesFor returns `[]` for an absent family, a canonical
+// family with none defined, AND an unrecognized string alike; that empty list
+// concatenates into the rubric leaving no trace, so an interviewer could score a
+// candidate on a generic scorecard believing it was role-tuned.
+//
+// The correction underneath the correction: only 6 of the 16 canonical families
+// have industry axes, BY DESIGN (they are the care/trades/frontline arc). For the
+// other 10 the base rubric IS the intended rubric, so disclosing them would fire
+// on the majority of interviews and turn the notice into wallpaper. These tests
+// therefore pin what must stay SILENT as hard as what must speak.
+// ---------------------------------------------------------------------------
+
+// The three cohorts, all DERIVED — never hand-listed. role-families.test.ts
+// separately pins ROLE_FAMILY_SLUGS to data/taxonomy.json::role_families, so this
+// partition is anchored to the canonical taxonomy, not to a copy of it.
+const CANONICAL = [...ROLE_FAMILY_SLUGS] as string[];
+const AXIS_BEARING = CANONICAL.filter((f) => f in INDUSTRY_AXES);
+const BY_DESIGN_BARE = CANONICAL.filter((f) => !(f in INDUSTRY_AXES));
+
+test("the coverage cohorts are the shape the disclosure policy assumes (6 / 10 / 16)", () => {
+  // Not decoration: if a future edit gave every family axes, or emptied the axis
+  // block, the silence/disclosure tests below would still pass vacuously.
+  assert.equal(CANONICAL.length, 16, "the canonical taxonomy is 16 role families");
+  assert.equal(AXIS_BEARING.length, 6, "exactly 6 families carry industry axes");
+  assert.equal(BY_DESIGN_BARE.length, 10, "the other 10 are bare BY DESIGN, not by omission");
+  // Every industryAxes key must BE a canonical family — an axis block for a slug
+  // outside the taxonomy would be unreachable, and would mean the coverage
+  // partition is lying about what it covers.
+  const orphans = Object.keys(INDUSTRY_AXES).filter((f) => !CANONICAL.includes(f));
+  assert.deepEqual(orphans, [], `interview-rubrics.json defines industryAxes for non-canonical families: ${orphans.join(", ")}`);
+});
+
+test("case 1 — an ABSENT role family is `no_family`, disclosed, and never invented", () => {
+  for (const raw of [null, undefined, "", "   "]) {
+    const cov = rubricCoverage(raw);
+    assert.equal(cov.gap, "no_family", `${JSON.stringify(raw)} must report no_family`);
+    assert.equal(cov.roleFamily, null, "an absent family stays null — never defaulted to a guess");
+    assert.deepEqual(cov.axisKeys, [], "no axes may be claimed when the family is unknown");
+    assert.equal(isDisclosedGap(cov.gap), true, "no_family is the case that genuinely matters — it MUST speak");
+  }
+});
+
+test("case 2 — a canonical family with no axes is `family_no_axes` and stays SILENT", () => {
+  assert.ok(BY_DESIGN_BARE.length > 0, "fixture drift: no by-design-bare families left to check");
+  for (const family of BY_DESIGN_BARE) {
+    const cov = rubricCoverage(family);
+    assert.equal(cov.gap, "family_no_axes", `${family} is canonical with no axes — that is the designed state`);
+    assert.equal(cov.roleFamily, family, "the entry's OWN family is reported back, verbatim");
+    assert.deepEqual(cov.axisKeys, []);
+    assert.equal(
+      isDisclosedGap(cov.gap),
+      false,
+      `${family} must render NOTHING — the base rubric is the intended rubric here, and a notice ` +
+        `on 10 of 16 families is wallpaper that costs no_family its signal value.`
+    );
+  }
+  // The families a recruiter meets most often are in this cohort. Spot-check the
+  // ones named in review so an inversion cannot hide behind the derived list.
+  for (const family of ["software_engineering", "data_ai", "finance_accounting", "legal_compliance"]) {
+    assert.ok(BY_DESIGN_BARE.includes(family), `fixture drift: ${family} is no longer by-design bare`);
+    assert.equal(isDisclosedGap(rubricCoverage(family).gap), false, `${family} must stay silent`);
+  }
+});
+
+test("case 3 — a family outside the canonical taxonomy is `family_unrecognized` and IS disclosed", () => {
+  for (const raw of ["not_a_real_family", "engineering_backend", "Healthcare Clinical"]) {
+    assert.ok(!CANONICAL.includes(raw), `fixture drift: ${raw} is now canonical`);
+    const cov = rubricCoverage(raw);
+    assert.equal(cov.gap, "family_unrecognized", `${raw} is not in the taxonomy — a real data anomaly`);
+    assert.equal(cov.roleFamily, raw, "the anomalous value is echoed back, NOT coerced onto a real family");
+    assert.deepEqual(cov.axisKeys, []);
+    assert.equal(isDisclosedGap(cov.gap), true);
+  }
+});
+
+test("axis-bearing families report no gap and list the axes actually applied", () => {
+  for (const family of AXIS_BEARING) {
+    const axes = (INDUSTRY_AXES as Record<string, { competency: string }[]>)[family];
+    const cov = rubricCoverage(family);
+    assert.equal(cov.gap, null, `${family} has axes, so there is nothing to disclose`);
+    assert.equal(cov.roleFamily, family);
+    assert.deepEqual(cov.axisKeys, axes.map((a) => a.competency), `${family} axis keys must be the real ones`);
+    // The reported keys are exactly the axes the resolved rubric gained — the cue
+    // can never overstate coverage relative to what a candidate is scored on.
+    const base = rubricForArchetype("bau");
+    const withFamily = rubricForArchetype("bau", family);
+    assert.deepEqual(withFamily.slice(base.length).map((c) => c.competency), cov.axisKeys);
+  }
+  // Whitespace is trimmed, not treated as a different family.
+  assert.deepEqual(rubricCoverage("  " + AXIS_BEARING[0] + "  "), rubricCoverage(AXIS_BEARING[0]));
+});
+
+test("rubricCoverage never fabricates: a gap always means ZERO axis keys", () => {
+  for (const raw of [null, "", ...CANONICAL, "not_a_real_family"]) {
+    const cov = rubricCoverage(raw);
+    assert.equal(
+      cov.gap === null,
+      cov.axisKeys.length > 0,
+      `coverage for ${JSON.stringify(raw)} claims axes it does not have (or hides ones it does)`
+    );
+    if (cov.gap !== null) assert.ok(RUBRIC_COVERAGE_GAPS.includes(cov.gap), "gap must be a declared reason");
+  }
+});
+
+test("the disclosed-gap list is a strict subset of the gap list, and excludes family_no_axes", () => {
+  // RUBRIC_COVERAGE_DISCLOSED_GAPS drives BOTH the render gate (isDisclosedGap) and
+  // the message catalog (rubric-coverage-catalog.test.ts). Pinning it here is what
+  // makes case 2's silence structural: a gap absent from this tuple has no string
+  // to render even if a future edit slipped past the component's gate.
+  for (const gap of RUBRIC_COVERAGE_DISCLOSED_GAPS) {
+    assert.ok(RUBRIC_COVERAGE_GAPS.includes(gap), `${gap} is disclosed but is not a declared gap`);
+  }
+  assert.ok(
+    !(RUBRIC_COVERAGE_DISCLOSED_GAPS as readonly string[]).includes("family_no_axes"),
+    "family_no_axes is the designed state for 10 of 16 families — disclosing it is the over-correction this split fixes"
+  );
+  assert.deepEqual([...RUBRIC_COVERAGE_DISCLOSED_GAPS].sort(), ["family_unrecognized", "no_family"]);
+  assert.equal(isDisclosedGap(null), false, "applied coverage renders nothing");
+});
+
+test("REGRESSION: adding coverage reporting left every resolved rubric byte-identical", () => {
+  // The normal path must be untouched. For every archetype x every family (canonical,
+  // unrecognized, and absent), the resolved rubric is still exactly
+  // base ++ industryAxesFor(family) — and its version hash is unchanged, which is
+  // the byte-level check (rubricVersionHash covers competency + description + BARS).
+  const families = [null, undefined, "", "not_a_real_family", ...CANONICAL];
+  for (const archetype of ARCHETYPES.archetypes.map((a) => a.id)) {
+    for (const family of families) {
+      const resolved = rubricForArchetype(archetype, family);
+      assert.deepEqual(
+        resolved,
+        [...rubricForArchetype(archetype), ...industryAxesFor(family)],
+        `${archetype} x ${String(family)} must still be base ++ industry axes`
+      );
+      // A gap in coverage means the hash equals the family-less rubric's hash;
+      // no gap means it differs. Coverage reporting changes neither.
+      const cov = rubricCoverage(family);
+      const bareHash = rubricVersionHash(rubricForArchetype(archetype));
+      const hash = rubricVersionHash(resolved);
+      if (cov.gap) assert.equal(hash, bareHash, `${archetype} x ${String(family)}: a gap must not alter the scale`);
+      else assert.notEqual(hash, bareHash, `${archetype} x ${String(family)}: applied axes must move the scale`);
+    }
+  }
 });

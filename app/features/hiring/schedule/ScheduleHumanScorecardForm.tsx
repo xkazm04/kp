@@ -5,10 +5,10 @@
 // summary field. Split out of ScheduleHumanScorecardPanel.tsx to keep the
 // panel file under the 200-line cap.
 
-import { Info } from "lucide-react";
 import type { useTranslations } from "next-intl";
 import { TextArea } from "@/app/_components/TextArea";
-import type { LocalizedRubricCompetency } from "@/app/_lib/interview-rubric";
+import { RubricCoverageNote } from "@/app/_components/RubricCoverageNote";
+import type { LocalizedRubricCompetency, RubricCoverage } from "@/app/_lib/interview-rubric";
 import { INTERVIEW_RECOMMENDATIONS, type InterviewRecommendation } from "@/app/_lib/interview-recommendation";
 
 const REC_STYLE: Record<InterviewRecommendation, string> = {
@@ -21,7 +21,7 @@ export function ScheduleHumanScorecardForm({
   rubric,
   ratingAnchors,
   ratingMax,
-  familyMissing,
+  coverage,
   ratings,
   evidence,
   setRating,
@@ -36,7 +36,7 @@ export function ScheduleHumanScorecardForm({
   rubric: LocalizedRubricCompetency[];
   ratingAnchors: Record<number, string>;
   ratingMax: number;
-  familyMissing: boolean;
+  coverage: RubricCoverage;
   ratings: Record<string, number>;
   evidence: Record<string, string>;
   setRating: (competency: string, rating: number) => void;
@@ -52,11 +52,9 @@ export function ScheduleHumanScorecardForm({
     <>
       <p className="mt-1 text-sm text-steel">{t("rateEach", { max: ratingMax })}</p>
 
-      {familyMissing ? (
-        <p className="mt-2 flex items-start gap-1.5 rounded-md border border-amber-200 bg-amber-50 p-2 text-meta text-amber-800">
-          <Info size={13} className="mt-0.5 shrink-0" aria-hidden /> {t("genericRubricNote")}
-        </p>
-      ) : null}
+      {/* Honest coverage cue: say when the industry axes are NOT in this rubric,
+          instead of letting a generic scorecard read as role-tuned. */}
+      <RubricCoverageNote coverage={coverage} className="mt-2" />
 
       <div className="mt-3 space-y-3">
         {rubric.map((c) => {
