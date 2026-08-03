@@ -31,8 +31,9 @@ cannot pick an hour the interviewer is already busy for.
 3. **Book.** `POST /api/schedule/[token]` re-derives the label server-side
    (`offeredSlotFor`), **re-checks free/busy at the moment of booking**
    (`slotStillFree`), collision-checks in the store transaction, advances the
-   pipeline entry (`approve_event`), and dispatches confirmation + interviewer
-   brief.
+   pipeline entry (`approve_event`), dispatches confirmation + interviewer
+   brief, and **writes the event onto the connected calendar**
+   (`syncInterviewEvent`).
 4. **Steer.** `POST /api/schedule` gives the recruiter cancel / no-show /
    reschedule / accept-proposal / resolve-reconcile / week-grid book, all on the
    same store primitives. `GET /api/schedule?slots=1` serves the reschedule
@@ -103,6 +104,59 @@ Copy lives under `scheduleTab.lifecycle.calendarStatus.*` (recruiter) and
 four locales. `app/_lib/calendar/calendar-status-i18n.test.ts` set-equality
 guards the recruiter catalog against `CALENDAR_STATUSES`.
 
+## Write-back — the interview on the real calendar
+
+The other half of W1.4's acceptance criterion: *a confirmed slot writes a real
+event*. `app/_lib/calendar/event-sync.ts` is the seam; `google-calendar.ts`
+carries the three verbs (`createInterviewEvent` POST, `updateInterviewEvent`
+PATCH, `deleteInterviewEvent` DELETE) and the `calendar.events` scope that was
+already being granted at consent time.
+
+The event's **body is not invented** there: `interviewCalendarEvent`
+(`app/_lib/calendar-links.ts`) already composes the title, description (stage,
+join link, reschedule URL) and location for the `.ics` and the "add to calendar"
+template URL, and the written event is that same event — so the real calendar
+entry and the link-only fallback can never disagree. The candidate is added as
+an attendee when the entry holds a plausible email; `sendUpdates` is deliberately
+**not** set, because kp owns the candidate's confirmation mail and Google would
+otherwise send a second, un-branded invite for one interview.
+
+**One event, for the whole life of the interview.** The provider event id is
+persisted on the invite, so:
+
+| Lifecycle event | What happens on the calendar |
+| --- | --- |
+| First confirm (candidate, recruiter grid book, accepted proposal) | CREATE |
+| Reschedule (candidate self-serve or recruiter) | PATCH the same event — never a second one at the new time |
+| Meeting link attached/changed (`PATCH /api/schedule`) | PATCH the existing event's location; never creates one |
+| Candidate withdraws / RSVPs "can't make it" | DELETE, and the stored id is cleared so a re-booking creates a fresh event |
+| Recruiter cancel / no-show | DELETE |
+| kp's event deleted in Google by hand (404/410 on PATCH) | re-created, not reported as a failure |
+
+**A calendar failure never blocks or half-commits the booking.** The booking is
+the source of truth; the write is best-effort and records its outcome on the
+invite as one of `CALENDAR_EVENT_STATES` (`free-busy.ts`) — a second axis from
+the free/busy `CALENDAR_STATUSES`, sharing only the `not_connected` spelling:
+
+| State | Meaning |
+| --- | --- |
+| `written` | The event exists; its id + `htmlLink` are on the invite |
+| `not_connected` | No calendar integration for this workspace — link-only behaviour, exactly as before this integration |
+| `failed` | A calendar is connected and the write did not land. The booking still stands |
+| `removed` | The interview closed and its event was deleted — nothing orphaned |
+| `orphaned` | The interview closed but the delete did not land: a stale entry is still on someone's calendar. The id is KEPT so a retry can find it |
+
+`ScheduleCalendarEventChip.tsx` renders this on the recruiter's agenda / awaiting
+/ closed rows — `failed` and `orphaned` as chips (the two a human can act on),
+the rest as quiet single-line facts, with `written` linking straight to the
+event. Copy lives under `scheduleTab.lifecycle.calendarEvent.*` in all four
+locales, set-equality guarded against `CALENDAR_EVENT_STATES` by
+`calendar-status-i18n.test.ts`. Tenancy: the event is written to
+`invite.workspaceId`'s connection only.
+
+End-to-end coverage (real routes, stubbed Google edge):
+`app/api/schedule/calendar-writeback.test.ts`.
+
 ## API / lib surface
 
 | Surface | File | Notes |
@@ -114,7 +168,8 @@ guards the recruiter catalog against `CALENDAR_STATUSES`.
 | Slot maths (pure) | `app/_lib/schedule-slots.ts` | `proposeSlots`, `offeredSlotFor`, `validateProposedSlots`, TTL |
 | Store + collision authority | `app/_lib/schedule-store.ts` | Confirm/reschedule transactions, operator flags |
 | Free/busy (pure) | `app/_lib/calendar/free-busy.ts` | `isSlotFree`, `filterFreeSlots`, `busyQueryWindow`, `CALENDAR_STATUSES` |
-| Google edge | `app/_lib/calendar/google-calendar.ts` | `fetchBusy`, `createInterviewEvent`, `isCalendarConnected` |
+| Google edge | `app/_lib/calendar/google-calendar.ts` | `fetchBusy`, `isCalendarConnected`, and the event verbs `createInterviewEvent` / `updateInterviewEvent` / `deleteInterviewEvent` |
+| Event write-back | `app/_lib/calendar/event-sync.ts` | `syncInterviewEvent` (create-or-update), `removeInterviewEvent` (delete). Best-effort, never throws |
 | Join | `app/_lib/calendar/available-slots.ts` | `proposeFreeSlots` (offer-time filter), `slotStillFree` (booking-time re-check) |
 
 ## Data model
@@ -122,8 +177,10 @@ guards the recruiter catalog against `CALENDAR_STATUSES`.
 `schedule_invites` (`schedule-store.ts`): token, `entry_id`, `workspace_id`,
 status (`pending` / `confirmed` / `declined` / `no_show`), `slot` + `slot_at`,
 `duration_min`, `candidate_tz`, `attendance_status`, `reschedule_count`,
-`meeting_url`, `proposals` + `proposal_status`, and the operator flags
-`needs_more_slots` / `needs_reconcile`.
+`meeting_url`, `proposals` + `proposal_status`, the operator flags
+`needs_more_slots` / `needs_reconcile`, and the calendar write-back columns
+`calendar_event_id` (the provider handle that makes the lifecycle idempotent),
+`calendar_event_link`, `calendar_event_state`, `calendar_event_at`.
 
 `calendar_connections` (`app/_lib/calendar/token-store.ts`): one Google
 connection per workspace; the refresh token is encrypted at rest and never
@@ -155,7 +212,9 @@ outright while the routes relied on `getPipelineEntry`'s default workspace.
 The calendar integration is entirely optional. Without
 `GOOGLE_OAUTH_CLIENT_ID` / `GOOGLE_OAUTH_CLIENT_SECRET`, or with no connected
 account, every offer reports `not_connected` and the pre-integration slot list
-is served unchanged. Scopes are deliberately narrow (`calendar.freebusy`,
+is served unchanged. Every booking then records `not_connected` and no event is written — the `.ics`
+and "add to calendar" links remain the whole story, exactly as before the
+integration. Scopes are deliberately narrow (`calendar.freebusy`,
 `calendar.events`) — kp can learn *that* someone is busy, never *why*.
 
 ## Known gaps
@@ -163,12 +222,24 @@ is served unchanged. Scopes are deliberately narrow (`calendar.freebusy`,
 - The slot pool is **host-blind**: `KP_INTERVIEW_TIMES` (default 10:00 + 14:00)
   is a single global pool, so collisions are workspace-wide rather than
   per-interviewer.
-- Only Google is supported; there is no Microsoft 365 provider.
+- Only Google is supported; there is no Microsoft 365 provider (the event-sync
+  seam is provider-shaped so one can be added, but nothing Outlook-side exists).
 - `POST /api/schedule` (the recruiter lifecycle actions — book, cancel, no-show,
   reschedule) is workspace-scoped but **not** operator-gated, unlike the invite
   routes. `getPipelineEntry`'s `workspaceId` parameter also still defaults to
   `DEFAULT_WORKSPACE_ID`, so an omission stays a silent fallback rather than a
   compile error; ~18 production call sites outside this feature still omit it.
+- Write-back is **one-way**. Editing or deleting the event in Google does not
+  flow back into kp; the next kp-side change re-creates it.
+- An `orphaned` event is surfaced but there is no one-click retry — the recruiter
+  removes the stale entry by hand.
+- `sendUpdates` is deliberately unset, so Google sends no invitation mail of its
+  own — the candidate is listed as an attendee, but only kp's own confirmation
+  reaches them. Turning it on is a one-flag product decision, not an oversight.
+- The calendar write is one synchronous outbound call on the confirm path (bounded
+  by the 8s fetch abort). It sits *after* the booking commit and the confirmation
+  dispatch, so it can only slow the response, never lose a booking — but it does
+  add to the candidate's confirm latency. A background queue is the follow-up.
 - The recruiter-side reschedule / accept-proposal **writes** do not re-check
   free/busy at confirm time the way the candidate confirm does — the recruiter is
   assumed to be looking at their own calendar. (Their offered list *is* filtered.)

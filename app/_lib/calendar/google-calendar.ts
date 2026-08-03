@@ -112,38 +112,158 @@ export async function fetchBusy(
     .map((b) => ({ start: b.start, end: b.end }));
 }
 
+/** A bodiless request (DELETE). Returns the HTTP status, or 0 when the request never
+ *  completed — `fetchJson` cannot serve this because a successful DELETE answers 204 with
+ *  an empty body, which JSON.parse rejects, turning a success into a reported failure. */
+async function fetchStatus(url: string, init: RequestInit): Promise<number> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  try {
+    const res = await fetch(url, { ...init, signal: controller.signal });
+    return res.status;
+  } catch (err) {
+    console.error("[calendar] Google request failed", err);
+    return 0;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** What an interview event looks like on the wire. `location` carries the meeting link
+ *  when the recruiter attached one — the same field the .ics / template-URL fallback
+ *  fills, so the written event and the link-only event say the same thing. */
+export type InterviewEventInput = {
+  startIso: string;
+  endIso: string;
+  summary: string;
+  description?: string;
+  location?: string;
+  attendeeEmails?: readonly string[];
+};
+
 /**
- * Write the confirmed interview onto the calendar. Returns the created event id, or null
- * when the write did not happen — the booking itself is already recorded in kp, so a
- * failed calendar write degrades to "the invite exists but the calendar entry does not"
- * rather than losing the booking.
+ * The outcome of a calendar WRITE, in the vocabulary the invite persists.
+ *
+ * Never throws and never a bare boolean: "nobody connected a calendar" is not a failure
+ * (it is the documented link-only product) and must not be recorded as one, while a real
+ * API error must not be recorded as "written". `gone` is only produced by update/delete
+ * and means the event is no longer there — which a delete treats as success (idempotent)
+ * and an update treats as a cue to re-create.
  */
-export async function createInterviewEvent(
-  input: {
-    startIso: string;
-    endIso: string;
-    summary: string;
-    description?: string;
-    attendeeEmails?: readonly string[];
-  },
-  workspaceId: string
-): Promise<string | null> {
+export type CalendarWriteResult =
+  | { ok: true; eventId: string; eventLink: string | null }
+  | { ok: false; reason: "not_connected" | "failed" | "gone" };
+
+function eventBody(input: InterviewEventInput): Record<string, unknown> {
+  return {
+    summary: input.summary,
+    description: input.description,
+    location: input.location,
+    start: { dateTime: input.startIso },
+    end: { dateTime: input.endIso },
+    // NO `sendUpdates`, on purpose: kp owns the candidate's confirmation email (with the
+    // reschedule link and the .ics), and letting Google send a second, un-branded invite
+    // for the same interview would be two "you're booked" mails from one action.
+    attendees: (input.attendeeEmails ?? []).filter(Boolean).map((email) => ({ email })),
+  };
+}
+
+function writtenFrom(payload: unknown): CalendarWriteResult {
+  const id = (payload as { id?: unknown } | null)?.id;
+  if (typeof id !== "string" || !id) return { ok: false, reason: "failed" };
+  const link = (payload as { htmlLink?: unknown }).htmlLink;
+  return { ok: true, eventId: id, eventLink: typeof link === "string" ? link : null };
+}
+
+/** Which flavour of "no write happened" applies when there is no usable token: something
+ *  the operator can fix (connect an account) vs something they can only wait out (a
+ *  revoked grant / a refresh that failed). Mirrors proposeFreeSlots' `unchecked`. */
+function noAuthResult(workspaceId: string): CalendarWriteResult {
+  return { ok: false, reason: isCalendarConnected(workspaceId) ? "failed" : "not_connected" };
+}
+
+/**
+ * Write the confirmed interview onto the calendar. The booking itself is already recorded
+ * in kp, so a failed calendar write degrades to "the invite exists but the calendar entry
+ * does not" rather than losing the booking — the caller records WHICH of those happened.
+ */
+export async function createInterviewEvent(input: InterviewEventInput, workspaceId: string): Promise<CalendarWriteResult> {
   const auth = await accessTokenFor(workspaceId);
-  if (!auth) return null;
+  if (!auth) return noAuthResult(workspaceId);
   const calendarId = getCalendarConnection(workspaceId)?.calendarId ?? "primary";
   const payload = await fetchJson(`${EVENTS_ENDPOINT}/${encodeURIComponent(calendarId)}/events`, {
     method: "POST",
     headers: { authorization: `Bearer ${auth.token}`, "content-type": "application/json" },
-    body: JSON.stringify({
-      summary: input.summary,
-      description: input.description,
-      start: { dateTime: input.startIso },
-      end: { dateTime: input.endIso },
-      attendees: (input.attendeeEmails ?? []).filter(Boolean).map((email) => ({ email })),
-    }),
+    body: JSON.stringify(eventBody(input)),
   });
-  const id = (payload as { id?: unknown } | null)?.id;
-  return typeof id === "string" ? id : null;
+  return payload === null ? { ok: false, reason: "failed" } : writtenFrom(payload);
+}
+
+/**
+ * Move/refresh an event kp already wrote (a reschedule, a newly attached meeting link).
+ *
+ * PATCH, not POST: an interview that moves must keep ONE event, or every reschedule
+ * leaves a ghost at the old time. `gone` (404/410 — someone deleted it in Google) is
+ * reported distinctly so the caller can re-create rather than record a failure for an
+ * event the recruiter removed by hand.
+ */
+export async function updateInterviewEvent(
+  eventId: string,
+  input: InterviewEventInput,
+  workspaceId: string
+): Promise<CalendarWriteResult> {
+  const auth = await accessTokenFor(workspaceId);
+  if (!auth) return noAuthResult(workspaceId);
+  const calendarId = getCalendarConnection(workspaceId)?.calendarId ?? "primary";
+  const url = `${EVENTS_ENDPOINT}/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  try {
+    const res = await fetch(url, {
+      method: "PATCH",
+      headers: { authorization: `Bearer ${auth.token}`, "content-type": "application/json" },
+      body: JSON.stringify(eventBody(input)),
+      signal: controller.signal,
+    });
+    const text = await res.text();
+    if (res.status === 404 || res.status === 410) return { ok: false, reason: "gone" };
+    if (!res.ok) {
+      console.error(`[calendar] Google returned HTTP ${res.status}: ${text.slice(0, 300)}`);
+      return { ok: false, reason: "failed" };
+    }
+    try {
+      return writtenFrom(JSON.parse(text));
+    } catch {
+      return { ok: false, reason: "failed" };
+    }
+  } catch (err) {
+    console.error("[calendar] Google request failed", err);
+    return { ok: false, reason: "failed" };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
+ * Delete the event for an interview that is no longer happening (cancelled, withdrawn,
+ * no-showed). An event that is ALREADY gone (404/410) is a success — deletion is
+ * idempotent, so a retry after a partial failure converges instead of reporting a
+ * permanent error for a calendar that is already in the desired state.
+ */
+export async function deleteInterviewEvent(
+  eventId: string,
+  workspaceId: string
+): Promise<{ ok: true } | { ok: false; reason: "not_connected" | "failed" }> {
+  const auth = await accessTokenFor(workspaceId);
+  if (!auth) return { ok: false, reason: isCalendarConnected(workspaceId) ? "failed" : "not_connected" };
+  const calendarId = getCalendarConnection(workspaceId)?.calendarId ?? "primary";
+  const status = await fetchStatus(
+    `${EVENTS_ENDPOINT}/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`,
+    { method: "DELETE", headers: { authorization: `Bearer ${auth.token}` } }
+  );
+  if (status === 404 || status === 410 || (status >= 200 && status < 300)) return { ok: true };
+  console.error(`[calendar] deleting event ${eventId} returned HTTP ${status}`);
+  return { ok: false, reason: "failed" };
 }
 
 // NO ACCOUNT-EMAIL LOOKUP, on purpose. Showing "connected as jana@…" would be nice, and

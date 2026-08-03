@@ -2362,6 +2362,13 @@
         "unavailable": "Nicht abgeglichen — die Kalenderabfrage ist fehlgeschlagen"
       },
       "calendarDropped": "{count, plural, one {# Termin als belegt ausgeblendet} other {# Termine als belegt ausgeblendet}}",
+      "calendarEvent": {
+        "written": "In Ihrem Kalender",
+        "not_connected": "Nicht im Kalender — keiner verbunden",
+        "failed": "Konnte nicht in Ihren Kalender eingetragen werden",
+        "removed": "Aus Ihrem Kalender entfernt",
+        "orphaned": "Noch in Ihrem Kalender — bitte manuell entfernen"
+      },
       "cancelBooking": "Buchung stornieren",
       "cancelPrompt": "Dieses Interview stornieren?",
       "markNoShow": "Nicht erschienen",

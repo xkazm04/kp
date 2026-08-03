@@ -2362,6 +2362,13 @@
         "unavailable": "Non vérifié — la consultation de l'agenda a échoué"
       },
       "calendarDropped": "{count, plural, one {# créneau masqué (occupé)} other {# créneaux masqués (occupés)}}",
+      "calendarEvent": {
+        "written": "Dans votre agenda",
+        "not_connected": "Absent de l'agenda — aucun agenda connecté",
+        "failed": "N'a pas pu être ajouté à votre agenda",
+        "removed": "Retiré de votre agenda",
+        "orphaned": "Toujours dans votre agenda — à supprimer manuellement"
+      },
       "cancelBooking": "Annuler la réservation",
       "cancelPrompt": "Annuler cet entretien ?",
       "markNoShow": "Absence",

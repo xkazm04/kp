@@ -2362,6 +2362,13 @@
         "unavailable": "Neověřeno — dotaz do kalendáře selhal"
       },
       "calendarDropped": "{count, plural, one {# termín skryt jako obsazený} few {# termíny skryty jako obsazené} many {# termínu skryto jako obsazených} other {# termínů skryto jako obsazených}}",
+      "calendarEvent": {
+        "written": "Ve vašem kalendáři",
+        "not_connected": "Není v kalendáři — žádný není připojený",
+        "failed": "Nepodařilo se přidat do vašeho kalendáře",
+        "removed": "Odebráno z vašeho kalendáře",
+        "orphaned": "Stále ve vašem kalendáři — odeberte ho ručně"
+      },
       "cancelBooking": "Zrušit rezervaci",
       "cancelPrompt": "Zrušit tento pohovor?",
       "markNoShow": "Nedostavil se",

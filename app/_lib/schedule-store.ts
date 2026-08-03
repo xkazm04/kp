@@ -86,6 +86,18 @@ function db(): Database.Database {
       proposals TEXT,
       proposals_at TEXT,
       proposal_status TEXT,
+      -- Write-back to the team's connected calendar. calendar_event_id is the provider's
+      -- event id — the handle that makes the lifecycle IDEMPOTENT: a reschedule PATCHes
+      -- this event instead of creating a second one, and a cancel/no-show deletes exactly
+      -- it. calendar_event_link is the provider's htmlLink (recruiter-facing only).
+      -- calendar_event_state is one of CALENDAR_EVENT_STATES (free-busy.ts) and is the
+      -- HONEST record of what happened: a booking whose event could not be written says
+      -- 'failed' rather than looking identical to one that was never attempted. NULL on
+      -- every invite that predates a booking. Additive columns; existing rows read NULL.
+      calendar_event_id TEXT,
+      calendar_event_link TEXT,
+      calendar_event_state TEXT,
+      calendar_event_at TEXT,
       created_at TEXT NOT NULL,
       confirmed_at TEXT
     );
@@ -111,6 +123,10 @@ function db(): Database.Database {
     "proposals TEXT",
     "proposals_at TEXT",
     "proposal_status TEXT",
+    "calendar_event_id TEXT",
+    "calendar_event_link TEXT",
+    "calendar_event_state TEXT",
+    "calendar_event_at TEXT",
   ]) {
     try {
       d.exec(`ALTER TABLE schedule_invites ADD COLUMN ${col}`);
@@ -189,6 +205,10 @@ export type ScheduleInvite = {
   proposals: { value: string; label: string }[] | null; // candidate-proposed alternative times (server-authored labels); null when none pending
   proposalsAt: string | null; // ISO time the candidate submitted their proposed times
   proposalStatus: string | null; // null | 'pending' (awaiting recruiter) | 'declined' (recruiter couldn't accommodate)
+  calendarEventId: string | null; // provider event id for the written interview; the idempotency handle (update/delete target)
+  calendarEventLink: string | null; // provider htmlLink for that event — RECRUITER-facing (never on the candidate token wire)
+  calendarEventState: string | null; // CALENDAR_EVENT_STATES: written | not_connected | failed | removed | orphaned; null before any booking
+  calendarEventAt: string | null; // ISO time of the most recent write-back attempt's outcome
   locale: string | null; // SIM3 — the linked entry's applicant locale, when joined (dueReminders); null otherwise
   // The linked pipeline entry's status/stage, surfaced by the recruiter agenda read
   // (listScheduleInvites' LEFT JOIN) so a surface can gate on the entry's fate — e.g.
@@ -243,6 +263,10 @@ function rowTo(r: Record<string, unknown>): ScheduleInvite {
     proposals: parseProposals(r.proposals as string | null | undefined),
     proposalsAt: (r.proposals_at as string) ?? null,
     proposalStatus: (r.proposal_status as string) ?? null,
+    calendarEventId: (r.calendar_event_id as string) ?? null,
+    calendarEventLink: (r.calendar_event_link as string) ?? null,
+    calendarEventState: (r.calendar_event_state as string) ?? null,
+    calendarEventAt: (r.calendar_event_at as string) ?? null,
     // Only the dueReminders join selects entry_locale; every other read leaves it null.
     locale: (r.entry_locale as string) ?? null,
     // Only the recruiter-agenda join (listScheduleInvites) and dueReminders select
@@ -422,6 +446,34 @@ export function setScheduleInviteMeetingUrl(token: string, url: string | null): 
     .prepare(`UPDATE schedule_invites SET meeting_url = ? WHERE token = ? RETURNING *`)
     .get(clean, token) as Record<string, unknown> | undefined;
   return updated ? rowTo(updated) : null;
+}
+
+/** Record the outcome of a calendar write-back on the invite (calendar/event-sync.ts is
+ *  the only caller). `eventId`/`eventLink` are kept on a state that still has an event
+ *  and CLEARED on one that does not ('removed'), so the id column always answers "is
+ *  there an event out there for this interview?" — which is what makes the lifecycle
+ *  idempotent. 'orphaned' deliberately KEEPS the id: the event is still on someone's
+ *  calendar and a later retry needs the handle. Never throws on an unknown token (the
+ *  invite may have moved on); the booking is the source of truth, this is bookkeeping. */
+export function recordCalendarEvent(
+  token: string,
+  outcome: { state: string; eventId?: string | null; eventLink?: string | null }
+): void {
+  const keepHandle = outcome.state !== "removed";
+  db()
+    .prepare(
+      `UPDATE schedule_invites
+          SET calendar_event_state = ?,
+              calendar_event_at = ?,
+              calendar_event_id = ${keepHandle ? "COALESCE(?, calendar_event_id)" : "NULL"},
+              calendar_event_link = ${keepHandle ? "COALESCE(?, calendar_event_link)" : "NULL"}
+        WHERE token = ?`
+    )
+    .run(
+      ...(keepHandle
+        ? [outcome.state, new Date().toISOString(), outcome.eventId ?? null, outcome.eventLink ?? null, token]
+        : [outcome.state, new Date().toISOString(), token])
+    );
 }
 
 /** Cap on candidate self-reschedules of a confirmed booking. Small on purpose:

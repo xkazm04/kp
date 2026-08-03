@@ -8,6 +8,7 @@
 import { CalendarClock, CalendarX, Hourglass } from "lucide-react";
 import type { useTranslations } from "next-intl";
 import { canReinvite, closedReason } from "./scheduleInviteLifecycleBuckets";
+import { CalendarEventChip } from "./ScheduleCalendarEventChip";
 import type { ScheduleInvite } from "@/app/_lib/schedule-store";
 import type { ArmedAction } from "./useScheduleInviteLifecycle";
 
@@ -40,6 +41,9 @@ export function AwaitingSection({
                 {t("attendanceCancelled")}
               </span>
             ) : null}
+            {/* A cancelled booking's calendar entry: 'removed' is the quiet all-clear,
+                'orphaned' is the one that still needs a human to delete it. */}
+            <CalendarEventChip state={i.calendarEventState} link={i.calendarEventLink} t={t} />
             <span className="ml-auto text-xs text-steel">
               {t(relayConfigured === false ? "queuedAgo" : "sentAgo", { time: relativeTime(i.createdAt) })}
             </span>
@@ -88,6 +92,7 @@ export function ClosedSection({
               {i.jobTitle ? <span className="text-steel">· {i.jobTitle}</span> : null}
               {/* The booked time survives on a no_show so the recruiter sees which slot was missed. */}
               {reason === "no_show" && i.slotAt ? <span className="text-steel nums">· {slotLine(i)}</span> : null}
+              <CalendarEventChip state={i.calendarEventState} link={i.calendarEventLink} t={t} />
               <span
                 className={`ml-auto rounded-full px-1.5 py-0.5 text-xs font-semibold ${
                   reason === "no_show"

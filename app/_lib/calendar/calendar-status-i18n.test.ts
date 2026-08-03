@@ -11,17 +11,19 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { CALENDAR_STATUSES } from "./free-busy.ts";
+import { CALENDAR_EVENT_STATES, CALENDAR_STATUSES } from "./free-busy.ts";
 
 const LOCALES = ["en", "cs", "de", "fr"] as const;
 const MESSAGES = path.join(process.cwd(), "messages");
 
-const catalog = (locale: string): Record<string, unknown> => {
-  const m = JSON.parse(readFileSync(path.join(MESSAGES, `${locale}.json`), "utf8")) as {
-    scheduleTab: { lifecycle: { calendarStatus?: Record<string, unknown> } };
-  };
-  return m.scheduleTab.lifecycle.calendarStatus ?? {};
-};
+const lifecycle = (locale: string): Record<string, Record<string, unknown> | undefined> =>
+  (
+    JSON.parse(readFileSync(path.join(MESSAGES, `${locale}.json`), "utf8")) as {
+      scheduleTab: { lifecycle: Record<string, Record<string, unknown> | undefined> };
+    }
+  ).scheduleTab.lifecycle;
+
+const catalog = (locale: string): Record<string, unknown> => lifecycle(locale).calendarStatus ?? {};
 
 test("every calendar status has a translation in EVERY locale, and no orphans", () => {
   const expected = [...CALENDAR_STATUSES].sort();
@@ -38,6 +40,33 @@ test("every calendar status has a translation in EVERY locale, and no orphans", 
       assert.ok((value as string).trim().length > 0, `${locale}.${key} must not be empty`);
     }
   }
+});
+
+test("every calendar EVENT state has a translation in EVERY locale, and no orphans", () => {
+  // Same contract, second axis (write-back rather than free/busy). i18n:check compares
+  // locales against EACH OTHER, so deleting a key from all four leaves it green — only a
+  // set-equality guard against the code's canonical list catches that.
+  const expected = [...CALENDAR_EVENT_STATES].sort();
+  for (const locale of LOCALES) {
+    const events = lifecycle(locale).calendarEvent ?? {};
+    assert.deepEqual(
+      Object.keys(events).sort(),
+      expected,
+      `messages/${locale}.json scheduleTab.lifecycle.calendarEvent must set-equal CALENDAR_EVENT_STATES`
+    );
+    for (const [key, value] of Object.entries(events)) {
+      assert.equal(typeof value, "string", `${locale}.calendarEvent.${key} must be a string`);
+      assert.ok((value as string).trim().length > 0, `${locale}.calendarEvent.${key} must not be empty`);
+    }
+  }
+});
+
+test("the two calendar vocabularies stay distinct — a read state is not a write state", () => {
+  // They share exactly ONE spelling, `not_connected`, and share it on purpose: it means
+  // the same thing on both axes (nothing to talk to). Anything else overlapping would be
+  // a sign the two axes are being collapsed back into one.
+  const shared = CALENDAR_STATUSES.filter((s) => (CALENDAR_EVENT_STATES as readonly string[]).includes(s));
+  assert.deepEqual(shared, ["not_connected"]);
 });
 
 test("the candidate-facing calendar note exists in every locale (both states)", () => {

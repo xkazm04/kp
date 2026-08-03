@@ -18,6 +18,8 @@ import { actOnPipelineEntry, getPipelineEntry } from "@/app/_lib/db";
 import { plannedInterviewMinutes } from "@/app/_lib/interview-run";
 import { dateSlotToIso, gridSlotToIso, hourBucketKey, offeredSlotFor, proposedSlotFor, proposeSlots, scheduledSealOutcome } from "@/app/_lib/schedule-slots";
 import { proposeFreeSlots } from "@/app/_lib/calendar/available-slots";
+import { removeInterviewEvent, syncInterviewEvent } from "@/app/_lib/calendar/event-sync";
+import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import { sealDecisionSafe } from "@/app/_lib/decision-record-store";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { jsonOk, safeJsonError } from "@/app/_lib/api-response";
@@ -91,6 +93,19 @@ export async function POST(request: Request) {
     if (!body.action) {
       return NextResponse.json({ error: "action is required" }, { status: 400 });
     }
+    // W1.4, second half — every recruiter action that MOVES a booking keeps the connected
+    // calendar in step (one event per interview, PATCHed rather than re-created), and
+    // every action that CLOSES one takes the event down. Same seam the candidate token
+    // route uses, so the two paths cannot drift. Best-effort by construction: the write
+    // records its own outcome on the invite and never throws — a Google outage must not
+    // fail a recruiter's cancel.
+    const writeCalendarEvent = async (booked: ScheduleInvite, entryId: string | null): Promise<void> => {
+      const entry = entryId ? getPipelineEntry(entryId, ws) : null;
+      await syncInterviewEvent(booked, {
+        attendeeEmail: entry?.contact ?? null,
+        baseUrl: publicBaseUrl(new URL(request.url).origin),
+      });
+    };
 
     // BOOK (Direction 3) — the manual week grid, routed through the ONE scheduling
     // engine. Confirming a candidate on the grid used to write a timezone-less
@@ -186,7 +201,8 @@ export async function POST(request: Request) {
         reasonCode: outcome.reasonCode,
         inputs: { slot: resolved.label, slotAt: resolved.value, advanced },
       });
-      return jsonOk({ invite: bookedInvite, slot: resolved.label, slotAt: resolved.value });
+      await writeCalendarEvent(bookedInvite, entry.id);
+      return jsonOk({ invite: getScheduleInviteByToken(bookedInvite.token) ?? bookedInvite, slot: resolved.label, slotAt: resolved.value });
     }
 
     if (!body.token) {
@@ -206,6 +222,9 @@ export async function POST(request: Request) {
         // primitive). Outcome-bearing → seal the recruiter's decision.
         const updated = cancelAttendance(body.token);
         if (!updated) return NextResponse.json({ error: "Only a confirmed booking can be cancelled." }, { status: 409 });
+        // `invite` is the PRE-cancel row and still carries the event id (cancelAttendance
+        // clears the slot, not the calendar handle) — delete exactly that event.
+        await removeInterviewEvent(invite);
         if (invite.entryId) {
           sealDecisionSafe({
             kind: "interview_cancelled",
@@ -217,11 +236,16 @@ export async function POST(request: Request) {
             inputs: { previousSlot: invite.slot, previousSlotAt: invite.slotAt },
           });
         }
-        return jsonOk({ invite: updated });
+        // Re-read: the calendar removal above wrote calendar_event_state on this row, and
+        // the panel needs the post-removal truth (including an 'orphaned' warning).
+        return jsonOk({ invite: getScheduleInviteByToken(body.token) ?? updated });
       }
       case "no_show": {
         const updated = markScheduleInviteNoShow(body.token);
         if (!updated) return NextResponse.json({ error: "Only a confirmed booking can be marked as a no-show." }, { status: 409 });
+        // A no-show keeps slot_at as the record of the missed time, but the interview is
+        // over — the calendar entry should not keep advertising it.
+        await removeInterviewEvent(invite);
         if (invite.entryId) {
           sealDecisionSafe({
             kind: "interview_no_show",
@@ -233,7 +257,7 @@ export async function POST(request: Request) {
             inputs: { slot: invite.slot, slotAt: invite.slotAt },
           });
         }
-        return jsonOk({ invite: updated });
+        return jsonOk({ invite: getScheduleInviteByToken(body.token) ?? updated });
       }
       case "reschedule": {
         // Validate the target against the offered-slot mechanism (server-authored
@@ -253,7 +277,9 @@ export async function POST(request: Request) {
           }
           return NextResponse.json({ error: "invite not found" }, { status: 404 });
         }
-        return jsonOk({ invite: moved.invite });
+        // Move the SAME calendar event to the new time (never a second one at it).
+        await writeCalendarEvent(moved.invite, invite.entryId);
+        return jsonOk({ invite: getScheduleInviteByToken(body.token) ?? moved.invite });
       }
       case "accept_proposal": {
         // Accept ONE of the candidate's proposed times (the "propose your own times"
@@ -303,6 +329,7 @@ export async function POST(request: Request) {
             inputs: { slot: offered.label, slotAt: offered.value, advanced },
           });
         }
+        await writeCalendarEvent(result.invite, invite.entryId);
         return jsonOk({ invite: getScheduleInviteByToken(body.token) });
       }
       case "decline_proposals": {
@@ -378,7 +405,19 @@ export async function PATCH(request: Request) {
     }
     const updated = setScheduleInviteMeetingUrl(body.token, url);
     if (!updated) return NextResponse.json({ error: "invite not found" }, { status: 404 });
-    return NextResponse.json({ invite: updated });
+    // The meeting link is the calendar event's LOCATION. If kp already wrote an event for
+    // this interview, refresh it — otherwise the interviewer opens the entry at call time
+    // and finds the placeholder location while the link lives only inside kp. Only ever an
+    // UPDATE (the `calendarEventId` guard): attaching a link never creates an event, so a
+    // pending invite with no booking is untouched. Best-effort, as everywhere.
+    if (updated.calendarEventId) {
+      const entry = updated.entryId ? getPipelineEntry(updated.entryId, ws) : null;
+      await syncInterviewEvent(updated, {
+        attendeeEmail: entry?.contact ?? null,
+        baseUrl: publicBaseUrl(new URL(request.url).origin),
+      });
+    }
+    return NextResponse.json({ invite: getScheduleInviteByToken(body.token) ?? updated });
   } catch (error) {
     return safeJsonError(error, "api:schedule", "SCHEDULE_LOOKUP_FAILED");
   }

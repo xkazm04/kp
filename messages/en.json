@@ -2362,6 +2362,13 @@
         "unavailable": "Not checked — the calendar lookup failed"
       },
       "calendarDropped": "{count, plural, one {# time hidden as busy} other {# times hidden as busy}}",
+      "calendarEvent": {
+        "written": "On your calendar",
+        "not_connected": "Not on a calendar — none connected",
+        "failed": "Couldn't be added to your calendar",
+        "removed": "Removed from your calendar",
+        "orphaned": "Still on your calendar — remove it by hand"
+      },
       "cancelBooking": "Cancel booking",
       "cancelPrompt": "Cancel this interview?",
       "markNoShow": "No-show",

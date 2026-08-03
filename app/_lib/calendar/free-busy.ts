@@ -37,6 +37,34 @@ export const DEFAULT_SLOT_MINUTES = 45;
 export const CALENDAR_STATUSES = ["checked", "not_connected", "unavailable"] as const;
 export type CalendarStatus = (typeof CALENDAR_STATUSES)[number];
 
+/**
+ * WHAT HAPPENED to the interview's own event on the connected calendar — the write-back
+ * axis, as opposed to `CALENDAR_STATUSES` above, which is the free/busy READ axis.
+ *
+ * Two axes, deliberately not one vocabulary: "we could not check your calendar for
+ * conflicts" and "we could not put the interview on your calendar" are different facts
+ * with different repairs, and a booking routinely holds one of each. `not_connected` is
+ * spelled the same in both because it means the same thing in both (nothing to talk to)
+ * and `isCalendarConnected` is the single source for it.
+ *   written       — the event exists on the calendar; its id + link are on the invite.
+ *   not_connected — no calendar integration for this workspace; link-only (.ics /
+ *                   "add to calendar") behaviour, exactly as before this integration.
+ *   failed        — a calendar IS connected and the write did not land (outage, revoked
+ *                   grant, API error). The BOOKING still stands — it is the source of
+ *                   truth — so this is recorded rather than raised.
+ *   removed       — the interview was cancelled/declined/no-showed and its event was
+ *                   deleted from the calendar. Nothing is orphaned.
+ *   orphaned      — the interview was closed but its event could NOT be deleted, so a
+ *                   stale entry is still sitting on someone's calendar. The one state
+ *                   that asks a human to go and remove it by hand.
+ *
+ * CANONICAL LIST, same contract as CALENDAR_STATUSES: the recruiter catalog
+ * (`scheduleTab.lifecycle.calendarEvent.*`) is set-equality guarded against it in all
+ * four locales by calendar-status-i18n.test.ts.
+ */
+export const CALENDAR_EVENT_STATES = ["written", "not_connected", "failed", "removed", "orphaned"] as const;
+export type CalendarEventState = (typeof CALENDAR_EVENT_STATES)[number];
+
 type Span = { startMs: number; endMs: number };
 
 function toSpan(interval: BusyInterval): Span | null {

@@ -8,6 +8,7 @@
 import type { useTranslations } from "next-intl";
 import { interviewCalendarEvent } from "@/app/_lib/calendar-links";
 import { AddToCalendar } from "./ScheduleAddToCalendar";
+import { CalendarEventChip } from "./ScheduleCalendarEventChip";
 import { MeetingLinkCell } from "./ScheduleMeetingLinkCell";
 import { RecruiterControls } from "./ScheduleInviteRecruiterControls";
 import type { ScheduleInvite } from "@/app/_lib/schedule-store";
@@ -73,6 +74,10 @@ export function AgendaRow({
         <span className="rounded-full bg-moss/15 px-1.5 py-0.5 text-xs font-semibold text-moss">{t("attendanceConfirmed")}</span>
       ) : null}
       <span className="ml-auto flex items-center gap-2">
+        {/* W1.4 second half — whether this booking actually reached the connected
+            calendar. Best-effort writes have to be visible or a silent failure is
+            indistinguishable from a working integration. */}
+        <CalendarEventChip state={i.calendarEventState} link={i.calendarEventLink} t={t} />
         <span className="text-xs text-steel">
           {i.reminderSentAt ? t(relayConfigured === false ? "reminderQueued" : "reminderSent") : t("reminderPending")}
         </span>

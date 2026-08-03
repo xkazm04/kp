@@ -21,6 +21,7 @@ import {
 } from "@/app/_lib/schedule-store";
 import { offeredSlotFor, proposeSlots, isScheduleInviteExpired, validateProposedSlots } from "@/app/_lib/schedule-slots";
 import { proposeFreeSlots, slotStillFree } from "@/app/_lib/calendar/available-slots";
+import { removeInterviewEvent, syncInterviewEvent } from "@/app/_lib/calendar/event-sync";
 import { isValidTimeZone } from "@/app/_lib/timezone";
 import { logScheduleNoSlots, logScheduleReconcile } from "@/app/_lib/logger";
 import { jsonOk, safeJsonError } from "@/app/_lib/api-response";
@@ -197,6 +198,12 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
     if (body.withdraw === true) {
       const declined = declineScheduleInvite(token);
       if (!declined) return NextResponse.json({ error: "not found" }, { status: 404 });
+      // The interview is off — take it off the interviewer's calendar too, or the
+      // recruiter keeps a block of time for a candidate who withdrew. `invite` (the
+      // PRE-decline row) still carries the event id; declineScheduleInvite clears the
+      // slot, not the calendar handle. Best-effort: a failed delete is recorded as
+      // 'orphaned' and never turns a withdrawal into an error.
+      await removeInterviewEvent(invite);
       return jsonOk({ ok: true, invite: publicInviteView(declined), withdrawn: true });
     }
 
@@ -245,6 +252,10 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
       }
       const updated = body.rsvp === "confirm" ? confirmAttendance(token) : cancelAttendance(token);
       if (!updated) return NextResponse.json({ error: "not found" }, { status: 404 });
+      // "I can't make it" frees the slot in kp; free it on the calendar too. A later
+      // re-booking on this same invite creates a fresh event (the id is cleared with
+      // the deletion), so the two can't drift into a ghost at the abandoned time.
+      if (body.rsvp === "cancel") await removeInterviewEvent(invite);
       return jsonOk({ ok: true, invite: publicInviteView(updated), rsvp: body.rsvp });
     }
 
@@ -373,6 +384,23 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
       }
     };
 
+    // W1.4, second half — write the confirmed interview onto the team's connected
+    // calendar (create on a first booking, UPDATE the same event on a reschedule, so an
+    // interview never leaves a ghost at its old time). Deliberately OUTSIDE recordBooking
+    // and after it: an invite with no linked entry still deserves its calendar entry, and
+    // the candidate's confirmation email is the more important of the two side effects.
+    // Best-effort by construction — syncInterviewEvent records its own outcome on the
+    // invite and never throws, so a Google outage cannot half-commit a booking.
+    const writeCalendarEvent = async (booked: ScheduleInvite): Promise<void> => {
+      const entry = invite.entryId ? getPipelineEntry(invite.entryId) : null;
+      await syncInterviewEvent(booked, {
+        // The candidate joins the event as an attendee when we hold a real address;
+        // `contact` also stores phone numbers, which event-sync filters out.
+        attendeeEmail: entry?.contact ?? null,
+        baseUrl: publicBaseUrl(new URL(request.url).origin),
+      });
+    };
+
     // RESCHEDULE — a confirmed candidate moving to a new time. Same collision
     // authority as confirm (rescheduleScheduleInvite's transaction), bounded by
     // MAX_RESCHEDULES, and the old slot is freed back into the pool.
@@ -394,6 +422,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
         return NextResponse.json({ error: "not found" }, { status: 404 });
       }
       const confirmationDelivery = await recordBooking(moved.invite);
+      await writeCalendarEvent(moved.invite);
       return jsonOk({
         ok: true,
         invite: publicInviteView(moved.invite),
@@ -418,6 +447,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
       return NextResponse.json({ error: "not found" }, { status: 404 });
     }
     const confirmationDelivery = await recordBooking(result.invite);
+    await writeCalendarEvent(result.invite);
     return jsonOk({
       ok: true,
       invite: publicInviteView(result.invite),
