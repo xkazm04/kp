@@ -1,5 +1,5 @@
 import { proposeSlots } from "../schedule-slots";
-import { busyQueryWindow, filterFreeSlots, DEFAULT_SLOT_MINUTES, type CalendarStatus } from "./free-busy";
+import { busyQueryWindow, filterFreeSlots, isSlotFree, DEFAULT_SLOT_MINUTES, type CalendarStatus } from "./free-busy";
 import { fetchBusy, isCalendarConnected } from "./google-calendar";
 
 export { CALENDAR_STATUSES, type CalendarStatus } from "./free-busy";
@@ -74,4 +74,32 @@ export async function proposeFreeSlots(
   // no-slots escalation ("propose your own times") is exactly the right response to it,
   // so this does not backfill with times the recruiter cannot make.
   return { slots: free.slice(0, count), calendarChecked: true, calendarStatus: "checked", droppedForConflict };
+}
+
+/**
+ * Is `slotIso` STILL free on the connected calendar, right now?
+ *
+ * The suggestion-time filter above runs when a candidate loads the page; the booking
+ * happens minutes or days later. Nothing re-checked in between, so a slot that filled on
+ * the interviewer's calendar in that gap was booked straight into the conflict — the exact
+ * double-booking this integration exists to prevent, arriving through the front door.
+ *
+ * THREE-VALUED ON PURPOSE, and the third value is the important one:
+ *   true  — checked, free. Proceed.
+ *   false — checked, busy. The caller must refuse and re-offer.
+ *   null  — UNKNOWN (no calendar connected, or the lookup failed). The caller MUST
+ *           proceed. An outage may never block a booking: scheduling worked before this
+ *           integration and must keep working when Google does not. A guard that fails
+ *           closed would turn a Google incident into "nobody can book an interview".
+ */
+export async function slotStillFree(
+  slotIso: string,
+  workspaceId: string,
+  minutes = DEFAULT_SLOT_MINUTES
+): Promise<boolean | null> {
+  const window = busyQueryWindow([{ value: slotIso }], minutes);
+  if (!window) return null; // unplaceable instant — offeredSlotFor owns that rejection
+  const busy = await fetchBusy(window, workspaceId);
+  if (busy === null) return null;
+  return isSlotFree(busy, slotIso, minutes);
 }

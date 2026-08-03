@@ -126,7 +126,9 @@ export function useScheduleInviteLifecycle() {
     setRescheduleSlots(null);
     setRescheduleCalendar(null);
     try {
-      const r = await fetch("/api/schedule?slots=1");
+      // Name the invite so the server conflict-checks its REAL length (a 90-minute
+      // interview was being checked as 45, leaving its second half unchecked).
+      const r = await fetch(`/api/schedule?slots=1&token=${encodeURIComponent(token)}`);
       const d = await r.json();
       setRescheduleSlots(Array.isArray(d.slots) ? d.slots : []);
       setRescheduleCalendar({

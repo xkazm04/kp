@@ -20,7 +20,7 @@ import {
   type ScheduleInvite,
 } from "@/app/_lib/schedule-store";
 import { offeredSlotFor, proposeSlots, isScheduleInviteExpired, validateProposedSlots } from "@/app/_lib/schedule-slots";
-import { proposeFreeSlots } from "@/app/_lib/calendar/available-slots";
+import { proposeFreeSlots, slotStillFree } from "@/app/_lib/calendar/available-slots";
 import { isValidTimeZone } from "@/app/_lib/timezone";
 import { logScheduleNoSlots, logScheduleReconcile } from "@/app/_lib/logger";
 import { jsonOk, safeJsonError } from "@/app/_lib/api-response";
@@ -99,7 +99,16 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ to
   // pre-integration list on any calendar failure (available-slots.ts).
   const proposed =
     invite.status !== "confirmed" || canReschedule
-      ? await proposeFreeSlots(bookedSlots(invite.workspaceId), invite.workspaceId)
+      // The interview's REAL length drives the conflict check. This call omitted `minutes`,
+      // so every interview was checked as 45 regardless of durationMin — a 90-minute slot
+      // had its second half compared against nothing and could be offered over a meeting.
+      // A legacy invite with a null durationMin still gets the documented default.
+      ? await proposeFreeSlots(
+          bookedSlots(invite.workspaceId),
+          invite.workspaceId,
+          undefined,
+          invite.durationMin ?? undefined
+        )
       : { slots: [], calendarChecked: false, calendarStatus: "not_connected" as const, droppedForConflict: 0 };
   const slots = proposed.slots;
   // The busiest-calendar edge (idea-5df8e10f): a pending invite whose entire
@@ -269,6 +278,25 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
       return NextResponse.json({ error: "That time isn't one of the offered slots — please pick from the list." }, { status: 400 });
     }
     const slot = offered.label;
+
+    // RE-CHECK THE CALENDAR AT THE MOMENT OF BOOKING. offeredSlotFor is a structural
+    // match against what the server WOULD offer — it says nothing about what happened on
+    // the interviewer's calendar since the page loaded. A slot that filled in that gap
+    // (minutes for a fresh link, days for one mailed last week) booked straight into the
+    // conflict, which is precisely the double-booking free/busy exists to prevent.
+    //
+    // UNKNOWN PROCEEDS. slotStillFree returns null when no calendar is connected or the
+    // lookup failed, and that path books exactly as it did before this integration — an
+    // outage must never block a booking (the seam's stated contract). Only a definite
+    // "busy" refuses, and it refuses with the SAME 409 shape as a kp-side collision, so
+    // the picker's existing handler refreshes the slot list and re-offers.
+    const calendarFree = await slotStillFree(offered.value, invite.workspaceId, invite.durationMin ?? undefined);
+    if (calendarFree === false) {
+      return NextResponse.json(
+        { error: "That time was just taken — please pick another.", invite: publicInviteView(invite) },
+        { status: 409 }
+      );
+    }
 
     // Record the chosen slot on the linked pipeline entry and send the
     // confirmation. Shared by the first confirm and a reschedule so the

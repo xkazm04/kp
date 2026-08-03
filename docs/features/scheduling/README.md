@@ -25,7 +25,8 @@ cannot pick an hour the interviewer is already busy for.
    `KP_INTERVIEW_TIMES` in `KP_INTERVIEW_TZ`) filtered by the connected
    calendar's free/busy.
 3. **Book.** `POST /api/schedule/[token]` re-derives the label server-side
-   (`offeredSlotFor`), collision-checks in the store transaction, advances the
+   (`offeredSlotFor`), **re-checks free/busy at the moment of booking**
+   (`slotStillFree`), collision-checks in the store transaction, advances the
    pipeline entry (`approve_event`), and dispatches confirmation + interviewer
    brief.
 4. **Steer.** `POST /api/schedule` gives the recruiter cancel / no-show /
@@ -62,6 +63,28 @@ account.
 Only `checked` ever claims a calendar was consulted. `calendarChecked` (the
 boolean) is exactly `status === "checked"`.
 
+### Duration, and re-checking at booking
+
+The conflict window is the interview's **real** length — `invite.durationMin`
+on both read sites (`plannedInterviewMinutes(entry)` at mint time), falling back
+to `DEFAULT_SLOT_MINUTES` (45) only for a legacy invite with no stored duration.
+A 90-minute interview is checked across all 90 minutes; the recruiter's
+`?slots=1` request names its invite via `&token=` so it gets the same treatment.
+
+Suggestion-time filtering is not enough on its own: the offer is rendered when
+the candidate opens the page and the click can land days later. `slotStillFree`
+(`available-slots.ts`) re-asks the calendar at confirm time and refuses a
+definite conflict with the same 409 the picker already handles, so the candidate
+is re-offered instead of double-booked. It is **three-valued** — `null` means
+unknown (no calendar, or the lookup failed) and MUST proceed. An outage never
+blocks a booking.
+
+A longer conflict window legitimately removes more slots, so a fully-conflicted
+horizon reaches the existing `noSlots` escalation more often — that path is
+unchanged and covered by `app/api/schedule/calendar-conflict.test.ts` (which also
+pins the 90-minute span, the confirm-time refusal, both unknown paths, and a null
+`durationMin`).
+
 **What each audience sees.** The recruiter's reschedule picker
 (`ScheduleInviteRecruiterControls.tsx`) renders all three states plus
 "N times hidden as busy" from `droppedForConflict` — an unexplained short list
@@ -87,7 +110,7 @@ guards the recruiter catalog against `CALENDAR_STATUSES`.
 | Store + collision authority | `app/_lib/schedule-store.ts` | Confirm/reschedule transactions, operator flags |
 | Free/busy (pure) | `app/_lib/calendar/free-busy.ts` | `isSlotFree`, `filterFreeSlots`, `busyQueryWindow`, `CALENDAR_STATUSES` |
 | Google edge | `app/_lib/calendar/google-calendar.ts` | `fetchBusy`, `createInterviewEvent`, `isCalendarConnected` |
-| Join | `app/_lib/calendar/available-slots.ts` | `proposeFreeSlots` |
+| Join | `app/_lib/calendar/available-slots.ts` | `proposeFreeSlots` (offer-time filter), `slotStillFree` (booking-time re-check) |
 
 ## Data model
 
@@ -115,5 +138,6 @@ is served unchanged. Scopes are deliberately narrow (`calendar.freebusy`,
   is a single global pool, so collisions are workspace-wide rather than
   per-interviewer.
 - Only Google is supported; there is no Microsoft 365 provider.
-- The recruiter-side reschedule / accept-proposal actions do not consult
-  free/busy — the recruiter is assumed to be looking at their own calendar.
+- The recruiter-side reschedule / accept-proposal **writes** do not re-check
+  free/busy at confirm time the way the candidate confirm does — the recruiter is
+  assumed to be looking at their own calendar. (Their offered list *is* filtered.)

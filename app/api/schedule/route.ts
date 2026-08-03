@@ -36,11 +36,21 @@ import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-lim
 export async function GET(request: Request) {
   try {
     const ws = await currentWorkspace();
-    if (new URL(request.url).searchParams.has("slots")) {
+    const params = new URL(request.url).searchParams;
+    if (params.has("slots")) {
+      // The REAL length of the interview being moved, not a blanket 45. proposeFreeSlots
+      // has always accepted `minutes` and this call site never fed it, so a 90-minute
+      // interview had its second half conflict-checked against nothing — the calendar was
+      // asked about 10:00–10:45 and the 10:45–11:30 half booked over whatever was there.
+      // The invite is named by the caller (the reschedule control knows its token); an
+      // absent/foreign token or a legacy null durationMin falls back to the default.
+      const forInvite = params.get("token") ? getScheduleInviteByToken(params.get("token")!) : null;
+      const minutes =
+        forInvite && forInvite.workspaceId === ws ? (forInvite.durationMin ?? undefined) : undefined;
       // W1.4 — also skips times the connected calendar is busy for. Degrades to the
       // pre-integration list when no calendar is connected or the lookup fails, so the
       // reschedule control never goes dark because Google did.
-      const proposed = await proposeFreeSlots(bookedSlots(ws), ws);
+      const proposed = await proposeFreeSlots(bookedSlots(ws), ws, undefined, minutes);
       return NextResponse.json({
         slots: proposed.slots,
         calendarChecked: proposed.calendarChecked,
