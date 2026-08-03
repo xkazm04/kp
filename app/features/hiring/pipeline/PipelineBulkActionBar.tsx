@@ -11,7 +11,7 @@ import { Select } from "@/app/_components/Select";
 import { STAGES, type Entry } from "@/app/features/shared/pipelineTypes";
 import { PipelineBulkDecideRow } from "./PipelineBulkDecideRow";
 import { PipelineBulkOutreachButton } from "./PipelineBulkOutreachButton";
-import type { BulkConfirmEvent } from "./pipelineBulkConfirm";
+import type { BulkConfirmIntent } from "./pipelineBulkConfirm";
 
 type BulkResult = { ok: number; failed: number; verb: "moved" | "accepted" | "rejected" | "invited" | "drafted"; reason?: string | null };
 
@@ -20,6 +20,7 @@ export function PipelineBulkActionBar({
   enumLabel,
   relayConfigured,
   selectedIds,
+  selectedOutsideCount,
   filteredCount,
   onSelectAllVisible,
   onClearSelection,
@@ -43,6 +44,10 @@ export function PipelineBulkActionBar({
   enumLabel: (kind: string, value: string) => string;
   relayConfigured: boolean | null;
   selectedIds: ReadonlySet<string>;
+  /** How many SELECTED rows the current filter hides (bulk-acts-on-what-you-see).
+   *  The board keeps the selection across filter changes on purpose, so the bar owes
+   *  the recruiter this number before any bulk action runs. */
+  selectedOutsideCount: number;
   filteredCount: number;
   onSelectAllVisible: () => void;
   onClearSelection: () => void;
@@ -53,7 +58,7 @@ export function PipelineBulkActionBar({
   selectedActive: Entry[];
   onBulkInvite: () => void;
   confirmingBulkOutreach: boolean;
-  dispatchBulkConfirm: (action: BulkConfirmEvent) => void;
+  dispatchBulkConfirm: (action: BulkConfirmIntent) => void;
   onBulkOutreach: () => void;
   outreachTaskActive: boolean;
   bulkResult: BulkResult | null;
@@ -67,6 +72,16 @@ export function PipelineBulkActionBar({
       <span className="text-sm font-semibold text-ink" aria-live="polite">
         {t("selectedCount", { count: selectedIds.size })}
       </span>
+      {/* bulk-acts-on-what-you-see — "12 selected" reads as "12 rows on screen" when
+          some of them are behind the current filter. Every action on this bar (move,
+          invite, outreach, accept/reject) acts on the WHOLE selection, so the
+          out-of-filter count is stated before any of them can run. role="status" so a
+          screen reader hears it when a filter change creates the divergence. */}
+      {selectedOutsideCount > 0 ? (
+        <span role="status" className="text-sm font-semibold text-coral">
+          {t("selectedOutsideFilter", { count: selectedOutsideCount })}
+        </span>
+      ) : null}
       <button
         type="button"
         onClick={onSelectAllVisible}

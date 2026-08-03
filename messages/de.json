@@ -1569,6 +1569,7 @@
       "select": "Auswählen",
       "selectDone": "Auswahl beenden",
       "selectedCount": "{count} ausgewählt",
+      "selectedOutsideFilter": "{count} ausgewählte sind durch den aktuellen Filter ausgeblendet — Massenaktionen erfassen sie trotzdem",
       "selectAllVisible": "Alle {count} angezeigten auswählen",
       "bulkClear": "Auswahl aufheben",
       "bulkMoveLabel": "Verschieben nach",

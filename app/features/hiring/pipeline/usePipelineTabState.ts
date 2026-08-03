@@ -46,7 +46,8 @@ import {
   nameCollides,
 } from "./pipelineViews";
 import { boardVisibleOrder, groupPositions } from "./pipelineBoardLayout";
-import { bulkConfirmReducer } from "./pipelineBulkConfirm";
+import { armedConfirm, bulkConfirmReducer, type BulkConfirmIntent } from "./pipelineBulkConfirm";
+import { selectionOutsideVisible, visibleScopeSignature } from "./pipelineSelectionScope";
 import { recordRecent } from "@/app/features/shell/recents";
 import { postPipelineAction, postPipelineBatch, type PipelineBatchItem } from "@/app/_lib/useAddToPipeline";
 import { copyText } from "@/app/_lib/export-utils";
@@ -128,9 +129,34 @@ export function usePipelineTabState() {
   // immediately, so "draft N" IS "send N". Relay definitively off → drafts are
   // terminal Outbox rows and one click is safe; unknown capability (null) fails
   // safe like relay-on.
-  const [bulkConfirm, dispatchBulkConfirm] = useReducer(bulkConfirmReducer, null);
-  const confirmingBulkReject = bulkConfirm === "reject";
-  const confirmingBulkOutreach = bulkConfirm === "outreach";
+  //
+  // bulk-acts-on-what-you-see — the confirm is additionally scoped to WHAT THE BOARD
+  // WAS SHOWING when it was armed (visibleScope, below). Disarming on a selection
+  // change alone left the mirror-image hole open: hold the selection still and change
+  // the FILTER instead, and an armed reject survived into a board where its cohort is
+  // invisible — one more click and they're emailed. The scope stamp closes it by
+  // DERIVATION (armedConfirm) rather than by a disarm dispatch in each of the ~9
+  // filter mutators, so a mutator added later is covered without anyone remembering.
+  const [bulkConfirm, rawDispatchBulkConfirm] = useReducer(bulkConfirmReducer, null);
+  // The identity of "what the board is showing" — every membership-affecting filter
+  // input, order-independently (sort is excluded: reordering the same rows is not a
+  // cohort change). Recomputed from the SAME state the filter predicate reads, so it
+  // cannot drift from filteredEntries.
+  const visibleScope = useMemo(
+    () => visibleScopeSignature({ query, quicks, scoreBands, sources, stage: stageFilter }),
+    [query, quicks, scoreBands, sources, stageFilter]
+  );
+  // Children dispatch a scope-free intent ({type:"arm", which}); the hook stamps the
+  // scope in force at the moment of the click. Keeping the scope out of the child API
+  // means a new bulk control physically cannot arm an unscoped confirm.
+  const dispatchBulkConfirm = useCallback(
+    (intent: BulkConfirmIntent) =>
+      rawDispatchBulkConfirm(intent.type === "arm" ? { ...intent, scope: visibleScope } : intent),
+    [visibleScope]
+  );
+  const armedBulkConfirm = armedConfirm(bulkConfirm, visibleScope);
+  const confirmingBulkReject = armedBulkConfirm === "reject";
+  const confirmingBulkOutreach = armedBulkConfirm === "outreach";
   // Saved board views (PIPE5): named {search + quick-filter} presets a recruiter
   // returns to, persisted in localStorage (single board, client-only — no schema).
   const [views, setViews] = useState<SavedView[]>([]);
@@ -318,6 +344,19 @@ export function usePipelineTabState() {
     );
     return sortFilteredEntries(matched, sort);
   }, [entries, query, quicks, scoreBands, sources, stageFilter, slaOverrides, sort]);
+
+  // bulk-acts-on-what-you-see — the selected rows the current filter HIDES. The
+  // selection is deliberately NOT pruned when the filter changes (a recruiter who
+  // filtered down to review a subset has not abandoned the rest, and silently
+  // shrinking a cohort they built is its own surprise); the board pays for keeping it
+  // by DISCLOSING the over-reach on the bulk bar, so no bulk action — move, invite,
+  // outreach, accept/reject — can act on rows the recruiter cannot see without saying
+  // so first. Resolved against `filteredEntries`, i.e. exactly what the board renders.
+  const selectedOutsideIds = useMemo(
+    () => selectionOutsideVisible(selectedIds, filteredEntries),
+    [selectedIds, filteredEntries]
+  );
+  const selectedOutsideCount = selectedOutsideIds.length;
 
   // The distinct source/channel facet values present on the board (all entries, not
   // the filtered set), so the source chips only offer values that actually exist —
@@ -719,6 +758,15 @@ export function usePipelineTabState() {
       .map((id) => (entries ?? []).find((x) => x.id === id))
       .filter((e): e is Entry => !!e && needsHumanDecision(e.approvalKind) && e.status === "active");
     if (awaiting.length === 0 || bulkBusy) return;
+    // bulk-acts-on-what-you-see — belt AND braces: reject emails everyone, so it fires
+    // only while the confirm is armed UNDER THE CURRENT VISIBLE SCOPE. The bar already
+    // reverts to the un-armed button when the scope changes, but the guard lives at the
+    // fire site too, so a future caller (a shortcut, the command bar) can't route around
+    // the render-level gate.
+    if (action === "reject" && armedConfirm(bulkConfirm, visibleScope) !== "reject") {
+      dispatchBulkConfirm({ type: "arm", which: "reject" });
+      return;
+    }
     setBulkBusy(true);
     setBulkResult(null);
     dispatchBulkConfirm({ type: "fired" });
@@ -799,6 +847,13 @@ export function usePipelineTabState() {
   // machinery the board already tracks for batch-screen.
   const bulkOutreach = async () => {
     if (selectedActive.length === 0 || outreachTask.active) return;
+    // With a relay configured (or unknown), a draft IS a send — same fire-site scope
+    // guard as the reject above. Relay definitively off → drafts are terminal Outbox
+    // rows and the one-click path stays.
+    if (relayConfigured !== false && armedConfirm(bulkConfirm, visibleScope) !== "outreach") {
+      dispatchBulkConfirm({ type: "arm", which: "outreach" });
+      return;
+    }
     setBulkResult(null);
     dispatchBulkConfirm({ type: "fired" });
     const started = await startTask("batch_outreach", { entryIds: selectedActive.map((e) => e.id) });
@@ -940,7 +995,7 @@ export function usePipelineTabState() {
     sort, setSortAndSync,
     stageFilter, clearStageFilter, showStage, clearFilters,
     selectMode, toggleSelectMode,
-    selectedIds, toggleSelected, selectAllVisible, clearSelection,
+    selectedIds, toggleSelected, selectAllVisible, clearSelection, selectedOutsideCount,
     bulkStage, setBulkStage, bulkBusy, bulkResult,
     confirmingBulkReject, confirmingBulkOutreach, dispatchBulkConfirm,
     views, viewDialog, setViewDialog, openSaveView, openRenameView, commitViewDialog,

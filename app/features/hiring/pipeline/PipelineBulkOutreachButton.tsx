@@ -11,7 +11,7 @@
 import type { PipelineTabTranslator } from "./pipelineTranslator";
 import { Mail } from "lucide-react";
 import type { Entry } from "@/app/features/shared/pipelineTypes";
-import type { BulkConfirmEvent } from "./pipelineBulkConfirm";
+import type { BulkConfirmIntent } from "./pipelineBulkConfirm";
 
 export function PipelineBulkOutreachButton({
   t,
@@ -28,7 +28,7 @@ export function PipelineBulkOutreachButton({
   selectedActive: Entry[];
   bulkBusy: boolean;
   confirmingBulkOutreach: boolean;
-  dispatchBulkConfirm: (action: BulkConfirmEvent) => void;
+  dispatchBulkConfirm: (action: BulkConfirmIntent) => void;
   onBulkOutreach: () => void;
   outreachTaskActive: boolean;
 }) {

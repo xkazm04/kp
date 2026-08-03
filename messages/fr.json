@@ -1569,6 +1569,7 @@
       "select": "Sélectionner",
       "selectDone": "Terminer la sélection",
       "selectedCount": "{count} sélectionné",
+      "selectedOutsideFilter": "{count} sélectionné(s) sont masqués par le filtre actuel — les actions groupées les incluent quand même",
       "selectAllVisible": "Sélectionner les {count} affichés",
       "bulkClear": "Effacer la sélection",
       "bulkMoveLabel": "Déplacer vers",

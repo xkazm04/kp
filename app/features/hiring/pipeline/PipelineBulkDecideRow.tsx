@@ -6,7 +6,7 @@
 
 import type { PipelineTabTranslator } from "./pipelineTranslator";
 import type { Entry } from "@/app/features/shared/pipelineTypes";
-import type { BulkConfirmEvent } from "./pipelineBulkConfirm";
+import type { BulkConfirmIntent } from "./pipelineBulkConfirm";
 
 export function PipelineBulkDecideRow({
   t,
@@ -25,7 +25,7 @@ export function PipelineBulkDecideRow({
   bulkBusy: boolean;
   onBulkDecide: (action: "accept" | "reject") => void;
   confirmingBulkReject: boolean;
-  dispatchBulkConfirm: (action: BulkConfirmEvent) => void;
+  dispatchBulkConfirm: (action: BulkConfirmIntent) => void;
 }) {
   if (selectedAwaiting.length === 0) return null;
   return (

@@ -68,6 +68,7 @@ export function PipelinePopulatedBoard({
           enumLabel={enumLabel}
           relayConfigured={s.relayConfigured}
           selectedIds={s.selectedIds}
+          selectedOutsideCount={s.selectedOutsideCount}
           filteredCount={s.filteredEntries.length}
           onSelectAllVisible={s.selectAllVisible}
           onClearSelection={s.clearSelection}

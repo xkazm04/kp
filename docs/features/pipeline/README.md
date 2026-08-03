@@ -90,6 +90,34 @@ replaced an earlier `Sourced` → `AI-matched` → `Screening` naming (see
 | `app/features/hiring/decisions/**` | Decisions queue UI, screen-wave modal, group-eval. |
 | `app/features/hiring/pipeline/**` | Pipeline board UI, activity feed, candidate drawer. |
 
+## The board's select-mode bulk bar
+
+`PipelineBulkActionBar.tsx` (state in `usePipelineTabState.ts`) batches move,
+scheduling invite, outreach draft and accept/reject over the selected rows. Two
+rules keep it honest about **which** rows it is about to touch:
+
+- **The selection survives a filter change; the over-reach is disclosed.** Filtering
+  down to review a subset does not abandon the rest, so `selectedIds` is never pruned
+  when the filter changes — instead `selectionOutsideVisible`
+  (`pipelineSelectionScope.ts`) counts the selected rows the current filter hides and
+  the bar states it (`pipeline.tab.selectedOutsideFilter`) before any bulk action can
+  run. Acting silently on invisible rows is the failure mode; a silently *shrunk*
+  cohort would be the mirror-image one.
+- **A destructive confirm cannot outlive the cohort it was armed for.** The two
+  two-step confirms (reject — emails N candidates; outreach — with a relay configured,
+  a draft *is* a send) are one single-slot reducer state (`pipelineBulkConfirm.ts`).
+  Arming stamps the confirm with `visibleScopeSignature` — the identity of every
+  membership-affecting filter input (query, quick chips, score bands, source facets,
+  funnel stage; **not** sort, which only reorders). `armedConfirm(state, currentScope)`
+  reports it armed only while that scope still holds, so any filter, facet, saved-view
+  or degraded-cohort change makes the next click **re-arm** rather than fire. This is a
+  derivation, not a disarm dispatched from each of the ~9 filter mutators — the
+  per-call-site version is what leaked twice already. `bulkDecide("reject")` and
+  `bulkOutreach` re-check the same predicate at the fire site.
+
+Pinned by `pipelineSelectionScope.test.ts` (reproduces select → arm reject → apply a
+saved view → confirm) and `pipelineBulkConfirm.test.ts`.
+
 ## Recommendation / route vocabulary
 
 A closed, single-sourced vocabulary validated at every parse boundary:

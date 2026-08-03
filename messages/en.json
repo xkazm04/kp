@@ -1569,6 +1569,7 @@
       "select": "Select",
       "selectDone": "Done selecting",
       "selectedCount": "{count} selected",
+      "selectedOutsideFilter": "{count} selected are hidden by the current filter — bulk actions still include them",
       "selectAllVisible": "Select all {count} shown",
       "bulkClear": "Clear selection",
       "bulkMoveLabel": "Move to",

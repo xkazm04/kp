@@ -1569,6 +1569,7 @@
       "select": "Vybrat",
       "selectDone": "Hotovo",
       "selectedCount": "{count} vybráno",
+      "selectedOutsideFilter": "{count} vybraných je skryto aktuálním filtrem — hromadné akce je stále zahrnují",
       "selectAllVisible": "Vybrat všech {count} zobrazených",
       "bulkClear": "Zrušit výběr",
       "bulkMoveLabel": "Přesunout do",
