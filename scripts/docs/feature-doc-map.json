@@ -39,6 +39,18 @@
       ]
     },
     {
+      "doc": "docs/features/scheduling/README.md",
+      "sourceGlobs": [
+        "app/_lib/calendar/**",
+        "app/_lib/schedule-slots.ts",
+        "app/_lib/schedule-store.ts",
+        "app/api/schedule/**",
+        "app/api/calendar/**",
+        "app/schedule/**",
+        "app/features/hiring/schedule/**"
+      ]
+    },
+    {
       "doc": "docs/features/comms/README.md",
       "sourceGlobs": [
         "app/_lib/comms.ts",

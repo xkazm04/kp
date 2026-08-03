@@ -17,6 +17,26 @@ export type BusyInterval = { start: string; end: string };
  *  assumption; passed explicitly wherever a real duration is known. */
 export const DEFAULT_SLOT_MINUTES = 45;
 
+/**
+ * WAS the calendar consulted, and if not, WHY — the honest three-state a human can act on.
+ *
+ * `fetchBusy` already distinguishes null ("unknown") from [] ("checked, nothing in the
+ * way"). Collapsing that to a bare boolean at the UI boundary made a Google outage, a
+ * revoked grant and a genuinely clear calendar indistinguishable. These are the three
+ * states anyone reading a slot list needs:
+ *   checked        — a connected calendar answered; the offered times are conflict-free.
+ *   not_connected  — no calendar integration for this workspace (nothing to check against).
+ *   unavailable    — a calendar IS connected but the lookup produced no answer (outage,
+ *                    revoked grant, a per-calendar error). NEVER rendered as "free".
+ *
+ * CANONICAL LIST. The recruiter-facing catalog (`scheduleTab.lifecycle.calendarStatus.*`)
+ * is set-equality guarded against it in all four locales by calendar-status-i18n.test.ts —
+ * adding a state here without translating it fails that test rather than rendering English
+ * into a German UI.
+ */
+export const CALENDAR_STATUSES = ["checked", "not_connected", "unavailable"] as const;
+export type CalendarStatus = (typeof CALENDAR_STATUSES)[number];
+
 type Span = { startMs: number; endMs: number };
 
 function toSpan(interval: BusyInterval): Span | null {

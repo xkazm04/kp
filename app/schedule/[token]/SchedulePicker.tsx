@@ -51,6 +51,12 @@ export function SchedulePicker({ token }: { token: string }) {
   // distinct from "not loaded yet". When true the recruiter has been flagged and
   // the candidate gets a defined outcome instead of a dead-end.
   const [noSlots, setNoSlots] = useState(false);
+  // W1.4 honesty — were these times actually checked against the interviewer's calendar?
+  // The server has always known (fetchBusy separates "checked, clear" from "we don't
+  // know") and never told the candidate, so a time offered blind during a Google outage
+  // looked identical to a confirmed-free one. One bit only: the candidate is never told
+  // WHY the check didn't happen, nor anything about the interviewer's busy times.
+  const [calendarChecked, setCalendarChecked] = useState(false);
   // Direction 1 — a dead-capability link: expired (aged out unbooked) or closed by
   // the state machine (declined / no_show). Renders a terminal card instead of a
   // picker that can never book.
@@ -92,6 +98,7 @@ export function SchedulePicker({ token }: { token: string }) {
         setInvite(d.invite);
         setSlots(d.slots ?? []);
         setNoSlots(Boolean(d.noSlots));
+        setCalendarChecked(d.calendarChecked === true);
         setCanReschedule(Boolean(d.canReschedule));
         setCapReached(Boolean(d.rescheduleCapReached));
         setProposalStatus(d.invite?.proposalStatus ?? null);
@@ -140,6 +147,7 @@ export function SchedulePicker({ token }: { token: string }) {
               if (!nd.error) {
                 setCanReschedule(Boolean(nd.canReschedule));
                 setSlots(nd.slots ?? []);
+                setCalendarChecked(nd.calendarChecked === true);
               }
             })
             // The booking itself succeeded — only the follow-up refresh failed, so
@@ -162,6 +170,7 @@ export function SchedulePicker({ token }: { token: string }) {
               if (!nd.error) {
                 setSlots(nd.slots ?? []);
                 setNoSlots(Boolean(nd.noSlots));
+                setCalendarChecked(nd.calendarChecked === true);
               }
             })
             // The 409 error is already on screen; this only means the stale slot
@@ -230,6 +239,7 @@ export function SchedulePicker({ token }: { token: string }) {
       if (nd && !nd.error) {
         setSlots(nd.slots ?? []);
         setNoSlots(Boolean(nd.noSlots));
+        setCalendarChecked(nd.calendarChecked === true);
         setCanReschedule(Boolean(nd.canReschedule));
       } else {
         // The cancel went through (the notice above says so) but the fresh slot
@@ -556,6 +566,12 @@ export function SchedulePicker({ token }: { token: string }) {
         {tzLabel(slots[0]?.value) ? (
           <p className="mt-3 text-meta text-steel">{t("timezoneNote", { zone: tzLabel(slots[0]?.value) })}</p>
         ) : null}
+        {/* Honest about the calendar behind these times: confirmed-free, or offered
+            without a check. Never the reason for the miss and never a busy count —
+            that is the interviewer's calendar, not the candidate's business. */}
+        <p className="mt-1 text-meta text-steel">
+          {calendarChecked ? t("calendarCheckedNote") : t("calendarUncheckedNote")}
+        </p>
         <ul className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
           {slots.map((s) => (
             <li key={s.value}>

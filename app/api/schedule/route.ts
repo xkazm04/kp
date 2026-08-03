@@ -44,6 +44,10 @@ export async function GET(request: Request) {
       return NextResponse.json({
         slots: proposed.slots,
         calendarChecked: proposed.calendarChecked,
+        // The honest three-state (checked / not_connected / unavailable). The boolean
+        // above collapsed an outage, a revoked grant and a genuinely clear calendar into
+        // one indistinguishable "false", and the reschedule picker rendered none of it.
+        calendarStatus: proposed.calendarStatus,
         droppedForConflict: proposed.droppedForConflict,
       });
     }

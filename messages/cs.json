@@ -906,6 +906,8 @@
     "allTakenBody": "Všechny termíny pohovorů v nejbližších týdnech jsou již rezervované. Dali jsme náborovému týmu vědět, že stále potřebujete termín — otevřou další, vraťte se prosím na tuto stránku později.",
     "nothingToDo": "Teď není potřeba nic dělat — tuto stránku můžete zavřít.",
     "timezoneNote": "Všechny časy jsou ve vašem časovém pásmu ({zone}).",
+    "calendarCheckedNote": "Tyto termíny jsou v kalendáři tazatele volné.",
+    "calendarUncheckedNote": "Tyto termíny nejsou ověřené proti kalendáři tazatele — rezervaci vám potvrdíme e-mailem.",
     "rsvpPrompt": "Můžete stále dorazit?",
     "rsvpConfirm": "Dorazím",
     "rsvpCancel": "Nemohu se zúčastnit",
@@ -2354,6 +2356,12 @@
       "rescheduleTo": "Přesunout na",
       "rescheduleGroupAria": "Vyberte nový čas pohovoru",
       "noRescheduleSlots": "Momentálně nejsou volné žádné termíny.",
+      "calendarStatus": {
+        "checked": "Ověřeno proti připojenému kalendáři",
+        "not_connected": "Neověřeno — není připojen žádný kalendář",
+        "unavailable": "Neověřeno — dotaz do kalendáře selhal"
+      },
+      "calendarDropped": "{count, plural, one {# termín skryt jako obsazený} few {# termíny skryty jako obsazené} many {# termínu skryto jako obsazených} other {# termínů skryto jako obsazených}}",
       "cancelBooking": "Zrušit rezervaci",
       "cancelPrompt": "Zrušit tento pohovor?",
       "markNoShow": "Nedostavil se",

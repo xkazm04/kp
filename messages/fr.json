@@ -906,6 +906,8 @@
     "allTakenBody": "Tous les créneaux d'entretien des prochaines semaines sont déjà réservés. Nous avons informé l'équipe de recrutement que vous cherchez toujours un horaire — elle en ouvrira d'autres, alors revenez bientôt sur cette page.",
     "nothingToDo": "Rien à faire pour le moment — vous pouvez fermer cette page.",
     "timezoneNote": "Tous les horaires sont affichés dans votre fuseau horaire ({zone}).",
+    "calendarCheckedNote": "Ces horaires sont libres dans l'agenda de la personne qui vous recevra.",
+    "calendarUncheckedNote": "Ces horaires ne sont pas vérifiés dans l'agenda de la personne qui vous recevra — nous confirmerons votre réservation par e-mail.",
     "rsvpPrompt": "Serez-vous toujours présent(e) ?",
     "rsvpConfirm": "Je serai présent(e)",
     "rsvpCancel": "Je ne pourrai pas venir",
@@ -2354,6 +2356,12 @@
       "rescheduleTo": "Déplacer vers",
       "rescheduleGroupAria": "Choisir un nouveau créneau d'entretien",
       "noRescheduleSlots": "Aucun créneau disponible pour le moment.",
+      "calendarStatus": {
+        "checked": "Vérifié dans votre agenda connecté",
+        "not_connected": "Non vérifié — aucun agenda connecté",
+        "unavailable": "Non vérifié — la consultation de l'agenda a échoué"
+      },
+      "calendarDropped": "{count, plural, one {# créneau masqué (occupé)} other {# créneaux masqués (occupés)}}",
       "cancelBooking": "Annuler la réservation",
       "cancelPrompt": "Annuler cet entretien ?",
       "markNoShow": "Absence",

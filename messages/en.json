@@ -906,6 +906,8 @@
     "allTakenBody": "Every interview slot in the next few weeks is already booked. We've let the hiring team know you still need a time — they'll open more, so please check back on this page soon.",
     "nothingToDo": "Nothing to do right now — you can close this page.",
     "timezoneNote": "All times shown in your timezone ({zone}).",
+    "calendarCheckedNote": "These times are free on the interviewer's calendar.",
+    "calendarUncheckedNote": "These times aren't confirmed against the interviewer's calendar — we'll confirm your booking by email.",
     "rsvpPrompt": "Can you still make it?",
     "rsvpConfirm": "I'll be there",
     "rsvpCancel": "I can't make it",
@@ -2354,6 +2356,12 @@
       "rescheduleTo": "Move to",
       "rescheduleGroupAria": "Pick a new interview time",
       "noRescheduleSlots": "No open times right now.",
+      "calendarStatus": {
+        "checked": "Checked against your connected calendar",
+        "not_connected": "Not checked — no calendar connected",
+        "unavailable": "Not checked — the calendar lookup failed"
+      },
+      "calendarDropped": "{count, plural, one {# time hidden as busy} other {# times hidden as busy}}",
       "cancelBooking": "Cancel booking",
       "cancelPrompt": "Cancel this interview?",
       "markNoShow": "No-show",

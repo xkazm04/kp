@@ -46,6 +46,22 @@ async function accessTokenFor(workspaceId: string): Promise<{ token: string; con
   }
 }
 
+/**
+ * Is there a calendar integration this workspace could be checked against AT ALL?
+ *
+ * Mirrors `accessTokenFor`'s two cheap, non-network early exits — deployment not
+ * configured, or nobody connected an account — WITHOUT touching the network. It exists so
+ * a caller can tell "we did not check because there is nothing to check" from "we tried
+ * and got no answer": `fetchBusy` returns null for both, and a recruiter can act on the
+ * first (connect a calendar) but not on the second (wait it out). A revoked grant still
+ * reads as connected here and its failed refresh surfaces as "unavailable", which is the
+ * honest report — kp holds a grant it can no longer use.
+ */
+export function isCalendarConnected(workspaceId: string): boolean {
+  if (!googleOAuthConfig(publicBaseUrl(null))) return false;
+  return !!getCalendarConnection(workspaceId)?.connected;
+}
+
 async function fetchJson(url: string, init: RequestInit): Promise<unknown | null> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);

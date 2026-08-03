@@ -16,6 +16,7 @@ in [../product/](../product/); superseded material lives in [../_archive/](../_a
 | Matching & scoring | [matching/README.md](matching/README.md) | `pipeline/jobfit/{matching,taxonomy,transform,transferable,weight_proposal}.py`, `app/features/tools/match`, `app/features/insights/matrix` |
 | Pipeline & automation | [pipeline/README.md](pipeline/README.md) | `app/_lib/{pipeline-stages,automation-run,screen-wave,decision-config-store}.ts`, `app/api/automation`, `app/features/hiring/{pipeline,decisions}`, `pipeline/jobfit/automation.py` |
 | Dev cases | [dev-case/README.md](dev-case/README.md) | `app/_lib/devcase-*.ts`, `app/api/devcase`, `app/features/tools/devcases`, `app/devcase/apply`, `pipeline/jobfit/devcase/**` |
+| Interview scheduling | [scheduling/README.md](scheduling/README.md) | `app/_lib/schedule-{slots,store}.ts`, `app/_lib/calendar/**`, `app/api/schedule`, `app/api/calendar`, `app/schedule`, `app/features/hiring/schedule` |
 | Interviews (voice) | [interviews/README.md](interviews/README.md) | `app/_lib/voice/**`, `app/api/interview`, `app/interview`, `app/interview-lab`, `app/_components/voice` |
 | Candidate comms | [comms/README.md](comms/README.md), [comms/outbound-export.md](comms/outbound-export.md) | `app/_lib/comms*.ts`, `app/api/comms`, `app/api/channels`, `app/features/hiring/channels` |
 

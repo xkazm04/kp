@@ -906,6 +906,8 @@
     "allTakenBody": "Alle Interview-Termine der nächsten Wochen sind bereits vergeben. Wir haben dem Einstellungsteam mitgeteilt, dass Sie noch einen Termin benötigen — es werden weitere geöffnet, schauen Sie also bald wieder auf dieser Seite vorbei.",
     "nothingToDo": "Im Moment ist nichts zu tun — Sie können diese Seite schließen.",
     "timezoneNote": "Alle Zeiten in Ihrer Zeitzone ({zone}).",
+    "calendarCheckedNote": "Diese Zeiten sind im Kalender der interviewenden Person frei.",
+    "calendarUncheckedNote": "Diese Zeiten sind nicht mit dem Kalender der interviewenden Person abgeglichen — wir bestätigen Ihre Buchung per E-Mail.",
     "rsvpPrompt": "Können Sie noch teilnehmen?",
     "rsvpConfirm": "Ich bin dabei",
     "rsvpCancel": "Ich kann nicht",
@@ -2354,6 +2356,12 @@
       "rescheduleTo": "Verschieben auf",
       "rescheduleGroupAria": "Neue Interviewzeit wählen",
       "noRescheduleSlots": "Derzeit keine freien Zeiten.",
+      "calendarStatus": {
+        "checked": "Mit Ihrem verbundenen Kalender abgeglichen",
+        "not_connected": "Nicht abgeglichen — kein Kalender verbunden",
+        "unavailable": "Nicht abgeglichen — die Kalenderabfrage ist fehlgeschlagen"
+      },
+      "calendarDropped": "{count, plural, one {# Termin als belegt ausgeblendet} other {# Termine als belegt ausgeblendet}}",
       "cancelBooking": "Buchung stornieren",
       "cancelPrompt": "Dieses Interview stornieren?",
       "markNoShow": "Nicht erschienen",

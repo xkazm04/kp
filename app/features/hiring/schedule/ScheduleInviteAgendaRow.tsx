@@ -11,7 +11,7 @@ import { AddToCalendar } from "./ScheduleAddToCalendar";
 import { MeetingLinkCell } from "./ScheduleMeetingLinkCell";
 import { RecruiterControls } from "./ScheduleInviteRecruiterControls";
 import type { ScheduleInvite } from "@/app/_lib/schedule-store";
-import type { ArmedAction } from "./useScheduleInviteLifecycle";
+import type { ArmedAction, RescheduleCalendar } from "./useScheduleInviteLifecycle";
 
 export function AgendaRow({
   invite: i,
@@ -27,6 +27,7 @@ export function AgendaRow({
   runAction,
   rescheduleToken,
   rescheduleSlots,
+  rescheduleCalendar,
   openReschedule,
   setRescheduleToken,
   setRescheduleSlots,
@@ -45,6 +46,7 @@ export function AgendaRow({
   runAction: (token: string, action: string, slotAt?: string) => Promise<boolean>;
   rescheduleToken: string | null;
   rescheduleSlots: { value: string; label: string }[] | null;
+  rescheduleCalendar: RescheduleCalendar | null;
   openReschedule: (token: string) => void;
   setRescheduleToken: (token: string | null) => void;
   setRescheduleSlots: (slots: { value: string; label: string }[] | null) => void;
@@ -90,6 +92,7 @@ export function AgendaRow({
         runAction={runAction}
         rescheduleToken={rescheduleToken}
         rescheduleSlots={rescheduleSlots}
+        rescheduleCalendar={rescheduleCalendar}
         openReschedule={openReschedule}
         setRescheduleToken={setRescheduleToken}
         setRescheduleSlots={setRescheduleSlots}

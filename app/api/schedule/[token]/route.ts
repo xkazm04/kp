@@ -79,6 +79,7 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ to
       slots: [],
       noSlots: false,
       canReschedule: false,
+      calendarChecked: false,
       closed: true,
       closedReason: expired ? "expired" : invite.status,
     });
@@ -99,7 +100,7 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ to
   const proposed =
     invite.status !== "confirmed" || canReschedule
       ? await proposeFreeSlots(bookedSlots(invite.workspaceId), invite.workspaceId)
-      : { slots: [], calendarChecked: false, droppedForConflict: 0 };
+      : { slots: [], calendarChecked: false, calendarStatus: "not_connected" as const, droppedForConflict: 0 };
   const slots = proposed.slots;
   // The busiest-calendar edge (idea-5df8e10f): a pending invite whose entire
   // proposal horizon is already booked yields zero slots. Rather than handing
@@ -118,7 +119,25 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ to
       /* flagging is best-effort — never block the candidate's read */
     }
   }
-  return jsonOk({ invite: publicInviteView(invite), slots, noSlots, canReschedule, rescheduleCapReached });
+  // Whether these times were actually checked against the interviewer's calendar — the
+  // engine has always known (fetchBusy separates null "unknown" from [] "checked, clear"),
+  // and this route dropped it entirely, so a candidate could not tell a calendar-confirmed
+  // time from one offered blind during a Google outage.
+  //
+  // ONE BIT ONLY, deliberately. `calendarStatus` (which of not_connected / unavailable) and
+  // `droppedForConflict` (how many times the interviewer's calendar removed) are both
+  // statements about the INTERVIEWER's calendar, and this is the public token wire — the
+  // same doctrine that keeps entryId and reconcileReason off publicInviteView. The
+  // candidate learns whether the times were checked, never anything about the busy behind
+  // them; the recruiter route (workspace-authenticated) carries the full three-state.
+  return jsonOk({
+    invite: publicInviteView(invite),
+    slots,
+    noSlots,
+    canReschedule,
+    rescheduleCapReached,
+    calendarChecked: proposed.calendarChecked,
+  });
 }
 
 // POST → candidate confirms a slot: record it, set it on the pipeline entry

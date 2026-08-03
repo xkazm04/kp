@@ -10,7 +10,29 @@
 import { Ban, CalendarClock, UserX } from "lucide-react";
 import type { useTranslations } from "next-intl";
 import type { ScheduleInvite } from "@/app/_lib/schedule-store";
-import type { ArmedAction } from "./useScheduleInviteLifecycle";
+import type { ArmedAction, RescheduleCalendar } from "./useScheduleInviteLifecycle";
+
+// W1.4 honesty — the free/busy engine has always separated "checked, nothing in the way"
+// from "we do not know", and the picker rendered neither, so an outage looked exactly like
+// a clear calendar. Three honest states, never a fourth silent one. `checked` also names
+// how many times the calendar removed, because an unexplained short list reads as a broken
+// feature rather than as a busy week.
+function CalendarNote({
+  calendar,
+  t,
+}: {
+  calendar: RescheduleCalendar | null;
+  t: ReturnType<typeof useTranslations<"scheduleTab.lifecycle">>;
+}) {
+  if (!calendar) return null;
+  const checked = calendar.status === "checked";
+  return (
+    <p className={`w-full text-meta ${calendar.status === "unavailable" ? "text-amber-800" : "text-steel"}`}>
+      {t(`calendarStatus.${calendar.status}`)}
+      {checked && calendar.dropped > 0 ? ` · ${t("calendarDropped", { count: calendar.dropped })}` : ""}
+    </p>
+  );
+}
 
 export function RecruiterControls({
   invite: i,
@@ -22,6 +44,7 @@ export function RecruiterControls({
   runAction,
   rescheduleToken,
   rescheduleSlots,
+  rescheduleCalendar,
   openReschedule,
   setRescheduleToken,
   setRescheduleSlots,
@@ -35,6 +58,7 @@ export function RecruiterControls({
   runAction: (token: string, action: string, slotAt?: string) => Promise<boolean>;
   rescheduleToken: string | null;
   rescheduleSlots: { value: string; label: string }[] | null;
+  rescheduleCalendar: RescheduleCalendar | null;
   openReschedule: (token: string) => void;
   setRescheduleToken: (token: string | null) => void;
   setRescheduleSlots: (slots: { value: string; label: string }[] | null) => void;
@@ -77,6 +101,7 @@ export function RecruiterControls({
         >
           {t("cancel")}
         </button>
+        <CalendarNote calendar={rescheduleCalendar} t={t} />
       </div>
     );
   }
