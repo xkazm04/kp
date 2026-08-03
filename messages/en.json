@@ -5523,6 +5523,50 @@
       "strong": "{loadBearing} of {total} probes are load-bearing — this case discriminates.",
       "weak": "Only {loadBearing} of {total} probes are load-bearing — most won't separate strong from naive.",
       "none": "No load-bearing probes — this case can't tell a strong submission from a naive one."
+    },
+    "integrity": {
+      "title": "Log integrity",
+      "chainVerified": "Chain verified · {count, plural, one {# event} other {# events}}",
+      "chainVerifiedTitle": "Every recorded event's hash recomputes from the one before it — the observed log has not been altered after the fact.",
+      "chainBroken": "Chain broken",
+      "chainBrokenAt": "Chain broken at event #{seq}",
+      "chainBrokenTitle": "A link failed to recompute: the observed log was altered after it was recorded. The submission is held for the ownership-verifying interview.",
+      "chainUnverifiable": "Chain unverifiable",
+      "chainUnverifiableTitle": "This session recorded no hashed events, so the chain cannot be checked. That is not evidence of tampering — and not a clean bill of health either.",
+      "clockConsistent": "Timestamps consistent",
+      "clockConsistentTitle": "Every event's client timestamp agrees with the moment the server received it.",
+      "backdated": "{count, plural, one {# backdated event} other {# backdated events}}",
+      "backdatedTitle": "{count, plural, one {# event claims} other {# events claim}} a time that contradicts the server receive window (worst disagreement {seconds}s) — the manipulation that would fake read-before-write ordering.",
+      "markerIntact": "Session marker intact",
+      "markerIntactTitle": "This session's own marker is still present in the submitted files.",
+      "markerAbsent": "Session marker absent",
+      "markerAbsentTitle": "This session's marker is no longer in the submitted files. On its own that proves nothing — the candidate may simply have edited the line away.",
+      "markerForeign": "{count, plural, one {# foreign marker} other {# foreign markers}}",
+      "markerForeignTitle": "Another work session's marker appears in these files — the tell of a circulated or relayed solution. Verify authorship live.",
+      "footnote": "Tamper-evidence on the recorded log, not a judgement of the work."
+    },
+    "checks": {
+      "title": "What the checks found",
+      "repoSubmission": "The mechanical ground-truth checks need the in-product work surface. This submission is a linked repository, so planted flaws, baseline overlap and the prompt channel could not be checked.",
+      "canary": {
+        "addressed": "addressed",
+        "flagged": "flagged",
+        "propagated": "propagated",
+        "unverifiable": "not gradable"
+      },
+      "canarySummary": "Planted flaws: caught {caught} of {graded} gradable.",
+      "canaryNoneGradable": "Planted flaws: none could be graded mechanically.",
+      "canaryUngradable": "{count, plural, one {# not gradable} other {# not gradable}}",
+      "canaryNotRun": "No planted flaws for this case — the deterministic seed does not fabricate ground truth, so this check did not run.",
+      "baselineSimilarity": "Overlap with the one-shot AI baseline: {pct}.",
+      "baselineNeverPenalty": "Context for the interview, never a score penalty.",
+      "baselineAimInterview": "Close to what a bare model produces in one shot — ask live what the candidate added beyond it. Never a score penalty.",
+      "baselineNotRun": "No AI baseline was frozen for this case, so the comparison did not run.",
+      "promptSummary": "Assistant prompts: {assistant} (iteration depth {depth}) · stakeholder questions: {stakeholder}",
+      "verificationAsks": "{count, plural, one {# verification ask} other {# verification asks}}",
+      "promptsNeverPenalty": "Using AI is never a penalty — this is how they drove it, not whether they did.",
+      "promptsNotUsed": "The assistant and stakeholder channels went unused — no signal either way, never a penalty.",
+      "briefPasteAimInterview": "One prompt carried ~{pct} of the brief verbatim — the one-shot delegation shape. Aim the authorship interview here; never a score penalty."
     }
   },
   "rubricCoverage": {

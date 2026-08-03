@@ -5523,6 +5523,50 @@
       "strong": "{loadBearing} sondes sur {total} sont porteuses — ce cas discrimine.",
       "weak": "Seules {loadBearing} sondes sur {total} sont porteuses — la plupart ne sépareront pas les bons des naïfs.",
       "none": "Aucune sonde porteuse — ce cas ne distingue pas un rendu solide d'un rendu naïf."
+    },
+    "integrity": {
+      "title": "Intégrité du journal",
+      "chainVerified": "Chaîne vérifiée · {count, plural, one {# événement} other {# événements}}",
+      "chainVerifiedTitle": "L'empreinte de chaque événement enregistré se recalcule à partir de la précédente — le journal observé n'a pas été modifié après coup.",
+      "chainBroken": "Chaîne rompue",
+      "chainBrokenAt": "Chaîne rompue à l'événement n° {seq}",
+      "chainBrokenTitle": "Un maillon ne se recalcule pas : le journal observé a été modifié après son enregistrement. Le rendu est mis en attente de l'entretien de vérification de la paternité.",
+      "chainUnverifiable": "Chaîne invérifiable",
+      "chainUnverifiableTitle": "Cette session n'a enregistré aucun événement empreinté, la chaîne ne peut donc pas être vérifiée. Ce n'est pas la preuve d'une manipulation — ni un quitus pour autant.",
+      "clockConsistent": "Horodatages cohérents",
+      "clockConsistentTitle": "L'horodatage client de chaque événement concorde avec le moment où le serveur l'a reçu.",
+      "backdated": "{count, plural, one {# événement antidaté} other {# événements antidatés}}",
+      "backdatedTitle": "{count, plural, one {# événement annonce une heure qui contredit} other {# événements annoncent une heure qui contredit}} la fenêtre de réception du serveur (écart maximal {seconds} s) — exactement la manipulation qui simulerait l'ordre « lire avant d'écrire ».",
+      "markerIntact": "Marqueur de session intact",
+      "markerIntactTitle": "Le marqueur propre à cette session est toujours présent dans les fichiers rendus.",
+      "markerAbsent": "Marqueur de session absent",
+      "markerAbsentTitle": "Le marqueur de cette session n'est plus dans les fichiers rendus. Cela ne prouve rien en soi — la ligne a pu être simplement supprimée.",
+      "markerForeign": "{count, plural, one {# marqueur étranger} other {# marqueurs étrangers}}",
+      "markerForeignTitle": "Le marqueur d'une autre session de travail apparaît dans ces fichiers — le signe d'une solution qui circule ou a été relayée. Vérifiez la paternité en direct.",
+      "footnote": "Preuve d'inviolabilité du journal, pas un jugement sur le travail."
+    },
+    "checks": {
+      "title": "Ce que les contrôles ont trouvé",
+      "repoSubmission": "Les contrôles mécaniques face à une vérité connue exigent l'espace de travail intégré. Ce rendu est un dépôt lié : défauts implantés, recouvrement avec la référence et canal de prompts n'ont donc pas pu être contrôlés.",
+      "canary": {
+        "addressed": "corrigé",
+        "flagged": "signalé",
+        "propagated": "propagé",
+        "unverifiable": "non évaluable"
+      },
+      "canarySummary": "Défauts implantés : {caught} détectés sur {graded} évaluables.",
+      "canaryNoneGradable": "Défauts implantés : aucun n'a pu être évalué mécaniquement.",
+      "canaryUngradable": "{count, plural, one {# non évaluable} other {# non évaluables}}",
+      "canaryNotRun": "Aucun défaut implanté pour ce cas — la base déterministe n'invente pas de vérité de référence, ce contrôle n'a donc pas été exécuté.",
+      "baselineSimilarity": "Recouvrement avec la référence IA en un coup : {pct}.",
+      "baselineNeverPenalty": "Un élément de contexte pour l'entretien, jamais une pénalité.",
+      "baselineAimInterview": "Proche de ce qu'un modèle produit en un seul coup — demandez en direct ce que la personne a ajouté au-delà. Jamais une pénalité.",
+      "baselineNotRun": "Aucune référence IA n'a été figée pour ce cas, la comparaison n'a donc pas été exécutée.",
+      "promptSummary": "Prompts à l'assistant : {assistant} (profondeur d'itération {depth}) · questions au commanditaire : {stakeholder}",
+      "verificationAsks": "{count, plural, one {# demande de vérification} other {# demandes de vérification}}",
+      "promptsNeverPenalty": "Recourir à l'IA n'est jamais une pénalité — ce qui compte est la façon de la piloter, pas le fait de le faire.",
+      "promptsNotUsed": "Les canaux assistant et commanditaire sont restés inutilisés — aucun signal dans un sens ou dans l'autre, jamais une pénalité.",
+      "briefPasteAimInterview": "Un prompt reprenait environ {pct} de l'énoncé mot pour mot — la forme d'une délégation en un seul coup. Orientez l'entretien sur la paternité ici ; jamais une pénalité."
     }
   },
   "rubricCoverage": {

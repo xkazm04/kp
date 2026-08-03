@@ -5523,6 +5523,50 @@
       "strong": "{loadBearing} von {total} Prüfpunkten sind tragend — dieser Fall differenziert.",
       "weak": "Nur {loadBearing} von {total} Prüfpunkten sind tragend — die meisten trennen Starke nicht von Naiven.",
       "none": "Keine tragenden Prüfpunkte — dieser Fall unterscheidet eine starke Einreichung nicht von einer naiven."
+    },
+    "integrity": {
+      "title": "Integrität des Protokolls",
+      "chainVerified": "Kette verifiziert · {count, plural, one {# Ereignis} other {# Ereignisse}}",
+      "chainVerifiedTitle": "Der Hash jedes aufgezeichneten Ereignisses lässt sich aus dem vorherigen nachrechnen — das beobachtete Protokoll wurde nachträglich nicht verändert.",
+      "chainBroken": "Kette unterbrochen",
+      "chainBrokenAt": "Kette bei Ereignis Nr. {seq} unterbrochen",
+      "chainBrokenTitle": "Ein Glied lässt sich nicht nachrechnen: Das beobachtete Protokoll wurde nach der Aufzeichnung verändert. Die Einreichung wird für das Gespräch zur Urheberschaft zurückgehalten.",
+      "chainUnverifiable": "Kette nicht prüfbar",
+      "chainUnverifiableTitle": "Diese Sitzung hat keine gehashten Ereignisse aufgezeichnet, die Kette lässt sich daher nicht prüfen. Das ist kein Hinweis auf Manipulation — aber auch keine Unbedenklichkeitsbescheinigung.",
+      "clockConsistent": "Zeitstempel stimmig",
+      "clockConsistentTitle": "Der Client-Zeitstempel jedes Ereignisses passt zu dem Moment, in dem der Server es empfangen hat.",
+      "backdated": "{count, plural, one {# rückdatiertes Ereignis} other {# rückdatierte Ereignisse}}",
+      "backdatedTitle": "{count, plural, one {# Ereignis nennt eine Zeit, die dem} other {# Ereignisse nennen eine Zeit, die dem}} Empfangsfenster des Servers widerspricht (größte Abweichung {seconds} s) — genau so ließe sich die Reihenfolge „erst lesen, dann schreiben“ vortäuschen.",
+      "markerIntact": "Sitzungsmarker vorhanden",
+      "markerIntactTitle": "Der eigene Marker dieser Sitzung ist in den eingereichten Dateien weiterhin vorhanden.",
+      "markerAbsent": "Sitzungsmarker fehlt",
+      "markerAbsentTitle": "Der Marker dieser Sitzung ist nicht mehr in den eingereichten Dateien. Für sich genommen beweist das nichts — die Zeile kann schlicht gelöscht worden sein.",
+      "markerForeign": "{count, plural, one {# fremder Marker} other {# fremde Marker}}",
+      "markerForeignTitle": "In diesen Dateien taucht der Marker einer anderen Arbeitssitzung auf — das Anzeichen einer weitergereichten oder kursierenden Lösung. Urheberschaft live prüfen.",
+      "footnote": "Manipulationsnachweis für das Protokoll, kein Urteil über die Arbeit."
+    },
+    "checks": {
+      "title": "Was die Prüfungen ergaben",
+      "repoSubmission": "Die mechanischen Prüfungen gegen bekannte Referenzen brauchen die Arbeitsfläche im Produkt. Diese Einreichung ist ein verlinktes Repository — eingebaute Fehler, Baseline-Überschneidung und der Prompt-Kanal konnten daher nicht geprüft werden.",
+      "canary": {
+        "addressed": "behoben",
+        "flagged": "benannt",
+        "propagated": "übernommen",
+        "unverifiable": "nicht bewertbar"
+      },
+      "canarySummary": "Eingebaute Fehler: {caught} von {graded} bewertbaren erkannt.",
+      "canaryNoneGradable": "Eingebaute Fehler: keiner ließ sich mechanisch bewerten.",
+      "canaryUngradable": "{count, plural, one {# nicht bewertbar} other {# nicht bewertbar}}",
+      "canaryNotRun": "Für diesen Fall wurden keine Fehler eingebaut — der deterministische Seed erfindet keine Referenz, diese Prüfung lief also nicht.",
+      "baselineSimilarity": "Überschneidung mit der KI-Baseline aus einem Zug: {pct}.",
+      "baselineNeverPenalty": "Kontext für das Gespräch, nie ein Punktabzug.",
+      "baselineAimInterview": "Nah an dem, was ein Modell in einem Zug produziert — fragen Sie live, was die Person darüber hinaus beigetragen hat. Nie ein Punktabzug.",
+      "baselineNotRun": "Für diesen Fall wurde keine KI-Baseline eingefroren, der Vergleich lief daher nicht.",
+      "promptSummary": "Prompts an den Assistenten: {assistant} (Iterationstiefe {depth}) · Fragen an den Fachbereich: {stakeholder}",
+      "verificationAsks": "{count, plural, one {# Nachfrage zur Überprüfung} other {# Nachfragen zur Überprüfung}}",
+      "promptsNeverPenalty": "KI-Nutzung ist nie ein Nachteil — es zählt, wie sie geführt wurde, nicht ob.",
+      "promptsNotUsed": "Assistenz- und Fachbereichskanal blieben ungenutzt — kein Signal in die eine oder andere Richtung, nie ein Nachteil.",
+      "briefPasteAimInterview": "Ein Prompt enthielt rund {pct} der Aufgabenstellung wörtlich — die Form einer Delegation in einem Zug. Setzen Sie das Gespräch zur Urheberschaft hier an; nie ein Punktabzug."
     }
   },
   "rubricCoverage": {

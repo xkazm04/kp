@@ -75,6 +75,42 @@ penalized; over-reliance is inferred only from observed process artifacts
 is not penalized (deleting a line isn't proof of anything) — only a
 **foreign** watermark or a broken chain is decisive.
 
+### Where a reviewer sees them
+
+The six controls were all computed and persisted, but four of them used to
+terminate in a DB blob read only by an LLM prompt — a human saw at most the folded
+`authenticity` number in a tooltip. `EvalBundle`
+(`app/features/tools/devcases/DevTypes.ts`) now declares `integrity` and
+`observedChecks`, and the submission evaluation panel renders both:
+
+| Panel | Controls | Renders | File |
+|---|---|---|---|
+| Log integrity | #1, #4 | Chain verdict (verified / broken at seq / **unverifiable**), backdated-event count with worst clock drift, watermark verdict | `app/features/tools/devcases/DevEvalPanelIntegrity.tsx` |
+| What the checks found | #2, #3, #6 | Four-way canary verdicts per planted flaw, overlap with the frozen one-shot baseline, captured-prompt signals | `app/features/tools/devcases/DevEvalPanelChecks.tsx` |
+
+Three presentation rules are enforced by those components rather than left to prose:
+
+- **Honest darkness.** Every check is optional at the producer, and "did not run"
+  never renders as a pass. `chain.valid === null` (no hashed events) is shown as
+  *unverifiable*, not clean. A case whose seed planted no canaries — which is what
+  the deterministic/keyless seed deliberately does, since
+  "a template flaw with no real ground truth would grade candidates against noise"
+  (`seed_materializer.py`) — says the check did not run. So does a case where the
+  LLM was unavailable at approval and no baseline was frozen
+  (`devcase-orchestrator.ts` records a `baseline_unavailable` audit).
+- **Never a penalty.** Baseline overlap is rendered as a plain figure with an
+  interview prompt — no meter, no colour ramp — because the engine is explicit that
+  it is not a score. Prompt-channel counts carry the same framing; the one
+  negative-leaning signal (`briefPasteRatio`) is labelled as an interview aim.
+- The watermark **verdict** is rendered; the watermark **value** never is. Printing
+  `watermark.expected` would teach a candidate exactly what to strip.
+
+The four-way canary vocabulary is pinned to the producer by
+`devcase-canary-catalog.test.ts`: it asserts set equality between
+`CANARY_STATUSES`, the statuses `artifact_checks.py` actually emits, and all four
+i18n catalogs. `npm run i18n:check` compares locales only to each other, so
+deleting a verdict from all four catalogs would otherwise stay green.
+
 ## Surface
 
 | Path | Role |
@@ -124,6 +160,12 @@ Pinned by `app/api/rate-limit-contract.test.ts` (source-level + behavioral) and
 
 ## Known gaps
 
+- No reviewer surface renders the candidate's **chat transcript** or **submitted
+  file tree**. `getDevSessionChat` / `getDevSession().files` are read only by the
+  chat route and `devcase-run.ts`; there is no authenticated recruiter-facing GET
+  for session evidence (`app/api/devcase/session/[id]/route.ts` is POST-only and
+  candidate-token-authed). The mechanical verdicts above name the files a canary
+  landed in, but a reviewer cannot open them.
 - The `architecture` rubric dimension name is still software-flavored even for
   a non-software case (the description text was neutralized, the field name
   wasn't — a cascading rename was deferred).

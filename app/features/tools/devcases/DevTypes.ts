@@ -190,7 +190,89 @@ export type Authenticity = { score: number /* SCORE 0..100 */; band: "authentic"
 // evidence beside the LLM probe read. Absent on bundles saved before it / cases
 // with no materialized seed.
 export type SeedDiff = { files: { path: string; touched: boolean }[]; touched: number; total: number; untouched: string[] };
-export type EvalBundle = { reflection?: Reflection; tooling?: Tooling; evaluation?: CaseEval; transfer?: Transfer; followups?: Followups; authenticity?: Authenticity | null; seedDiff?: SeedDiff | null; source?: SourceKind; perStepSources?: PerStepSources; commitCount?: number; processTrace?: ProcessTrace | null };
+// ---- LLM-era anti-delegation controls: the evidence layer -------------------
+//
+// Everything below was already COMPUTED and persisted with the bundle
+// (devcase-run.ts) but was never declared here, so no reviewer surface could
+// read it. These types are the projection contract; the panels that render them
+// are DevEvalPanelIntegrity / DevEvalPanelChecks.
+
+// Control #1 — hash-chain verdict over the observed event log
+// (db/devcase.ts `verifyDevSessionChain`). `valid: null` is UNVERIFIABLE (no
+// events, or legacy NULL-hash rows) and is explicitly NOT evidence of tampering:
+// only `false` means a link failed to recompute.
+export type ChainVerdict = { valid: boolean | null; events: number; brokenAtSeq: number | null };
+// Control #1/#4 — the persisted tamper-evidence verdict (db/devcase.ts
+// `SessionIntegrity`; mirrored here rather than imported so a client component
+// never pulls the server DB module into the bundle). `watermark.expected` is the
+// raw per-session marker: it rides in the blob but must NEVER be rendered —
+// showing it teaches a candidate exactly what to strip.
+export type Integrity = {
+  chain: ChainVerdict;
+  backdatedEvents: number;
+  maxClockDriftMs: number;
+  watermark: { expected: string; present: boolean; foreign: string[] };
+};
+
+// Control #3 — one planted-canary verdict (pipeline/.../artifact_checks.py
+// `canary_outcomes`). FOUR-WAY, and the four are not a pass/fail binary:
+//   addressed    — the flawed fragment is gone from the submitted file
+//   flagged      — flaw left in place but called out in DECISIONS / the dialogue
+//   propagated   — the planted flaw SURVIVED into the submission
+//   unverifiable — not mechanically gradable (fragment not found in the seed, or
+//                  the submitted file does not descend from the seed version).
+//                  Honest darkness: never scored, never shown as a pass.
+export const CANARY_STATUSES = ["addressed", "flagged", "propagated", "unverifiable"] as const;
+export type CanaryStatus = (typeof CANARY_STATUSES)[number];
+// `status` stays a plain string on the wire (free-form JSON from Python, not a
+// codegen'd model); the UI narrows it through CANARY_STATUSES and falls back to a
+// neutral "unverifiable" presentation for anything unrecognized.
+export type CanaryOutcome = { id?: string; kind?: string; path?: string; status?: string; note?: string; reveals?: string };
+
+// Control #6 — distance from the frozen one-shot naive-LLM baseline
+// (artifact_checks.baseline_similarity). `available: false` means the case never
+// froze a baseline (the LLM was unavailable at approval —
+// devcase-orchestrator.ts records a `baseline_unavailable` audit) so the
+// comparison did not run. THIS IS NEVER A PENALTY: high similarity only aims the
+// authorship interview. The UI must not present it as a score.
+export type BaselineSimilarity = {
+  available?: boolean;
+  bestSimilarity?: number; // FRACTION 0..1
+  perBaseline?: { baseline: number; similarity: number; comparedPaths: number }[];
+};
+
+// Control #2 — deterministic signals over the CAPTURED assistant/stakeholder
+// transcript (prompt_signals.derive_prompt_signals). FAIRNESS CONTRACT: using the
+// assistant is never a penalty — zero prompts is "no signal", heavy use is graded
+// on quality, never volume. `briefPasteRatio` (how much of the brief the most
+// brief-like prompt contained) is the one negative-leaning signal and even it only
+// aims the interview.
+export type PromptSignals = {
+  observed?: boolean;
+  assistantPrompts?: number;
+  stakeholderQuestions?: number;
+  clarifyingQuestions?: number;
+  verificationAsks?: number;
+  meanPromptChars?: number;
+  iterationDepth?: number;
+  briefPasteRatio?: number; // FRACTION 0..1
+  confidence?: number; // FRACTION 0..1
+};
+
+// The mechanical observed-check verdicts persisted beside the LLM interpretation
+// that consumed them (devcase_cli `extras`). Each key is present only when its
+// inputs were: `{}` for a repo submission (no observed inputs at all), and e.g.
+// no `canaryOutcomes` when the case's seed planted none. Consumers must tell
+// "the check did not run" from "the check passed".
+export type ObservedChecks = {
+  promptSignals?: PromptSignals;
+  promptEvidence?: string[];
+  canaryOutcomes?: CanaryOutcome[];
+  baselineSimilarity?: BaselineSimilarity;
+  checkEvidence?: string[];
+};
+
+export type EvalBundle = { reflection?: Reflection; tooling?: Tooling; evaluation?: CaseEval; transfer?: Transfer; followups?: Followups; authenticity?: Authenticity | null; seedDiff?: SeedDiff | null; integrity?: Integrity | null; observedChecks?: ObservedChecks; source?: SourceKind; perStepSources?: PerStepSources; commitCount?: number; processTrace?: ProcessTrace | null };
 
 // At or below this a confidence (self-rated OR propagated) is "low" — the reviewer is warned the
 // inference is thin/ungrounded, or a decision rests on such evidence. Mirrors LOW_CONFIDENCE in

@@ -5523,6 +5523,50 @@
       "strong": "Nosných sond: {loadBearing} z {total} — tento případ rozlišuje.",
       "weak": "Nosné jsou jen {loadBearing} z {total} sond — většina silné od naivních neodliší.",
       "none": "Žádné nosné sondy — tento případ nerozezná silné řešení od naivního."
+    },
+    "integrity": {
+      "title": "Integrita záznamu",
+      "chainVerified": "Řetězec ověřen · {count, plural, one {# událost} few {# události} other {# událostí}}",
+      "chainVerifiedTitle": "Otisk každé zaznamenané události navazuje na předchozí — se sledovaným záznamem nikdo dodatečně nemanipuloval.",
+      "chainBroken": "Řetězec porušen",
+      "chainBrokenAt": "Řetězec porušen u události č. {seq}",
+      "chainBrokenTitle": "Jeden článek nesedí: sledovaný záznam byl po pořízení pozměněn. Odevzdání zůstává pozastavené pro pohovor ověřující autorství.",
+      "chainUnverifiable": "Řetězec nelze ověřit",
+      "chainUnverifiableTitle": "Tato relace nezaznamenala žádné události s otiskem, takže řetězec nelze zkontrolovat. Není to důkaz manipulace — ale ani potvrzení, že je vše v pořádku.",
+      "clockConsistent": "Časy odpovídají",
+      "clockConsistentTitle": "Klientský čas každé události odpovídá okamžiku, kdy ji přijal server.",
+      "backdated": "{count, plural, one {# zpětně datovaná událost} few {# zpětně datované události} other {# zpětně datovaných událostí}}",
+      "backdatedTitle": "{count, plural, one {# událost uvádí čas, který odporuje} other {# událostí uvádí čas, který odporuje}} okamžiku přijetí na serveru (největší rozdíl {seconds} s) — přesně takto by šlo předstírat pořadí „nejdřív čtu, pak píšu“.",
+      "markerIntact": "Značka relace je na místě",
+      "markerIntactTitle": "Vlastní značka této relace je v odevzdaných souborech stále přítomná.",
+      "markerAbsent": "Značka relace chybí",
+      "markerAbsentTitle": "Značka této relace už v odevzdaných souborech není. Samo o sobě to nic nedokazuje — kandidát mohl řádek prostě smazat.",
+      "markerForeign": "{count, plural, one {# cizí značka} few {# cizí značky} other {# cizích značek}}",
+      "markerForeignTitle": "V těchto souborech se objevuje značka jiné pracovní relace — typický příznak kolujícího nebo přeposlaného řešení. Ověřte autorství živě.",
+      "footnote": "Důkaz o neporušenosti záznamu, nikoli hodnocení odvedené práce."
+    },
+    "checks": {
+      "title": "Co kontroly zjistily",
+      "repoSubmission": "Mechanické kontroly proti známé pravdě potřebují pracovní plochu v produktu. Toto odevzdání je odkaz na repozitář, takže nastražené chyby, překryv s baseline ani promptovací kanál zkontrolovat nešlo.",
+      "canary": {
+        "addressed": "opraveno",
+        "flagged": "pojmenováno",
+        "propagated": "přešlo dál",
+        "unverifiable": "nelze hodnotit"
+      },
+      "canarySummary": "Nastražené chyby: zachyceno {caught} z {graded} hodnotitelných.",
+      "canaryNoneGradable": "Nastražené chyby: žádnou nešlo vyhodnotit mechanicky.",
+      "canaryUngradable": "{count, plural, one {# nelze hodnotit} other {# nelze hodnotit}}",
+      "canaryNotRun": "Pro tento případ nejsou nastražené žádné chyby — deterministický seed si pravdu nevymýšlí, takže tato kontrola neproběhla.",
+      "baselineSimilarity": "Překryv s jednorázovým řešením od AI: {pct}.",
+      "baselineNeverPenalty": "Kontext pro pohovor, nikdy srážka z hodnocení.",
+      "baselineAimInterview": "Blízké tomu, co model vyprodukuje na jeden pokus — zeptejte se živě, co kandidát přidal navíc. Nikdy nejde o srážku z hodnocení.",
+      "baselineNotRun": "Pro tento případ nebyla zmrazena žádná AI baseline, takže porovnání neproběhlo.",
+      "promptSummary": "Dotazy na asistenta: {assistant} (hloubka iterace {depth}) · dotazy na zadavatele: {stakeholder}",
+      "verificationAsks": "{count, plural, one {# žádost o ověření} few {# žádosti o ověření} other {# žádostí o ověření}}",
+      "promptsNeverPenalty": "Používání AI není nikdy k tíži — jde o to, jak ji vedli, ne zda ji použili.",
+      "promptsNotUsed": "Kanály asistenta i zadavatele zůstaly nevyužité — žádný signál na žádnou stranu, nikdy k tíži.",
+      "briefPasteAimInterview": "Jeden dotaz obsahoval zhruba {pct} zadání doslova — typický tvar jednorázového delegování. Zaměřte sem pohovor o autorství; nikdy nejde o srážku z hodnocení."
     }
   },
   "rubricCoverage": {

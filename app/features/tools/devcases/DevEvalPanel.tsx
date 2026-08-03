@@ -6,6 +6,8 @@ import { describeSource } from "./DevHelpers";
 import { FollowupQuestionItem } from "./DevShared";
 import { DevEvalPanelScores } from "./DevEvalPanelScores";
 import { DevEvalPanelProcessTrace } from "./DevEvalPanelProcessTrace";
+import { DevEvalPanelIntegrity } from "./DevEvalPanelIntegrity";
+import { DevEvalPanelChecks } from "./DevEvalPanelChecks";
 import type { DimensionScore, EvalBundle, ProbeOutcome } from "./DevTypes";
 
 // Human labels for the legacy fallback only — current evaluations carry their own labels.
@@ -75,6 +77,14 @@ export function EvalPanel({ ev, onPromote, promoted, promoting = false }: { ev: 
       </div>
 
       <DevEvalPanelProcessTrace ev={ev} />
+
+      {/* The anti-delegation controls' own findings. `integrity` is written only for
+          a live in-product session (devcase-run.ts sets it from the `session:` repoRef
+          branch), so it is also the reliable "was this watched?" tell for the checks
+          panel below. Bundles saved before either field existed carry neither and
+          render nothing at all — an old evaluation must not claim checks it never ran. */}
+      {ev.integrity ? <DevEvalPanelIntegrity integrity={ev.integrity} /> : null}
+      {ev.observedChecks ? <DevEvalPanelChecks checks={ev.observedChecks} live={ev.integrity != null} /> : null}
 
       {/* probe results (D5) — self-contained from denormalized kind/where, no case re-join */}
       {(t.probeOutcomes ?? []).length ? (
