@@ -8,6 +8,8 @@
 // server-rendered <style> is STRICTLY hex-validated (an unvalidated color would be a
 // CSS-injection vector — see app/_components/BrandStyle.tsx).
 
+import { PAPER, WHITE } from "@/app/_lib/brand";
+
 export type BrandConfig = {
   /** White-label display name (sidebar + document title). null = product default. */
   displayName: string | null;
@@ -44,10 +46,10 @@ export function sanitizeAccentColor(value: unknown): string | null {
 /** The paper canvas the focus ring / active-nav indicator is drawn against
  *  (app/globals.css `--color-paper`, light theme — the demanding case: it is far
  *  lighter than the dark theme's paper, so a pale accent contrasts least here). */
-const PAPER_BG = "#fdf8ee";
+const PAPER_BG = PAPER;
 /** The fixed color that sits ON the accent: white button labels (BTN_PRIMARY) and
  *  the focus ring's inner ply (`--color-paper`, ~white). White is the worst case. */
-const ON_ACCENT_TEXT = "#ffffff";
+const ON_ACCENT_TEXT = WHITE;
 
 /** WCAG AA for large/bold text and for non-text graphical objects is 3:1 — the
  *  right bar here: button labels are medium-weight UI text and the focus ring is a

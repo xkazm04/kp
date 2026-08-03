@@ -105,7 +105,7 @@ export function ScoreDial({ score }: ScoreDialProps) {
               cy={CENTER}
               r={RADIUS}
               fill="none"
-              stroke={isFilled ? bandColor(i) : "#e7e5e4"}
+              stroke={isFilled ? bandColor(i) : "var(--color-stone-200)"}
               strokeWidth={STROKE}
               strokeLinecap="round"
               strokeDasharray={`${arcLen.toFixed(2)} ${CIRCUMFERENCE.toFixed(2)}`}

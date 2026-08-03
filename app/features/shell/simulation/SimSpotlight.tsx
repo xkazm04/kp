@@ -74,7 +74,7 @@ export function SimSpotlight() {
           left: rect.left,
           width: rect.width,
           height: rect.height,
-          boxShadow: "0 0 0 9999px rgba(28,25,23,0.28)",
+          boxShadow: "0 0 0 9999px var(--color-scrim)",
         }}
       >
         <span className="absolute inset-0 animate-ping rounded-xl ring-2 ring-coral/40 motion-reduce:animate-none" />

@@ -61,6 +61,13 @@ jobs:
 
       - run: npm run lint
 
+      # Dual-theme design law (docs/design/README.md): brand.ts <-> globals.css
+      # lockstep + a dark value for every shade utility used outside app/landing/.
+      # The third gate (no raw hex / inline rgba) is an eslint rule, so it rides
+      # `npm run lint` above. Until this step existed, nothing in CI had ever
+      # read app/globals.css.
+      - run: npm run design:check
+
       - run: npm run test:unit
 
       - run: npm run build

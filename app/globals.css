@@ -11,6 +11,9 @@
   --color-coral: #d65a4a;
   --color-steel: #42606f;
   --color-limewash: #dce7d0;
+  /* Coral's pale tint — the counterpart to limewash (moss's), for the "other
+     side" of a paired illustration (e.g. the compare icon's two panels). */
+  --color-coralwash: #f7d4ce;
   --color-dial-stone: #8c8779;
   --color-dial-amber: #caa54c;
 
@@ -18,6 +21,13 @@
      they sit with the cream canvas and read as drawn lines, kept near stock
      lightness so contrast/density don't change. Text greys (stone-400+) stay
      stock; the [data-theme="dark"] block owns the dark ramp. */
+  /* Declared explicitly (identical to Tailwind's stock white) so the raised-card
+     surface has a light counterpart to the dark block's --color-white override.
+     Nothing renders differently; it makes the token pair symmetric, which is
+     what lets scripts/design/check-design-tokens.mjs check both halves of the
+     app/_lib/brand.ts mirror with one rule instead of a special case. */
+  --color-white: #ffffff;
+
   --color-stone-50: #f7f2e9;
   --color-stone-100: #f1ebdd;
   --color-stone-200: #e6ddcc;
@@ -36,21 +46,26 @@
   --color-score-weak: var(--color-coral);
   --color-score-null: var(--color-steel);
 
-  /* Two-layer soft elevation — a tight contact shadow plus a closer ambient, so
-     Studio Light panels read crafted and grounded instead of floating in a 50px
-     blur. (The dark block overrides this to the hard Spark offset.) */
-  --shadow-panel: 0 1px 2px rgba(23, 32, 42, 0.05), 0 10px 28px -10px rgba(23, 32, 42, 0.13);
-
-  /* Sticker shadows — the Spark register's small hard offsets (buttons, marks,
-     chips). Subtle in light; the dark block overrides them to full strength. */
-  --shadow-sticker-sm: 3px 3px 0 rgba(23, 32, 42, 0.14);
-  --shadow-sticker-xs: 2px 2px 0 rgba(23, 32, 42, 0.14);
-
-  /* "Pop" — a confident offset for ACCENT / chrome surfaces only (PANEL_ACCENT,
-     stat cards, verdict banners). Editorial-restrained in light (low opacity);
-     the dark block lifts it to the full Spark offset. Data panels stay on the
-     calm --shadow-panel above so the board/table register keeps its composure. */
-  --shadow-pop: 4px 4px 0 rgba(23, 32, 42, 0.13);
+  /*
+   * The shadow tokens point at a SECOND variable instead of holding their value
+   * directly, and that indirection is load-bearing.
+   *
+   * Tailwind v4 INLINES an `@theme --shadow-*` value into the `.shadow-*`
+   * utility it generates (`.shadow-panel{--tw-shadow:0 1px 2px …}`) rather than
+   * emitting `var(--shadow-panel)` — unlike the COLOR utilities, which do emit
+   * `var(--color-*)` and are why the palette re-skins at all. So re-declaring
+   * `--shadow-panel` under `[data-theme="dark"]` set a custom property that
+   * nothing on the page ever read: the entire Spark Dark hard-offset shadow
+   * register was inert, silently, while the dark block looked correct.
+   *
+   * Pointing the token at `var(--*-shadow)` moves resolution to runtime, where
+   * the dark override actually wins. Light values are unchanged — they just
+   * live in the `:root` block below now.
+   */
+  --shadow-panel: var(--panel-shadow);
+  --shadow-sticker-sm: var(--sticker-sm-shadow);
+  --shadow-sticker-xs: var(--sticker-xs-shadow);
+  --shadow-pop: var(--pop-shadow);
 
   /* Floating chrome — modals and drawers, the layer that sits OVER the app.
      Its own token because neither of the two above can carry it: --shadow-panel
@@ -60,7 +75,13 @@
      `shadow-2xl` these surfaces used before, so Studio Light is unchanged; the
      dark block overrides it to the Spark offset, which is the whole point —
      `shadow-2xl` is a literal rgb() and could never follow the theme. */
-  --shadow-overlay: 0 25px 50px -12px rgb(0 0 0 / 0.25);
+  --shadow-overlay: var(--overlay-shadow);
+
+  /* Scrim — the wash that dims the app behind a takeover (the guided
+     simulation's spotlight paints it as a 9999px box-shadow ring). A token
+     rather than an inline rgba() because the light wash is a warm near-black
+     that would sit invisibly on the dark canvas; the dark block deepens it. */
+  --color-scrim: rgba(28, 25, 23, 0.28);
 
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-serif: var(--font-fraunces), ui-serif, Georgia, "Times New Roman", serif;
@@ -102,6 +123,27 @@
 
 :root {
   color-scheme: light;
+
+  /*
+   * Studio Light elevation values, read through the @theme indirection above.
+   *
+   * --panel-shadow: two-layer soft elevation — a tight contact shadow plus a
+   *   closer ambient, so panels read crafted and grounded instead of floating
+   *   in a 50px blur.
+   * --sticker-*-shadow: the Spark register's small hard offsets (buttons,
+   *   marks, chips), subtle here and lifted to full strength in dark.
+   * --pop-shadow: a confident offset for ACCENT / chrome surfaces only
+   *   (PANEL_ACCENT, stat cards, verdict banners) — editorial-restrained in
+   *   light. Data panels stay on --panel-shadow so the board/table register
+   *   keeps its composure.
+   * --overlay-shadow: floating chrome (Modal, drawers). Byte-identical to the
+   *   stock `shadow-2xl` these surfaces carried before.
+   */
+  --panel-shadow: 0 1px 2px rgba(23, 32, 42, 0.05), 0 10px 28px -10px rgba(23, 32, 42, 0.13);
+  --sticker-sm-shadow: 3px 3px 0 rgba(23, 32, 42, 0.14);
+  --sticker-xs-shadow: 2px 2px 0 rgba(23, 32, 42, 0.14);
+  --pop-shadow: 4px 4px 0 rgba(23, 32, 42, 0.13);
+  --overlay-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.25);
 }
 
 * {
@@ -139,6 +181,7 @@ body {
   --color-coral: #ff7e68;
   --color-steel: #9db5c3;
   --color-limewash: #2a382b;
+  --color-coralwash: #46262b;
   --color-dial-stone: #6e7787;
   --color-dial-amber: #e5bd62;
 
@@ -207,13 +250,20 @@ body {
   --color-blue-200: #2f4b68;
   --color-blue-700: #8fbaea;
 
-  /* The Spark signature: depth is drawn, not diffused. */
-  --shadow-panel: 5px 5px 0 rgba(9, 13, 19, 0.85);
-  --shadow-sticker-sm: 3px 3px 0 rgba(9, 13, 19, 0.85);
-  --shadow-sticker-xs: 2px 2px 0 rgba(9, 13, 19, 0.85);
-  --shadow-pop: 5px 5px 0 rgba(9, 13, 19, 0.85);
+  /* The Spark signature: depth is drawn, not diffused. These override the
+     `--*-shadow` values, NOT the `--shadow-*` tokens — see the note in @theme.
+     Tailwind inlines the token into the .shadow-* utility, so overriding the
+     token here (as this block used to) set a property no rule ever read, and
+     the whole hard-offset register never actually rendered in dark. */
+  --panel-shadow: 5px 5px 0 rgba(9, 13, 19, 0.85);
+  --sticker-sm-shadow: 3px 3px 0 rgba(9, 13, 19, 0.85);
+  --sticker-xs-shadow: 2px 2px 0 rgba(9, 13, 19, 0.85);
+  --pop-shadow: 5px 5px 0 rgba(9, 13, 19, 0.85);
   /* Overlays ride a touch deeper than panels — they are further off the page. */
-  --shadow-overlay: 7px 7px 0 rgba(9, 13, 19, 0.9);
+  --overlay-shadow: 7px 7px 0 rgba(9, 13, 19, 0.9);
+
+  /* Deeper on the ink canvas — the light wash would barely register. */
+  --color-scrim: rgba(6, 9, 14, 0.66);
 
   /* Display face flips with the register: Fraunces' serif calm belongs to
      Studio Light; Spark Dark titles get Bricolage's grotesque punch (the

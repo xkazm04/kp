@@ -8,6 +8,7 @@ import { BrandStyle } from "./_components/BrandStyle";
 import { BrandProvider } from "./_components/BrandProvider";
 import { getBrand } from "./_lib/brand-store";
 import { DEFAULT_BRAND } from "./_lib/brand-config";
+import { DARK, PAPER } from "./_lib/brand";
 import "./globals.css";
 
 // SHELL5 — `latin-ext` carries the Czech diacritics (ě š č ř ž ů, all over
@@ -123,8 +124,10 @@ export const viewport: Viewport = {
   initialScale: 1,
   viewportFit: "cover",
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#fdf8ee" },
-    { media: "(prefers-color-scheme: dark)", color: "#141b24" }
+    // <meta name="theme-color"> cannot take a var(), so these read the JS mirror
+    // of the canvas token — pinned to --color-paper (light + dark) by design:check.
+    { media: "(prefers-color-scheme: light)", color: PAPER },
+    { media: "(prefers-color-scheme: dark)", color: DARK.PAPER }
   ]
 };
 

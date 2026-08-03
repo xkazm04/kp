@@ -3,6 +3,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Maximize2, ZoomIn, ZoomOut } from "lucide-react";
 import { Modal } from "@/app/_components/Modal";
+import { CORAL, DIAL_AMBER, DIAL_STONE, INK, MOSS, PAPER, STEEL, WHITE } from "@/app/_lib/brand";
 import { parsePuml } from "./parse";
 import { isDiagramTooLarge, layoutDiagram, type Box, type PositionedDiagram, type PositionedEdge } from "./layout";
 import { DIAGRAM_PAD, DIAGRAM_STATUS_TOKENS, FONT_FAMILY, LINE_H } from "./constants";
@@ -20,17 +21,21 @@ import { clickableNodeAria, diagramSvgRole } from "./a11y";
 // hex literals scattered through the shape renderers (idea-a1c39c26), so retuning
 // a shape meant hunting for a stray hex. One map = one edit to re-tone a diagram.
 // (The component status trichotomy in componentStyle is unified separately.)
+// The brand half is IMPORTED, not re-typed: this block claimed to mirror the
+// @theme tokens while holding `paper: "#f7f5ef"`, the pre-Option-C cream the app
+// canvas had already left behind — the same drift that had gone unnoticed in
+// brand.ts. Reading the mirror puts these under `npm run design:check`.
 const C = {
-  ink: "#17202a",
-  paper: "#f7f5ef",
-  moss: "#526b4f",
-  coral: "#d65a4a",
-  steel: "#42606f",
+  ink: INK,
+  paper: PAPER,
+  moss: MOSS,
+  coral: CORAL,
+  steel: STEEL,
   stone: "#d6d3d1",
   stoneSoft: "#e7e5e4",
-  dialStone: "#8c8779",
-  dialAmber: "#caa54c",
-  white: "#ffffff",
+  dialStone: DIAL_STONE,
+  dialAmber: DIAL_AMBER,
+  white: WHITE,
 
   // Database cylinder (body + lid).
   dbFill: "#eef2f3",

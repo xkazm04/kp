@@ -8,6 +8,7 @@ import { TextInput } from "@/app/_components/TextInput";
 import { APP_LANGUAGES, type AppLanguage } from "@/app/features/shared/memberUi";
 import { FIELD, META_LABEL } from "@/app/_components/ui/recipes";
 import { accentIsLegible, normalizeHex6, sanitizeLogoUrl } from "@/app/_lib/brand-config";
+import { CORAL, INK, MOSS, STEEL } from "@/app/_lib/brand";
 import type { OnboardingCtrl } from "./setupSteps";
 
 // Company step — org name (required), app language, and an OPTIONAL first brand
@@ -15,11 +16,14 @@ import type { OnboardingCtrl } from "./setupSteps";
 // swatches are stored brand VALUES (data fed to the brand config), not styling —
 // they render via inline style the same way BrandingTab previews an arbitrary
 // customer hex; the surrounding chrome stays fully tokenized.
+// The three presets ARE the brand palette, so they read it from brand.ts rather
+// than keeping a fourth copy of the same hexes — design:check pins those to
+// globals.css, so a rebrand moves the swatches with the app.
 const ACCENT_PRESETS = [
   { key: "default", hex: null },
-  { key: "moss", hex: "#526b4f" },
-  { key: "steel", hex: "#42606f" },
-  { key: "ink", hex: "#17202a" },
+  { key: "moss", hex: MOSS },
+  { key: "steel", hex: STEEL },
+  { key: "ink", hex: INK },
 ] as const;
 
 export function CompanyStep({ ctrl }: { ctrl: OnboardingCtrl }) {
@@ -101,7 +105,7 @@ export function CompanyStep({ ctrl }: { ctrl: OnboardingCtrl }) {
             {t("accent.custom")}
             <input
               type="color"
-              value={normalizeHex6(ctrl.state.accentColor ?? "") ?? "#d65a4a"}
+              value={normalizeHex6(ctrl.state.accentColor ?? "") ?? CORAL}
               onChange={(e) => {
                 const hex = e.target.value;
                 if (accentIsLegible(hex)) {

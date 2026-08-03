@@ -4,7 +4,7 @@ import { useTranslations } from "next-intl";
 import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { Analysis } from "@/app/_lib/schemas";
 import { scoreTone, scoreToneColor } from "@/app/_lib/format";
-import { DARK, INK, STEEL } from "@/app/_lib/brand";
+import { DARK, INK, LIGHT, STEEL } from "@/app/_lib/brand";
 import { useTheme } from "@/app/_components/ui/useTheme";
 import { factorPoints, FACTOR_DOMAIN, type FactorId } from "@/app/_lib/factor-points";
 
@@ -41,10 +41,14 @@ function barColor(ratio: number): string {
 
 // Recharts wants literal color strings for its chrome (grid, ticks, tooltip),
 // so the chart can't ride the CSS token seam like the bar fills do — it forks
-// on useTheme() instead (the behavioral-fork layer in docs/design/README.md). Values
-// mirror the light beiges / dark hairlines the rest of the UI resolves to.
+// on useTheme() instead (the behavioral-fork layer in docs/design/README.md).
+// BOTH halves now read the brand.ts mirror. The light half used to be three
+// loose hexes (#ded6c6 / #f0ebe1 / #ffffff) hand-approximating stone-200 /
+// stone-100 / white while the dark half already resolved DARK.* properly — so
+// the chart's light grid was the one part of this file that could not follow a
+// palette change. design:check pins LIGHT.* and DARK.* to globals.css.
 const CHROME = {
-  light: { grid: "#ded6c6", tick: STEEL, cursor: "#f0ebe1", tooltipBg: "#ffffff", tooltipText: INK },
+  light: { grid: LIGHT.GRID, tick: STEEL, cursor: LIGHT.FILL, tooltipBg: LIGHT.SURFACE, tooltipText: INK },
   dark: { grid: DARK.GRID, tick: DARK.STEEL, cursor: DARK.FILL, tooltipBg: DARK.SURFACE, tooltipText: DARK.INK },
 } as const;
 

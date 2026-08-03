@@ -13,6 +13,85 @@ const config = [
     ignores: [".next/**", ".next-empty/**", "node_modules/**", "test-results/**", ".claude/**"]
   },
   {
+    // ---------------------------------------------------------------------
+    // Design law: no hardcoded colors outside app/landing/.
+    //
+    // ".claude/CLAUDE.md" has always said "Never hardcode colors (bg-[#...],
+    // inline style colors, rgba shadows) outside app/landing/ — everything
+    // else resolves through tokens", and nothing enforced it. A literal hex
+    // cannot follow [data-theme="dark"], so every one of them is a surface
+    // that silently stops theming.
+    //
+    // AST-based on purpose: it sees string literals and template chunks (so
+    // `bg-[#fff]`, style={{ color: "#fff" }} and a `rgba(...)` box-shadow all
+    // trip) but NOT comments, which legitimately quote hexes when explaining
+    // a token. Six-digit only — three-digit `#abc` collides with issue refs
+    // and URL fragments, and the codebase's 3-digit hexes are all test data.
+    //
+    // The companion checks live in scripts/design/check-design-tokens.mjs
+    // (brand.ts <-> globals.css lockstep, and dark-mapping parity for every
+    // shade utility), wired as `npm run design:check`.
+    // ---------------------------------------------------------------------
+    files: ["app/**/*.{ts,tsx}"],
+    ignores: [
+      // Fixed art direction, the one stated exemption in the design law.
+      "app/landing/**",
+      // The documented JS mirror of the @theme tokens, for surfaces the CSS
+      // token system cannot reach (OG card, apple-icon, raw SVG fills). These
+      // literals are the point of the file — and design:check now pins every
+      // one of them to its --color-* declaration, so they cannot drift.
+      "app/_lib/brand.ts",
+      // Traced glyph SOURCE data, never painted: MotionizedGlyph runs every
+      // fill through snapToToken() (app/_components/glyph/glyphTokens.ts) and
+      // emits var(--color-*). ~250 literals that are already tokens by the
+      // time they reach the DOM — the best-engineered thing in this cluster.
+      "app/_components/glyph/glyphs/**",
+      // Diagram-only primitive tints (database cylinder, cloud, sticky note,
+      // group boxes) with no CSS-variable equivalent. The brand-mirroring half
+      // of the palette now imports from brand.ts; the bespoke half stays
+      // literal until the diagram gets a dark register of its own.
+      "app/_components/puml/**",
+      // Dev-only inspector chrome (DEV_INSPECT=1). Deliberately a FIXED
+      // devtools skin that must not follow the app theme — it has to stay
+      // readable while you are debugging the theme itself.
+      "app/_dev-inspector/**",
+      // Test data: hexes here are inputs and expected values for the color
+      // sanitizers and the glyph token snapper, not rendered color.
+      "app/**/*.test.{ts,tsx}"
+    ],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "Literal[value=/#[0-9a-fA-F]{6}\\b/]",
+          message:
+            "Hardcoded color. Colors must resolve through tokens so they follow [data-theme=\"dark\"] — " +
+            "use a Tailwind token utility, var(--color-*), or app/_lib/brand.ts for stylesheet-less " +
+            "surfaces. If the color has no token, add one to app/globals.css (both themes). See docs/design/README.md."
+        },
+        {
+          selector: "TemplateElement[value.raw=/#[0-9a-fA-F]{6}\\b/]",
+          message:
+            "Hardcoded color in a template literal. Colors must resolve through tokens so they follow " +
+            "[data-theme=\"dark\"]. See docs/design/README.md."
+        },
+        {
+          selector: "Literal[value=/rgba?\\(\\s*[0-9]/]",
+          message:
+            "Inline rgb()/rgba() color. Shadows and scrims must resolve through tokens so they follow " +
+            "[data-theme=\"dark\"] — add a --color-* or --shadow-* token to app/globals.css instead. " +
+            "See docs/design/README.md."
+        },
+        {
+          selector: "TemplateElement[value.raw=/rgba?\\(\\s*[0-9]/]",
+          message:
+            "Inline rgb()/rgba() color in a template literal. Use a token from app/globals.css. " +
+            "See docs/design/README.md."
+        }
+      ]
+    }
+  },
+  {
     // i18n gap prevention: flag hardcoded user-facing JSX text so new strings go
     // through messages/*.json (next-intl t()) instead of being baked in. Scoped
     // to component files (.tsx under app/, excluding tests) and held at WARN

@@ -3,6 +3,8 @@
 import { CheckCircle2, RotateCcw } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { BTN_PRIMARY, BTN_SECONDARY, FIELD, META_LABEL, PANEL } from "@/app/_components/ui/recipes";
+// The placeholder shows the product's own default accent as the example hex.
+import { CORAL } from "@/app/_lib/brand";
 
 // Branding tab — the editor form (name/accent/logo fields + save/reset).
 // Split out of BrandingTab.tsx.
@@ -72,7 +74,7 @@ export function BrandingEditorForm({
             type="text"
             value={accent}
             onChange={(e) => onAccentChange(e.target.value)}
-            placeholder="#d65a4a"
+            placeholder={CORAL}
             spellCheck={false}
             className={`${FIELD} w-32 nums`}
           />

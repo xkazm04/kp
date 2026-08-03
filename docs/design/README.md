@@ -134,6 +134,20 @@ is the Spark register) can carry floating chrome. Stock `shadow-2xl` can't
 either — it is a literal `rgb()` and can never follow the theme, which is why
 Modal was the one surface that missed the dark structural ride.
 
+> **Shadow tokens need an extra hop — don't "simplify" it away.** Tailwind v4
+> *inlines* an `@theme --shadow-*` value into the utility it generates
+> (`.shadow-panel{--tw-shadow:0 1px 2px …}`) instead of emitting
+> `var(--shadow-panel)`. Color utilities do the opposite (`.bg-stone-900{
+> background-color:var(--color-stone-900)}`), which is why the palette re-skins
+> at all. So for a long time, re-declaring `--shadow-panel` in the dark block
+> set a custom property that **no rule on the page ever read**: the whole Spark
+> hard-offset shadow register was inert while the stylesheet looked correct.
+> Each shadow token therefore points at a second variable
+> (`--shadow-panel: var(--panel-shadow)`), with the real values in `:root` and
+> `[data-theme="dark"]`, which moves resolution to runtime where the override
+> wins. Verify with `grep '\.shadow-panel{' .next/static/chunks/*.css` after a
+> build — it must contain `var(--panel-shadow)`, not a literal offset.
+
 **Status scales** are luminance-flipped in dark (`*-50` tints go deep, `*-700`
 text goes light): `red-*` (errors), `amber-*` (warnings/holds), `green-*`,
 `blue-*` — only the shades the app actually uses are mapped; if you introduce
@@ -142,7 +156,7 @@ families are the whole sanctioned set** — `emerald-*` is not one of them; use
 `green-*`, which is mapped. `red-400`/`red-500` are the invalid-state cue on
 every shared form primitive and are lifted clear of the `red-300` tint on
 purpose, so the indicator holds ≥3:1 (WCAG 1.4.11) against the card surface.
-`npm run design:check` enforces all of this — see below.
+`npm run design:check` enforces all of this — see "What enforces this" below.
 
 ## The structural register — how dark gets its Spark
 
@@ -208,9 +222,11 @@ element:
   `.border-t` section rules go dashed like the landing's transcript dividers.
 - **Charts fork on `useTheme()`.** Bar/dial fills already flip via the
   `score-*` tokens, but recharts chrome (grid, ticks, tooltip) needs literal
-  strings — `FactorChart` picks light/dark values from the `DARK` mirror in
-  `app/_lib/brand.ts` (the JS copy of the dark token block; keep in
-  lockstep). Any new chart follows that pattern.
+  strings — `FactorChart` picks light/dark values from the `LIGHT` and `DARK`
+  mirrors in `app/_lib/brand.ts` (the JS copies of the two token blocks, keyed
+  by role: `SURFACE`/`FILL`/`GRID`). Any new chart follows that pattern; both
+  mirrors are pinned to `globals.css` by `design:check`, so neither half can
+  drift the way the light half had.
 - **Leader emphasis scales with the canvas.** Subtle washes that work on
   cream (`bg-moss/5`) vanish on dark — the comparison table's leader column
   upgrades to `/15` plus a moss edge stroke in dark. When a highlight relies
@@ -240,6 +256,41 @@ element:
    footer. Pay attention to anything with images, charts, or fixed-color SVG.
 7. **Score colors only via `score-*` tokens / `scoreTone()`** — never re-pick
    rank hues by hand.
+
+## What enforces this
+
+For a long time: nothing. The law above was stated in prose, `eslint.config.mjs`
+carried a single custom rule (about i18n), and neither CI nor `.githooks/pre-push`
+had ever read `app/globals.css`. It cost something real — `brand.ts` declared
+`PAPER = "#f7f5ef"` while the canvas token had moved to `#fdf8ee`, so every
+stylesheet-less light surface (OG card, apple-icon, raw SVG fills) painted a
+cream the app no longer used, and nothing could have noticed.
+
+Three gates now run in **CI** (`.github/workflows/ci.yml`) and in the **pre-push
+hook**:
+
+| Gate | Where | Checks |
+|---|---|---|
+| Lockstep | `npm run design:check` | Every literal in `app/_lib/brand.ts` equals its `--color-*` declaration, in **both** blocks. A constant whose token doesn't exist fails rather than being skipped, so a new one is covered automatically. |
+| Shade parity | `npm run design:check` | Every `-(red\|amber\|green\|blue\|stone\|…)-N` utility used outside `app/landing/` has a `[data-theme="dark"]` value. |
+| No literal color | `npm run lint` | `no-restricted-syntax` bans six-digit hex and inline `rgb()/rgba()` in `app/**`. AST-based, so it sees strings and template chunks but not comments. |
+
+Both live in [`scripts/design/check-design-tokens.mjs`](../../scripts/design/check-design-tokens.mjs)
+and `eslint.config.mjs`. **Neither is ever relaxed to make a change pass.** An
+exemption is a path in the eslint `ignores` list or an entry in the script's
+`SHADE_ALLOW` map, and each one carries its reason inline. Today's exemptions:
+
+- `app/landing/**` — the fixed art direction, the design law's one stated carve-out.
+- `app/_lib/brand.ts` — the mirror itself; its literals are pinned by the lockstep gate.
+- `app/_components/glyph/glyphs/**` — traced glyph *source* data, never painted:
+  `MotionizedGlyph` runs every fill through `snapToToken()` and emits `var(--color-*)`.
+- `app/_components/puml/**` — diagram-only primitive tints (cylinder, cloud, sticky
+  note) with no CSS-variable equivalent. Its brand-mirroring half imports `brand.ts`;
+  the diagram has no dark register yet.
+- `app/_dev-inspector/**` — dev-only devtools chrome, deliberately fixed so it stays
+  readable while you debug the theme itself.
+- `app/**/*.test.{ts,tsx}` — hexes are inputs/expectations for the color sanitizers.
+- `stone-500` / `stone-600` — muted body text; the text greys stay stock in both themes.
 
 ## Shared recipes — write once, apply multiple times
 
