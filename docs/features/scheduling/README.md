@@ -20,6 +20,10 @@ cannot pick an hour the interviewer is already busy for.
 
 1. **Mint.** `POST /api/schedule/invite` creates a `schedule_invites` row with
    `durationMin = plannedInterviewMinutes(entry)` and mails the link.
+   `POST /api/schedule/invite/bulk` does the same for a cohort (deduped and
+   capped at `BULK_INVITE_CAP` = 100 by `app/_lib/bulk-invite.ts`), with
+   per-entry isolation — one bad/terminal/comms-failed entry never aborts the
+   batch and the response reports each outcome.
 2. **Offer.** `GET /api/schedule/[token]` proposes times via
    `proposeFreeSlots` — `proposeSlots` (kp's own booked slots, business days,
    `KP_INTERVIEW_TIMES` in `KP_INTERVIEW_TZ`) filtered by the connected
@@ -105,7 +109,8 @@ guards the recruiter catalog against `CALENDAR_STATUSES`.
 | --- | --- | --- |
 | Candidate read/book | `app/api/schedule/[token]/route.ts` | Public token route; `publicInviteView` is the leak boundary |
 | Recruiter lifecycle + actions | `app/api/schedule/route.ts` | Workspace-authenticated; `?slots=1` serves reschedule times |
-| Invite minting | `app/api/schedule/invite/route.ts` | |
+| Invite minting | `app/api/schedule/invite/route.ts` | Operator-gated + workspace-scoped |
+| Bulk invite minting | `app/api/schedule/invite/bulk/route.ts` | Same gate; per-entry isolation, `BULK_INVITE_CAP` = 100 |
 | Slot maths (pure) | `app/_lib/schedule-slots.ts` | `proposeSlots`, `offeredSlotFor`, `validateProposedSlots`, TTL |
 | Store + collision authority | `app/_lib/schedule-store.ts` | Confirm/reschedule transactions, operator flags |
 | Free/busy (pure) | `app/_lib/calendar/free-busy.ts` | `isSlotFree`, `filterFreeSlots`, `busyQueryWindow`, `CALENDAR_STATUSES` |
@@ -126,6 +131,27 @@ crosses the API boundary.
 
 ## Gating / keyless behaviour
 
+**Who may mint an invite.** Both invite routes email candidates, so both are
+operator-gated: `requireOperator()` runs **first**, before any rate-limit budget
+is spent, in lock-step with `app/api/pipeline/batch/route.ts`. Semantics are the
+shared ones — open mode (no `KP_OPERATOR_PASSWORD`) is a no-op, so local dev and
+the keyless demo are unaffected; a valid operator session is allowed; the
+anonymous demo-workspace cookie the proxy waves through gets a `401`. The guided
+simulation's interview step already falls back to a manual recruiter confirm when
+the mint does not return a token, so a gated deployment degrades rather than
+stalls. The per-IP throttle (30/min single, 10/min bulk) stays as the second line
+of defence.
+
+**Which rows they may reach.** Both routes resolve `currentWorkspace()` once and
+thread it into every `getPipelineEntry` lookup. The candidate token route is
+token-authenticated (no session to read), so it scopes its entry lookups to
+`invite.workspaceId` instead. Pinned end-to-end by
+`app/api/schedule/invite/invite-gate-tenancy.test.ts`, which drives the real
+handlers with a signed session cookie: an ungated (and a demo) session is refused
+with zero links minted, workspace B cannot invite workspace A's entry, and a
+non-default workspace can invite its own cohort — the last of which was broken
+outright while the routes relied on `getPipelineEntry`'s default workspace.
+
 The calendar integration is entirely optional. Without
 `GOOGLE_OAUTH_CLIENT_ID` / `GOOGLE_OAUTH_CLIENT_SECRET`, or with no connected
 account, every offer reports `not_connected` and the pre-integration slot list
@@ -138,6 +164,11 @@ is served unchanged. Scopes are deliberately narrow (`calendar.freebusy`,
   is a single global pool, so collisions are workspace-wide rather than
   per-interviewer.
 - Only Google is supported; there is no Microsoft 365 provider.
+- `POST /api/schedule` (the recruiter lifecycle actions — book, cancel, no-show,
+  reschedule) is workspace-scoped but **not** operator-gated, unlike the invite
+  routes. `getPipelineEntry`'s `workspaceId` parameter also still defaults to
+  `DEFAULT_WORKSPACE_ID`, so an omission stays a silent fallback rather than a
+  compile error; ~18 production call sites outside this feature still omit it.
 - The recruiter-side reschedule / accept-proposal **writes** do not re-check
   free/busy at confirm time the way the candidate confirm does — the recruiter is
   assumed to be looking at their own calendar. (Their offered list *is* filtered.)

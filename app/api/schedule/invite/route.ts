@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPipelineEntry } from "@/app/_lib/db";
+import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { createScheduleInvite } from "@/app/_lib/schedule-store";
 import { plannedInterviewMinutes } from "@/app/_lib/interview-run";
 import { dispatchScheduleInvite } from "@/app/_lib/comms-dispatch";
@@ -12,18 +14,28 @@ import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-lim
 
 // POST → recruiter mints a self-scheduling link for a pipeline entry. The
 // candidate opens /schedule/<token> and picks a slot.
+//
+// AUTH + TENANCY: minting a link is a RECRUITER capability that also DELIVERS an
+// email to the candidate, so it is operator-gated in lock-step with the bulk route
+// (see /api/schedule/invite/bulk for the full rationale) — requireOperator runs
+// FIRST, before the throttle, so a refused caller never spends rate-limit budget.
+// The workspace is then threaded into getPipelineEntry: relying on its DEFAULT made
+// this route 404 for every non-default team and reachable across tenants for the
+// default one.
 export async function POST(request: NextRequest) {
+  const denied = await requireOperator();
+  if (denied) return denied;
+  const ws = await currentWorkspace();
   try {
-    // No caller restriction exists yet (no auth layer): any request with a
-    // valid entryId mints a link and a confirmation-email path. Throttle
-    // per-IP so link-minting can't be used to flood the comms provider
-    // (idea-3e49abaf); generous enough for any human recruiter.
+    // Throttle per-IP so link-minting can't be used to flood the comms provider
+    // (idea-3e49abaf); generous enough for any human recruiter, and a second line
+    // of defence behind the operator gate above.
     if (!rateLimit(`invite:${clientIpFrom(request.headers)}`, { limit: 30, windowMs: 60_000 })) {
       return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
     }
     const body = (await request.json().catch(() => ({}))) as { entryId?: string };
     if (!body.entryId) return NextResponse.json({ error: "entryId is required" }, { status: 400 });
-    const entry = getPipelineEntry(body.entryId);
+    const entry = getPipelineEntry(body.entryId, ws);
     if (!entry) return NextResponse.json({ error: "pipeline entry not found" }, { status: 404 });
 
     const invite = createScheduleInvite({

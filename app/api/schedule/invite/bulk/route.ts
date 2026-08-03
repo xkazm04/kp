@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPipelineEntry } from "@/app/_lib/db";
+import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { createScheduleInvite } from "@/app/_lib/schedule-store";
 import { plannedInterviewMinutes } from "@/app/_lib/interview-run";
 import { dispatchScheduleInvite } from "@/app/_lib/comms-dispatch";
@@ -17,7 +19,24 @@ import { BULK_INVITE_CAP, coerceBulkEntryIds } from "@/app/_lib/bulk-invite";
 
 type InviteResult = { entryId: string; ok: boolean; token?: string; dispatched?: boolean; error?: string };
 
+// AUTH + TENANCY (invite-gate parity with /api/pipeline/batch): this route fans a
+// SINGLE call out to up to BULK_INVITE_CAP (100) entries and DELIVERS an email to
+// each — the same "one call can reach a whole cohort of candidates" posture the
+// batch route operator-gates, with the delivery already attached. So requireOperator
+// runs FIRST, before the throttle, so an anonymous demo session is refused before it
+// can even spend rate-limit budget. Semantics are the shared requireOperator ones —
+// open mode (no KP_OPERATOR_PASSWORD) is a no-op, so local dev is unaffected; the
+// anonymous demo-workspace cookie the proxy waves through → 401 (the guided sim's
+// invite step already has a manual-confirm fallback for exactly that case).
+//
+// The workspace is then resolved ONCE and threaded into every getPipelineEntry:
+// before this, each row resolved against DEFAULT_WORKSPACE_ID, so a non-default team
+// got "not found" for its OWN cohort (a silently broken feature) while a default-
+// workspace caller could reach rows it was never scoped to.
 export async function POST(request: NextRequest) {
+  const denied = await requireOperator();
+  if (denied) return denied;
+  const ws = await currentWorkspace();
   try {
     // Throttle the NUMBER of bulk calls (each fans out to up to BULK_INVITE_CAP
     // candidates), not each invite — this IS the one-action-many-candidates path,
@@ -34,7 +53,7 @@ export async function POST(request: NextRequest) {
     const origin = new URL(request.url).origin;
     const results: InviteResult[] = [];
     for (const entryId of ids) {
-      const entry = getPipelineEntry(entryId);
+      const entry = getPipelineEntry(entryId, ws);
       if (!entry) {
         results.push({ entryId, ok: false, error: "not found" });
         continue;

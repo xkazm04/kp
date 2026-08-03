@@ -209,7 +209,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
     if (Array.isArray(body.propose)) {
       // A rejected/declined candidate can't escalate (mirrors the confirm/rsvp guard).
       if (invite.entryId) {
-        const linkedEntry = getPipelineEntry(invite.entryId);
+        const linkedEntry = getPipelineEntry(invite.entryId, invite.workspaceId);
         if (linkedEntry && linkedEntry.status !== "active") {
           return NextResponse.json({ error: "This interview is no longer available." }, { status: 409 });
         }
@@ -238,7 +238,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
         return NextResponse.json({ error: "There's no confirmed time to update yet." }, { status: 409 });
       }
       if (invite.entryId) {
-        const linkedEntry = getPipelineEntry(invite.entryId);
+        const linkedEntry = getPipelineEntry(invite.entryId, invite.workspaceId);
         if (linkedEntry && linkedEntry.status !== "active") {
           return NextResponse.json({ error: "This interview is no longer available." }, { status: 409 });
         }
@@ -259,8 +259,15 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
     // rejected/declined since the link was minted (status goes terminal; Hired
     // keeps 'active'). approve_event guards this server-side too (defense-in-depth).
     // Applies to both a first confirm and a reschedule.
+    //
+    // TENANCY: the entry is looked up in the INVITE's workspace (this route is
+    // token-authenticated, not session-authenticated, so there is no currentWorkspace()
+    // to read). Every getPipelineEntry here used to omit it and fall back to
+    // DEFAULT_WORKSPACE_ID, so for a non-default team the lookup returned null and this
+    // guard — plus the propose/RSVP guards and the entry advance below — silently
+    // no-op'd: a rejected candidate could still book.
     if (invite.entryId) {
-      const linkedEntry = getPipelineEntry(invite.entryId);
+      const linkedEntry = getPipelineEntry(invite.entryId, invite.workspaceId);
       if (linkedEntry && linkedEntry.status !== "active") {
         return NextResponse.json({ error: "This interview is no longer available." }, { status: 409 });
       }
@@ -313,7 +320,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
       // page copy stays consistent with what a dispatch WOULD have done.
       const blindClaim = deliveryClaim(isRelayConfigured());
       if (!invite.entryId) return blindClaim;
-      const entry = getPipelineEntry(invite.entryId);
+      const entry = getPipelineEntry(invite.entryId, invite.workspaceId);
       if (!entry) return blindClaim;
       try {
         actOnPipelineEntry(entry.id, "approve_event", slot);
