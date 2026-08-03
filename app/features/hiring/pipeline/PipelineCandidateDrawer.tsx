@@ -51,7 +51,7 @@ export function CandidateDrawer({ entry, onClose, onChanged, onOpenEntry, cohort
         role="dialog"
         aria-modal="true"
         aria-labelledby="drawer-title"
-        className="animate-slide-in relative flex h-full w-full max-w-md flex-col overflow-y-auto border-l border-stone-200 bg-paper shadow-2xl"
+        className="animate-slide-in relative flex h-full w-full max-w-md flex-col overflow-y-auto border-l border-stone-200 bg-paper shadow-overlay"
       >
         <PipelineDrawerHeader
           entry={entry}

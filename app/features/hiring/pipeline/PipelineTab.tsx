@@ -25,7 +25,7 @@ import { PipelinePopulatedBoard } from "./PipelinePopulatedBoard";
 const CandidateDrawer = dynamic(() => import("./PipelineCandidateDrawer").then((m) => ({ default: m.CandidateDrawer })), {
   loading: () => (
     <div className="fixed inset-0 z-50 flex justify-end" aria-hidden>
-      <div className="reveal-quiet h-full w-full max-w-md border-l border-stone-200 bg-paper shadow-2xl" />
+      <div className="reveal-quiet h-full w-full max-w-md border-l border-stone-200 bg-paper shadow-overlay" />
     </div>
   ),
 });

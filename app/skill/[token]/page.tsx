@@ -52,7 +52,7 @@ export default async function SkillProfilePage({ params }: { params: Promise<{ t
 
   const badge =
     state === "verified"
-      ? { Icon: ShieldCheck, cls: "border-emerald-200 bg-emerald-50 text-emerald-800", label: t("verified") }
+      ? { Icon: ShieldCheck, cls: "border-green-200 bg-green-50 text-green-800", label: t("verified") }
       : state === "revoked"
         ? { Icon: ShieldX, cls: "border-stone-300 bg-stone-100 text-steel", label: t("revoked") }
         : state === "incomplete"

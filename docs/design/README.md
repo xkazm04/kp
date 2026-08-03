@@ -116,12 +116,33 @@ block remaps to dark equivalents.
 | `stone-200` | `#e6ddcc` (warm ramp) | `#364453` | Hairline borders |
 | `stone-300` | `#d6cbb4` (warm ramp) | `#475665` | Strong borders, dividers |
 | `stone-400` | stock | `#647585` | Muted icons |
+| `stone-500` / `stone-600` | stock | **stock (deliberate)** | Muted body text — the text greys stay stock in both themes |
+| `stone-800` / `stone-900` | stock near-black | `#d8d2c6` / `#efe9dd` | **Inverted** controls (`bg-stone-900 text-white`) — see below |
 | `shadow-panel` | two-layer soft (`0 1px 2px` contact + `0 10px 28px -10px` ambient) | `5px 5px 0` near-black | Panel elevation |
+| `shadow-overlay` | `0 25px 50px -12px rgb(0 0 0 / .25)` (was stock `shadow-2xl`) | `7px 7px 0` near-black | Floating chrome — Modal, drawers |
+
+`stone-800/900` are the one **inverted** pair: `bg-stone-900 text-white` means
+"the opposite of the canvas", so the flip has to invert the *surface* too. Left
+unmapped it was the palette's worst bug — the surface stayed stock near-black
+while `--color-white` remapped to `#1d2630`, i.e. dark text on a dark
+background. This makes the ramp intentionally non-monotone across `400`→`800`:
+`stone-500..700` are muted *text*, not surfaces, and stay stock on purpose.
+
+`shadow-overlay` exists because neither `shadow-panel` (too calm to separate a
+dialog from the page) nor `shadow-pop` (already a hard offset in *light*, which
+is the Spark register) can carry floating chrome. Stock `shadow-2xl` can't
+either — it is a literal `rgb()` and can never follow the theme, which is why
+Modal was the one surface that missed the dark structural ride.
 
 **Status scales** are luminance-flipped in dark (`*-50` tints go deep, `*-700`
 text goes light): `red-*` (errors), `amber-*` (warnings/holds), `green-*`,
 `blue-*` — only the shades the app actually uses are mapped; if you introduce
-a new shade, add its dark value to the `[data-theme="dark"]` block.
+a new shade, add its dark value to the `[data-theme="dark"]` block. **These four
+families are the whole sanctioned set** — `emerald-*` is not one of them; use
+`green-*`, which is mapped. `red-400`/`red-500` are the invalid-state cue on
+every shared form primitive and are lifted clear of the `red-300` tint on
+purpose, so the indicator holds ≥3:1 (WCAG 1.4.11) against the card surface.
+`npm run design:check` enforces all of this — see below.
 
 ## The structural register — how dark gets its Spark
 

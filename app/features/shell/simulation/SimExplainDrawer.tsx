@@ -28,7 +28,7 @@ export function SimExplainDrawer() {
       // sm+: the original full-height right rail. <sm: a bottom sheet capped at
       // 55dvh — the full-height 92vw panel occluded ~92% of the very workspace
       // it narrates, defeating the "plays alongside" premise on phones.
-      className="animate-slide-in motion-reduce:animate-none fixed bottom-[calc(var(--sim-bar-h)_+_8px)] right-3 z-[var(--z-sim-drawer)] flex flex-col overflow-hidden rounded-xl border border-stone-200 bg-paper shadow-2xl max-sm:inset-x-3 max-sm:max-h-[55dvh] sm:top-3 sm:w-[min(92vw,28rem)]"
+      className="animate-slide-in motion-reduce:animate-none fixed bottom-[calc(var(--sim-bar-h)_+_8px)] right-3 z-[var(--z-sim-drawer)] flex flex-col overflow-hidden rounded-xl border border-stone-200 bg-paper shadow-overlay max-sm:inset-x-3 max-sm:max-h-[55dvh] sm:top-3 sm:w-[min(92vw,28rem)]"
     >
       <header className="flex items-center justify-between border-b border-stone-200 bg-paper/95 px-4 py-3 backdrop-blur">
         <div>

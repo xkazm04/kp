@@ -337,13 +337,13 @@ export function LiveWorkSurface({ token, seedFiles, note }: { token: string; see
 
   if (status === "submitted") {
     return (
-      <section className="mt-6 rounded-lg border border-emerald-200 bg-emerald-50 p-5">
-        <h2 className="font-serif text-h3 text-emerald-900">{t("submittedTitle")}</h2>
-        <p className="mt-1 text-sm text-emerald-800">{t("submitted")}</p>
+      <section className="mt-6 rounded-lg border border-green-200 bg-green-50 p-5">
+        <h2 className="font-serif text-h3 text-green-800">{t("submittedTitle")}</h2>
+        <p className="mt-1 text-sm text-green-800">{t("submitted")}</p>
         {/* Not a two-line cul-de-sac: say where the reply lands and leave a
             durable reference — the candidate just spent an hour in here. */}
-        {contact.trim() ? <p className="mt-2 text-sm text-emerald-800">{t("submittedNext", { contact: contact.trim() })}</p> : null}
-        {submissionRef ? <p className="mt-2 text-xs text-emerald-700">{t("submittedRef", { ref: submissionRef })}</p> : null}
+        {contact.trim() ? <p className="mt-2 text-sm text-green-800">{t("submittedNext", { contact: contact.trim() })}</p> : null}
+        {submissionRef ? <p className="mt-2 text-xs text-green-700">{t("submittedRef", { ref: submissionRef })}</p> : null}
       </section>
     );
   }
@@ -359,7 +359,7 @@ export function LiveWorkSurface({ token, seedFiles, note }: { token: string; see
       </p>
       {note ? <p className="mt-2 text-xs text-stone-400">{note}</p> : null}
       {restored ? (
-        <p className="mt-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs text-emerald-800">
+        <p className="mt-2 rounded-md border border-green-200 bg-green-50 px-3 py-1.5 text-xs text-green-800">
           {t("restored")}
         </p>
       ) : null}

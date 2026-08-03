@@ -76,7 +76,7 @@ function StepDrawer({ detail, onClose }: { detail: StepDetail; onClose: () => vo
         role="dialog"
         aria-modal="false"
         aria-label={detail.title}
-        className="animate-drawer-in pointer-events-auto relative flex h-full w-full flex-col overflow-y-auto border-l border-stone-200 bg-paper shadow-2xl focus:outline-none lg:w-1/2"
+        className="animate-drawer-in pointer-events-auto relative flex h-full w-full flex-col overflow-y-auto border-l border-stone-200 bg-paper shadow-overlay focus:outline-none lg:w-1/2"
       >
         <header className="sticky top-0 z-10 flex items-start gap-3 border-b border-stone-200 bg-paper/95 px-6 py-4 backdrop-blur">
           <div className="min-w-0 flex-1">

@@ -52,6 +52,16 @@
      calm --shadow-panel above so the board/table register keeps its composure. */
   --shadow-pop: 4px 4px 0 rgba(23, 32, 42, 0.13);
 
+  /* Floating chrome — modals and drawers, the layer that sits OVER the app.
+     Its own token because neither of the two above can carry it: --shadow-panel
+     is the calm card lift (too weak to separate a dialog from the page) and
+     --shadow-pop is already a hard offset in LIGHT, which is the Spark register,
+     not Studio Light's. The light value below is byte-identical to the stock
+     `shadow-2xl` these surfaces used before, so Studio Light is unchanged; the
+     dark block overrides it to the Spark offset, which is the whole point —
+     `shadow-2xl` is a literal rgb() and could never follow the theme. */
+  --shadow-overlay: 0 25px 50px -12px rgb(0 0 0 / 0.25);
+
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-serif: var(--font-fraunces), ui-serif, Georgia, "Times New Roman", serif;
 
@@ -141,6 +151,20 @@ body {
   --color-stone-300: #475665;
   --color-stone-400: #647585;
 
+  /* Inverted controls. `bg-stone-900 text-white` is the app's high-contrast
+     inverted control (primary submit, active file tab, own chat bubble). Left
+     unmapped it was the worst dark-mode bug in the palette: the surface stayed
+     stock near-black (#1c1917) WHILE `--color-white` remaps to #1d2630 — dark
+     text on a dark background. The flip inverts the pair instead, so the
+     control keeps reading as "the opposite of the canvas" in both registers.
+     800 is the hover step: in light it moves 900 -> lighter, so here it moves
+     900 -> darker, and the state change survives the flip.
+     NOTE the ramp is intentionally non-monotone across 400/800: stone-500..700
+     are the muted TEXT greys and stay stock in both themes (see the light
+     block above) — only the surface shades are remapped. */
+  --color-stone-800: #d8d2c6;
+  --color-stone-900: #efe9dd;
+
   /* Status scales, luminance-flipped: *-50 tint backgrounds go deep,
      *-600/700+ foregrounds go light. Only the shades the app uses are
      mapped — add the dark value here before introducing a new shade. */
@@ -148,8 +172,19 @@ body {
   --color-red-100: #47272c;
   --color-red-200: #5c3036;
   --color-red-300: #7b3f42;
+  /* 400/500 are the INVALID-state cue on every shared form primitive
+     (TextInput/TextArea/Select/FileInput `border-red-400`, Checkbox/Radio
+     `accent-red-500`). They are lifted deliberately clear of the 300 tint
+     rather than interpolated onto it: a non-text UI indicator needs >=3:1
+     against the field surface (WCAG 1.4.11), and #cf7264 lands ~3.7:1 on the
+     raised card (#1d2630) where an interpolated ~#a85a55 would sit under 3.
+     Legibility of the invalid affordance outranks ramp smoothness here. */
+  --color-red-400: #cf7264;
+  --color-red-500: #e2826f;
   --color-red-600: #f2907f;
   --color-red-700: #ffa692;
+  /* Foreground text on the deep red-50 tint (verification/bounce notices). */
+  --color-red-800: #ffbdab;
 
   --color-amber-50: #3a2f1b;
   --color-amber-100: #463a23;
@@ -177,6 +212,8 @@ body {
   --shadow-sticker-sm: 3px 3px 0 rgba(9, 13, 19, 0.85);
   --shadow-sticker-xs: 2px 2px 0 rgba(9, 13, 19, 0.85);
   --shadow-pop: 5px 5px 0 rgba(9, 13, 19, 0.85);
+  /* Overlays ride a touch deeper than panels — they are further off the page. */
+  --shadow-overlay: 7px 7px 0 rgba(9, 13, 19, 0.9);
 
   /* Display face flips with the register: Fraunces' serif calm belongs to
      Studio Light; Spark Dark titles get Bricolage's grotesque punch (the

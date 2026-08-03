@@ -69,7 +69,7 @@ export function SimOfferFrame() {
         role="dialog"
         aria-modal="true"
         aria-label={frame.title}
-        className="my-auto w-full max-w-md overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-2xl"
+        className="my-auto w-full max-w-md overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-overlay"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center gap-2 border-b border-stone-200 bg-paper px-3 py-2 text-sm">

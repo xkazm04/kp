@@ -100,7 +100,7 @@ export function WorkspaceTab() {
                   <span className="ml-2 font-mono text-xs text-stone-400">{w.id}</span>
                 </div>
                 {isCurrent ? (
-                  <span className="inline-flex items-center gap-1 text-sm text-emerald-700">
+                  <span className="inline-flex items-center gap-1 text-sm text-green-700">
                     <Check className="h-4 w-4" aria-hidden />
                     {t("current")}
                   </span>
