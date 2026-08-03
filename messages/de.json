@@ -4012,7 +4012,9 @@
       "chatSending": "Wird gesendet…",
       "chatError": "Senden fehlgeschlagen — versuchen Sie es erneut.",
       "updateHeading": "Update vom Team",
-      "restored": "Wir haben Ihre ungespeicherte Arbeit von diesem Gerät wiederhergestellt — nichts ist verloren gegangen."
+      "restored": "Wir haben Ihre ungespeicherte Arbeit von diesem Gerät wiederhergestellt — nichts ist verloren gegangen.",
+      "chatRateLimited": "Sie haben das Limit für den Assistenten vorerst erreicht — Ihre Arbeit und alles, was Sie geschrieben haben, bleibt erhalten. Arbeiten Sie weiter und versuchen Sie es in ein paar Minuten erneut.",
+      "syncBlocked": "Diese Sitzung konnte nicht mit dem Server synchronisiert werden. Ihre Arbeit ist auf diesem Gerät gespeichert — laden Sie die Seite über Ihren ursprünglichen Link neu, um die Verbindung wiederherzustellen."
     },
     "eyebrow": "Take-Home-Aufgabe",
     "fallbackTitle": "Entwickleraufgabe",

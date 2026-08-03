@@ -4012,7 +4012,9 @@
       "chatSending": "Envoi…",
       "chatError": "Échec de l'envoi — réessayez.",
       "updateHeading": "Nouvelle de l'équipe",
-      "restored": "Nous avons restauré votre travail non enregistré depuis cet appareil — rien n'a été perdu."
+      "restored": "Nous avons restauré votre travail non enregistré depuis cet appareil — rien n'a été perdu.",
+      "chatRateLimited": "Vous avez atteint la limite de l'assistant pour le moment — votre travail et tout ce que vous avez écrit sont intacts. Continuez à travailler et réessayez dans quelques minutes.",
+      "syncBlocked": "Nous n'avons pas pu synchroniser cette session avec le serveur. Votre travail est enregistré sur cet appareil — rechargez la page depuis votre lien d'origine pour vous reconnecter."
     },
     "eyebrow": "Exercice à domicile",
     "fallbackTitle": "Exercice pour développeur",

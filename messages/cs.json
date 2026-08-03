@@ -4012,7 +4012,9 @@
       "chatSending": "Odesílání…",
       "chatError": "Nepodařilo se odeslat — zkuste to znovu.",
       "updateHeading": "Novinka od týmu",
-      "restored": "Obnovili jsme vaši neuloženou práci z tohoto zařízení — o nic jste nepřišli."
+      "restored": "Obnovili jsme vaši neuloženou práci z tohoto zařízení — o nic jste nepřišli.",
+      "chatRateLimited": "Momentálně jste vyčerpali limit asistenta — vaše práce i vše, co jste napsali, zůstává v pořádku. Pokračujte v práci a zkuste to za pár minut znovu.",
+      "syncBlocked": "Tuto relaci se nepodařilo synchronizovat se serverem. Vaše práce je uložena v tomto zařízení — pro obnovení spojení načtěte stránku znovu z původního odkazu."
     },
     "eyebrow": "Domácí úkol",
     "fallbackTitle": "Vývojářské zadání",

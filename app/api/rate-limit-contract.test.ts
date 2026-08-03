@@ -7,6 +7,11 @@
 //                           public even on a gated deploy
 //   /api/interview/connect — provider-credential minting burns ElevenLabs /
 //                           OpenAI credits; throttled per interview TOKEN
+//   /api/devcase/session/[id]/chat — a real LLM call per message on a PUBLIC route
+//                           (public-routes.ts lists the /api/devcase/session prefix).
+//                           Two windows: a per-SESSION burst and a per-apply-TOKEN
+//                           daily aggregate. Never per-IP — candidates sitting a timed
+//                           assessment legitimately share a NAT.
 //
 // Route modules import via the "@/..." alias, which Node's test runner does not
 // resolve — so, mirroring upload-size-contract.test.ts, each route gets
@@ -30,7 +35,7 @@ function read(rel: string): string {
   return readFileSync(fileURLToPath(new URL(rel, import.meta.url)), "utf8");
 }
 
-// All four routes share the 10-minute fixed window.
+// The default fixed window; a spec may override it (the devcase chat aggregate is daily).
 const WINDOW_MS = 10 * 60_000;
 
 type RouteSpec = {
@@ -42,6 +47,9 @@ type RouteSpec = {
   expensive: string;
   /** Optional snippet that must run BEFORE the limiter (a branch that keeps serving freely). */
   servedBefore?: string;
+  /** Window in ms, and the source text it is written as. Defaults to the 10-minute window. */
+  windowMs?: number;
+  windowSrc?: string;
 };
 
 const ROUTES: RouteSpec[] = [
@@ -81,14 +89,42 @@ const ROUTES: RouteSpec[] = [
     // Lifecycle guards keep their 404/409 semantics ahead of the throttle.
     servedBefore: 'session0.status === "completed"',
   },
+  {
+    rel: "./devcase/session/[id]/chat/route.ts",
+    // Per-SESSION burst. 30/10min = one message per 20s sustained — roughly 2-3x the
+    // fastest honest loop (generate ~3-10s, read the reply, type a follow-up), so a
+    // candidate never meets it while a scripted loop is pinned to 3/min.
+    key: "`devcase-chat:${id}`",
+    limit: 30,
+    expensive: "runSessionChat(",
+    // The 404/409 lifecycle refusals and the 403 token check keep their semantics
+    // ahead of the throttle, so a rejected call never consumes budget.
+    servedBefore: 'session.status !== "active"',
+  },
+  {
+    rel: "./devcase/session/[id]/chat/route.ts",
+    // Per-apply-TOKEN daily aggregate. Unlike interview-connect's per-candidate token,
+    // a dev-case apply token is per-POSTING and shared by every applicant, so this
+    // budget is collective: session-start caps a posting at 50 sessions/day, so 3,000
+    // leaves 60 messages per session at full quota — far more than a timeboxed case
+    // produces — while cutting the abuse ceiling from ~20,000 model calls/day to 3,000.
+    key: "`devcase-chat-token:${session.token}`",
+    limit: 3000,
+    windowMs: 24 * 60 * 60_000,
+    windowSrc: "24 * 60 * 60_000",
+    expensive: "runSessionChat(",
+    servedBefore: 'session.status !== "active"',
+  },
 ];
 
 for (const spec of ROUTES) {
-  test(`${spec.rel} gates the expensive work behind the shared limiter (${spec.limit}/10min)`, () => {
+  const windowMs = spec.windowMs ?? WINDOW_MS;
+  const windowSrc = spec.windowSrc ?? "10 * 60_000";
+  test(`${spec.rel} gates the expensive work behind the shared limiter (${spec.key} — ${spec.limit}/${windowSrc})`, () => {
     const src = read(spec.rel);
     assert.match(src, /from "@\/app\/_lib\/rate-limit"/, "must reuse the one shared limiter");
 
-    const call = `rateLimit(${spec.key}, { limit: ${spec.limit}, windowMs: 10 * 60_000 })`;
+    const call = `rateLimit(${spec.key}, { limit: ${spec.limit}, windowMs: ${windowSrc} })`;
     const at = src.indexOf(call);
     assert.ok(at >= 0, `expected the pinned limiter call:\n  ${call}`);
 
@@ -113,27 +149,27 @@ for (const spec of ROUTES) {
     }
   });
 
-  test(`${spec.rel}: hit ${spec.limit + 1} inside one window is refused → 429`, () => {
+  test(`${spec.rel} (${spec.key}): hit ${spec.limit + 1} inside one window is refused → 429`, () => {
     // Drive the real in-process limiter with the route's pinned config. `nowMs`
     // is injectable, so the window arithmetic is deterministic; the key is
     // test-unique so specs can't starve each other (keys are independent).
     const t0 = 10_000_000;
-    const key = `${spec.rel}:contract`;
+    const key = `${spec.rel}:${spec.key}:contract`;
     for (let i = 0; i < spec.limit; i++) {
       assert.equal(
-        rateLimit(key, { limit: spec.limit, windowMs: WINDOW_MS }, t0 + i),
+        rateLimit(key, { limit: spec.limit, windowMs }, t0 + i),
         true,
         `hit ${i + 1} must pass — a legitimate burst under the limit is never blocked`,
       );
     }
     assert.equal(
-      rateLimit(key, { limit: spec.limit, windowMs: WINDOW_MS }, t0 + spec.limit),
+      rateLimit(key, { limit: spec.limit, windowMs }, t0 + spec.limit),
       false,
       "the next hit inside the window must be refused — the route returns 429",
     );
     // A fresh window admits again: a throttled caller recovers without a restart.
     assert.equal(
-      rateLimit(key, { limit: spec.limit, windowMs: WINDOW_MS }, t0 + WINDOW_MS + 1),
+      rateLimit(key, { limit: spec.limit, windowMs }, t0 + windowMs + 1),
       true,
       "a fresh window must admit again",
     );
@@ -154,3 +190,35 @@ test("./interview/connect/route.ts throttles by token, not by caller IP", () => 
     "tokenless lab sessions carry no token to charge — they stay on their own dev-only gate",
   );
 });
+
+// Same rule for the dev-case chat aggregate: the apply link is the credential, and an
+// abuser rotates IPs while honest candidates on one office/campus NAT share one.
+test("./devcase/session/[id]/chat/route.ts throttles by session + apply token, never by caller IP", () => {
+  const src = read("./devcase/session/[id]/chat/route.ts");
+  assert.doesNotMatch(src, /clientIpFrom/, "the devcase chat throttle must never be keyed by caller IP");
+  assert.ok(
+    src.includes("if (session.token && !rateLimit(`devcase-chat-token:"),
+    "tokenless sessions (fixtures/seeds, never reachable from the product) carry no link to charge",
+  );
+});
+
+// The other half of the same defect: a session id is a BEARER capability unless the
+// owning apply token is re-checked. Pin the check on all three mutating sub-routes —
+// event append + file overwrite (the flush), the model spend (chat), and finalize.
+for (const rel of [
+  "./devcase/session/[id]/route.ts",
+  "./devcase/session/[id]/chat/route.ts",
+  "./devcase/session/[id]/submit/route.ts",
+]) {
+  test(`${rel} re-checks the owning apply token — a session id alone is not authority`, () => {
+    const src = read(rel);
+    assert.match(src, /from "@\/app\/_lib\/devcase-session-auth"/, "must reuse the shared token check");
+    const at = src.indexOf("sessionTokenMatches(session.token, body.token)");
+    assert.ok(at >= 0, "expected the apply-token re-check against the session's own token");
+    const refusal = src.slice(at, at + 240);
+    assert.match(refusal, /SESSION_TOKEN_REQUIRED/, "the refusal must use the shared message");
+    // 403, never 404/409: those two tell LiveWorkSurface the session is dead and to
+    // re-mint, which would spin the per-token/day session quota on an unauthorized call.
+    assert.match(refusal, /status:\s*403/, "the refusal must be a 403");
+  });
+}

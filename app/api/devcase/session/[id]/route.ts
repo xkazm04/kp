@@ -8,6 +8,7 @@ import {
   saveDevSessionFiles,
 } from "@/app/_lib/db";
 import { jsonError } from "@/app/_lib/api-response";
+import { sessionTokenMatches, SESSION_TOKEN_REQUIRED } from "@/app/_lib/devcase-session-auth";
 
 // Per-token mid-flight-update memo (case-sim round 3 canary c2): the flush path
 // fires every ~8s per active candidate, and the token→posting→case chain it used
@@ -55,7 +56,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (!session) return NextResponse.json({ error: "session not found" }, { status: 404 });
     if (session.status !== "active") return NextResponse.json({ error: "session already submitted" }, { status: 409 });
 
-    const body = (await request.json().catch(() => ({}))) as { events?: unknown; files?: unknown };
+    const body = (await request.json().catch(() => ({}))) as { events?: unknown; files?: unknown; token?: unknown };
+    // A session id alone is not authority to append to this session's observed process log
+    // or to OVERWRITE its file tree — that second one destroys another candidate's work.
+    // The caller must present the apply token that minted the session
+    // (devcase-session-auth.ts). 403, deliberately not 404/409: those tell the client the
+    // session is dead and to re-mint, which would spin the per-token/day session quota.
+    if (session.token && !sessionTokenMatches(session.token, body.token)) {
+      return NextResponse.json({ error: SESSION_TOKEN_REQUIRED }, { status: 403 });
+    }
 
     let seq = 0;
     if (Array.isArray(body.events)) {

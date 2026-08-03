@@ -60,6 +60,9 @@ export function LiveWorkSurface({ token, seedFiles, note }: { token: string; see
   // mount, written on every change, scoped per apply-token so a shared device never
   // bleeds one candidate's draft into another's case.
   const [restored, setRestored] = useState(false);
+  // Server-side refusal of this session id for this apply link (403). Never silent:
+  // the candidate is told their work is held on this device and how to reconnect.
+  const [syncBlocked, setSyncBlocked] = useState(false);
   const persistDraft = useCallback(() => {
     if (typeof window === "undefined") return;
     try {
@@ -170,9 +173,21 @@ export function LiveWorkSurface({ token, seedFiles, note }: { token: string; see
         const r = await fetch(`/api/devcase/session/${sid}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ events: batch, ...(sendFiles ? { files: filesRef.current } : {}) }),
+          // The apply token rides every mutating call: a session id alone is not
+          // authority to append events or overwrite the tree (the server re-checks it
+          // against the session's owning token and answers 403 otherwise).
+          body: JSON.stringify({ token, events: batch, ...(sendFiles ? { files: filesRef.current } : {}) }),
           keepalive: opts?.submit,
         });
+        if (r.status === 403) {
+          // The server refused this session id for this link. Say so instead of
+          // silently retrying forever: the draft is safe on this device, and a reload
+          // reconnects (a fresh session is minted from the token in the URL).
+          pendingRef.current = batch.concat(pendingRef.current);
+          persistDraft();
+          setSyncBlocked(true);
+          return;
+        }
         if (r.status === 404 || r.status === 409) {
           // This session id is dead — the row is gone or already submitted
           // (another tab/device won a race). Retrying the SAME id forever would
@@ -199,7 +214,7 @@ export function LiveWorkSurface({ token, seedFiles, note }: { token: string; see
         persistDraft();
       }
     },
-    [ensureSession, persistDraft]
+    [ensureSession, persistDraft, token]
   );
 
   useEffect(() => {
@@ -244,7 +259,7 @@ export function LiveWorkSurface({ token, seedFiles, note }: { token: string; see
       const r = await fetch(`/api/devcase/session/${sid}/submit`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ candidate: name.trim(), contact: contact.trim() }),
+        body: JSON.stringify({ token, candidate: name.trim(), contact: contact.trim() }),
       }).catch(() => null);
       const ok = !!(r && r.ok);
       if (r && r.ok) {
@@ -275,7 +290,9 @@ export function LiveWorkSurface({ token, seedFiles, note }: { token: string; see
   const [chatChannel, setChatChannel] = useState<"assistant" | "stakeholder">("assistant");
   const [chatMessages, setChatMessages] = useState<{ channel: string; role: "user" | "model"; text: string }[]>([]);
   const [chatInput, setChatInput] = useState("");
-  const [chatState, setChatState] = useState<"idle" | "sending" | "error">("idle");
+  // "limited" is a distinct terminal state from "error": the budget is a stated
+  // product limit, not a fault, and it must never read as "your work was lost".
+  const [chatState, setChatState] = useState<"idle" | "sending" | "error" | "limited">("idle");
 
   async function sendChat() {
     const message = chatInput.trim();
@@ -290,11 +307,23 @@ export function LiveWorkSurface({ token, seedFiles, note }: { token: string; see
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          token,
           channel: chatChannel,
           message,
           currentFile: chatChannel === "assistant" && active ? { path: active.path, contents: active.contents } : null,
         }),
       });
+      // 429 = the chat budget for this session or this link is spent. Tell the
+      // candidate exactly that (and that their work is untouched) rather than the
+      // generic "couldn't send", which reads like a fault they should fight.
+      if (r.status === 429) {
+        // The limiter runs before the message is stored, so nothing was recorded:
+        // drop the optimistic bubble and hand the text back to the input.
+        setChatMessages((prev) => prev.slice(0, -1));
+        setChatInput(message);
+        setChatState("limited");
+        return;
+      }
       if (!r.ok) throw new Error("chat failed");
       const data = (await r.json()) as { reply?: string };
       if (data.reply) setChatMessages((prev) => [...prev, { channel: chatChannel, role: "model", text: data.reply! }]);
@@ -332,6 +361,11 @@ export function LiveWorkSurface({ token, seedFiles, note }: { token: string; see
       {restored ? (
         <p className="mt-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs text-emerald-800">
           {t("restored")}
+        </p>
+      ) : null}
+      {syncBlocked ? (
+        <p className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs text-amber-900" role="status">
+          {t("syncBlocked")}
         </p>
       ) : null}
 
@@ -440,6 +474,11 @@ export function LiveWorkSurface({ token, seedFiles, note }: { token: string; see
           </button>
         </div>
         {chatState === "error" ? <p className="mt-2 text-xs text-red-700">{t("chatError")}</p> : null}
+        {chatState === "limited" ? (
+          <p className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs text-amber-900" role="status">
+            {t("chatRateLimited")}
+          </p>
+        ) : null}
       </div>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2">

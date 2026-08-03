@@ -82,10 +82,39 @@ is not penalized (deleting a line isn't proof of anything) — only a
 | `app/api/devcase/route.ts` + `.../comms`, `.../control`, `.../feedback`, `.../inbound`, `.../outcomes`, `.../postings`, `.../promote`, `.../publish`, `.../skill-profile`, `.../source`, `.../submit` | Dev case CRUD + lifecycle actions |
 | `app/api/devcase/lifecycle/route.ts` + `[id]/approve`, `[id]/close`, `[id]/redesign` | Decisions-gated lifecycle transitions |
 | `app/api/devcase/session/route.ts` + `[id]`, `[id]/chat`, `[id]/submit` | Live Work Surface session API |
+| `app/_lib/devcase-session-auth.ts` | Re-checks the owning apply token on every mutating session sub-route |
 | `app/_lib/devcase-orchestrator.ts`, `devcase-run.ts` | Drives need→scenario→solve→evaluate→promote |
 | `app/_lib/devcase-authenticity.ts` | Process-authenticity scoring (paste-from-LLM tells) |
 | `app/_lib/devcase-probe-audit.ts`, `devcase-compare.ts`, `devcase-cohort.ts`, `devcase-interview-kit.ts` | Evaluation support: probe-outcome audit, submission comparison, cohort stats, interview-kit generation |
 | `pipeline/jobfit/devcase/*.py` | The Python LLM pipeline: `analyze.py`, `design.py`, `evaluate.py`, `reflect.py`, `baseline.py`, `artifact_checks.py`, `seed_materializer.py`, `process_events.py`, `devcase_cli.py` |
+
+## Public-surface limits (Live Work Surface)
+
+`/api/devcase/session*` is public by design (`app/_lib/auth/public-routes.ts`) — the
+candidate has no account, the apply link **is** the credential. Two rules keep that
+honest, both sized so a real candidate never meets them:
+
+- **Authorization.** A session id is not a bearer capability. Every mutating sub-route
+  (`[id]` flush = event append + file overwrite, `[id]/chat`, `[id]/submit`) re-checks the
+  apply token that minted the session, via `sessionTokenMatches` in
+  `app/_lib/devcase-session-auth.ts`; the client sends `token` in each body. A mismatch is
+  **403** — deliberately not 404/409, which tell `LiveWorkSurface` the session is dead and
+  to re-mint, spinning the per-token/day session quota. Sessions with `token: null`
+  (fixtures/dev seeds, never reachable from the product) skip the check, mirroring
+  `interview-connect`'s tokenless-lab carve-out.
+- **Throttling.** `[id]/chat` makes a real LLM call per message, so it is limited by the
+  shared limiter (`app/_lib/rate-limit.ts`) on two windows — **30 per 10 min per session**
+  (one candidate's burst) and **3,000 per 24 h per apply token** (the collective aggregate;
+  a dev-case token is per-*posting* and shared by every applicant, unlike interview-connect's
+  per-candidate token). Together with the pre-existing `MAX_SESSIONS_PER_TOKEN_DAY = 50`
+  and `MAX_CHAT_MESSAGES = 400`, this cuts the worst case from ~20,000 unauthenticated
+  model calls per leaked link per day to 3,000. Never keyed by IP: candidates sitting a
+  timed assessment legitimately share a NAT. Both refusals are the shared 429 envelope and
+  the surface renders `devApply.workSurface.chatRateLimited` — a stated limit, never a
+  silent failure that reads as lost work; the unsent message is handed back to the input.
+
+Pinned by `app/api/rate-limit-contract.test.ts` (source-level + behavioral) and
+`app/api/devcase/session/session-intake-guards.test.ts`.
 
 ## Data model
 
@@ -101,6 +130,11 @@ is not penalized (deleting a line isn't proof of anything) — only a
 - Sub-specialty drift (a Frontend role handed a backend-stack repo, iOS handed
   Android) still falls back to "generic engineering" in `design_case` — see
   `docs/_archive/dev-d3-hardening-findings.md` residuals.
+- Apply tokens and work sessions never expire: `getPostingByToken`
+  (`app/_lib/db/devcase.ts`) has no expiry column, so only `status === "closed"`
+  invalidates a link.
+- `case.timeboxHours` is advisory — nothing on the server enforces it, so a session can
+  stay open indefinitely.
 - 3rd-party distribution (publish/pull to email/ATS/job-board) is a local-stub
   adapter interface only, per the original plan (`docs/concepts/dev-extension-future-phases.md`).
 

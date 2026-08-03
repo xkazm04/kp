@@ -4012,7 +4012,9 @@
       "chatSending": "Sending…",
       "chatError": "Couldn't send — try again.",
       "updateHeading": "Update from the team",
-      "restored": "We restored your unsaved work from this device — nothing was lost."
+      "restored": "We restored your unsaved work from this device — nothing was lost.",
+      "chatRateLimited": "You've reached the assistant limit for now — your work and everything you've written are safe. Keep working and try again in a few minutes.",
+      "syncBlocked": "We couldn't sync this session to the server. Your work is saved on this device — reload the page from your original link to reconnect."
     },
     "eyebrow": "Take-home assignment",
     "fallbackTitle": "Developer assignment",
