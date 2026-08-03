@@ -186,6 +186,17 @@
       ]
     },
     {
+      "doc": "docs/features/integrations/README.md",
+      "sourceGlobs": [
+        "app/_lib/calendar/**",
+        "app/_lib/ats/connections-store.ts",
+        "app/_lib/ats/field-map.ts",
+        "app/api/calendar/**",
+        "app/api/ats/connections/**",
+        "app/features/settings/integrations/**"
+      ]
+    },
+    {
       "doc": "docs/features/billing/README.md",
       "sourceGlobs": [
         "app/_lib/billing/**",

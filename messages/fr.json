@@ -1286,7 +1286,8 @@
       "matrix": "Matrice",
       "about": "À propos",
       "billing": "Facturation",
-      "models": "Modèles"
+      "models": "Modèles",
+      "integrations": "Intégrations"
     },
     "groups": {
       "hiring": "Recrutement",
@@ -4776,7 +4777,125 @@
   },
   "integrations": {
     "configLoadFailed": "Impossible de charger les paramètres de webhook enregistrés — les valeurs affichées peuvent différer de celles stockées.",
-    "saved": "Paramètres de webhook enregistrés."
+    "saved": "Paramètres de webhook enregistrés.",
+    "tab": {
+      "eyebrow": "Services connectés",
+      "title": "Intégrations",
+      "intro": "Connectez les systèmes externes que kp lit et alimente. Les identifiants sont chiffrés au stockage et ne sont jamais réaffichés — vous pouvez les remplacer ou les supprimer, jamais les relire."
+    },
+    "calendar": {
+      "title": "Google Agenda",
+      "intro": "Permet à kp de vérifier la disponibilité d'un intervieweur avant de proposer un créneau, puis d'inscrire l'entretien confirmé dans son agenda. kp ne demande que l'accès disponibilité et événements — il voit que vous êtes occupé, jamais pourquoi.",
+      "loadFailed": "Impossible de charger la connexion à l'agenda.",
+      "retry": "Réessayer",
+      "notConfiguredTitle": "Non configuré sur ce déploiement",
+      "notConfiguredBody": "Google Agenda nécessite un client OAuth. Définissez ces deux variables d'environnement, redémarrez, et ce panneau proposera un bouton de connexion. En attendant, la planification fonctionne toujours — elle propose des créneaux à partir de vos horaires plutôt que d'un agenda réel.",
+      "redirectUriLabel": "URI de redirection à enregistrer dans Google Cloud",
+      "connect": "Connecter Google Agenda",
+      "connectHint": "Ouvre l'écran de consentement Google. Vous reviendrez ici une fois terminé.",
+      "accountLabel": "Compte connecté",
+      "accountUnknown": "Compte inconnu",
+      "calendarLabel": "Agenda",
+      "connectedAtLabel": "Connecté le",
+      "partialTitle": "Accès partiel accordé",
+      "partialBody": "Vous avez décoché une autorisation sur l'écran Google, donc une partie de cette intégration ne peut pas fonctionner :",
+      "partialFix": "Reconnectez-vous en laissant les deux autorisations cochées.",
+      "reconnect": "Reconnecter",
+      "disconnect": "Déconnecter",
+      "disconnecting": "Déconnexion…",
+      "disconnectHint": "Retire l'accès de kp chez Google et supprime le jeton stocké.",
+      "disconnected": "Déconnecté — l'accès a été retiré chez Google.",
+      "disconnectedNotRevoked": "Déconnecté ici, mais Google n'a pas confirmé le retrait. Par sécurité, retirez kp de la liste des accès tiers de votre compte Google.",
+      "disconnectFailed": "Impossible de déconnecter l'agenda.",
+      "scopes": {
+        "freebusy": "Accès à la disponibilité",
+        "events": "Écriture des événements"
+      },
+      "callback": {
+        "connected": {
+          "title": "Google Agenda connecté",
+          "body": "kp peut désormais lire les disponibilités et créer les événements d'entretien."
+        },
+        "connected_partial": {
+          "title": "Connecté, mais des autorisations manquent",
+          "body": "La connexion a été enregistrée. L'autorisation manquante est indiquée ci-dessous — reconnectez-vous pour l'accorder."
+        },
+        "cancelled": {
+          "title": "Connexion annulée",
+          "body": "Vous avez annulé sur l'écran de consentement Google. Rien n'a été enregistré."
+        },
+        "google_error": {
+          "title": "Google a refusé la demande",
+          "body": "Google a renvoyé une erreur au lieu d'une autorisation. Réessayez dans un instant."
+        },
+        "state_mismatch": {
+          "title": "Ce retour n'était pas fiable",
+          "body": "Le jeton de sécurité ne correspondait pas — le plus souvent parce que l'écran de consentement est resté ouvert trop longtemps. Relancez la connexion."
+        },
+        "no_code": {
+          "title": "Google n'a envoyé aucune autorisation",
+          "body": "Le retour est arrivé sans code d'autorisation. Relancez la connexion."
+        },
+        "not_configured": {
+          "title": "Google Agenda n'est plus configuré",
+          "body": "Les identifiants du client OAuth ont disparu entre le début et la fin. Vérifiez GOOGLE_OAUTH_CLIENT_ID et GOOGLE_OAUTH_CLIENT_SECRET."
+        },
+        "no_refresh_token": {
+          "title": "Connexion refusée volontairement",
+          "body": "Google n'a pas délivré le jeton longue durée : cette connexion aurait cessé de fonctionner dans l'heure. Rien n'a été enregistré — reconnectez-vous."
+        },
+        "exchange_failed": {
+          "title": "Impossible de terminer la connexion",
+          "body": "L'échange de l'autorisation avec Google a échoué. Réessayez ; le détail est dans le journal du serveur."
+        },
+        "unknown": {
+          "title": "Résultat de connexion inconnu",
+          "body": "La connexion a renvoyé un résultat que cette version ne connaît pas : {code}."
+        }
+      }
+    },
+    "ats": {
+      "title": "Connexions ATS",
+      "intro": "Importez les candidatures depuis votre logiciel de recrutement. Une connexion par fournisseur, chacune avec son jeton d'API et son URL de base. Le jeton est chiffré au stockage et n'est jamais renvoyé par l'API.",
+      "loadFailed": "Impossible de charger les connexions ATS.",
+      "retry": "Réessayer",
+      "empty": "Aucun ATS connecté pour l'instant. Ajoutez-en un ci-dessous — kp fonctionne sans, cela ajoute seulement une source entrante.",
+      "providers": {
+        "recruitee": "Recruitee",
+        "recruitis": "Recruitis",
+        "teamio": "Teamio"
+      },
+      "statusEnabled": "Actif",
+      "statusParked": "En pause",
+      "tokenSet": "Jeton stocké",
+      "tokenMissing": "Aucun jeton",
+      "updatedAt": "Mis à jour le {date}",
+      "remove": "Supprimer",
+      "removing": "Suppression…",
+      "cancel": "Annuler",
+      "removeConfirm": "Supprimer la connexion {provider} et son jeton stocké ?",
+      "removeConfirmAction": "Supprimer la connexion",
+      "forgetLinksLabel": "Oublier aussi quels enregistrements kp proviennent de cet ATS",
+      "forgetLinksHelp": "Laissez décoché pour conserver les liens : à la reconnexion, kp reconnaît les mêmes candidatures. Coché, la prochaine synchronisation réimporte chaque candidature comme nouvelle.",
+      "removedForget": "{count, plural, one {Connexion supprimée — # lien oublié.} other {Connexion supprimée — # liens oubliés.}}",
+      "removedKeep": "Connexion supprimée. Les liens vers les enregistrements déjà importés ont été conservés.",
+      "removeFailed": "Impossible de supprimer la connexion.",
+      "addTitle": "Ajouter ou modifier une connexion",
+      "providerLabel": "Fournisseur",
+      "baseUrlLabel": "URL de base de l'API",
+      "baseUrlHelp": "https:// uniquement et un hôte public — kp y envoie une requête authentifiée.",
+      "tokenLabel": "Jeton d'API",
+      "tokenPlaceholder": "Collez le jeton issu de votre ATS",
+      "tokenPlaceholderKeep": "••••••••  (laissez vide pour conserver)",
+      "tokenHelp": "Stocké chiffré. Il n'est jamais réaffiché — remplacez-le ici en cas de rotation.",
+      "tokenHelpExisting": "Un jeton est déjà stocké. Laissez vide pour le conserver, ou collez-en un nouveau pour le remplacer.",
+      "enabledLabel": "Actif — kp peut synchroniser via cette connexion",
+      "save": "Enregistrer la connexion",
+      "update": "Mettre à jour la connexion",
+      "saving": "Enregistrement…",
+      "saved": "Connexion enregistrée.",
+      "saveFailed": "Impossible d'enregistrer la connexion."
+    }
   },
   "billing": {
     "eyebrow": "Facturation",

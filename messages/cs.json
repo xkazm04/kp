@@ -1286,7 +1286,8 @@
       "matrix": "Matice",
       "about": "O aplikaci",
       "billing": "Fakturace",
-      "models": "Modely"
+      "models": "Modely",
+      "integrations": "Integrace"
     },
     "groups": {
       "hiring": "Nábor",
@@ -4776,7 +4777,125 @@
   },
   "integrations": {
     "configLoadFailed": "Nepodařilo se načíst uložené nastavení webhooku — zobrazené hodnoty nemusí odpovídat tomu, co je uloženo.",
-    "saved": "Nastavení webhooku uloženo."
+    "saved": "Nastavení webhooku uloženo.",
+    "tab": {
+      "eyebrow": "Připojené služby",
+      "title": "Integrace",
+      "intro": "Připojte externí systémy, ze kterých kp čte a do kterých zapisuje. Přihlašovací údaje se ukládají šifrovaně a už se nikdy nezobrazí — můžete je nahradit nebo odebrat, nikoli přečíst."
+    },
+    "calendar": {
+      "title": "Google Kalendář",
+      "intro": "Umožní kp ověřit, zda má tazatel volno, ještě než nabídne termín, a zapsat potvrzený pohovor do jeho kalendáře. kp žádá pouze o přístup k obsazenosti a událostem — vidí, že jste zaneprázdněni, nikdy však proč.",
+      "loadFailed": "Nepodařilo se načíst připojení kalendáře.",
+      "retry": "Zkusit znovu",
+      "notConfiguredTitle": "Na tomto nasazení není nakonfigurováno",
+      "notConfiguredBody": "Google Kalendář vyžaduje OAuth klienta. Nastavte tyto dvě proměnné prostředí, restartujte a tento panel nabídne tlačítko pro připojení. Do té doby plánování funguje dál — termíny navrhne z vaší pracovní doby místo ze skutečného kalendáře.",
+      "redirectUriLabel": "Redirect URI k registraci v Google Cloud",
+      "connect": "Připojit Google Kalendář",
+      "connectHint": "Otevře souhlasnou obrazovku Google. Po dokončení se vrátíte sem.",
+      "accountLabel": "Připojený účet",
+      "accountUnknown": "Neznámý účet",
+      "calendarLabel": "Kalendář",
+      "connectedAtLabel": "Připojeno",
+      "partialTitle": "Udělen jen částečný přístup",
+      "partialBody": "Na souhlasné obrazovce Google jste odškrtli oprávnění, takže část této integrace nemůže fungovat:",
+      "partialFix": "Připojte se znovu a obě oprávnění ponechte zaškrtnutá.",
+      "reconnect": "Připojit znovu",
+      "disconnect": "Odpojit",
+      "disconnecting": "Odpojuji…",
+      "disconnectHint": "Odebere přístup kp u Google a smaže uložený token.",
+      "disconnected": "Odpojeno — přístup u Google byl odebrán.",
+      "disconnectedNotRevoked": "Odpojeno zde, ale Google odebrání nepotvrdil. Pro jistotu odeberte kp v seznamu aplikací třetích stran ve svém účtu Google.",
+      "disconnectFailed": "Kalendář se nepodařilo odpojit.",
+      "scopes": {
+        "freebusy": "Přístup k obsazenosti",
+        "events": "Zápis událostí"
+      },
+      "callback": {
+        "connected": {
+          "title": "Google Kalendář je připojen",
+          "body": "kp nyní může číst obsazenost a zapisovat události pohovorů."
+        },
+        "connected_partial": {
+          "title": "Připojeno, ale chybí oprávnění",
+          "body": "Připojení bylo uloženo. Níže uvidíte, které oprávnění chybí; udělíte ho opětovným připojením."
+        },
+        "cancelled": {
+          "title": "Připojení zrušeno",
+          "body": "Na souhlasné obrazovce Google jste akci zrušili. Nic nebylo uloženo."
+        },
+        "google_error": {
+          "title": "Google požadavek odmítl",
+          "body": "Google místo autorizace vrátil chybu. Zkuste to za chvíli znovu."
+        },
+        "state_mismatch": {
+          "title": "Tomuto návratu nešlo důvěřovat",
+          "body": "Bezpečnostní token nesouhlasil — obvykle proto, že souhlasná obrazovka zůstala otevřená příliš dlouho. Spusťte připojení znovu."
+        },
+        "no_code": {
+          "title": "Google neposlal autorizaci",
+          "body": "Návrat dorazil bez autorizačního kódu. Spusťte připojení znovu."
+        },
+        "not_configured": {
+          "title": "Google Kalendář už není nakonfigurován",
+          "body": "Údaje OAuth klienta zmizely mezi zahájením a dokončením. Zkontrolujte GOOGLE_OAUTH_CLIENT_ID a GOOGLE_OAUTH_CLIENT_SECRET."
+        },
+        "no_refresh_token": {
+          "title": "Připojení bylo záměrně odmítnuto",
+          "body": "Google nevydal dlouhodobý token, takže by toto připojení přestalo fungovat do hodiny. Nic nebylo uloženo — zkuste se připojit znovu."
+        },
+        "exchange_failed": {
+          "title": "Připojení se nepodařilo dokončit",
+          "body": "Výměna autorizace s Google selhala. Zkuste to znovu; podrobnosti jsou v serverovém logu."
+        },
+        "unknown": {
+          "title": "Neznámý výsledek připojení",
+          "body": "Připojení vrátilo výsledek, který tato verze nezná: {code}."
+        }
+      }
+    },
+    "ats": {
+      "title": "Připojení ATS",
+      "intro": "Načítejte přihlášky ze svého náborového systému. Jedno připojení na poskytovatele, každé s vlastním API tokenem a základní URL. Token se ukládá šifrovaně a API ho nikdy nevrací.",
+      "loadFailed": "Nepodařilo se načíst připojení ATS.",
+      "retry": "Zkusit znovu",
+      "empty": "Zatím není připojen žádný ATS. Přidejte ho níže — kp funguje i bez něj, jde jen o další zdroj přihlášek.",
+      "providers": {
+        "recruitee": "Recruitee",
+        "recruitis": "Recruitis",
+        "teamio": "Teamio"
+      },
+      "statusEnabled": "Aktivní",
+      "statusParked": "Pozastaveno",
+      "tokenSet": "Token uložen",
+      "tokenMissing": "Bez tokenu",
+      "updatedAt": "Aktualizováno {date}",
+      "remove": "Odebrat",
+      "removing": "Odebírám…",
+      "cancel": "Zrušit",
+      "removeConfirm": "Odebrat připojení {provider} i jeho uložený token?",
+      "removeConfirmAction": "Odebrat připojení",
+      "forgetLinksLabel": "Zapomenout také, které záznamy v kp pocházejí z tohoto ATS",
+      "forgetLinksHelp": "Ponechte nezaškrtnuté, aby vazby zůstaly: po opětovném připojení kp rozpozná stejné přihlášky. Když zaškrtnete, další synchronizace naimportuje všechny přihlášky znovu jako nové.",
+      "removedForget": "{count, plural, one {Připojení odebráno — # vazba zapomenuta.} few {Připojení odebráno — # vazby zapomenuty.} other {Připojení odebráno — # vazeb zapomenuto.}}",
+      "removedKeep": "Připojení odebráno. Vazby na již naimportované záznamy zůstaly zachovány.",
+      "removeFailed": "Připojení se nepodařilo odebrat.",
+      "addTitle": "Přidat nebo upravit připojení",
+      "providerLabel": "Poskytovatel",
+      "baseUrlLabel": "Základní URL API",
+      "baseUrlHelp": "Pouze https:// a veřejný hostitel — kp sem posílá autentizovaný požadavek.",
+      "tokenLabel": "API token",
+      "tokenPlaceholder": "Vložte token ze svého ATS",
+      "tokenPlaceholderKeep": "••••••••  (ponechte prázdné pro zachování)",
+      "tokenHelp": "Uloženo šifrovaně. Už se nikdy nezobrazí — při rotaci ho zde nahraďte.",
+      "tokenHelpExisting": "Token už je uložen. Ponechte prázdné pro zachování, nebo vložte nový a nahraďte ho.",
+      "enabledLabel": "Aktivní — kp smí přes toto připojení synchronizovat",
+      "save": "Uložit připojení",
+      "update": "Upravit připojení",
+      "saving": "Ukládám…",
+      "saved": "Připojení uloženo.",
+      "saveFailed": "Připojení se nepodařilo uložit."
+    }
   },
   "billing": {
     "eyebrow": "Fakturace",

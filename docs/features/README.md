@@ -25,6 +25,7 @@ in [../product/](../product/); superseded material lives in [../_archive/](../_a
 | --- | --- | --- |
 | Compliance & trust | [compliance/README.md](compliance/README.md), [compliance/ai-act-conformity.md](compliance/ai-act-conformity.md) | `app/_lib/{consent,decision-record-store,trust-posture,status-decisions}.ts`, `app/trust`, `app/data/[token]`, `app/status/[token]` |
 | Organization, identity & tenancy | [organization/README.md](organization/README.md) | `app/_lib/db/{organizations,users,memberships,invites}.ts`, `app/_lib/auth/**`, `app/_lib/tenancy.ts`, `app/features/settings/organization` |
+| Integrations (calendar, inbound ATS) | [integrations/README.md](integrations/README.md) | `app/_lib/calendar/**`, `app/_lib/ats/connections-store.ts`, `app/api/calendar`, `app/api/ats/connections`, `app/features/settings/integrations` |
 | Billing | [billing/README.md](billing/README.md) | `app/_lib/billing/**`, `app/api/billing`, `app/features/settings/billing`, `scripts/polar-setup.mjs` |
 
 Cross-cutting contracts (LLM provider layer, persistence backend, self-hosting, app

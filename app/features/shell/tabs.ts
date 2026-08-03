@@ -36,6 +36,7 @@ export const WORKSPACE_TAB_IDS = [
   "workspace",
   "organization",
   "branding",
+  "integrations",
 ] as const;
 
 export type WorkspaceTabId = (typeof WORKSPACE_TAB_IDS)[number];
@@ -154,6 +155,10 @@ export const NAV_GROUPS: NavGroup[] = [
       { id: "branding", label: "Branding" },
       { id: "billing", label: "Billing" },
       { id: "models", label: "Models" },
+      // connect-the-integrations — the credential doors for Google Calendar and the
+      // inbound ATS connectors. Appended last so every prior `g`-chord assignment is
+      // untouched (workspaceChords.ts only draws from still-free letters).
+      { id: "integrations", label: "Integrations" },
       { id: "workspace", label: "Workspace" },
     ],
   },

@@ -24,7 +24,7 @@ app/features/
   hiring/       channels, decisions (+groupEval), onboarding, pipeline, schedule
   library/      jds, jobs
   insights/     about, analytics, matrix
-  settings/     billing, branding, models, organization, workspace
+  settings/     billing, branding, integrations, models, organization, workspace
   tools/        analyze, devcases, interview, match, profile
   shell/        Workspace.tsx + nav/, simulation/, tasks/, setup/ (the frame
                 the menu lives in — sidebar, command palette, keyboard chords,

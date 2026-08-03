@@ -43,6 +43,7 @@ const BillingTab = dynamic(() => import("../settings/billing/BillingTab").then((
 const ModelsTab = dynamic(() => import("../settings/models/ModelsTab").then((m) => ({ default: m.ModelsTab })), { loading });
 const WorkspaceTab = dynamic(() => import("../settings/workspace/WorkspaceTab").then((m) => ({ default: m.WorkspaceTab })), { loading });
 const OrganizationTab = dynamic(() => import("../settings/organization/OrganizationTab").then((m) => ({ default: m.OrganizationTab })), { loading });
+const IntegrationsTab = dynamic(() => import("../settings/integrations/IntegrationsTab").then((m) => ({ default: m.IntegrationsTab })), { loading });
 const BrandingTab = dynamic(() => import("../settings/branding/BrandingTab").then((m) => ({ default: m.BrandingTab })), { loading });
 
 // The tab-switch tree + its error boundary, extracted verbatim from Workspace's
@@ -76,6 +77,7 @@ export function WorkspaceTabPanel({ navActive, active }: { navActive: WorkspaceT
         {navActive === "workspace" ? <WorkspaceTab /> : null}
         {navActive === "organization" ? <OrganizationTab /> : null}
         {navActive === "branding" ? <BrandingTab /> : null}
+        {navActive === "integrations" ? <IntegrationsTab /> : null}
       </div>
     </ErrorBoundary>
   );

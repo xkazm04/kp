@@ -1286,7 +1286,8 @@
       "matrix": "Matrix",
       "about": "About",
       "billing": "Billing",
-      "models": "Models"
+      "models": "Models",
+      "integrations": "Integrations"
     },
     "groups": {
       "hiring": "Hiring",
@@ -4776,7 +4777,125 @@
   },
   "integrations": {
     "configLoadFailed": "Couldn't load the saved webhook settings — the values shown may not match what's stored.",
-    "saved": "Webhook settings saved."
+    "saved": "Webhook settings saved.",
+    "tab": {
+      "eyebrow": "Connected services",
+      "title": "Integrations",
+      "intro": "Connect the outside systems kp reads from and writes to. Credentials are stored encrypted and are never shown again — you can replace or remove one, never read it back."
+    },
+    "calendar": {
+      "title": "Google Calendar",
+      "intro": "Lets kp check whether an interviewer is busy before it offers a slot, and write the confirmed interview into their calendar. kp asks only for free/busy and event access — it can see that you are busy, never why.",
+      "loadFailed": "Couldn't load the calendar connection.",
+      "retry": "Try again",
+      "notConfiguredTitle": "Not configured on this deployment",
+      "notConfiguredBody": "Google Calendar needs an OAuth client. Set these two environment variables, restart, and this panel will offer a Connect button. Until then, scheduling still works — it just proposes slots from your working hours instead of a real calendar.",
+      "redirectUriLabel": "Redirect URI to register in Google Cloud",
+      "connect": "Connect Google Calendar",
+      "connectHint": "Opens Google's consent screen. You'll come back here when it's done.",
+      "accountLabel": "Connected account",
+      "accountUnknown": "Unknown account",
+      "calendarLabel": "Calendar",
+      "connectedAtLabel": "Connected",
+      "partialTitle": "Partial access granted",
+      "partialBody": "You unticked a permission on Google's consent screen, so part of this integration cannot work:",
+      "partialFix": "Reconnect and leave both permissions ticked to fix this.",
+      "reconnect": "Reconnect",
+      "disconnect": "Disconnect",
+      "disconnecting": "Disconnecting…",
+      "disconnectHint": "Withdraws kp's access at Google and deletes the stored token.",
+      "disconnected": "Disconnected — access withdrawn at Google.",
+      "disconnectedNotRevoked": "Disconnected here, but Google did not confirm the withdrawal. Remove kp from your Google account's third-party access list to be sure.",
+      "disconnectFailed": "Couldn't disconnect the calendar.",
+      "scopes": {
+        "freebusy": "Free/busy access",
+        "events": "Event write access"
+      },
+      "callback": {
+        "connected": {
+          "title": "Google Calendar connected",
+          "body": "kp can now read free/busy and write interview events."
+        },
+        "connected_partial": {
+          "title": "Connected, but with missing permissions",
+          "body": "The connection was saved. See which permission is missing below and reconnect to grant it."
+        },
+        "cancelled": {
+          "title": "Connection cancelled",
+          "body": "You cancelled on Google's consent screen. Nothing was stored."
+        },
+        "google_error": {
+          "title": "Google refused the request",
+          "body": "Google returned an error instead of an authorization. Try again in a moment."
+        },
+        "state_mismatch": {
+          "title": "That callback couldn't be trusted",
+          "body": "The security token didn't match — usually because the consent screen sat open too long. Start the connection again."
+        },
+        "no_code": {
+          "title": "Google sent no authorization",
+          "body": "The callback arrived without an authorization code. Start the connection again."
+        },
+        "not_configured": {
+          "title": "Google Calendar is no longer configured",
+          "body": "The OAuth client credentials disappeared between starting and finishing. Check GOOGLE_OAUTH_CLIENT_ID and GOOGLE_OAUTH_CLIENT_SECRET."
+        },
+        "no_refresh_token": {
+          "title": "Connection refused on purpose",
+          "body": "Google withheld the long-lived token, so this connection would have stopped working within the hour. Nothing was stored — try connecting again."
+        },
+        "exchange_failed": {
+          "title": "Couldn't finish the connection",
+          "body": "Exchanging the authorization with Google failed. Try again; the server log has the detail."
+        },
+        "unknown": {
+          "title": "Unrecognized connection result",
+          "body": "The connection returned a result this version doesn't know: {code}."
+        }
+      }
+    },
+    "ats": {
+      "title": "ATS connections",
+      "intro": "Read applications out of your applicant tracking system. One connection per provider, each with its own API token and base URL. The token is stored encrypted and never returned by the API.",
+      "loadFailed": "Couldn't load the ATS connections.",
+      "retry": "Try again",
+      "empty": "No ATS connected yet. Add one below — kp works fine without it, this only adds an inbound source.",
+      "providers": {
+        "recruitee": "Recruitee",
+        "recruitis": "Recruitis",
+        "teamio": "Teamio"
+      },
+      "statusEnabled": "Active",
+      "statusParked": "Paused",
+      "tokenSet": "Token stored",
+      "tokenMissing": "No token",
+      "updatedAt": "Updated {date}",
+      "remove": "Remove",
+      "removing": "Removing…",
+      "cancel": "Cancel",
+      "removeConfirm": "Remove the {provider} connection and its stored token?",
+      "removeConfirmAction": "Remove connection",
+      "forgetLinksLabel": "Also forget which kp records came from this ATS",
+      "forgetLinksHelp": "Leave unticked to keep the links: reconnecting then recognizes the same applications. Tick it and the next sync imports every application again as new.",
+      "removedForget": "{count, plural, one {Connection removed — # link forgotten.} other {Connection removed — # links forgotten.}}",
+      "removedKeep": "Connection removed. The links to already-imported records were kept.",
+      "removeFailed": "Couldn't remove the connection.",
+      "addTitle": "Add or update a connection",
+      "providerLabel": "Provider",
+      "baseUrlLabel": "API base URL",
+      "baseUrlHelp": "https:// only, and a public host — kp sends an authenticated request here.",
+      "tokenLabel": "API token",
+      "tokenPlaceholder": "Paste the token from your ATS",
+      "tokenPlaceholderKeep": "••••••••  (leave blank to keep)",
+      "tokenHelp": "Stored encrypted. It is never shown again — replace it here if it rotates.",
+      "tokenHelpExisting": "A token is already stored. Leave this blank to keep it, or paste a new one to replace it.",
+      "enabledLabel": "Active — kp may sync through this connection",
+      "save": "Save connection",
+      "update": "Update connection",
+      "saving": "Saving…",
+      "saved": "Connection saved.",
+      "saveFailed": "Couldn't save the connection."
+    }
   },
   "billing": {
     "eyebrow": "Billing",

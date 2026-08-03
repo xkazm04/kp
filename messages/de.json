@@ -1286,7 +1286,8 @@
       "matrix": "Matrix",
       "about": "Über",
       "billing": "Abrechnung",
-      "models": "Modelle"
+      "models": "Modelle",
+      "integrations": "Integrationen"
     },
     "groups": {
       "hiring": "Recruiting",
@@ -4776,7 +4777,125 @@
   },
   "integrations": {
     "configLoadFailed": "Die gespeicherten Webhook-Einstellungen konnten nicht geladen werden — die angezeigten Werte stimmen möglicherweise nicht mit den gespeicherten überein.",
-    "saved": "Webhook-Einstellungen gespeichert."
+    "saved": "Webhook-Einstellungen gespeichert.",
+    "tab": {
+      "eyebrow": "Verbundene Dienste",
+      "title": "Integrationen",
+      "intro": "Verbinden Sie die externen Systeme, aus denen kp liest und in die es schreibt. Zugangsdaten werden verschlüsselt gespeichert und nie wieder angezeigt — Sie können sie ersetzen oder entfernen, aber nicht auslesen."
+    },
+    "calendar": {
+      "title": "Google Kalender",
+      "intro": "Damit prüft kp vor jedem Terminvorschlag, ob eine interviewende Person belegt ist, und trägt das bestätigte Interview in deren Kalender ein. kp fragt nur Frei/Belegt- und Terminrechte an — es sieht, dass Sie belegt sind, nie warum.",
+      "loadFailed": "Die Kalenderverbindung konnte nicht geladen werden.",
+      "retry": "Erneut versuchen",
+      "notConfiguredTitle": "Auf dieser Installation nicht konfiguriert",
+      "notConfiguredBody": "Google Kalender benötigt einen OAuth-Client. Setzen Sie diese beiden Umgebungsvariablen, starten Sie neu, und dieses Panel bietet eine Schaltfläche zum Verbinden an. Bis dahin funktioniert die Terminplanung weiter — sie schlägt Zeiten aus Ihren Arbeitszeiten statt aus einem echten Kalender vor.",
+      "redirectUriLabel": "In der Google Cloud zu registrierende Redirect-URI",
+      "connect": "Google Kalender verbinden",
+      "connectHint": "Öffnet den Google-Zustimmungsdialog. Danach kehren Sie hierher zurück.",
+      "accountLabel": "Verbundenes Konto",
+      "accountUnknown": "Unbekanntes Konto",
+      "calendarLabel": "Kalender",
+      "connectedAtLabel": "Verbunden",
+      "partialTitle": "Nur teilweiser Zugriff erteilt",
+      "partialBody": "Sie haben im Google-Dialog eine Berechtigung abgewählt, deshalb kann ein Teil dieser Integration nicht arbeiten:",
+      "partialFix": "Verbinden Sie erneut und lassen Sie beide Berechtigungen ausgewählt.",
+      "reconnect": "Erneut verbinden",
+      "disconnect": "Trennen",
+      "disconnecting": "Wird getrennt…",
+      "disconnectHint": "Entzieht kp den Zugriff bei Google und löscht das gespeicherte Token.",
+      "disconnected": "Getrennt — der Zugriff wurde bei Google entzogen.",
+      "disconnectedNotRevoked": "Hier getrennt, aber Google hat den Entzug nicht bestätigt. Entfernen Sie kp sicherheitshalber aus der Drittanbieterliste Ihres Google-Kontos.",
+      "disconnectFailed": "Der Kalender konnte nicht getrennt werden.",
+      "scopes": {
+        "freebusy": "Frei/Belegt-Zugriff",
+        "events": "Schreibzugriff auf Termine"
+      },
+      "callback": {
+        "connected": {
+          "title": "Google Kalender verbunden",
+          "body": "kp kann jetzt Frei/Belegt lesen und Interviewtermine schreiben."
+        },
+        "connected_partial": {
+          "title": "Verbunden, aber mit fehlenden Berechtigungen",
+          "body": "Die Verbindung wurde gespeichert. Unten sehen Sie, welche Berechtigung fehlt — erteilen Sie sie durch erneutes Verbinden."
+        },
+        "cancelled": {
+          "title": "Verbindung abgebrochen",
+          "body": "Sie haben im Google-Dialog abgebrochen. Es wurde nichts gespeichert."
+        },
+        "google_error": {
+          "title": "Google hat die Anfrage abgelehnt",
+          "body": "Google hat statt einer Autorisierung einen Fehler zurückgegeben. Versuchen Sie es gleich noch einmal."
+        },
+        "state_mismatch": {
+          "title": "Dieser Rücksprung war nicht vertrauenswürdig",
+          "body": "Das Sicherheitstoken passte nicht — meist, weil der Zustimmungsdialog zu lange offen stand. Starten Sie die Verbindung neu."
+        },
+        "no_code": {
+          "title": "Google hat keine Autorisierung gesendet",
+          "body": "Der Rücksprung kam ohne Autorisierungscode an. Starten Sie die Verbindung neu."
+        },
+        "not_configured": {
+          "title": "Google Kalender ist nicht mehr konfiguriert",
+          "body": "Die OAuth-Zugangsdaten sind zwischen Start und Abschluss verschwunden. Prüfen Sie GOOGLE_OAUTH_CLIENT_ID und GOOGLE_OAUTH_CLIENT_SECRET."
+        },
+        "no_refresh_token": {
+          "title": "Verbindung bewusst abgelehnt",
+          "body": "Google hat das langlebige Token zurückgehalten, diese Verbindung hätte binnen einer Stunde aufgehört zu funktionieren. Es wurde nichts gespeichert — verbinden Sie erneut."
+        },
+        "exchange_failed": {
+          "title": "Verbindung konnte nicht abgeschlossen werden",
+          "body": "Der Tausch der Autorisierung mit Google ist fehlgeschlagen. Versuchen Sie es erneut; Details stehen im Serverlog."
+        },
+        "unknown": {
+          "title": "Unbekanntes Verbindungsergebnis",
+          "body": "Die Verbindung lieferte ein Ergebnis, das diese Version nicht kennt: {code}."
+        }
+      }
+    },
+    "ats": {
+      "title": "ATS-Verbindungen",
+      "intro": "Bewerbungen aus Ihrem Bewerbermanagementsystem einlesen. Eine Verbindung je Anbieter, jeweils mit eigenem API-Token und eigener Basis-URL. Das Token wird verschlüsselt gespeichert und nie von der API zurückgegeben.",
+      "loadFailed": "Die ATS-Verbindungen konnten nicht geladen werden.",
+      "retry": "Erneut versuchen",
+      "empty": "Noch kein ATS verbunden. Fügen Sie unten eines hinzu — kp funktioniert auch ohne, dies ergänzt nur eine eingehende Quelle.",
+      "providers": {
+        "recruitee": "Recruitee",
+        "recruitis": "Recruitis",
+        "teamio": "Teamio"
+      },
+      "statusEnabled": "Aktiv",
+      "statusParked": "Pausiert",
+      "tokenSet": "Token gespeichert",
+      "tokenMissing": "Kein Token",
+      "updatedAt": "Aktualisiert {date}",
+      "remove": "Entfernen",
+      "removing": "Wird entfernt…",
+      "cancel": "Abbrechen",
+      "removeConfirm": "Die Verbindung {provider} samt gespeichertem Token entfernen?",
+      "removeConfirmAction": "Verbindung entfernen",
+      "forgetLinksLabel": "Auch vergessen, welche kp-Datensätze aus diesem ATS stammen",
+      "forgetLinksHelp": "Nicht auswählen, um die Zuordnungen zu behalten: Beim erneuten Verbinden erkennt kp dieselben Bewerbungen wieder. Ausgewählt importiert die nächste Synchronisation jede Bewerbung erneut als neu.",
+      "removedForget": "{count, plural, one {Verbindung entfernt — # Zuordnung vergessen.} other {Verbindung entfernt — # Zuordnungen vergessen.}}",
+      "removedKeep": "Verbindung entfernt. Die Zuordnungen zu bereits importierten Datensätzen bleiben erhalten.",
+      "removeFailed": "Die Verbindung konnte nicht entfernt werden.",
+      "addTitle": "Verbindung hinzufügen oder aktualisieren",
+      "providerLabel": "Anbieter",
+      "baseUrlLabel": "API-Basis-URL",
+      "baseUrlHelp": "Nur https:// und ein öffentlicher Host — kp sendet hierhin eine authentifizierte Anfrage.",
+      "tokenLabel": "API-Token",
+      "tokenPlaceholder": "Token aus Ihrem ATS einfügen",
+      "tokenPlaceholderKeep": "••••••••  (leer lassen, um es zu behalten)",
+      "tokenHelp": "Verschlüsselt gespeichert. Es wird nie wieder angezeigt — ersetzen Sie es hier, wenn es rotiert.",
+      "tokenHelpExisting": "Es ist bereits ein Token gespeichert. Leer lassen, um es zu behalten, oder ein neues einfügen, um es zu ersetzen.",
+      "enabledLabel": "Aktiv — kp darf über diese Verbindung synchronisieren",
+      "save": "Verbindung speichern",
+      "update": "Verbindung aktualisieren",
+      "saving": "Wird gespeichert…",
+      "saved": "Verbindung gespeichert.",
+      "saveFailed": "Die Verbindung konnte nicht gespeichert werden."
+    }
   },
   "billing": {
     "eyebrow": "Abrechnung",

@@ -6,6 +6,7 @@ import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { exchangeCode, googleOAuthConfig, missingScopes } from "@/app/_lib/calendar/google-oauth";
 import { saveCalendarConnection } from "@/app/_lib/calendar/token-store";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
+import type { CalendarCallbackStatus } from "@/app/_lib/calendar/callback-status";
 import { OAUTH_STATE_COOKIE } from "../start/route";
 
 // W1.4 — the OAuth callback. Verifies state, exchanges the code, stores the grant.
@@ -15,9 +16,14 @@ import { OAUTH_STATE_COOKIE } from "../start/route";
 // redirect from Google, and a bare 400 body is a dead end for the person who was two
 // clicks into connecting a calendar.
 
-const SETTINGS_PATH = "/?tab=tasks&calendar=";
+// connect-the-integrations: this now lands on the Integrations settings tab, which reads
+// the code and renders the outcome. It previously pointed at ?tab=tasks, where nothing
+// consumed the param — every outcome, success included, was a silent redirect.
+const SETTINGS_PATH = "/?tab=integrations&calendar=";
 
-function back(base: string, code: string): NextResponse {
+// `code` is typed against the canonical vocabulary (callback-status.ts), so a new outcome
+// cannot be redirected without also being added to the list the UI catalog is guarded on.
+function back(base: string, code: CalendarCallbackStatus): NextResponse {
   return NextResponse.redirect(`${base.replace(/\/+$/, "")}${SETTINGS_PATH}${encodeURIComponent(code)}`);
 }
 
