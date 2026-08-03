@@ -115,8 +115,23 @@ rules keep it honest about **which** rows it is about to touch:
   per-call-site version is what leaked twice already. `bulkDecide("reject")` and
   `bulkOutreach` re-check the same predicate at the fire site.
 
+A third rule keeps it honest about **which stages** it can move rows to:
+
+- **Every move affordance derives its target list from `moveTargetStages`**
+  (`pipelineMoveTargets.ts`) — drag, the row menu, the drawer `<Select>`, and now the
+  bulk bar via `bulkMoveTargetStages()`. That helper drops `Hired`, which
+  `pipeline-entry-action.ts` unconditionally refuses with a 422 (Hired is reached only
+  when a candidate *accepts* an offer). The bulk bar previously built its list from the
+  raw stage axis, so picking "Hired" and applying returned N × 422 with the whole
+  selection still selected. A bulk selection has no single current stage, so only the
+  unconditional exclusion applies: `Hired` out, every other canonical stage offered —
+  per-row current-stage exclusion is deliberately not attempted (`bulkMove` already
+  treats an already-at-target card as moved with no round trip).
+
 Pinned by `pipelineSelectionScope.test.ts` (reproduces select → arm reject → apply a
-saved view → confirm) and `pipelineBulkConfirm.test.ts`.
+saved view → confirm), `pipelineBulkConfirm.test.ts`, and `pipelineMoveTargets.test.ts`
+(which also pins that the drawer's "open full match" link is gated on `candidateId`
+like its "edit profile" sibling, instead of rendering and silently no-opping).
 
 ## Recommendation / route vocabulary
 

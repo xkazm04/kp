@@ -8,7 +8,8 @@
 import type { PipelineTabTranslator } from "./pipelineTranslator";
 import { CalendarClock } from "lucide-react";
 import { Select } from "@/app/_components/Select";
-import { STAGES, type Entry } from "@/app/features/shared/pipelineTypes";
+import { type Entry } from "@/app/features/shared/pipelineTypes";
+import { bulkMoveTargetStages } from "./pipelineMoveTargets";
 import { PipelineBulkDecideRow } from "./PipelineBulkDecideRow";
 import { PipelineBulkOutreachButton } from "./PipelineBulkOutreachButton";
 import type { BulkConfirmIntent } from "./pipelineBulkConfirm";
@@ -106,7 +107,14 @@ export function PipelineBulkActionBar({
           onChange={onBulkStageChange}
           size="sm"
           className="h-8"
-          options={[{ value: "", label: "—" }, ...STAGES.map((s) => ({ value: s, label: enumLabel("stage", s) }))]}
+          // retire-erroring-bulk-control — through the SAME helper drag, the row menu
+          // and the drawer use, so the bulk bar can't offer a stage the server refuses
+          // (it offered "Hired", which set_stage unconditionally 422s: N failures with
+          // everything still selected).
+          options={[
+            { value: "", label: "—" },
+            ...bulkMoveTargetStages().map((s) => ({ value: s, label: enumLabel("stage", s) })),
+          ]}
         />
       </label>
       <button

@@ -12,9 +12,10 @@
 //   npm run test:unit
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 
 import { PIPELINE_STAGES } from "@/app/_lib/pipeline-stages.ts";
-import { moveStageSelectValues, moveTargetStages } from "./pipelineMoveTargets.ts";
+import { bulkMoveTargetStages, moveStageSelectValues, moveTargetStages } from "./pipelineMoveTargets.ts";
 
 test("never offers Hired as a target — the route 422s a manual move to Hired", () => {
   for (const stage of PIPELINE_STAGES) {
@@ -95,4 +96,77 @@ test("every non-current drawer option is an accepted move target (options match 
       assert.ok(opt === stage || targets.has(opt), `${opt} offered from ${stage} is neither the current stage nor an accepted target`);
     }
   }
+});
+
+// retire-erroring-bulk-control — the BULK bar's stage list. Pre-fix it was built from
+// the raw canonical axis (`STAGES.map(...)` in PipelineBulkActionBar.tsx), so it
+// offered "Hired" and applying it returned N x 422 with the whole selection still
+// selected. Non-vacuity: `bulkMoveTargetStages` did not exist before the fix (RED =
+// named-export miss), and a naive `PIPELINE_STAGES.slice()` — literally the pre-fix
+// list — fails the first two cases below.
+test("the BULK move control never offers Hired (the server 422s every manual move to it)", () => {
+  assert.ok(!bulkMoveTargetStages().includes("Hired"), "Hired must not be a bulk move target");
+});
+
+test("the BULK move list is exactly the canonical axis minus Hired, in funnel order", () => {
+  // DERIVED from PIPELINE_STAGES, never hand-enumerated: adding a 6th stage to the
+  // axis must extend the bulk control automatically, and this case must not be the
+  // thing that has to be remembered.
+  assert.deepEqual(
+    bulkMoveTargetStages(),
+    (PIPELINE_STAGES as readonly string[]).filter((s) => s !== "Hired")
+  );
+});
+
+test("retiring Hired removes NO legitimate move target — every other stage survives", () => {
+  // The over-correction guard: the fix must drop exactly one option. Set equality
+  // against the canonical axis, both directions.
+  const offered = new Set(bulkMoveTargetStages());
+  const expected = new Set((PIPELINE_STAGES as readonly string[]).filter((s) => s !== "Hired"));
+  assert.deepEqual([...offered].sort(), [...expected].sort(), "bulk targets must be exactly the non-Hired axis");
+  for (const s of PIPELINE_STAGES) {
+    if (s !== "Hired") assert.ok(offered.has(s), `${s} is a legitimate bulk target and must still be offered`);
+  }
+});
+
+test("a bulk selection has no single current stage, so nothing but Hired is excluded", () => {
+  // Documents the decision (the direction left it open): exclude Hired unconditionally,
+  // do NOT attempt per-row current-stage exclusion. bulkMove already counts an
+  // already-at-target card as moved with no round trip, so offering a stage part of the
+  // selection sits in is harmless — offering Hired is not.
+  for (const stage of PIPELINE_STAGES) {
+    if (stage === "Hired") continue;
+    assert.ok(
+      bulkMoveTargetStages().includes(stage),
+      `${stage} must stay offered even when some of the selection is already there`
+    );
+  }
+});
+
+test("the bulk bar routes through the helper — it must not rebuild the list from raw STAGES", () => {
+  // The defect was a second, divergent source for the same list. Reading the component
+  // is the only way to pin that it still goes through the shared helper; the assertions
+  // above cannot see a regression that re-hardcodes the axis in the .tsx.
+  const bar = readFileSync(new URL("./PipelineBulkActionBar.tsx", import.meta.url), "utf8");
+  assert.match(bar, /bulkMoveTargetStages\(\)/, "the bulk stage <Select> must derive its options from the helper");
+  assert.ok(
+    !/\bSTAGES\.map\b/.test(bar),
+    "the bulk bar must not map the raw canonical axis into stage options again"
+  );
+});
+
+test("the drawer's 'open full match' is gated on candidateId, like its sibling", () => {
+  // Same defect class, smaller: the button rendered unconditionally and its handler
+  // no-opped when the entry had no linked candidate — a control that silently does
+  // nothing. Both links are now behind the same guard.
+  const links = readFileSync(new URL("./PipelineDrawerFooterLinks.tsx", import.meta.url), "utf8");
+  assert.equal(
+    (links.match(/\{candidateId \? \(/g) ?? []).length,
+    2,
+    "both footer links must be gated on candidateId"
+  );
+  assert.ok(
+    !/if \(candidateId\) router\.push/.test(links),
+    "the no-op-inside-the-handler pattern must be gone — gate the control, don't swallow the click"
+  );
 });
