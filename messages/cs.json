@@ -5567,6 +5567,19 @@
       "promptsNeverPenalty": "Používání AI není nikdy k tíži — jde o to, jak ji vedli, ne zda ji použili.",
       "promptsNotUsed": "Kanály asistenta i zadavatele zůstaly nevyužité — žádný signál na žádnou stranu, nikdy k tíži.",
       "briefPasteAimInterview": "Jeden dotaz obsahoval zhruba {pct} zadání doslova — typický tvar jednorázového delegování. Zaměřte sem pohovor o autorství; nikdy nejde o srážku z hodnocení."
+    },
+    "processTrace": {
+      "iterative": "iterativně",
+      "singlePass": "jedním průchodem",
+      "iterationTitle": "Odvozeno ze sledovaného toku událostí: opakované úpravy jednoho souboru (iterativně) oproti jedinému průchodu. Jde o způsob práce, ne o hodnocení.",
+      "filesWorked": "otevřeno {opened}, upraveno {edited} (sledováno)",
+      "noCommits": "žádná historie commitů — pracoval(a) na ploše v produktu",
+      "noCommitsTitle": "Živá pracovní relace ze své podstaty nevytváří git log, takže počet commitů ani kadence pro toto odevzdání neexistují. Je to vlastnost dané cesty, nikoli zjištění o kandidátovi.",
+      "perturbationAdapted": "zareagoval(a) na změnu zadání · {edits, plural, one {# úprava} few {# úpravy} other {# úprav}}, {decisions, plural, one {# záznam rozhodnutí} few {# záznamy rozhodnutí} other {# záznamů rozhodnutí}} po odhalení",
+      "perturbationStale": "změna zadání byla ukázána, ale nenásledovaly žádné úpravy",
+      "perturbationTitle": "Změna požadavku byla odhalena v okamžiku zaznamenaném serverem; vše po ní je sledovaná reakce kandidáta na změněné zadání.",
+      "noSeed": "Pro tento případ nebyl vytvořen konkrétní seed, engagement se seedem tedy nešlo změřit.",
+      "inProductSession": "relace v produktu"
     }
   },
   "rubricCoverage": {

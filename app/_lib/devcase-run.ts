@@ -26,7 +26,7 @@ import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 import { inferProfileLocale } from "./comms-locale";
 import { MAX_CODEBASES } from "./devcase-constraints";
 import { scoreAuthenticity, PASTE_BULK_CHARS, type Authenticity } from "./devcase-authenticity";
-import { seedDiffEvidence, type SeedDiff } from "./devcase-seed-diff";
+import { changedPathsFromFiles, seedDiffEvidence, type SeedDiff } from "./devcase-seed-diff";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, PipelineError, spawnPython } from "./python-runner";
 import { buildLlmConfigEnv } from "./llm-config";
 import { buildRepoSnapshot, fetchRepoSignals, type RepoSnapshot } from "./repo-snapshot";
@@ -631,11 +631,20 @@ export async function runEvaluateSubmission(submissionId: string, signal?: Abort
   // c364a44d — anchor the evaluation into the shared seed: which planted seam
   // files did the submission actually touch? Grounded, mechanically comparable
   // engagement evidence beside the LLM's probe read.
-  const seedFiles = ((devCase?.seed as { files?: { path?: string }[] } | null)?.files) ?? [];
-  const seedDiff =
-    seedFiles.length > 0 && (signals?.changedPaths?.length ?? 0) > 0
-      ? seedDiffEvidence(seedFiles, signals!.changedPaths)
-      : null;
+  const seedFiles = ((devCase?.seed as { files?: { path?: string; contents?: string }[] } | null)?.files) ?? [];
+  // Both submission paths now produce seed engagement, from the change set each one
+  // actually has: the repo path from the commits API's changed paths, the Live Work
+  // Surface from a CONTENT diff of the submitted tree against the seed. Previously
+  // only `signals.changedPaths` was consulted, and `signals` is null for a session —
+  // so the strip never rendered for the path with the strongest evidence, and an
+  // absent strip reads as "they engaged nothing".
+  const changedPaths =
+    signals?.changedPaths?.length
+      ? signals.changedPaths
+      : sessionFiles && sessionFiles.length > 0
+        ? changedPathsFromFiles(seedFiles, sessionFiles)
+        : [];
+  const seedDiff = seedFiles.length > 0 && changedPaths.length > 0 ? seedDiffEvidence(seedFiles, changedPaths) : null;
   const out = {
     ...payload.result,
     followups: payload.result.followups ?? {},

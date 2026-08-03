@@ -150,7 +150,31 @@ export type Reflection = {
 // null/undefined when only DETECTED (observed Live Work Surface path — handling not
 // gradeable from process). Consumers must treat null as "unknown", not "failed".
 export type ProbeOutcome = { probeId?: string; kind?: string; where?: string; detected?: boolean; handledWell?: boolean | null; note?: string };
-export type Tooling = { fluency?: number /* FRACTION 0..1 */; probeOutcomes?: ProbeOutcome[]; overRelianceFlags?: string[]; evidence?: string[]; confidence?: number /* FRACTION 0..1 */ };
+// The OBSERVED process signals `process_events.derive_signals` emits, carried on
+// the tooling block as `signals` (process_events.py "Raw observed signals, exposed
+// for downstream deterministic consumers"). Present ONLY for a Live Work Surface
+// submission — the repo path reconstructs from commit metadata and has no watched
+// event stream, so `signals` is absent there and that absence is meaningful.
+//
+// This is the observed counterpart to `ProcessTrace.cadence`, which is git-only:
+// a live session has no commits by design, so cadence is null for it and these
+// numbers are the honest substitute. `editsAfterPerturbation` /
+// `decisionsAfterPerturbation` are null when the mid-flight requirement change was
+// never shown (no signal — not zero adaptation).
+export type ObservedSignals = {
+  filesOpened?: number;
+  filesEdited?: number;
+  readBeforeWrite?: number; // FRACTION 0..1 — from event ORDER, not inference
+  decisionLogEntries?: number;
+  editedTest?: boolean;
+  editedDecisions?: boolean;
+  iterationPattern?: string; // "iterative" | "single-pass" (open vocabulary on the wire)
+  perturbationShown?: boolean;
+  editsAfterPerturbation?: number | null;
+  decisionsAfterPerturbation?: number | null;
+  promptExchanges?: number;
+};
+export type Tooling = { fluency?: number /* FRACTION 0..1 */; probeOutcomes?: ProbeOutcome[]; overRelianceFlags?: string[]; evidence?: string[]; signals?: ObservedSignals | null; confidence?: number /* FRACTION 0..1 */ };
 // Self-describing breakdown row echoed by the Python evaluator (evaluate.py `_ordered_dimensions`):
 // canonical order + human label + weight, so the UI never hardcodes dimension metadata. `score`
 // is a MIRROR of `dimensionScores[name]` — never an independent number (see CaseEval below).

@@ -5567,6 +5567,19 @@
       "promptsNeverPenalty": "Using AI is never a penalty — this is how they drove it, not whether they did.",
       "promptsNotUsed": "The assistant and stakeholder channels went unused — no signal either way, never a penalty.",
       "briefPasteAimInterview": "One prompt carried ~{pct} of the brief verbatim — the one-shot delegation shape. Aim the authorship interview here; never a score penalty."
+    },
+    "processTrace": {
+      "iterative": "iterative",
+      "singlePass": "single pass",
+      "iterationTitle": "Derived from the watched event stream: repeated edits per file (iterative) versus one pass over each. How they worked, not a verdict.",
+      "filesWorked": "opened {opened}, edited {edited} (observed)",
+      "noCommits": "no commit history — worked in the in-product surface",
+      "noCommitsTitle": "A live work session produces no git log by design, so commit count and cadence do not exist for this submission. That is a property of the path, not a finding about the candidate.",
+      "perturbationAdapted": "adapted to the mid-flight change · {edits, plural, one {# edit} other {# edits}}, {decisions, plural, one {# decision entry} other {# decision entries}} after the reveal",
+      "perturbationStale": "the mid-flight change was shown but no edits followed it",
+      "perturbationTitle": "The requirement change was revealed at a server-recorded moment; everything after it is the candidate's observed adaptation to a changed brief.",
+      "noSeed": "No materialized seed for this case, so seed engagement could not be measured.",
+      "inProductSession": "in-product session"
     }
   },
   "rubricCoverage": {

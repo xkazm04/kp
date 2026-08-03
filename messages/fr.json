@@ -5567,6 +5567,19 @@
       "promptsNeverPenalty": "Recourir à l'IA n'est jamais une pénalité — ce qui compte est la façon de la piloter, pas le fait de le faire.",
       "promptsNotUsed": "Les canaux assistant et commanditaire sont restés inutilisés — aucun signal dans un sens ou dans l'autre, jamais une pénalité.",
       "briefPasteAimInterview": "Un prompt reprenait environ {pct} de l'énoncé mot pour mot — la forme d'une délégation en un seul coup. Orientez l'entretien sur la paternité ici ; jamais une pénalité."
+    },
+    "processTrace": {
+      "iterative": "itératif",
+      "singlePass": "en une passe",
+      "iterationTitle": "Déduit du flux d'événements observé : modifications répétées par fichier (itératif) contre une seule passe. Une manière de travailler, pas un jugement.",
+      "filesWorked": "{opened} ouverts, {edited} modifiés (observé)",
+      "noCommits": "aucun historique de commits — travail effectué dans l'espace intégré",
+      "noCommitsTitle": "Une session de travail en direct ne produit par conception aucun journal git : nombre de commits et cadence n'existent donc pas pour ce rendu. C'est une propriété du parcours, pas un constat sur la personne.",
+      "perturbationAdapted": "a réagi au changement en cours · {edits, plural, one {# modification} other {# modifications}}, {decisions, plural, one {# entrée de décision} other {# entrées de décision}} après la révélation",
+      "perturbationStale": "le changement en cours a été affiché mais aucune modification n'a suivi",
+      "perturbationTitle": "Le changement d'exigence a été révélé à un instant enregistré par le serveur ; tout ce qui suit est l'adaptation observée du candidat à un énoncé modifié.",
+      "noSeed": "Aucune base concrète n'a été générée pour ce cas, l'engagement avec la base n'a donc pas pu être mesuré.",
+      "inProductSession": "session intégrée"
     }
   },
   "rubricCoverage": {

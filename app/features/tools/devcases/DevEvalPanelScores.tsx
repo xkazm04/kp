@@ -4,6 +4,7 @@
 // authenticity, per-dimension bars, strengths/concerns) — split out of
 // DevEvalPanel.tsx.
 import { Info } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { assertScore, formatFraction } from "@/app/_lib/format";
 import { ProvenanceStrip } from "./DevProvenanceStrip";
 import { ScoreBar } from "./DevScoreBar";
@@ -19,6 +20,7 @@ export function DevEvalPanelScores({
   breakdown: DimensionScore[];
   hasFindings: boolean;
 }) {
+  const t = useTranslations("devcase.processTrace");
   const e = ev.evaluation ?? {};
   const x = ev.transfer ?? {};
 
@@ -28,7 +30,13 @@ export function DevEvalPanelScores({
       <div className="mb-1 flex items-center gap-2">
         <span className="text-micro font-semibold uppercase tracking-wide text-steel">Capability scores</span>
         <span className="ml-auto text-micro uppercase text-steel">
-          transfer <b className="text-ink">{x.transferScore != null ? assertScore(x.transferScore, "transferScore") : "—"}</b> · {ev.commitCount ?? 0} commits
+          transfer <b className="text-ink">{x.transferScore != null ? assertScore(x.transferScore, "transferScore") : "—"}</b> ·{" "}
+          {/* A Live Work Surface submission has no git history BY DESIGN, so the
+              commit count is structurally 0 for it — and "0 commits" beside a score
+              reads as a finding about the candidate rather than a property of the
+              path. `tooling.signals` is emitted only by the observed path, so it is
+              the tell. */}
+          {ev.tooling?.signals ? t("inProductSession") : `${ev.commitCount ?? 0} commits`}
         </span>
       </div>
       {/* per-step provenance + the propagated decision-confidence: muted/amber chips flag steps that

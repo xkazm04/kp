@@ -105,6 +105,27 @@ Three presentation rules are enforced by those components rather than left to pr
 - The watermark **verdict** is rendered; the watermark **value** never is. Printing
   `watermark.expected` would teach a candidate exactly what to strip.
 
+### Both submission paths carry evidence
+
+The two submission paths do not produce the same telemetry, and the studio used to
+render only the git-shaped fields — so the Live Work Surface, the path the product
+considers its *strongest* evidence, displayed the least. `processTrace.cadence` and
+`seedDiff` both read repo-only fields (`signals.cadence`, `signals.changedPaths`),
+and `signals` is null for a session.
+
+| Evidence | Repo path | Live Work Surface |
+|---|---|---|
+| Cadence | Commits over N hours, "single sitting" burst flag (from the git log) | Iteration pattern + files opened/edited, from the watched event stream (`tooling.signals`, now declared on `Tooling` as `ObservedSignals`) |
+| Seed engagement | Changed paths from the commits API | Content diff of the submitted tree against the seed (`devcase-seed-diff.changedPathsFromFiles`) |
+| Mid-flight perturbation (#5) | Not applicable | Explicit strip: adapted (edits/decision entries after the reveal) or submitted against the stale brief |
+
+Absence is labelled, never left blank: a live session states that it has **no commit
+history by design** rather than leaving the gap where the commit strip sits, the
+header reads "in-product session" instead of "0 commits", and a case with no
+materialized seed says engagement could not be measured. `perturbationShown: false`
+renders nothing at all — the reveal never fired, which is no signal rather than a
+failure to adapt.
+
 The four-way canary vocabulary is pinned to the producer by
 `devcase-canary-catalog.test.ts`: it asserts set equality between
 `CANARY_STATUSES`, the statuses `artifact_checks.py` actually emits, and all four

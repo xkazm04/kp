@@ -5567,6 +5567,19 @@
       "promptsNeverPenalty": "KI-Nutzung ist nie ein Nachteil — es zählt, wie sie geführt wurde, nicht ob.",
       "promptsNotUsed": "Assistenz- und Fachbereichskanal blieben ungenutzt — kein Signal in die eine oder andere Richtung, nie ein Nachteil.",
       "briefPasteAimInterview": "Ein Prompt enthielt rund {pct} der Aufgabenstellung wörtlich — die Form einer Delegation in einem Zug. Setzen Sie das Gespräch zur Urheberschaft hier an; nie ein Punktabzug."
+    },
+    "processTrace": {
+      "iterative": "iterativ",
+      "singlePass": "in einem Durchgang",
+      "iterationTitle": "Aus dem beobachteten Ereignisstrom abgeleitet: wiederholte Änderungen je Datei (iterativ) gegenüber einem einzigen Durchgang. Arbeitsweise, kein Urteil.",
+      "filesWorked": "{opened} geöffnet, {edited} bearbeitet (beobachtet)",
+      "noCommits": "keine Commit-Historie — im Produkt gearbeitet",
+      "noCommitsTitle": "Eine Live-Arbeitssitzung erzeugt bauartbedingt kein Git-Log; Commit-Anzahl und Taktung existieren für diese Einreichung also nicht. Das ist eine Eigenschaft des Wegs, kein Befund über die Person.",
+      "perturbationAdapted": "auf die Änderung mitten im Lauf reagiert · {edits, plural, one {# Änderung} other {# Änderungen}}, {decisions, plural, one {# Entscheidungseintrag} other {# Entscheidungseinträge}} nach der Enthüllung",
+      "perturbationStale": "die Änderung wurde eingeblendet, es folgten aber keine Bearbeitungen",
+      "perturbationTitle": "Die Anforderungsänderung wurde zu einem serverseitig festgehaltenen Zeitpunkt eingeblendet; alles danach ist die beobachtete Anpassung an eine geänderte Aufgabenstellung.",
+      "noSeed": "Für diesen Fall wurde kein konkreter Seed erzeugt, die Seed-Auseinandersetzung ließ sich daher nicht messen.",
+      "inProductSession": "Sitzung im Produkt"
     }
   },
   "rubricCoverage": {
