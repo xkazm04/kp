@@ -1,5 +1,6 @@
 import type { LlmUsageInput } from "../llm-usage-ledger";
 import { openAiRealtimeModel } from "./openai.ts";
+import { isSelfHostedProvider } from "./self-hosted.ts";
 import type { VoiceProviderId } from "./types.ts";
 
 // Per-minute prices for the voice-interview providers, used to stamp a
@@ -27,6 +28,10 @@ export const VOICE_MINUTE_PRICES: Record<VoiceProviderId, number> = {
  *  meter was debited with, so the ledger estimate and the metered quantity can
  *  never disagree. */
 export function voiceMinuteCostUsd(provider: VoiceProviderId, minutes: number): number {
+  // A session served from a machine we run costs no per-minute credits. Leaving
+  // the hosted price on those rows would inflate every cost report by the exact
+  // spend that moving the workload in-house was meant to remove.
+  if (isSelfHostedProvider(provider)) return 0;
   return Math.round(VOICE_MINUTE_PRICES[provider] * minutes * 1e6) / 1e6;
 }
 

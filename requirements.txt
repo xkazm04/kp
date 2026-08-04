@@ -2,6 +2,10 @@ pypdf>=5.1.0
 # Voice eval plane (pipeline/jobfit/eval/voice): PCM resampling in tts.py imports
 # numpy at module level, and test_voice_harness pins that contract in CI.
 numpy>=1.26
+# el_ws.py — the headless realtime driver — imports this at module level, so a
+# spoken-interview eval run fails at import without it. It was previously only
+# ever present transitively.
+websockets>=12
 
 pydantic>=2.7.0
 google-genai>=1.64.0

@@ -30,7 +30,13 @@ function db(): Database.Database {
   // status: NULL = seeded/live corpus, authored JDs are 'draft' until published.
   // workspace_id: NULL = the shared reference corpus, a team's authored openings
   // carry their id.
-  for (const sql of [`ALTER TABLE jobs ADD COLUMN status TEXT`, `ALTER TABLE jobs ADD COLUMN workspace_id TEXT`]) {
+  // published_at: first flip to 'published' (see setJobStatus) — the cycle start
+  // every publish-anchored metric needs. Mirrored from core.ts on this connection.
+  for (const sql of [
+    `ALTER TABLE jobs ADD COLUMN status TEXT`,
+    `ALTER TABLE jobs ADD COLUMN workspace_id TEXT`,
+    `ALTER TABLE jobs ADD COLUMN published_at TEXT`,
+  ]) {
     try {
       d.exec(sql);
     } catch {
@@ -142,6 +148,16 @@ export function insertJob(
  *  abandoned role — the apply surface stops accepting, the catalog badges it.
  *  NULL status (seeded corpus job) remains "live". */
 export function setJobStatus(jobId: string, status: "draft" | "published" | "closed"): void {
+  // published_at is the cycle start for publish-anchored metrics, so it records
+  // when the role FIRST went live: COALESCE keeps the original stamp when a closed
+  // role is republished, and the write is a no-op for draft/closed. Without this,
+  // status says only whether a job is live now — never since when.
+  if (status === "published") {
+    db()
+      .prepare(`UPDATE jobs SET status = ?, published_at = COALESCE(published_at, ?) WHERE id = ?`)
+      .run(status, new Date().toISOString(), jobId);
+    return;
+  }
   db().prepare(`UPDATE jobs SET status = ? WHERE id = ?`).run(status, jobId);
 }
 

@@ -15,6 +15,7 @@ import {
   connectWithFailover,
   defaultInterviewerInstructions,
   getVoiceAdapter,
+  isSelfHostedVoice,
   missingVoiceEnv,
   voiceAvailability,
   type VoiceProviderId,
@@ -111,7 +112,14 @@ export async function POST(request: NextRequest) {
     // reconnectable by design) is retried manually, one click per attempt, so a
     // flaky-network session still fits; a credential-minting loop does not.
     // Tokenless lab sessions (dev-only, INTERVIEW_LAB_ENABLED-gated) pass through.
-    if (token && !rateLimit(`interview-connect:${token}`, { limit: 6, windowMs: 10 * 60_000 })) {
+    // Self-hosted voice (ELEVENLABS_BASE_URL → a loopback/private service) mints
+    // nothing billable, so the premise of the 6/10min budget — "the most
+    // expensive operation in the system" — no longer holds. The throttle is
+    // raised rather than removed: a mint loop still costs CPU on the box serving
+    // it, and an automated conversation suite legitimately reconnects far more
+    // often than a human retrying a dropped call.
+    const connectLimit = isSelfHostedVoice() ? 120 : 6;
+    if (token && !rateLimit(`interview-connect:${token}`, { limit: connectLimit, windowMs: 10 * 60_000 })) {
       return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
     }
 

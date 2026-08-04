@@ -15,6 +15,7 @@ import {
   mergeDraftAnswers,
   nextVisibleStepIndex,
 } from "@/app/_lib/apply-intake";
+import { clearApplySession, ensureApplySession, readApplySession } from "@/app/_lib/apply-session-client";
 import { TextArea } from "@/app/_components/TextArea";
 import { gapFieldCopy, type CompletenessGap } from "@/app/_lib/completeness-followup";
 import { cvAutofill } from "@/app/_lib/cv-autofill";
@@ -207,6 +208,16 @@ export function ConversationalApply({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only restore
   }, []);
 
+  // Record that this candidate STARTED an application, once per attempt — the
+  // apply funnel's denominator, which otherwise does not exist server-side (see
+  // apply-session-store.ts). Deliberately its own effect rather than folded into
+  // the draft restore above: the draft logic is safety-critical (script
+  // fingerprints, KO gates) and measurement must not be able to perturb it.
+  useEffect(() => {
+    ensureApplySession(jobId, "chat");
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only, one start per attempt
+  }, []);
+
   // Persist the draft as the conversation progresses, and clear it the moment the
   // application completes. Gated on hydration so it can't write the empty initial
   // state over a saved draft before the restore effect above has run.
@@ -218,6 +229,9 @@ export function ConversationalApply({
       } catch {
         /* best-effort */
       }
+      // Retire the attempt too: it has been filed and linked, so a later
+      // re-application to this role must count as a fresh start.
+      clearApplySession(jobId, "chat");
       return;
     }
     if (Object.keys(answers).length === 0) return; // nothing worth saving yet
@@ -227,7 +241,7 @@ export function ConversationalApply({
     } catch {
       /* quota / unavailable — best-effort */
     }
-  }, [idx, answers, msgs, done, draftStorageKey, draftFingerprint]);
+  }, [idx, answers, msgs, done, draftStorageKey, draftFingerprint, jobId]);
 
   // Move focus to the first control of a newly-rendered step so keyboard / screen-reader
   // users don't have to tab from the top of the page on every ko / choice / file step (only
@@ -278,9 +292,14 @@ export function ConversationalApply({
         // The lead token (when this is an enrichment visit) targets the merge at
         // the lead's own entry server-side; the server re-validates it and falls
         // back to email/name identity when it's absent or stale.
-        body: JSON.stringify(
-          prefill ? { answers: finalAnswers, lead: prefill.leadToken } : { answers: finalAnswers }
-        ),
+        // applySessionId links this submission back to the start row so the
+        // apply-to-pipeline rate has both halves; absent when localStorage is
+        // unavailable, in which case the attempt simply stays unlinked.
+        body: JSON.stringify({
+          answers: finalAnswers,
+          ...(prefill ? { lead: prefill.leadToken } : {}),
+          applySessionId: readApplySession(jobId, "chat"),
+        }),
       });
       const d = await res.json();
       if (res.ok) {

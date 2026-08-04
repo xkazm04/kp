@@ -1,5 +1,9 @@
 ---
 name: perfect
+contexts: tracked
+memory: vault
+category: Development
+argument-hint: "[init|propose|build|status|reflect] [context]"
 description: Session-after-session product perfection loop. The strongest available model (Fable) directs — it walks the repo's context map context-by-context, proposes challenged, high-value directions per context (features, design elevations, significant optimizations), gates each round's slate with the user, then orchestrates one Opus builder subagent per context in isolated worktrees while making every review/merge decision itself. All state lives in a linked Obsidian vault so any future session resumes the loop exactly where the last one stopped. Invoke with `/perfect [init|propose|build|status|reflect] [context-name]`.
 ---
 
@@ -216,3 +220,53 @@ per direction → status (done|blocked|decision-needed), commits, files, verific
 - **Honest ledger**: a direction only reaches `shipped` with gates green AND the Director having read the diff; anything else is `failed` with a reason. No silent drops — every accepted direction's fate is recorded.
 - **Interruptibility is a feature**: write the vault incrementally (after every context in P, after every merge in B) so a killed session resumes losslessly.
 - **The user is the product owner**: the gate is theirs; the Director challenges but never overrides a rejection, and repeated rejections of a lens/context recalibrate the queue scores.
+
+## App context coverage (Personas-managed repos)
+
+The vault is this loop's *own* memory. It is **not** the coverage instrument -
+the Personas app measures per-context memory coverage from a separate ledger,
+and a vault-only skill shows 0% there forever.
+
+This skill declares `contexts: tracked` and `memory: vault` - vault-first, but
+still mirrored through the outbox. When run inside a Personas-managed repo (a
+`.personas/` dir exists at the repo root, or the app dispatched this run),
+**append** JSON lines to `.personas/memory-outbox.jsonl` at the repo root
+(append, never rewrite) - one node per context you meaningfully worked on:
+
+```json
+{"type":"node","kind":"progress","title":"<=200 chars: what you did in this context","body":"optional detail - direction slugs, commit SHAs, verdicts","context":"<exact registered context name>","skill":"perfect"}
+```
+
+Rules that make the row actually count:
+- Always set **both** `"skill":"perfect"` and `"context":"<name>"` - together
+  they drive the per-skill context-coverage % (30-day window). A line without
+  `skill` lands as anonymous `skill:outbox` and earns this skill nothing.
+- `context` must match a context **registered in the app for this project**
+  (matched case-insensitively by name). A name the app doesn't know still
+  ingests, but anchors to nothing and is silently excluded from coverage - this
+  is the failure mode that reads as 0% with no error anywhere. Use
+  `.personas/contexts.txt` (the registered-name list, refreshed when the app
+  rescans); fall back to `context-map.json` names only when that file is absent.
+- `kind` must be one of `fact | progress | decision | gotcha | map`; use
+  `progress` for shipped work, `decision` for a direction the user rejected and
+  why, `gotcha` for a trap a future round must not re-walk, `map` when you
+  observed structure drift (it triggers the app's delta context scan).
+- Caps enforced by the ingester: <=200 lines, <=512 KB, title <=200 chars, body
+  <=4000 chars. Re-emitting an identical note refreshes its freshness instead of
+  duplicating - so a re-visited context stays covered, honestly.
+- **Append incrementally, not at the end** - one line the moment a context's
+  proposal pass closes, one more when a direction from it ships. "Before
+  finishing" loses everything when a session is killed, and these sessions do
+  get killed.
+- Skip silently when the repo isn't Personas-managed.
+
+**Who ingests it:** the app sweeps the outbox into the Memory Ledger and deletes
+the file when a *Fleet-spawned* session exits, and whenever the Skills Manager
+panel (Dev Tools -> Skills) is opened for this project. A `/perfect` run in a
+plain terminal is neither, so its lines sit on disk until the user next opens
+that panel - that is expected, not a failure. Never hand-write into the ledger
+DB; the outbox is the only door.
+
+Coverage is earned, not declared: emit a node only for a context where this
+session produced real evidence (a scout brief, a gated slate, or a merge) -
+never one per queue entry.
