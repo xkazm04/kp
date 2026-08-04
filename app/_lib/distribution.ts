@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { createPosting, createSubmission, getPosting, listOutboxFiltered, listSubmissions, type DevCaseRecord, type DevSubmission, type Posting } from "./db";
 import { sendComm } from "./comms";
+import { commsTranslator } from "./comms-translator";
 
 // Phase D4 — the distribution seam. Approved artifacts (role + case) leave the app
 // through a channel (OUT) and candidates + submissions come back (IN). The interface
@@ -95,6 +96,8 @@ export async function intakeSubmission(input: {
   repoRef: string;
   notes?: string;
   contact?: string;
+  /** The candidate's language, so the acknowledgement is written in it. */
+  locale?: string | null;
 }): Promise<{ submission: DevSubmission; isNew: boolean }> {
   // Closed-posting guard in the SHARED core, not just the public inbound route:
   // the internal /api/devcase/submit route bypassed inbound's status check and
@@ -124,11 +127,21 @@ export async function intakeSubmission(input: {
   const alreadyAcknowledged =
     listOutboxFiltered({ ref: submission.id, kind: "acknowledgement", limit: 1 }).length > 0;
   if (!alreadyAcknowledged) {
-    const role = posting.roleTitle ?? "the role";
+    // The acknowledgement goes to the CANDIDATE, so it is written in their
+    // language via the locale-pinned comms translator, not the recruiter's
+    // request locale. It was hardcoded English in all four locales.
+    const t = await commsTranslator(input.locale);
+    const role = (posting.roleTitle ?? "").trim();
     await sendComm({
       to: input.contact || input.candidateRef,
-      subject: `We received your submission — ${role}`,
-      body: `Hi ${input.candidateRef},\n\nThanks for submitting your work for ${role}. It's in our queue and will be reviewed shortly.\n\nBest,\nThe hiring team`,
+      subject: role ? t("ack.subjectRole", { role }) : t("ack.subject"),
+      body: [
+        t("ack.greeting", { name: input.candidateRef }),
+        "",
+        role ? t("ack.bodyRole", { role }) : t("ack.body"),
+        "",
+        t("ack.signoff"),
+      ].join("\n"),
       kind: "acknowledgement",
       ref: submission.id,
     });

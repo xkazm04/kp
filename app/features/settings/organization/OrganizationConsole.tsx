@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import dynamic from "next/dynamic";
+import { useTranslations } from "next-intl";
 import { toast } from "@/app/_components/toast-store";
 import { EYEBROW, INTRO, STAT, STAT_LABEL, STAT_VALUE } from "@/app/_components/ui/recipes";
 import { countActiveMembers, type AppLanguage } from "@/app/features/shared/memberUi";
@@ -36,6 +37,8 @@ export function OrganizationConsole({
   onNameChange: (v: string) => void;
   onLanguageChange: (v: AppLanguage) => void;
 }) {
+  const t = useTranslations("workspaceAdmin.org");
+  const tm = useTranslations("workspaceAdmin.members");
   const { members, invites, canManage, callerCaps, loading, error, reload } = useOrganizationMembers();
   const [editing, setEditing] = useState<{ member: OrgMemberDto; team: MemberTeam } | null>(null);
   // Destructive confirms — the shared themed Modal, not window.confirm (the one
@@ -59,29 +62,31 @@ export function OrganizationConsole({
       await reload();
       return;
     }
+    // `readError` yields the MACHINE reason (a stable `code`, else the member
+    // routes' reason word) — never display text. Compare it, render our own copy.
     const err = await readError(r);
-    toast.error(err === "last_owner" ? "The organization must keep at least one owner." : "Update failed");
+    toast.error(err === "last_owner" ? tm("lastOwner") : tm("updateFailed"));
   }
 
   async function removeMember(m: OrgMemberDto) {
     const who = m.user.name ?? m.user.email;
     const r = await fetch(`/api/org/members/${m.user.id}`, { method: "DELETE" }).catch(() => null);
     if (r && r.ok) {
-      toast.success(`Removed ${who}`);
+      toast.success(tm("removed", { name: who }));
       await reload();
     } else {
       const err = await readError(r);
-      toast.error(err === "last_owner" ? "The organization must keep at least one owner." : "Couldn't remove the member");
+      toast.error(err === "last_owner" ? tm("lastOwner") : tm("removeFailed"));
     }
   }
 
   async function revoke(token: string) {
     const r = await fetch(`/api/org/invites/${token}`, { method: "DELETE" }).catch(() => null);
     if (r && r.ok) {
-      toast.success("Invitation revoked");
+      toast.success(tm("revoked"));
       await reload();
     } else {
-      toast.error("Couldn't revoke the invite");
+      toast.error(tm("revokeFailed"));
     }
   }
 
@@ -89,9 +94,9 @@ export function OrganizationConsole({
     const url = `${window.location.origin}/invite/${token}`;
     try {
       await navigator.clipboard.writeText(url);
-      toast.success("Invite link copied");
+      toast.success(tm("linkCopied"));
     } catch {
-      toast.error("Copy failed — the link is in the console");
+      toast.error(tm("copyFailed"));
       console.log("[invite link]", url);
     }
   }
@@ -104,21 +109,21 @@ export function OrganizationConsole({
     <section className="stagger-children mx-auto max-w-6xl space-y-6" aria-busy={loading}>
       <header className="flex flex-wrap items-start justify-between gap-x-6 gap-y-4 border-b border-stone-200 pb-5">
         <div>
-          <p className={EYEBROW}>Settings</p>
-          <h1 className="mt-1 font-serif text-display text-ink">Organization</h1>
-          <p className={`mt-2 max-w-xl ${INTRO}`}>Account identity, default language, and member administration.</p>
+          <p className={EYEBROW}>{t("eyebrow")}</p>
+          <h1 className="mt-1 font-serif text-display text-ink">{t("title")}</h1>
+          <p className={`mt-2 max-w-xl ${INTRO}`}>{t("intro")}</p>
         </div>
         <div className="flex gap-2.5">
           <div className={`${STAT} min-w-[5rem] px-3 py-2`}>
-            <span className={STAT_LABEL}>Members</span>
+            <span className={STAT_LABEL}>{t("statMembers")}</span>
             <span className={`${STAT_VALUE} text-ink`}>{members.length}</span>
           </div>
           <div className={`${STAT} min-w-[5rem] px-3 py-2`}>
-            <span className={STAT_LABEL}>Active</span>
+            <span className={STAT_LABEL}>{t("statActive")}</span>
             <span className={`${STAT_VALUE} text-moss`}>{activeCount}</span>
           </div>
           <div className={`${STAT} min-w-[5rem] px-3 py-2`}>
-            <span className={STAT_LABEL}>Pending</span>
+            <span className={STAT_LABEL}>{t("statPending")}</span>
             <span className={`${STAT_VALUE} text-ink`}>{invites.length}</span>
           </div>
         </div>

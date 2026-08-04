@@ -58,6 +58,27 @@ function phaseMinutes(p: StudentScriptPhase): number {
   return Number.isFinite(n) && n > 0 ? n : 3;
 }
 
+// F5 — the localizable half of the early-career plan. It used to be `const cs =
+// lang === "cs"` branches inline, so a German or French recruiter silently got
+// the English copy; it now lives in the `scheduleTab.prep.studentPlan` catalog
+// namespace (all four locales) and arrives as a PARAMETER, keeping this module
+// pure and free of a catalog loader — which matters here because it is
+// CLIENT-BUNDLED (AboutStudentsInterviewScript, InterviewStartPanel import
+// STUDENT_SCRIPT / DEMO_CASE_SCENARIO from it). `studentPrepStrings(locale)` in
+// interview-prep-strings.ts builds one from the catalog. Same document-reader
+// rationale as RosStrings: the pack carries its own stamped language.
+export type StudentPrepStrings = {
+  /** Prefix joining a phase's goal to its listen-for line ("Listen for:"). */
+  listenFor: string;
+  signalHint: string;
+  signalQuotes: string;
+  signalHypotheses: string;
+  /** "for" in "…screen for Alex (Junior Backend)". */
+  forCandidate: string;
+  focusFallback: string;
+  scenario: (durationMin: number, who: string, focus: string) => string;
+};
+
 /** The early-career twin of buildRunOfShow: the recruiter's interview-prep plan
  *  SHAPED AS THE SIX-PHASE SCRIPT rather than a CV chronology. The CV-derived
  *  question hypotheses (the "prep" automation's output) are mapped round-robin
@@ -72,12 +93,11 @@ export function studentPrepRunOfShow(
   rawFocusAreas: string[],
   candidateLabel: string | null,
   jobTitle: string | null,
-  lang: string = "en"
+  s: StudentPrepStrings
 ): RunOfShow {
   // PREP2 — the cross-cutting signals + scenario wrapper localize; the six-phase
   // STUDENT_SCRIPT prose stays English (it is the fixed pedagogical script the
   // voice agent — which already detects cs/en — delivers, not free prose).
-  const cs = lang === "cs";
   const focusAreas = (rawFocusAreas ?? []).slice(0, 5);
   const personalPhases = STUDENT_SCRIPT.filter((p) => !p.caseGrounded);
   const capacity = personalPhases.length * PREP_QUESTIONS_PER_PERSONAL_PHASE;
@@ -97,7 +117,7 @@ export function studentPrepRunOfShow(
       fromMin: cursor,
       toMin: cursor + mins,
       topic: p.phase,
-      goal: `${p.goal} ${cs ? "Sledujte:" : "Listen for:"} ${p.listenFor}`,
+      goal: `${p.goal} ${s.listenFor} ${p.listenFor}`,
       questions: [p.probe, ...(byPhase.get(p.phase) ?? [])],
     });
     cursor += mins;
@@ -109,25 +129,11 @@ export function studentPrepRunOfShow(
     cursor = STUDENT_SCRIPT_MIN;
   }
 
-  const signals: string[] = cs
-    ? [
-        ...focusAreas,
-        "Nápověda nabídnuta ve fázi koučovatelnosti — sledováno přijetí",
-        "Doslovné citace zachyceny pro každý prvek rubriky",
-        "Hypotézy z CV prozkoumány v osobních fázích (kotva / zaseknutí / kalibrace)",
-      ]
-    : [
-        ...focusAreas,
-        "Hint offered in the coachability phase — uptake observed",
-        "Verbatim quotes captured for every rubric construct",
-        "CV hypotheses probed on the personal phases (anchor / stuck / calibration)",
-      ];
+  const signals: string[] = [...focusAreas, s.signalHint, s.signalQuotes, s.signalHypotheses];
 
-  const who = candidateLabel ? ` ${cs ? "pro" : "for"} ${candidateLabel}${jobTitle ? ` (${jobTitle})` : ""}` : jobTitle ? ` (${jobTitle})` : "";
-  const focus = focusAreas.slice(0, 3).join(", ") || (cs ? "nejsilnější projekt kandidáta" : "the candidate's strongest project");
-  const scenario = cs
-    ? `Šestifázový screening pro začínající talenty na ${cursor} minut${who}. Vede agent; fáze založené na případové studii zůstávají u sdíleného materiálu role kvůli porovnatelnosti a probe z CV jedou v osobních fázích. Ověřte ${focus} podle rubriky živě.`
-    : `A ${cursor}-minute six-phase early-career screen${who}. The agent leads; case-grounded phases stay on the role's shared material for comparability, and the CV-derived probes ride the personal phases. Validate ${focus} against the rubric live.`;
+  const who = candidateLabel ? ` ${s.forCandidate} ${candidateLabel}${jobTitle ? ` (${jobTitle})` : ""}` : jobTitle ? ` (${jobTitle})` : "";
+  const focus = focusAreas.slice(0, 3).join(", ") || s.focusFallback;
+  const scenario = s.scenario(cursor, who, focus);
 
   return { scenario, durationMin: cursor, focusAreas, chronology, signals };
 }

@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { AiDisclosure } from "@/app/_components/AiDisclosure";
-import { TextInput } from "@/app/_components/TextInput";
 import type { ApplyStep } from "@/app/_lib/apply";
 // Imported straight from the registry-free intake module (not the apply.ts
 // barrel) so the candidate-facing bundle doesn't pull in the archetype registry.
@@ -11,17 +10,20 @@ import {
   APPLY_EMAIL_RE,
   applyDraftFingerprint,
   coerceGithubHandle,
-  isRetryableApplyStatus,
   mergeDraftAnswers,
   nextVisibleStepIndex,
 } from "@/app/_lib/apply-intake";
-import { clearApplySession, ensureApplySession, readApplySession } from "@/app/_lib/apply-session-client";
-import { TextArea } from "@/app/_components/TextArea";
-import { gapFieldCopy, type CompletenessGap } from "@/app/_lib/completeness-followup";
+import { ensureApplySession } from "@/app/_lib/apply-session-client";
 import { cvAutofill } from "@/app/_lib/cv-autofill";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
-
-type Msg = { who: "bot" | "me"; text: string };
+import type { Msg } from "./apply-chat-types";
+import { ApplyDoneCard } from "./ApplyDoneCard";
+import { ApplyErrorBlock } from "./ApplyErrorBlock";
+import { ApplyFollowup } from "./ApplyFollowup";
+import { ApplyStepControls } from "./ApplyStepControls";
+import { clearApplyDraft, draftKey, useApplyDraftPersist, useApplyDraftRestore } from "./use-apply-draft";
+import { useApplyFollowup } from "./use-apply-followup";
+import { useApplySubmit } from "./use-apply-submit";
 
 // Lead-enrichment prefill (the ?lead= hand-off, resolved server-side by
 // page.tsx): the chat opens already knowing the lead instead of greeting them
@@ -36,23 +38,6 @@ export type ApplyPrefill = {
   greeting: string | null;
 };
 
-// Where in-progress answers are stashed (idea-939d96e9) so a refresh / lost
-// signal / return-later resumes mid-chat instead of restarting. Keyed by jobId
-// because a candidate may be partway through more than one role's application —
-// AND namespaced by the enrichment lead token when present, so a first-time
-// attempt's draft (keyed on jobId alone) can never be read on a later ?lead=
-// enrichment visit, whose chat runs a different, shorter (KO-trimmed) script.
-// Without this the stale first-time draft would clobber the seeded KO=true
-// answers and the server would wrongly DECLINE an already-qualified lead.
-const draftKey = (jobId: string, leadToken?: string | null) =>
-  leadToken ? `kp:apply-draft:${jobId}:${leadToken}` : `kp:apply-draft:${jobId}`;
-
-// `fp` pins the SCRIPT the draft was recorded against (applyDraftFingerprint:
-// step ids + locale). Optional in the type because drafts saved before this
-// field existed are still in candidates' browsers — they're treated as a
-// mismatch and discarded, which is the same safe path a genuine desync takes.
-type ApplyDraft = { idx: number; answers: Record<string, unknown>; msgs: Msg[]; answeredIds: string[]; fp?: string };
-
 export function ConversationalApply({
   jobId,
   steps,
@@ -65,9 +50,6 @@ export function ConversationalApply({
 
   const t = useTranslations("apply");
   const tCommon = useTranslations("common");
-  // The shared gap-question catalog (also read by the recruiter's ArchetypeBanner)
-  // — injected into the pure completeness-followup module, never imported by it.
-  const tGap = useTranslations("apply.gapFields");
   const errMsg = useErrorMessage();
   // The localStorage slot for this visit — namespaced by the enrichment lead
   // token (see draftKey) so a first-time draft and an enrichment draft for the
@@ -93,41 +75,19 @@ export function ConversationalApply({
   // seeded keys ride every advance() merge into the final POST payload.
   const [answers, setAnswers] = useState<Record<string, unknown>>(() => ({ ...(prefill?.answers ?? {}) }));
   const [input, setInput] = useState("");
-  // `duplicate` flags a repeat application (the candidate already applied to this
-  // role): the submission is still "accepted" — their first application stands —
-  // but we acknowledge it plainly rather than re-celebrating a fresh "You're in".
-  // `enriched` is the repeat that REBUILT their profile (e.g. a quick-apply lead
-  // following its enrichment link): that one celebrates — they did what we asked.
-  const [done, setDone] = useState<{
-    result: "accepted" | "declined";
-    message: string;
-    duplicate?: boolean;
-    enriched?: boolean;
-    statusToken?: string | null;
-    // The OPTIONAL post-accept profile-gap follow-up (see the block below the
-    // done card). Both fields arrive together or not at all.
-    followupToken?: string | null;
-    followupGaps?: CompletenessGap[];
-  } | null>(null);
-  // Answers to the post-accept gap questions, keyed by check id. Purely
-  // additive: the application is ALREADY FILED before this block ever renders,
-  // so every state below is a courtesy — never a blocker.
-  const [gapAnswers, setGapAnswers] = useState<Record<string, string>>({});
-  const [gapState, setGapState] = useState<"open" | "sending" | "sent" | "dismissed">("open");
-  const [gapError, setGapError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-  // A FAILED final submit — recoverable, rendered inline so the conversation and
-  // every captured answer survive a blip on the last step. The recovery ACTION
-  // depends on WHY it failed (see isRetryableApplyStatus):
-  //   - retryable (network / 5xx / 408 / 429): a "Try again" that re-POSTs the
-  //     already-collected answers — the candidate never re-walks the chat.
-  //   - not retryable (the server rejected the input — e.g. an answer too long, a
-  //     payload too large): re-POSTing the identical payload would fail the same
-  //     way forever, so the only honest path is a "Start over" that resets to the
-  //     first question in place (no full page reload).
-  // (There is no longer a fatal load-error state: the script arrives as a prop,
-  // server-built.)
-  const [submitError, setSubmitError] = useState<{ message: string; retryable: boolean } | null>(null);
+  // The final POST and its outcome — `done` (accepted / declined, plus the
+  // duplicate / enriched nuances), the in-flight flag, and the recoverable
+  // failure. See useApplySubmit for why a failure is never terminal.
+  const { done, submitting, submitError, submitApplication, retrySubmit, resetSubmit } = useApplySubmit({
+    jobId,
+    lead: prefill ? prefill.leadToken : null,
+    submitFailedMessage: t("submitFailed"),
+    networkFailedMessage: t("networkFailed"),
+    errMsg,
+  });
+  // The post-accept gap questions. Purely additive: the application is ALREADY
+  // FILED before that block ever renders, so every state there is a courtesy.
+  const followup = useApplyFollowup({ jobId, saveFailedMessage: t("followup.saveFailed") });
   // True during the 250ms hand-off between steps; locks the controls so a step
   // can't be answered before the next prompt has even rendered.
   const [transitioning, setTransitioning] = useState(false);
@@ -152,10 +112,6 @@ export function ConversationalApply({
   // Step ids already answered — the synchronous guard that makes advance()
   // idempotent even when two events fire within the same render frame.
   const answeredRef = useRef<Set<string>>(new Set());
-  // The fully-collected answers from the final step, kept so "Try again" can
-  // re-submit them directly — bypassing advance()'s answeredRef guard, which has
-  // already marked the final step answered and would otherwise block a resend.
-  const finalAnswersRef = useRef<Record<string, unknown> | null>(null);
   const stepTimer = useRef<number | null>(null);
   const stepControlsRef = useRef<HTMLDivElement | null>(null);
 
@@ -169,30 +125,16 @@ export function ConversationalApply({
     };
   }, []);
 
-  // Restore an in-progress draft once, on mount (idea-939d96e9). Client-only
-  // (localStorage), so it runs in an effect — not the initial state — to keep
-  // hydration matching the server's empty render. Guarded against corrupt/stale
-  // drafts and never restores a completed flow. `hydratedRef` then unlocks persist.
-  useEffect(() => {
-    hydratedRef.current = true;
-    try {
-      const raw = window.localStorage.getItem(draftStorageKey);
-      if (!raw) return;
-      const d = JSON.parse(raw) as ApplyDraft;
-      if (!d || typeof d.idx !== "number" || d.idx < 0 || d.idx >= steps.length) return;
-      // Script identity, not just a bounds check: `idx` and the answer keys are
-      // only meaningful against the script that recorded them. A mismatch (or a
-      // pre-fingerprint draft) is discarded outright — replaying it would put the
-      // candidate on a different question than their transcript shows and could
-      // skip a KO gate positionally, declining someone who actually qualifies.
-      if (d.fp !== draftFingerprint) {
-        window.localStorage.removeItem(draftStorageKey);
-        return;
-      }
-      if (!d.answers || typeof d.answers !== "object" || !Array.isArray(d.msgs) || d.msgs.length === 0) return;
-      if (Object.keys(d.answers).length === 0) return;
-      answeredRef.current = new Set(Array.isArray(d.answeredIds) ? d.answeredIds : []);
-      /* eslint-disable react-hooks/set-state-in-effect -- one-time hydration from localStorage (SSR-safe) */
+  // Restore an in-progress draft once, on mount (idea-939d96e9) — the storage
+  // read, the validation and the script-identity check live in useApplyDraft;
+  // what to DO with a valid draft stays here, because it is prefill policy.
+  useApplyDraftRestore({
+    draftStorageKey,
+    draftFingerprint,
+    stepCount: steps.length,
+    hydratedRef,
+    answeredRef,
+    onRestore: (d) => {
       // Reconcile the draft with the enrichment prefill: the seeded name/email +
       // passed-KO keys ALWAYS win, so a stale draft can't wipe a returning lead's
       // KO=true and make the server's strict verdict wrongly DECLINE them. With a
@@ -201,12 +143,8 @@ export function ConversationalApply({
       setMsgs(d.msgs);
       setIdx(d.idx);
       setResumed(true);
-      /* eslint-enable react-hooks/set-state-in-effect */
-    } catch {
-      /* corrupt draft — ignore and start fresh */
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only restore
-  }, []);
+    },
+  });
 
   // Record that this candidate STARTED an application, once per attempt — the
   // apply funnel's denominator, which otherwise does not exist server-side (see
@@ -218,30 +156,19 @@ export function ConversationalApply({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only, one start per attempt
   }, []);
 
-  // Persist the draft as the conversation progresses, and clear it the moment the
-  // application completes. Gated on hydration so it can't write the empty initial
-  // state over a saved draft before the restore effect above has run.
-  useEffect(() => {
-    if (!hydratedRef.current) return;
-    if (done) {
-      try {
-        window.localStorage.removeItem(draftStorageKey);
-      } catch {
-        /* best-effort */
-      }
-      // Retire the attempt too: it has been filed and linked, so a later
-      // re-application to this role must count as a fresh start.
-      clearApplySession(jobId, "chat");
-      return;
-    }
-    if (Object.keys(answers).length === 0) return; // nothing worth saving yet
-    try {
-      const draft: ApplyDraft = { idx, answers, msgs, answeredIds: [...answeredRef.current], fp: draftFingerprint };
-      window.localStorage.setItem(draftStorageKey, JSON.stringify(draft));
-    } catch {
-      /* quota / unavailable — best-effort */
-    }
-  }, [idx, answers, msgs, done, draftStorageKey, draftFingerprint, jobId]);
+  // Persist the draft as the conversation progresses, and clear it (with the
+  // attempt) the moment the application completes.
+  useApplyDraftPersist({
+    jobId,
+    draftStorageKey,
+    draftFingerprint,
+    hydratedRef,
+    answeredRef,
+    idx,
+    answers,
+    msgs,
+    done,
+  });
 
   // Move focus to the first control of a newly-rendered step so keyboard / screen-reader
   // users don't have to tab from the top of the page on every ko / choice / file step (only
@@ -275,71 +202,6 @@ export function ConversationalApply({
   // past the disabled UI (or fires within one render frame) is a no-op.
   const busy = submitting || transitioning;
 
-  // POST the completed application. Failures set `submitError` — rendered inline,
-  // recoverable — so a transient last-step blip never destroys the conversation.
-  // `finalAnswers` is remembered so "Try again" can re-POST the same payload
-  // without re-walking the chat.
-  const submitApplication = async (finalAnswers: Record<string, unknown>) => {
-    finalAnswersRef.current = finalAnswers;
-    // Don't clear submitError up front: on a retry that keeps the inline error
-    // block (now showing "Sending…") in place instead of flashing the answered
-    // step's disabled controls. A success swaps in `done`; a failure overwrites it.
-    setSubmitting(true);
-    try {
-      const res = await fetch(`/api/apply/${jobId}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        // The lead token (when this is an enrichment visit) targets the merge at
-        // the lead's own entry server-side; the server re-validates it and falls
-        // back to email/name identity when it's absent or stale.
-        // applySessionId links this submission back to the start row so the
-        // apply-to-pipeline rate has both halves; absent when localStorage is
-        // unavailable, in which case the attempt simply stays unlinked.
-        body: JSON.stringify({
-          answers: finalAnswers,
-          ...(prefill ? { lead: prefill.leadToken } : {}),
-          applySessionId: readApplySession(jobId, "chat"),
-        }),
-      });
-      const d = await res.json();
-      if (res.ok) {
-        setDone({
-          result: d.result,
-          message: d.message,
-          duplicate: Boolean(d.duplicate),
-          enriched: Boolean(d.enriched),
-          statusToken: d.statusToken ?? null,
-          followupToken: typeof d.followupToken === "string" ? d.followupToken : null,
-          followupGaps: Array.isArray(d.followupGaps) ? (d.followupGaps as CompletenessGap[]) : undefined,
-        });
-      } else {
-        // The server rejected the submit. isRetryableApplyStatus decides whether a
-        // re-POST of the same answers could succeed (5xx / transient) or is futile
-        // (4xx — the input itself was rejected), which selects Try-again vs Start-over.
-        setSubmitError({
-          message: errMsg(d, t("submitFailed")),
-          retryable: isRetryableApplyStatus(res.status),
-        });
-      }
-    } catch {
-      // No HTTP response at all (offline / network blip) — always retryable.
-      setSubmitError({
-        message: t("networkFailed"),
-        retryable: true,
-      });
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  // Re-POST the already-collected final answers after a RETRYABLE failure. Goes
-  // straight to submitApplication (not advance), since the final step is already
-  // in answeredRef and advance() would no-op.
-  const retrySubmit = () => {
-    if (submitting || !finalAnswersRef.current) return;
-    submitApplication(finalAnswersRef.current);
-  };
-
   // Reset the conversation to its first question, in place, after a NON-retryable
   // failure OR after a DECLINE — the server rejected the captured input (or the
   // candidate mis-tapped a knockout answer), so resending it can't help.
@@ -351,54 +213,17 @@ export function ConversationalApply({
   const restartConversation = () => {
     if (submitting) return;
     answeredRef.current = new Set();
-    finalAnswersRef.current = null;
-    try {
-      window.localStorage.removeItem(draftStorageKey);
-    } catch {
-      /* best-effort */
-    }
+    clearApplyDraft(draftStorageKey);
     setResumed(false);
-    setSubmitError(null);
-    setGapAnswers({});
-    setGapState("open");
-    setGapError(null);
-    // Also clears a DECLINED outcome: the decline done-screen offers this same
-    // control, so a mis-tapped knockout on the last step isn't terminal.
-    setDone(null);
+    // Drops the remembered final answers, the inline submit error, and — since
+    // the decline done-screen offers this same control — a DECLINED outcome, so
+    // a mis-tapped knockout on the last step isn't terminal.
+    resetSubmit();
+    followup.resetGaps();
     setAnswers({ ...(prefill?.answers ?? {}) });
     setInput("");
     setIdx(0);
     setMsgs(initialMsgs());
-  };
-
-  // Post the answered gap questions. Runs AFTER the application is filed, so every
-  // failure mode is cosmetic: a network blip leaves an inline note and the answers
-  // in the boxes, and closing the tab costs the candidate nothing they had.
-  const submitGapAnswers = async () => {
-    if (gapState === "sending" || !done?.followupToken) return;
-    const filled = Object.fromEntries(
-      Object.entries(gapAnswers).filter(([, v]) => v.trim() !== "")
-    );
-    if (Object.keys(filled).length === 0) {
-      setGapState("dismissed");
-      return;
-    }
-    setGapState("sending");
-    setGapError(null);
-    try {
-      const res = await fetch(`/api/apply/${jobId}/followup`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        // The capability token, not the entry id — the server re-resolves it and
-        // requires the entry to belong to this job.
-        body: JSON.stringify({ lead: done.followupToken, answers: filled }),
-      });
-      if (!res.ok) throw new Error(String(res.status));
-      setGapState("sent");
-    } catch {
-      setGapState("open");
-      setGapError(t("followup.saveFailed"));
-    }
   };
 
   const advance = async (stepId: string, newAnswers: Record<string, unknown>, label: string) => {
@@ -537,274 +362,51 @@ export function ConversationalApply({
             </span>
           </div>
         ))}
-        {done ? (
-          // A fresh acceptance celebrates (moss), and so does an enriching
-          // repeat (their profile just got completed); a plain repeat and a
-          // decline both render neutrally — a repeat isn't a new win, and a
-          // decline shouldn't read as one.
-          <div className={`rounded-lg border p-4 ${done.result === "accepted" && (!done.duplicate || done.enriched) ? "border-moss/40 bg-moss/5" : "border-stone-200 bg-paper"}`}>
-            <p className={`font-serif text-h3 ${done.result === "accepted" && (!done.duplicate || done.enriched) ? "text-moss" : "text-ink"}`}>
-              {done.result === "accepted"
-                ? done.enriched
-                  ? t("profileCompleted")
-                  : done.duplicate
-                    ? t("alreadyApplied")
-                    : t("youreIn")
-                : t("thanksApplying")}
-            </p>
-            <p className="mt-1 text-base text-steel">{done.message}</p>
-            {/* idea-e76a6fb2 — a tokenized link so the applicant can track their
-                status instead of going dark after applying. */}
-            {done.result === "accepted" && done.statusToken ? (
-              <a
-                href={`/status/${done.statusToken}`}
-                className="focus-ring mt-3 inline-flex items-center gap-1.5 rounded-md border border-stone-300 bg-white px-3 py-1.5 text-base font-semibold text-ink hover:border-coral/50"
-              >
-                {t("trackStatus")}
-              </a>
-            ) : null}
-            {/* A decline used to be UNRECOVERABLE: `done` is set, the step
-                controls unmount, and the persist effect has already deleted the
-                draft — so a candidate who mis-tapped "No" on the last question
-                of an 8–11 step chat had no way back except finding the URL
-                again. Same start-over machinery the non-retryable submit
-                failure uses; the note is honest that the answers are gone. */}
-            {done.result === "declined" ? (
-              <div className="mt-4">
-                <button
-                  type="button"
-                  onClick={restartConversation}
-                  className="focus-ring rounded-md bg-ink px-4 py-2 text-base font-semibold text-white hover:bg-steel"
-                >
-                  {t("startOver")}
-                </button>
-                <p className="mt-1.5 text-sm text-steel">{t("declinedRestartNote")}</p>
-              </div>
-            ) : null}
-          </div>
-        ) : null}
+        {done ? <ApplyDoneCard done={done} onRestart={restartConversation} /> : null}
         <div ref={endRef} />
       </div>
 
-      {/* The post-accept profile-gap follow-up. profile_cli reports which archetype
-          checklist items a built profile still misses on EVERY apply; the recruiter
-          could always fill them in, but the one person who knows the answers — the
-          candidate, standing right here — was never asked. Strictly optional and
-          strictly after the fact: the application is filed, the "You're in" card is
-          already above this, and Skip/close costs nothing. */}
-      {done && done.result === "accepted" && done.followupToken && (done.followupGaps?.length ?? 0) > 0 && gapState !== "dismissed" ? (
-        <div className="mt-4 rounded-lg border border-stone-200 bg-paper p-4">
-          {gapState === "sent" ? (
-            <p role="status" className="text-base text-steel">
-              {t("followup.thanks")}
-            </p>
-          ) : (
-            <>
-              <p className="font-serif text-h3 text-ink">{t("followup.title")}</p>
-              <p className="mt-1 text-sm text-steel">{t("followup.subtitle")}</p>
-              <div className="mt-3 space-y-3">
-                {(done.followupGaps ?? []).map((gap) => {
-                  const field = gapFieldCopy(gap.check, tGap);
-                  // An unknown/new checklist id has no question here — the server
-                  // already filters, this is the belt-and-braces half.
-                  if (!field) return null;
-                  const shared = {
-                    value: gapAnswers[gap.check] ?? "",
-                    onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
-                      setGapAnswers((a) => ({ ...a, [gap.check]: e.target.value })),
-                    placeholder: field.placeholder,
-                    disabled: gapState === "sending",
-                  };
-                  return (
-                    <label key={gap.check} className="block text-base text-ink">
-                      <span className="text-steel">{field.prompt}</span>
-                      {field.multiline ? (
-                        <TextArea {...shared} rows={2} className="mt-1" />
-                      ) : (
-                        <TextInput {...shared} className="mt-1" />
-                      )}
-                    </label>
-                  );
-                })}
-              </div>
-              {gapError ? (
-                <p role="alert" className="mt-2 text-sm text-coral">
-                  {gapError}
-                </p>
-              ) : null}
-              <div className="mt-3 flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  disabled={gapState === "sending"}
-                  onClick={submitGapAnswers}
-                  className="focus-ring rounded-md bg-ink px-4 py-2 text-base font-semibold text-white hover:bg-steel disabled:opacity-50"
-                >
-                  {gapState === "sending" ? t("sending") : t("followup.submit")}
-                </button>
-                {/* The escape hatch, always available and never destructive. */}
-                <button
-                  type="button"
-                  disabled={gapState === "sending"}
-                  onClick={() => setGapState("dismissed")}
-                  className="focus-ring rounded-md px-3 py-2 text-base font-semibold text-steel hover:text-ink disabled:opacity-50"
-                >
-                  {t("followup.skip")}
-                </button>
-              </div>
-            </>
-          )}
-        </div>
+      {done && done.result === "accepted" && done.followupToken && (done.followupGaps?.length ?? 0) > 0 && followup.gapState !== "dismissed" ? (
+        <ApplyFollowup
+          gaps={done.followupGaps ?? []}
+          answers={followup.gapAnswers}
+          state={followup.gapState}
+          error={followup.gapError}
+          onAnswer={followup.setGapAnswer}
+          onSubmit={() => void followup.submitGapAnswers(done.followupToken)}
+          onDismiss={followup.dismissGaps}
+        />
       ) : null}
 
       {!done && submitError ? (
-        // A failed final submit. The conversation and every captured answer above
-        // stay intact; the recovery action matches WHY it failed (see the
-        // submitError contract above): a transient blip re-POSTs the same answers,
-        // while a server-rejected input restarts so the candidate can fix it.
-        <div role="alert" className="mt-4 rounded-lg border border-coral/40 bg-coral/5 p-4">
-          <p className="text-base text-coral">{submitError.message}</p>
-          {submitError.retryable ? (
-            <button
-              type="button"
-              disabled={submitting}
-              onClick={retrySubmit}
-              className="focus-ring mt-3 rounded-md bg-ink px-4 py-2 text-base font-semibold text-white hover:bg-steel disabled:opacity-50"
-            >
-              {submitting ? t("sending") : tCommon("retry")}
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={restartConversation}
-              className="focus-ring mt-3 rounded-md bg-ink px-4 py-2 text-base font-semibold text-white hover:bg-steel"
-            >
-              {t("startOver")}
-            </button>
-          )}
-        </div>
+        <ApplyErrorBlock
+          error={submitError}
+          submitting={submitting}
+          onRetry={retrySubmit}
+          onRestart={restartConversation}
+        />
       ) : null}
 
       {!done && cur && !submitError ? (
-        <div className="mt-4" ref={stepControlsRef}>
-          {cur.type === "ko" ? (
-            <div className="flex gap-2">
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => submitKo(true)}
-                // NEUTRAL hover, deliberately the same coral affordance as No (and
-                // as the choice/quick-form buttons). Yes used to glow moss —
-                // the success tone — which on a KNOCKOUT question told the
-                // candidate which answer "passes" the eligibility gate before
-                // they answered it. moss stays reserved for OUTCOMES (the
-                // "You're in" card), never for steering an answer.
-                className="focus-ring rounded-md border border-stone-200 bg-white px-5 py-2 text-base font-semibold text-ink hover:border-coral/50 disabled:opacity-50"
-              >
-                {tCommon("yes")}
-              </button>
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => submitKo(false)}
-                className="focus-ring rounded-md border border-stone-200 bg-white px-5 py-2 text-base font-semibold text-ink hover:border-coral/50 disabled:opacity-50"
-              >
-                {tCommon("no")}
-              </button>
-            </div>
-          ) : cur.type === "choice" ? (
-            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-              {(cur.options ?? []).map((opt) => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  disabled={busy}
-                  onClick={() => submitChoice(opt.value, opt.label)}
-                  className="focus-ring rounded-md border border-stone-200 bg-white px-4 py-2 text-left text-base font-semibold text-ink hover:border-coral/50 disabled:opacity-50"
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-          ) : cur.type === "file" ? (
-            <div className="flex flex-col gap-2">
-              <div className="flex flex-wrap items-center gap-2">
-                <label
-                  className={`focus-ring inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-stone-200 bg-white px-4 py-2 text-base font-semibold text-ink hover:border-coral/50 ${
-                    busy || uploading ? "pointer-events-none opacity-50" : ""
-                  }`}
-                >
-                  {uploading ? t("reading") : t("attachCv")}
-                  <input
-                    type="file"
-                    accept=".pdf,.docx,.doc,.txt,.md,application/pdf"
-                    disabled={busy || uploading}
-                    onChange={(e) => {
-                      const f = e.target.files?.[0];
-                      e.currentTarget.value = ""; // allow re-picking the same file after an error
-                      if (f) void uploadCv(f);
-                    }}
-                    className="sr-only"
-                  />
-                </label>
-                <button
-                  type="button"
-                  disabled={busy || uploading}
-                  onClick={skipStep}
-                  className="focus-ring rounded-md px-3 py-2 text-base font-semibold text-steel hover:text-ink disabled:opacity-50"
-                >
-                  {t("skip")}
-                </button>
-              </div>
-              {uploadErr ? <p role="alert" className="text-sm text-coral">{uploadErr}</p> : null}
-            </div>
-          ) : (
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                submitText();
-              }}
-              className="flex gap-2"
-            >
-              <TextInput
-                autoFocus
-                value={input}
-                onChange={(e) => {
-                  setInput(e.target.value);
-                  if (stepError) setStepError(null);
-                }}
-                placeholder={cur.placeholder}
-                disabled={busy}
-                invalid={Boolean(stepError)}
-                className="h-11 flex-1"
-              />
-              <button
-                type="submit"
-                disabled={!input.trim() || busy}
-                className="focus-ring rounded-md bg-ink px-4 text-base font-semibold text-white hover:bg-steel disabled:opacity-50"
-              >
-                {t("send")}
-              </button>
-              {cur.optional ? (
-                // Same skip affordance as the file step — an optional text step
-                // (the GitHub handle) must never gate the application.
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={skipStep}
-                  className="focus-ring rounded-md px-3 py-2 text-base font-semibold text-steel hover:text-ink disabled:opacity-50"
-                >
-                  {t("skip")}
-                </button>
-              ) : null}
-            </form>
-          )}
-          {/* idea-cddec0bf — flag a value pre-filled from the CV so the candidate
-              knows to check it rather than assuming they typed it. */}
-          {cur && cur.type === "text" && cvDefaults[cur.id] && !stepError ? (
-            <p className="mt-1.5 text-sm text-steel">{t("prefilledHint")}</p>
-          ) : null}
-          {stepError ? <p role="alert" className="mt-1.5 text-sm text-coral">{stepError}</p> : null}
-        </div>
+        <ApplyStepControls
+          step={cur}
+          controlsRef={stepControlsRef}
+          busy={busy}
+          uploading={uploading}
+          uploadErr={uploadErr}
+          input={input}
+          stepError={stepError}
+          cvPrefilled={Boolean(cvDefaults[cur.id])}
+          onInputChange={(value) => {
+            setInput(value);
+            if (stepError) setStepError(null);
+          }}
+          onSubmitText={submitText}
+          onKo={submitKo}
+          onChoice={submitChoice}
+          onUpload={(f) => void uploadCv(f)}
+          onSkip={skipStep}
+        />
       ) : null}
 
       <AiDisclosure className="mt-6" showDataConsent />

@@ -22,7 +22,8 @@ type ProgressStatus = Parameters<typeof applyStageEvent>[2];
 // no user-safe English, so it degrades to the caller's stable fallback code —
 // never leaking an internal message into the toast.
 function toErrorInfo(caught: unknown, fallback: AnalyzeErrorCode): AnalyzeErrorInfo {
-  if (caught instanceof AnalyzeClientError) return { code: caught.code, serverText: caught.serverText };
+  if (caught instanceof AnalyzeClientError)
+    return { code: caught.code, apiCode: caught.apiCode, serverText: caught.serverText };
   return { code: fallback };
 }
 
@@ -161,13 +162,14 @@ export async function executeGithubAnalysis(
       body: JSON.stringify({ profile, jobDescriptionText }),
     });
     const payload = await response.json();
-    // Treat any { error } payload as a soft failure — the GitHub deep-dive
-    // is optional and the route returns 200 + { error } to keep the browser
-    // console clean when GitHub rate-limits us.
-    if (payload && typeof payload === "object" && typeof payload.error === "string") {
-      // Server-owned English (e.g. "GitHub rate-limited us") — carried as the
-      // preferred verbatim text alongside the localized fallback code.
-      throw new AnalyzeClientError("errGithubFailed", payload.error);
+    // Treat any payload carrying `error` as a soft failure — the GitHub deep-dive
+    // is optional and the route returns 200 + { error, code } to keep the browser
+    // console clean when GitHub rate-limits us, so the field's presence (not the
+    // HTTP status) is the discriminator.
+    if (payload && typeof payload === "object" && "error" in payload) {
+      // The route's machine code (results.github.errors.*) is what the surface
+      // shows; the English `error` rides along only as the log-side detail.
+      throw new AnalyzeClientError("errGithubFailed", undefined, payload.code);
     }
     if (!response.ok) throw new AnalyzeClientError("errGithubFailed");
     callbacks.onResult(githubAnalysisSchema.parse(payload));

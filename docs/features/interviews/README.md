@@ -34,7 +34,11 @@ voice service — see [Self-hosted voice](#self-hosted-voice)).
    ElevenLabs prompt override. A tokenless/lab connect gets no brief and the
    ElevenLabs dashboard-configured agent prompt runs instead.
 3. **Live call.** `app/_components/voice/VoiceInterview.tsx` (+
-   `VoiceInterviewClient.tsx`, `InterviewSidebar.tsx`) drives either adapter,
+   `VoiceInterviewClient.tsx`, `InterviewSidebar.tsx`) drives either adapter —
+   the two realtime transports live side by side under
+   `app/_components/voice/transport/` (`openai.ts` raw WebRTC, `elevenlabs.ts`
+   the SDK hook) while the component keeps the shared shell (phase, consent,
+   transcript, finalize). It
    sends `overrides.agent.language` (candidate locale) to ElevenLabs so the
    agent doesn't default to its Czech dashboard language, shows a live
    speaking/listening indicator for both providers, recovers from a
@@ -74,7 +78,13 @@ voice service — see [Self-hosted voice](#self-hosted-voice)).
 | `app/_lib/interview-prep-run.ts` | Builds the prep pack (run-of-show + checklist) and stamps its provenance |
 | `app/_components/RubricCoverageNote.tsx` | The shared rubric-coverage disclosure, rendered by the prep pack header and the human scorecard form |
 | `app/_lib/interview-reminders.ts`, `interview-reminder-policy.ts` | Scheduling reminders |
-| `app/_components/voice/VoiceInterview.tsx` | The live-call UI |
+| `app/_components/voice/VoiceInterview.tsx` | The live-call shell — phase, consent, finalize/beacon, and the call controls |
+| `app/_components/voice/transport/openai.ts` | OpenAI Realtime over raw WebRTC: connection setup, the H3 speaking meter, the H4 drop debounce, teardown, and the transcript-buffer half of the wire protocol |
+| `app/_components/voice/transport/elevenlabs.ts` | The `@elevenlabs/react` SDK path: `useConversation` wiring and the agent prompt/language overrides |
+| `app/_components/voice/useTranscriptPersistence.ts` | POST-with-retries to `/api/interview/complete`, the sessionStorage stash, and the online/visibility re-drive |
+| `app/_components/voice/useMicTest.ts` | The pre-call mic test (stream, analyser, level, verdict) |
+| `app/_components/voice/micErrorText.ts` | getUserMedia failure → actionable recovery copy |
+| `app/_components/voice/VoiceSettings.tsx`, `MicTestPanel.tsx`, `VoiceLiveControls.tsx`, `VoiceStatusPill.tsx`, `VoiceTranscript.tsx` | The view's leaf components (lab-only pickers, mic-test panel, live-call controls, status pill, transcript log) |
 
 ## Data model
 
@@ -112,6 +122,31 @@ training recruiters to ignore it on `no_family`, where it genuinely matters. The
 silence is structural, not a UI branch: `RUBRIC_COVERAGE_DISCLOSED_GAPS` drives
 both the component's `isDisclosedGap` gate and the message catalog, so a silent
 gap has no string it could render.
+
+### The rubric and the prep pack in four languages
+
+The rubric's **display** strings (competency labels, descriptions, the BARS
+anchors, the 1–5 scale) live in the `rubric` message namespace; the canonical
+English `competency` stays the scoring/storage key that every POST carries, so
+localizing display cannot touch the scoring contract. `interview-rubric.ts` keeps
+only the pure resolution (`localizedRubric`, `rubricLabel`, `rubricAnchorLine`,
+…), taking a catalog lookup that client components build with
+`useRubricStrings()`; an axis with no catalog entry — an LLM-emitted competency
+outside the fixed rubric — degrades to its canonical name, and a half-translated
+BARS ladder falls back whole rather than mixing languages.
+`interview-rubric-catalog.test.ts` pins every locale to exactly the competencies
+`interview-rubrics.json` defines, and pins the English catalog to the JSON
+verbatim so the duplicate never becomes a second source of truth.
+
+The **prep pack** sits on the other side of that line: it is generated in a
+detached task that cannot read the request cookie, so the recruiter's locale
+rides in on the task params and is stamped on the stored payload (`lang`).
+`buildRunOfShow` / `studentPrepRunOfShow` stay pure and receive their copy as a
+parameter from `interview-prep-strings.ts`, which loads
+`scheduleTab.prep.plan` / `.studentPlan` through the locale-pinned translator —
+see [`docs/architecture/localization.md`](../../architecture/localization.md).
+Both surfaces previously carried en+cs tables, so a German or French recruiter
+read English with no signal that anything was missing.
 
 The disclosure renders in **both** places a recruiter meets the rubric — the prep
 pack header (`ScheduleInterviewPrepHeader`) and the human scorecard form

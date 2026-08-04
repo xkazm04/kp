@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { Modal } from "@/app/_components/Modal";
 import { toast } from "@/app/_components/toast-store";
 import { BTN_GHOST, BTN_PRIMARY } from "@/app/_components/ui/recipes";
 import { roleCapabilities, type Capability } from "@/app/_lib/auth/roles";
-import { CAPABILITY_META, roleLabel } from "@/app/features/shared/memberUi";
+import { capabilityMeta, roleLabel } from "@/app/features/shared/memberUi";
 import type { MemberTeam, OrgMemberDto } from "./useOrganizationMembers";
 
 // Per-user permission editor. Toggles the OVERRIDABLE capabilities on top of the
@@ -25,6 +26,8 @@ export function MemberPermissionsModal({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const t = useTranslations("workspaceAdmin.permissions");
+  const tm = useTranslations("workspaceAdmin.members");
   const roleDefaults = roleCapabilities(team.role);
   const actorCaps = new Set(callerCaps);
   const [desired, setDesired] = useState<Set<Capability>>(() => new Set(team.capabilities));
@@ -49,33 +52,33 @@ export function MemberPermissionsModal({
     }).catch(() => null);
     setSaving(false);
     if (r && r.ok) {
-      toast.success("Permissions updated");
+      toast.success(t("updated"));
       onSaved();
       onClose();
     } else {
-      toast.error("Couldn't update permissions");
+      toast.error(t("updateFailed"));
     }
   }
 
   return (
     <Modal
-      title={`Permissions — ${name}`}
-      subtitle={`${roleLabel(team.role)} · overrides layer on top of the role defaults`}
+      title={t("title", { name })}
+      subtitle={t("subtitle", { role: roleLabel(team.role, tm) })}
       size="lg"
       onClose={onClose}
       footer={
         <>
           <button type="button" onClick={onClose} className={`${BTN_GHOST} h-9 px-3`}>
-            Cancel
+            {t("cancel")}
           </button>
           <button type="button" onClick={save} disabled={saving} className={`${BTN_PRIMARY} h-9 px-4`}>
-            {saving ? "Saving…" : "Save changes"}
+            {saving ? t("saving") : t("save")}
           </button>
         </>
       }
     >
       <ul className="space-y-2">
-        {CAPABILITY_META.map(({ cap, label, desc }) => {
+        {capabilityMeta(t).map(({ cap, label, desc }) => {
           const on = desired.has(cap);
           const isDefault = roleDefaults.has(cap);
           const canToggle = actorCaps.has(cap);
@@ -86,7 +89,7 @@ export function MemberPermissionsModal({
                   {label}
                   {on !== isDefault ? (
                     <span className="rounded-full bg-coral/10 px-1.5 py-0.5 text-[11px] font-semibold text-coral">
-                      {on ? "granted" : "revoked"}
+                      {on ? t("granted") : t("revoked")}
                     </span>
                   ) : null}
                 </p>
@@ -98,7 +101,7 @@ export function MemberPermissionsModal({
                 aria-checked={on}
                 aria-label={label}
                 disabled={!canToggle}
-                title={canToggle ? undefined : "You can only change permissions you hold yourself"}
+                title={canToggle ? undefined : t("lockedTitle")}
                 onClick={() => toggle(cap)}
                 className={`focus-ring relative mt-0.5 h-5 w-9 shrink-0 rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
                   on ? "bg-coral" : "bg-stone-300"
@@ -113,10 +116,7 @@ export function MemberPermissionsModal({
           );
         })}
       </ul>
-      <p className="mt-3 text-xs text-steel">
-        Highlighted rows differ from the {roleLabel(team.role)} default. A recruiter granted “Manage members” becomes a Writer who can
-        invite others.
-      </p>
+      <p className="mt-3 text-xs text-steel">{t("footnote", { role: roleLabel(team.role, tm) })}</p>
     </Modal>
   );
 }

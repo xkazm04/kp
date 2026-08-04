@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Briefcase, Copy, ExternalLink, Loader2, Pencil, Sparkles } from "lucide-react";
+import { useLocale } from "next-intl";
 import type { useTranslations } from "next-intl";
 import { META_LABEL } from "@/app/_components/ui/recipes";
 import { isUnlinked, shortDate, type JdRow } from "./jdsLibrary";
@@ -35,6 +36,8 @@ export function JdsLedgerDetailRail({
   ing: ReturnType<typeof useIngestJob>;
   t: ReturnType<typeof useTranslations<"library.tab">>;
 }) {
+  // The saved-on stamp follows the APP locale, not the browser/OS one (see shortDate).
+  const locale = useLocale();
   return (
     <aside className="space-y-4">
       <div className="space-y-2">
@@ -52,7 +55,7 @@ export function JdsLedgerDetailRail({
         </div>
         <div className="rounded-lg border border-stone-200 bg-white px-3 py-2 shadow-pop">
           <p className={META_LABEL}>{t("colSaved")}</p>
-          <p className="mt-1 text-sm font-semibold text-ink">{shortDate(row.created_at)}</p>
+          <p className="mt-1 text-sm font-semibold text-ink">{shortDate(row.created_at, locale)}</p>
         </div>
       </div>
       <div className="space-y-2 border-t border-stone-200 pt-4">

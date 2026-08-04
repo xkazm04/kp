@@ -1,7 +1,9 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { tasksSignature } from "@/app/_lib/task-view";
+import { resolveErrorMessage, type ApiErrorPayload } from "@/app/_lib/use-error-message";
 import { ACTIVE, type Task, type TaskStartError, type TasksCtx } from "./tasksProviderTypes";
 
 export type { Task, TaskStatus, TaskStartError } from "./tasksProviderTypes";
@@ -19,6 +21,22 @@ export function useTasks(): TasksCtx {
 }
 
 export function TasksProvider({ children }: { children: React.ReactNode }) {
+  // `startError.message` is rendered verbatim by TasksIndicator/TasksTab, so the
+  // route's English `error` must never become that message: resolve the machine
+  // `code` and fall back to this namespace's own copy (app/_lib/use-error-message.ts).
+  // The pure resolveErrorMessage rather than useErrorMessage() because the hook
+  // returns a FRESH closure each render — in deps it would destabilize the
+  // memoized callbacks below (and with them the context value, whose whole point
+  // is not to re-render every consumer on each poll tick). `t` is stable.
+  const t = useTranslations("tasks");
+  const tErrors = useTranslations("errors");
+  const errMsg = useCallback(
+    (payload: ApiErrorPayload, fallback: string) => {
+      type ErrorKey = Parameters<typeof tErrors>[0];
+      return resolveErrorMessage(payload, fallback, (c) => tErrors.has(c as ErrorKey), (c) => tErrors(c as ErrorKey));
+    },
+    [tErrors]
+  );
   const [tasks, setTasks] = useState<Task[]>([]);
   const [startError, setStartError] = useState<TaskStartError | null>(null);
 
@@ -48,53 +66,53 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ kind, params }),
         });
-        const p = (await r.json().catch(() => ({}))) as { task?: Task; error?: string };
-        if (!r.ok) throw new Error(p.error || `Request failed (${r.status})`);
+        const p = (await r.json().catch(() => ({}))) as { task?: Task; error?: string; code?: string };
+        if (!r.ok) throw new Error(errMsg(p, t("startErrorTitle")));
         setStartError(null);
         void refresh();
         return p.task as Task;
       } catch (e) {
         // Don't swallow it: a 400 (unknown kind), a 500, or a dropped network call
         // would otherwise make the click a silent no-op. Surface it via the indicator.
-        setStartError({ kind, message: e instanceof Error && e.message ? e.message : "Couldn't reach the server." });
+        setStartError({ kind, message: e instanceof Error && e.message ? e.message : t("unreachable") });
         return null;
       }
     },
-    [refresh]
+    [refresh, t, errMsg]
   );
 
   const cancelTask = useCallback(
     async (id: string) => {
       try {
         const r = await fetch(`/api/tasks/${id}`, { method: "DELETE" });
-        const p = (await r.json().catch(() => ({}))) as { error?: string };
-        if (!r.ok) throw new Error(p.error || `Request failed (${r.status})`);
+        const p = (await r.json().catch(() => ({}))) as { error?: string; code?: string };
+        if (!r.ok) throw new Error(errMsg(p, t("cancelErrorTitle")));
         void refresh();
       } catch (e) {
         // Same contract as startTask: a dead Cancel must never be silent — the
         // task keeps running and the user would conclude the button is broken.
-        setStartError({ kind: "cancel", message: e instanceof Error && e.message ? e.message : "Couldn't reach the server." });
+        setStartError({ kind: "cancel", message: e instanceof Error && e.message ? e.message : t("unreachable") });
       }
     },
-    [refresh]
+    [refresh, t, errMsg]
   );
 
   const retryTask = useCallback(
     async (id: string) => {
       try {
         const r = await fetch(`/api/tasks/${id}/retry`, { method: "POST" });
-        const p = (await r.json().catch(() => ({}))) as { task?: Task; error?: string };
-        if (!r.ok) throw new Error(p.error || `Request failed (${r.status})`);
+        const p = (await r.json().catch(() => ({}))) as { task?: Task; error?: string; code?: string };
+        if (!r.ok) throw new Error(errMsg(p, t("startErrorTitle")));
         setStartError(null);
         void refresh();
         return p.task ?? null;
       } catch (e) {
         // Same contract as startTask: a dead retry click must never be silent.
-        setStartError({ kind: "retry", message: e instanceof Error && e.message ? e.message : "Couldn't reach the server." });
+        setStartError({ kind: "retry", message: e instanceof Error && e.message ? e.message : t("unreachable") });
         return null;
       }
     },
-    [refresh]
+    [refresh, t, errMsg]
   );
 
   // On-demand fetch of a single full task — the only path to a task's result/params,

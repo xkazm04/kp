@@ -3,7 +3,8 @@
 // cap. Verbatim behaviour — aborts the in-flight request on every keystroke and on
 // close, so a slow earlier response can't clobber a newer result set.
 import { useCallback, useEffect, useState } from "react";
-import type { useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
+import { resolveErrorMessage, type ApiErrorPayload } from "@/app/_lib/use-error-message";
 import { DEBOUNCE_MS, type SearchHit } from "./workspaceCommandPaletteTypes";
 
 export function useWorkspaceCommandPaletteSearch(
@@ -11,6 +12,19 @@ export function useWorkspaceCommandPaletteSearch(
   query: string,
   t: ReturnType<typeof useTranslations>
 ) {
+  // Search failures resolve from the machine `code`, never the server's English
+  // `error` — see app/_lib/use-error-message.ts. The pure resolveErrorMessage
+  // rather than useErrorMessage(), because the hook hands back a FRESH closure each
+  // render and this resolver is a dependency of the debounced effect below: an
+  // unstable one would restart the debounce on every render. `t` is stable.
+  const tErrors = useTranslations("errors");
+  const errMsg = useCallback(
+    (payload: ApiErrorPayload | null, fallback: string) => {
+      type ErrorKey = Parameters<typeof tErrors>[0];
+      return resolveErrorMessage(payload, fallback, (c) => tErrors.has(c as ErrorKey), (c) => tErrors(c as ErrorKey));
+    },
+    [tErrors]
+  );
   const [hits, setHits] = useState<SearchHit[]>([]);
   const [error, setError] = useState<string | null>(null);
   // #4 — in-flight flag for the debounced search, so a prior query's hits don't
@@ -41,11 +55,11 @@ export function useWorkspaceCommandPaletteSearch(
     const timer = setTimeout(() => {
       fetch(`/api/search?q=${encodeURIComponent(q)}`, { signal: controller.signal })
         .then(async (r) => {
-          const body = (await r.json().catch(() => null)) as { results?: SearchHit[]; error?: string } | null;
+          const body = (await r.json().catch(() => null)) as { results?: SearchHit[]; error?: string; code?: string } | null;
           // An aborted (superseded) request leaves `loading` for the newer run to own.
           if (controller.signal.aborted) return;
           if (!r.ok || !body || body.error) {
-            setError(body?.error ?? t("searchFailed"));
+            setError(errMsg(body, t("searchFailed")));
           } else {
             setError(null);
             setHits(Array.isArray(body.results) ? body.results : []);
@@ -63,7 +77,7 @@ export function useWorkspaceCommandPaletteSearch(
       clearTimeout(timer);
       controller.abort();
     };
-  }, [open, query, t]);
+  }, [open, query, t, errMsg]);
 
   return { hits, error, loading, reset, markPending };
 }

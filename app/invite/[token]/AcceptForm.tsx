@@ -13,6 +13,8 @@ type Preview =
 
 export function AcceptForm({ token }: { token: string }) {
   const t = useTranslations("invite");
+  // The role the invitee is joining as — same labels the Organization console uses.
+  const tRole = useTranslations("workspaceAdmin.members");
   const [preview, setPreview] = useState<Preview | null>(null);
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
@@ -88,7 +90,7 @@ export function AcceptForm({ token }: { token: string }) {
       <h1 className="mt-1 font-serif text-display text-ink">{t("title")}</h1>
       <p className="mt-2 text-body text-steel">
         {t.rich("subtitle", {
-          role: roleLabel(role as MemberRole),
+          role: roleLabel(role as MemberRole, tRole),
           email,
           em: (chunks) => <span className="font-medium text-ink">{chunks}</span>,
         })}

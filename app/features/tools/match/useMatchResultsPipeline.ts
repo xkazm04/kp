@@ -4,6 +4,7 @@
 import { useState } from "react";
 import type { useTranslations } from "next-intl";
 import { matchScoreForPipeline } from "@/app/features/shared/matchTypes";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
 import type { MatchResponse, MatchResult } from "@/app/features/shared/matchTypes";
 
 type Translator = ReturnType<typeof useTranslations>;
@@ -17,6 +18,9 @@ export function useMatchResultsPipeline(args: {
   onFiled?: (jobId: string, jobTitle: string, entryId: string) => void;
 }) {
   const { t, candidateId, candidate, archetype, matches, onFiled } = args;
+  // Resolve API failures from the machine `code`, never from the server's
+  // English `error` — see app/_lib/use-error-message.ts.
+  const errMsg = useErrorMessage();
   const [added, setAdded] = useState<Set<string>>(new Set());
   const [adding, setAdding] = useState<Set<string>>(new Set());
   const [errors, setErrors] = useState<Map<string, string>>(new Map());
@@ -80,7 +84,7 @@ export function useMatchResultsPipeline(args: {
         return true;
       }
       const payload = await r.json().catch(() => null);
-      const message = (payload as { error?: string } | null)?.error ?? t("addFailedStatus", { status: r.status });
+      const message = errMsg(payload as { error?: string; code?: string } | null, t("addFailedStatus", { status: r.status }));
       setErrors((e) => new Map(e).set(m.jobId, message));
       return false;
     } catch {

@@ -15,6 +15,7 @@ import {
   fmtCzkShort,
   fmtInt,
   fmtDate,
+  isFigure,
   heatColor,
   salaryColor,
   type MapMetric,
@@ -129,17 +130,22 @@ export function RegionDetail({ region }: { region: Region | null }) {
         <>
           <p className={`${HAND} text-sm text-[#526b4f]`}>{region.code}</p>
           <h3 className={`${DISPLAY} text-2xl font-extrabold`}>{region.name}</h3>
-          <div className="mt-4 grid grid-cols-2 gap-4">
+          {/* No survey median for this region → drop the tile and let the
+              vacancy count take the full width, rather than printing an
+              em-dash under a "Median salary" label. */}
+          <div className={`mt-4 grid gap-4 ${isFigure(region.medianSalary) ? "grid-cols-2" : "grid-cols-1"}`}>
             <div>
               <div className={`${DISPLAY} text-2xl font-extrabold text-[#d65a4a]`}>{fmtInt(region.vacancies)}</div>
               <div className="text-[12px] font-bold uppercase tracking-wide text-[#42606f]">{t("map.vacancies")}</div>
             </div>
-            <div>
-              <div className={`${DISPLAY} text-2xl font-extrabold text-[#526b4f]`}>{fmtCzk(region.medianSalary)}</div>
-              <div className="text-[12px] font-bold uppercase tracking-wide text-[#42606f]">{t("map.median")}</div>
-            </div>
+            {isFigure(region.medianSalary) ? (
+              <div>
+                <div className={`${DISPLAY} text-2xl font-extrabold text-[#526b4f]`}>{fmtCzk(region.medianSalary)}</div>
+                <div className="text-[12px] font-bold uppercase tracking-wide text-[#42606f]">{t("map.median")}</div>
+              </div>
+            ) : null}
           </div>
-          {region.p25 != null && region.p75 != null ? (
+          {isFigure(region.p25) && isFigure(region.p75) ? (
             <p className={`${HAND} mt-3 text-sm text-[#526b4f]`}>
               {t("map.range", { lo: fmtCzkShort(region.p25), hi: fmtCzkShort(region.p75) })}
             </p>
@@ -153,11 +159,14 @@ export function RegionDetail({ region }: { region: Region | null }) {
 // ── salary bands (families × seniority as range bars off ISPV deciles) ────────
 export function SalaryBands({ families }: { families: RefSalary[] }) {
   const t = useTranslations("jobMarket");
-  const max = Math.max(...families.map((f) => f.lead || 0)) * 1.02;
-  const pos = (v: number | null) => (v == null ? 0 : (v / max) * 100);
+  // A family with no median has no band to draw — and `pos(null) → 0` would
+  // have drawn one starting at 0 Kč. Drop the row instead.
+  const rows = families.filter((f) => isFigure(f.median));
+  const max = Math.max(...rows.map((f) => (isFigure(f.lead) ? f.lead : 0)), 0) * 1.02;
+  const pos = (v: number | null) => (!isFigure(v) || max <= 0 ? 0 : (v / max) * 100);
   return (
     <div className="space-y-3">
-      {families.map((f) => (
+      {rows.map((f) => (
         <div key={f.family} className={`${STICKER} px-4 py-3`}>
           <div className="flex items-baseline justify-between gap-3">
             <span className="text-[15px] font-bold text-[#17202a]">{t(`families.${f.family}`)}</span>
@@ -165,24 +174,26 @@ export function SalaryBands({ families }: { families: RefSalary[] }) {
           </div>
           <div className="relative mt-2 h-6">
             <div className="absolute inset-x-0 top-1/2 h-[3px] -translate-y-1/2 rounded bg-[#dce7d0]" />
-            {/* junior → lead band */}
-            <div
-              className="absolute top-1/2 h-2 -translate-y-1/2 rounded-full border-[2px] border-[#17202a]"
-              style={{ left: `${pos(f.junior)}%`, width: `${Math.max(2, pos(f.lead) - pos(f.junior))}%`, background: salaryColor(0.55) }}
-            />
-            {/* median marker */}
-            {f.median != null && (
+            {/* junior → lead band — only when both ends are real figures. */}
+            {isFigure(f.junior) && isFigure(f.lead) ? (
               <div
-                className="absolute top-1/2 h-4 w-[3px] -translate-x-1/2 -translate-y-1/2 rounded bg-[#17202a]"
-                style={{ left: `${pos(f.median)}%` }}
-                title={fmtCzk(f.median)}
+                className="absolute top-1/2 h-2 -translate-y-1/2 rounded-full border-[2px] border-[#17202a]"
+                style={{ left: `${pos(f.junior)}%`, width: `${Math.max(2, pos(f.lead) - pos(f.junior))}%`, background: salaryColor(0.55) }}
               />
-            )}
+            ) : null}
+            {/* median marker */}
+            <div
+              className="absolute top-1/2 h-4 w-[3px] -translate-x-1/2 -translate-y-1/2 rounded bg-[#17202a]"
+              style={{ left: `${pos(f.median)}%` }}
+              title={fmtCzk(f.median)}
+            />
           </div>
-          <div className="mt-1 flex justify-between text-[12px] font-medium text-[#42606f]">
-            <span>{t("salary.junior")} {fmtCzkShort(f.junior)}</span>
-            <span>{t("salary.lead")} {fmtCzkShort(f.lead)}</span>
-          </div>
+          {isFigure(f.junior) || isFigure(f.lead) ? (
+            <div className="mt-1 flex justify-between text-[12px] font-medium text-[#42606f]">
+              <span>{isFigure(f.junior) ? `${t("salary.junior")} ${fmtCzkShort(f.junior)}` : ""}</span>
+              <span>{isFigure(f.lead) ? `${t("salary.lead")} ${fmtCzkShort(f.lead)}` : ""}</span>
+            </div>
+          ) : null}
         </div>
       ))}
     </div>
@@ -190,10 +201,16 @@ export function SalaryBands({ families }: { families: RefSalary[] }) {
 }
 
 // ── demand: ranked family bars with share + momentum ─────────────────────────
+// Note: `demand.openings` takes `n` RAW, not through fmtInt. It is an ICU plural
+// message, and intl-messageformat computes `value - offset` — a pre-formatted
+// "11 571" became NaN and Czech rendered the literal word "NaN". ICU does the
+// number formatting itself, per locale.
 export function MomentumBadge({ m }: { m: number | null }) {
   const t = useTranslations("jobMarket");
-  if (m == null) return <span className={`${HAND} text-sm text-[#42606f]`}>{t("demand.momentumNew")}</span>;
-  const up = m >= 0;
+  // `0` means "we measured no change", which is not an increase — showing it as
+  // a green ▲ 0% would dress up a non-signal as good news.
+  if (!isFigure(m) || m === 0) return <span className={`${HAND} text-sm text-[#42606f]`}>{t("demand.momentumNew")}</span>;
+  const up = m > 0;
   return (
     <span className="text-sm font-bold" style={{ color: up ? MOSS : CORAL }}>
       {up ? "▲" : "▼"} {Math.abs(m)}%
@@ -201,9 +218,13 @@ export function MomentumBadge({ m }: { m: number | null }) {
   );
 }
 
-export function FamilyDemandList({ families, total }: { families: FamilyDemand[]; total: number }) {
+export function FamilyDemandList({ families }: { families: FamilyDemand[] }) {
   const t = useTranslations("jobMarket");
-  const max = Math.max(...families.map((f) => f.vacancies));
+  const max = Math.max(...families.map((f) => f.vacancies), 0);
+  // A family with 27 openings out of 38 000 is real; a 0.23%-wide bar and a
+  // rounded "0%" both read as "none". Floor the bar and label sub-1% shares as
+  // such instead of rounding them out of existence.
+  const barWidth = (n: number) => (max > 0 ? Math.max(1.5, (n / max) * 100) : 0);
   return (
     <div className="space-y-2.5">
       {families.map((f, i) => (
@@ -212,13 +233,19 @@ export function FamilyDemandList({ families, total }: { families: FamilyDemand[]
           <div className="min-w-0 flex-1">
             <div className="flex items-baseline justify-between gap-2">
               <span className="truncate text-[15px] font-bold text-[#17202a]">{t(`families.${f.family}`)}</span>
-              <span className="shrink-0 text-[13px] font-bold text-[#42606f]">{t("demand.openings", { n: fmtInt(f.vacancies) })}</span>
+              <span className="shrink-0 text-[13px] font-bold text-[#42606f]">{t("demand.openings", { n: f.vacancies })}</span>
             </div>
             <div className="mt-1 h-2.5 w-full overflow-hidden rounded-full border-[2px] border-[#17202a] bg-white">
-              <div className="h-full rounded-full" style={{ width: `${(f.vacancies / max) * 100}%`, background: familyColor(f.family) }} />
+              <div className="h-full rounded-full" style={{ width: `${barWidth(f.vacancies)}%`, background: familyColor(f.family) }} />
             </div>
           </div>
-          <span className="w-12 shrink-0 text-right text-[13px] font-bold text-[#526b4f]">{(f.share * 100).toFixed(0)}%</span>
+          <span className="w-12 shrink-0 text-right text-[13px] font-bold text-[#526b4f]">
+            {!isFigure(f.share)
+              ? ""
+              : f.share > 0 && f.share < 0.005
+              ? t("demand.shareTiny")
+              : t("demand.share", { pct: (f.share * 100).toFixed(0) })}
+          </span>
         </div>
       ))}
     </div>
@@ -226,7 +253,6 @@ export function FamilyDemandList({ families, total }: { families: FamilyDemand[]
 }
 
 export function OccupationList({ occupations }: { occupations: Occupation[] }) {
-  const t = useTranslations("jobMarket");
   return (
     <ol className="divide-y-[2px] divide-[#dce7d0]">
       {occupations.map((o, i) => (
@@ -236,7 +262,11 @@ export function OccupationList({ occupations }: { occupations: Occupation[] }) {
             {o.name}
           </span>
           <span className="shrink-0 text-[13px] font-bold text-[#42606f]">{fmtInt(o.vacancies)}</span>
-          <span className="w-24 shrink-0 text-right text-[13px] font-bold text-[#526b4f]">{fmtCzk(o.medianSalary)}</span>
+          {/* Keep the column width so the list stays aligned, but leave the cell
+              blank rather than parking an em-dash in a money column. */}
+          <span className="w-24 shrink-0 text-right text-[13px] font-bold text-[#526b4f]">
+            {isFigure(o.medianSalary) ? fmtCzk(o.medianSalary) : ""}
+          </span>
         </li>
       ))}
     </ol>
@@ -246,21 +276,39 @@ export function OccupationList({ occupations }: { occupations: Occupation[] }) {
 // ── org-type split ────────────────────────────────────────────────────────────
 export function OrgSplit({ orgTypes }: { orgTypes: OrgType[] }) {
   const t = useTranslations("jobMarket");
-  const max = Math.max(...orgTypes.map((o) => o.medianSalary || 0));
+  const max = Math.max(...orgTypes.map((o) => (isFigure(o.medianSalary) ? o.medianSalary : 0)), 0);
   return (
     <div className="grid gap-3 sm:grid-cols-3">
-      {orgTypes.map((o) => (
-        <div key={o.orgType} className={`${STICKER} px-4 py-4`}>
-          <div className={`${HAND} text-sm`} style={{ color: orgColor(o.orgType) }}>
-            {t(`orgTypes.${o.orgType}`)}
+      {orgTypes.map((o) => {
+        // Pay comes from the ISPV wage spheres, which have no counterpart for
+        // staffing agencies — an agency is who posts the job, not a sphere of
+        // the economy. That tile keeps its (real) opening count and simply
+        // carries no pay figure, instead of an em-dash over an empty bar.
+        const pay = isFigure(o.medianSalary) ? o.medianSalary : null;
+        return (
+          <div key={o.orgType} className={`${STICKER} px-4 py-4`}>
+            <div className={`${HAND} text-sm`} style={{ color: orgColor(o.orgType) }}>
+              {t(`orgTypes.${o.orgType}`)}
+            </div>
+            {pay != null ? (
+              <>
+                <div className={`${DISPLAY} mt-1 text-2xl font-extrabold`}>{fmtCzk(pay)}</div>
+                <div className="mt-2 h-2.5 w-full overflow-hidden rounded-full border-[2px] border-[#17202a] bg-white">
+                  <div
+                    className="h-full rounded-full"
+                    style={{ width: `${max > 0 ? (pay / max) * 100 : 0}%`, background: orgColor(o.orgType) }}
+                  />
+                </div>
+              </>
+            ) : (
+              <div className={`${DISPLAY} mt-1 text-2xl font-extrabold`}>{fmtInt(o.vacancies)}</div>
+            )}
+            <div className="mt-2 text-[13px] font-medium text-[#42606f]">
+              {pay != null ? t("demand.openings", { n: o.vacancies }) : t("orgTypes.openingsOnly")}
+            </div>
           </div>
-          <div className={`${DISPLAY} mt-1 text-2xl font-extrabold`}>{fmtCzk(o.medianSalary)}</div>
-          <div className="mt-2 h-2.5 w-full overflow-hidden rounded-full border-[2px] border-[#17202a] bg-white">
-            <div className="h-full rounded-full" style={{ width: `${((o.medianSalary || 0) / max) * 100}%`, background: orgColor(o.orgType) }} />
-          </div>
-          <div className="mt-2 text-[13px] font-medium text-[#42606f]">{t("demand.openings", { n: fmtInt(o.vacancies) })}</div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
@@ -268,19 +316,26 @@ export function OrgSplit({ orgTypes }: { orgTypes: OrgType[] }) {
 // ── JD reference gallery (family filter + cards) ──────────────────────────────
 export function JdCard({ item }: { item: JdGroup["items"][number] }) {
   const t = useTranslations("jobMarket");
+  // Most ÚP postings advertise a floor and no ceiling. Printing that floor bare
+  // reads as "the salary" when it is the bottom of an open band — say "from".
+  const lo = isFigure(item.salaryMin) ? item.salaryMin : null;
+  const hi = isFigure(item.salaryMax) ? item.salaryMax : null;
   const salary =
-    item.salaryMin == null && item.salaryMax == null
+    lo == null && hi == null
       ? t("jd.salaryHidden")
-      : item.salaryMax && item.salaryMin && item.salaryMax !== item.salaryMin
-      ? `${fmtCzkShort(item.salaryMin)} – ${fmtCzkShort(item.salaryMax)}`
-      : fmtCzk(item.salaryMin ?? item.salaryMax);
+      : lo != null && hi != null && hi !== lo
+      ? `${fmtCzkShort(lo)} – ${fmtCzkShort(hi)}`
+      : lo != null && hi == null
+      ? t("jd.salaryFrom", { v: fmtCzk(lo) })
+      : fmtCzk(hi ?? lo);
   return (
     <div className={`${STICKER} flex flex-col gap-2 px-4 py-4`}>
       <h4 className={`${DISPLAY} text-[17px] font-extrabold leading-tight`}>{item.title}</h4>
-      <p className="text-[13px] font-medium text-[#42606f]">
-        {item.employer || "—"}
-        {item.region ? ` · ${item.region}` : ""}
-      </p>
+      {item.employer || item.region ? (
+        <p className="text-[13px] font-medium text-[#42606f]">
+          {[item.employer, item.region].filter(Boolean).join(" · ")}
+        </p>
+      ) : null}
       <div className="flex items-center justify-between gap-2">
         <p className="text-[15px] font-bold text-[#526b4f]">{salary}</p>
         {item.posted ? (

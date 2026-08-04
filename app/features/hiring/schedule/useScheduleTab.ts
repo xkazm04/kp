@@ -11,6 +11,7 @@ import type { TargetAndTransition } from "framer-motion";
 import { DEFAULT_SLOT, type SchedEntry } from "./ScheduleTypes";
 import { useReducedMotion } from "@/app/_lib/useReducedMotion";
 import { gridSlotToIso, isoToDateSlot } from "@/app/_lib/schedule-slots";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
 // Type-only — no better-sqlite3 pulled into this client bundle.
 import type { ScheduleInvite } from "@/app/_lib/schedule-store";
 
@@ -18,6 +19,9 @@ export type IvStatus = { sessionId: string; status: string; hasTranscript: boole
 
 export function useScheduleTab() {
   const t = useTranslations("scheduleTab");
+  // API failures resolve from the machine `code`, never the server's English
+  // `error` — see app/_lib/use-error-message.ts.
+  const errMsg = useErrorMessage();
   const format = useFormatter();
   // Display a stored dated slot "YYYY-MM-DD HH:MM" as a localized "Tue 22 Jul · 14:00".
   // The canonical value (kept in `picks`, sent to the server) stays the ISO date grammar.
@@ -182,7 +186,7 @@ export function useScheduleTab() {
       // can lag behind a just-started call) — explain it, localized, instead of
       // the generic failure line.
       if (r.status === 409) throw new Error(t("interviewLiveRefused"));
-      if (!r.ok) throw new Error(d.error || t("startFailed"));
+      if (!r.ok) throw new Error(errMsg(d, t("startFailed")));
       window.open(d.url, "_blank", "noopener,noreferrer");
     } catch (err) {
       setError(err instanceof Error ? err.message : t("startFailed"));
@@ -216,7 +220,7 @@ export function useScheduleTab() {
         });
         const bd = await bookRes.json().catch(() => ({}));
         if (!bookRes.ok) {
-          setError(typeof bd.error === "string" ? bd.error : t("loadFailed"));
+          setError(errMsg(bd, t("loadFailed")));
           setBusy(null);
           return;
         }

@@ -9,6 +9,7 @@ import type { Reasoning } from "@/app/features/shared/matchTypes";
 import { postPipelineAdd } from "@/app/_lib/useAddToPipeline";
 import { downloadFile, toCsv } from "@/app/_lib/export-utils";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
 import type { Cell } from "./MatrixShared";
 import { STRONG_THRESHOLD } from "./matrixStats";
 import { orderMatrixRows } from "./matrixRows";
@@ -17,6 +18,9 @@ import type { Candidate, Matrix, Popover, Position, ReasonState } from "./matrix
 
 export function useMatrixTab() {
   const t = useTranslations("matrix");
+  // API failures resolve from the machine `code`, never the server's English
+  // `error` — see app/_lib/use-error-message.ts.
+  const errMsg = useErrorMessage();
   const locale = useLocale();
   const enumLabel = useEnumLabel();
   // deec915c — on-demand "why this score" popover. A cell click opens a card that
@@ -84,12 +88,13 @@ export function useMatrixTab() {
     (async () => {
       try {
         const r = await fetch("/api/matrix");
-        // The route returns a structured { error } body (from parseStderrError)
-        // on failure — read it so the real cause reaches the screen instead of
-        // an opaque status code.
+        // The route returns a structured { error, code } body (from
+        // parseStderrError) on failure — resolve its machine `code` so the real
+        // cause reaches the screen in the reader's language instead of an opaque
+        // status code (or the server's English `error`).
         const body = await r.json().catch(() => ({}));
-        if (!r.ok) throw new Error(body.error || t("loadFailedStatus", { status: r.status }));
-        if (body.error) throw new Error(body.error);
+        if (!r.ok) throw new Error(errMsg(body, t("loadFailedStatus", { status: r.status })));
+        if (body.error) throw new Error(errMsg(body, t("loadFailed")));
         setData(body as Matrix);
       } catch (e) {
         setError(e instanceof Error ? e.message : t("loadFailed"));
@@ -269,7 +274,7 @@ export function useMatrixTab() {
       })
         .then(async (r) => {
           const p = await r.json().catch(() => ({}));
-          if (!r.ok) throw new Error(p.error || t("reasoningFailed"));
+          if (!r.ok) throw new Error(errMsg(p, t("reasoningFailed")));
           return p as { reasoning?: Reasoning; source?: string; cached?: boolean };
         })
         .then((p) => setReasoning((s) => ({ ...s, [key]: { data: p.reasoning, source: p.source, cached: p.cached } })))

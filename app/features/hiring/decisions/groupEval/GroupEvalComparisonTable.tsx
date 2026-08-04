@@ -1,6 +1,6 @@
 import { Crown } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { formatSalaryRange } from "@/app/_lib/format";
+import { useNumberFormat } from "@/app/_lib/use-number-format";
 import {
   ConfidenceCell,
   CoverageCell,
@@ -153,6 +153,8 @@ export function ComparisonTable({
   leadSeparation?: "separated" | "overlapping" | "unknown";
 }) {
   const t = useTranslations("decisions.groupEval");
+  // Reader-locale digit grouping (format.ts number-locale contract).
+  const n = useNumberFormat();
   const cols = candidates.length + 1;
 
   // Dimension rows: union of breakdown keys (skills/career/personal), labelled
@@ -255,7 +257,7 @@ export function ComparisonTable({
               <GroupTr
                 label={t("salarySection")}
                 cols={cols}
-                aside={hi > 0 ? <Pill tone="info">{t("roleBand", { range: formatSalaryRange(lo, hi, { currency: bandCurrency }) })}</Pill> : <Pill>{t("noRoleBand")}</Pill>}
+                aside={hi > 0 ? <Pill tone="info">{t("roleBand", { range: n.salaryRange(lo, hi, { currency: bandCurrency }) })}</Pill> : <Pill>{t("noRoleBand")}</Pill>}
               />
               <Row head={<RowHead title={t("expected")} sub={t("salaryLegend")} />} candidates={candidates} render={(c) => <SalaryCell c={c} sal={sal} bandCurrency={bandCurrency} />} />
             </tbody>

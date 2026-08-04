@@ -9,6 +9,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "@/app/_components/toast-store";
 import { useSlotLabel } from "@/app/_lib/use-slot-label";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import { useRelativeTime } from "@/app/features/hiring/pipeline/PipelineShared";
 import { useDeliveryCapability } from "@/app/features/shell/useDeliveryCapability";
@@ -29,6 +30,8 @@ export type ArmedAction ={ token: string; action: "cancel" | "no_show" | "resolv
 export function useScheduleInviteLifecycle() {
   const t = useTranslations("scheduleTab.lifecycle");
   const relativeTime = useRelativeTime();
+  // Failures resolve from the machine `code`, not the server's English `error`.
+  const errMsg = useErrorMessage();
   // REC-10 — with no delivery relay, "invite/reminder sent" chips must read as
   // the queued outbox rows they really are.
   const relayConfigured = useDeliveryCapability();
@@ -74,7 +77,7 @@ export function useScheduleInviteLifecycle() {
       });
       const d = await r.json().catch(() => ({}));
       if (!r.ok) {
-        toast.error(typeof d.error === "string" ? d.error : t("actionFailed"));
+        toast.error(errMsg(d, t("actionFailed")));
         return false;
       }
       if (d.invite) updateInvite(token, d.invite as ScheduleInvite);
@@ -104,7 +107,7 @@ export function useScheduleInviteLifecycle() {
       });
       const d = await r.json().catch(() => ({}));
       if (!r.ok) {
-        toast.error(typeof d.error === "string" ? d.error : t("actionFailed"));
+        toast.error(errMsg(d, t("actionFailed")));
         return;
       }
       // The route returns the truthful delivery claim (sent only on a relayed 2xx,

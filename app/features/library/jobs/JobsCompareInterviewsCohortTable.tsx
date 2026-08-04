@@ -1,8 +1,9 @@
 "use client";
 
 import { ClipboardCheck } from "lucide-react";
-import { useLocale, useTranslations } from "next-intl";
-import { rubricLabel, RUBRIC_CS } from "@/app/_lib/interview-rubric";
+import { useTranslations } from "next-intl";
+import { rubricLabel, rubricDescription } from "@/app/_lib/interview-rubric";
+import { useRubricStrings } from "@/app/_lib/use-rubric-strings";
 import type { InterviewTelemetry } from "@/app/_lib/interview-telemetry";
 import { talkSharePercent, formatSpokenDuration } from "@/app/_lib/voice/telemetry-format";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
@@ -45,7 +46,7 @@ function TelemetrySignals({
 
 export function CohortTable({ rubric, candidates }: { rubric: RubricComp[]; candidates: Candidate[] }) {
   const t = useTranslations("jobs.compare");
-  const locale = useLocale();
+  const rubricStrings = useRubricStrings();
   const enumLabel = useEnumLabel();
   const ratingOf = (c: Candidate, comp: string) =>
     c.ratings.find((r) => r.competency.toLowerCase() === comp.toLowerCase());
@@ -133,8 +134,8 @@ export function CohortTable({ rubric, candidates }: { rubric: RubricComp[]; cand
           {rows.map((comp) => (
             <tr key={comp.competency} className="border-t border-stone-100">
               {/* PREP3 — localized display; the match on r.competency stays canonical. */}
-              <td className="sticky left-0 bg-white p-2 text-ink" title={(locale === "cs" ? RUBRIC_CS[comp.competency]?.description : undefined) ?? comp.description}>
-                {rubricLabel(comp.competency, locale)}
+              <td className="sticky left-0 bg-white p-2 text-ink" title={rubricDescription(comp.competency, comp.description, rubricStrings)}>
+                {rubricLabel(comp.competency, rubricStrings)}
                 {/* interview-simulation-comparison #2 — this axis isn't in the cohort's
                     current rubric; the candidate was scored on a different/older axis set. */}
                 {comp.offRubric ? (

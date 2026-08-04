@@ -25,19 +25,19 @@ test("success but the pre-open was BLOCKED → fallback link (never a silent dea
 
 test("404 → calm 'no customer yet' hint, and it wins over the error branch", () => {
   // A 404 also has ok:false; the hint branch must be checked first.
-  assert.deepEqual(portalOutcome({ status: 404, ok: false, error: "No billing customer yet" }, true), {
+  assert.deepEqual(portalOutcome({ status: 404, ok: false, code: "BILLING_PORTAL_FAILED" }, true), {
     kind: "hint",
   });
 });
 
-test("non-404 failure → error, carrying the server message when present", () => {
-  assert.deepEqual(portalOutcome({ status: 502, ok: false, error: "Portal session failed." }, true), {
+test("non-404 failure → error, carrying the machine CODE (never the English message)", () => {
+  assert.deepEqual(portalOutcome({ status: 502, ok: false, code: "BILLING_PORTAL_FAILED" }, true), {
     kind: "error",
-    message: "Portal session failed.",
+    code: "BILLING_PORTAL_FAILED",
   });
-  assert.deepEqual(portalOutcome({ status: 503, ok: false }, true), { kind: "error", message: null });
+  assert.deepEqual(portalOutcome({ status: 503, ok: false }, true), { kind: "error", code: null });
 });
 
 test("ok:true but no url (malformed provider response) → error, not a broken navigate", () => {
-  assert.deepEqual(portalOutcome({ status: 200, ok: true }, true), { kind: "error", message: null });
+  assert.deepEqual(portalOutcome({ status: 200, ok: true }, true), { kind: "error", code: null });
 });

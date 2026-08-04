@@ -7,6 +7,7 @@ import { Select } from "@/app/_components/Select";
 import { useLoader } from "@/app/_lib/useLoader";
 import { aggregateLoadState } from "@/app/_lib/load-state";
 import { useRelativeTime } from "@/app/_lib/use-relative-time";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { armOrExecute } from "./controlRoomConfirm";
 
 type Audit = { id: number; lifecycleId: string | null; actor: string; action: string; reason: string | null; createdAt: string };
@@ -34,6 +35,11 @@ function parseNum(v: string): number | undefined {
 
 export function ControlRoom() {
   const rel = useRelativeTime();
+  // Resolve API failures from the machine `code`, never from the server's English
+  // `error` — see app/_lib/use-error-message.ts. NOTE: this ops console has no
+  // message namespace of its own yet, so its own fallback copy is still hardcoded
+  // English; that half is a separate pass.
+  const errMsg = useErrorMessage();
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [form, setForm] = useState({ candidate: "", score: "", outcome: "hired", perf: "4" });
@@ -91,8 +97,8 @@ export function ControlRoom() {
       // Gate on r.ok: a failed write (validation, SQLITE_BUSY, 500) must not look like
       // success — keep the form intact so the recorded outcome isn't silently lost.
       if (!r.ok) {
-        const p = (await r.json().catch(() => null)) as { error?: string } | null;
-        setErr(p?.error || `Failed to record outcome (${r.status}).`);
+        const p = (await r.json().catch(() => null)) as { error?: string; code?: string } | null;
+        setErr(errMsg(p, `Failed to record outcome (${r.status}).`));
         return;
       }
       setForm({ ...form, candidate: "", score: "" });
@@ -123,8 +129,8 @@ export function ControlRoom() {
         }),
       });
       if (!r.ok) {
-        const p = (await r.json().catch(() => null)) as { error?: string } | null;
-        setErr(p?.error || `Failed to record performance (${r.status}).`);
+        const p = (await r.json().catch(() => null)) as { error?: string; code?: string } | null;
+        setErr(errMsg(p, `Failed to record performance (${r.status}).`));
         return;
       }
       setPerfFor(null);

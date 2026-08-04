@@ -197,12 +197,12 @@ export const STATUS_FILTERS = [
 ] as const;
 export type StatusFilter = (typeof STATUS_FILTERS)[number]["value"];
 
-export const SORTS = [
-  { value: "recent", label: "Newest" },
-  { value: "candidates", label: "Most analyzed" },
-  { value: "title", label: "A–Z" },
-] as const;
-export type SortKey = (typeof SORTS)[number]["value"];
+// The ledger's sort axis — VALUES only, like pipelineBoardFilters.SORTS. This
+// module is the ledger's data layer, so it carries no copy: a sort's label belongs
+// to whatever control renders it, read from the catalog there. The English labels
+// this list used to carry were never rendered by anything.
+export const SORTS = ["recent", "candidates", "title"] as const;
+export type SortKey = (typeof SORTS)[number];
 
 export function filterAndSortJds(
   rows: JdRow[],
@@ -242,8 +242,13 @@ export function statusCounts(rows: JdRow[]): Record<StatusFilter, number> {
   return counts;
 }
 
-export function shortDate(iso: string): string {
-  return new Date(iso).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+/** The Ledger's "saved on" stamp, formatted in the APP's locale — not the OS's.
+ *  A `toLocaleDateString(undefined, …)` follows the browser/OS locale, so a Czech
+ *  workspace opened in an en-US browser stamped its localized table with a US
+ *  date. Same fix, same shape as `ranWhen` in the group-eval helpers: the module
+ *  stays locale-dumb and each client consumer threads next-intl's `useLocale()`. */
+export function shortDate(iso: string, locale?: string): string {
+  return new Date(iso).toLocaleDateString(locale, { year: "numeric", month: "short", day: "numeric" });
 }
 
 // winnability-apply — why a captured coach handoff (?coachEdit=<…slug…>) can't be

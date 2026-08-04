@@ -9,6 +9,7 @@ import { gapFieldCopy, GAP_FIELDS, mergeGapAnswers, type CompletenessGap } from 
 import { TextInput } from "@/app/_components/TextInput";
 import { TextArea } from "@/app/_components/TextArea";
 import { formatOptionalFraction } from "./archetypeBannerView";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
 
 // Reads the archetype-relevant fields off the analysis's best-effort v2Profile
 // (a normalized CandidateProfileV2 dump, by_alias camelCase). The pipeline
@@ -44,6 +45,9 @@ export function ArchetypeBanner({
   sourceAnalysisSlug?: string;
 }) {
   const t = useTranslations("report");
+  // Resolve API failures from the machine `code`, never from the server's
+  // English `error` — see app/_lib/use-error-message.ts.
+  const errMsg = useErrorMessage();
   // The gap prompts are SHARED with the candidate-facing post-apply follow-up
   // (they used to be hardcoded English in completeness-followup.ts), so they live
   // in one catalog namespace both surfaces read.
@@ -85,7 +89,7 @@ export function ArchetypeBanner({
         }),
       });
       const payload = await r.json();
-      if (!r.ok) throw new Error(payload.error ?? t("archetype.saveFailedStatus", { status: r.status }));
+      if (!r.ok) throw new Error(errMsg(payload, t("archetype.saveFailedStatus", { status: r.status })));
       setSave({ kind: "saved", id: (payload.saved as { id?: string } | null)?.id ?? "" });
     } catch (caught) {
       setSave({ kind: "error", message: caught instanceof Error ? caught.message : t("archetype.saveFailed") });

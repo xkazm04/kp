@@ -2,7 +2,10 @@
 // assessment, Durable Skill Profile issuance, outcome recording, evaluate/promote/
 // feedback. Split out so the component file is render-only wiring.
 import { useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { useTasks, useTaskResult } from "@/app/features/shell/tasks/TasksProvider";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
+import { useGithubErrorMessage } from "@/app/_lib/use-github-error";
 import { assertScore } from "@/app/_lib/format";
 import { parseRepoRef } from "@/app/_lib/repo-snapshot";
 import { githubAnalysisSchema, type GithubAnalysis } from "@/app/_lib/schemas";
@@ -19,6 +22,12 @@ export function useDevSubmissionRow({
   onChanged: () => void;
 }) {
   const { startTask } = useTasks();
+  // Resolve API failures from the machine `code`, never from the server's
+  // English `error` — see app/_lib/use-error-message.ts.
+  const errMsg = useErrorMessage();
+  // The GitHub deep-dive answers with its own code namespace (results.github.errors).
+  const ghErrMsg = useGithubErrorMessage();
+  const tGhErr = useTranslations("results.github.errors");
   const [taskId, setTaskId] = useState<string | null>(null);
   const [promoted, setPromoted] = useState(false);
   const [promoting, setPromoting] = useState(false);
@@ -64,17 +73,19 @@ export function useDevSubmissionRow({
         body: JSON.stringify({ profile: owner, jobDescriptionText: jdText ?? "" }),
       });
       const payload = await r.json();
-      // The route returns 200 + {error} for soft failures (rate limits).
-      if (payload && typeof payload === "object" && typeof payload.error === "string") {
-        throw new Error(payload.error);
+      // The route returns 200 + {error, code} for soft failures (rate limits), so the
+      // presence of `error` — not the HTTP status — is the failure discriminator. The
+      // `code` half is what gets shown; the English `error` half is the server's log line.
+      if (payload && typeof payload === "object" && "error" in payload) {
+        throw new Error(ghErrMsg(payload, tGhErr("ANALYSIS_FAILED")));
       }
-      if (!r.ok) throw new Error("GitHub analysis failed.");
+      if (!r.ok) throw new Error(tGhErr("ANALYSIS_FAILED"));
       setGh({ status: "done", analysis: githubAnalysisSchema.parse(payload), error: null });
     } catch (caught) {
       setGh({
         status: "error",
         analysis: null,
-        error: caught instanceof Error ? caught.message : "GitHub analysis failed.",
+        error: caught instanceof Error && caught.message ? caught.message : tGhErr("ANALYSIS_FAILED"),
       });
     }
   };
@@ -122,8 +133,8 @@ export function useDevSubmissionRow({
           ...(performance ? { performance } : {}),
         }),
       });
-      const payload = (await r.json().catch(() => null)) as { error?: string } | null;
-      if (!r.ok) throw new Error(payload?.error ?? "Couldn't record the outcome.");
+      const payload = (await r.json().catch(() => null)) as { error?: string; code?: string } | null;
+      if (!r.ok) throw new Error(errMsg(payload, "Couldn't record the outcome."));
       setOutcome({ recorded: kind, pickingPerf: false, busy: false, error: null });
     } catch (caught) {
       setOutcome((o) => ({

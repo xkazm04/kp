@@ -8,7 +8,12 @@ cannot pick an hour the interviewer is already busy for.
 ## Entry points
 
 - Candidate: `app/schedule/[token]/page.tsx` → `SchedulePicker.tsx` (+
-  `error.tsx`, `loading.tsx`).
+  `error.tsx`, `loading.tsx`). `SchedulePicker` only orders the states; the
+  fetch/mutation state lives in `use-schedule-invite.ts` and each state renders
+  from its own component — `DeadLinkCard.tsx` (expired/closed link),
+  `BookedCard.tsx` (confirmed booking, RSVP, add-to-calendar, withdraw),
+  `SlotPicker.tsx` (the slot grid) and `ProposeSection.tsx` (the "propose your
+  own times" escalation, shared by the two stuck states).
 - Recruiter: the Schedule tab's invite lifecycle panel —
   `app/features/hiring/schedule/ScheduleInviteLifecyclePanel.tsx`,
   `ScheduleInviteAgendaRow.tsx`, `ScheduleInviteRecruiterControls.tsx`,

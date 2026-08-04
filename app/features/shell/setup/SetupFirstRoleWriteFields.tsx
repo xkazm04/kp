@@ -11,7 +11,7 @@ import { TextArea } from "@/app/_components/TextArea";
 import { CHIP_QUIET, META_LABEL } from "@/app/_components/ui/recipes";
 import { ROLE_FAMILY_SLUGS } from "@/app/_lib/role-families";
 import type { useEnumLabel } from "@/app/_lib/use-enum-label";
-import { SENIORITY_OPTIONS, type RoleDraft } from "./setupSteps";
+import { SENIORITY_VALUES, type RoleDraft } from "./setupSteps";
 import { Req } from "./SetupRequiredMarker";
 
 const INCLUDED = ["description", "salary", "case"] as const;
@@ -36,7 +36,7 @@ export function SetupFirstRoleWriteFields({
             label={t("seniorityLabel")}
             value={role.seniority}
             onChange={(seniority) => setRole({ seniority })}
-            options={SENIORITY_OPTIONS.map((s) => ({ value: s.value, label: s.label }))}
+            options={SENIORITY_VALUES.map((value) => ({ value, label: enumLabel("seniority", value) }))}
           />
         </div>
       </div>

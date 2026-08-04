@@ -3,6 +3,7 @@
 // commit. Split out of DecisionsScreenWaveModal so that component's JSX stays
 // under the 200-line cap.
 import { useEffect, useState } from "react";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { SCREENING_DEFAULT } from "@/app/_lib/decision-config-schema";
 import type { WaveResult } from "./decisionsScreenWaveTypes";
 
@@ -13,6 +14,9 @@ export function useDecisionsScreenWave(
   setChangedRepreviewFallback: string,
   waveFailedFallback: string
 ) {
+  // Resolve API failures from the machine `code`, never from the server's
+  // English `error` — see app/_lib/use-error-message.ts.
+  const errMsg = useErrorMessage();
   const [enabled, setEnabled] = useState(true);
   const [bottomPercent, setBottomPercent] = useState(SCREENING_DEFAULT.rejectBottomPercent);
   const [maxMatch, setMaxMatch] = useState(SCREENING_DEFAULT.maxMatchToReject);
@@ -49,7 +53,7 @@ export function useDecisionsScreenWave(
       })
         .then(async (r) => {
           const d = await r.json();
-          if (!r.ok) throw new Error(d.error || `Preview failed (${r.status}).`);
+          if (!r.ok) throw new Error(errMsg(d, previewFailedFallback));
           return d as WaveResult;
         })
         .then((d) => {
@@ -87,11 +91,11 @@ export function useDecisionsScreenWave(
       // 409 = the set changed since the preview. Re-preview the current set so the
       // recruiter reviews and approves THIS set, rather than rubber-stamping a stale one.
       if (r.status === 409) {
-        setError(d.error || setChangedRepreviewFallback);
+        setError(errMsg(d, setChangedRepreviewFallback));
         setRefreshNonce((nonce) => nonce + 1);
         return;
       }
-      if (!r.ok) throw new Error(d.error || `Wave failed (${r.status}).`);
+      if (!r.ok) throw new Error(errMsg(d, waveFailedFallback));
       const result = d as WaveResult;
       setCommitted(result);
       // Live-refresh the queue so rejected rows drop out, AND hand up the comms

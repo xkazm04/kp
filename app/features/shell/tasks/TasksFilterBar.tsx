@@ -3,10 +3,11 @@
 // DATA6 — the task-list filter bar (free text, kind select, terminal-status
 // chips, clear), split out of TasksTab.tsx so it stays under the 200-line file
 // cap. Verbatim markup — same client-side filter contract (PIPE2/RES3 pattern).
+import { useTranslations } from "next-intl";
 import { TextInput } from "@/app/_components/TextInput";
 import { Select } from "@/app/_components/Select";
 import type { TaskStatus } from "./TasksProvider";
-import { FILTER_STATUSES, STATUS } from "./tasksTabHelpers";
+import { FILTER_STATUSES } from "./tasksTabHelpers";
 
 export function TasksFilterBar({
   textFilter,
@@ -29,26 +30,29 @@ export function TasksFilterBar({
   filtering: boolean;
   onClear: () => void;
 }) {
+  const t = useTranslations("tasks");
   return (
     <div className="flex flex-wrap items-center gap-2">
       <label htmlFor="tasks-search" className="sr-only">
-        Search tasks
+        {t("filter.searchLabel")}
       </label>
       <TextInput
         id="tasks-search"
         type="search"
         value={textFilter}
         onChange={(e) => setTextFilter(e.target.value)}
-        placeholder="Search tasks…"
+        placeholder={t("filter.searchPlaceholder")}
         sizeVariant="sm"
         className="min-w-[180px] flex-1"
       />
       <Select
         value={kindFilter}
         onChange={setKindFilter}
-        ariaLabel="Filter by task kind"
+        ariaLabel={t("filter.kindAria")}
         size="sm"
-        options={[{ value: "", label: "All kinds" }, ...kinds.map((k) => ({ value: k, label: k }))]}
+        // A task KIND is a canonical wire slug (`jd_build`, `batch_screen`) — the
+        // same identifier the row prints in mono type, not copy. It stays verbatim.
+        options={[{ value: "", label: t("filter.allKinds") }, ...kinds.map((k) => ({ value: k, label: k }))]}
       />
       {FILTER_STATUSES.map((s) => (
         <button
@@ -60,7 +64,7 @@ export function TasksFilterBar({
             statusFilter === s ? "border-coral bg-coral/10 text-coral" : "border-stone-200 text-steel hover:border-coral/40"
           }`}
         >
-          {STATUS[s].label}
+          {t(`status.${s}`)}
         </button>
       ))}
       {filtering ? (
@@ -69,7 +73,7 @@ export function TasksFilterBar({
           onClick={onClear}
           className="focus-ring inline-flex items-center gap-1 rounded-full border border-coral/40 bg-coral/5 px-2.5 py-0.5 text-sm font-semibold text-coral hover:bg-coral/10"
         >
-          Clear
+          {t("filter.clear")}
         </button>
       ) : null}
     </div>

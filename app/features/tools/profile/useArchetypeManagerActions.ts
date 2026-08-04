@@ -1,5 +1,6 @@
 // Archive/unarchive + save network calls split out of ArchetypeManager.tsx.
 import { useState } from "react";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
 import type { ArchetypeDef } from "@/app/features/shared/profileTypes";
 import type { Draft } from "./ArchetypeManagerTypes";
 
@@ -19,16 +20,21 @@ export function useArchetypeManagerActions(args: {
   onChanged: () => void;
 }) {
   const { t, selectedId, setSelectedId, setMode, onChanged } = args;
+  // Resolve API failures from the machine `code`, never from the server's
+  // English `error` — see app/_lib/use-error-message.ts.
+  const errMsg = useErrorMessage();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busyArchiveId, setBusyArchiveId] = useState<string | null>(null);
 
-  // Localize a structured registry error by its `code` (labelOr id→label pattern),
-  // falling back to the server's English `error` message then a generic status.
+  // Localize a structured registry error by its `code` — first against this
+  // namespace's `validation.*` keys (which can interpolate `params`), then the
+  // shared `errors` catalog, then a generic status. The server's English `error`
+  // string is never shown (app/_lib/use-error-message.ts).
   const validationLabel = (data: { code?: string; error?: string; params?: Record<string, string | number> }, status: number) => {
     const key = data.code ? (`validation.${data.code}` as Parameters<typeof t>[0]) : null;
     if (key && t.has(key)) return t(key, data.params);
-    return data.error ?? t("saveFailedStatus", { status });
+    return errMsg(data, t("saveFailedStatus", { status }));
   };
 
   const setArchived = async (id: string, next: boolean) => {

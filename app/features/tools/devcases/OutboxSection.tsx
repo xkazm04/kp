@@ -5,6 +5,7 @@ import { RefreshCw, Send } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { LoadStatus } from "@/app/_components/LoadStatus";
 import { useRelativeTime } from "@/app/_lib/use-relative-time";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
 import type { LoadState } from "@/app/_lib/useLoader";
 import type { OutboxStatus } from "@/app/_lib/comms-status";
 import type { OutboxItem } from "./DevTypes";
@@ -22,6 +23,9 @@ export function ResendButton({ id, onResent, compact = false }: { id: string; on
   const t = useTranslations("channels.comms");
   // The outbox-row copy this button needs beyond the shared comms vocabulary.
   const td = useTranslations("devcase.outbox");
+  // Resolve API failures from the machine `code`, never from the server's
+  // English `error` — see app/_lib/use-error-message.ts.
+  const errMsg = useErrorMessage();
   const [state, setState] = useState<"idle" | "busy" | "done" | "deadLettered" | "error">("idle");
   const [message, setMessage] = useState<string | null>(null);
   const resend = async () => {
@@ -31,10 +35,10 @@ export function ResendButton({ id, onResent, compact = false }: { id: string; on
     try {
       const r = await fetch(`/api/comms/${encodeURIComponent(id)}/resend`, { method: "POST" });
       const payload = (await r.json().catch(() => null)) as
-        | { error?: string; entry?: { status?: string; failureDetail?: string | null } }
+        | { error?: string; code?: string; entry?: { status?: string; failureDetail?: string | null } }
         | null;
       if (!r.ok) {
-        setMessage(t("resendRejected", { reason: payload?.error ?? t("resendFailed") }));
+        setMessage(t("resendRejected", { reason: errMsg(payload, t("resendFailed")) }));
         setState("error");
         return;
       }

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { buildUrl } from "@/app/features/shell/tabs";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { ProfileEmptyState } from "./ProfileEmptyStates";
 import { ProfileRosterRow } from "./ProfileRosterRow";
 import type { RosterProfile, StaleMap } from "./ProfileRosterTypes";
@@ -33,6 +34,9 @@ export function ProfileRoster({
   onNewProfile?: () => void;
 }) {
   const t = useTranslations("profile.roster");
+  // Resolve API failures from the machine `code`, never from the server's
+  // English `error` — see app/_lib/use-error-message.ts.
+  const errMsg = useErrorMessage();
   const router = useRouter();
   const [profiles, setProfiles] = useState<RosterProfile[] | null>(null);
   const [stale, setStale] = useState<StaleMap>({});
@@ -80,7 +84,7 @@ export function ProfileRoster({
       const r = await fetch(`/api/profile?id=${encodeURIComponent(id)}`, { method: "DELETE" });
       if (!r.ok) {
         const payload = await r.json().catch(() => null);
-        throw new Error((payload as { error?: string } | null)?.error ?? t("deleteFailed"));
+        throw new Error(errMsg(payload as { error?: string; code?: string } | null, t("deleteFailed")));
       }
       setConfirmingId(null);
       // Optimistic local prune, then tell the matrix to refetch.

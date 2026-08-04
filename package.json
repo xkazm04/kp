@@ -27,6 +27,7 @@
     "design:check": "node scripts/design/check-design-tokens.mjs",
     "polar:setup": "node --import ./scripts/test-alias-loader.mjs --experimental-transform-types --disable-warning=ExperimentalWarning scripts/polar-setup.mjs",
     "market:build": "node scripts/build-market-pulse.mjs",
+    "market:earnings": "node scripts/refresh-market-earnings.mjs",
     "market:apply": "node scripts/apply-market-salaries.mjs",
     "pipeline:sample": "python -m pipeline.jobfit.cli samples/sample-cv.txt",
     "db:dump": "node scripts/db-dump.mjs",

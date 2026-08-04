@@ -2,8 +2,12 @@
 
 import { useState } from "react";
 import { Inbox } from "lucide-react";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
 
 export function SubmissionForm({ postingId, onDone }: { postingId: string; onDone: () => void }) {
+  // Resolve API failures from the machine `code`, never from the server's
+  // English `error` — see app/_lib/use-error-message.ts.
+  const errMsg = useErrorMessage();
   const [candidate, setCandidate] = useState("");
   const [repo, setRepo] = useState("");
   const [busy, setBusy] = useState(false);
@@ -23,8 +27,8 @@ export function SubmissionForm({ postingId, onDone }: { postingId: string; onDon
       // called onDone() unconditionally, so a non-2xx (validation, duplicate token,
       // SQLITE_BUSY, 500) silently dropped the submission while looking like it took.
       if (!r.ok) {
-        const p = (await r.json().catch(() => null)) as { error?: string } | null;
-        setErr(p?.error ?? `Couldn't record submission (${r.status}).`);
+        const p = (await r.json().catch(() => null)) as { error?: string; code?: string } | null;
+        setErr(errMsg(p, `Couldn't record submission (${r.status}).`));
         return;
       }
       setCandidate("");

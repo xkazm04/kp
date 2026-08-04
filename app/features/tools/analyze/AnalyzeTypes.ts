@@ -40,7 +40,15 @@ export type AnalyzeNoticeCode = "githubJdDropped";
 // The localizable descriptor a run hands back on failure/degradation: a stable
 // `code` the surface maps, plus optional engine/server English preferred verbatim
 // when present (see AnalyzeClientError). onWarning reuses the same shape (code only).
-export type AnalyzeErrorInfo = { code?: AnalyzeErrorCode | AnalyzeNoticeCode; serverText?: string };
+// `apiCode` is a route's OWN machine code (`{ error, code }`) when the failing
+// call has one — today the GitHub deep-dive's `results.github.errors.*`. It wins
+// over `serverText`: a code resolves in the reader's language, and preferring the
+// server's English over it would be the English-fallback-chain trap by another name.
+export type AnalyzeErrorInfo = {
+  code?: AnalyzeErrorCode | AnalyzeNoticeCode;
+  apiCode?: string;
+  serverText?: string;
+};
 
 // Re-exported from the single source of truth so existing imports keep working.
 export { MAX_CV_VARIANTS } from "@/app/_lib/upload-constraints";

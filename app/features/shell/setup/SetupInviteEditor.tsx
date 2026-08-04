@@ -20,6 +20,9 @@ import type { OnboardingCtrl } from "./setupSteps";
 // `dense` tightens it for the footer bar; the default is the roomy wizard layout.
 export function InviteEditor({ ctrl, dense = false }: { ctrl: OnboardingCtrl; dense?: boolean }) {
   const t = useTranslations("setup.team");
+  // Role NAMES are owned by the Organization console's catalog — the wizard shows
+  // the same five labels, so it reads the same keys rather than forking them.
+  const tRole = useTranslations("workspaceAdmin.members");
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<MemberRole>("recruiter");
 
@@ -48,7 +51,7 @@ export function InviteEditor({ ctrl, dense = false }: { ctrl: OnboardingCtrl; de
           onChange={(v) => setRole(v as MemberRole)}
           size="sm"
           ariaLabel={t("roleAria")}
-          options={ASSIGNABLE_ROLES.map((r) => ({ value: r, label: roleLabel(r) }))}
+          options={ASSIGNABLE_ROLES.map((r) => ({ value: r, label: roleLabel(r, tRole) }))}
         />
         <button type="button" onClick={add} disabled={!email.trim()} className={`${BTN_SECONDARY} h-9 px-3`}>
           <Plus size={15} aria-hidden /> {t("add")}
@@ -66,7 +69,7 @@ export function InviteEditor({ ctrl, dense = false }: { ctrl: OnboardingCtrl; de
                 {initials(inv.email)}
               </span>
               <span className="max-w-[12rem] truncate text-ink">{inv.email}</span>
-              <span className="text-steel">· {roleLabel(inv.role)}</span>
+              <span className="text-steel">· {roleLabel(inv.role, tRole)}</span>
               <button
                 type="button"
                 onClick={() => ctrl.removeInvite(i)}

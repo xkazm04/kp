@@ -23,7 +23,11 @@ export function useOrganizationMembers() {
   const [canManage, setCanManage] = useState(false);
   const [callerCaps, setCallerCaps] = useState<Capability[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  // A FLAG, not a message. This is a plain module with no translator, and both
+  // failure paths (bad response / network throw) render the same line, so the
+  // copy lives in the catalog and the table resolves it — no English can leak
+  // out of here (docs/architecture/localization.md).
+  const [error, setError] = useState(false);
 
   // Non-async .then-chain (not an `async` body) so the mount effect below doesn't
   // trip react-hooks/set-state-in-effect — the setState calls live in promise
@@ -32,6 +36,7 @@ export function useOrganizationMembers() {
   const reload = useCallback(() => {
     return fetch("/api/org/members")
       .then(async (r): Promise<void> => {
+        // Canonical English, for the console log only — never rendered.
         if (!r.ok) throw new Error("Failed to load members");
         const data = (await r.json()) as MembersResponse;
         setMembers(data.members);
@@ -44,10 +49,10 @@ export function useOrganizationMembers() {
         } else {
           setInvites([]);
         }
-        setError(null);
+        setError(false);
       })
-      .catch((e) => {
-        setError(e instanceof Error ? e.message : "Failed to load");
+      .catch(() => {
+        setError(true);
       })
       .finally(() => {
         setLoading(false);

@@ -66,9 +66,11 @@ const ROUTES: RouteSpec[] = [
     // Per-IP. 10/10min uncached runs; GitHub's anonymous 60/hr cap binds first.
     key: "`github-analysis:${clientIpFrom(request.headers)}`",
     limit: 10,
-    expensive: "githubFetch<GithubUser>",
+    // The GitHub/Gemini harvest moved into @/app/_lib/github/analysis (F12a) — the
+    // library call IS the expensive work the limiter guards.
+    expensive: "buildGithubAnalysis(",
     // Cached responses must keep serving without consuming limiter budget.
-    servedBefore: "githubCache.get(cacheKey)",
+    servedBefore: "readGithubCache(cacheKey)",
   },
   {
     rel: "./extract-text/route.ts",

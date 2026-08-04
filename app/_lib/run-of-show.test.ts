@@ -9,6 +9,12 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 
 import { buildRunOfShow, MIN_DURATION_MIN, MAX_DURATION_MIN, type PrepQuestion } from "./run-of-show.ts";
+import { rosStrings } from "./interview-prep-strings.ts";
+
+// F5 — the plan's copy is a PARAMETER now (the pure-builder rule), loaded from the
+// real catalog rather than a fixture, so these timing assertions also prove the
+// `scheduleTab.prep.plan` keys the loader reads actually exist.
+const S = await rosStrings("en");
 
 const mkQuestions = (n: number): PrepQuestion[] =>
   Array.from({ length: n }, (_, i) => ({
@@ -26,7 +32,7 @@ test("the band constants are the documented 15–30 minutes", () => {
 
 test("every question count 0..10 produces a plan inside the band", () => {
   for (let n = 0; n <= 10; n++) {
-    const plan = buildRunOfShow(mkQuestions(n), ["focus a", "focus b"], "Alex", "Engineer");
+    const plan = buildRunOfShow(mkQuestions(n), ["focus a", "focus b"], "Alex", "Engineer", S);
     assert.ok(
       plan.durationMin >= MIN_DURATION_MIN && plan.durationMin <= MAX_DURATION_MIN,
       `n=${n}: durationMin ${plan.durationMin} out of [${MIN_DURATION_MIN}, ${MAX_DURATION_MIN}]`
@@ -36,7 +42,7 @@ test("every question count 0..10 produces a plan inside the band", () => {
 
 test("the chronology is a contiguous timeline whose end equals durationMin", () => {
   for (let n = 0; n <= 8; n++) {
-    const plan = buildRunOfShow(mkQuestions(n), [], null, null);
+    const plan = buildRunOfShow(mkQuestions(n), [], null, null, S);
     assert.equal(plan.chronology[0].fromMin, 0, `n=${n}: first block must start at 0`);
     for (let i = 1; i < plan.chronology.length; i++) {
       assert.equal(
@@ -52,7 +58,7 @@ test("the chronology is a contiguous timeline whose end equals durationMin", () 
 
 test("a sparse question set is padded to the minimum with an open-discussion block", () => {
   for (const n of [0, 1]) {
-    const plan = buildRunOfShow(mkQuestions(n), [], null, null);
+    const plan = buildRunOfShow(mkQuestions(n), [], null, null, S);
     assert.equal(plan.durationMin, MIN_DURATION_MIN, `n=${n}: should pad up to the minimum`);
     assert.ok(
       plan.chronology.some((b) => /open discussion/i.test(b.topic)),
@@ -62,20 +68,20 @@ test("a sparse question set is padded to the minimum with an open-discussion blo
 });
 
 test("an interview with no questions still has intro and wrap blocks", () => {
-  const plan = buildRunOfShow([], [], null, null);
+  const plan = buildRunOfShow([], [], null, null, S);
   assert.ok(plan.chronology.some((b) => /intro/i.test(b.topic)), "intro block present");
   assert.ok(plan.chronology.some((b) => /wrap/i.test(b.topic)), "wrap block present");
 });
 
 test("question blocks are capped at six even when more are supplied", () => {
-  const plan = buildRunOfShow(mkQuestions(20), [], null, null);
+  const plan = buildRunOfShow(mkQuestions(20), [], null, null, S);
   const questionBlocks = plan.chronology.filter((b) => b.questions.length > 0);
   assert.equal(questionBlocks.length, 6, "no more than six question blocks");
   assert.ok(plan.durationMin <= MAX_DURATION_MIN, "still within the band with the cap applied");
 });
 
 test("focus areas are capped and surfaced in the scenario + signals", () => {
-  const plan = buildRunOfShow(mkQuestions(3), ["a", "b", "c", "d", "e", "f", "g"], "Sam", "Designer");
+  const plan = buildRunOfShow(mkQuestions(3), ["a", "b", "c", "d", "e", "f", "g"], "Sam", "Designer", S);
   const signals = plan.signals;
   // The first five focus areas lead the signals list; the 6th/7th are dropped.
   assert.ok(signals.slice(0, 5).join("|") === "a|b|c|d|e", "signals lead with the first five focus areas");

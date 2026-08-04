@@ -1,6 +1,7 @@
 "use client";
 
 import { SlidersHorizontal, Trash2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { initials } from "@/app/_lib/initials";
 import { Badge } from "@/app/_components/Badge";
 import { Select } from "@/app/_components/Select";
@@ -23,12 +24,14 @@ export function OrganizationMembersTable({
 }: {
   members: OrgMemberDto[];
   loading: boolean;
-  error: string | null;
+  /** The roster fetch failed. A flag, not a message — the copy lives in the catalog. */
+  error: boolean;
   canManage: boolean;
   onPatchMember: (userId: string, body: Record<string, unknown>) => void;
   onEditPermissions: (member: OrgMemberDto, team: MemberTeam) => void;
   onConfirmRemove: (member: OrgMemberDto) => void;
 }) {
+  const t = useTranslations("workspaceAdmin.members");
   // Members table. Tier 2: the roster fetch is in flight and there is
   // nothing to show yet — hold the table's height and stay invisible for
   // 150ms so a warm response never flashes a false "no members" empty
@@ -39,16 +42,16 @@ export function OrganizationMembersTable({
       {loading ? (
         <div className="reveal-quiet min-h-[14rem]" aria-hidden />
       ) : error ? (
-        <p className="px-5 py-6 text-sm text-coral">{error}</p>
+        <p className="px-5 py-6 text-sm text-coral">{t("loadError")}</p>
       ) : (
         <div className="animate-arrive-in">
           <table className="w-full min-w-[38rem] text-left">
             <thead>
               <tr className="border-b border-stone-200 text-meta uppercase text-steel">
-                <th className="px-5 py-2 font-medium">Member</th>
-                <th className="px-2 py-2 font-medium">Role</th>
-                <th className="px-2 py-2 font-medium">Status</th>
-                <th className="px-2 py-2 font-medium">Permissions</th>
+                <th className="px-5 py-2 font-medium">{t("colMember")}</th>
+                <th className="px-2 py-2 font-medium">{t("colRole")}</th>
+                <th className="px-2 py-2 font-medium">{t("colStatus")}</th>
+                <th className="px-2 py-2 font-medium">{t("colPermissions")}</th>
                 <th className="px-5 py-2" />
               </tr>
             </thead>
@@ -82,31 +85,31 @@ export function OrganizationMembersTable({
                         <Select
                           value={team.role}
                           onChange={(v) => onPatchMember(m.user.id, { workspaceId: team.workspaceId, role: v })}
-                          ariaLabel={`Role for ${displayName}`}
+                          ariaLabel={t("roleAria", { name: displayName })}
                           size="sm"
-                          options={ASSIGNABLE_ROLES.map((r) => ({ value: r, label: roleLabel(r) }))}
+                          options={ASSIGNABLE_ROLES.map((r) => ({ value: r, label: roleLabel(r, t) }))}
                         />
                       ) : (
-                        <span className="text-sm text-ink">{team ? roleLabel(team.role) : "—"}</span>
+                        <span className="text-sm text-ink">{team ? roleLabel(team.role, t) : "—"}</span>
                       )}
                     </td>
                     <td className="px-2 py-3">
                       <div className="flex items-center gap-2">
-                        <Badge {...statusBadge(m.user.status)} />
+                        <Badge {...statusBadge(m.user.status, t)} />
                         {canManage && !isOwner && m.user.status !== "invited" ? (
                           <button
                             type="button"
                             onClick={() => onPatchMember(m.user.id, { status: disabled ? "active" : "disabled" })}
                             className="text-xs font-medium text-steel underline decoration-dotted underline-offset-2 hover:text-ink"
                           >
-                            {disabled ? "Enable" : "Disable"}
+                            {disabled ? t("enable") : t("disable")}
                           </button>
                         ) : null}
                       </div>
                     </td>
                     <td className="px-2 py-3">
                       {isOwner ? (
-                        <span className="text-xs text-steel">Full access</span>
+                        <span className="text-xs text-steel">{t("fullAccess")}</span>
                       ) : canManage && team ? (
                         <button
                           type="button"
@@ -114,10 +117,14 @@ export function OrganizationMembersTable({
                           className={`${BTN_GHOST} h-8 gap-1.5 px-2 text-sm`}
                         >
                           <SlidersHorizontal size={14} aria-hidden />
-                          {custom ? <span className="rounded-full bg-coral/10 px-1.5 py-0.5 text-[11px] font-semibold text-coral">Custom</span> : "Edit"}
+                          {custom ? (
+                            <span className="rounded-full bg-coral/10 px-1.5 py-0.5 text-[11px] font-semibold text-coral">{t("custom")}</span>
+                          ) : (
+                            t("edit")
+                          )}
                         </button>
                       ) : (
-                        <span className="text-xs text-steel">{custom ? "Custom" : "Role default"}</span>
+                        <span className="text-xs text-steel">{custom ? t("custom") : t("roleDefault")}</span>
                       )}
                     </td>
                     <td className="px-5 py-3 text-right">
@@ -126,8 +133,8 @@ export function OrganizationMembersTable({
                           type="button"
                           onClick={() => onConfirmRemove(m)}
                           className={`${BTN_GHOST} h-8 w-8 justify-center`}
-                          aria-label={`Remove ${displayName}`}
-                          title={`Remove ${displayName}`}
+                          aria-label={t("removeAria", { name: displayName })}
+                          title={t("removeAria", { name: displayName })}
                         >
                           <Trash2 size={15} aria-hidden />
                         </button>

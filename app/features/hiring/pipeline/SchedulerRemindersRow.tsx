@@ -56,7 +56,12 @@ export function SchedulerRemindersRow({
       {reminderRuns[0] ? (
         isCurrentRunError(reminderRuns[0], { lastRunAt: reminders.lastRunAt }) ? (
           <span className="inline-flex items-center gap-1 text-xs font-semibold text-coral">
-            <XCircle size={12} aria-hidden /> {reminderRuns[0].error ?? t("runFailed")}
+            {/* The persisted run error is a raw server exception with no machine
+                code to resolve, so the SENTENCE is localized and the detail rides
+                inside it (same shape as the tick chip in useSchedulerControlState)
+                rather than replacing the localized text with English. */}
+            <XCircle size={12} aria-hidden />{" "}
+            {reminderRuns[0].error ? t("runFailedMsg", { msg: reminderRuns[0].error }) : t("runFailed")}
             <span className="font-normal text-steel">· {relativeTime(reminderRuns[0].startedAt)}</span>
           </span>
         ) : reminderRuns[0].status !== "error" ? (

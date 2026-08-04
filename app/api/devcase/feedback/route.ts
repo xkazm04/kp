@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
       transfer?: { gaps?: string[] };
     };
     const posting = sub.postingId ? getPosting(sub.postingId) : null;
-    const brief = buildFeedbackBrief({
+    const brief = await buildFeedbackBrief({
       candidateRef: sub.candidateRef ?? "",
       roleTitle: posting?.roleTitle ?? null,
       strengths: bundle.evaluation?.strengths ?? [],

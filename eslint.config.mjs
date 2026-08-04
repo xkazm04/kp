@@ -107,17 +107,6 @@ const config = [
     }
   },
   {
-    // /landing — marketing prototypes for the Kandidate rebrand, intentionally
-    // English-only while the art direction is being chosen. Copy lives inline
-    // for design iteration speed; when a variant is promoted to the real
-    // public face, its strings move into messages/*.json and this carve-out
-    // shrinks accordingly.
-    files: ["app/landing/**/*.tsx"],
-    rules: {
-      "i18next/no-literal-string": "off"
-    }
-  },
-  {
     // Migrated, fully-localized surfaces graduate from warn to ERROR so a new
     // hardcoded string can't regress them. The plugin is declared once above
     // (this block only raises the level). Grown per area as each phase completes.
@@ -125,6 +114,18 @@ const config = [
     // Note: `**` globs, not the literal `app/offer/[token]/...`, because `[token]`
     // is a glob character class.
     files: [
+      // The public marketing pages. `app/landing/**` used to switch this rule
+      // OFF entirely — a carve-out from when /landing held throwaway rebrand
+      // prototypes. That variant was promoted: these components now serve `/`,
+      // `/about` and `/market` in production, in four languages, so the
+      // carve-out was retiring 50 hardcoded strings' worth of debt by ignoring
+      // it. They are migrated (landing.previews.*, aboutPage.art.*) and held at
+      // ERROR. Brand spelling and illustrative figures are named constants, not
+      // JSX text, so they are structurally invisible to the rule rather than
+      // needing per-site disables — see spark/Wordmark.tsx.
+      "app/landing/**/*.tsx",
+      "app/about/**/*.tsx",
+      "app/market/**/*.tsx",
       "app/_components/AiDisclosure.tsx",
       "app/offer/**/*.tsx",
       "app/schedule/**/*.tsx",
@@ -138,6 +139,24 @@ const config = [
       "app/features/shell/Workspace.tsx",
       "app/features/shell/WorkspaceNav.tsx",
       "app/features/shell/setup/**/*.tsx",
+      // The guided demo (F2). `/api/demo` → `/?sim=auto` is where the localized
+      // landing page's "Try the live demo" CTA lands, so this was the most-seen
+      // English-only surface in a four-language product. The whole walk — step
+      // titles, spotlight captions, the run log, the explainer drawer + its
+      // PlantUML diagrams, the screening-wave modal and the demo JD body — now
+      // reads from the `simulation` namespace, so it graduates to ERROR.
+      "app/features/shell/simulation/**/*.tsx",
+      // The Background-tasks tab (F9). The whole surface reads from the `tasks`
+      // namespace — including the three operator panels, which were English "by
+      // design" only by analogy with each other. What is left literal in there is
+      // structurally not copy and is held in named constants or commented at the
+      // site: engine proper nouns, the env-var/PATH preflight tooltips, schema and
+      // stage identifiers, `kp.ats.v1` / `X-Kp-Signature`, the example webhook URL.
+      // Task LABELS are the interesting case: they are written server-side with no
+      // reader locale, so the row stores a catalog reference (app/_lib/task-label.ts)
+      // that resolves at render time — a lint on JSX text could never have caught
+      // those, which is why this glob is evidence of a migration, not the migration.
+      "app/features/shell/tasks/**/*.tsx",
       "app/features/hiring/pipeline/**/*.tsx",
       "app/features/hiring/decisions/**/*.tsx",
       "app/features/hiring/schedule/**/*.tsx",
@@ -149,6 +168,16 @@ const config = [
       "app/features/tools/interview/**/*.tsx",
       "app/features/insights/**/*.tsx",
       "app/features/shared/**/*.tsx",
+      // F10 — Settings → Organization. The member roster, invite row, permission
+      // editor and both destructive confirms now read from `workspaceAdmin.{org,
+      // members,permissions}`. The load-bearing part was NOT the JSX: the five role
+      // names, three member statuses and four capability label/description pairs
+      // lived in `app/features/shared/memberUi.ts`, a plain module no lint mode can
+      // read — and they leaked into `shell/setup/SetupInviteEditor.tsx` and
+      // `app/invite/[token]/AcceptForm.tsx`, two surfaces that were already at
+      // ERROR and therefore looked localized while rendering English. Those helpers
+      // now take a bound translator from the caller.
+      "app/features/settings/organization/**/*.tsx",
       // channels-i18n-honesty (main): the Channels tab + Comms Center graduated off
       // their six prototype-stage `no-literal-string` disables — they are held at
       // ERROR so a new hardcoded string cannot quietly re-English the surface. Their

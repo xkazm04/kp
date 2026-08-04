@@ -3,6 +3,7 @@
 import { ClipboardCheck } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { rubricLabel } from "@/app/_lib/interview-rubric";
+import { useRubricStrings } from "@/app/_lib/use-rubric-strings";
 import { isPlaceholderEvidence } from "@/app/_lib/interview-scorecard";
 import { ratingColor, type Candidate } from "./jobsCompareInterviewsTypes";
 
@@ -11,13 +12,12 @@ import { ratingColor, type Candidate } from "./jobsCompareInterviewsTypes";
 // JobsCompareInterviews.tsx so that file stays under the 200-line split threshold.
 export function JobsCompareInterviewsEvidenceCard({
   c,
-  locale,
   t,
 }: {
   c: Candidate;
-  locale: string;
   t: ReturnType<typeof useTranslations<"jobs.compare">>;
 }) {
+  const rubricStrings = useRubricStrings();
   return (
     <div className="rounded-md border border-stone-200 bg-paper/40 p-3">
       <p className="font-medium text-ink">{c.candidateLabel}</p>
@@ -37,7 +37,7 @@ export function JobsCompareInterviewsEvidenceCard({
                 {r.rating}
               </span>
               <span>
-                <span className="font-medium">{`${rubricLabel(r.competency, locale)}:`}</span>{" "}
+                <span className="font-medium">{`${rubricLabel(r.competency, rubricStrings)}:`}</span>{" "}
                 <span className="text-steel">{r.evidence}</span>
               </span>
             </li>
@@ -58,7 +58,7 @@ export function JobsCompareInterviewsEvidenceCard({
                   {r.rating}
                 </span>
                 <span>
-                  <span className="font-medium">{`${rubricLabel(r.competency, locale)}:`}</span>{" "}
+                  <span className="font-medium">{`${rubricLabel(r.competency, rubricStrings)}:`}</span>{" "}
                   {r.evidence ? <span className="text-steel">{r.evidence}</span> : null}
                 </span>
               </li>

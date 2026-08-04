@@ -16,16 +16,29 @@ import { SIM_PHASES, type SimPhaseId } from "./constants";
 //   * Interview scorecard / Compensation — the human-stage signals the later
 //     phases add (AI voice screen + scorecard; band-midpoint offer).
 
-/** One-word importance tier shown in the Weight column. */
+/** One-word importance tier shown in the Weight column. Its label is read from
+ *  `simulation.weight.<tier>` at the render boundary. */
 export type CriterionWeight = "critical" | "medium" | "minor";
 
+/** Stable identity of a decision factor. The row's NAME and SOURCE are copy, so
+ *  they live in `simulation.criteria.<id>.{name,source}` rather than here — the
+ *  explainer drawer is part of the public guided demo and reads in four
+ *  languages. */
+export type CriterionId =
+  | "seniority"
+  | "languages"
+  | "education"
+  | "skills"
+  | "career"
+  | "contextual"
+  | "scorecard"
+  | "compensation";
+
 export type DecisionCriterion = {
-  /** The decision factor, e.g. "Skills match". */
-  criterion: string;
+  /** The decision factor's stable id, e.g. "skills" -> "Skills match". */
+  id: CriterionId;
   /** One-word influence on the outcome (see CriterionWeight). */
   weight: CriterionWeight;
-  /** Where the signal is read from — candidate CV vs the published JD, etc. */
-  source: string;
   /** The phase at which this criterion enters the decision. The table reveals
    *  it once the walkthrough reaches this step. */
   phase: SimPhaseId;
@@ -53,14 +66,14 @@ const tier = (key: string, fallback: CriterionWeight): CriterionWeight =>
 // Ordered by the phase each criterion is gathered, so the table grows top-to-
 // bottom as the walkthrough progresses through the pipeline.
 export const DECISION_CRITERIA: DecisionCriterion[] = [
-  { criterion: "Seniority", weight: "critical", source: "CV ↔ JD", phase: "source" },
-  { criterion: "Languages", weight: "critical", source: "CV ↔ JD", phase: "source" },
-  { criterion: "Education", weight: "medium", source: "CV ↔ JD", phase: "source" },
-  { criterion: "Skills match", weight: tier("skills", "critical"), source: "CV ↔ JD skills", phase: "match" },
-  { criterion: "Career fit", weight: tier("career", "medium"), source: "CV ↔ JD role", phase: "screen" },
-  { criterion: "Contextual fit", weight: tier("personal", "minor"), source: "CV ↔ JD text", phase: "screen" },
-  { criterion: "Interview scorecard", weight: "critical", source: "Interview", phase: "interview" },
-  { criterion: "Compensation", weight: "medium", source: "JD band", phase: "offer" },
+  { id: "seniority", weight: "critical", phase: "source" },
+  { id: "languages", weight: "critical", phase: "source" },
+  { id: "education", weight: "medium", phase: "source" },
+  { id: "skills", weight: tier("skills", "critical"), phase: "match" },
+  { id: "career", weight: tier("career", "medium"), phase: "screen" },
+  { id: "contextual", weight: tier("personal", "minor"), phase: "screen" },
+  { id: "scorecard", weight: "critical", phase: "interview" },
+  { id: "compensation", weight: "medium", phase: "offer" },
 ];
 
 // Stable phase ordering (design → … → hired) for cumulative reveal.
@@ -75,10 +88,12 @@ export function criteriaThroughPhase(phase: SimPhaseId | null): DecisionCriterio
   return DECISION_CRITERIA.filter((c) => PHASE_ORDER.indexOf(c.phase) <= reached);
 }
 
-// Weight tier -> dot color + display label. Reuses the brand tokens: coral marks
-// the high-stakes signals, amber the mid tier, steel the minor nudge.
-export const CRITERION_WEIGHT_STYLE: Record<CriterionWeight, { dot: string; label: string }> = {
-  critical: { dot: "bg-coral", label: "Critical" },
-  medium: { dot: "bg-dial-amber", label: "Medium" },
-  minor: { dot: "bg-steel", label: "Minor" },
+// Weight tier -> dot color. Reuses the brand tokens: coral marks the high-stakes
+// signals, amber the mid tier, steel the minor nudge. The tier's WORD is copy and
+// comes from `simulation.weight.<tier>`; the dot is the color half of the same
+// non-color-only cue.
+export const CRITERION_WEIGHT_DOT: Record<CriterionWeight, string> = {
+  critical: "bg-coral",
+  medium: "bg-dial-amber",
+  minor: "bg-steel",
 };

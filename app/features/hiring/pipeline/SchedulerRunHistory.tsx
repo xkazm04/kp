@@ -46,7 +46,9 @@ export function SchedulerRunHistory({
                   </span>
                   {run.status === "error" ? (
                     <span className="inline-flex items-center gap-1 text-xs font-semibold text-coral">
-                      <XCircle size={12} aria-hidden /> {run.error ?? t("runFailed")}
+                      {/* Localize the sentence, carry the raw (uncoded) server
+                          detail inside it — see SchedulerRemindersRow. */}
+                      <XCircle size={12} aria-hidden /> {run.error ? t("runFailedMsg", { msg: run.error }) : t("runFailed")}
                     </span>
                   ) : (
                     <span className="inline-flex flex-wrap items-center gap-1">

@@ -5,6 +5,7 @@ import { KeyRound } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { BTN_SECONDARY, PANEL } from "@/app/_components/ui/recipes";
 import { labelize } from "@/app/_lib/format";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
 import type { ProviderKeyMeta } from "@/app/_lib/llm-config";
 import { buildKeyRequestBody, findExistingKey } from "./modelsKeysPanelLogic";
 import { useProviderName } from "./modelsProviderNames";
@@ -21,6 +22,9 @@ type KeysPayload = { keys: ProviderKeyMeta[]; providers: string[] };
 
 export function KeysPanel() {
   const t = useTranslations("models.keys");
+  // Resolve API failures from the machine `code`, never from the server's
+  // English `error` — see app/_lib/use-error-message.ts.
+  const errMsg = useErrorMessage();
   const providerName = useProviderName();
   const [data, setData] = useState<KeysPayload | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
@@ -72,6 +76,10 @@ export function KeysPanel() {
     }
     setSaving(true);
     setNote(null);
+    // The encryption-secret-missing 400 is detected on the SERVER's raw `error`
+    // (a machine signal, never rendered) so the localized `kpSecretHint` still
+    // shows under the localized message.
+    let kpSecret = false;
     try {
       const r = await fetch("/api/llm/keys", {
         method: "PUT",
@@ -81,14 +89,17 @@ export function KeysPanel() {
         // retained) Azure endpoint never rides along on a non-Azure key.
         body: JSON.stringify(buildKeyRequestBody({ provider, scope, apiKey, endpoint, apiVersion })),
       });
-      const p = (await r.json().catch(() => ({}))) as { keys?: ProviderKeyMeta[]; error?: string };
-      if (!r.ok || !p.keys) throw new Error(p.error || t("saveFailed"));
+      const p = (await r.json().catch(() => ({}))) as { keys?: ProviderKeyMeta[]; error?: string; code?: string };
+      if (!r.ok || !p.keys) {
+        kpSecret = p.error?.includes("KP_SECRET") === true;
+        throw new Error(errMsg(p, t("saveFailed")));
+      }
       setData((d) => (d ? { ...d, keys: p.keys! } : d));
       setApiKey("");
       setNote({ text: t("saved"), ok: true });
     } catch (e) {
       const text = e instanceof Error && e.message ? e.message : t("saveFailed");
-      setNote({ text, ok: false, kpSecret: text.includes("KP_SECRET") });
+      setNote({ text, ok: false, kpSecret });
     } finally {
       setSaving(false);
     }
@@ -105,8 +116,8 @@ export function KeysPanel() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ provider: keyProvider, scope: keyScope }),
       });
-      const p = (await r.json().catch(() => ({}))) as { keys?: ProviderKeyMeta[]; error?: string };
-      if (!r.ok || !p.keys) throw new Error(p.error || t("deleteFailed"));
+      const p = (await r.json().catch(() => ({}))) as { keys?: ProviderKeyMeta[]; error?: string; code?: string };
+      if (!r.ok || !p.keys) throw new Error(errMsg(p, t("deleteFailed")));
       setData((d) => (d ? { ...d, keys: p.keys! } : d));
     } catch (e) {
       setNote({ text: e instanceof Error && e.message ? e.message : t("deleteFailed"), ok: false });

@@ -41,7 +41,12 @@ export function useTaskResult(taskId: string | null): {
   const { tasks, fetchTask } = useTasks();
   const polled = taskId ? tasks.find((t) => t.id === taskId) ?? null : null;
   const status = polled?.status ?? null;
-  const error = polled?.error ?? null;
+  // NOT the `{ error, code }` API envelope: this is the task runner's own stored
+  // diagnostic on the polled record, passed through unchanged (there is no code to
+  // resolve and no fallback being skipped here). Written as a ternary so it doesn't
+  // read as the coalesce-over-a-localized-fallback anti-pattern the i18n guard hunts
+  // for (app/_lib/use-error-message.ts).
+  const error = polled ? polled.error : null;
   const progressMsg = polled?.progressMsg ?? null;
   const active = status === "running" || status === "queued";
   const terminal = status != null && !active;

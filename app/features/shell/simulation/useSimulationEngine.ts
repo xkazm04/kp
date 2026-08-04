@@ -5,7 +5,9 @@
 // the group-evaluation runner (runGroupEval). Takes the provider's shared
 // ctrl ref + patch/beat/log so this stays wired to the SAME run-control state.
 import { useCallback, type MutableRefObject } from "react";
+import { useTranslations } from "next-intl";
 import { notifyDataChanged } from "@/app/features/shell/live-refresh";
+import { resolveErrorMessage, type ApiErrorPayload } from "@/app/_lib/use-error-message";
 import type { GroupEvalPayload } from "@/app/features/hiring/decisions/GroupEvalModal";
 import type { PipelineEntryView } from "@/app/_lib/db";
 import { compareByMatchScoreDesc } from "@/app/_lib/match-score";
@@ -22,15 +24,35 @@ export function useSimulationEngine({
   log: (text: string) => void;
   beat: (ms: number) => Promise<void>;
 }) {
+  // A failed advance ends up in the guided demo's visible "Failed: …" status, and
+  // this demo is public (/?sim=auto, no login) — so it must never be the route's
+  // English `error`. Resolve the machine `code`, fall back to the dock's own copy.
+  // The pure resolveErrorMessage rather than useErrorMessage(): the hook returns a
+  // fresh closure per render, which would destabilize the memoized callbacks the
+  // walk depends on. Both translators are stable.
+  const t = useTranslations("pipeline.controlCenter");
+  const tErrors = useTranslations("errors");
+  // The engine's OWN failure copy (fetch/timeout/stall, the group-evaluation
+  // unavailable notice). Each of these lands in the public demo's visible
+  // "Failed: …" status or in the comparison modal, so none of it may stay English.
+  const tSim = useTranslations("simulation");
+  const errMsg = useCallback(
+    (payload: ApiErrorPayload, fallback: string) => {
+      type ErrorKey = Parameters<typeof tErrors>[0];
+      return resolveErrorMessage(payload, fallback, (c) => tErrors.has(c as ErrorKey), (c) => tErrors(c as ErrorKey));
+    },
+    [tErrors]
+  );
+
   const getEntries = useCallback(async (): Promise<PipelineEntryView[]> => {
     // Throw on a non-OK response instead of letting `?? []` coerce a transient 500 into an
     // empty board — which read as "intake returned none" and silently halted the sim beat.
     // A throw surfaces the failure to the sim run's error handling.
     const r = await fetch("/api/pipeline");
-    if (!r.ok) throw new Error(`pipeline fetch failed (${r.status})`);
+    if (!r.ok) throw new Error(tSim("error.pipelineFetch", { status: r.status }));
     const p = await r.json();
     return (p.entries as PipelineEntryView[]) ?? [];
-  }, []);
+  }, [tSim]);
 
   // The sim walk repeatedly re-fetches the whole board and selects the cohort for
   // the role under demo. Co-locate that selection so the jobId scope and the stage
@@ -79,9 +101,9 @@ export function useSimulationEngine({
         if (e && pred(e)) return;
         await sleep(250);
       }
-      throw new Error(`Timed out after ${Math.round(timeout / 1000)}s waiting for ${label}.`);
+      throw new Error(tSim("error.waitTimeout", { seconds: Math.round(timeout / 1000), label }));
     },
-    [ctrl, getEntries]
+    [ctrl, getEntries, tSim]
   );
 
   // Dispatch a REAL click on a rendered element (main doc or an iframe doc).
@@ -109,10 +131,10 @@ export function useSimulationEngine({
     // honors the downgrade (human → automated), so this claims no authority.
     const r = await fetch(`/api/pipeline/${entryId}`, { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ action: "accept", actor: "sim" }) });
     const p = await r.json();
-    if (!r.ok) throw new Error(p.error ?? "advance failed");
+    if (!r.ok) throw new Error(errMsg(p, t("errorRun")));
     notifyDataChanged(); // open board/queue re-fetches live
     return p.entry?.stage as string;
-  }, []);
+  }, [t, errMsg]);
 
   // Advance an entry until it reaches `stage`, bounded by the real pipeline depth.
   // FAILURE POLICY (shared with waitEntry): if the target isn't reached within the
@@ -127,9 +149,15 @@ export function useSimulationEngine({
         st = await advance(entryId);
         if (st === stage) return st;
       }
-      throw new Error(`Could not advance entry ${entryId} to "${stage}" within ${MAX_STAGE_ADVANCES} steps (stalled at "${st || "unknown"}").`);
+      throw new Error(
+        tSim("error.advanceStalled", {
+          stage,
+          steps: MAX_STAGE_ADVANCES,
+          current: st || tSim("error.unknownStage"),
+        })
+      );
     },
-    [advance]
+    [advance, tSim]
   );
 
   // Run + show a group evaluation for a role (keyless: deterministic ranking when
@@ -164,22 +192,20 @@ export function useSimulationEngine({
           // Timed out waiting for the evaluation to be written. Surface it explicitly
           // (the modal renders this message) rather than dropping to a blank/"run one"
           // comparison during the climactic Offer step.
-          const error = `The group evaluation didn't finish within ${Math.round(
-            TIMEOUT_MS / 1000
-          )}s. The candidates are still in the pipeline — the comparison just couldn't be generated in time.`;
+          const error = tSim("error.groupEvalTimeout", { seconds: Math.round(TIMEOUT_MS / 1000) });
           patch({ groupEval: { roleTitle, payload: null, loading: false, error } });
-          log("⚠︎ Group evaluation timed out — showing an unavailable notice.");
+          log(tSim("log.groupEvalTimedOut"));
         }
       } catch (e) {
         if (e instanceof SimStop) throw e;
         // Same honest-failure treatment as the timeout: show why, don't blank out.
         patch({
-          groupEval: { roleTitle, payload: null, loading: false, error: "The group evaluation couldn't be generated." },
+          groupEval: { roleTitle, payload: null, loading: false, error: tSim("error.groupEvalFailed") },
           screenWave: null,
         });
       }
     },
-    [ctrl, entriesFor, log, patch]
+    [ctrl, entriesFor, log, patch, tSim]
   );
 
   return { getEntries, entriesFor, topScreened, waitDom, waitEntry, clickEl, advance, advanceTo, runGroupEval };

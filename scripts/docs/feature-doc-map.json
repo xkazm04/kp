@@ -92,6 +92,8 @@
         "app/_lib/archetypes.ts",
         "app/_lib/github-evidence.ts",
         "app/_lib/github-summary.ts",
+        "app/_lib/github/**",
+        "app/api/github-analysis/**",
         "pipeline/jobfit/profile.py",
         "pipeline/jobfit/registry.py",
         "pipeline/jobfit/archetypes.json",
@@ -307,6 +309,27 @@
         "app/features/settings/integrations/integrationsPersonasLogic.ts",
         "pipeline/jobfit/agentfit.py",
         "pipeline/jobfit/agentfit_cli.py"
+      ]
+    },
+    {
+      "doc": "docs/features/marketing/README.md",
+      "sourceGlobs": [
+        "app/about/**",
+        "app/market/**",
+        "scripts/build-market-pulse.mjs",
+        "scripts/refresh-market-earnings.mjs",
+        "scripts/lib/market-earnings.mjs",
+        "data/market_pulse.json"
+      ]
+    },
+    {
+      "doc": "docs/architecture/localization.md",
+      "sourceGlobs": [
+        "app/_lib/use-error-message.ts",
+        "app/_lib/api-response.ts",
+        "app/_lib/format.ts",
+        "messages/**",
+        "scripts/i18n-check.mjs"
       ]
     }
   ]

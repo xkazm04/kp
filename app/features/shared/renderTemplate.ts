@@ -37,7 +37,8 @@ export const TEMPLATE_PLACEHOLDERS = [
 // machine-translated — but MAY opt into these tokens. Two example-filler tokens
 // (offer_note/apply_note) localize the seeded default's sample bullets too, so a
 // cs build from the default is single-language throughout. These are NOT data
-// placeholders (they take no value from `data`); they resolve from the map below.
+// placeholders (they take no value from `data`); they resolve from the TemplateTokens
+// map the caller passes in.
 export const TEMPLATE_LOCALIZED_TOKENS = [
   "heading_about",
   "heading_role",
@@ -49,39 +50,28 @@ export const TEMPLATE_LOCALIZED_TOKENS = [
   "apply_note",
 ] as const;
 
-type LocalizedToken = (typeof TEMPLATE_LOCALIZED_TOKENS)[number];
+export type LocalizedToken = (typeof TEMPLATE_LOCALIZED_TOKENS)[number];
 
-// EN + CS resolutions. The role CONTENT (responsibilities/skills) is generated in
-// the output language by the design chain; only this structural scaffolding + the
-// seeded sample filler is templated here. The filler is deliberately concrete and
-// coded-language-free so a JD rendered from the default still LINTS CLEAN (jd-lint);
-// each language keeps a work-mode word ("hybrid"/"hybridní") for the place signal.
-const LOCALIZED_STRINGS: Record<"en" | "cs", Record<LocalizedToken, string>> = {
-  en: {
-    heading_about: "About us",
-    heading_role: "The role",
-    heading_requirements: "What we're looking for",
-    heading_nice: "Nice to have",
-    heading_offer: "What we offer",
-    heading_apply: "How to apply",
-    offer_note: "Hybrid working, meaningful ownership, and room to grow.",
-    apply_note: "Apply via the link — a short conversation, then a first-round interview.",
-  },
-  cs: {
-    heading_about: "O nás",
-    heading_role: "Pozice",
-    heading_requirements: "Koho hledáme",
-    heading_nice: "Výhodou",
-    heading_offer: "Co nabízíme",
-    heading_apply: "Jak se přihlásit",
-    offer_note: "Hybridní režim práce, smysluplná zodpovědnost a prostor k růstu.",
-    apply_note: "Přihlaste se přes odkaz — krátký rozhovor a poté první kolo pohovoru.",
-  },
-};
-
-function localizedStrings(lang?: string): Record<LocalizedToken, string> {
-  return LOCALIZED_STRINGS[lang === "cs" ? "cs" : "en"];
-}
+/** The resolved text for every localization token, in the JD's OUTPUT language.
+ *  Passed IN rather than looked up here (the pure-builder rule in
+ *  docs/architecture/localization.md) — this module is imported by the template
+ *  manager on the client, so it must not carry a catalog loader.
+ *
+ *  DOCUMENT-READER side: a JD is read by whoever the posting reaches, so its
+ *  scaffolding follows the build's `lang`, never the recruiter's cookie.
+ *  `jdTemplateTokens(lang)` in app/_lib/jd-template-tokens.ts is the loader.
+ *
+ *  F5 — this used to be a `Record<"en" | "cs", …>` table right here, so a de/fr
+ *  build put localized role CONTENT under ENGLISH headings, which is the exact
+ *  single-language defect the tokens were introduced to fix. The copy now lives in
+ *  `library.templates.token.*` (all four locales). Two notes that moved with it:
+ *  the role CONTENT (responsibilities/skills) is generated in the output language
+ *  by the design chain, so only this structural scaffolding + the seeded sample
+ *  filler is templated; and the filler is deliberately concrete and
+ *  coded-language-free so a JD rendered from the default still LINTS CLEAN
+ *  (jd-lint) — each language keeps a work-mode word ("hybrid" / "hybridní" /
+ *  "hybrides Arbeiten" / "travail hybride") for the place signal jd-lint checks. */
+export type TemplateTokens = Record<LocalizedToken, string>;
 
 // Every token the renderer knows (data placeholders + localization tokens) — the
 // single source both findUnknownPlaceholders and the supported-list message read,
@@ -91,7 +81,7 @@ const ALL_KNOWN_TOKENS: readonly string[] = [...TEMPLATE_PLACEHOLDERS, ...TEMPLA
 // The seeded "Company standard" template. Headings + sample filler are LANG-AWARE
 // tokens (TEMPLATE_LOCALIZED_TOKENS) resolved per output language at render, so a
 // cs build reads single-language instead of Czech content under English headings.
-// The filler (offer_note/apply_note in LOCALIZED_STRINGS) must LINT CLEAN — a JD
+// The filler (offer_note/apply_note in the token catalog) must LINT CLEAN — a JD
 // rendered from this is surfaced through JdLintPanel (Ledger read-view + editor),
 // and the old "Competitive pay…" line was exactly the boilerplate jd-lint flags.
 export const DEFAULT_TEMPLATE_BODY = `# {{title}}
@@ -154,12 +144,13 @@ const PLACEHOLDER_RE = /\{\{(\w+)\}\}/g;
 //
 // These cases are pinned by render-template.test.ts.
 //
-// `lang` (one-language-jd) selects the resolution for TEMPLATE_LOCALIZED_TOKENS
+// `localized` (one-language-jd) carries the resolution for TEMPLATE_LOCALIZED_TOKENS
 // (heading_*/offer_note/apply_note) so the SEEDED default's structural scaffolding
-// renders in the JD's output language; anything but "cs" resolves to English. It
-// does not touch data placeholders or a user template's literal headings.
-export function renderTemplate(body: string, data: TemplateData, lang?: string): string {
-  const localized = localizedStrings(lang);
+// renders in the JD's output language. It does not touch data placeholders or a
+// user template's literal headings. Required, not optional: an omitted map would
+// ship raw `{{heading_about}}` onto a public posting, so the type system asks the
+// caller which language the document is in.
+export function renderTemplate(body: string, data: TemplateData, localized: TemplateTokens): string {
   const bullets = (arr?: string[]) => (arr && arr.length ? arr.map((s) => `- ${s}`).join("\n") : "- —");
   const map: Record<string, string> = {
     title: data.title?.trim() || "Role title",

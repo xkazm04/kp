@@ -181,6 +181,18 @@ export const analysisSchema = analysisResultSchema.extend({
 
 export type Analysis = z.infer<typeof analysisSchema>;
 
+// An analysis observation as DATA: `kind` names a message in the
+// `results.github.finding` catalog, `params` are the raw values ICU formats.
+// See app/_lib/github-evidence.ts for why these are not sentences.
+export const githubFindingSchema = z.object({
+  kind: z.string(),
+  params: z.record(z.string(), z.union([z.string(), z.number()])).optional()
+});
+// A stored analysis predating findings carries the frozen English sentence its
+// run produced. Accept it so a saved report keeps rendering (verbatim, in that
+// English) instead of failing to parse.
+const githubNoteSchema = z.union([z.string(), githubFindingSchema]);
+
 // Single source of truth for the code-review payload shape: the route derives
 // its CodeReviewPayload from this via z.infer, and the e2e fixture is typed
 // against it, so the three former hand-maintained mirrors can no longer drift.
@@ -189,7 +201,22 @@ export const codeReviewSchema = z.object({
   // each of the four states means). `empty` is distinct from `ok` so an empty
   // review — no owned public repos — is never mistaken for evidenced-skills data.
   status: z.enum(CODE_REVIEW_STATUSES),
+  // Canonical ENGLISH, like an API envelope's `error`: it is the server log's
+  // line AND the text frozen into a pipeline entry's GithubEvidenceSummary
+  // (github-summary.ts) at add-to-pipeline time. For the `ok` status it is the
+  // model's own prose and the only thing there is to show; for every other status
+  // it is machine copy the UI must NOT render — `reason` below is what it renders.
   summary: z.string(),
+  // Which non-ok branch produced `summary`, as a stable code the panel resolves
+  // through `results.github.review.<reason>`. Four statuses cover eight distinct
+  // outcomes (a disabled key vs an undecryptable one, no repos vs no signals vs a
+  // throttled read), so status alone cannot localize the line. Nullish: absent on
+  // `ok`, and on any payload cached/stored before this field existed.
+  reason: z.string().nullish(),
+  // FINDING #2 — the review is real but some repository data couldn't be fetched
+  // this run. Structured instead of a sentence appended to `summary`, so the panel
+  // renders the caveat in the reader's language beside the model's prose.
+  partial: z.boolean().nullish(),
   // `confirmedSkills` is the model's read on which skills the *public repo
   // signals* evidence — NOT a confirmation that the source code was inspected.
   // The deep review never reads file bodies or a recursive tree (see
@@ -198,17 +225,24 @@ export const codeReviewSchema = z.object({
   unverifiedClaims: z.array(z.string()),
   hiddenStrengths: z.array(z.string()),
   reposReviewed: z.array(z.string()),
-  // Human-readable, deterministic description of the exact evidence the review
-  // was built from (README text, commit subjects, root-level file names, …),
-  // so the panel can state its scope instead of implying the code was read.
-  evidenceBasis: z.array(z.string()),
+  // Deterministic description of the exact evidence the review was built from
+  // (README text, commit subjects, root-level file names, …) as findings, so the
+  // panel can state its scope — in the reader's language — instead of implying
+  // the code was read.
+  evidenceBasis: z.array(githubNoteSchema),
   error: z.string().nullable()
 });
 
 export const githubAnalysisSchema = z.object({
   username: z.string(),
   profileUrl: httpUrlOrBlank,
+  // Canonical English (see codeReview.summary): the line github-summary.ts freezes
+  // into a pipeline entry when the deep review has none of its own. The panel
+  // renders `summaryFinding` instead whenever it is present.
   summary: z.string(),
+  // The same sentence as data — login, repo counts and the leading languages —
+  // so the panel composes it in the reader's language.
+  summaryFinding: githubFindingSchema.nullish(),
   analyzedAt: z.string(),
   metrics: z.object({
     publicRepos: z.number(),
@@ -237,10 +271,10 @@ export const githubAnalysisSchema = z.object({
       updatedAt: z.string(),
       pushedAt: z.string().nullable(),
       topics: z.array(z.string()),
-      complexitySignals: z.array(z.string())
+      complexitySignals: z.array(githubNoteSchema)
     })
   ),
-  contributionSignals: z.array(z.string()),
+  contributionSignals: z.array(githubNoteSchema),
   jobFitSignals: z.object({
     // True iff a non-empty job description was supplied for this run. Lets the UI tell
     // "no JD provided — we never ran a comparison" apart from "JD analyzed, zero overlap",
@@ -253,9 +287,9 @@ export const githubAnalysisSchema = z.object({
     // N tracked skills" and a recruiter doesn't read "no gaps" as exhaustive.
     // Nullish for backward-compat with any response cached before this field existed.
     trackedSkillCount: z.number().nullish(),
-    complexityAssessment: z.string()
+    complexityAssessment: githubNoteSchema
   }),
-  limitations: z.array(z.string()),
+  limitations: z.array(githubNoteSchema),
   codeReview: codeReviewSchema.optional()
 });
 

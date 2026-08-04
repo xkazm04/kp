@@ -10,6 +10,7 @@ import { TextInput } from "@/app/_components/TextInput";
 import { CHIP_QUIET, META_LABEL } from "@/app/_components/ui/recipes";
 import { ACCEPT_EXTENSIONS } from "@/app/_lib/upload-constraints";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
 import type { OnboardingCtrl, RoleDraft, RoleMode } from "./setupSteps";
 import { Req } from "./SetupRequiredMarker";
 import { SetupFirstRoleWriteFields } from "./SetupFirstRoleWriteFields";
@@ -27,6 +28,9 @@ import { SetupFirstRoleWriteFields } from "./SetupFirstRoleWriteFields";
 
 export function FirstRoleStep({ ctrl }: { ctrl: OnboardingCtrl }) {
   const t = useTranslations("setup.firstRole");
+  // Extraction failures resolve from the machine `code`, never the server's English
+  // `error` — see app/_lib/use-error-message.ts.
+  const errMsg = useErrorMessage();
   const enumLabel = useEnumLabel();
   const role = ctrl.state.role;
   const setRole = (patch: Partial<RoleDraft>) => ctrl.update({ role: { ...role, ...patch } });
@@ -41,13 +45,13 @@ export function FirstRoleStep({ ctrl }: { ctrl: OnboardingCtrl }) {
       const form = new FormData();
       form.append("file", file);
       const res = await fetch("/api/extract-text", { method: "POST", body: form });
-      const data = (await res.json().catch(() => null)) as { text?: string; error?: string } | null;
+      const data = (await res.json().catch(() => null)) as { text?: string; error?: string; code?: string } | null;
       if (res.ok && data?.text?.trim()) {
         // Derive a starter title from the file name when none is set yet.
         const fromName = file.name.replace(/\.[^.]+$/, "").replace(/[-_]+/g, " ").trim();
         setRole({ importedBody: data.text.trim(), importedFileName: file.name, title: role.title.trim() || fromName });
       } else {
-        setImportError(data?.error ?? t("import.error"));
+        setImportError(errMsg(data, t("import.error")));
       }
     } catch {
       setImportError(t("import.error"));

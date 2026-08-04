@@ -2,7 +2,7 @@
 
 import { AlertTriangle, Loader2, Lock, RefreshCw } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { formatSalaryRange } from "@/app/_lib/format";
+import { useNumberFormat } from "@/app/_lib/use-number-format";
 import { normalizeMarketSalary } from "@/app/_lib/salary-band";
 import { safeHttpLinks } from "@/app/_lib/safe-url";
 import { dedupeBy } from "@/app/_lib/dedupe";
@@ -49,6 +49,8 @@ export function FailedPanel({ error, retrying, retryError, onRetry }: { error: s
 // page) — the recruiter-facing surface for the grounded band + its cited sources.
 export function SalaryCard({ salary, sources, source }: { salary: unknown; sources?: string[]; source?: string }) {
   const t = useTranslations("library.tab");
+  // Reader-locale digit grouping (format.ts number-locale contract).
+  const n = useNumberFormat();
   const s = normalizeMarketSalary(salary);
   const links = dedupeBy(safeHttpLinks(sources ?? []), (l) => l.href).slice(0, 3);
   const provenance = source === "llm" ? t("provWebGrounded") : source === "deterministic" ? t("provEstimated") : source ?? t("provEstimated");
@@ -59,7 +61,7 @@ export function SalaryCard({ salary, sources, source }: { salary: unknown; sourc
         {s.available ? (
           <span className="inline-flex items-center gap-1.5 rounded-md bg-white px-2 py-1 text-sm font-semibold text-ink">
             <Lock size={12} className="text-steel" aria-hidden />
-            {formatSalaryRange(s.suggestedMinimum, s.suggestedMaximum, { currency: s.currency })} · {s.confidence}
+            {n.salaryRange(s.suggestedMinimum, s.suggestedMaximum, { currency: s.currency })} · {s.confidence}
           </span>
         ) : (
           <span className="inline-flex items-center gap-1.5 rounded-md bg-white px-2 py-1 text-sm font-semibold text-steel">

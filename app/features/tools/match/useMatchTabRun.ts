@@ -6,10 +6,14 @@ import { useSearchParams } from "next/navigation";
 import type { useTranslations } from "next-intl";
 import type { AnalysisRow, MatchRef, MatchResponse, ProfileRow, WeightVector } from "@/app/features/shared/matchTypes";
 import { selectMatchView } from "./matchView";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
 
 type Translator = ReturnType<typeof useTranslations>;
 
 export function useMatchTabRun(t: Translator) {
+  // Resolve API failures from the machine `code`, never from the server's
+  // English `error` — see app/_lib/use-error-message.ts.
+  const errMsg = useErrorMessage();
   const [source, setSource] = useState<"profile" | "analysis">("profile");
   const [profiles, setProfiles] = useState<ProfileRow[]>([]);
   // profile id → newer same-CV analysis (GET /api/profile `stale`). Lets a matched
@@ -100,7 +104,7 @@ export function useMatchTabRun(t: Translator) {
       // surface an honest, localized message rather than leaking the raw server
       // string or letting a doomed auto-run fail silently.
       if (r.status === 404) throw new Error(t("candidateNotFound"));
-      if (!r.ok) throw new Error(payload.error ?? t("matchFailedStatus", { status: r.status }));
+      if (!r.ok) throw new Error(errMsg(payload, t("matchFailedStatus", { status: r.status })));
       setResult(payload as MatchResponse);
       setMatchRef(ref);
     } catch (caught) {

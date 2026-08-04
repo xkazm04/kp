@@ -43,6 +43,10 @@ export function scorecardTaskNotes(task: TaskId, note: string): string | undefin
 
 export type Result = { task: TaskId; data: Record<string, unknown>; source: string; applied: string };
 
+// The English SOURCE of the applied-outcome labels — a fallback map, never the
+// rendered value: ResultView reads `pipeline.applied.<key>` and only falls back
+// here for an outcome the catalog doesn't carry yet (the same has-fallback idiom
+// as STAGE_HELP in PipelineBoard). Keep the two in step when adding an outcome.
 export const APPLIED_LABEL: Record<string, string> = {
   advanced: "Advanced a stage.",
   held_for_review: "Held for your review in Decisions.",

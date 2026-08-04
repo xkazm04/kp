@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { ONBOARDING_PRESETS } from "@/app/_lib/onboarding";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { Select } from "@/app/_components/Select";
 import { TextInput } from "@/app/_components/TextInput";
 
@@ -59,6 +60,9 @@ function EditableRows({
 // frozen const). Sends label-only rows; the store derives ids/keys + bounds them.
 export function TemplateManager({ onCancel, onSaved }: { onCancel: () => void; onSaved: (id: string) => void }) {
   const t = useTranslations("onboarding");
+  // Save failures resolve from the machine `code`, never the server's English
+  // `error` — see app/_lib/use-error-message.ts.
+  const errMsg = useErrorMessage();
   const [name, setName] = useState("");
   const [tasks, setTasks] = useState<string[]>([""]);
   const [questions, setQuestions] = useState<string[]>([""]);
@@ -91,7 +95,7 @@ export function TemplateManager({ onCancel, onSaved }: { onCancel: () => void; o
         }),
       });
       const p = await r.json();
-      if (!r.ok) throw new Error(p.error || t("saveFailed"));
+      if (!r.ok) throw new Error(errMsg(p, t("saveFailed")));
       onSaved(p.template.id);
     } catch (e) {
       setError(e instanceof Error ? e.message : t("saveFailed"));

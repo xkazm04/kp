@@ -19,10 +19,18 @@ export function hasCustomPermissions(team: MemberTeam): boolean {
   return false;
 }
 
+/** The MACHINE failure signal from a failed org response — the stable `code`
+ *  when the route sends one, else the reason string the member routes put in
+ *  `error` ("last_owner", "not_member"). The console COMPARES it and renders its
+ *  own copy (see app/_lib/use-error-message.ts — the server's English `error` is
+ *  never rendered). The invite panel no longer routes through here at all: it
+ *  hands the parsed payload to `useErrorMessage()` and falls back to
+ *  `workspaceAdmin.members.inviteFailed`. */
 export async function readError(r: Response | null): Promise<string | null> {
   if (!r) return null;
   try {
-    return ((await r.json()) as { error?: string }).error ?? null;
+    const { code, error } = (await r.json()) as { error?: string; code?: string };
+    return code ?? error ?? null;
   } catch {
     return null;
   }

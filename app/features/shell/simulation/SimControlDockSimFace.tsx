@@ -45,6 +45,7 @@ export function SimControlDockSimFace({
   onCollapse: () => void;
 }) {
   const t = useTranslations("pipeline.controlCenter");
+  const tSim = useTranslations("simulation");
   return (
     <div className="space-y-2.5">
       <div className="flex items-center gap-3">
@@ -58,6 +59,7 @@ export function SimControlDockSimFace({
         <ol aria-label={t("phasesLabel")} className="flex flex-1 flex-wrap items-center gap-1">
           {SIM_PHASES.map((p, i) => {
             const Icon = PHASE_ICON[p.id];
+            const label = tSim(`phase.${p.id}`);
             const state = phaseStepState({ activeIdx, index: i, simDone: sim.done });
             const done = state === "completed";
             const active = state === "current";
@@ -67,8 +69,8 @@ export function SimControlDockSimFace({
                   type="button"
                   onClick={() => router.replace(buildUrl({ tab: p.tab }, searchParams.toString()), { scroll: false })}
                   aria-current={active ? "step" : undefined}
-                  aria-label={t("phaseStep", { label: p.label, state: t(PHASE_STATE_KEY[state]) })}
-                  title={t("goToPhase", { label: p.label })}
+                  aria-label={t("phaseStep", { label, state: t(PHASE_STATE_KEY[state]) })}
+                  title={t("goToPhase", { label })}
                   className={`focus-ring inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-sm transition-colors ${
                     active
                       ? "bg-coral font-semibold text-white shadow-sticker-xs"
@@ -78,7 +80,7 @@ export function SimControlDockSimFace({
                   }`}
                 >
                   {done ? <Check size={13} aria-hidden /> : <Icon size={13} aria-hidden />}
-                  {p.label}
+                  {label}
                 </button>
                 {i < SIM_PHASES.length - 1 ? (
                   <ChevronRight size={13} aria-hidden className={`mx-0.5 ${done ? "text-moss" : "text-stone-300"}`} />
@@ -90,7 +92,10 @@ export function SimControlDockSimFace({
       </div>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 pl-14">
         <p className="min-w-40 flex-1 truncate text-sm">
-          <span className={sim.error ? "font-medium text-red-600" : "text-ink"}>{sim.status}</span>
+          {/* The idle status is the ONE state the provider can't mint itself (it is
+              the module-level IDLE_STATE, outside any translator), so the empty
+              string it carries resolves to localized copy here. */}
+          <span className={sim.error ? "font-medium text-red-600" : "text-ink"}>{sim.status || tSim("status.idle")}</span>
           {last && last !== sim.status ? <span className="text-steel"> · {last}</span> : null}
         </p>
         <div className="flex min-w-0 flex-wrap items-center gap-2">

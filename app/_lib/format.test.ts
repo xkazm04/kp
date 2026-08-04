@@ -12,12 +12,17 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  APP_CURRENCY,
   assertFraction,
   assertScore,
   classifyTimestamp,
   clampFraction,
+  formatCount,
   formatFraction,
+  formatGrouped,
+  formatMoney,
   formatRelativeTime,
+  formatSalaryRange,
   RATING_MAX,
   ratingToPercent,
   ratingTone,
@@ -452,4 +457,53 @@ test("assertScore collapses a non-finite score to 0 without warning", () => {
     assert.equal(assertScore(NaN, "nanScore"), 0);
   });
   assert.equal(warnings.length, 0);
+});
+
+// --- the number-locale contract ---------------------------------------------
+//
+// The bug these lock: format.ts pinned ONE `cs-CZ` formatter for every locale, so
+// a German or French reader saw Czech digit grouping on every salary, money and
+// count in the app — while formatRelativeTime, in the same file, correctly threaded
+// the active locale. Asserting on the *separator characters* rather than on an exact
+// string keeps these independent of the ICU build's NBSP-vs-narrow-NBSP choice.
+
+// The grouping separator a locale actually uses in this runtime's ICU build.
+const sep = (locale: string) => new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }).format(45000).replace(/[0-9]/g, "");
+
+test("formatGrouped groups in the locale it is given, not a pinned cs-CZ", () => {
+  assert.equal(formatGrouped(45000, "en"), "45,000");
+  assert.equal(formatGrouped(45000, "de"), "45.000");
+  // Czech (and French) group with some flavour of no-break space — whichever one
+  // this ICU build emits, it must NOT be the English comma or the German dot.
+  for (const locale of ["cs", "fr"]) {
+    assert.notEqual(sep(locale), ",");
+    assert.notEqual(sep(locale), ".");
+    assert.equal(formatGrouped(45000, locale), new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }).format(45000));
+  }
+});
+
+test("formatGrouped accepts a regional tag and an unknown one, falling back to English", () => {
+  // Regional tags reach these helpers from browsers and stored preferences.
+  assert.equal(formatGrouped(45000, "cs-CZ"), formatGrouped(45000, "cs"));
+  assert.equal(formatGrouped(45000, "kl-GL"), formatGrouped(45000, "en"));
+  assert.equal(formatGrouped(45000), formatGrouped(45000, "en"));
+});
+
+test("formatMoney and formatSalaryRange localize the digits but never the currency", () => {
+  // The single-currency (CZK) assumption is deliberate: this contract governs how a
+  // figure is typeset, not what it is denominated in.
+  assert.equal(formatMoney(45000, undefined, "en"), `45,000 ${APP_CURRENCY}`);
+  assert.equal(formatMoney(45000, undefined, "de"), `45.000 ${APP_CURRENCY}`);
+  assert.equal(formatMoney(45000, "EUR", "de"), "45.000 EUR");
+  assert.equal(formatSalaryRange(45000, 60000, { locale: "en" }), `45,000–60,000 ${APP_CURRENCY}`);
+  assert.equal(formatSalaryRange(45000, 60000, { locale: "de" }), `45.000–60.000 ${APP_CURRENCY}`);
+  // Period and the degenerate-band collapse are unchanged by the locale threading.
+  assert.equal(formatSalaryRange(60000, 45000, { locale: "en", period: "month" }), `45,000–60,000 ${APP_CURRENCY} / month`);
+  assert.equal(formatSalaryRange(50000, 50000, { locale: "en" }), `50,000 ${APP_CURRENCY}`);
+});
+
+test("formatCount groups its digits in the given locale", () => {
+  assert.equal(formatCount(1200, undefined, undefined, "en"), "1,200");
+  assert.equal(formatCount(1200, undefined, undefined, "de"), "1.200");
+  assert.equal(formatCount(1, "entry", "entries", "en"), "1 entry");
 });

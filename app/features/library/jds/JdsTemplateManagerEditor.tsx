@@ -2,6 +2,7 @@
 
 import { Loader2 } from "lucide-react";
 import type { useTranslations } from "next-intl";
+import { useNumberFormat } from "@/app/_lib/use-number-format";
 import { RichTextEditor } from "@/app/_components/RichTextEditor";
 import { TextInput } from "@/app/_components/TextInput";
 import {
@@ -35,6 +36,9 @@ export function JdsTemplateManagerEditor({
   cancel: () => void;
   t: ReturnType<typeof useTranslations<"library.templates">>;
 }) {
+  // The character counter sits among localized labels, so its digits group in the
+  // READER's locale rather than a hardcoded en-US (format.ts number-locale contract).
+  const { grouped } = useNumberFormat();
   return (
     <div className="space-y-3">
       <TextInput
@@ -66,7 +70,7 @@ export function JdsTemplateManagerEditor({
           </p>
         </div>
         <p className={`shrink-0 text-sm tabular-nums ${editing.body.length >= TEMPLATE_BODY_MAX_LENGTH * 0.9 ? "text-coral" : "text-steel"}`}>
-          {editing.body.length.toLocaleString("en-US")} / {TEMPLATE_BODY_MAX_LENGTH.toLocaleString("en-US")}
+          {grouped(editing.body.length)} / {grouped(TEMPLATE_BODY_MAX_LENGTH)}
         </p>
       </div>
       {unknownTokens.length ? (

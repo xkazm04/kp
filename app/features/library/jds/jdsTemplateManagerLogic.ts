@@ -6,6 +6,7 @@
 
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
 import {
   fetchTemplates,
   findUnknownPlaceholders,
@@ -20,6 +21,9 @@ export type Editing = { id?: string; name: string; body: string; scope: Template
 
 export function useTemplateManagerLogic({ onChanged }: { onChanged: () => void }) {
   const t = useTranslations("library.templates");
+  // Same rule as localizeTemplateError below, for the SERVER's failures: resolve
+  // from the machine `code`, never the English `error` kept for API consumers.
+  const errMsg = useErrorMessage();
   // null = not loaded yet (render a skeleton), [] = genuinely empty (render an empty note),
   // so a slow/failed fetch is no longer indistinguishable from "loaded zero".
   const [templates, setTemplates] = useState<Template[] | null>(null);
@@ -90,7 +94,7 @@ export function useTemplateManagerLogic({ onChanged }: { onChanged: () => void }
       // the refusal honestly rather than a generic "save failed".
       if (r.status === 401 || r.status === 403) throw new Error(t("notPermitted"));
       const p = await r.json();
-      if (!r.ok) throw new Error(p.error ?? t("saveFailed"));
+      if (!r.ok) throw new Error(errMsg(p, t("saveFailed")));
       setEditing(null);
       await load();
       onChanged();
@@ -111,8 +115,8 @@ export function useTemplateManagerLogic({ onChanged }: { onChanged: () => void }
       const r = await fetch(`/api/templates/${id}`, { method: "DELETE" });
       if (r.status === 401 || r.status === 403) throw new Error(t("notPermitted"));
       if (!r.ok) {
-        const p = (await r.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(p?.error ?? t("deleteFailed"));
+        const p = (await r.json().catch(() => null)) as { error?: string; code?: string } | null;
+        throw new Error(errMsg(p, t("deleteFailed")));
       }
       await load();
       onChanged();
@@ -131,8 +135,8 @@ export function useTemplateManagerLogic({ onChanged }: { onChanged: () => void }
       });
       if (r.status === 401 || r.status === 403) throw new Error(t("notPermitted"));
       if (!r.ok) {
-        const p = (await r.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(p?.error ?? t("setDefaultFailed"));
+        const p = (await r.json().catch(() => null)) as { error?: string; code?: string } | null;
+        throw new Error(errMsg(p, t("setDefaultFailed")));
       }
       await load();
       onChanged();

@@ -5,13 +5,20 @@
 // language toggle.
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
+import { namespaceTranslator } from "@/app/_lib/catalog-translator";
 import { buildUrl } from "@/app/features/shell/tabs";
-import { isLocale } from "@/i18n/locales";
-import { jobToMarkdown, JOB_MARKDOWN_STRINGS, POSTING_LOCALES, type PostingLocale } from "./jobsMarkdown";
+import { isLocale, DEFAULT_LOCALE } from "@/i18n/locales";
+import {
+  buildJobMarkdownStrings,
+  jobToMarkdown,
+  type JobMarkdownStrings,
+  type PostingLocale,
+} from "./jobsMarkdown";
 import type { Job } from "./JobsTypes";
 
 export function useJobPostingModalLogic(
@@ -25,6 +32,9 @@ export function useJobPostingModalLogic(
   // The in-modal publish action reuses DraftsPanel's strings — same /publish
   // call, same "Source into Pipeline" verb. See docs/features/jobs/README.md.
   const td = useTranslations("jobs.drafts");
+  // Resolve API failures from the machine `code`, never from the server's
+  // English `error` — see app/_lib/use-error-message.ts.
+  const errMsg = useErrorMessage();
   const router = useRouter();
   const search = useSearchParams();
   const [tab, setTab] = useState<"posting" | "coach" | "candidates" | "rediscover" | "compare" | "campaign" | "agentfit">("posting");
@@ -106,7 +116,7 @@ export function useJobPostingModalLogic(
           setPublishNote({ text: td("quotaNote"), tone: "quota" });
           return;
         }
-        throw new Error(p.error ?? td("sourcingFailed"));
+        throw new Error(errMsg(p, td("sourcingFailed")));
       }
       // Re-publish doubles as Reopen for a closed role; clear the local closed flag so
       // the footer/links flip back to live (the cap is re-checked above on reopen).
@@ -119,8 +129,7 @@ export function useJobPostingModalLogic(
       // Settle the pack-on-publish CTA: does a campaign pack already exist for
       // the language the Campaign tab opens on? Fire-and-forget — a failed/slow
       // check just leaves the CTA hidden, never blocks the publish result.
-      const campaignLang = isLocale(appLocale) ? appLocale : "en";
-      void fetch(`/api/jobs/${encodeURIComponent(job.id)}/campaign?lang=${campaignLang}`)
+      void fetch(`/api/jobs/${encodeURIComponent(job.id)}/campaign?lang=${appLocale}`)
         .then((cr) => cr.json())
         .then((cd: { pack?: unknown }) => setPackExists(Boolean(cd?.pack)))
         .catch(() => setPackExists(null));
@@ -138,13 +147,39 @@ export function useJobPostingModalLogic(
   // JOB3 — the posting can be copied in a language different from the app
   // (recruiter runs the studio in EN, posts to a Czech board). Default to the
   // active locale; the toggle swaps the strings table for the render + copy.
-  const appLocale = useLocale();
-  // Postings support only the POSTING_LOCALES subset (en/cs); a wider UI locale
-  // (de/fr) falls back to en for the copy-to-board strings.
-  const [postingLang, setPostingLang] = useState<PostingLocale>(
-    isLocale(appLocale) && (POSTING_LOCALES as readonly string[]).includes(appLocale) ? (appLocale as PostingLocale) : "en"
+  const rawLocale = useLocale();
+  const appLocale: PostingLocale = isLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE;
+  // F5 — every app locale is now a posting language. The de/fr recruiter used to be
+  // pinned back to "en" here because the strings table only had two columns.
+  const [postingLang, setPostingLang] = useState<PostingLocale>(appLocale);
+  // The strings for the ACTIVE locale come straight off the loaded catalog, so the
+  // common case (posting language == app language, the default) renders on first
+  // paint with nothing to await.
+  const tRoot = useTranslations();
+  const localStrings = useMemo(
+    () =>
+      buildJobMarkdownStrings(appLocale, Object.assign((key: string, values?: Record<string, string | number>) => tRoot(key as never, values as never), {
+        has: (key: string) => tRoot.has(key as never),
+      })),
+    [appLocale, tRoot]
   );
-  const markdown = useMemo(() => jobToMarkdown(job, JOB_MARKDOWN_STRINGS[postingLang]), [job, postingLang]);
+  // A DIFFERENT posting language needs that language's catalog, which the page has
+  // not loaded — fetch it lazily (a separate chunk per locale, so the modal never
+  // bundles four catalogs up front). Until it lands we keep rendering the active
+  // locale's scaffolding rather than flashing an empty document.
+  const [foreignStrings, setForeignStrings] = useState<{ lang: PostingLocale; strings: JobMarkdownStrings } | null>(null);
+  useEffect(() => {
+    if (postingLang === appLocale) return;
+    let alive = true;
+    void namespaceTranslator(postingLang).then((t) => {
+      if (alive) setForeignStrings({ lang: postingLang, strings: buildJobMarkdownStrings(postingLang, t) });
+    });
+    return () => {
+      alive = false;
+    };
+  }, [postingLang, appLocale]);
+  const strings = postingLang === appLocale ? localStrings : foreignStrings?.lang === postingLang ? foreignStrings.strings : localStrings;
+  const markdown = useMemo(() => jobToMarkdown(job, strings), [job, strings]);
 
   const copyApplyLink = async () => {
     try {

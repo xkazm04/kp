@@ -9,6 +9,7 @@ import { BTN_SECONDARY, EYEBROW, INTRO, PANEL } from "@/app/_components/ui/recip
 import { SectionTitle } from "@/app/_components/ui/SectionTitle";
 import { InterviewSidebar } from "@/app/_components/voice/InterviewSidebar";
 import { QUICK_SCREEN_MIN } from "@/app/_lib/interview-duration.mjs";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
 import {
   DEMO_CASE_SCENARIO,
   REGULAR_DEMO_RUN_OF_SHOW,
@@ -52,6 +53,9 @@ const MODES: { id: SimMode; icon: typeof GraduationCap }[] = [
 
 export function InterviewSimTab() {
   const t = useTranslations("interviewSim");
+  // Resolve API failures from the machine `code`, never from the server's
+  // English `error` — see app/_lib/use-error-message.ts.
+  const errMsg = useErrorMessage();
   const [mode, setMode] = useState<SimMode>("student");
   const [session, setSession] = useState<Session | null>(null);
   const [busy, setBusy] = useState(false);
@@ -85,8 +89,9 @@ export function InterviewSimTab() {
         candidateLabel?: string | null;
         jobTitle?: string | null;
         error?: string;
+        code?: string;
       };
-      if (!res.ok || !data.token) throw new Error(data.error || t("createFailed"));
+      if (!res.ok || !data.token) throw new Error(errMsg(data, t("createFailed")));
       setSession({ token: data.token, candidateLabel: data.candidateLabel ?? null, jobTitle: data.jobTitle ?? null });
     } catch (e) {
       setError(e instanceof Error ? e.message : t("createFailed"));

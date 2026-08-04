@@ -5,6 +5,7 @@ import { Check, Send } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { TextInput } from "@/app/_components/TextInput";
 import { TextArea } from "@/app/_components/TextArea";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
 
 type SubmitState =
   | { kind: "idle" }
@@ -17,6 +18,9 @@ type SubmitState =
 // lifecycle resume are the route's existing behavior, not re-implemented here.
 export function DevApplyForm({ token }: { token: string }) {
   const t = useTranslations("devApply");
+  // Resolve API failures from the machine `code`, never from the server's
+  // English `error` — see app/_lib/use-error-message.ts.
+  const errMsg = useErrorMessage();
   const [name, setName] = useState("");
   const [contact, setContact] = useState("");
   const [repoRef, setRepoRef] = useState("");
@@ -46,8 +50,10 @@ export function DevApplyForm({ token }: { token: string }) {
           notes: notes.trim() || undefined,
         }),
       });
-      const payload = (await r.json().catch(() => null)) as { error?: string; duplicate?: boolean; submissionId?: string } | null;
-      if (!r.ok) throw new Error(payload?.error ?? t("submitFailed"));
+      const payload = (await r.json().catch(() => null)) as
+        | { error?: string; code?: string; duplicate?: boolean; submissionId?: string }
+        | null;
+      if (!r.ok) throw new Error(errMsg(payload, t("submitFailed")));
       setState({
         kind: "done",
         duplicate: Boolean(payload?.duplicate),

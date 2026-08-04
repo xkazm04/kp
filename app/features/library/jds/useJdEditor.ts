@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
 import {
   classifyJdWriteResponse,
   jdEditPayload,
@@ -42,6 +43,10 @@ export function useJdEditor({
   // reloads it in place).
   onReverted: () => void;
 }) {
+  // The caller supplies the localized copy; the SERVER's failures resolve from the
+  // machine `code` through the shared `errors` catalog — never from the English
+  // `error` string the routes keep for API consumers.
+  const errMsg = useErrorMessage();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [conflict, setConflict] = useState(false);
@@ -100,7 +105,7 @@ export function useJdEditor({
             setError(copy.conflict);
             return;
           case "error":
-            throw new Error(p?.error ?? copy.saveError);
+            throw new Error(errMsg(p, copy.saveError));
           default:
             onSaved();
         }
@@ -136,7 +141,7 @@ export function useJdEditor({
             setError(copy.conflict);
             return;
           case "error":
-            throw new Error(p?.error ?? copy.revertError);
+            throw new Error(errMsg(p, copy.revertError));
           default:
             onReverted();
         }

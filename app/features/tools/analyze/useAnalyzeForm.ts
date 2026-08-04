@@ -9,6 +9,7 @@ import {
   type StageState,
 } from "@/app/_components/AnalysisProgress";
 import { githubAnalysisSchema, type Analysis, type GithubAnalysis } from "@/app/_lib/schemas";
+import { useGithubErrorMessage } from "@/app/_lib/use-github-error";
 import {
   type AnalyzeErrorInfo,
   type ColumnStatus,
@@ -35,6 +36,8 @@ type AnalyzeDraft = { jd?: string; company?: string; github?: string };
 
 export function useAnalyzeForm() {
   const t = useTranslations("analyze");
+  // The GitHub deep-dive publishes its own failure codes (results.github.errors.*).
+  const ghErrMsg = useGithubErrorMessage();
   // CV3 — the report-narrative language for this run, defaulting to the active
   // locale; threaded into the submit FormData so the route can override the
   // cookie per run.
@@ -189,10 +192,15 @@ export function useAnalyzeForm() {
   // failure line for an unknown code). Single-sourced so every onError/onWarning
   // resolves identically.
   const resolveAnalyzeMessage = (info: AnalyzeErrorInfo): string => {
-    const server = info.serverText?.trim();
-    if (server) return server;
     const code = info.code;
-    return code && t.has(code) ? t(code) : t("errFailed");
+    const generic = code && t.has(code) ? t(code) : t("errFailed");
+    // A route-published machine code wins: it names the actual cause AND localizes.
+    // Only then does engine/server-owned English (serverText) get preferred verbatim
+    // — the honest "shown in English" disclosure on this operator surface — and the
+    // stable `analyze` code is the floor.
+    if (info.apiCode) return ghErrMsg({ code: info.apiCode }, generic);
+    const server = info.serverText?.trim();
+    return server || generic;
   };
 
   const buildCallbacks = (runId: number) => {

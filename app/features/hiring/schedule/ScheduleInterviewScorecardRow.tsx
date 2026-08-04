@@ -9,6 +9,7 @@
 import type { ReactNode } from "react";
 import type { useTranslations } from "next-intl";
 import { rubricLabel } from "@/app/_lib/interview-rubric";
+import { useRubricStrings } from "@/app/_lib/use-rubric-strings";
 import { Meter } from "@/app/_components/Meter";
 import { RATING_MAX, ratingToPercent, ratingTone } from "@/app/_lib/format";
 import type { ScorecardRating } from "@/app/_lib/interview-scorecard";
@@ -17,19 +18,21 @@ import { cleanRating } from "./scheduleInterviewTranscriptHelpers";
 // The evidence rendering is the only divergence, so it's an optional slot: the
 // human card omits it (plain `<p>` default); the AI block passes a clickable
 // jump-to-transcript renderer.
+// PREP3 — the stored canonical competency rendered in the reader's language. The
+// row reads the rubric catalog itself rather than taking a locale prop, so no
+// caller has to thread one down for a display-only concern.
 export function ScorecardRatingRow({
   r,
   t,
-  locale,
   renderEvidence,
 }: {
   r: ScorecardRating;
   t: ReturnType<typeof useTranslations<"scheduleTab.transcript">>;
-  locale: string;
   renderEvidence?: (evidence: string) => ReactNode;
 }) {
+  const rubricStrings = useRubricStrings();
   const rating = cleanRating(r.rating);
-  const label = rubricLabel(r.competency, locale);
+  const label = rubricLabel(r.competency, rubricStrings);
   return (
     <li className="text-sm text-ink">
       <div className="flex items-baseline justify-between gap-2">

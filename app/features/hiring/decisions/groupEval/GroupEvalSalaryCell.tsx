@@ -1,5 +1,5 @@
 import { useTranslations } from "next-intl";
-import { formatSalaryRange } from "@/app/_lib/format";
+import { useNumberFormat } from "@/app/_lib/use-number-format";
 import { isSameCurrency, normalizeCurrency, salaryBandPosition } from "@/app/_lib/salary-band";
 import { Pill, PILL_TONE } from "./GroupEvalPrimitives";
 import type { EvalCandidate } from "@/app/features/shared/groupEvalTypes";
@@ -24,6 +24,8 @@ export type SalaryScale = { lo: number; hi: number; pct: (v: number) => number }
 
 export function SalaryCell({ c, sal, bandCurrency }: { c: EvalCandidate; sal: SalaryScale; bandCurrency: string }) {
   const t = useTranslations("decisions.groupEval");
+  // Reader-locale digit grouping (format.ts number-locale contract).
+  const n = useNumberFormat();
   const s = c.salaryExpectation;
   // The over/under-band verdict AND the band-relative bar position are only
   // meaningful when the expectation shares the band's currency — the app does no
@@ -52,7 +54,7 @@ export function SalaryCell({ c, sal, bandCurrency }: { c: EvalCandidate; sal: Sa
             <span
               className="absolute inset-y-0 w-0.5 bg-coral"
               style={{ left: `${sal.pct(s.midpoint)}%` }}
-              title={t("midpointTitle", { range: formatSalaryRange(s.midpoint, s.midpoint, { currency: s.currency }) })}
+              title={t("midpointTitle", { range: n.salaryRange(s.midpoint, s.midpoint, { currency: s.currency }) })}
               aria-hidden
             />
           </>
@@ -60,7 +62,7 @@ export function SalaryCell({ c, sal, bandCurrency }: { c: EvalCandidate; sal: Sa
       </div>
       <div className="flex items-center justify-between gap-1">
         <span className="text-sm text-steel">
-          {s ? formatSalaryRange(s.minimum, s.maximum, { currency: s.currency }) : t("noExpectation")}
+          {s ? n.salaryRange(s.minimum, s.maximum, { currency: s.currency }) : t("noExpectation")}
         </span>
         {verdict ? (
           <Pill tone={verdict.tone}>

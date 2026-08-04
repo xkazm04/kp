@@ -12,6 +12,7 @@ import type { CandRow, FairnessMatrix, SkippedCandidate } from "./JobsTypes";
 import { downloadFile, toCsv } from "@/app/_lib/export-utils";
 import { FIT_PROMISING_FLOOR } from "@/app/_lib/fit-thresholds";
 import { useAddToPipeline } from "@/app/_lib/useAddToPipeline";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { useReachOut } from "@/app/_lib/useReachOut";
 // bug-ui-scan-2026-07-09 (sourcing-campaigns-rediscovery #3): "latest request wins"
 // guard so a slow ranking for a previously-selected role can't clobber the current
@@ -30,6 +31,9 @@ export function useRecruiterCandidatesLogic({
   autoLoad?: boolean;
 }) {
   const t = useTranslations("jobs.candidates");
+  // Resolve API failures from the machine `code`, never from the server's
+  // English `error` — see app/_lib/use-error-message.ts.
+  const errMsg = useErrorMessage();
   const [data, setData] = useState<{
     candidates: CandRow[];
     skipped?: SkippedCandidate[];
@@ -72,7 +76,7 @@ export function useRecruiterCandidatesLogic({
       const r = await fetch(`/api/jobs/${encodeURIComponent(jobId)}/candidates`, { signal: controller.signal });
       const payload = await r.json();
       if (!guardRef.current.isCurrent(key)) return; // a newer role's load superseded this one
-      if (!r.ok) throw new Error(payload.error ?? t("failedStatus", { status: r.status }));
+      if (!r.ok) throw new Error(errMsg(payload, t("failedStatus", { status: r.status })));
       setData(payload);
     } catch (caught) {
       // A superseded or aborted request must never surface an error over the current role.

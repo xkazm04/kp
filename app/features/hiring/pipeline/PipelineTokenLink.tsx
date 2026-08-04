@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Check, Copy, ExternalLink } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
 
 // A tokenized candidate link (voice screen, self-scheduling, …): the server mints a
 // per-candidate URL on POST. Every flow shares the same busy/url/err/copied state quad
@@ -15,6 +16,9 @@ export type TokenLinkData = { url: string } & Record<string, unknown>;
 
 export function useTokenLink(endpoint: string) {
   const t = useTranslations("pipeline");
+  // Mint failures resolve from the machine `code`, never the server's English
+  // `error` — see app/_lib/use-error-message.ts.
+  const errMsg = useErrorMessage();
   const [busy, setBusy] = useState(false);
   const [data, setData] = useState<TokenLinkData | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -32,7 +36,7 @@ export function useTokenLink(endpoint: string) {
         body: JSON.stringify(body),
       });
       const payload = await res.json();
-      if (!res.ok) throw new Error(payload.error || `link failed (${res.status})`);
+      if (!res.ok) throw new Error(errMsg(payload, t("tokenLink.createFailed")));
       setData(payload as TokenLinkData);
     } catch {
       setErr(t("tokenLink.createFailed"));

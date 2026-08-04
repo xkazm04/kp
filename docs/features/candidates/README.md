@@ -9,8 +9,11 @@ career-switcher) that other features key off. Downstream ranking is
 
 - **CV analysis tool** — `app/features/tools/analyze/AnalyzeTab.tsx` (`AnalyzeWorkspace.tsx`,
   `AnalyzeForm.tsx`), file intake via `AnalyzeFileDropZone.tsx` / `useAnalyzeCvFiles.ts`.
-- **Conversational apply** — `app/apply/[id]/ConversationalApply.tsx`, driven by
-  `app/_lib/apply-intake.ts` and `app/_lib/apply.ts`.
+- **Conversational apply** — `app/apply/[id]/ConversationalApply.tsx` (the view) over
+  `use-apply-draft.ts` (resume/persist), `use-apply-submit.ts` (the final POST and its
+  recoverable failure), `use-apply-followup.ts` (post-accept gap questions) and the
+  `ApplyStepControls` / `ApplyDoneCard` / `ApplyErrorBlock` / `ApplyFollowup` blocks —
+  all in the same folder, driven by `app/_lib/apply-intake.ts` and `app/_lib/apply.ts`.
 - **Quick apply** — `app/apply/[id]/quick/QuickApplyForm.tsx`, `app/api/apply/[id]/quick/route.ts`.
 - **Profile editor** — `app/features/tools/profile/ProfileEditor.tsx` (+ `ProfileEditorFields.tsx`,
   `ProfileEditorArchetypeOptions.tsx`).
@@ -94,16 +97,39 @@ the pipeline-stage layer, independent of the score itself.
 |---|---|
 | CV extraction (Gemini) | `pipeline/jobfit/gemini.py`, `app/api/analyze/route.ts` |
 | Analysis orchestration | `app/_lib/analyze-run.ts`, `app/_lib/analyze-phases.ts`, `app/_lib/completeness-followup.ts`, `app/_lib/provenance-dossier.ts` |
-| Apply intake | `app/_lib/apply-intake.ts`, `app/_lib/apply.ts`, `app/apply/[id]/ConversationalApply.tsx`, `app/apply/[id]/quick/QuickApplyForm.tsx`, `app/api/apply/[id]/route.ts`, `app/api/apply/[id]/quick/route.ts` |
+| Apply intake | `app/_lib/apply-intake.ts`, `app/_lib/apply.ts`, `app/apply/[id]/ConversationalApply.tsx` (+ `use-apply-draft.ts`, `use-apply-submit.ts`, `use-apply-followup.ts`, `ApplyStepControls.tsx`, `ApplyDoneCard.tsx`, `ApplyErrorBlock.tsx`, `ApplyFollowup.tsx`, `apply-chat-types.ts`), `app/apply/[id]/quick/QuickApplyForm.tsx`, `app/api/apply/[id]/route.ts`, `app/api/apply/[id]/quick/route.ts` |
 | Apply session state | `app/_lib/apply-session-client.ts`, `app/_lib/apply-session-store.ts`, `app/api/apply/[id]/session/` |
 | Profile editing | `app/features/tools/profile/ProfileEditor.tsx`, `ProfileEditorFields.tsx`, `useProfileEditorSubmit.ts`, `profileEditorPayload.ts` |
 | Profile schema (shared) | `app/features/tools/profile/ProfileTabTypes.ts`, `pipeline/jobfit/profile.py` |
 | Archetype registry | `pipeline/jobfit/archetypes.json`, `pipeline/jobfit/registry.py`, `app/_lib/archetype-registry.ts`, `app/_lib/archetypes.ts` |
 | Archetype admin UI | `app/features/tools/profile/ArchetypeManager.tsx` + `ArchetypeManagerEditPanel.tsx`/`ArchetypeManagerList.tsx` |
 | GitHub evidence | `app/_lib/github-evidence.ts`, `github-handle.ts`, `github-summary.ts`, `repo-activity.ts`, `repo-snapshot.ts` |
+| GitHub analysis run | `app/api/github-analysis/route.ts` (HTTP shell only) over `app/_lib/github/`: `analysis.ts` (orchestration), `client.ts` (REST), `heuristics.ts` (ranking/complexity/language), `skills.ts` (JD fit taxonomy), `code-review.ts` (Gemini deep review), `usage.ts` (metering), `cache.ts` (TTL cache) |
 | Signal display | `app/_components/Badge.tsx`, `PotentialBadge.tsx`, `FactorChart.tsx`, `ScoreDial.tsx`, `ScoreBadge.tsx`, `ScoreProvenanceLabel.tsx` |
 | Saved analyses | `app/history/[slug]/page.tsx`, `app/features/tools/analyze/history/*` |
 | Public skill credential | `app/skill/[token]/page.tsx` |
+
+### What the GitHub payload says, and in which language
+
+`/api/github-analysis` is computed on the server and read in the browser, so every
+string in the payload had to be assigned to one of the three mechanisms in
+[`docs/architecture/localization.md`](../../architecture/localization.md):
+
+| In the payload | Mechanism | Where the words live |
+|---|---|---|
+| A failed run (`{ error, code }`) | machine **code** | `results.github.errors.<CODE>` — `HANDLE_REQUIRED`, `PROFILE_NOT_FOUND`, `RATE_LIMITED`, `API_ERROR`, `BAD_SHAPE`, `NOT_A_PERSON`, `REQUEST_THROTTLED`, `ANALYSIS_FAILED`. Thrown as `GithubAnalysisError` / `GithubHttpError` (`app/_lib/github/client.ts`); resolved by `useGithubErrorMessage()` (`app/_lib/use-github-error.ts`) |
+| `contributionSignals`, `limitations`, `complexityAssessment`, `topRepositories[].complexitySignals`, `codeReview.evidenceBasis`, `summaryFinding` | **finding** `{ kind, params }` | `results.github.finding.*`. `GithubFinding` + `describeEvidenceBasis()` in `app/_lib/github-evidence.ts`; counts and window lengths stay raw numbers so ICU does the plurals |
+| `codeReview.summary` on a non-`ok` status | **code** (`codeReview.reason`) | `results.github.review.<reason>` — `keyUndecryptable`, `disabled`, `noRepos`, `fetchFailed`, `throttled`, `noSignals`, `malformed`, `requestFailed`; `codeReview.partial` renders the partial-evidence caveat |
+| `summary`, `codeReview.summary` on `ok` | canonical **English string** | the model's own prose, plus the line `buildGithubEvidenceSummary` freezes into a pipeline entry — a sealed record and a server-log line, never the thing the panel renders when a finding/reason is present |
+
+Two consequences worth knowing:
+
+- The panel (`app/_components/GithubAnalysisPanel.tsx`) is the only place that turns
+  a finding into a sentence. Nothing server-side composes prose a user reads.
+- A payload stored *before* findings existed carries the frozen English sentence its
+  run produced. The schema accepts `string | GithubFinding` everywhere a finding
+  travels, so a saved report keeps rendering — in that run's English — instead of
+  failing to parse.
 
 ## Data model
 

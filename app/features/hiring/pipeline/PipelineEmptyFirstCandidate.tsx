@@ -64,11 +64,20 @@ function GhostLane({ index, label, help, waiting }: { index: number; label: stri
 
 export function PipelineEmptyFirstCandidate({ title, body, links, extraAction }: PipelineEmptyProps) {
   const t = useTranslations("pipeline.tab");
+  const tPipeline = useTranslations("pipeline");
   const router = useRouter();
   const search = useSearchParams();
   const enumLabel = useEnumLabel();
   const go = (tab: PipelineEmptyProps["links"][number]["tab"]) =>
     router.push(buildTabSwitchUrl(tab, search.toString()));
+  // Same resolution as the board's column tooltip (PipelineBoard.stageHelp): the
+  // catalog's `stageHelp.<stage>`, with the English STAGE_HELP map as the fallback
+  // for a stage the catalog doesn't carry yet. The map is a fallback, never the
+  // rendered value — rendering it directly was English in all four locales.
+  const stageHelp = (stage: string): string => {
+    const key = `stageHelp.${stage}` as Parameters<typeof tPipeline>[0];
+    return tPipeline.has(key) ? tPipeline(key) : STAGE_HELP[stage] ?? stage;
+  };
 
   return (
     <div className={`${PANEL_SUNKEN} p-6`}>
@@ -91,7 +100,7 @@ export function PipelineEmptyFirstCandidate({ title, body, links, extraAction }:
             key={stage}
             index={i}
             label={enumLabel("stage", stage)}
-            help={STAGE_HELP[stage] ?? stage}
+            help={stageHelp(stage)}
             waiting={i === 0}
           />
         ))}

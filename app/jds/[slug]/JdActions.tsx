@@ -11,6 +11,7 @@ import { JdLintPanel } from "@/app/features/library/jds/JdsLintPanel";
 import { JdRevisionList } from "@/app/features/library/jds/JdsRevisionList";
 import { useJdEditor } from "@/app/features/library/jds/useJdEditor";
 import { classifyJdWriteResponse } from "@/app/features/library/jds/jdsEditClient";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
 
 // W8-4 (JDL1) — edit + archive for a saved JD, on the page that displays it.
 // The library was fully append-only: every revision forked a permanent
@@ -44,6 +45,9 @@ export function JdActions({
   marketResearch: boolean;
 }) {
   const t = useTranslations("jdPublic");
+  // Resolve API failures from the machine `code`, never from the server's
+  // English `error` — see app/_lib/use-error-message.ts.
+  const errMsg = useErrorMessage();
   const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [draftTitle, setDraftTitle] = useState(title);
@@ -96,7 +100,7 @@ export function JdActions({
         editor.setError(t("editGateReason"));
         return;
       }
-      if (!r.ok) throw new Error(p?.error ?? t("saveFailed"));
+      if (!r.ok) throw new Error(errMsg(p, t("saveFailed")));
       router.refresh();
     } catch (caught) {
       editor.setError(caught instanceof Error ? caught.message : t("saveFailed"));

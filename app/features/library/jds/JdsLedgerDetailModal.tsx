@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Modal } from "@/app/_components/Modal";
 import { Markdown } from "@/app/_components/Markdown";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { useIngestJob, useJdDetail } from "./jdsHooks";
 import { builderLintFindings, jdMarketResearchAvailable, type JdRow } from "./jdsLibrary";
 import { JdLintPanel } from "./JdsLintPanel";
@@ -38,6 +39,9 @@ export function LedgerDetailModal({
   onIngested: (jobId: string | null) => void;
 }) {
   const t = useTranslations("library.tab");
+  // API failures resolve from the machine `code`, never the server's English
+  // `error` string — see app/_lib/use-error-message.ts.
+  const errMsg = useErrorMessage();
   const { jd, status, refresh } = useJdDetail(row.slug);
   // Prefer the freshly-fetched detail's state over the (snapshot) row, so a
   // poll-driven flip to ready/failed is reflected without reopening.
@@ -96,7 +100,7 @@ export function LedgerDetailModal({
       if (r.status === 401 || r.status === 403) throw new Error(t("notPermitted"));
       if (!r.ok) {
         const p = await r.json().catch(() => ({}));
-        throw new Error(p.error ?? t("retryFailed"));
+        throw new Error(errMsg(p, t("retryFailed")));
       }
       refresh(); // reflects the reset-to-analyzing state; the poll then tracks it
     } catch (e) {

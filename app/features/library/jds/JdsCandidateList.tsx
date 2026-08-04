@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { History, RotateCcw } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { ScoreBadge } from "@/app/_components/ScoreBadge";
 import { shortDate } from "./jdsLibrary";
 
@@ -21,6 +21,9 @@ type JdAnalysisRow = {
 // mount (the modal is already an explicit open) — a zero count skips the fetch.
 export function JdCandidateList({ slug, count }: { slug: string; count: number }) {
   const t = useTranslations("library.tab");
+  // The JD-edited stamp follows the APP locale, not the browser/OS one (see shortDate).
+  const locale = useLocale();
+
   const [analyses, setAnalyses] = useState<JdAnalysisRow[] | null>(null);
   // When the JD body last changed (null = never edited). Any analysis scored
   // before this reflects the OLD text — flagged inline, nothing auto re-runs.
@@ -90,9 +93,9 @@ export function JdCandidateList({ slug, count }: { slug: string; count: number }
               {stale ? (
                 <span
                   className="mt-1 inline-flex items-center gap-1 rounded-full bg-amber-50 px-1.5 py-0.5 text-xs font-semibold text-amber-800"
-                  title={t("analysisStaleTitle", { date: shortDate(jdEditedAt!) })}
+                  title={t("analysisStaleTitle", { date: shortDate(jdEditedAt!, locale) })}
                 >
-                  <History size={11} aria-hidden /> {t("analysisStale", { date: shortDate(jdEditedAt!) })}
+                  <History size={11} aria-hidden /> {t("analysisStale", { date: shortDate(jdEditedAt!, locale) })}
                 </span>
               ) : null}
             </div>

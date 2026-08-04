@@ -26,7 +26,7 @@ import { mkdtempSync } from "node:fs";
 // the db layer. Keep it first (ESM evaluates imports in source order).
 import "../../_lib/testing/unit-db.ts";
 import { POST } from "./route.ts";
-import { EVIDENCE_INCOMPLETE_NOTE } from "../../_lib/github-evidence.ts";
+import { hasEvidenceIncomplete, type GithubNote } from "../../_lib/github-evidence.ts";
 
 const realFetch = globalThis.fetch;
 
@@ -199,7 +199,7 @@ test("#2 a 403 on a /languages sub-request yields 'could not determine', never a
   const body = (await res.json()) as {
     error?: string;
     jobFitSignals: { matchingSkills: string[]; potentialGaps: string[] };
-    limitations: string[];
+    limitations: GithubNote[];
     codeReview?: { status: string };
   };
 
@@ -215,12 +215,12 @@ test("#2 a 403 on a /languages sub-request yields 'could not determine', never a
 
   // "Could not determine" is propagated to the panel via the shared limitation note.
   assert.ok(
-    body.limitations.includes(EVIDENCE_INCOMPLETE_NOTE),
-    "the panel-facing could-not-determine note must be present",
+    hasEvidenceIncomplete(body.limitations),
+    "the panel-facing could-not-determine finding must be present",
   );
   // NON-VACUITY: pre-fix, the 403 emptied app's language map so rust became a gap
   // (potentialGaps === ["rust"]) and the incomplete note was never appended — so both
-  // the deepEqual([]) and the limitations.includes(...) assertions fail.
+  // the deepEqual([]) and the hasEvidenceIncomplete(...) assertions fail.
 });
 
 test("#2 a genuinely empty account yields 'no evidence' (codeReview 'empty'), not a coverage warning", async () => {
@@ -230,7 +230,7 @@ test("#2 a genuinely empty account yields 'no evidence' (codeReview 'empty'), no
     const body = (await res.json()) as {
       error?: string;
       jobFitSignals: { potentialGaps: string[] };
-      limitations: string[];
+      limitations: GithubNote[];
       codeReview?: { status: string };
     };
 
@@ -240,8 +240,8 @@ test("#2 a genuinely empty account yields 'no evidence' (codeReview 'empty'), no
     // a distinct, successful state from "could not determine".
     assert.equal(body.codeReview?.status, "empty", "no signals + complete coverage = empty, not error");
     assert.ok(
-      !body.limitations.includes(EVIDENCE_INCOMPLETE_NOTE),
-      "a complete run must NOT carry the could-not-determine note",
+      !hasEvidenceIncomplete(body.limitations),
+      "a complete run must NOT carry the could-not-determine finding",
     );
     // Coverage is complete, so a real gap is legitimately asserted.
     assert.ok(body.jobFitSignals.potentialGaps.includes("python"), "a genuine gap is still reported");

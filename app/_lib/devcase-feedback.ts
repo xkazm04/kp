@@ -8,7 +8,15 @@
 // human-gated; this only turns the work the candidate already did into useful,
 // respectful feedback.
 //
-// Pure + import-free so the wording contract is unit-testable.
+// Written in the CANDIDATE's language, not the recruiter's — this letter goes to
+// them, so it resolves through the locale-pinned `comms` translator rather than
+// useTranslations() (see comms-translator.ts). Until this pass the entire letter
+// was hardcoded English with no translator at all, in all four locales.
+//
+// No longer import-free, so the wording contract is pinned by rendering every
+// key against the real catalogs in devcase-feedback.test.ts.
+
+import { commsTranslator } from "./comms-translator";
 
 export type FeedbackInput = {
   candidateRef: string;
@@ -16,45 +24,47 @@ export type FeedbackInput = {
   strengths: string[];
   concerns: string[];
   gaps: string[];
+  /** The candidate's locale, carried on their pipeline entry. */
+  locale?: string | null;
 };
 
 export type FeedbackBrief = { subject: string; body: string };
 
 const clean = (xs: string[]) => xs.map((s) => s.trim()).filter(Boolean);
 
-export function buildFeedbackBrief(input: FeedbackInput): FeedbackBrief {
+export async function buildFeedbackBrief(input: FeedbackInput): Promise<FeedbackBrief> {
+  const t = await commsTranslator(input.locale);
   const role = (input.roleTitle ?? "").trim();
   const strengths = clean(input.strengths);
   // Concerns + transfer gaps both become forward-looking "areas to keep growing"
   // — reframed as development, never as a verdict on the person.
   const growth = clean([...input.concerns, ...input.gaps]);
 
-  const subject = role ? `Your ${role} exercise — a few notes` : "Your take-home exercise — a few notes";
+  // Role-titled and untitled variants are separate keys rather than one message
+  // with an optional insert: several languages need a different case or word
+  // order once the role name appears.
+  const subject = role ? t("devcaseFeedback.subjectRole", { role }) : t("devcaseFeedback.subject");
 
   const lines: string[] = [];
-  lines.push(`Hi ${input.candidateRef || "there"},`);
+  lines.push(t("devcaseFeedback.greeting", { name: input.candidateRef || t("devcaseFeedback.greetingFallback") }));
   lines.push("");
-  lines.push(
-    role
-      ? `Thank you for taking the time on the ${role} exercise. Here's some honest, friendly feedback on your work.`
-      : "Thank you for taking the time on the exercise. Here's some honest, friendly feedback on your work."
-  );
+  lines.push(role ? t("devcaseFeedback.introRole", { role }) : t("devcaseFeedback.intro"));
   if (strengths.length > 0) {
     lines.push("");
-    lines.push("What stood out:");
+    lines.push(t("devcaseFeedback.strengthsHeading"));
     for (const s of strengths) lines.push(`- ${s}`);
   }
   if (growth.length > 0) {
     lines.push("");
-    lines.push("Areas to keep growing:");
+    lines.push(t("devcaseFeedback.growthHeading"));
     for (const g of growth) lines.push(`- ${g}`);
   }
   if (strengths.length === 0 && growth.length === 0) {
     lines.push("");
-    lines.push("We appreciated your effort on the exercise and wish you the very best in your search.");
+    lines.push(t("devcaseFeedback.noSpecifics"));
   }
   lines.push("");
-  lines.push("Thanks again for your time and interest.");
+  lines.push(t("devcaseFeedback.signoff"));
 
   return { subject, body: lines.join("\n") };
 }

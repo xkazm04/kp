@@ -7,7 +7,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  renderTemplate,
+  renderTemplate as renderWithTokens,
   DEFAULT_TEMPLATE_BODY,
   TEMPLATE_SEPARATOR,
   findUnknownPlaceholders,
@@ -17,6 +17,15 @@ import {
   validateTemplateFields,
   validateTemplateUpdate,
 } from "@/app/features/shared/renderTemplate";
+
+// F5 — renderTemplate takes the resolved localization tokens as a PARAMETER now
+// (the JD's language is a property of the document, not of the caller). Load the
+// real English set once and bind it, so every collapse assertion below is
+// unchanged AND the `library.templates.token.*` keys are proven to exist.
+const { jdTemplateTokens } = await import("@/app/_lib/jd-template-tokens.ts");
+const TOKENS = await jdTemplateTokens("en");
+const renderTemplate = (body: string, data: Parameters<typeof renderWithTokens>[1]) =>
+  renderWithTokens(body, data, TOKENS);
 
 const SEP = TEMPLATE_SEPARATOR; // " · "
 // The default template's header line in isolation, so each case asserts the

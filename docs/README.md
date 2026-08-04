@@ -24,7 +24,9 @@ still proposed.
 - **`docs/features`** describes what is implemented in the current app, one folder per
   feature area. Every claim should be checkable against a real file path.
 - **`docs/architecture`** documents cross-cutting contracts — the LLM provider layer, the
-  persistence backend, the self-hosting story, the app's folder structure.
+  persistence backend, the self-hosting story, the app's folder structure, and
+  [localization](architecture/localization.md) (the four-locale contract: where English is
+  allowed, how API errors resolve, number/date formatting, and what the lint cannot see).
 - **`docs/design`** is the dual-theme design system (Studio Light + Spark Dark). Read it
   before building UI.
 - **`docs/development`** documents the evaluation and calibration harnesses: how to run

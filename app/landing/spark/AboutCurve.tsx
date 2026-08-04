@@ -4,9 +4,9 @@ import { useRef } from "react";
 import Link from "next/link";
 import { motion, useScroll, useSpring, useTransform } from "framer-motion";
 import { ArrowRight } from "lucide-react";
-import KandidateMark from "../_components/KandidateMark";
+import Wordmark from "./Wordmark";
 import { LandingLangSwitch } from "./LandingLangSwitch";
-import { StepArt, type AboutStepKey } from "./aboutIllustrations";
+import { StepArt, type AboutStepKey } from "./about-art";
 import { useTranslations } from "next-intl";
 import { enterWorkspace } from "@/app/_lib/auth/session-nav";
 
@@ -95,11 +95,8 @@ export default function AboutCurve() {
     <main className="overflow-x-clip bg-[#fdf8ee] pb-28 text-[#17202a] font-[family-name:var(--font-spark-body)]">
       {/* ── Topbar ─────────────────────────────────────────────── */}
       <header className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 pt-6">
-        <Link href="/" className="flex items-center gap-3">
-          <KandidateMark className="h-10 w-10 text-[#d65a4a] [--k-fg:#fdf8ee] [--k-accent:#17202a]" />
-          <span className={`${DISPLAY} text-2xl font-bold`}>
-            Kandi<span className="text-[#d65a4a]">D</span>ate
-          </span>
+        <Link href="/">
+          <Wordmark />
         </Link>
         <nav className="hidden items-center gap-6 text-[15px] font-bold sm:flex">
           <Link href="/" className="hover:text-[#d65a4a]">
@@ -171,8 +168,8 @@ export default function AboutCurve() {
       <footer className="mt-20 border-t-[3px] border-[#17202a]">
         <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-4 px-6 py-8 text-[15px]">
           <div className="flex items-center gap-2 font-bold">
-            <KandidateMark className="h-7 w-7 text-[#17202a] [--k-fg:#fdf8ee]" />
-            KandiDate · {t("footer.tagline")}
+            <Wordmark size="sm" />
+            <span>· {t("footer.tagline")}</span>
           </div>
           <div className="flex items-center gap-5">
             <Link href="/" className="font-bold text-[#42606f] hover:text-[#d65a4a]">

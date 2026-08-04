@@ -9,10 +9,14 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { isDeliverableAddress } from "@/app/_lib/comms-recipient";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { BTN_PRIMARY, FIELD, META_LABEL } from "@/app/_components/ui/recipes";
 
 export function BouncedResend({ id, defaultRecipient, onResent }: { id: string; defaultRecipient: string | null; onResent: () => void }) {
   const t = useTranslations("channels.comms");
+  // Refusal reasons resolve from the machine `code`, never the server's English
+  // `error` — see app/_lib/use-error-message.ts.
+  const errMsg = useErrorMessage();
   const [recipient, setRecipient] = useState(defaultRecipient ?? "");
   const [state, setState] = useState<"idle" | "busy" | "done" | "deadLettered" | "error">("idle");
   const [message, setMessage] = useState<string | null>(null);
@@ -30,10 +34,10 @@ export function BouncedResend({ id, defaultRecipient, onResent }: { id: string; 
         body: JSON.stringify({ recipient: recipient.trim() }),
       });
       const payload = (await r.json().catch(() => null)) as
-        | { error?: string; entry?: { status?: string; failureDetail?: string | null } }
+        | { error?: string; code?: string; entry?: { status?: string; failureDetail?: string | null } }
         | null;
       if (!r.ok) {
-        setMessage(t("resendRejected", { reason: payload?.error ?? t("resendFailed") }));
+        setMessage(t("resendRejected", { reason: errMsg(payload, t("resendFailed")) }));
         setState("error");
         return;
       }

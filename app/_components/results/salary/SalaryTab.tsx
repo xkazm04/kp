@@ -2,7 +2,8 @@
 
 import { CircleDollarSign } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { formatGrouped, formatSalaryRange, labelize } from "@/app/_lib/format";
+import { labelize } from "@/app/_lib/format";
+import { useNumberFormat } from "@/app/_lib/use-number-format";
 import type { Analysis } from "@/app/_lib/schemas";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { ConfidenceBadge } from "@/app/_components/Badge";
@@ -15,6 +16,9 @@ import { growthMarkerPercent, roundGrowthTarget } from "./salaryGauge.logic";
 export function SalaryTab({ analysis }: { analysis: Analysis }) {
   const t = useTranslations("report");
   const enumLabel = useEnumLabel();
+  // Reader-locale digit grouping for every figure on this tab (format.ts
+  // number-locale contract) — the currency code still comes from the analysis.
+  const n = useNumberFormat();
   // Localized confidence-badge vocabulary (report.confidence.*), resolved here
   // and passed to the locale-dumb Badge primitive.
   const confidenceLabels = {
@@ -59,7 +63,7 @@ export function SalaryTab({ analysis }: { analysis: Analysis }) {
             />
           </div>
           <div className="mt-1 text-base nums text-ink">
-            {formatSalaryRange(analysis.salary.minimum, analysis.salary.maximum, { currency })}
+            {n.salaryRange(analysis.salary.minimum, analysis.salary.maximum, { currency })}
           </div>
           <p className="mt-1 flex items-center gap-1.5 text-base text-steel">{enumLabel("period", period)} · <ConfidenceBadge value={analysis.salary.confidence} labels={confidenceLabels} /></p>
           {analysis.salary.structureNote ? (
@@ -69,12 +73,12 @@ export function SalaryTab({ analysis }: { analysis: Analysis }) {
             {growthPct != null
               ? t("panel.growthTarget", {
                   pct: growthPct,
-                  amount: formatGrouped(targetSalary),
+                  amount: n.grouped(targetSalary),
                   currency,
                   period: periodLabel,
                 })
               : t("panel.growthTargetPlain", {
-                  amount: formatGrouped(targetSalary),
+                  amount: n.grouped(targetSalary),
                   currency,
                   period: periodLabel,
                 })}
@@ -119,7 +123,7 @@ export function SalaryTab({ analysis }: { analysis: Analysis }) {
               <ConfidenceBadge value={analysis.marketEvidence.confidence} />
               {analysis.marketEvidence.suggestedMinimum && analysis.marketEvidence.suggestedMaximum
                 ? t("panel.groundedRange", {
-                    range: formatSalaryRange(analysis.marketEvidence.suggestedMinimum, analysis.marketEvidence.suggestedMaximum, { currency }),
+                    range: n.salaryRange(analysis.marketEvidence.suggestedMinimum, analysis.marketEvidence.suggestedMaximum, { currency }),
                   })
                 : ""}
             </p>

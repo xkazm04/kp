@@ -1,8 +1,13 @@
 // Pipeline simulation — shared constants. The canned JD lets the deterministic
 // "spine" run end-to-end with ZERO LLM keys (no jd_build / Gemini needed): the
 // role sources real seeded candidates and walks one to Hired.
-
-import { applyCompanyTemplate } from "./simCompanyTemplate";
+//
+// i18n: this module is imported by SERVER code (analytics filters, sim-store,
+// the offer-draft route), so it can hold no hooks and therefore no copy. Every
+// user-visible string the demo renders — phase labels, the JD body, the step
+// narration — lives in the `simulation` namespace and is read at the call site
+// (useSimulationWalk / the dock / the explainer). What stays here is structure:
+// ids, tabs, enum codes, numbers and the (SIM) marker.
 
 export const SIM_MARKER = "(SIM)"; // every sim artifact's title carries this — used to reset cleanly
 // The marker is BOTH a purge key (resetSim deletes by it) and a read-side filter
@@ -23,34 +28,32 @@ export function isSimTitle(title: string | null | undefined): boolean {
 export function markSimTitle(title: string): string {
   return isSimTitle(title) ? title : `${title} ${SIM_MARKER}`;
 }
+// Deliberately NOT localized: the title is a stored record identity (the job row
+// the whole run is keyed on, the group evaluation's roleKey/roleTitle, and the
+// string the (SIM) purge and every analytics filter recognise), and English job
+// titles are the market norm for senior engineering roles in CZ/DE/FR anyway.
+// Translating it per locale would mint four different demo jobs for the same
+// scripted run with no product gain.
 export const SIM_TITLE = `Senior Java Backend Engineer ${SIM_MARKER}`;
 export const SIM_COMPANY = "Česká spořitelna";
 
 // A RoleSpec shaped exactly like the JD builder's output, so /api/jds/save can
-// ingest a structured Job AND source candidates against it.
+// ingest a structured Job AND source candidates against it. `responsibilities`
+// is the one prose field, so it is NOT here — the walk composes it from the
+// `simulation.jd.responsibility.*` catalog and spreads it over this base.
+// Everything that remains is matcher input (enum codes, language + skill tokens
+// the KO filter and scorer compare against a CV verbatim), so it stays fixed in
+// every locale.
 export const SIM_ROLE = {
   title: SIM_TITLE,
   seniority: "senior",
   roleFamily: "software_engineering",
   languages: ["Czech", "English"],
-  responsibilities: ["Own core banking backend services", "Mentor the team", "Drive API & data-model design"],
   mustHaves: ["Java", "Spring", "SQL", "REST"],
   niceToHaves: ["Kafka", "Kubernetes", "AWS"],
 };
 
 export const SIM_SALARY = { suggestedMinimum: 120000, suggestedMaximum: 165000 };
-
-// Richer, company-branded JD output (Phase 1 "simulate output" + template).
-export const SIM_JD_MARKDOWN = applyCompanyTemplate({
-  title: SIM_TITLE,
-  company: SIM_COMPANY,
-  seniority: SIM_ROLE.seniority,
-  responsibilities: SIM_ROLE.responsibilities,
-  mustHaves: SIM_ROLE.mustHaves,
-  niceToHaves: SIM_ROLE.niceToHaves,
-  salaryBand: [SIM_SALARY.suggestedMinimum, SIM_SALARY.suggestedMaximum],
-  currency: "CZK",
-});
 
 // ── Demo screening coupling: SIM_SCREEN_POLICY ─────────────────────────────
 // Two magic numbers in different files are silently coupled, and the demo's
@@ -88,15 +91,18 @@ if (SIM_SCREEN_POLICY.inboundScoreFloor <= SIM_SCREEN_POLICY.screenWaveOverride.
 }
 
 // The chronological phases shown on the bar (supporting nav). Each maps to the
-// tab a user would be on for that part of the journey.
+// tab a user would be on for that part of the journey. The LABEL is not here:
+// every renderer (the dock stepper, the collapsed orb caption, the explainer
+// header) reads `simulation.phase.<id>` so the chronology speaks the viewer's
+// language; this list stays pure structure (id + destination tab).
 export type SimPhaseId = "design" | "source" | "match" | "screen" | "interview" | "offer" | "hired";
 
-export const SIM_PHASES: { id: SimPhaseId; label: string; tab: string }[] = [
-  { id: "design", label: "Design JD", tab: "library" },
-  { id: "source", label: "Source", tab: "jobs" },
-  { id: "match", label: "Intake", tab: "channels" },
-  { id: "screen", label: "Screen", tab: "analytics" },
-  { id: "interview", label: "Interview", tab: "schedule" },
-  { id: "offer", label: "Offer", tab: "decisions" },
-  { id: "hired", label: "Hired", tab: "pipeline" },
+export const SIM_PHASES: { id: SimPhaseId; tab: string }[] = [
+  { id: "design", tab: "library" },
+  { id: "source", tab: "jobs" },
+  { id: "match", tab: "channels" },
+  { id: "screen", tab: "analytics" },
+  { id: "interview", tab: "schedule" },
+  { id: "offer", tab: "decisions" },
+  { id: "hired", tab: "pipeline" },
 ];

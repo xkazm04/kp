@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { buildUrl } from "@/app/features/shell/tabs";
 import { IDLE_STATE, SLOW_FACTOR, SimStop, sleep, type SimCtx, type SimState } from "./simulationProviderTypes";
 import { useSimulationEngine } from "./useSimulationEngine";
@@ -17,6 +18,10 @@ export const useSimulation = () => {
 export function SimulationProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  // The run-control statuses (starting / paused / reset) are the demo's own copy —
+  // the tour is public (/?sim=auto from the localized landing CTA), so they must
+  // never be the English literals they used to be.
+  const t = useTranslations("simulation");
   const [state, setState] = useState<SimState>(IDLE_STATE);
 
   const ctrl = useRef<{ stop: boolean; paused: boolean; wake: (() => void) | null }>({ stop: false, paused: false, wake: null });
@@ -82,14 +87,14 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
     // explainOpen deliberately NOT forced on: the drawer competes with the tour's
     // own spotlight narration on first watch — it stays opt-in via the dock's
     // Explain toggle (IDLE_STATE has it off).
-    setState((s) => ({ ...IDLE_STATE, stepMode: s.stepMode, running: true, status: "Starting…" }));
+    setState((s) => ({ ...IDLE_STATE, stepMode: s.stepMode, running: true, status: t("status.starting") }));
     runPromiseRef.current = run();
-  }, [run]);
+  }, [run, t]);
 
   const pause = useCallback(() => {
     ctrl.current.paused = true;
-    patch({ paused: true, status: "Paused" });
-  }, [patch]);
+    patch({ paused: true, status: t("status.paused") });
+  }, [patch, t]);
 
   const resume = useCallback(() => {
     ctrl.current.paused = false;
@@ -117,8 +122,8 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
     runPromiseRef.current = null;
     await fetch("/api/sim/reset", { method: "POST" }).catch(() => undefined);
     // Everything cleared to IDLE; keep the user's stepMode + explain-drawer state.
-    setState((s) => ({ ...IDLE_STATE, stepMode: s.stepMode, explainOpen: s.explainOpen, status: "Reset" }));
-  }, []);
+    setState((s) => ({ ...IDLE_STATE, stepMode: s.stepMode, explainOpen: s.explainOpen, status: t("status.reset") }));
+  }, [t]);
 
   const toggleStep = useCallback(() => {
     stepRef.current = !stepRef.current;

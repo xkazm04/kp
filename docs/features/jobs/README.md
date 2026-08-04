@@ -101,6 +101,25 @@ market band suppresses the salary finding), exclusionary/gendered-coded
 language, and an over-long must-have list. Findings render in a panel in
 `JdBuilderResult` with an explicit all-clear state. Pinned by `jd-lint.test.ts`.
 
+## The posting is a document, so it picks its own language
+
+The Posting tab renders `jobToMarkdown` — the copy-to-job-board artifact — and
+carries its own language toggle, defaulting to the app locale. That toggle now
+offers **all four** app locales: the heading/label table used to be a two-column
+`en | cs` object literal in `jobsMarkdown.ts`, so a German or French recruiter was
+silently pinned back to English. The scaffolding comes from `jobs.posting.doc.*`,
+and the role family / seniority / work mode read the shared `enums.*` labels, so
+a posting and the pipeline board never name the same slug differently (the old
+private map covered 3 of the 16 role families and printed the raw slug for the
+rest, with the work mode hardcoded English in every language).
+
+Strings for a language *other* than the app's are loaded lazily through the
+locale-pinned translator (`app/_lib/catalog-translator.ts`) — the document-reader
+mechanism described in
+[`docs/architecture/localization.md`](../../architecture/localization.md). The
+salary band's digit grouping and its unit travel with that table for the same
+reason; `jobMarkdown.test.ts` pins both across every posting locale.
+
 ## Sourcing campaign packs (Erika gap E1)
 
 From a published job, `pipeline/jobfit/campaign.py` (+ `campaign_cli.py`)

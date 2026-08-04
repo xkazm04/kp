@@ -1,7 +1,7 @@
 "use client";
 
 import { Scale } from "lucide-react";
-import { useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
 import { EmptyState } from "./JobsShared";
 import { buildCohorts, type RubricComp } from "./jobsCompareCohorts";
@@ -11,7 +11,6 @@ import { JobsCompareInterviewsEvidenceCard } from "./JobsCompareInterviewsEviden
 
 export function CompareInterviews({ jobId }: { jobId: string }) {
   const t = useTranslations("jobs.compare");
-  const locale = useLocale(); // PREP3 — localize the per-rating competency display
   const { data, error } = useJsonFetch<{ rubrics: Record<string, RubricComp[]>; candidates: Candidate[] }>(
     `/api/interview/compare?job=${encodeURIComponent(jobId)}`,
     t("loadFailed")
@@ -56,7 +55,7 @@ export function CompareInterviews({ jobId }: { jobId: string }) {
       <p className="mt-5 text-meta uppercase text-steel">{t("evidenceHeading")}</p>
       <div className="mt-2 grid gap-3 sm:grid-cols-2">
         {data.candidates.map((c, i) => (
-          <JobsCompareInterviewsEvidenceCard key={i} c={c} locale={locale} t={t} />
+          <JobsCompareInterviewsEvidenceCard key={i} c={c} t={t} />
         ))}
       </div>
     </div>

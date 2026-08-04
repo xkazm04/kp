@@ -1,4 +1,3 @@
-import { createTranslator } from "next-intl";
 import { sendComm } from "./comms";
 import type { OutboxStatus } from "./comms-status";
 import { ensureErasureToken, entryProfileGaps, recordAutomationEvent, type PipelineEntry } from "./db";
@@ -11,6 +10,7 @@ import { extractDeliverableAddress, extractRecipientName } from "./comms-recipie
 import { buildIcs } from "./export-utils";
 import { publicBaseUrl, publicOriginIsFallback } from "./public-base-url.ts";
 import { resolveCommsLocale } from "./comms-locale";
+import { commsTranslator, type CommsTranslator } from "./comms-translator";
 
 // Direction #3 — real comms delivery for the hiring pipeline. Routes recruiter
 // automation through the shared sendComm channel (durable local outbox by
@@ -30,28 +30,9 @@ import { resolveCommsLocale } from "./comms-locale";
 // their deterministic chrome (fallback subject, the offer's terms + response
 // footers) localizes here.
 
-// One cached translator per locale: createTranslator is the non-request core
-// API, so it needs the messages handed in — loaded once per locale via the same
-// relative-path dynamic import the request config uses (so the bundler can
-// statically enumerate the catalogs). Synchronous after the first load.
-//
-// The catalogs load as `Record<string, unknown>`, so next-intl's compile-time
-// key checking can't see the `comms.*` keys and types every key as `never`.
-// This module is the one place that loads messages dynamically, so we narrow
-// the translator to a plain `(key, values) => string` callable — the catalog is
-// instead pinned by comms-dispatch.test.ts, which renders every key.
-type CommsTranslator = (key: string, values?: Record<string, string | number>) => string;
-const translatorByLocale = new Map<string, CommsTranslator>();
-
-async function commsTranslator(locale: string | null | undefined): Promise<CommsTranslator> {
-  const loc = resolveCommsLocale(locale);
-  const cached = translatorByLocale.get(loc);
-  if (cached) return cached;
-  const messages = (await import(`../../messages/${loc}.json`)).default as Record<string, unknown>;
-  const t = createTranslator({ locale: loc, messages, namespace: "comms" }) as unknown as CommsTranslator;
-  translatorByLocale.set(loc, t);
-  return t;
-}
+// The locale-pinned `comms` translator lives in comms-translator.ts —
+// devcase-feedback.ts needed the same cache, and two copies of "how to load a
+// catalog outside a request" is one too many.
 
 // RECIPIENT CONTRACT (full write-up in docs/features/comms/README.md). Resolved in
 // priority:

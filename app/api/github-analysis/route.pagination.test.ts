@@ -23,6 +23,7 @@ import { mkdtempSync } from "node:fs";
 // Side-effect import: sets KP_DB_PATH to a throwaway file BEFORE ./route.ts pulls in the
 // db layer. Keep it first (ESM evaluates imports in source order).
 import "../../_lib/testing/unit-db.ts";
+import type { GithubNote } from "../../_lib/github-evidence.ts";
 import { POST } from "./route.ts";
 
 const realFetch = globalThis.fetch;
@@ -115,7 +116,7 @@ test("#3 pagination analyzes >100 repos, so a page-3 flagship's stars are counte
   const body = (await res.json()) as {
     error?: string;
     metrics: { ownedReposAnalyzed: number; publicRepos: number; totalStars: number };
-    limitations: string[];
+    limitations: GithubNote[];
   };
 
   assert.equal(body.error, undefined);
@@ -125,9 +126,9 @@ test("#3 pagination analyzes >100 repos, so a page-3 flagship's stars are counte
   // The flagship on the OLDEST page (page 3) contributes its stars — the exact signal
   // single-page sort=updated dropped.
   assert.equal(body.metrics.totalStars, 1000, "the oldest-page flagship is counted");
-  // A complete read (short final page) carries no truncation note.
+  // A complete read (short final page) carries no truncation finding.
   assert.ok(
-    !body.limitations.some((l) => /were not included in the totals/.test(l)),
+    !body.limitations.some((l) => typeof l !== "string" && l.kind === "limitation.truncated"),
     "a complete run must NOT claim truncation",
   );
   // NON-VACUITY: pre-fix, only page 1 was fetched → ownedReposAnalyzed 100 and
@@ -139,15 +140,19 @@ test("#3 an account past the page cap is annotated as truncated, never presented
   const body = (await res.json()) as {
     error?: string;
     metrics: { ownedReposAnalyzed: number; publicRepos: number };
-    limitations: string[];
+    limitations: GithubNote[];
   };
 
   assert.equal(body.error, undefined);
   assert.equal(body.metrics.ownedReposAnalyzed, 300, "the cap bounds analysis at 300 repos");
   assert.equal(body.metrics.publicRepos, 350, "the true count is still reported");
   // The undercount is surfaced honestly instead of implying a full portfolio.
+  // The finding carries the two numbers as params, so the panel can state the
+  // undercount in the reader's language (analyzed 300 of 350 public).
   assert.ok(
-    body.limitations.some((l) => /analyzed of 350 public/.test(l) && /were not included in the totals/.test(l)),
+    body.limitations.some(
+      (l) => typeof l !== "string" && l.kind === "limitation.truncated" && l.params?.analyzed === 300 && l.params?.total === 350,
+    ),
     `truncation must be annotated; saw ${JSON.stringify(body.limitations)}`,
   );
   // NON-VACUITY: pre-fix, a single page returned 100 repos with no truncation note, so

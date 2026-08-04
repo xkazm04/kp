@@ -84,7 +84,11 @@ export const IDLE_STATE: SimState = {
   frame: null,
   groupEval: null,
   screenWave: null,
-  status: "Idle",
+  // Empty, not "Idle": this is a module constant with no translator in scope, so
+  // the idle wording is resolved at the render boundary (SimControlDockSimFace
+  // falls back to `simulation.status.idle`). Every other status the demo shows is
+  // written here by a component that DOES have one.
+  status: "",
   log: [],
   targetLabel: null,
   error: null,

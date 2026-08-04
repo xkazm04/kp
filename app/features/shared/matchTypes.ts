@@ -1,3 +1,5 @@
+import { APP_CURRENCY, formatGrouped } from "@/app/_lib/format";
+
 export type AnalysisRow = {
   slug: string;
   candidate_label: string;
@@ -213,8 +215,14 @@ export function provLabel(p: string): { key: ProvenanceKey; tone: string } {
 /** Compact "k CZK" salary band for the match surfaces, e.g. `"45–60k CZK"`, or
  *  `"—"` when there isn't a [min, max] pair. The match cards deliberately use this
  *  abbreviated form (vs. the app-wide grouped `formatSalaryRange`), so this is the
- *  one place MatchCard and JobCompare share it instead of re-deriving the math. */
-export function formatBandCompact(band?: number[]): string {
+ *  one place MatchCard and JobCompare share it instead of re-deriving the math.
+ *
+ *  The thousands figures still go through {@link formatGrouped} in the reader's
+ *  `locale` (format.ts number-locale contract) so a four-digit band ("1 200k")
+ *  groups the way the rest of the page does, and the unit is {@link APP_CURRENCY}
+ *  rather than a "CZK" literal that would lie if that constant ever moved. The
+ *  rounding, the "k" scale, and the en-dash are unchanged. */
+export function formatBandCompact(band?: number[], locale?: string): string {
   if (!band || band.length !== 2) return "—";
-  return `${Math.round(band[0] / 1000)}–${Math.round(band[1] / 1000)}k CZK`;
+  return `${formatGrouped(Math.round(band[0] / 1000), locale)}–${formatGrouped(Math.round(band[1] / 1000), locale)}k ${APP_CURRENCY}`;
 }

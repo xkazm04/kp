@@ -12,20 +12,24 @@ import type { Task, TaskStatus } from "./TasksProvider";
 export const RECENT_WINDOW_DAYS = RECENT_TASK_WINDOW_DAYS;
 export const HISTORY_PAGE_SIZE = 20;
 
+// Presentation only. The status LABEL is not here: it is copy, and this map is a
+// plain module a server could import, so it holds no strings a user reads
+// (docs/architecture/localization.md). Every renderer resolves
+// `tasks.status.<status>` instead — the status union makes that a checked
+// template-literal key, not a cast.
 export type StatusMeta = {
-  label: string;
   badge: string;
   Icon: typeof Check;
   iconCls: string;
 };
 
 export const STATUS: Record<TaskStatus, StatusMeta> = {
-  running: { label: "Running", badge: "bg-coral/10 text-coral", Icon: Loader2, iconCls: "animate-spin text-coral" },
-  queued: { label: "Queued", badge: "bg-steel/10 text-steel", Icon: Clock, iconCls: "text-steel" },
-  succeeded: { label: "Done", badge: "bg-moss/10 text-moss", Icon: Check, iconCls: "text-moss" },
-  failed: { label: "Failed", badge: "bg-coral/10 text-coral", Icon: AlertTriangle, iconCls: "text-coral" },
-  canceled: { label: "Canceled", badge: "bg-stone-100 text-steel", Icon: Ban, iconCls: "text-steel" },
-  interrupted: { label: "Interrupted", badge: "bg-amber-100 text-amber-700", Icon: AlertTriangle, iconCls: "text-amber-600" },
+  running: { badge: "bg-coral/10 text-coral", Icon: Loader2, iconCls: "animate-spin text-coral" },
+  queued: { badge: "bg-steel/10 text-steel", Icon: Clock, iconCls: "text-steel" },
+  succeeded: { badge: "bg-moss/10 text-moss", Icon: Check, iconCls: "text-moss" },
+  failed: { badge: "bg-coral/10 text-coral", Icon: AlertTriangle, iconCls: "text-coral" },
+  canceled: { badge: "bg-stone-100 text-steel", Icon: Ban, iconCls: "text-steel" },
+  interrupted: { badge: "bg-amber-100 text-amber-700", Icon: AlertTriangle, iconCls: "text-amber-600" },
 };
 
 export const ACTIVE = (t: Task) => t.status === "running" || t.status === "queued";

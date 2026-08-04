@@ -12,6 +12,7 @@ import { builderLintFindings, type GeneratePrefill } from "./jdsLibrary";
 import { fetchTemplates, type Template } from "@/app/features/shared/renderTemplate";
 import { validateJdBuildInput, validateJdFields } from "@/app/_lib/jd-limits";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { ROLE_FAMILY_SLUGS } from "@/app/_lib/role-families";
 import { readClientOrgName } from "@/app/_lib/org-settings";
 
@@ -33,6 +34,9 @@ export function isOutputLang(value: unknown): value is (typeof JD_OUTPUT_LANGS)[
 export function useJdBuilderLogic({ onSaved, prefill }: { onSaved: () => void; prefill?: GeneratePrefill }) {
   const t = useTranslations("library.builder");
   const enumLabel = useEnumLabel();
+  // API failures resolve from the machine `code`, never the server's English
+  // `error` string — see app/_lib/use-error-message.ts.
+  const errMsg = useErrorMessage();
   // Deep-link / simulation prefill (jd* query params) — mirrors MatchTab's pattern.
   // A `prefill` prop (Duplicate → Generate) takes precedence over the query params;
   // the component remounts per duplicate, so these mount-time seeds re-read it.
@@ -137,7 +141,7 @@ export function useJdBuilderLogic({ onSaved, prefill }: { onSaved: () => void; p
       if (r.status === 401 || r.status === 403) throw new Error(t("notPermitted"));
       if (!r.ok) {
         const p = await r.json().catch(() => ({}));
-        throw new Error(p.error ?? t("generateFailedStatus", { status: r.status }));
+        throw new Error(errMsg(p, t("generateFailedStatus", { status: r.status })));
       }
       // The JD now lives in the Ledger as "Analyzing" and fills in server-side.
       // Clear the role-specific inputs so the next role starts fresh (reusable
@@ -186,7 +190,7 @@ export function useJdBuilderLogic({ onSaved, prefill }: { onSaved: () => void; p
       if (r.status === 401 || r.status === 403) throw new Error(t("notPermitted"));
       if (!r.ok) {
         const p = await r.json().catch(() => ({}));
-        throw new Error(p.error ?? t("saveDraftFailedStatus", { status: r.status }));
+        throw new Error(errMsg(p, t("saveDraftFailedStatus", { status: r.status })));
       }
       onSaved();
       setDraftSaved(true);

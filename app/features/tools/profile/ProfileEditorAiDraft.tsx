@@ -9,6 +9,7 @@ import { useTranslations } from "next-intl";
 import type { ProfilePayload } from "@/app/features/shared/profileTypes";
 import { Textarea } from "./ProfileFields";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
 
 export type ProfileDraft = {
   profile: ProfilePayload;
@@ -18,6 +19,9 @@ export type ProfileDraft = {
 
 export function ProfileEditorAiDraft({ onApplied }: { onApplied: (draft: ProfileDraft) => void }) {
   const t = useTranslations("profile.editor");
+  // Resolve API failures from the machine `code`, never from the server's
+  // English `error` — see app/_lib/use-error-message.ts.
+  const errMsg = useErrorMessage();
   const enumLabel = useEnumLabel();
 
   const [aiOpen, setAiOpen] = useState(false);
@@ -38,7 +42,7 @@ export function ProfileEditorAiDraft({ onApplied }: { onApplied: (draft: Profile
         body: JSON.stringify({ text: aiText }),
       });
       const payload = await r.json();
-      if (!r.ok) throw new Error(payload.error ?? t("draftFailedStatus", { status: r.status }));
+      if (!r.ok) throw new Error(errMsg(payload, t("draftFailedStatus", { status: r.status })));
       onApplied(payload);
       const label = enumLabel("archetype", payload.archetype);
       setAiNote(t("draftedAs", { label, pct: Math.round((payload.confidence ?? 0) * 100) }));

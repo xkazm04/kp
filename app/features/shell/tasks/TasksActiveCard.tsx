@@ -4,13 +4,16 @@
 // under the 200-line file cap. Verbatim — same confirm-then-cancel flow, same
 // determinate/indeterminate progress bar logic (Finding 5).
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { X } from "lucide-react";
 import { useReducedMotion } from "@/app/_lib/useReducedMotion";
 import { progressDisplay } from "@/app/_lib/task-view";
+import { renderTaskLabel } from "@/app/_lib/task-label";
 import type { Task } from "./TasksProvider";
 import { STATUS } from "./tasksTabHelpers";
 
 export function ActiveCard({ task, onCancel }: { task: Task; onCancel: () => void }) {
+  const t = useTranslations("tasks");
   const meta = STATUS[task.status];
   const reduced = useReducedMotion();
   const disp = progressDisplay(task);
@@ -24,11 +27,11 @@ export function ActiveCard({ task, onCancel }: { task: Task; onCancel: () => voi
       <div className="flex items-center gap-2">
         <span className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-meta font-semibold ${meta.badge}`}>
           <meta.Icon size={11} className={meta.iconCls} />
-          {meta.label}
+          {t(`status.${task.status}`)}
         </span>
-        <span className="min-w-0 flex-1 truncate text-base font-medium text-ink">{task.label ?? task.kind}</span>
+        <span className="min-w-0 flex-1 truncate text-base font-medium text-ink">{renderTaskLabel(t, task)}</span>
         {canceling ? (
-          <span className="shrink-0 text-meta text-steel">Canceling…</span>
+          <span className="shrink-0 text-meta text-steel">{t("active.canceling")}</span>
         ) : confirming ? (
           <span className="flex shrink-0 items-center gap-1">
             <button
@@ -40,22 +43,22 @@ export function ActiveCard({ task, onCancel }: { task: Task; onCancel: () => voi
               }}
               className="focus-ring rounded border border-coral/40 px-1.5 py-0.5 text-meta font-semibold text-coral hover:bg-coral/5"
             >
-              Cancel task
+              {t("active.confirmCancel")}
             </button>
             <button
               type="button"
               onClick={() => setConfirming(false)}
               className="focus-ring rounded border border-stone-200 px-1.5 py-0.5 text-meta font-semibold text-steel hover:bg-stone-100"
             >
-              Keep
+              {t("active.keep")}
             </button>
           </span>
         ) : (
           <button
             type="button"
             onClick={() => setConfirming(true)}
-            title="Cancel task"
-            aria-label="Cancel task"
+            title={t("active.cancelAria")}
+            aria-label={t("active.cancelAria")}
             className="focus-ring shrink-0 rounded p-1 text-steel hover:bg-stone-100 hover:text-coral"
           >
             <X size={14} />
@@ -72,7 +75,7 @@ export function ActiveCard({ task, onCancel }: { task: Task; onCancel: () => voi
         aria-valuenow={disp.mode === "determinate" ? disp.pct : undefined}
         aria-valuemin={disp.mode === "determinate" ? 0 : undefined}
         aria-valuemax={disp.mode === "determinate" ? 100 : undefined}
-        aria-label={disp.mode === "indeterminate" ? "Working…" : undefined}
+        aria-label={disp.mode === "indeterminate" ? t("active.working") : undefined}
       >
         {disp.mode === "determinate" ? (
           <div className="h-full rounded-full bg-coral transition-all duration-500" style={{ width: `${Math.max(6, disp.pct)}%` }} />
@@ -85,7 +88,10 @@ export function ActiveCard({ task, onCancel }: { task: Task; onCancel: () => voi
       <div className="mt-1.5 flex items-center justify-between gap-3 text-sm text-steel">
         <span className="min-w-0 truncate">
           {task.progressTotal > 0 ? `${task.progressDone}/${task.progressTotal} · ` : ""}
-          {task.progressMsg ?? (task.status === "queued" ? "queued…" : "working…")}
+          {/* `progressMsg` is the running handler's own live detail (a candidate
+              name, a stage) written server-side with no reader locale — it is
+              passed through as-is; only this fallback is copy. */}
+          {task.progressMsg ?? (task.status === "queued" ? t("active.queuedMsg") : t("active.workingMsg"))}
         </span>
         <span className="shrink-0 font-mono text-sm text-steel/80">{task.kind}</span>
       </div>

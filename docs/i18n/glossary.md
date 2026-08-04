@@ -45,6 +45,19 @@ Columns: **en** · **cs** · **de** · **fr** · note. Add a column per new loca
 | lead (group-eval top candidate) | favorit | Spitzenkandidat/in | favori | cs: "vedoucí" reads as *manager*; "lídr" was a third variant — unified 2026-08 |
 | per hire | na jedno přijetí | pro Einstellung | par recrutement | cs: not "na nábor" (= per recruitment drive); cf. hire → přijmout/přijat |
 | Google Calendar | Google Calendar | Google Calendar | Google Calendar | product proper noun, kept verbatim (not "Google Kalendář") |
+| screening wave | vlna screeningu | Screening-Welle | vague de présélection | the first automated decision pass (`simulation.wave.*`, `decisions.wave.*`) |
+| decision criteria | kritéria rozhodování | Entscheidungskriterien | critères de décision | the explainer drawer's table (`simulation.explainer.criteriaTitle`) |
+| intake | příjem | Eingang | réception | the pipeline's front door — candidates arriving from all channels; distinct from *sourcing* (proactive only) |
+| organization | organizace | Organisation | organisation | the customer company; the tenancy root above *team*/*workspace* |
+| member (of the org) | člen | Mitglied | membre | a seat on the roster, not a candidate |
+| owner (role) | vlastník | Inhaber | propriétaire | the `owner` role slug — the only one carrying `org:manage` |
+| admin (role) | administrátor | Administrator | administrateur | the `admin` role slug |
+| hiring manager (role) | hiring manažer | Hiring Manager | hiring manager | half-loanword in all three; matches `setup.steps.team.blurb` |
+| viewer (role) | čtenář | Betrachter | lecteur | read-only seat; cs deliberately *čtenář*, not *prohlížející* |
+| invite (noun/verb) | pozvánka / pozvat | Einladung / einladen | invitation / inviter | |
+| revoke (an invite) | odvolat | zurückziehen | révoquer | cs: **odvolat**, never *zrušit* — *zrušit* is the Cancel button beside it |
+| permission | oprávnění | Berechtigung | autorisation | the per-user overrides in the Organization console |
+| capability | oprávnění | Berechtigung | autorisation | the `Capability` slug; folded into *permission* in the UI — the split is internal only |
 
 ## Do-Not-Translate
 

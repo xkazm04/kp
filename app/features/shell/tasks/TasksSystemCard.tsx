@@ -1,13 +1,23 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { AlertTriangle, RefreshCw } from "lucide-react";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
+import { useNumberFormat } from "@/app/_lib/use-number-format";
 import type { EngineAvailability } from "@/app/_lib/engine-preflight";
 
 // DATA2 — the System panel: the operator's read of telemetry the app always
 // collected and never surfaced. Lives on the Background-tasks tab (the
-// operator's natural home, English like the rest of this surface). Read-only;
-// /api/ops bounds every log read server-side.
+// operator's natural home). Read-only; /api/ops bounds every log read
+// server-side.
+//
+// This card used to be English-only "like the rest of this surface"; the rest of
+// this surface is localized now, and an operator reading a health panel is a UI
+// user like any other, so the CHROME reads from the `tasks.system` catalog.
+// What stays verbatim is the machine payload it displays: engine and table
+// names, stage keys, the env-var names in the preflight tooltips, and
+// `degradedReasons`, which arrive from /api/ops as canonical English server
+// diagnostics with no code to resolve (docs/architecture/localization.md).
 
 type Ops = {
   ok: boolean;
@@ -27,6 +37,13 @@ type Ops = {
   schedule: { reconcileFailures: number; noSlotStalls: number };
 };
 
+// Engine proper nouns: held as constants, not JSX text, because they are product
+// names that never translate (docs/i18n/glossary.md — Do-Not-Translate).
+/** The em-dash placeholder for "no sample yet" — a typographic mark, not copy. */
+const EMPTY = "—";
+const ENGINE_GEMINI = "Gemini";
+const ENGINE_CLAUDE_CLI = "Claude CLI";
+
 function Dot({ on }: { on: boolean }) {
   return <span aria-hidden className={`inline-block h-2 w-2 rounded-full ${on ? "bg-moss" : "bg-coral"}`} />;
 }
@@ -42,13 +59,15 @@ function StatCell({ label, value, sub }: { label: string; value: string; sub?: s
 }
 
 export function SystemCard() {
-  const { data, error, reload } = useJsonFetch<Ops>("/api/ops", "Couldn't load system status.");
+  const t = useTranslations("tasks");
+  const n = useNumberFormat();
+  const { data, error, reload } = useJsonFetch<Ops>("/api/ops", t("system.loadFailed"));
 
   return (
     <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
       <div className="flex items-baseline justify-between gap-3">
-        <h3 className="font-serif text-h2 text-ink">System</h3>
-        <span className="text-meta uppercase text-steel">cost · cache · engines</span>
+        <h3 className="font-serif text-h2 text-ink">{t("system.title")}</h3>
+        <span className="text-meta uppercase text-steel">{t("system.meta")}</span>
       </div>
 
       {error ? (
@@ -59,35 +78,38 @@ export function SystemCard() {
             onClick={reload}
             className="focus-ring inline-flex shrink-0 items-center gap-1 rounded-md border border-stone-300 bg-white px-3 py-1.5 text-sm font-medium text-ink hover:bg-paper"
           >
-            <RefreshCw size={12} /> Retry
+            <RefreshCw size={12} /> {t("system.retry")}
           </button>
         </div>
       ) : !data ? (
-        <p className="mt-3 text-base text-steel">Loading…</p>
+        <p className="mt-3 text-base text-steel">{t("system.loading")}</p>
       ) : (
         <div className="mt-3 space-y-3">
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm text-ink">
             <span className="inline-flex items-center gap-1.5">
-              <Dot on={data.ok} /> {data.ok ? "Healthy" : "Degraded"}
+              <Dot on={data.ok} /> {data.ok ? t("system.healthy") : t("system.degraded")}
             </span>
             <span className="inline-flex items-center gap-1.5">
-              <Dot on={data.seeds === "ok"} /> Seeds
+              <Dot on={data.seeds === "ok"} /> {t("system.seeds")}
             </span>
-            <span
-              className="inline-flex items-center gap-1.5"
-              title="Automation clock heartbeat — drives interview reminders, offer-expiry lapses, and the GDPR consent sweep"
-            >
+            <span className="inline-flex items-center gap-1.5" title={t("system.clockTitle")}>
               <Dot on={data.clock === "healthy"} />{" "}
-              {data.clock === "healthy" ? "Scheduler" : data.clock === "starting" ? "Scheduler starting" : "Scheduler stalled"}
+              {data.clock === "healthy"
+                ? t("system.scheduler")
+                : data.clock === "starting"
+                  ? t("system.schedulerStarting")
+                  : t("system.schedulerStalled")}
             </span>
+            {/* These two titles name an ENV VAR and a binary on PATH, not copy —
+                translating them would make the preflight hint wrong. */}
             <span className="inline-flex items-center gap-1.5" title="GEMINI_API_KEY / GOOGLE_API_KEY configured">
-              <Dot on={data.engines.gemini} /> Gemini
+              <Dot on={data.engines.gemini} /> {ENGINE_GEMINI}
             </span>
             <span className="inline-flex items-center gap-1.5" title="claude CLI resolves on PATH">
-              <Dot on={data.engines.claudeCli} /> Claude CLI
+              <Dot on={data.engines.claudeCli} /> {ENGINE_CLAUDE_CLI}
             </span>
             <span className="text-steel">
-              queue {data.queue.running} running · {data.queue.queued} queued
+              {t("system.queue", { running: data.queue.running, queued: data.queue.queued })}
             </span>
           </div>
           {data.degradedReasons.length > 0 ? (
@@ -102,30 +124,36 @@ export function SystemCard() {
 
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
             <StatCell
-              label="Cache hit rate"
-              value={data.analyze.cacheHitRatePct != null ? `${data.analyze.cacheHitRatePct}%` : "—"}
-              sub={data.analyze.sampled ? `${data.analyze.sampled} runs · 7d` : "no runs this week"}
+              label={t("system.cacheHitRate")}
+              value={data.analyze.cacheHitRatePct != null ? `${data.analyze.cacheHitRatePct}%` : EMPTY}
+              sub={data.analyze.sampled ? t("system.runs7d", { count: data.analyze.sampled }) : t("system.noRuns")}
             />
             <StatCell
-              label="Tokens · 7d"
-              value={data.engine.totalTokens7d.toLocaleString("en-US")}
-              sub={data.engine.cachedTokens7d ? `${data.engine.cachedTokens7d.toLocaleString("en-US")} cached` : undefined}
+              label={t("system.tokens7d")}
+              // Grouped in the READER's locale — a hardcoded "en-US" here was a
+              // formatting-locale bug (docs/architecture/localization.md).
+              value={n.grouped(data.engine.totalTokens7d)}
+              sub={data.engine.cachedTokens7d ? t("system.cached", { tokens: n.grouped(data.engine.cachedTokens7d) }) : undefined}
             />
             <StatCell
-              label="Avg analysis"
-              value={data.analyze.avgDurationMs != null ? `${Math.round(data.analyze.avgDurationMs / 1000)}s` : "—"}
-              sub={data.engine.sampled ? `${data.engine.sampled} engine runs · 7d` : undefined}
+              label={t("system.avgAnalysis")}
+              value={data.analyze.avgDurationMs != null ? `${Math.round(data.analyze.avgDurationMs / 1000)}s` : EMPTY}
+              sub={data.engine.sampled ? t("system.engineRuns7d", { count: data.engine.sampled }) : undefined}
             />
             <StatCell
-              label="Prompt cache"
+              label={t("system.promptCache")}
               value={String(data.promptCache.rows)}
-              sub={data.promptCache.expiredBacklog ? `${data.promptCache.expiredBacklog} expired pending prune` : "no expired backlog"}
+              sub={
+                data.promptCache.expiredBacklog
+                  ? t("system.expiredPending", { count: data.promptCache.expiredBacklog })
+                  : t("system.noExpired")
+              }
             />
           </div>
 
           {Object.keys(data.engine.stageAvgMs).length > 0 ? (
             <div>
-              <p className="text-meta uppercase text-steel">Avg stage timings (7d)</p>
+              <p className="text-meta uppercase text-steel">{t("system.stageTimings")}</p>
               <ul className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-ink">
                 {Object.entries(data.engine.stageAvgMs)
                   .sort(([, a], [, b]) => b - a)
@@ -141,13 +169,13 @@ export function SystemCard() {
 
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
             <span className={data.comms.deadLetters7d > 0 ? "font-semibold text-coral" : "text-steel"}>
-              {data.comms.deadLetters7d} dead-lettered messages · 7d
+              {t("system.deadLetters", { count: data.comms.deadLetters7d })}
             </span>
             <span className={data.schedule.reconcileFailures > 0 ? "font-semibold text-coral" : "text-steel"}>
-              {data.schedule.reconcileFailures} schedule reconcile failures
+              {t("system.reconcileFailures", { count: data.schedule.reconcileFailures })}
             </span>
             <span className={data.schedule.noSlotStalls > 0 ? "font-semibold text-amber-700" : "text-steel"}>
-              {data.schedule.noSlotStalls} fully-booked stalls
+              {t("system.bookedStalls", { count: data.schedule.noSlotStalls })}
             </span>
           </div>
         </div>

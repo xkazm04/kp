@@ -6,6 +6,7 @@ import { Radio, Send, ShieldCheck } from "lucide-react";
 import { Badge } from "@/app/_components/Badge";
 import { TextInput } from "@/app/_components/TextInput";
 import { BTN_PRIMARY, BTN_SECONDARY, META_LABEL } from "@/app/_components/ui/recipes";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
 
 // Outbound delivery relay — the missing UI for what used to be env-only
 // COMMS_WEBHOOK_URL (the IntegrationsCard/ATS pattern applied to comms):
@@ -16,6 +17,9 @@ type RelayState = { url: string; hasSecret: boolean; envConfigured: boolean };
 
 export function RelayConfigCard() {
   const t = useTranslations("channels.relay");
+  // Save failures resolve from the machine `code`, never the server's English
+  // `error` — see app/_lib/use-error-message.ts.
+  const errMsg = useErrorMessage();
   const [state, setState] = useState<RelayState | null>(null);
   const [url, setUrl] = useState("");
   const [secret, setSecret] = useState("");
@@ -44,20 +48,20 @@ export function RelayConfigCard() {
       const body: { url: string; secret?: string } = { url: url.trim() };
       if (secret !== "") body.secret = secret;
       const r = await fetch("/api/comms/relay", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-      const d = (await r.json().catch(() => null)) as { config?: { url: string | null; hasSecret: boolean }; error?: string } | null;
+      const d = (await r.json().catch(() => null)) as { config?: { url: string | null; hasSecret: boolean }; error?: string; code?: string } | null;
       if (r.ok && d?.config) {
         setState((s) => (s ? { ...s, url: d.config?.url ?? "", hasSecret: Boolean(d.config?.hasSecret) } : s));
         setSecret("");
         setNote({ ok: true, text: t("saved") });
       } else {
-        setNote({ ok: false, text: d?.error ?? t("saveFailed") });
+        setNote({ ok: false, text: errMsg(d, t("saveFailed")) });
       }
     } catch {
       setNote({ ok: false, text: t("saveFailed") });
     } finally {
       setBusy(false);
     }
-  }, [url, secret, t]);
+  }, [url, secret, t, errMsg]);
 
   const testPing = useCallback(async () => {
     setBusy(true);

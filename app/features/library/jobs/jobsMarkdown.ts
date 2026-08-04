@@ -1,4 +1,5 @@
 import { APP_CURRENCY } from "@/app/_lib/format";
+import { LOCALES, type Locale } from "@/i18n/locales";
 import { splitRequirements, type Job } from "./JobsTypes";
 
 // The band's unit and its digit grouping are POSTING-language scaffolding, exactly
@@ -22,10 +23,18 @@ const fmtSalary = (band: number[] | undefined, s: JobMarkdownStrings) =>
 // JOB3 (i18n) — the heading/label table the publish-ready posting renders from.
 // jobToMarkdown is the product's external output (the copy-to-job-board
 // artifact), so a recruiter posting to a Czech board must be able to copy a
-// Czech-scaffolded document even when the app runs in English. The strings live
-// HERE (a tiny self-contained bilingual table) rather than in the message
-// catalog so the Posting-tab language toggle can swap them without bundling the
-// whole catalog into the client OR depending on the active app locale.
+// Czech-scaffolded document even when the app runs in English.
+//
+// DOCUMENT-READER side, and the repo's worked example of it: the language of a
+// posting is a property of the POSTING (the tab's toggle), not of the app locale.
+//
+// F5 — the strings used to be a self-contained `Record<"en" | "cs", …>` table
+// right here, so the toggle offered only two of the four languages and a de/fr
+// recruiter was hard-coded back to English (jobsPostingModalLogic said so in a
+// comment). They now come from `jobs.posting.doc.*` + the shared `enums.*` labels,
+// resolved through a translator PINNED to the posting language —
+// `buildJobMarkdownStrings` below, fed on the client by a lazily-imported catalog
+// so the modal still doesn't bundle four catalogs up front.
 export type JobMarkdownStrings = {
   level: (seniority: string) => string;
   salary: string;
@@ -46,71 +55,94 @@ export type JobMarkdownStrings = {
   earlyWelcome: string;
   earlyDefault: string;
   trainable: string;
-  familyLabel: Record<string, string>;
+  /** Display label for a role-family / seniority / work-mode slug, falling back to
+   *  the raw slug. Backed by the shared `enums.*` catalog rather than a private
+   *  3-entry map — the old table named only software/data/product, so a posting for
+   *  any of the other THIRTEEN families printed the raw slug ("healthcare_clinical")
+   *  onto a job board, and the work mode was hardcoded English ("Hybrid") even in
+   *  the Czech posting. */
+  enumLabel: (group: "family" | "seniority" | "workMode", slug: string) => string;
 };
 
-export const POSTING_LOCALES = ["en", "cs"] as const;
-export type PostingLocale = (typeof POSTING_LOCALES)[number];
+/** Postings can be copied in any language the app ships. */
+export const POSTING_LOCALES = LOCALES;
+export type PostingLocale = Locale;
 
-export const JOB_MARKDOWN_STRINGS: Record<PostingLocale, JobMarkdownStrings> = {
-  en: {
-    level: (s) => `${s[0].toUpperCase()}${s.slice(1)} level`,
-    salary: "Salary:",
-    salaryEstimate: "Salary (market estimate):",
-    numberLocale: "en-US",
-    salaryUnit: `${APP_CURRENCY} / month`,
-    aboutRole: "About the role",
-    whatBring: "What you'll bring",
-    niceToHave: "Nice to have",
-    details: "Details",
-    experienceLabel: "Experience:",
-    experienceValue: (y) => `${y}+ years`,
-    education: "Education:",
-    languages: "Languages:",
-    field: "Field:",
-    earlyWelcome: "Early-career welcome",
-    earlyDefault: "This role is open to early-career candidates — relevant projects and potential count.",
-    trainable: "Trainable on the job:",
-    familyLabel: { software_engineering: "Software", data_ai: "Data / AI", product_project: "Product / Project" },
-  },
-  cs: {
-    level: (s) => `úroveň ${s}`,
-    salary: "Mzda:",
-    salaryEstimate: "Mzda (tržní odhad):",
-    numberLocale: "cs-CZ",
-    // The native glyph in the market's home language — the same rule the Salary
-    // column header already follows (messages/cs.json "Mzda (Kč/měs)").
-    salaryUnit: "Kč / měsíc",
-    aboutRole: "O pozici",
-    whatBring: "Co byste měli mít",
-    niceToHave: "Výhodou",
-    details: "Detaily",
-    experienceLabel: "Praxe:",
-    experienceValue: (y) => `${y}+ let`,
-    education: "Vzdělání:",
-    languages: "Jazyky:",
-    field: "Obor:",
-    earlyWelcome: "Vítáme začínající talenty",
-    earlyDefault: "Tato pozice je otevřená i začínajícím kandidátům — záleží na relevantních projektech a potenciálu.",
-    trainable: "Lze se doučit při práci:",
-    familyLabel: { software_engineering: "Software", data_ai: "Data / AI", product_project: "Produkt / Projekt" },
-  },
+// The BCP-47 tag each posting language groups its money figures with. A named
+// constant, not copy: a translator must never be able to change how digits group.
+// Not routed through format.ts's formatSalaryRange on purpose — see fmtSalary.
+const NUMBER_LOCALE: Record<PostingLocale, string> = {
+  en: "en-US",
+  cs: "cs-CZ",
+  de: "de-DE",
+  fr: "fr-FR",
 };
+
+/** Minimal translator shape both call sites satisfy: the client's
+ *  `useTranslations()` (root namespace, wrapped) and the locale-pinned
+ *  `namespaceTranslator(locale)` from catalog-translator.ts. */
+export type PostingLookup = {
+  (key: string, values?: Record<string, string | number>): string;
+  has: (key: string) => boolean;
+};
+
+/** Build the posting's strings table for `locale` from a translator pinned to it.
+ *  `t` takes ROOT-level keys because the table spans two namespaces — the
+ *  posting's own copy (`jobs.posting.doc.*`) and the shared enum labels
+ *  (`enums.*`), which must read the same in a posting as they do in the app. */
+export function buildJobMarkdownStrings(locale: PostingLocale, t: PostingLookup): JobMarkdownStrings {
+  const doc = (key: string, values?: Record<string, string | number>) => t(`jobs.posting.doc.${key}`, values);
+  const enumLabel: JobMarkdownStrings["enumLabel"] = (group, slug) => {
+    const s = slug.trim();
+    if (!s) return "";
+    // A slug outside the taxonomy degrades to the slug itself (the prior behaviour
+    // for an unmapped family), never to a raw "enums.family.foo" key path.
+    const key = `enums.${group}.${s}`;
+    return t.has(key) ? t(key) : s;
+  };
+  return {
+    level: (s) => doc("level", { seniority: enumLabel("seniority", s) }),
+    salary: doc("salary"),
+    salaryEstimate: doc("salaryEstimate"),
+    numberLocale: NUMBER_LOCALE[locale],
+    // The currency comes from the app-wide APP_CURRENCY contract; the message only
+    // decides how that unit READS. Czech spends its own glyph instead — the native
+    // form in the market's home language, the same rule the Salary column header
+    // already follows (messages/cs.json "Mzda (Kč/měs)") — so its message ignores
+    // the placeholder on purpose.
+    salaryUnit: doc("salaryUnit", { currency: APP_CURRENCY }),
+    aboutRole: doc("aboutRole"),
+    whatBring: doc("whatBring"),
+    niceToHave: doc("niceToHave"),
+    details: doc("details"),
+    experienceLabel: doc("experienceLabel"),
+    // Raw number into the ICU message: a pre-formatted string makes
+    // intl-messageformat render the literal word NaN wherever the message pluralizes.
+    experienceValue: (y) => doc("experienceValue", { years: y }),
+    education: doc("education"),
+    languages: doc("languages"),
+    field: doc("field"),
+    earlyWelcome: doc("earlyWelcome"),
+    earlyDefault: doc("earlyDefault"),
+    trainable: doc("trainable"),
+    enumLabel,
+  };
+}
 
 // Compose a job record into a clean, publish-ready Markdown document — the
 // representative format a recruiter could paste to a job board. Pure: the
-// heading/label table is passed in (JOB_MARKDOWN_STRINGS[locale]) so the same
-// function renders either language. Recruiter-authored body text (description,
-// requirement skills, the early-career rationale) is left verbatim — only the
-// scaffolding localizes.
-export function jobToMarkdown(job: Job, s: JobMarkdownStrings = JOB_MARKDOWN_STRINGS.en): string {
+// heading/label table is passed in (buildJobMarkdownStrings for the posting's
+// language) so the same function renders any of the four. Recruiter-authored body
+// text (description, requirement skills, the early-career rationale) is left
+// verbatim — only the scaffolding localizes.
+export function jobToMarkdown(job: Job, s: JobMarkdownStrings): string {
   const lines: string[] = [];
   lines.push(`# ${job.title}`);
 
   const metaBits = [
     job.company,
     job.location,
-    job.workMode ? job.workMode[0].toUpperCase() + job.workMode.slice(1) : null,
+    job.workMode ? s.enumLabel("workMode", job.workMode) : null,
     job.seniority ? s.level(job.seniority) : null,
     job.employmentType ?? null,
   ].filter(Boolean);
@@ -144,7 +176,7 @@ export function jobToMarkdown(job: Job, s: JobMarkdownStrings = JOB_MARKDOWN_STR
   if (job.minYearsExperience != null) details.push(`- **${s.experienceLabel}** ${s.experienceValue(job.minYearsExperience)}`);
   if (job.minEducation) details.push(`- **${s.education}** ${job.minEducation}`);
   if (job.languages?.length) details.push(`- **${s.languages}** ${job.languages.join(", ")}`);
-  if (job.roleFamily) details.push(`- **${s.field}** ${s.familyLabel[job.roleFamily] ?? job.roleFamily}`);
+  if (job.roleFamily) details.push(`- **${s.field}** ${s.enumLabel("family", job.roleFamily)}`);
   if (details.length) {
     lines.push("");
     lines.push(`## ${s.details}`);

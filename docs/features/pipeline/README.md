@@ -89,10 +89,13 @@ replaced an earlier `Sourced` → `AI-matched` → `Screening` naming (see
 | `app/_lib/automation-roi.ts` | Minutes/CZK-saved ledger over the automation event trail. |
 | `app/features/hiring/decisions/**` | Decisions queue UI, screen-wave modal, group-eval. |
 | `app/features/hiring/pipeline/**` | Pipeline board UI, activity feed, candidate drawer. |
+| `app/features/hiring/pipeline/usePipelineTabState.ts` | Composes the tab's state from six single-concern hooks and hands `PipelineTab` one flat object. Owns only the cross-concern derivations (stat counts, `filteredEntries`, the drawer cohort). Hook-call order is load-bearing — it reproduces the effect-registration order the concerns had as one body. |
+| `usePipelineSla.ts` / `usePipelineBoardData.ts` / `usePipelineFilters.ts` | Per-stage aging overrides (PIPE4) · the entries/events fetch, its 30s poll and the optimistic drag move (sole owner of `setEntries`) · the compound filters, their two-way URL sync and the `visibleScope` signature. |
+| `usePipelineSavedViews.ts` / `usePipelineBulk.ts` / `usePipelineNavigation.ts` | Saved views + the save/rename dialog and share link (PIPE5) · select mode and the four batch actions (PIPE1 / bdc7fc01 / P2-2) · opening the drawer, profile, job, ranking and Decisions. |
 
 ## The board's select-mode bulk bar
 
-`PipelineBulkActionBar.tsx` (state in `usePipelineTabState.ts`) batches move,
+`PipelineBulkActionBar.tsx` (state in `usePipelineBulk.ts`) batches move,
 scheduling invite, outreach draft and accept/reject over the selected rows. Two
 rules keep it honest about **which** rows it is about to touch:
 

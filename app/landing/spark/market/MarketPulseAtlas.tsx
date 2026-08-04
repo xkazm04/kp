@@ -11,7 +11,7 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { DISPLAY, HAND } from "../tokens";
-import { snapshot, fmtInt, fmtCzkShort, type MapMetric } from "./data";
+import { snapshot, fmtInt, fmtCzkShort, metricValues, type MapMetric } from "./data";
 import CzMap from "./CzMap";
 import {
   MetricToggle,
@@ -40,19 +40,21 @@ export default function MarketPulseAtlas() {
   // Preselect Praha (CZ010) so the detail card always shows a region — hovering
   // then only swaps its text, never collapses/expands the layout.
   const [active, setActive] = useState<string | null>("CZ010");
-  const [jdFamily, setJdFamily] = useState<string>(snapshot.jd_references[0]?.family ?? "");
+  // Only families that actually carry postings get a tab — an empty tab would
+  // open onto a section header above blank space.
+  const jdGroups = snapshot.jd_references.filter((g) => g.items.length > 0);
+  const [jdFamily, setJdFamily] = useState<string>(jdGroups[0]?.family ?? "");
 
   const region = active ? snapshot.regions.find((r) => r.code === active) ?? null : null;
-  const vals = snapshot.regions
-    .map((r) => (metric === "volume" ? r.vacancies : r.medianSalary))
-    .filter((v): v is number => v != null);
+  // With no values behind the metric, `Math.min()` is Infinity and the midpoint
+  // is NaN — which used to render as the literal words "Infinity" and "NaN" in
+  // the legend and its aria-label. No values → no legend.
+  const vals = metricValues(snapshot.regions, metric);
   const fmt = metric === "volume" ? fmtInt : fmtCzkShort;
   const min = Math.min(...vals);
   const max = Math.max(...vals);
-  const lo = fmt(min);
-  const mid = fmt((min + max) / 2);
-  const hi = fmt(max);
-  const jdGroup = snapshot.jd_references.find((g) => g.family === jdFamily);
+  const scale = vals.length ? { lo: fmt(min), mid: fmt((min + max) / 2), hi: fmt(max) } : null;
+  const jdItems = jdGroups.find((g) => g.family === jdFamily)?.items ?? [];
 
   return (
     <div className="space-y-24">
@@ -61,7 +63,7 @@ export default function MarketPulseAtlas() {
         <div className="rounded-2xl border-[3px] border-[#17202a] bg-white p-5 shadow-[6px_6px_0_#17202a]">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <MetricToggle metric={metric} onChange={setMetric} />
-            <MapLegend metric={metric} lo={lo} mid={mid} hi={hi} />
+            {scale ? <MapLegend metric={metric} lo={scale.lo} mid={scale.mid} hi={scale.hi} /> : null}
           </div>
           <CzMap regions={snapshot.regions} metric={metric} activeCode={active} onActivate={setActive} className="h-auto w-full" />
         </div>
@@ -93,7 +95,7 @@ export default function MarketPulseAtlas() {
         <div className="grid gap-8 lg:grid-cols-2">
           <div>
             <p className="mb-3 text-[13px] font-bold uppercase tracking-wide text-[#42606f]">{t("demand.byFamily")}</p>
-            <FamilyDemandList families={snapshot.demand.top_families} total={snapshot.demand.national_total} />
+            <FamilyDemandList families={snapshot.demand.top_families} />
           </div>
           <div>
             <p className="mb-3 text-[13px] font-bold uppercase tracking-wide text-[#42606f]">{t("demand.byRole")}</p>
@@ -109,10 +111,11 @@ export default function MarketPulseAtlas() {
       </section>
 
       {/* ── JD reference gallery ─────────────────────────────── */}
+      {jdGroups.length ? (
       <section id="jd" className="mx-auto max-w-6xl px-6">
         <SectionHead eyebrow={t("jd.eyebrow")} title={t("jd.title")} sub={t("jd.subtitle")} />
         <div className="mb-6 flex flex-wrap justify-center gap-2">
-          {snapshot.jd_references.map((g) => {
+          {jdGroups.map((g) => {
             const on = g.family === jdFamily;
             return (
               <button
@@ -128,9 +131,10 @@ export default function MarketPulseAtlas() {
           })}
         </div>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {jdGroup?.items.map((item, i) => <JdCard key={i} item={item} />)}
+          {jdItems.map((item, i) => <JdCard key={i} item={item} />)}
         </div>
       </section>
+      ) : null}
     </div>
   );
 }

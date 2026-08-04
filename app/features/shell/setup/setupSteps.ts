@@ -24,14 +24,13 @@ export const SETUP_STEPS: { id: SetupStepId }[] = [
 
 export type SetupInvite = { email: string; role: MemberRole };
 
-// The app's real seniority vocabulary (junior · medior · senior · lead) — these
-// are taxonomy values, shown as-is across locales like the role families.
-export const SENIORITY_OPTIONS: { value: string; label: string }[] = [
-  { value: "junior", label: "Junior" },
-  { value: "medior", label: "Medior" },
-  { value: "senior", label: "Senior" },
-  { value: "lead", label: "Lead" },
-];
+// The app's real seniority vocabulary (junior · medior · senior · lead). VALUES
+// only: these are canonical slugs the server branches on, and their display label
+// is the app-wide one — `enums.seniority.<slug>` via useEnumLabel, the same source
+// the pipeline, the JD ledger and a published posting read. A label map here would
+// be a second, unlocalized vocabulary for the same four values (and this module is
+// server-imported, so it cannot hold copy).
+export const SENIORITY_VALUES: readonly string[] = ["junior", "medior", "senior", "lead"];
 
 // First role captured during onboarding. Two paths:
 //   "write"  — the inputs of the REAL backgrounded build (POST /api/jds/generate):

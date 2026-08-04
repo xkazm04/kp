@@ -318,10 +318,12 @@
     "yourNewRole": "Ihre neue Stelle",
     "dataFooter": "— — —\nIhre Daten: Sehen Sie jederzeit ein, welche Daten wir über Sie speichern, oder fordern Sie deren Löschung an:\n{link}",
     "ack": {
-      "subject": "Wir haben Ihre Bewerbung erhalten — {role}",
-      "body": "Hallo {name},\n\nvielen Dank für Ihre Bewerbung auf {role} — wir haben sie erhalten und ein Recruiter wird sie in Kürze prüfen. Wir melden uns bei Ihnen zu den nächsten Schritten.\n\nBeste Grüße,\n{team}",
-      "statusLine": "Verfolgen Sie den Status Ihrer Bewerbung jederzeit: {link}",
-      "bodyEnrich": "Hallo {name},\n\nvielen Dank für Ihre Bewerbung auf {role} — wir haben sie erhalten und ein Recruiter wird sie in Kürze prüfen.\n\nMöchten Sie Ihre Chancen erhöhen? Vervollständigen Sie Ihr Profil — das dauert nur etwa zwei Minuten und hilft uns, Sie fair und schnell einzuschätzen:\n{link}\n\nWir melden uns bei Ihnen zu den nächsten Schritten.\n\nBeste Grüße,\n{team}"
+      "subject": "Wir haben Ihre Einreichung erhalten",
+      "subjectRole": "Wir haben Ihre Einreichung erhalten — {role}",
+      "greeting": "Hallo {name},",
+      "body": "danke, dass Sie Ihre Arbeit eingereicht haben. Sie ist bei uns in der Warteschlange und wird in Kürze gesichtet.",
+      "bodyRole": "danke, dass Sie Ihre Arbeit für {role} eingereicht haben. Sie ist bei uns in der Warteschlange und wird in Kürze gesichtet.",
+      "signoff": "Beste Grüße\nIhr Recruiting-Team"
     },
     "outreach": {
       "subjectFallback": "Eine Chance: {role}"
@@ -388,6 +390,18 @@
     "onboardingReminder": {
       "subject": "Eine kurze Erinnerung — Ihr Pre-Boarding für {role}",
       "body": "Hallo {name},\n\nnochmals willkommen und herzlichen Glückwunsch zu {role}! Uns ist aufgefallen, dass Ihr Pre-Boarding-Fragebogen noch offen ist. Er dauert nur ein paar Minuten und ermöglicht es uns, alles für Ihren ersten Tag vorzubereiten.\n\nSie können ihn ausfüllen, wann immer es Ihnen passt:\n{link}\n\nFalls Sie das bereits erledigt haben, ignorieren Sie diese Nachricht bitte.\n\nHerzliche Grüße,\n{team}"
+    },
+    "devcaseFeedback": {
+      "subject": "Ihre Übungsaufgabe — ein paar Anmerkungen",
+      "subjectRole": "Ihre Aufgabe für {role} — ein paar Anmerkungen",
+      "greeting": "Hallo {name},",
+      "greetingFallback": "",
+      "intro": "vielen Dank für die Zeit, die Sie in die Aufgabe gesteckt haben. Hier ist ehrliches, freundliches Feedback zu Ihrer Arbeit.",
+      "introRole": "vielen Dank für die Zeit, die Sie in die Aufgabe für {role} gesteckt haben. Hier ist ehrliches, freundliches Feedback zu Ihrer Arbeit.",
+      "strengthsHeading": "Das ist aufgefallen:",
+      "growthHeading": "Hier lässt sich weiter wachsen:",
+      "noSpecifics": "Wir haben Ihren Einsatz bei der Aufgabe geschätzt und wünschen Ihnen alles Gute für Ihre Suche.",
+      "signoff": "Nochmals vielen Dank für Ihre Zeit und Ihr Interesse."
     }
   },
   "language": {
@@ -401,7 +415,7 @@
   "jobMarket": {
     "nav": {
       "home": "Start",
-      "about": "Über",
+      "about": "Über die App",
       "signIn": "Anmelden",
       "menu": "Menü"
     },
@@ -409,7 +423,8 @@
       "eyebrow": "Offene Daten, klar erzählt",
       "title": "Der tschechische Arbeitsmarkt, <emph>offen einsehbar</emph>.",
       "subtitle": "Referenzgehälter, Einstellungsbedarf in allen 14 Regionen und die Positionen im Auf- und Abschwung — vollständig aus öffentlichen Arbeitsmarktdaten.",
-      "updated": "{n} aktuelle offene Stellen zum {date} · {pct}% in den letzten 90 Tagen ausgeschrieben"
+      "updated": "{n, plural, one {# aktuelle offene Stelle} other {# aktuelle offene Stellen}} zum {date} · {pct} % in den letzten 90 Tagen ausgeschrieben",
+      "updatedNoPct": "{n, plural, one {# aktuelle offene Stelle} other {# aktuelle offene Stellen}} zum {date}"
     },
     "variants": {
       "atlas": "Atlas",
@@ -426,25 +441,25 @@
     "map": {
       "title": "Wo die Stellen sind",
       "metricVolume": "Stellen",
-      "metricSalary": "Gehalt",
+      "metricSalary": "Verdienst",
       "legendVolume": "nach offenen Stellen",
-      "legendSalary": "nach Mediangehalt",
+      "legendSalary": "nach Medianverdienst",
       "topRegions": "Meiste Stellen",
       "hintTitle": "Auf eine Region zeigen",
       "hintBody": "Sehen Sie ihre offenen Stellen und das Mediangehalt.",
       "vacancies": "Offene Stellen",
-      "median": "Mediangehalt",
-      "range": "Mittlere 50% verdienen {lo}–{hi}",
+      "median": "Medianverdienst",
+      "range": "Mittlere 50 % verdienen {lo}–{hi}",
       "a11yVacancies": "offene Stellen",
-      "a11yMedian": "Mediangehalt",
+      "a11yMedian": "Medianverdienst",
       "a11yMedianUnavailable": "Mediangehalt nicht verfügbar",
       "ariaLabel": "Karte der tschechischen Regionen",
-      "legendScale": "Farbskala {desc}, von {lo} bis {hi} (Mittelwert {mid})"
+      "legendScale": "Farbskala {desc}, von {lo} bis {hi} (Skalenmitte {mid})"
     },
     "salary": {
       "eyebrow": "Der Wegweiser",
       "title": "Referenzgehälter nach Position",
-      "subtitle": "Gesamtwirtschaftliche Monatsverdienste aus der offiziellen ISPV-Gehaltserhebung — Junior bis Lead, je Berufsfamilie.",
+      "subtitle": "Gesamtwirtschaftliche Monatsverdienste aus der offiziellen ISPV-Verdiensterhebung — von Junior bis Lead, je Berufsfamilie.",
       "median": "Median {v}",
       "junior": "Junior",
       "medior": "Medior",
@@ -457,28 +472,31 @@
       "subtitle": "Aktuelle offene Stellen nach Berufsfamilie und Beruf im ganzen Land.",
       "byFamily": "Nach Berufsfamilie",
       "byRole": "Top-Berufe",
-      "openings": "{n} Stellen",
-      "momentumNew": "Basiswert"
+      "openings": "{n, plural, one {# Stelle} other {# Stellen}}",
+      "momentumNew": "Basiswert",
+      "share": "{pct} %",
+      "shareTiny": "< 1 %"
     },
     "orgTypes": {
       "eyebrow": "Wer einstellt",
       "title": "Bezahlung nach Arbeitgebertyp",
-      "subtitle": "Median-Monatsgehalt bei privaten Arbeitgebern, im öffentlichen Sektor und bei Personaldienstleistern.",
+      "subtitle": "Median-Monatsverdienst in der Unternehmens- und in der öffentlichen Lohnsphäre, aus der offiziellen ISPV-Erhebung. Personaldienstleister bilden keine eigene Lohnsphäre, deshalb zeigt diese Kachel nur die Stellenzahl.",
       "private": "Privatsektor",
       "public": "Öffentlicher Sektor",
-      "agency": "Personaldienstleister"
+      "agency": "Personaldienstleister",
+      "openingsOnly": "Offene Stellen"
     },
     "jd": {
       "eyebrow": "Echte Ausschreibungen",
       "title": "Referenz-Stellenbeschreibungen",
-      "subtitle": "Repräsentative aktuelle Ausschreibungen je Berufsfamilie — Titel, Bezahlung und geforderte Fähigkeiten.",
+      "subtitle": "Repräsentative aktuelle Ausschreibungen je Berufsfamilie — Titel, Arbeitgeber und die ausgeschriebene Bezahlung.",
       "salaryHidden": "Gehalt nicht angegeben",
       "posted": "Veröffentlicht {date}",
-      "skills": "Fähigkeiten"
+      "salaryFrom": "Ab {v}"
     },
     "footer": {
       "eyebrow": "Über diese Daten",
-      "coverage": "Erstellt aus aktuellen offenen Stellen, die beim tschechischen Arbeitsamt (Úřad práce ČR) registriert sind, sowie der offiziellen ISPV-Gehaltserhebung. Der Stellen-Feed neigt zu Dienstleistungs-, Handwerks- und operativen Rollen — höher qualifizierte und leitende Unternehmensjobs werden auf kommerziellen Portalen ausgeschrieben, daher fallen ihre Zahlen niedrig aus und Prags Stellen-Median wirkt bescheiden. Die Gehaltsbänder nutzen gesamtwirtschaftliche ISPV-Verdienste, die dieser Verzerrung nicht unterliegen.",
+      "coverage": "Zwei Quellen, bewusst getrennt gehalten. Die Stellenzahlen zählen offene Stellen, die aktuell beim tschechischen Arbeitsamt (Úřad práce ČR) registriert sind — echte Ausschreibungen, wobei das Register zu Dienstleistungs-, Handwerks- und operativen Berufen neigt, sodass die Zahlen für höher qualifizierte Fach- und Führungspositionen in Unternehmen niedrig ausfallen. Alle Verdienstangaben stammen dagegen aus der offiziellen ISPV-Verdiensterhebung und ihrer regionalen Teilstatistik RSCP (Regionální statistika ceny práce): was tatsächlich gezahlt wird, nicht, was eine Anzeige verspricht. Die Werte beziehen sich auf den Arbeitsort — eine Region zeigt also, was die dortigen Arbeitgeber zahlen, nicht, was die dort Wohnenden verdienen. Wo die Erhebung keine Zahl liefert, lassen wir sie weg, statt zu schätzen.",
       "sourceLink": "MPSV Open Data"
     },
     "families": {
@@ -498,21 +516,30 @@
       "creative_design": "Kreativ & Design",
       "customer_support": "Kundensupport",
       "general_professional": "Allgemeine Fachkräfte"
+    },
+    "meta": {
+      "title": "Marktpuls — KandiDate",
+      "description": "Der tschechische Arbeitsmarkt auf einen Blick: Referenzverdienste je Berufsfamilie, Personalbedarf in allen 14 Regionen, gefragte Berufe und echte Stellenausschreibungen — aus offenen Daten des MPSV und des Arbeitsamts.",
+      "ogDescription": "Referenzverdienste, regionaler Personalbedarf und gefragte Berufe in ganz Tschechien — auf Basis offener Arbeitsmarktdaten."
     }
   },
   "landing": {
     "nav": {
       "how": "So funktioniert’s",
       "features": "Funktionen",
+      "voice": "Sprachinterview",
+      "trust": "Verantwortungsvolle AI",
       "pricing": "Preise",
-      "about": "Über uns",
-      "market": "Market Pulse",
+      "sections": "Seitenabschnitte",
+      "top": "Nach oben",
+      "about": "Über die App",
+      "market": "Marktpuls",
       "signIn": "Anmelden"
     },
     "hero": {
       "badge": "AI fürs Recruiting — der Mensch behält die Kontrolle",
       "title": "Recruiting, das<br></br>wirklich <emph>vorankommt</emph>.",
-      "subtitle": "KandiDate liest jeden Lebenslauf, führt das erste Interview gesprochen, übernimmt die Terminplanung und legt Ihnen Entscheidungen zur Freigabe vor. Der Stapel verschwindet. Das Urteil bleibt bei Ihnen.",
+      "subtitle": "KandiDate liest jeden Lebenslauf, führt das erste Interview per Sprache, übernimmt die Terminplanung und legt Ihnen Entscheidungen zur Freigabe vor. Der Stapel verschwindet. Das Urteil bleibt bei Ihnen.",
       "ctaPrimary": "Kostenlos screenen",
       "ctaSecondary": "Interview anhören",
       "ctaDemo": "Live-Demo ansehen",
@@ -574,7 +601,7 @@
       },
       "cases": {
         "title": "Geprüfte Arbeitsproben",
-        "body": "Eine Aufgabe, die davon ausgeht, dass der Code von einer KI stammt — und das Urteilsvermögen drumherum bewertet. Eingebaute Fehler mit bekannter Lösung, die tatsächlich genutzten Prompts und ein Interview, in dem eigene Entscheidungen verteidigt werden."
+        "body": "Eine Aufgabe, die davon ausgeht, dass der Code von einer AI stammt — und das Urteilsvermögen drumherum bewertet. Eingebaute Fehler mit bekannter Lösung, die tatsächlich genutzten Prompts und ein Interview, in dem eigene Entscheidungen verteidigt werden."
       },
       "schedule": {
         "title": "Selbstbuchung",
@@ -594,7 +621,7 @@
       },
       "offer": {
         "title": "Vom Angebot zum ersten Tag",
-        "body": "Die Zahl ist deterministisch — Rollenband × Passung, kein Modell in der Summe. Das Schreiben entsteht von selbst, ein Mensch unterschreibt, und die Zusage startet die Onboarding-Checkliste."
+        "body": "Die Zahl ist deterministisch — Rollenband × Eignung, kein Modell in der Summe. Das Schreiben entsteht von selbst, ein Mensch unterschreibt, und die Zusage startet die Onboarding-Checkliste."
       },
       "gates": {
         "title": "Freigaben & Nachweise",
@@ -701,7 +728,7 @@
         }
       },
       "footnote1": "„AI-Kandidat“ = eine vollständig bearbeitete Person — Lebenslauf bewertet, abgeglichen, durchdacht, Ansprache entworfen",
-      "footnote2": "Minuten aufgebraucht? 100-Minuten-Interviewpakete · 790 Kč — jeder Tarif, sogar BYOM",
+      "footnote2": "Minuten aufgebraucht? 100-Minuten-Interviewpakete · 790 Kč — für jeden Tarif, sogar BYOM",
       "enterprise": {
         "eyebrow": "Auf Organisationsebene",
         "heading": "Recruiting für die ganze Organisation?",
@@ -715,7 +742,7 @@
           "DSGVO / AVV & EU-Datenstandort",
           "SOC 2 & Unterstützung bei Security-Reviews"
         ],
-        "stat1Value": "60–70%",
+        "stat1Value": "60–70 %",
         "stat1Label": "weniger Recruiter-Zeit fürs Screening",
         "stat2Value": "~23 h",
         "stat2Label": "manuelles Screening pro Einstellung heute",
@@ -737,31 +764,130 @@
     "previews": {
       "close": "Vorschau schließen",
       "score": {
-        "note": "Nachweise immer dabei"
+        "note": "Nachweise immer dabei",
+        "factors": {
+          "skills": "Skill-Übereinstimmung",
+          "seniority": "Senioritätssignal",
+          "domain": "Fachliche Schnittmenge"
+        },
+        "verdict": "starke Eignung — Fragenset fürs Interview steht bereits"
       },
       "voice": {
-        "note": "ja, es spricht auch Tschechisch"
+        "note": "ja, es spricht auch Tschechisch",
+        "screenTitle": "Screening der ersten Runde",
+        "meta": "Tschechisch · live · 4 Min. 12 s",
+        "demoAi": "Vaše poslední aplikace běžela na Reactu — co se rozbilo jako první, když přišli skuteční uživatelé?",
+        "demoThem": "Upřímně? Správa stavu. Přepsal jsem ji dvakrát, než jsem pochopil proč…",
+        "scorecard": "Scorecard steht beim Auflegen — Lernbereitschaft, Tiefe, Kommunikation"
       },
       "cases": {
-        "note": "KI ja — Delegieren nein"
+        "note": "AI ja — Delegieren nein",
+        "title": "Take-home · Autorschaftsprüfungen",
+        "aiAllowed": "AI erlaubt",
+        "checks": {
+          "flaw1": {
+            "label": "Eingebauter Fehler in der Vorlage",
+            "verdict": "gefunden & behoben"
+          },
+          "flaw2": {
+            "label": "Zweiter eingebauter Fehler",
+            "verdict": "unberührt abgegeben"
+          },
+          "distance": {
+            "label": "Abstand zum blanken One-Shot",
+            "verdict": "0,38 — eigene Arbeit sichtbar"
+          }
+        },
+        "defend": "Im Interview sollen sie dann die zwei Entscheidungen verteidigen, die sie wirklich getroffen haben."
       },
       "schedule": {
-        "note": "kein Kalender-Pingpong"
+        "note": "kein Kalender-Pingpong",
+        "title": "Wählen Sie eine Zeit, die Ihnen passt",
+        "meta": "Technisches Interview · 45 Min. · mit Marta",
+        "days": [
+          "Mo",
+          "Di",
+          "Mi",
+          "Do",
+          "Fr"
+        ],
+        "confirmed": "Bestätigt — Mittwoch 14:00 Uhr. Einladungen sind in beide Richtungen raus."
       },
       "inbox": {
-        "note": "fünf Türen, eine Startlinie"
+        "note": "fünf Türen, eine Startlinie",
+        "channels": {
+          "apply": "Bewerbungsportal",
+          "email": "E-Mail",
+          "boards": "Jobbörsen",
+          "sourcing": "Sourcing",
+          "manual": "Manuell hinzufügen"
+        },
+        "onePipeline": "Eine Pipeline",
+        "sameStartingLine": "Jede Tür führt an dieselbe Startlinie — keine Quelle bekommt eine Abkürzung."
       },
       "salary": {
-        "note": "Angebote, die gleich sitzen"
+        "note": "Angebote, die gleich sitzen",
+        "role": "React Developer · Mid · Prag",
+        "unit": "CZK / Monat",
+        "chips": {
+          "band": "Band 85–105k",
+          "median": "Marktmedian 95k",
+          "modifier": "Scale-up-Modifikator ×1,1"
+        },
+        "grounded": "Auf aktuellen Daten des tschechischen Marktes — damit das Angebot beim ersten Mal sitzt."
       },
       "rediscover": {
-        "note": "der Pool, den Sie schon bezahlt haben"
+        "note": "der Pool, den Sie schon bezahlt haben",
+        "title": "Neue Stelle offen · {n} Menschen, die Sie bereits kennen",
+        "hits": {
+          "marek": "Bewarb sich vor 8 Monaten · passt jetzt zu {score}",
+          "lucie": "Knapp Zweite, Backend II · passt zu {score}"
+        },
+        "noSpend": "Kein neues Sourcing-Budget — und einmal haben sie Ihnen schon zugesagt."
       },
       "offer": {
-        "note": "kein Modell in der Zahl"
+        "note": "kein Modell in der Zahl",
+        "title": "{name} · Angebot → Tag eins",
+        "steps": {
+          "figure": {
+            "label": "Angebotshöhe",
+            "detail": "Band × Eignung · kein Modell in der Zahl"
+          },
+          "letter": {
+            "label": "Schreiben entworfen, Mensch zeichnet",
+            "detail": "als sicherer Link versendet"
+          },
+          "accepted": {
+            "label": "Angenommen",
+            "detail": "Kandidat springt auf Eingestellt"
+          },
+          "onboarding": {
+            "label": "Onboarding ausgelöst",
+            "detail": "Checkliste + Pre-Boarding-Formular"
+          }
+        }
       },
       "gates": {
-        "note": "jede Entscheidung trägt eine menschliche Unterschrift"
+        "note": "jede Entscheidung trägt eine menschliche Unterschrift",
+        "waiting": "Wartet auf Sie · {n}",
+        "humanGate": "menschliches Gate",
+        "queue": {
+          "advance": {
+            "title": "{name} ins Interview weiterreichen",
+            "sub": "Eignung 87 · starke React-Tiefe, Lücke beim Testing"
+          },
+          "pass": {
+            "title": "Freundliche Absage an {name}",
+            "sub": "Eignung 31 · vertriebsnahes Profil, Umleitung empfohlen"
+          },
+          "offer": {
+            "title": "Angebotsentwurf für {name} freigeben",
+            "sub": "Band 85–105k · liegt auf dem Marktmedian"
+          }
+        },
+        "approve": "Freigeben",
+        "override": "Überstimmen",
+        "signed": "{time} — Shortlist freigegeben, gezeichnet {name} ✓"
       }
     }
   },
@@ -794,7 +920,7 @@
       "screen": {
         "eyebrow": "Schritt 04 · Screening",
         "title": "Jeder Lebenslauf, wirklich gelesen",
-        "body": "Jede Bewerbung wird mit nachvollziehbaren Belegen von 0–100 gegen die Rolle bewertet. Zuerst läuft eine Fairness-Prüfung; eindeutig starke Treffer rücken selbst vor, alles andere wartet auf einen Menschen. Für technische Rollen kann hier eine Arbeitsprobe rausgehen — eine, die davon ausgeht, dass der Code von einer KI stammt, und das Urteilsvermögen drumherum bewertet, mit eingebauten Fehlern, deren richtige Antwort wir bereits kennen."
+        "body": "Jede Bewerbung wird mit nachvollziehbaren Belegen von 0–100 gegen die Stelle bewertet. Zuerst läuft eine Fairness-Prüfung; eindeutig starke Treffer rücken selbst vor, alles andere wartet auf einen Menschen. Für technische Stellen kann hier eine Arbeitsprobe verschickt werden — eine, die davon ausgeht, dass der Code von einer KI stammt, und das Urteilsvermögen drumherum bewertet, mit eingebauten Fehlern, deren richtige Antwort wir bereits kennen."
       },
       "interview": {
         "eyebrow": "Schritt 05 · Interview",
@@ -821,6 +947,61 @@
     "footer": {
       "tagline": "AI fürs Recruiting, Menschen für Entscheidungen",
       "home": "Zurück zur Startseite"
+    },
+    "art": {
+      "design": {
+        "badge": "JD",
+        "roleTitle": "Senior Java Engineer",
+        "employer": "Česká spořitelna · Senior",
+        "mustHaves": "Must-haves",
+        "salaryBand": "Gehaltsband · CZK",
+        "bandValue": "120k — 165k"
+      },
+      "intake": {
+        "channels": {
+          "apply": "Portal",
+          "email": "E-Mail",
+          "boards": "Jobbörsen",
+          "sourcing": "Sourcing",
+          "manual": "Manuell"
+        },
+        "onePipeline": "Eine Pipeline"
+      },
+      "screen": {
+        "factors": {
+          "skills": "Skills · 92 %",
+          "seniority": "Seniorität · 84 %",
+          "evidence": "Belege · nachverfolgt"
+        }
+      },
+      "interview": {
+        "screenTitle": "Screening der ersten Runde",
+        "meta": "live · 4:12",
+        "askAi": "Sie haben für die Uni eine React-App live gebracht — was ging als Erstes kaputt, als echte Nutzer kamen?",
+        "replyThem": "Ehrlich? Das State-Management. Ich habe es zweimal neu geschrieben, bis es saß.",
+        "scorecard": "Scorecard steht beim Auflegen"
+      },
+      "offer": {
+        "letter": "Angebotsschreiben",
+        "currency": "CZK",
+        "formula": "Rollenband × Eignung · kein LLM in der Zahl",
+        "humanApproved": "menschlich freigegeben",
+        "accepted": "angenommen"
+      },
+      "hired": {
+        "seal": "Eingestellt",
+        "onboarding": "Onboarding · Tag eins läuft an",
+        "tasks": {
+          "preboarding": "Pre-Boarding verschickt",
+          "equipment": "Ausstattung angefordert",
+          "buddy": "Buddy zugewiesen"
+        }
+      }
+    },
+    "meta": {
+      "title": "Über die App — KandiDate",
+      "description": "Begleiten Sie eine Einstellung durch die ganze Pipeline: Stelle entwerfen, Sourcing, Eingang, Screening, Interview, Angebot, Einstellung. Die AI liest bei jedem Schritt mit; unterschrieben wird jede Entscheidung von einem Menschen.",
+      "ogDescription": "Eine Einstellung durch die ganze Pipeline — die AI liest, ein Mensch zeichnet jede Entscheidung."
     }
   },
   "theme": {
@@ -846,9 +1027,56 @@
   },
   "errors": {
     "generic": "Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut.",
-    "OFFER_RESPOND_FAILED": "Ihre Antwort konnte nicht gespeichert werden. Bitte versuchen Sie es erneut.",
-    "SCHEDULE_CONFIRM_FAILED": "Dieser Termin konnte nicht bestätigt werden. Bitte versuchen Sie es erneut.",
-    "SCHEDULE_INVITE_FAILED": "Der Planungslink konnte nicht erstellt werden. Bitte versuchen Sie es erneut."
+    "OFFER_RESPOND_FAILED": "Ihre Rückmeldung konnte nicht erfasst werden. Bitte versuchen Sie es erneut.",
+    "SCHEDULE_CONFIRM_FAILED": "Der Termin konnte nicht bestätigt werden. Bitte versuchen Sie es erneut.",
+    "SCHEDULE_INVITE_FAILED": "Der Terminlink konnte nicht erstellt werden. Bitte versuchen Sie es erneut.",
+    "JD_LIST_FAILED": "Die Stellenanzeigen-Bibliothek konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
+    "JD_LOAD_FAILED": "Die Stellenanzeige konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
+    "JD_SAVE_FAILED": "Die Stellenanzeige konnte nicht gespeichert werden. Bitte versuchen Sie es erneut.",
+    "JD_GENERATE_FAILED": "Der AI-Aufbau konnte nicht gestartet werden. Bitte versuchen Sie es erneut.",
+    "JD_ANALYSES_FAILED": "Die Kandidaten zu dieser Stellenanzeige konnten nicht geladen werden. Bitte versuchen Sie es erneut.",
+    "TEMPLATE_LIST_FAILED": "Die Vorlagen konnten nicht geladen werden. Bitte versuchen Sie es erneut.",
+    "TEMPLATE_LOAD_FAILED": "Die Vorlage konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
+    "TEMPLATE_CREATE_FAILED": "Die Vorlage konnte nicht gespeichert werden. Bitte versuchen Sie es erneut.",
+    "TEMPLATE_UPDATE_FAILED": "Die Vorlage konnte nicht aktualisiert werden. Bitte versuchen Sie es erneut.",
+    "TEMPLATE_DELETE_FAILED": "Die Vorlage konnte nicht gelöscht werden. Bitte versuchen Sie es erneut.",
+    "INTERVIEW_CREATE_FAILED": "Das Interview konnte nicht angelegt werden. Bitte versuchen Sie es erneut.",
+    "INTERVIEW_CONNECT_FAILED": "Der Sprachanruf konnte nicht verbunden werden. Bitte versuchen Sie es erneut.",
+    "INTERVIEW_COMPLETE_FAILED": "Das Interview konnte nicht gespeichert werden. Bitte versuchen Sie es erneut.",
+    "INTERVIEW_LOOKUP_FAILED": "Die Interviewdaten konnten nicht geladen werden. Bitte versuchen Sie es erneut.",
+    "INTERVIEW_PREP_FAILED": "Die Interviewvorbereitung konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
+    "PIPELINE_LIST_FAILED": "Die Pipeline konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
+    "PIPELINE_CREATE_FAILED": "Der Eintrag konnte nicht zur Pipeline hinzugefügt werden. Bitte versuchen Sie es erneut.",
+    "PIPELINE_ACTION_FAILED": "Diese Aktion konnte nicht ausgeführt werden. Bitte versuchen Sie es erneut.",
+    "PIPELINE_EVENTS_FAILED": "Die letzten Aktivitäten konnten nicht geladen werden. Bitte versuchen Sie es erneut.",
+    "PIPELINE_TIMELINE_FAILED": "Der Kandidatenverlauf konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
+    "OUTREACH_FAILED": "Der Kandidat konnte nicht kontaktiert werden. Bitte versuchen Sie es erneut.",
+    "SCHEDULE_INVITE_BULK_FAILED": "Die Terminlinks konnten nicht versendet werden. Bitte versuchen Sie es erneut.",
+    "SCHEDULE_LOOKUP_FAILED": "Die Terminübersicht konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
+    "SCHEDULE_MANAGE_FAILED": "Dieses Interview konnte nicht aktualisiert werden. Bitte versuchen Sie es erneut.",
+    "SEARCH_FAILED": "Die Suche ist derzeit nicht verfügbar. Bitte versuchen Sie es erneut.",
+    "ATTENTION_FAILED": "Die offenen Punkte konnten nicht geladen werden. Bitte versuchen Sie es erneut.",
+    "STATUS_LOOKUP_FAILED": "Der Status Ihrer Bewerbung konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
+    "STATUS_DECISIONS_FAILED": "Ihr Entscheidungsverlauf konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
+    "STATUS_NPS_READ_FAILED": "Die Feedback-Frage konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
+    "STATUS_NPS_WRITE_FAILED": "Ihr Feedback konnte nicht erfasst werden. Bitte versuchen Sie es erneut.",
+    "APPLY_FAILED": "Ihre Bewerbung konnte nicht übermittelt werden. Bitte versuchen Sie es erneut.",
+    "FOLLOWUP_FAILED": "Diese Antworten konnten nicht gespeichert werden. Ihre Bewerbung ist sicher hinterlegt — bitte versuchen Sie es erneut.",
+    "REDISCOVERY_ALERTS_FAILED": "Die Hinweise auf frühere Kandidaten konnten nicht geladen werden. Bitte versuchen Sie es erneut.",
+    "DATA_LOOKUP_FAILED": "Ihre Daten konnten gerade nicht geladen werden. Bitte versuchen Sie es erneut.",
+    "DATA_ERASE_FAILED": "Die Löschung konnte gerade nicht abgeschlossen werden. Bitte versuchen Sie es erneut.",
+    "CONSENT_LOOKUP_FAILED": "Die Einwilligungsdetails konnten nicht geladen werden. Bitte versuchen Sie es erneut.",
+    "ONBOARDING_FAILED": "Der Onboarding-Schritt konnte nicht abgeschlossen werden. Bitte versuchen Sie es erneut.",
+    "COMMAND_FAILED": "Dieser Befehl konnte nicht ausgeführt werden. Bitte versuchen Sie es erneut.",
+    "BENCHMARK_FAILED": "Der Unternehmens-Benchmark konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
+    "AGENT_FIT_FAILED": "Die Agent-Eignungsanalyse konnte nicht gestartet werden. Bitte versuchen Sie es erneut.",
+    "AGENT_DISPATCH_FAILED": "Der Agent konnte nicht an Personas übergeben werden. Bitte versuchen Sie es erneut.",
+    "AGENT_LIST_FAILED": "Die Agentenliste konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
+    "AGENT_BRIDGE_FAILED": "Der Status der Personas-Verbindung konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
+    "AGENT_PAIR_FAILED": "Die Kopplung mit Personas ist fehlgeschlagen. Bitte versuchen Sie es erneut.",
+    "AGENT_CATALOG_FAILED": "Der Konnektor-Katalog konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
+    "AGENT_REFRESH_FAILED": "Der Agentenstatus konnte nicht aktualisiert werden. Bitte versuchen Sie es erneut.",
+    "AGENT_REPORT_FAILED": "Die Agentenmeldung konnte nicht erfasst werden. Bitte versuchen Sie es erneut."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -1315,15 +1543,7 @@
       "insights": "Insights",
       "settings": "Einstellungen"
     },
-    "openWorkspace": "Arbeitsbereich öffnen",
-    "tasks": {
-      "label": "Hintergrundaufgaben",
-      "startErrorTitle": "Aufgabe konnte nicht gestartet werden",
-      "cancelErrorTitle": "Aufgabe konnte nicht abgebrochen werden",
-      "dismiss": "Schließen",
-      "failedSince": "{count, plural, one {# Hintergrundaufgabe ist seit Ihrem letzten Besuch fehlgeschlagen} other {# Hintergrundaufgaben sind seit Ihrem letzten Besuch fehlgeschlagen}}",
-      "running": "{count, plural, one {# Hintergrundaufgabe läuft} other {# Hintergrundaufgaben laufen}}"
-    }
+    "openWorkspace": "Arbeitsbereich öffnen"
   },
   "enums": {
     "stage": {
@@ -2546,7 +2766,31 @@
       "sourceFallback": "Generische Vorlage",
       "sourceFallbackAria": "Interviewvorbereitung aus einer deterministischen Vorlage erstellt — das AI-Modell war nicht verfügbar",
       "sourceAi": "Von AI erstellt",
-      "sourceAiAria": "Interviewvorbereitung von AI erstellt und auf den Lebenslauf zugeschnitten"
+      "sourceAiAria": "Interviewvorbereitung von AI erstellt und auf den Lebenslauf zugeschnitten",
+      "plan": {
+        "topicFallback": "Thema {n}",
+        "introTopic": "Einstieg & Gesprächsaufbau",
+        "introGoal": "Nehmen Sie der Kandidatin oder dem Kandidaten die Anspannung, bestätigen Sie den Kontext der Position und den Ablauf des Gesprächs.",
+        "defaultGoal": "Fragen Sie nach Tiefe und konkreten Beispielen; achten Sie auf Verantwortungsübernahme und Abwägungen.",
+        "openTopic": "Offene Diskussion & Vertiefung",
+        "openGoal": "Nutzen Sie die verbleibende Zeit, um die stärksten und schwächsten Antworten zu vertiefen oder eine noch nicht abgedeckte Muss-Anforderung zu prüfen.",
+        "wrapTopic": "Rückfragen & Abschluss",
+        "wrapGoal": "Lassen Sie Raum für die Fragen der Kandidatin oder des Kandidaten; erläutern Sie die nächsten Schritte und den Zeitplan.",
+        "signalDepth": "Tiefe hinter selbst angegebenen / Projektkenntnissen geprüft",
+        "signalMustHaves": "Fehlende Muss-Anforderungen abgedeckt",
+        "signalQuestions": "Raum für Rückfragen gegeben",
+        "forCandidate": "mit",
+        "focusFallback": "die zentralen Lücken",
+        "scenario": "Ein {durationMin}-minütiges strukturiertes Interview{who}. Bestätigen Sie die Stärken und hinterfragen Sie {focus}. Halten Sie jedes Thema im Zeitrahmen und verfolgen Sie die Abdeckung live über die Checkliste."
+      },
+      "studentPlan": {
+        "listenFor": "Achten Sie auf:",
+        "signalHint": "Hinweis in der Feedback-Phase gegeben — Aufnahme beobachtet",
+        "signalQuotes": "Wörtliche Zitate für jedes Rubrik-Kriterium festgehalten",
+        "signalHypotheses": "Lebenslauf-Hypothesen in den persönlichen Phasen geprüft (Anker / Feststecken / Kalibrierung)",
+        "focusFallback": "das stärkste Projekt der Person",
+        "scenario": "Ein {durationMin}-minütiges sechsphasiges Screening für Berufseinsteiger{who}. Der Agent führt; die fallbasierten Phasen bleiben beim gemeinsamen Material der Position, damit die Bewertungen vergleichbar sind, und die aus dem Lebenslauf abgeleiteten Fragen laufen in den persönlichen Phasen. Prüfen Sie {focus} live anhand der Rubrik."
+      }
     },
     "transcript": {
       "title": "Interview-Transkript · {name}",
@@ -2879,7 +3123,17 @@
       "scopeShared": "Geteilt",
       "scopePrivate": "Privat",
       "scopeSharedTitle": "Teil der Unternehmens-Bibliothek — für jedes Team sichtbar.",
-      "scopePrivateTitle": "Privat für Ihr Team."
+      "scopePrivateTitle": "Privat für Ihr Team.",
+      "token": {
+        "heading_about": "Über uns",
+        "heading_role": "Die Position",
+        "heading_requirements": "Wen wir suchen",
+        "heading_nice": "Von Vorteil",
+        "heading_offer": "Was wir bieten",
+        "heading_apply": "So bewerben Sie sich",
+        "offer_note": "Hybrides Arbeiten, echte Verantwortung und Raum zum Wachsen.",
+        "apply_note": "Bewerben Sie sich über den Link — ein kurzes Gespräch, dann das erste Interview."
+      }
     }
   },
   "jobs": {
@@ -3022,7 +3276,25 @@
       "createCampaignPack": "Kampagnenpaket erstellen",
       "viewCampaignPack": "Kampagnenpaket ansehen",
       "withdrawFailed": "Stelle geschlossen, aber die laufenden Kandidat/innen konnten nicht zurückgezogen werden — prüfen Sie die Pipeline.",
-      "tabAgentFit": "Agenten-Eignung"
+      "tabAgentFit": "Agenten-Eignung",
+      "doc": {
+        "level": "{seniority}-Level",
+        "salary": "Gehalt:",
+        "salaryEstimate": "Gehalt (Marktschätzung):",
+        "salaryUnit": "{currency} / Monat",
+        "aboutRole": "Über die Position",
+        "whatBring": "Was Sie mitbringen",
+        "niceToHave": "Von Vorteil",
+        "details": "Details",
+        "experienceLabel": "Erfahrung:",
+        "experienceValue": "{years}+ Jahre",
+        "education": "Ausbildung:",
+        "languages": "Sprachen:",
+        "field": "Bereich:",
+        "earlyWelcome": "Berufseinsteiger willkommen",
+        "earlyDefault": "Diese Position steht auch Berufseinsteigern offen — relevante Projekte und Potenzial zählen.",
+        "trainable": "Im Job erlernbar:"
+      }
     },
     "coach": {
       "loadFailed": "Diese Stelle konnte nicht bewertet werden.",
@@ -3996,6 +4268,104 @@
         "cv-structural": "CV-Struktur",
         "behavioral": "Arbeitsprobe"
       }
+    },
+    "github": {
+      "title": "GitHub-Analyse",
+      "intro": "Läuft getrennt von der CV-Analyse, damit Belege aus öffentlichen Repositories geprüft werden können, ohne das Hauptergebnis aufzuhalten.",
+      "inProcess": "Läuft",
+      "retry": "GitHub-Analyse erneut ausführen",
+      "metricRepos": "Repos",
+      "metricActive": "Aktiv",
+      "metricStars": "Sterne",
+      "metricForks": "Forks",
+      "languageMix": "Sprachverteilung",
+      "percent": "{percent} %",
+      "languageShare": "{name} {percent} %",
+      "noLanguages": "GitHub hat keine Sprachdaten geliefert.",
+      "topRepositories": "Top-Repositories",
+      "mixedLanguage": "Gemischt",
+      "contributionSignals": "Beitragssignale",
+      "jobSkillMatches": "Passende Skills zur Position",
+      "potentialGaps": "Mögliche Lücken",
+      "limitations": "Einschränkungen",
+      "matchesEmptyAnalyzed": "Stellenbeschreibung analysiert — in den öffentlichen GitHub-Metadaten wurden keine überschneidenden Skills gefunden.",
+      "matchesEmptyNoJd": "Keine Stellenbeschreibung angegeben — fügen Sie eine hinzu, um sie mit der öffentlichen Arbeit dieser Person zu vergleichen.",
+      "gapsEmptyNoJd": "Keine Stellenbeschreibung angegeben — Lücken werden nur gegen eine Stellenbeschreibung gemessen.",
+      "gapsEmptyIncomplete": "Lücken konnten nicht vollständig geprüft werden — ein Teil der öffentlichen GitHub-Daten war in diesem Lauf nicht abrufbar (vermutlich Rate-Limiting). Für ein vollständiges Bild erneut versuchen.",
+      "gapsEmptyNone": "In den öffentlichen GitHub-Metadaten wurden keine in der Stellenbeschreibung genannten Lücken erkannt.",
+      "trackedNote": "Verglichen mit {count, plural, one {# erfassten Skill} other {# erfassten Skills}} — „keine Lücken“ heißt: keine unter diesen, nicht eine erschöpfende Prüfung.",
+      "trackedIncomplete": "Ein Teil der GitHub-Daten war in diesem Lauf nicht abrufbar, daher können die Lücken unvollständig sein — für ein vollständiges Bild erneut versuchen.",
+      "complexityTitle": "Komplexitätseinschätzung",
+      "reviewTitle": "Repo-Signal-Review",
+      "reviewScope": "Skills abgeleitet aus öffentlichen Repository-Signalen — READMEs, Commit-Betreffzeilen, Dateinamen auf oberster Ebene, Sprache und Topics — nicht aus dem Lesen des Quellcodes.",
+      "reposReviewed": "Geprüfte Repos: {repos}",
+      "evidenceBasis": "Nachweisgrundlage",
+      "evidencedSkills": "Belegte Skills",
+      "unverifiedClaims": "Unbestätigte Angaben",
+      "hiddenStrengths": "Verborgene Stärken",
+      "noneDetected": "Nichts erkannt.",
+      "noItems": "Nichts erkannt.",
+      "errors": {
+        "HANDLE_REQUIRED": "Geben Sie einen GitHub-Benutzernamen oder eine Profil-URL ein.",
+        "PROFILE_NOT_FOUND": "Dieses GitHub-Profil wurde nicht gefunden.",
+        "RATE_LIMITED": "Das GitHub-Rate-Limit oder eine Zugriffsrichtlinie hat die Anfrage blockiert. Konfigurieren Sie GITHUB_TOKEN für höhere Limits.",
+        "API_ERROR": "GitHub hat einen unerwarteten Fehler zurückgegeben. Bitte gleich erneut versuchen.",
+        "BAD_SHAPE": "GitHub hat eine unerwartete Antwort zurückgegeben. Bitte gleich erneut versuchen.",
+        "NOT_A_PERSON": "Dieses Handle gehört zu einer GitHub-Organisation, nicht zu einem persönlichen Konto. Geben Sie den Benutzernamen einer einzelnen Person ein.",
+        "REQUEST_THROTTLED": "Zu viele Anfragen — bitte gleich erneut versuchen.",
+        "ANALYSIS_FAILED": "Die GitHub-Analyse ist fehlgeschlagen. Bitte gleich erneut versuchen."
+      },
+      "review": {
+        "partial": "Teilweise Belege: Ein Teil der Repository-Daten war in diesem Lauf nicht abrufbar — vermutlich Rate-Limiting —, behandeln Sie dies daher als unvollständige Auswertung.",
+        "keyUndecryptable": "Ein Gemini-Schlüssel ist hinterlegt, konnte aber nicht entschlüsselt werden — prüfen Sie KP_SECRET.",
+        "disabled": "Setzen Sie GEMINI_API_KEY (oder hinterlegen Sie einen Gemini-Schlüssel unter Modelle → Schlüssel), um das Repo-Signal-Review mit Gemini zu aktivieren.",
+        "noRepos": "Es standen keine eigenen öffentlichen Repositories zur Prüfung zur Verfügung.",
+        "fetchFailed": "Die Repository-Signale für das Deep Review konnten nicht abgerufen werden.",
+        "throttled": "Öffentliche Repo-Signale konnten nicht erfasst werden — GitHub drosselt vermutlich die Anfragen (nicht feststellbar). Bitte gleich erneut versuchen.",
+        "noSignals": "Die geprüften Repositories bieten keine öffentlichen README-, Commit- oder Dateisignale zur Bewertung.",
+        "malformed": "Gemini hat ein fehlerhaftes Repo-Signal-Review geliefert.",
+        "requestFailed": "Die Anfrage für das Gemini-Repo-Signal-Review ist fehlgeschlagen."
+      },
+      "finding": {
+        "signal": {
+          "largeCodebase": "großer Codebestand",
+          "stars": "externes Interesse durch Sterne",
+          "forks": "von anderen Entwickelnden geforkt",
+          "deliveryTopic": "Topic zu Delivery oder Engineering-Praxis",
+          "issues": "Projekt mit Issue-Tracking",
+          "maintained": "kürzlich gepflegt",
+          "metadataOnly": "Signal nur aus Metadaten"
+        },
+        "assessment": {
+          "strong": "Die öffentlichen Repositories zeigen mehrere Komplexitätssignale über gepflegte, nicht triviale Projekte hinweg.",
+          "some": "Die öffentlichen Repositories zeigen einige Komplexitätssignale; ihre Substanz sollte jedoch geprüft werden, bevor sie als produktionsreifer Nachweis gelten.",
+          "thin": "Die öffentlichen Metadaten sind dünn — behandeln Sie GitHub als schwachen ergänzenden Nachweis, solange keine tiefere Repository-Prüfung erfolgt ist."
+        },
+        "contribution": {
+          "repos": "{count, plural, one {# eigenes öffentliches Repository analysiert.} other {# eigene öffentliche Repositories analysiert.}}",
+          "activity": "Code-Aktivität in den letzten {activeMonths} Monaten: {active, plural, one {# Repository} other {# Repositories}}; in den letzten {recentMonths} Monaten: {recent}.",
+          "traction": "Insgesamt {stars, plural, one {# Stern} other {# Sterne}} und {forks, plural, one {# Fork} other {# Forks}} über die eigenen Repositories.",
+          "languages": "Vorherrschende öffentliche Sprachen: {mix}."
+        },
+        "summary": {
+          "text": "{login} hat {repos, plural, one {# eigenes öffentliches Repository} other {# eigene öffentliche Repositories}}, davon {active} im letzten Jahr aktiv; die öffentlichen Sprachnachweise führen {languages} an.",
+          "noLanguages": "{login} hat {repos, plural, one {# eigenes öffentliches Repository} other {# eigene öffentliche Repositories}}, davon {active} im letzten Jahr aktiv, und keine vorherrschende öffentliche Sprache."
+        },
+        "limitation": {
+          "publicOnly": "Ohne Token mit weiterreichendem Zugriff sind nur öffentliche GitHub-Daten sichtbar.",
+          "noGraph": "Die GitHub-REST-API liefert ohne GraphQL-Authentifizierung keine vollständigen Beitragsgraphen.",
+          "metadataQuality": "Repository-Metadaten können die tatsächliche Qualität des Produktionsbeitrags über- oder unterzeichnen.",
+          "evidenceIncomplete": "Ein Teil der öffentlichen GitHub-Daten war in diesem Lauf nicht abrufbar (vermutlich Rate-Limiting), daher sind Sprachabdeckung und Skill-Lücken-Erkennung unvollständig — für ein vollständiges Bild bitte gleich erneut versuchen.",
+          "truncated": "Analysiert wurden nur die {analyzed} zuletzt aktualisierten Repositories von {total} öffentlichen auf diesem Konto; ältere Repositories (darunter womöglich die meistbesternte Arbeit) sind nicht in den Summen enthalten."
+        },
+        "basis": {
+          "readme": "Nur README-Text, gekürzt auf die ersten {chars} Zeichen pro Repo.",
+          "commits": "Bis zu {count} Betreffzeilen der letzten Commits (jeweils erste Zeile) pro Repo.",
+          "files": "Bis zu {count} Datei- und Verzeichnisnamen auf oberster Ebene pro Repo — nur Namen, keine Dateiinhalte.",
+          "metadata": "Hauptsprache und Repository-Topics aus den GitHub-Metadaten.",
+          "notRead": "Nicht gelesen: Dateiinhalte, verschachtelte Verzeichnisbäume, private Repos und andere als die Standard-Branches."
+        }
+      }
     }
   },
   "workspaceAdmin": {
@@ -4012,7 +4382,114 @@
     "authRequired": "Das Wechseln erfordert eine Operator-Anmeldung (KP_OPERATOR_PASSWORD setzen).",
     "switchFailed": "Wechseln fehlgeschlagen — versuchen Sie es erneut.",
     "created": "Arbeitsbereich erstellt.",
-    "createFailed": "Arbeitsbereich konnte nicht erstellt werden."
+    "createFailed": "Arbeitsbereich konnte nicht erstellt werden.",
+    "org": {
+      "eyebrow": "Einstellungen",
+      "title": "Organisation",
+      "intro": "Kontoidentität, Standardsprache und Mitgliederverwaltung.",
+      "statMembers": "Mitglieder",
+      "statActive": "Aktiv",
+      "statPending": "Ausstehend",
+      "general": "Allgemein",
+      "nameLabel": "Name der Organisation",
+      "namePlaceholder": "Ihr Unternehmen",
+      "saving": "Speichern…",
+      "saved": "Gespeichert",
+      "saveFailed": "Speichern fehlgeschlagen — prüfen Sie die Verbindung und versuchen Sie es erneut.",
+      "domainLabel": "Primäre Domain",
+      "languageLabel": "App-Sprache",
+      "previewOnboarding": "Onboarding-Ablauf ansehen"
+    },
+    "members": {
+      "title": "Mitglieder",
+      "role": {
+        "owner": "Inhaber",
+        "admin": "Administrator",
+        "recruiter": "Recruiter",
+        "hiring_manager": "Hiring Manager",
+        "viewer": "Betrachter"
+      },
+      "status": {
+        "active": "Aktiv",
+        "invited": "Eingeladen",
+        "disabled": "Deaktiviert"
+      },
+      "loadError": "Mitglieder konnten nicht geladen werden.",
+      "invitePlaceholder": "Per E-Mail einladen — name@firma.de",
+      "inviteEmailAria": "E-Mail für die Einladung",
+      "inviteRoleAria": "Rolle für die Einladung",
+      "invite": "Einladen",
+      "inviting": "Wird eingeladen…",
+      "inviteCreated": "Einladung erstellt — kopieren Sie den Link zum Teilen",
+      "inviteFailed": "Die Einladung konnte nicht erstellt werden",
+      "pendingTitle": "Ausstehende Einladungen",
+      "copyLink": "Link kopieren",
+      "linkCopied": "Einladungslink kopiert",
+      "copyFailed": "Kopieren fehlgeschlagen — der Link steht in der Konsole",
+      "revoke": "Zurückziehen",
+      "revokeAria": "Einladung für {email} zurückziehen",
+      "revoked": "Einladung zurückgezogen",
+      "revokeFailed": "Die Einladung konnte nicht zurückgezogen werden",
+      "colMember": "Mitglied",
+      "colRole": "Rolle",
+      "colStatus": "Status",
+      "colPermissions": "Berechtigungen",
+      "roleAria": "Rolle für {name}",
+      "enable": "Aktivieren",
+      "disable": "Deaktivieren",
+      "fullAccess": "Voller Zugriff",
+      "custom": "Angepasst",
+      "edit": "Bearbeiten",
+      "roleDefault": "Rollenstandard",
+      "removeAria": "{name} entfernen",
+      "removed": "{name} entfernt",
+      "removeFailed": "Das Mitglied konnte nicht entfernt werden",
+      "updateFailed": "Aktualisierung fehlgeschlagen",
+      "lastOwner": "Die Organisation muss mindestens einen Inhaber behalten.",
+      "confirmRemove": {
+        "title": "Mitglied entfernen",
+        "body": "<em>{name}</em> aus der Organisation entfernen? Das löscht das Konto und den Zugang — es lässt sich nicht rückgängig machen.",
+        "cancel": "Abbrechen",
+        "confirm": "Mitglied entfernen"
+      },
+      "confirmRevoke": {
+        "title": "Einladung zurückziehen",
+        "body": "Die Einladung für <em>{email}</em> zurückziehen? Der bereits geteilte Link funktioniert dann nicht mehr.",
+        "cancel": "Abbrechen",
+        "confirm": "Einladung zurückziehen"
+      }
+    },
+    "permissions": {
+      "title": "Berechtigungen — {name}",
+      "subtitle": "{role} · Ausnahmen liegen über den Standardwerten der Rolle",
+      "cancel": "Abbrechen",
+      "save": "Änderungen speichern",
+      "saving": "Speichern…",
+      "granted": "gewährt",
+      "revoked": "entzogen",
+      "lockedTitle": "Sie können nur Berechtigungen ändern, die Sie selbst besitzen",
+      "footnote": "Hervorgehobene Zeilen weichen vom Standard der Rolle {role} ab. Ein Recruiter mit der Berechtigung „Mitglieder verwalten“ wird zum Writer, der andere einladen kann.",
+      "updated": "Berechtigungen aktualisiert",
+      "updateFailed": "Berechtigungen konnten nicht aktualisiert werden",
+      "caps": {
+        "manageMembers": {
+          "label": "Mitglieder verwalten",
+          "desc": "Personen einladen und ihre Berechtigungen anpassen (ein „Writer“)."
+        },
+        "manageTeams": {
+          "label": "Teams verwalten",
+          "desc": "Teams erstellen und umbenennen."
+        },
+        "editPipeline": {
+          "label": "Pipeline bearbeiten",
+          "desc": "Kandidaten verschieben, Entscheidungen treffen, Nachrichten senden."
+        },
+        "view": {
+          "label": "Ansehen",
+          "desc": "Kandidaten und Daten des Teams einsehen."
+        }
+      }
+    }
   },
   "login": {
     "eyebrow": "kp",
@@ -5831,6 +6308,127 @@
       "honestDarkness": "Jedes Urteil oben wird Ihnen mit seinem eigenen Nachweis gezeigt, auch dort, wo eine Prüfung nicht laufen konnte: eine Kontrolle, die nicht gegriffen hat, erscheint nie als bestandene. Nichts davon startet, bevor ein Fall existiert — beschreiben Sie den Bedarf, und die Engine entwirft die Aufgabe, um die sich diese Kontrollen legen."
     }
   },
+  "rubric": {
+    "ratingAnchor": {
+      "1": "Deutlich unter Niveau",
+      "2": "Unter Niveau",
+      "3": "Erfüllt das Niveau",
+      "4": "Über Niveau",
+      "5": "Herausragend"
+    },
+    "competency": {
+      "technical_depth": {
+        "label": "Fachliche Tiefe",
+        "description": "Tiefe und Korrektheit in den Kernkompetenzen der Position."
+      },
+      "problem_solving": {
+        "label": "Problemlösung",
+        "description": "Denkweise, Fehlersuche und strukturiertes Vorgehen unter Nachfragen."
+      },
+      "communication": {
+        "label": "Kommunikation",
+        "description": "Klarheit, Struktur und aktives Zuhören."
+      },
+      "experience_fit": {
+        "label": "Erfahrung & Eignung",
+        "description": "Relevanz von Werdegang und Projekten für genau diese Position."
+      },
+      "motivation": {
+        "label": "Motivation",
+        "description": "Echtes Interesse an der Position und am Team."
+      },
+      "problem_decomposition": {
+        "label": "Problemzerlegung",
+        "description": "Wie sie ein unbekanntes Problem zerlegen: Annahmen, Randbedingungen und Struktur offenlegen, bevor sie zur Lösung greifen.",
+        "anchor": {
+          "1": "Formuliert das Problem nur um oder springt zu einer auswendig gelernten Antwort; keine Zerlegung.",
+          "2": "Benennt einzelne Teile, übersieht aber zentrale Randbedingungen oder Abhängigkeiten.",
+          "3": "Zerlegt das Problem in schlüssige Teilprobleme und nennt die wichtigsten Randbedingungen.",
+          "4": "Zerlegt sauber, legt verdeckte Annahmen offen und fragt nach, bevor sie sich festlegen.",
+          "5": "Formuliert das Problem so um, dass sein Kern sichtbar wird, priorisiert Teilprobleme nach Risiko und denkt unaufgefordert an Randfälle."
+        }
+      },
+      "learning_agility": {
+        "label": "Lernfähigkeit",
+        "description": "Wie sie lernen und wieder weiterkommen, wenn sie feststecken: ein wiederholbarer Ablauf statt eines einmaligen Erfolgs.",
+        "anchor": {
+          "1": "Kann nicht beschreiben, wie sie lernen oder wie sie wieder weiterkamen; schreibt es Glück oder anderen zu.",
+          "2": "Beschreibt passives Lernen (Tutorials angesehen), ohne zu reflektieren, was funktioniert hat.",
+          "3": "Nennt eine konkrete Lernstrategie und eine Sache, die sie anders machen würden.",
+          "4": "Zeigt einen bewussten Ablauf aus Diagnose, Experiment und Anpassung an einem echten Beispiel für Feststecken und Weiterkommen.",
+          "5": "Überträgt eine Erkenntnis aus einem Bereich auf einen neuen und reflektiert, wie sich ihr Vorgehen selbst verbessert."
+        }
+      },
+      "coachability": {
+        "label": "Feedbackfähigkeit",
+        "description": "Wie sie einen Hinweis, eine Korrektur oder Widerspruch in Echtzeit aufnehmen: einbauen, abwehren oder erstarren.",
+        "anchor": {
+          "1": "Ignoriert den Hinweis oder wehrt ihn reflexhaft ab.",
+          "2": "Nimmt den Hinweis zur Kenntnis, kann ihn aber nicht umsetzen.",
+          "3": "Passt sich nach dem Hinweis an, mit etwas Nachhaken.",
+          "4": "Baut den Hinweis schnell ein und erklärt, wie er ihr Vorgehen verändert.",
+          "5": "Hakt beim Hinweis nach, stellt eine präzisierende Frage und verallgemeinert ihn über das konkrete Problem hinaus."
+        }
+      },
+      "conceptual_depth": {
+        "label": "Konzeptionelle Tiefe",
+        "description": "Ob sie das Warum verstehen, nicht nur das Was: geprüft mit Gegenbeispielen und der Übertragung auf neue Fälle.",
+        "anchor": {
+          "1": "Gibt Definitionen wieder, kann das Warum aber nicht erklären; scheitert an jeder Was-wäre-wenn-Variante.",
+          "2": "Erklärt den Normalfall, aber weder Abwägungen noch das, was sich unter anderen Bedingungen ändert.",
+          "3": "Erklärt den Mechanismus und meistert ein einfaches Gegenbeispiel.",
+          "4": "Wägt Kompromisse ab und passt das Konzept an eine geänderte Anforderung an.",
+          "5": "Leitet die Idee aus ersten Prinzipien her und sagt voraus, wo sie unter einer neuen Randbedingung bricht."
+        }
+      },
+      "motivation_direction": {
+        "label": "Motivation & Ausrichtung",
+        "description": "Schlüssigkeit und Konkretheit des Warum für dieses Feld und diese Position: echter Antrieb statt einstudierter Antworten.",
+        "anchor": {
+          "1": "Allgemein oder rein äußerlich („gutes Gehalt“); kein konkretes Interesse.",
+          "2": "Nennt ein Interesse, kann es aber an nichts festmachen, was sie tatsächlich getan haben.",
+          "3": "Nennt einen konkreten, stimmigen Grund, verankert in einer echten Erfahrung oder einem Projekt.",
+          "4": "Zeigt einen roten Faden von früheren Entscheidungen über diese Position bis zu einem künftigen Ziel.",
+          "5": "Formuliert eine klare, selbstreflektierte Ausrichtung und belegt sie mit eigenständiger Erkundung."
+        }
+      },
+      "communication_collaboration": {
+        "label": "Kommunikation & Zusammenarbeit",
+        "description": "Klarheit und Struktur der Erklärung, aktives Zuhören und der Umgang mit den Beiträgen anderer.",
+        "anchor": {
+          "1": "Unstrukturiert oder ausweichend; geht nicht auf die gestellte Frage ein.",
+          "2": "Antwortet, schweift aber ab oder bleibt unstrukturiert; schwer zu folgen.",
+          "3": "Klare, strukturierte Antworten; hört zu und geht auf die eigentliche Frage ein.",
+          "4": "Erklärt komplexe Sachverhalte einfach und vergewissert sich, dass sie verstanden wurden.",
+          "5": "Passt die Erklärung an das Gegenüber an und bringt Widerspruch konstruktiv zur Sprache."
+        }
+      },
+      "clinical_judgment_patient_safety": {
+        "label": "Klinisches Urteil & Patientensicherheit",
+        "description": "Fundiertes klinisches Denken, Bewusstsein für die eigenen Kompetenzgrenzen und ein Instinkt, der unter Druck die Patientensicherheit an erste Stelle setzt."
+      },
+      "safety_hands_on_competence": {
+        "label": "Sicherheit & handwerkliches Können",
+        "description": "Nachgewiesenes handwerkliches Können und ein kompromissloser Umgang mit Arbeitssicherheit, Normen und korrektem Vorgehen."
+      },
+      "scientific_rigor": {
+        "label": "Wissenschaftliche Strenge",
+        "description": "Experimentelle Strenge, Datenintegrität und ehrliches Abwägen von Evidenz, Grenzen und Reproduzierbarkeit."
+      },
+      "craft_portfolio_depth": {
+        "label": "Handwerk & Portfoliotiefe",
+        "description": "Tiefe und Eigenständigkeit des Handwerks, belegt durch echte Arbeiten — das Portfolio, nicht nur genannte Fähigkeiten."
+      },
+      "operational_execution": {
+        "label": "Operative Umsetzung",
+        "description": "Verlässliche Umsetzung im großen Maßstab: Durchsatz, Priorisierung und ruhiges Urteil, wenn Volumen oder Ausnahmen zunehmen."
+      },
+      "service_orientation_reliability": {
+        "label": "Serviceorientierung & Verlässlichkeit",
+        "description": "Kundenorientierte Haltung, Gelassenheit unter Druck sowie verlässliche Anwesenheit und konsequentes Nachfassen."
+      }
+    }
+  },
   "rubricCoverage": {
     "no_family": "Generische Rubrik — für diese Person ist keine Rollenfamilie hinterlegt, daher konnten die branchenspezifischen Achsen (klinisches Urteil, Arbeitssicherheit, wissenschaftliche Sorgfalt …) nicht ergänzt werden. Sie bewerten nur die Basisrubrik.",
     "family_unrecognized": "Unbekannte Rollenfamilie „{family}“ — sie steht nicht in der kanonischen Taxonomie, daher konnten keine branchenspezifischen Achsen zugeordnet werden. Sie bewerten nur die Basisrubrik."
@@ -5948,6 +6546,433 @@
       "noData": "noch keine Daten",
       "refresh": "Status aktualisieren",
       "refreshing": "Wird aktualisiert…"
+    }
+  },
+  "simulation": {
+    "status": {
+      "idle": "Inaktiv",
+      "starting": "Wird gestartet…",
+      "paused": "Pausiert",
+      "reset": "Zurückgesetzt",
+      "stopped": "Gestoppt",
+      "done": "Fertig — Stelle besetzt 🎉",
+      "failed": "Fehlgeschlagen: {message}",
+      "genericError": "Die Simulation wurde unerwartet beendet."
+    },
+    "phase": {
+      "design": "Ausschreibung",
+      "source": "Sourcing",
+      "match": "Eingang",
+      "screen": "Screening",
+      "interview": "Interview",
+      "offer": "Angebot",
+      "hired": "Eingestellt"
+    },
+    "step": {
+      "design": {
+        "title": "Die Stellenbeschreibung entsteht",
+        "caption": "Die Stellenbeschreibung für „{title}“ wird ausgefüllt — das Rollenprofil steuert Matching, Sourcing und die Angebotsspanne."
+      },
+      "source": {
+        "title": "In die Pipeline sourcen",
+        "caption": "Die Stellenbeschreibung ist als Entwurf gespeichert. Über den Reiter Stellen geht sie live und zieht den Kandidatenpool in die Pipeline.",
+        "clickTitle": "In die Pipeline sourcen",
+        "clickCaption": "Damit geht die Stellenbeschreibung live und der Kandidatenpool wird in die Pipeline gesourct."
+      },
+      "match": {
+        "title": "Eingang & Matching",
+        "caption": "Kandidaten kommen über Kanäle herein: Auf der Karriereseite trifft eine Bewerbung ein (Status Angenommen), neben dem proaktiv gesourcten Pool. Der gesamte Eingang wird anschließend bewertet und gematcht."
+      },
+      "screen": {
+        "title": "Screening · automatisierte Welle",
+        "caption": "Die erste automatisierte Entscheidung: die gematchten Kandidaten bewerten, die schwächsten unterhalb der Schwelle automatisch ablehnen (jeweils mit Begründung) und den Rest weiterleiten."
+      },
+      "interview": {
+        "title": "Interview",
+        "caption": "Die Interviewrunde wird automatisiert — {candidate} wählt den Termin selbst (statt einer manuellen Zuweisung).",
+        "frameTitle": "Kandidat wählt Termin",
+        "confirmTitle": "Interview bestätigen",
+        "confirmCaption": "Der Recruiter bestätigt den Interviewtermin von {candidate}."
+      },
+      "offer": {
+        "title": "Das Angebot geht raus",
+        "caption": "Die Kandidaten der Position werden verglichen, dann geht das Angebot an {candidate}.",
+        "clickTitle": "Angebot senden",
+        "clickCaption": "Der Recruiter klickt auf „Angebot senden“ — {candidate} erhält einen sicheren Link zum Annehmen oder Ablehnen."
+      },
+      "hired": {
+        "title": "Der Kandidat nimmt an",
+        "caption": "{candidate} öffnet den sicheren Link und nimmt an — Wechsel zu Eingestellt, das Onboarding beginnt.",
+        "frameTitle": "Ansicht des Kandidaten",
+        "acceptTitle": "Angebot annehmen",
+        "acceptCaption": "Der Kandidat nimmt das Angebot an."
+      }
+    },
+    "log": {
+      "resetting": "Frühere Simulationsläufe werden zurückgesetzt…",
+      "savedDraft": "Als Entwurf gespeichert · {jobId}",
+      "draftNotVisible": "(Entwurf nicht sichtbar — Sourcing über die API)",
+      "sourced": "Live · {count, plural, one {# Kandidat} other {# Kandidaten}} gesourct → Angenommen",
+      "inbound": "📥 {candidate} hat sich über die Karriereseite beworben → Angenommen",
+      "stuck": "⚠︎ {candidate} blieb vor „Geprüft“ stecken — wird übersprungen ({reason})",
+      "advanceFailed": "Weiterleitung fehlgeschlagen",
+      "matched": "{count, plural, one {# Kandidat} other {# Kandidaten}} gematcht → Geprüft · wir verfolgen {candidate} (Match {score}) bis zur Einstellung",
+      "noScore": "—",
+      "screenWave": "Screening-Welle · {rejected} automatisch abgelehnt (mit Begründung), {kept} weitergeleitet · Berufseinsteiger geschützt",
+      "passedScreening": "{candidate} hat das Screening bestanden → Interview",
+      "selfScheduled": "{candidate} hat selbst einen Termin gewählt · {slot}",
+      "scheduleNotVisible": "(Terminkarte nicht sichtbar — Bestätigung über die API)",
+      "stage": "→ {stage}",
+      "offerNotVisible": "(Angebotskarte nicht sichtbar — Senden über die API)",
+      "offerSent": "Angebot gesendet · sicherer Link erzeugt",
+      "offerPageUnreachable": "(Angebotsseite nicht erreichbar — Annahme über die API)",
+      "accepted": "Angenommen · nach Eingestellt verschoben · Onboarding-Nachricht eingereiht",
+      "stopped": "Simulation gestoppt.",
+      "error": "Fehler: {message}",
+      "groupEvalTimedOut": "⚠︎ Zeitüberschreitung bei der Gruppenauswertung — es wird ein Hinweis auf die Nichtverfügbarkeit angezeigt."
+    },
+    "wait": {
+      "screeningGate": "die Interview- bzw. Kalenderfreigabe nach dem Screening",
+      "slotConfirmed": "die Bestätigung des Interviewtermins",
+      "offerExtended": "das Senden des Angebots"
+    },
+    "error": {
+      "noScreened": "Kein geprüfter Kandidat zum Verfolgen — der Eingang lieferte keinen.",
+      "pipelineFetch": "Das Pipeline-Board konnte nicht geladen werden ({status}).",
+      "waitTimeout": "Zeitüberschreitung nach {seconds}s beim Warten auf {label}.",
+      "advanceStalled": "Der Kandidat konnte in {steps} Schritten nicht auf „{stage}“ weitergeleitet werden — er blieb bei „{current}“ stehen.",
+      "unknownStage": "unbekannt",
+      "offerTokenMissing": "Nach dem Senden des Angebots wurde kein sicherer Link erzeugt.",
+      "groupEvalTimeout": "Die Gruppenauswertung wurde nicht innerhalb von {seconds}s abgeschlossen. Die Kandidaten sind weiterhin in der Pipeline — nur der Vergleich konnte nicht rechtzeitig erstellt werden.",
+      "groupEvalFailed": "Die Gruppenauswertung konnte nicht erstellt werden."
+    },
+    "explainer": {
+      "label": "Simulationserklärung",
+      "close": "Erklärung schließen",
+      "eyebrow": "So funktioniert es",
+      "criteriaTitle": "Entscheidungskriterien",
+      "criteriaEmpty": "Die Kriterien erscheinen hier, sobald die Pipeline die einzelnen Kandidaten bewertet.",
+      "colCriterion": "Kriterium",
+      "colWeight": "Gewicht",
+      "colSource": "Quelle"
+    },
+    "weight": {
+      "critical": "Kritisch",
+      "medium": "Mittel",
+      "minor": "Gering"
+    },
+    "criteria": {
+      "seniority": {
+        "name": "Seniorität",
+        "source": "CV ↔ JD"
+      },
+      "languages": {
+        "name": "Sprachen",
+        "source": "CV ↔ JD"
+      },
+      "education": {
+        "name": "Ausbildung",
+        "source": "CV ↔ JD"
+      },
+      "skills": {
+        "name": "Skills-Match",
+        "source": "CV ↔ Skills"
+      },
+      "career": {
+        "name": "Karriere-Fit",
+        "source": "CV ↔ Rolle"
+      },
+      "contextual": {
+        "name": "Kontext-Fit",
+        "source": "CV ↔ JD-Text"
+      },
+      "scorecard": {
+        "name": "Interview-Scorecard",
+        "source": "Interview"
+      },
+      "compensation": {
+        "name": "Vergütung",
+        "source": "JD-Band"
+      }
+    },
+    "wave": {
+      "title": "Screening · erste automatisierte Entscheidungswelle",
+      "subtitle": "{cohort} gematcht · {rejected} automatisch abgelehnt · {kept} weitergeleitet",
+      "intro": "Erstes Scoring plus die automatisierte Screening-Entscheidung. Berufseinsteiger werden nie automatisch abgelehnt — die Fairness-Schranke hält, und jede automatische Entscheidung trägt eine Begründung.",
+      "empty": "Keine gematchten Kandidaten in dieser Welle.",
+      "rejected": "Abgelehnt",
+      "kept": "Behalten",
+      "scoreUnmeasured": "Match-Score noch nicht ermittelt",
+      "score": "Match-Score {score}"
+    },
+    "frame": {
+      "close": "Schließen",
+      "closeTitle": "Schließen (Esc)",
+      "candidatePage": "Kandidatenseite"
+    },
+    "jd": {
+      "aboutHeading": "Über uns",
+      "roleHeading": "Die Position",
+      "lookingForHeading": "Was wir suchen",
+      "niceToHaveHeading": "Von Vorteil",
+      "weOfferHeading": "Was wir bieten",
+      "howToApplyHeading": "So bewerben Sie sich",
+      "aboutBody": "{company} entwickelt Technologie, der Millionen vertrauen. Werden Sie Teil eines Teams, das liefert und für das einsteht, was es baut.",
+      "weOfferBody": "Wettbewerbsfähige Vergütung, hybrides Arbeiten, echte Verantwortung und Raum zum Wachsen.",
+      "howToApplyBody": "Bewerben Sie sich über den Link — ein kurzes Gespräch, dann die erste Interviewrunde.",
+      "period": "Monat",
+      "responsibility": {
+        "backend": "Verantwortung für zentrale Banking-Backend-Services",
+        "mentor": "Das Team mentorieren",
+        "design": "Design von API und Datenmodell vorantreiben"
+      }
+    },
+    "diagram": {
+      "design": {
+        "title": "Stellenbeschreibung → ein Entwurf im Unternehmensformat",
+        "recruiter": "Recruiter",
+        "need": "Bedarf + Rollenprofil",
+        "ingestion": "Erfassung",
+        "template": "Unternehmensvorlage\\nMarkenformat",
+        "job": "Strukturierte Stelle\\njd-… · Entwurf"
+      },
+      "source": {
+        "title": "Sourcing: Stelle live schalten, dann den Pool ranken",
+        "draft": "Stellen-Entwurf",
+        "goLive": "Live schalten",
+        "matcher": "Matcher (deterministisch)",
+        "koFilter": "KO-Filter\\nStandort · Seniorität · Sprache",
+        "scorer": "Multifaktor-Scoring\\nSkills · Karriere · Fit",
+        "pool": "Pool: Angenommen",
+        "edgeGoLive": "live schalten",
+        "edgeSurvivors": "verbleibend",
+        "edgeRanked": "gerankt"
+      },
+      "match": {
+        "title": "Eingang: Kanäle speisen den Anfang der Pipeline",
+        "channels": "Kanäle",
+        "apply": "Karriereseite / Bewerbung",
+        "sourcing": "Proaktives Sourcing",
+        "accepted": "Angenommen\\n(Eingang + Sourcing)",
+        "route": "Score + Archetyp-Routing",
+        "screened": "Geprüft"
+      },
+      "screen": {
+        "title": "Screening: erste automatisierte Entscheidungswelle",
+        "cohort": "Geprüfte Kohorte",
+        "autoDecision": "Auto-Entscheidung (konfigurierbar)",
+        "rank": "Nach Match sortieren",
+        "reject": "Untere X% ablehnen\\n< Y% Match · auditiert",
+        "fairness": "Berufseinsteiger\\nnie automatisch abgelehnt",
+        "passed": "Bestanden → Interview",
+        "edgeSurvivors": "verbleibend",
+        "edgeProtected": "geschützt"
+      },
+      "interview": {
+        "title": "Interview: automatisieren oder Termin zuweisen",
+        "cleared": "Screening bestanden",
+        "schedule": "Planung",
+        "selfSchedule": "Self-Scheduling-Link\\nKandidat wählt einen Termin",
+        "manualSlot": "Manueller Termin\\nRecruiter weist zu",
+        "booked": "Interview gebucht"
+      },
+      "offer": {
+        "title": "Angebot: ein Mensch unterbreitet, der Kandidat entscheidet",
+        "interviewPass": "Interview bestanden",
+        "draft": "Angebotsentwurf\\nBandmitte",
+        "send": "Recruiter: Angebot senden",
+        "candidate": "Kandidat\\nannehmen / ablehnen",
+        "edgeLink": "sicherer Token-Link"
+      },
+      "hired": {
+        "title": "Eingestellt: das Onboarding startet",
+        "accepted": "Angebot angenommen",
+        "move": "Nach Eingestellt verschieben",
+        "onboarding": "Onboarding\\nWillkommen · erste Woche"
+      }
+    }
+  },
+  "tasks": {
+    "label": "Hintergrundaufgaben",
+    "eyebrow": "Aktivität",
+    "intro": "Lang laufende Aktionen — Analysen, Screening, Stellenbeschreibungen, Gruppenbewertungen — laufen hier im Hintergrund. Verfolgen Sie den Fortschritt und sehen Sie sich abgeschlossene Läufe an, auch nach einem Tabwechsel.",
+    "refresh": "Aktualisieren",
+    "dismiss": "Schließen",
+    "showHistory": "Verlauf anzeigen (Aufgaben älter als {days} Tage)",
+    "startErrorTitle": "Aufgabe konnte nicht gestartet werden",
+    "cancelErrorTitle": "Aufgabe konnte nicht abgebrochen werden",
+    "unreachable": "Der Server war nicht erreichbar.",
+    "failedSince": "{count, plural, one {# Hintergrundaufgabe ist seit Ihrem letzten Besuch fehlgeschlagen} other {# Hintergrundaufgaben sind seit Ihrem letzten Besuch fehlgeschlagen}}",
+    "running": "{count, plural, one {# Hintergrundaufgabe läuft} other {# Hintergrundaufgaben laufen}}",
+    "status": {
+      "running": "Läuft",
+      "queued": "In Warteschlange",
+      "succeeded": "Fertig",
+      "failed": "Fehlgeschlagen",
+      "canceled": "Abgebrochen",
+      "interrupted": "Unterbrochen"
+    },
+    "kind": {
+      "automation": "{task} · {entry}",
+      "reasoning": "Warum diese/r Kandidat/in · {label}",
+      "batchScreen": "Alle gematchten Kandidat/innen per KI prüfen",
+      "batchOutreach": "{n, plural, one {Ansprache entwerfen · # Kandidat/in} other {Ansprache entwerfen · # Kandidat/innen}}",
+      "analyze": "Analyse · {label}",
+      "needAnalysis": "Bedarfsanalyse · {title}",
+      "needAnalysisUntitled": "Bedarfsanalyse · ohne Titel",
+      "designArtifacts": "Design-Artefakte · {title}",
+      "designArtifactsUntitled": "Design-Artefakte · ohne Titel",
+      "evaluateSubmission": "Auswertung · {ref}",
+      "lifecycle": "Lebenszyklus · {title}",
+      "groupEval": "Gruppenbewertung · {role}",
+      "jdBuild": "Stellenbeschreibung erstellen · {title}",
+      "jdBuildUntitled": "Stellenbeschreibung erstellen · ohne Titel",
+      "interviewPrep": "Interview-Vorbereitung · {candidate}",
+      "agentFit": "Agent-Eignung · {job}"
+    },
+    "filter": {
+      "searchLabel": "Aufgaben suchen",
+      "searchPlaceholder": "Aufgaben suchen…",
+      "kindAria": "Nach Aufgabentyp filtern",
+      "allKinds": "Alle Typen",
+      "clear": "Zurücksetzen"
+    },
+    "active": {
+      "cancelAria": "Aufgabe abbrechen",
+      "confirmCancel": "Aufgabe abbrechen",
+      "keep": "Behalten",
+      "canceling": "Wird abgebrochen…",
+      "working": "Wird ausgeführt…",
+      "queuedMsg": "in Warteschlange…",
+      "workingMsg": "wird ausgeführt…"
+    },
+    "done": {
+      "outcomeTitle": "Ergebnis dieser Aufgabe anzeigen",
+      "retry": "Erneut versuchen",
+      "retryTitle": "Diese Aufgabe mit denselben Eingaben erneut ausführen",
+      "took": "Dauer {duration}",
+      "outcomeFailed": "Das Ergebnis dieser Aufgabe konnte nicht geladen werden.",
+      "outcomeLoading": "Ergebnis wird geladen…"
+    },
+    "outcome": {
+      "advanced": "{count} weitergeleitet",
+      "held": "{count} zurückgehalten",
+      "advisory": "{count} beratend",
+      "errors": "{count, plural, one {# Fehler} other {# Fehler}}",
+      "ofTotal": "von {count}",
+      "noSummary": "Für diesen Lauf wurde keine Zusammenfassung erfasst.",
+      "noResult": "Dieser Lauf hat kein Ergebnis geliefert.",
+      "openSavedReport": "Gespeicherten Bericht öffnen",
+      "openJdLibrary": "Bibliothek der Stellenbeschreibungen öffnen",
+      "openRoleDecisions": "Entscheidungen zu dieser Position öffnen",
+      "openDecisions": "Entscheidungen öffnen",
+      "reviewInDecisions": "Ergebnisse in den Entscheidungen prüfen",
+      "openSchedule": "Planung öffnen",
+      "openBoard": "Im Board öffnen"
+    },
+    "results": {
+      "inProgress": "In Bearbeitung",
+      "doneWindow": "Fertig · letzte {days} Tage",
+      "nothingRunning": "Zurzeit läuft nichts.",
+      "emptyTitle": "Keine aktuellen Hintergrundaufgaben",
+      "emptyFilteredTitle": "Keine Aufgabe entspricht diesen Filtern",
+      "emptyFilteredBody": "Setzen Sie die Filter oben zurück, um den gesamten Zeitraum zu sehen.",
+      "emptyBody": "Laufende und kürzlich abgeschlossene Läufe (letzte {days} Tage) erscheinen hier. Ältere Läufe finden Sie unten unter „Verlauf anzeigen“."
+    },
+    "history": {
+      "title": "Verlauf",
+      "olderThan": "älter als {days} Tage",
+      "rangeOlderThan": "{shown} von {total} · älter als {days} Tage",
+      "empty": "Keine Aufgaben älter als {days} Tage.",
+      "loadFailed": "Der Aufgabenverlauf konnte nicht geladen werden.",
+      "retry": "Erneut versuchen",
+      "loading": "Wird geladen…",
+      "loadMore": "Mehr laden",
+      "end": "{count, plural, one {Ende des Verlaufs · # Aufgabe} other {Ende des Verlaufs · # Aufgaben}}"
+    },
+    "system": {
+      "title": "System",
+      "meta": "Kosten · Cache · Engines",
+      "loadFailed": "Der Systemstatus konnte nicht geladen werden.",
+      "retry": "Erneut versuchen",
+      "loading": "Wird geladen…",
+      "healthy": "In Ordnung",
+      "degraded": "Eingeschränkt",
+      "seeds": "Seed-Daten",
+      "clockTitle": "Herzschlag der Automatisierungsuhr — steuert Interview-Erinnerungen, das Verfallen von Angeboten und den DSGVO-Einwilligungslauf",
+      "scheduler": "Scheduler",
+      "schedulerStarting": "Scheduler startet",
+      "schedulerStalled": "Scheduler steht still",
+      "queue": "Warteschlange: {running} laufen · {queued} warten",
+      "cacheHitRate": "Cache-Trefferquote",
+      "runs7d": "{count, plural, one {# Lauf · 7 Tage} other {# Läufe · 7 Tage}}",
+      "noRuns": "diese Woche keine Läufe",
+      "tokens7d": "Tokens · 7 Tage",
+      "cached": "{tokens} aus dem Cache",
+      "avgAnalysis": "Ø Analyse",
+      "engineRuns7d": "{count, plural, one {# Engine-Lauf · 7 Tage} other {# Engine-Läufe · 7 Tage}}",
+      "promptCache": "Prompt-Cache",
+      "expiredPending": "{count} abgelaufen, warten auf Bereinigung",
+      "noExpired": "keine abgelaufenen Einträge",
+      "stageTimings": "Ø Phasendauer (7 Tage)",
+      "deadLetters": "{count, plural, one {# unzustellbare Nachricht · 7 Tage} other {# unzustellbare Nachrichten · 7 Tage}}",
+      "reconcileFailures": "{count, plural, one {# fehlgeschlagener Planungsabgleich} other {# fehlgeschlagene Planungsabgleiche}}",
+      "bookedStalls": "{count, plural, one {# Blockade durch vollen Kalender} other {# Blockaden durch volle Kalender}}"
+    },
+    "backup": {
+      "title": "Sicherung & Wiederherstellung",
+      "meta": "gesamte Datenbank",
+      "intro": "Eine einzige JSON-Datei enthält die gesamte kp-Datenbank — alle Daten über sämtliche Arbeitsbereiche hinweg (ohne Prompt-Cache und Zustand des Task-Runners), nicht den Ausschnitt eines einzelnen Arbeitsbereichs. Erstellen Sie eine Sicherung vor einer riskanten Massenaktion; die Wiederherstellung verschiebt die ganze Datenbank zwischen Rechnern. Export und Wiederherstellung je Arbeitsbereich kommen mit der Datenisolierung der Arbeitsbereiche.",
+      "download": "Sicherung herunterladen",
+      "restoreFrom": "Aus Datei wiederherstellen…",
+      "working": "Wird ausgeführt…",
+      "exportFailedStatus": "Export fehlgeschlagen ({status}).",
+      "exportFailed": "Export fehlgeschlagen.",
+      "readFailedStatus": "Die Datei konnte nicht gelesen werden ({status}).",
+      "readFailed": "Die Datei konnte nicht gelesen werden.",
+      "restoreFailedStatus": "Wiederherstellung fehlgeschlagen ({status}).",
+      "restoreFailed": "Wiederherstellung fehlgeschlagen.",
+      "restored": "{tables} Tabellen · {rows} Zeilen wiederhergestellt. Laden Sie die Seite neu, um den wiederhergestellten Arbeitsbereich zu sehen.",
+      "plan": {
+        "title": "Wiederherstellungsplan · {tables} Tabellen, {rows} Zeilen",
+        "replaceWarning": "Diese Live-Tabellen enthalten bereits Daten und werden durch die Datei ERSETZT: {tables}.",
+        "confirmPrompt": "Dies überschreibt die gesamte Live-Datenbank. Geben Sie zur Bestätigung <code>{word}</code> ein:",
+        "confirmAria": "Geben Sie {word} ein, um die destruktive Wiederherstellung zu bestätigen",
+        "nonDestructive": "Keine Live-Tabelle enthält Daten — die Wiederherstellung ist zerstörungsfrei.",
+        "rows": "{count, plural, one {# Zeile} other {# Zeilen}}",
+        "rowsReplacing": "{count, plural, one {# Zeile · ersetzt Live-Daten} other {# Zeilen · ersetzt Live-Daten}}",
+        "apply": "Wiederherstellen",
+        "applyReplace": "{count} Tabellen ersetzen & wiederherstellen",
+        "cancel": "Abbrechen"
+      }
+    },
+    "integrations": {
+      "title": "Rückschreiben an ATS / HRIS",
+      "meta": "ausgehender Webhook",
+      "intro": "Spiegeln Sie Einstellungsergebnisse in Ihr führendes System. Jedes abonnierte Ereignis sendet per POST einen normalisierten, versionierten Kandidatendatensatz (<code>{version}</code>), signiert mit HMAC-SHA256 (<code>{header}</code>), sofern ein Secret gesetzt ist. Das ist herstellerneutrale Ausgabe — richten Sie Ihren Workday-/Greenhouse-/Lever-Konnektor oder eine iPaaS (Merge.dev, Zapier) darauf aus; es ist <b>kein</b> zertifizierter herstellerspezifischer Konnektor.",
+      "webhookUrl": "Webhook-URL",
+      "leaveEmpty": "Leer lassen, um die Zustellung zu deaktivieren.",
+      "signingSecret": "Signatur-Secret",
+      "secretSet": "· gesetzt (leer lassen zum Beibehalten)",
+      "secretNotSet": "· nicht gesetzt",
+      "secretPlaceholderSet": "••••••••  (unverändert)",
+      "secretPlaceholderNew": "Optional — empfohlen",
+      "events": "Ereignisse",
+      "event": {
+        "candidateHired": "Kandidat/in eingestellt",
+        "candidateRejected": "Kandidat/in abgelehnt",
+        "offerAccepted": "Angebot angenommen",
+        "offerDeclined": "Angebot abgelehnt"
+      },
+      "eventsNote": "<code>{event}</code> wird heute live beim Annehmen eines Angebots ausgelöst; die übrigen sind für ihre Lebenszyklus-Hooks reserviert.",
+      "save": "Speichern",
+      "saveFailedStatus": "Speichern fehlgeschlagen ({status}).",
+      "saveFailed": "Speichern fehlgeschlagen.",
+      "sendTest": "Test-Ping senden",
+      "delivered": "Zugestellt — Endpunkt antwortete {status}.",
+      "notDelivered": "Nicht zugestellt — {reason}.",
+      "pingFailed": "Ping fehlgeschlagen.",
+      "pullNote": "Einzelne/n Kandidat/in auf Anfrage abrufen: <code>{endpoint}</code> liefert denselben normalisierten Datensatz."
     }
   }
 }

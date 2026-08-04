@@ -38,6 +38,9 @@ export function ControlDock() {
   const pass = useAutomationPass();
   const attention = useAttention();
   const t = useTranslations("pipeline.controlCenter");
+  // The phase chronology is the guided demo's own vocabulary, so it lives in the
+  // `simulation` namespace beside the tour narration rather than in the dock's.
+  const tSim = useTranslations("simulation");
 
   // Start raised when the page loads straight into a demo (public ?sim=auto); the
   // effect below then handles the live ops → sim transition. Ops rest state is collapsed.
@@ -83,7 +86,14 @@ export function ControlDock() {
   // initiator. A haloed round mark; in sim mode a caption bubble names the live
   // phase so the collapsed orb still narrates the running tour. ──
   if (collapsed) {
-    const orbCaption = mode === "sim" ? (activeIdx >= 0 ? SIM_PHASES[activeIdx].label : sim.done ? t("hired") : t("starting")) : null;
+    const orbCaption =
+      mode === "sim"
+        ? activeIdx >= 0
+          ? tSim(`phase.${SIM_PHASES[activeIdx].id}`)
+          : sim.done
+            ? t("hired")
+            : t("starting")
+        : null;
     return (
       <>
         {passModal}

@@ -5,8 +5,9 @@
 // TTL on the Personas side), or errors — plus the disconnect call.
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
 
 export type PairState =
   | { phase: "idle" }
@@ -19,6 +20,15 @@ const CLAIM_POLL_MS = 2_000;
 
 export function usePersonasPairing(onPaired: () => void) {
   const t = useTranslations("integrations.personas");
+  // Both routes answer with safeJsonError's `{ error, code }` (AGENT_PAIR_FAILED /
+  // AGENT_BRIDGE_FAILED). Resolve the code — `error` is English for the server log.
+  const errMsg = useErrorMessage();
+  // The resolver is a fresh closure each render; the claim poll below reads it
+  // through a ref so it never becomes an effect dep that restarts the 2s timer.
+  const errMsgRef = useRef(errMsg);
+  useEffect(() => {
+    errMsgRef.current = errMsg;
+  });
   const [state, setState] = useState<PairState>({ phase: "idle" });
   const [note, setNote] = useState<{ text: string; ok: boolean } | null>(null);
   const [busy, setBusy] = useState(false);
@@ -35,8 +45,8 @@ export function usePersonasPairing(onPaired: () => void) {
         // before registering the pairing request ("point kp at my Personas").
         body: JSON.stringify({ phase: "start", ...(baseUrl.trim() ? { baseUrl: baseUrl.trim() } : {}) }),
       });
-      const p = (await r.json().catch(() => null)) as { nonce?: string; expiresInS?: number; error?: string } | null;
-      if (!r.ok || !p?.nonce) throw new Error(p?.error || t("pairFailed"));
+      const p = (await r.json().catch(() => null)) as { nonce?: string; expiresInS?: number; error?: string; code?: string } | null;
+      if (!r.ok || !p?.nonce) throw new Error(errMsg(p, t("pairFailed")));
       const ttlS = typeof p.expiresInS === "number" && p.expiresInS > 0 ? p.expiresInS : 300;
       setState({ phase: "waiting", nonce: p.nonce, deadline: Date.now() + ttlS * 1000 });
     } catch (e) {
@@ -65,7 +75,7 @@ export function usePersonasPairing(onPaired: () => void) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ phase: "claim", nonce: state.nonce }),
         });
-        const p = (await r.json().catch(() => null)) as { paired?: boolean; error?: string } | null;
+        const p = (await r.json().catch(() => null)) as { paired?: boolean; error?: string; code?: string } | null;
         if (cancelled) return;
         if (r.ok && p?.paired === true) {
           setState({ phase: "idle" });
@@ -74,7 +84,7 @@ export function usePersonasPairing(onPaired: () => void) {
           return;
         }
         if (!r.ok) {
-          setState({ phase: "error", message: p?.error || t("pairFailed") });
+          setState({ phase: "error", message: errMsgRef.current(p, t("pairFailed")) });
           return;
         }
       } catch {
@@ -95,8 +105,8 @@ export function usePersonasPairing(onPaired: () => void) {
     setNote(null);
     try {
       const r = await fetch("/api/agents/bridge", { method: "DELETE" });
-      const p = (await r.json().catch(() => null)) as { error?: string } | null;
-      if (!r.ok) throw new Error(p?.error || t("disconnectFailed"));
+      const p = (await r.json().catch(() => null)) as { error?: string; code?: string } | null;
+      if (!r.ok) throw new Error(errMsg(p, t("disconnectFailed")));
       setNote({ text: t("disconnected"), ok: true });
       onPaired(); // reload the bridge status either way
     } catch (e) {

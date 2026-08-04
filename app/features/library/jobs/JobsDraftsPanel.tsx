@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Users } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { useLiveRefresh } from "@/app/features/shell/live-refresh";
 import { buildUrl } from "@/app/features/shell/tabs";
 
@@ -23,6 +24,9 @@ import { buildUrl } from "@/app/features/shell/tabs";
 // the owner the same hook so both publish surfaces agree instantly.
 export function DraftsPanel({ onPublished }: { onPublished?: (jobId: string) => void } = {}) {
   const t = useTranslations("jobs.drafts");
+  // /publish answers with `{ error, code }` — the `code` is what gets localized
+  // (the quota branch below already reads it); the English `error` never shows.
+  const errMsg = useErrorMessage();
   const router = useRouter();
   const search = useSearchParams();
   const goToBilling = () => router.push(buildUrl({ tab: "billing" }, search.toString()));
@@ -50,7 +54,7 @@ export function DraftsPanel({ onPublished }: { onPublished?: (jobId: string) => 
           setDraftNote({ text: t("quotaNote"), tone: "quota" });
           return;
         }
-        throw new Error(p.error ?? t("sourcingFailed"));
+        throw new Error(errMsg(p, t("sourcingFailed")));
       }
       if (p.sourcingWarning) {
         // Live, but sourcing broke — show why instead of a misleading "sourced 0".

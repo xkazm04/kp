@@ -1,7 +1,9 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Modal } from "@/app/_components/Modal";
 import { FitTierBadge } from "@/app/_components/Badge";
+import { waveReasonText } from "@/app/_lib/decision-attribution";
 import { useSimulation } from "./SimulationProvider";
 
 // Shows the screening "first wave" of automated decisions during the simulation:
@@ -9,22 +11,27 @@ import { useSimulation } from "./SimulationProvider";
 // visibly never auto-rejected.
 export function SimDecisionWave() {
   const { screenWave, closeScreenWave } = useSimulation();
+  const t = useTranslations("simulation");
+  // The rationale is resolved through the SAME sealed-reason resolver the real
+  // Decisions modal uses (decisions.wave.reasons.*), so the demo's audit column
+  // reads in the viewer's language instead of the persisted English `rationale`
+  // — which stays the fallback for an unmapped code.
+  const tWave = useTranslations("decisions.wave");
   if (!screenWave) return null;
   const { decisions, rejected, kept, cohort } = screenWave;
   return (
     <Modal
-      title="Screening · first automated decision wave"
-      subtitle={`${cohort} matched · ${rejected} auto-rejected · ${kept} advanced`}
+      title={t("wave.title")}
+      // Raw numbers into the message (never pre-formatted strings) so a locale
+      // that needs agreement can branch on them.
+      subtitle={t("wave.subtitle", { cohort, rejected, kept })}
       size="lg"
       onClose={closeScreenWave}
     >
-      <p className="text-sm text-steel">
-        Initial scoring + the automated screening decision. Early-career candidates are never auto-rejected — the fairness
-        gate holds, and every auto-decision carries a rationale.
-      </p>
+      <p className="text-sm text-steel">{t("wave.intro")}</p>
       {decisions.length === 0 ? (
         <div className="mt-3 rounded-lg border border-dashed border-stone-200 bg-stone-50/60 px-4 py-6 text-center text-sm text-steel">
-          No matched candidates in this wave.
+          {t("wave.empty")}
         </div>
       ) : (
         <ul className="mt-3 divide-y divide-stone-100 rounded-lg border border-stone-200">
@@ -39,7 +46,7 @@ export function SimDecisionWave() {
                     d.action === "reject" ? "bg-red-50 text-red-700" : "bg-moss/15 text-moss"
                   }`}
                 >
-                  {d.action === "reject" ? "Rejected" : "Kept"}
+                  {d.action === "reject" ? t("wave.rejected") : t("wave.kept")}
                 </span>
                 <span className="w-32 shrink-0 truncate text-ink">{d.label}</span>
                 <div className="flex w-28 shrink-0 items-center gap-2">
@@ -50,7 +57,9 @@ export function SimDecisionWave() {
                     aria-valuenow={pct}
                     aria-valuemin={0}
                     aria-valuemax={100}
-                    aria-label={d.matchScore == null ? "Match score not yet measured" : `Match score ${d.matchScore}`}
+                    aria-label={
+                      d.matchScore == null ? t("wave.scoreUnmeasured") : t("wave.score", { score: d.matchScore })
+                    }
                   >
                     <span
                       className={`block h-full rounded-full ${d.action === "reject" ? "bg-coral" : "bg-moss"}`}
@@ -59,7 +68,9 @@ export function SimDecisionWave() {
                   </span>
                 </div>
                 <FitTierBadge score={d.matchScore} className="shrink-0" />
-                <span className="min-w-0 flex-1 truncate text-steel">{d.rationale}</span>
+                <span className="min-w-0 flex-1 truncate text-steel">
+                  {waveReasonText(tWave, { reasonCode: d.reasonCode, reasonParams: d.reasonParams }) ?? d.rationale}
+                </span>
               </li>
             );
           })}

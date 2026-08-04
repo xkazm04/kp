@@ -1,6 +1,7 @@
 "use client";
 
 import { Copy, Loader2, Maximize2, Users } from "lucide-react";
+import { useLocale } from "next-intl";
 import type { useTranslations } from "next-intl";
 import { isUnlinked, shortDate, type JdRow } from "./jdsLibrary";
 import { AnalyzingChip, SeniorityCell, StatusBadge } from "./JdsLedgerBadges";
@@ -30,6 +31,8 @@ export function JdsLedgerRow({
   onIngested: (slug: string, jobId: string | null) => void;
   t: ReturnType<typeof useTranslations<"library.tab">>;
 }) {
+  // The saved-on stamp follows the APP locale, not the browser/OS one (see shortDate).
+  const locale = useLocale();
   const analyzed = row.analysisCount ?? 0;
   return (
     <tr className="group transition-colors hover:bg-paper">
@@ -62,7 +65,7 @@ export function JdsLedgerRow({
           <span className="nums font-semibold">{analyzed}</span>
         </span>
       </td>
-      <td className="whitespace-nowrap px-4 py-2.5 align-middle text-sm text-steel">{shortDate(row.created_at)}</td>
+      <td className="whitespace-nowrap px-4 py-2.5 align-middle text-sm text-steel">{shortDate(row.created_at, locale)}</td>
       <td className="px-4 py-2.5 align-middle">
         <div className="flex items-center justify-end gap-0.5">
           <button type="button" onClick={() => onOpenRow(row)} className={ICON_BTN} title={t("openDetail")} aria-label={t("openDetailAria", { title: row.title })}>

@@ -6,9 +6,13 @@
 
 import type { SchedulerTranslator } from "./pipelineTranslator";
 import { useEffect, useRef, useState } from "react";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { SUMMARY_COUNTS, type RunResult, type Schedule, type SchedulerRun, type Tick } from "./SchedulerSummaryBadges";
 
 export function useSchedulerControlState(t: SchedulerTranslator, onRan?: () => void) {
+  // API failures resolve from the machine `code`, not the server's English
+  // `error` — see app/_lib/use-error-message.ts.
+  const errMsg = useErrorMessage();
   // Turn a tick outcome into a short, legible chip: the real summary on success, a
   // neutral no-op, or the error verbatim. The per-bucket parts come from
   // SUMMARY_COUNTS so the chip and the badges never drift.
@@ -99,7 +103,7 @@ export function useSchedulerControlState(t: SchedulerTranslator, onRan?: () => v
         body: JSON.stringify(body),
       });
       const p = await r.json();
-      if (!r.ok) throw new Error(typeof p?.error === "string" ? p.error : `HTTP ${r.status}`);
+      if (!r.ok) throw new Error(errMsg(p, t("updateFailed", { msg: `HTTP ${r.status}` })));
       if (p.schedule) setSched(p.schedule as Schedule);
       if (Array.isArray(p.runs)) setRuns(p.runs as SchedulerRun[]);
       if (p.reminders) setReminders(p.reminders as Schedule);
@@ -109,7 +113,7 @@ export function useSchedulerControlState(t: SchedulerTranslator, onRan?: () => v
       if (body.tick) {
         onRan?.();
         if (p.tick) setResult(describeTick(p.tick as Tick));
-        else setResult({ tone: "error", text: typeof p.error === "string" ? p.error : t("runFailed") });
+        else setResult({ tone: "error", text: errMsg(p, t("runFailed")) });
       }
     } catch (e) {
       const msg = e instanceof Error && e.message ? e.message : t("networkError");

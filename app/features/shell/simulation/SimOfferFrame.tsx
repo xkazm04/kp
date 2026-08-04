@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useSimulation } from "./SimulationProvider";
 
 // Shows a candidate-facing page (offer or self-schedule) in a framed panel so the
@@ -16,6 +17,7 @@ import { useSimulation } from "./SimulationProvider";
 // trapped behind the dim layer; closing just continues the demo via the API path.
 export function SimOfferFrame() {
   const { frame, closeFrame } = useSimulation();
+  const t = useTranslations("simulation");
   const [loaded, setLoaded] = useState(false);
   const url = frame?.url ?? null;
 
@@ -81,11 +83,11 @@ export function SimOfferFrame() {
             ref={closeButtonRef}
             type="button"
             onClick={closeFrame}
-            title="Close (Esc)"
+            title={t("frame.closeTitle")}
             className="focus-ring -mr-1 inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-meta font-semibold text-steel hover:bg-stone-100 hover:text-ink"
           >
             <X size={16} aria-hidden />
-            <span>Close</span>
+            <span>{t("frame.close")}</span>
           </button>
         </div>
         <div className="relative h-[min(520px,68dvh)] w-full bg-paper">
@@ -102,7 +104,7 @@ export function SimOfferFrame() {
           <iframe
             data-sim-frame
             src={frame.url}
-            title="Candidate page"
+            title={t("frame.candidatePage")}
             onLoad={() => setLoaded(true)}
             className={`h-full w-full bg-paper transition-opacity duration-300 ${loaded ? "opacity-100" : "opacity-0"}`}
           />

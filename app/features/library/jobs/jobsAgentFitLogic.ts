@@ -8,6 +8,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { useTaskResult, useTasks } from "@/app/features/shell/tasks/TasksProvider";
 import type { BridgeConfigPublic } from "@/app/_lib/agent-hire/bridge-store";
 import type { AgentFitSpecRecord } from "@/app/_lib/db/agents";
@@ -18,6 +19,10 @@ export type ConnectorCatalogView = { connectors: { name: string; description: st
 
 export function useAgentFitLogic(jobId: string) {
   const t = useTranslations("agentFit");
+  // The bridge routes answer with `{ error, code }`; resolve the machine `code`
+  // through the `errors` catalog, never the English `error` — see
+  // app/_lib/use-error-message.ts.
+  const errMsg = useErrorMessage();
 
   const { data: bridgeData } = useJsonFetch<{ bridge: BridgeConfigPublic }>("/api/agents/bridge", t("loadFailed"));
   const bridge = bridgeData?.bridge ?? null;
@@ -68,8 +73,8 @@ export function useAgentFitLogic(jobId: string) {
     setStartError(null);
     try {
       const r = await fetch(specUrl, { method: "POST" });
-      const p = (await r.json().catch(() => null)) as { taskId?: string; error?: string } | null;
-      if (!r.ok || !p?.taskId) throw new Error(p?.error || t("runFailed"));
+      const p = (await r.json().catch(() => null)) as { taskId?: string; error?: string; code?: string } | null;
+      if (!r.ok || !p?.taskId) throw new Error(errMsg(p, t("runFailed")));
       setTaskId(p.taskId);
       void refreshTasks();
     } catch (e) {
@@ -104,8 +109,8 @@ export function useAgentFitLogic(jobId: string) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ jobId, overrides: buildOverrides(form) }),
       });
-      const p = (await r.json().catch(() => null)) as { error?: string } | null;
-      if (!r.ok) throw new Error(p?.error || t("dispatchFailed"));
+      const p = (await r.json().catch(() => null)) as { error?: string; code?: string } | null;
+      if (!r.ok) throw new Error(errMsg(p, t("dispatchFailed")));
       reloadAgents();
     } catch (e) {
       setDispatchError(e instanceof Error && e.message ? e.message : t("dispatchFailed"));
@@ -125,8 +130,8 @@ export function useAgentFitLogic(jobId: string) {
     setRefreshNote(null);
     try {
       const r = await fetch(`/api/agents/${encodeURIComponent(agent.id)}/refresh`, { method: "POST" });
-      const p = (await r.json().catch(() => null)) as { refreshed?: boolean; reason?: string; error?: string } | null;
-      if (!r.ok) throw new Error(p?.error || t("refreshFailed"));
+      const p = (await r.json().catch(() => null)) as { refreshed?: boolean; reason?: string; error?: string; code?: string } | null;
+      if (!r.ok) throw new Error(errMsg(p, t("refreshFailed")));
       if (p?.refreshed === false && p.reason) setRefreshNote(p.reason);
       reloadAgents();
     } catch (e) {

@@ -35,6 +35,7 @@ import { runInterviewPrep } from "./interview-prep-run";
 import { runAgentFit } from "./agent-hire/transform-run";
 import { randomId } from "./random-id";
 import { buildDedupeKey } from "./task-dedupe";
+import { encodeTaskLabel } from "./task-label";
 
 // ---------------------------------------------------------------------------
 // In-process background-task runner. Works because `next dev` is one long-lived
@@ -68,10 +69,25 @@ export type TaskCtx = {
 // kind string as HANDLERS — kept out of the Spec so the identity logic stays
 // pure and unit-testable and can return null ("no stable identity") for
 // incomplete params.
+//
+// `label` returns an ENCODED catalog reference (./task-label), never a sentence:
+// this module runs with no request locale and the row it writes is read later by
+// whoever has the screen open, in their language. Copy lives in `tasks.kind.*`.
 type Spec = {
   run: (ctx: TaskCtx) => Promise<unknown>;
   label: (p: Record<string, unknown>) => string;
 };
+
+// Free-text detail lifted off params for a label placeholder. Empty/absent
+// resolves to null so the caller can pick the "untitled" variant of the message
+// rather than rendering a dangling separator.
+function detail(...candidates: unknown[]): string | null {
+  for (const c of candidates) {
+    if (typeof c === "string" && c.trim()) return c;
+    if (typeof c === "number" && Number.isFinite(c)) return String(c);
+  }
+  return null;
+}
 
 async function batchScreen(ctx: TaskCtx): Promise<unknown> {
   const entries = listActiveEntriesForAutomation().filter((e) => e.stage === "Screened");
@@ -144,21 +160,24 @@ async function batchOutreach(ctx: TaskCtx): Promise<unknown> {
 const HANDLERS: Record<string, Spec> = {
   automation: {
     run: (ctx) => runAutomationTask(String(ctx.params.entryId), String(ctx.params.task), String(ctx.params.notes ?? ""), ctx.signal, undefined, ctx.workspaceId),
-    label: (p) => `${p.task} · ${p.entryLabel ?? p.entryId}`,
+    label: (p) => encodeTaskLabel("automation", { task: String(p.task ?? ""), entry: detail(p.entryLabel, p.entryId) ?? "" }),
   },
   reasoning: {
     run: (ctx) => runReasoning(ctx.params, ctx.signal, ctx.workspaceId),
-    label: (p) => `Why this candidate · ${p.label ?? p.jobId}`,
+    label: (p) => encodeTaskLabel("reasoning", { label: detail(p.label, p.jobId) ?? "" }),
   },
   batch_screen: {
     run: batchScreen,
-    label: () => "AI-screen all matched candidates",
+    label: () => encodeTaskLabel("batchScreen"),
   },
   batch_outreach: {
     run: batchOutreach,
     label: (p) => {
       const n = Array.isArray(p.entryIds) ? (p.entryIds as unknown[]).length : 0;
-      return `Draft outreach · ${n} candidate${n === 1 ? "" : "s"}`;
+      // The RAW number, never a formatted one: the message is an ICU plural and
+      // `intl-messageformat` renders the literal word `NaN` for a pre-formatted
+      // value (docs/architecture/localization.md).
+      return encodeTaskLabel("batchOutreach", { n });
     },
   },
   analyze: {
@@ -168,41 +187,53 @@ const HANDLERS: Record<string, Spec> = {
     run: (ctx) => runAnalyze(ctx.params as unknown as AnalyzeParams, ctx.progress, ctx.signal),
     label: (p) => {
       const variants = (p.variants as { label: string }[]) ?? [];
-      return `Analyze · ${variants[0]?.label ?? "CV"}${variants.length > 1 ? ` +${variants.length - 1}` : ""}`;
+      // "CV" is a do-not-translate term (docs/i18n/glossary.md), so the unnamed
+      // fallback rides along as a value rather than needing its own message.
+      const first = variants[0]?.label ?? "CV";
+      return encodeTaskLabel("analyze", { label: `${first}${variants.length > 1 ? ` +${variants.length - 1}` : ""}` });
     },
   },
   need_analysis: {
     run: (ctx) => runNeedAnalysis(ctx.params.need as DevNeed, ctx.signal),
-    label: (p) => `Need analysis · ${(p.need as { title?: string })?.title || "untitled"}`,
+    label: (p) => {
+      const title = detail((p.need as { title?: string })?.title);
+      return title ? encodeTaskLabel("needAnalysis", { title }) : encodeTaskLabel("needAnalysisUntitled");
+    },
   },
   design_artifacts: {
     run: (ctx) => runDesignArtifacts(ctx.params.need as DevNeed, (ctx.params.analysis as Record<string, unknown>) ?? {}, ctx.signal),
-    label: (p) => `Design artifacts · ${(p.need as { title?: string })?.title || "untitled"}`,
+    label: (p) => {
+      const title = detail((p.need as { title?: string })?.title);
+      return title ? encodeTaskLabel("designArtifacts", { title }) : encodeTaskLabel("designArtifactsUntitled");
+    },
   },
   evaluate_submission: {
     run: (ctx) => runEvaluateSubmission(String(ctx.params.submissionId), ctx.signal),
-    label: (p) => `Evaluate · ${p.candidateRef ?? p.submissionId ?? ""}`,
+    label: (p) => encodeTaskLabel("evaluateSubmission", { ref: detail(p.candidateRef, p.submissionId) ?? "" }),
   },
   lifecycle: {
     run: (ctx) => runLifecycle(String(ctx.params.lifecycleId), ctx.progress, ctx.signal),
-    label: (p) => `Lifecycle · ${p.title ?? p.lifecycleId ?? ""}`,
+    label: (p) => encodeTaskLabel("lifecycle", { title: detail(p.title, p.lifecycleId) ?? "" }),
   },
   group_eval: {
     run: (ctx) => runGroupEval(ctx.params, ctx.signal, ctx.workspaceId),
-    label: (p) => `Group evaluation · ${p.roleTitle ?? p.roleKey ?? ""}`,
+    label: (p) => encodeTaskLabel("groupEval", { role: detail(p.roleTitle, p.roleKey) ?? "" }),
   },
   jd_build: {
     run: (ctx) => runJdBuild(ctx.params, ctx.progress, ctx.signal),
-    label: (p) => `Build JD · ${p.title ?? "role"}`,
+    label: (p) => {
+      const title = detail(p.title);
+      return title ? encodeTaskLabel("jdBuild", { title }) : encodeTaskLabel("jdBuildUntitled");
+    },
   },
   interview_prep: {
     run: (ctx) => runInterviewPrep(ctx.params, ctx.signal, ctx.workspaceId),
-    label: (p) => `Interview prep · ${p.candidateLabel ?? p.entryId ?? ""}`,
+    label: (p) => encodeTaskLabel("interviewPrep", { candidate: detail(p.candidateLabel, p.entryId) ?? "" }),
   },
   // Agent-candidate bridge: job → AgentFitSpec transform (agent-hire/transform-run.ts).
   agent_fit: {
     run: (ctx) => runAgentFit(String(ctx.params.jobId), ctx.signal, ctx.workspaceId),
-    label: (p) => `Agent fit · ${p.jobTitle ?? p.jobId ?? ""}`,
+    label: (p) => encodeTaskLabel("agentFit", { job: detail(p.jobTitle, p.jobId) ?? "" }),
   },
 };
 

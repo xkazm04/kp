@@ -1,7 +1,7 @@
 "use client";
 
 import { X } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { ConfidenceBandBadge, ConfidenceRange, FitTierBadge } from "@/app/_components/Badge";
 import { scoreTone, scoreToneColor } from "@/app/_lib/format";
 import { formatBandCompact, type MatchResult, type ScoreDimension } from "@/app/features/shared/matchTypes";
@@ -16,6 +16,8 @@ import { useConfidenceBandCopy, useFitTierLabels, useMatchLabels } from "@/app/f
 
 export function MatchJobCompare({ matches, onClose }: { matches: MatchResult[]; onClose: () => void }) {
   const t = useTranslations("match.jobCompare");
+  // Compact band digits group in the READER's locale (format.ts number-locale contract).
+  const locale = useLocale();
   const enumLabel = useEnumLabel();
   const { dimLabel, drivers: driverLabels } = useMatchLabels();
   const bandCopy = useConfidenceBandCopy();
@@ -140,7 +142,7 @@ export function MatchJobCompare({ matches, onClose }: { matches: MatchResult[]; 
             <tr className="border-t border-stone-100">
               <th scope="row" className="sticky left-0 bg-white p-2 text-left text-steel">{t("salaryBand")}</th>
               {matches.map((m) => (
-                <td key={m.jobId} className="p-2 nums text-ink">{formatBandCompact(m.salaryBand)}</td>
+                <td key={m.jobId} className="p-2 nums text-ink">{formatBandCompact(m.salaryBand, locale)}</td>
               ))}
             </tr>
           </tbody>

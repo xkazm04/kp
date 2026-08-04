@@ -7,6 +7,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { AlertCircle, ArrowRight, Check, FileText, FlaskConical, Loader2, Upload, X } from "lucide-react";
 import { buildUrl } from "@/app/features/shell/tabs";
 import { useReducedMotion } from "@/app/_lib/useReducedMotion";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { BTN_PRIMARY } from "@/app/_components/ui/recipes";
 import { TextInput } from "@/app/_components/TextInput";
 
@@ -26,6 +27,7 @@ type SimResult = {
   degraded?: boolean;
   jobTitle?: string;
   error?: string;
+  code?: string;
 };
 
 export function CvSimCard({
@@ -40,6 +42,9 @@ export function CvSimCard({
   onDone?: () => void;
 }) {
   const t = useTranslations("channels");
+  // Failures read from the machine `code`, not the server's English `error`
+  // (app/_lib/use-error-message.ts).
+  const errMsg = useErrorMessage();
   const reduced = useReducedMotion();
   const router = useRouter();
   const search = useSearchParams();
@@ -65,7 +70,7 @@ export function CvSimCard({
       const res = await fetch("/api/sim/apply-cv", { method: "POST", body: fd });
       const data = (await res.json().catch(() => ({}))) as SimResult;
       if (!res.ok || !data.ok) {
-        setResult({ error: data.error ?? t("cvSim.failedStatus", { status: res.status }) });
+        setResult({ error: errMsg(data, t("cvSim.failedStatus", { status: res.status })) });
       } else {
         setResult(data);
         onDone?.();

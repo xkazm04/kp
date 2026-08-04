@@ -191,3 +191,56 @@ large recruiter-facing ones (`pipeline`, `decisions`, `scheduleTab`, `library`,
 `models`, `setup`) that a prior pass had only covered with the automated
 sweep. This is now a complete first full-catalog review; a future `sync` pass
 only needs to cover keys added or changed after this point.
+
+## Queued by the 2026-08-04 `aboutPage` (/about) review
+
+Namespace-scoped pass over `aboutPage` only, after the page was relabelled
+"About the app" / "O aplikaci". Framing verdict: **product**, not company — no
+about-us copy in any locale. Six keys fixed; left for a native:
+
+| key(s) | severity | note |
+|--------|----------|------|
+| `aboutPage.steps.*` — "role" | minor | The page says *role* seven times ("Popište roli", "pásmo role") where the glossary says **pozice**. NOT swept: 150 cs strings use the *role* form catalog-wide and the sibling `landing.features.offer.body` carries the identical "pásmo role × vhodnost". Same shape as the queued *workspace*/*scorecard* rows — one decision, one sweep, or leave. |
+| `aboutPage.hero.title` | minor | Changed "celým náborem" → "celou pipeline" so the page's central emphasized term matches de/fr, `steps.intake` ("jedna pipeline") and the glossary's inline-loanword rule. The verb moved with it ("Proveďte jednu posilu" → "Projděte s jednou posilou", instrumental). Confirm it still reads as punchy Czech marketing. |
+| `aboutPage.hero.title` — "posila" | minor | *one hire* as "posila" (a new addition to the team) is warm and idiomatic but slightly sportish; confirm it fits a public B2B page. |
+| `aboutPage.hero.subtitle`, `closing.title` | minor | "podepsaný nástup" for *a signed hire*. Comprehensible, and de/fr carry the same conceit, but a native may prefer "k podpisu smlouvy". Left alone. |
+| `aboutPage.steps.design.title` — "rubrika" | minor | Same open question as `pipeline.drawer.fixedRubric` above; not touched here. |
+| `aboutPage.steps.interview.body` — "strukturovaný scorecard" | minor | Loanword kept per the still-open scorecard row; the masculine agreement rides on that decision. |
+
+_6 items._
+
+## Queued by the 2026-08-04 landing-page review (namespace `landing` only)
+
+12 keys fixed in `messages/cs.json`; these were deliberately left alone.
+
+| key(s) | severity | note |
+|--------|----------|------|
+| `landing.hero.title` | minor | "Nábor, který konečně **funguje**" swaps en's motion metaphor ("actually **moves**") for "works". de ("vorankommt") and fr ("avance") both keep the motion; cs is the only locale that drops it, and the whole page is built on momentum ("Hromada zmizí"). A punchier alternative: "Nábor, který se konečně **hýbe**." Defensible transcreation, so not changed unilaterally. |
+| `landing.pile.jana.role` vs `.petr.role` | minor | "React Developer" (EN) next to "Datový analytik" (CS) inside the same three-card hero cluster. Realistic for Czech IT ads, but visibly mixed. de/fr both localize both. Already on this queue from the previous wave; still unsettled. |
+| `landing.steps.drop.body` ("rubriky") | minor | Same "rubrika" question as `pipeline.drawer.fixedRubric` — settle together. |
+| `landing.features.heading`, `landing.pricing.heading`/`.headingNote`, `landing.features.gates.*` ("stvrzenky"), `landing.trust.human.title` | minor | Carried over unchanged from the previous wave's landing entry — still native calls. |
+| `landing.steps.call.body` ("změňte") | minor | "override" → "změňte" (change) loses the override sense; "přehlasujte" is stronger but stiffer on a CTA-ish list. |
+| `landing.features.salary.body` / `steps.drop.body` | minor | "mzda" and "plat" both used for salary within one page ("Platový radar" vs "odhadu mzdy", "Mzdová rozpětí"). Both correct Czech; pick one for the landing surface. |
+## Queued by the 2026-08 `jobMarket` (/market) review
+
+| key(s) | severity | note |
+|--------|----------|------|
+| `jobMarket.hero.updated`, `hero.updatedNoPct`, `demand.openings` | critical (worked around) | The call sites pass `n` as an already-formatted **string** (`fmtInt()`, NBSP thousands separator), so an ICU `{n, plural, …}` block evaluates `"38 553" - 0 = NaN` and Czech rendered literally **"NaN volných míst"** on the hero and in the demand list. The plural blocks were replaced with the count-invariant genitive plural ("{n} volných míst", "{n} míst"), which is correct for every value the snapshot actually carries (min 20, national total 38 553) but wrong for a future 1–4. The real fix is at the call site (`MarketPulseApp.tsx:110-111`, `parts.tsx:232,303`): pass the raw number and let ICU format it, then restore one/few/other. |
+| `jobMarket.map.median` vs `map.a11yMedian`/`legendSalary`/`hintBody` | minor | The visible tile says "Medián výdělku" (mirroring en's deliberate "Median earnings") while the screen-reader label and legend for the *same* figure say "medián mzdy" (mirroring en, which still says "median salary" there). The split is inherited from the en source; left in place rather than diverging from it. Czech ISPV usage sanctions both ("hrubá měsíční mzda" is the survey's own term). Settle together with the en source. |
+| `jobMarket.salary.eyebrow` | minor | "Přehled" → "Průvodce" (en "The field guide", de "Der Wegweiser", fr "Le guide de terrain"). A native may want to carry the field-guide metaphor further ("Terénní průvodce", "Malý průvodce"). |
+| `jobMarket.families.hr_people` | minor | "HR a lidé" (a calque of "HR & People") → "HR a personalistika". `enums.family.hr_people` says "HR / lidské zdroje"; the two surfaces still differ, as they do in en. |
+| `jobMarket.families.*` vs `enums.family.*` | minor | Still the divergence already queued above; this pass only shortened `life_sciences_research` ("Vědy o živé přírodě a výzkum" → "Věda a výzkum") because the old value overflowed the JD filter chip. |
+
+## Queued by the 2026-08 `simulation` (public guided demo) migration
+
+The guided demo (`/api/demo` → `/?sim=auto`) moved off English into the new
+`simulation` namespace. High-confidence translations were applied; these are the
+judgment calls.
+
+| key(s) | severity | note |
+|--------|----------|------|
+| `simulation.status.done` | minor | Transcreated rather than translated: en "Done — candidate hired 🎉" → "Hotovo — pozice obsazena 🎉". A literal read needs the gendered participle ("kandidát/ka přijat/a"), which is heavy on a celebratory one-liner; naming the outcome from the role's side dodges it. Confirm the register — the sibling `pipeline.controlCenter.hired` still says "Přijat/a 🎉". |
+| `simulation.phase.*` | minor | The 7 stepper pills are tight, so the chronology is nominalized ("Popis pozice · Sourcing · Příjem · Screening · Pohovor · Nabídka · Přijetí") where en mixes verbs and nouns ("Design JD · Source · Intake…"). Confirm "Příjem" for *Intake* — it is also the everyday word for reception/admission. |
+| `simulation.weight.*` | minor | "Klíčová / Střední / Malá" agree with the column header "Váha" (f.). If that header is ever renamed the adjectives must move with it. |
+| `simulation.criteria.*.source` | minor | The narrow `whitespace-nowrap` column keeps "CV ↔ JD" untranslated and shortens the qualified forms ("CV ↔ dovednosti", "CV ↔ role"). Native call on whether "JD" is transparent enough in a Czech UI that otherwise says "popis pozice". |
+| `simulation.log.*` participles | minor | Uses the house "/a" form for unknown gender ("reagoval/a", "prošel/a", "uvázl/a"). Dense in a log line that already carries a name; an impersonal rewrite is possible but loses the subject. |

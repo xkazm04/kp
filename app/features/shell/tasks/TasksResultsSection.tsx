@@ -4,6 +4,7 @@
 // Group lists), split out of TasksTab.tsx so it stays under the 200-line file
 // cap. Verbatim markup/logic — same Tier 2 loading-hold distinction between
 // "not loaded yet" and "genuinely no tasks".
+import { useTranslations } from "next-intl";
 import { Clock } from "lucide-react";
 import type { Task } from "./TasksProvider";
 import { RECENT_WINDOW_DAYS } from "./tasksTabHelpers";
@@ -24,6 +25,7 @@ export function TasksResultsSection({
   filtering: boolean;
   onCancel: (id: string) => void;
 }) {
+  const t = useTranslations("tasks");
   if (!loaded && active.length === 0 && done.length === 0) {
     // Tier 2: the first poll hasn't landed yet — hold the list's height,
     // invisibly, rather than asserting "no recent background tasks" about
@@ -35,21 +37,19 @@ export function TasksResultsSection({
       <div className="rounded-lg border border-stone-200 bg-paper p-8 text-center">
         <Clock size={20} className="mx-auto text-steel" />
         <p className="mt-2 text-base font-medium text-ink">
-          {filtering ? "No tasks match these filters" : "No recent background tasks"}
+          {filtering ? t("results.emptyFilteredTitle") : t("results.emptyTitle")}
         </p>
         <p className="mx-auto mt-1 max-w-md text-sm text-steel">
-          {filtering
-            ? "Clear the filters above to see the full window."
-            : `Active and recently finished runs (last ${RECENT_WINDOW_DAYS} days) appear here. Older runs are available under “Show history” below.`}
+          {filtering ? t("results.emptyFilteredBody") : t("results.emptyBody", { days: RECENT_WINDOW_DAYS })}
         </p>
       </div>
     );
   }
   return (
     <>
-      <Group title="In progress" count={active.length}>
+      <Group title={t("results.inProgress")} count={active.length}>
         {active.length === 0 ? (
-          <p className="text-base text-steel">Nothing running right now.</p>
+          <p className="text-base text-steel">{t("results.nothingRunning")}</p>
         ) : (
           <ul className="space-y-3">
             {active.map((t) => (
@@ -60,7 +60,7 @@ export function TasksResultsSection({
       </Group>
 
       {done.length > 0 ? (
-        <Group title={`Done · last ${RECENT_WINDOW_DAYS} days`} count={done.length}>
+        <Group title={t("results.doneWindow", { days: RECENT_WINDOW_DAYS })} count={done.length}>
           <ul className="divide-y divide-stone-100">
             {done.map((t) => (
               <DoneRow key={t.id} task={t} />

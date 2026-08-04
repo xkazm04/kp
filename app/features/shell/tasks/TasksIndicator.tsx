@@ -24,7 +24,7 @@ const FAILED_SEEN_KEY = "kp.tasksFailedSeenAt";
 // says "how busy" at a glance far faster than a number does.
 export function TasksIndicator({ active, onOpen }: { active: boolean; onOpen: () => void }) {
   const { tasks, running, startError, clearStartError } = useTasks();
-  const t = useTranslations("nav.tasks");
+  const t = useTranslations("tasks");
   const [seenAt, setSeenAt] = useState("");
   useEffect(() => {
     try {

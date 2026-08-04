@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { AlertTriangle, Loader2, RefreshCw } from "lucide-react";
-import { useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import { Modal } from "@/app/_components/Modal";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
 import { normalizeScorecardEntities, type Scorecard } from "@/app/_lib/interview-scorecard";
@@ -16,7 +16,6 @@ import { TranscriptTurns } from "./ScheduleInterviewTranscriptTurns";
 
 export function InterviewTranscriptModal({ entry, onClose }: { entry: SchedEntry; onClose: () => void }) {
   const t = useTranslations("scheduleTab.transcript");
-  const locale = useLocale(); // PREP3 — localize stored competency display
   // The shared hook captures a non-OK status / {error} body that the old bare
   // .then(r => r.json()) swallowed — a 500 now reads as an error rather than an
   // empty "no interview recorded" — and ignores results after unmount.
@@ -104,7 +103,6 @@ export function InterviewTranscriptModal({ entry, onClose }: { entry: SchedEntry
               evidenceTurns={evidenceTurns}
               jumpToTurn={jumpToTurn}
               t={t}
-              locale={locale}
             />
           ) : null}
 

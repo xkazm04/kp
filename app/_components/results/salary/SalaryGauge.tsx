@@ -3,7 +3,8 @@
 import { motion } from "framer-motion";
 import { useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { clampPercent, formatGrouped, formatMoney } from "@/app/_lib/format";
+import { clampPercent } from "@/app/_lib/format";
+import { useNumberFormat } from "@/app/_lib/use-number-format";
 import { useReducedMotion } from "@/app/_lib/useReducedMotion";
 import { confidenceOpacity, growthMarkerPercent } from "./salaryGauge.logic";
 
@@ -23,6 +24,9 @@ interface SalaryGaugeProps {
 
 export function SalaryGauge({ minimum, maximum, midpoint, confidence, target: targetProp, currency }: SalaryGaugeProps) {
   const t = useTranslations("report");
+  // Money on this gauge is grouped in the READER's locale (format.ts number-locale
+  // contract); the currency code stays whatever the analysis carries.
+  const n = useNumberFormat();
   const target = targetProp ?? midpoint * 1.3;
   // bug-ui-scan-2026-07-09 (analysis-result-panels #4): derive the growth caption
   // from the ACTUAL (rounded) target instead of a fixed "+30%", so the label agrees
@@ -117,7 +121,7 @@ export function SalaryGauge({ minimum, maximum, midpoint, confidence, target: ta
           className="pointer-events-none absolute -translate-x-1/2 rounded-md bg-ink px-2 py-1 text-sm font-medium text-paper shadow nums"
           style={{ left: hover.x, top: 0 }}
         >
-          {formatMoney(hover.value, currency)}
+          {n.money(hover.value, currency)}
         </div>
       ) : null}
 
@@ -131,17 +135,17 @@ export function SalaryGauge({ minimum, maximum, midpoint, confidence, target: ta
         role={degenerate ? "img" : "slider"}
         tabIndex={degenerate ? undefined : 0}
         aria-label={t("salary.gaugeAria", {
-          min: formatGrouped(minimum),
-          max: formatGrouped(maximum),
+          min: n.grouped(minimum),
+          max: n.grouped(maximum),
           currency,
-          midpoint: formatGrouped(midpoint),
+          midpoint: n.grouped(midpoint),
           growth: growthLabel,
-          target: formatGrouped(target),
+          target: n.grouped(target),
         })}
         aria-valuemin={degenerate ? undefined : Math.round(gaugeMin)}
         aria-valuemax={degenerate ? undefined : Math.round(gaugeMax)}
         aria-valuenow={degenerate ? undefined : Math.round(readoutValue)}
-        aria-valuetext={degenerate ? undefined : formatMoney(readoutValue, currency)}
+        aria-valuetext={degenerate ? undefined : n.money(readoutValue, currency)}
         title={emphasis.known ? undefined : t("salary.confidenceUnknownTitle")}
         className={`relative h-3 w-full rounded-full bg-stone-200 ${degenerate ? "cursor-default" : "cursor-crosshair"}`}
         onMouseMove={handleMove}

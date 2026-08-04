@@ -3,13 +3,31 @@
 // design → source → match → screen → interview → offer → hired chronology,
 // driven through the SAME engine functions (real clicks, API calls, DOM waits)
 // the provider used to own inline.
+//
+// i18n: this file is the guided demo's SCRIPT — every step title, spotlight
+// caption and log line a prospect reads on `/?sim=auto`, the destination of the
+// landing page's localized "Try the live demo" CTA. All of it reads from the
+// `simulation` namespace; the only English left is the audit actor string on the
+// screening approval (see `approvedBy` below), which is deliberately stable.
 import { useCallback, type MutableRefObject } from "react";
-import { buildUrl, clearedTabScopedParams } from "@/app/features/shell/tabs";
+import { useLocale, useTranslations } from "next-intl";
+import { clearedTabScopedParams } from "@/app/features/shell/tabs";
 import { jdJobId } from "@/app/_lib/jd-limits";
 import { notifyDataChanged } from "@/app/features/shell/live-refresh";
-import { SIM_COMPANY, SIM_JD_MARKDOWN, SIM_ROLE, SIM_SALARY, SIM_SCREEN_POLICY, SIM_TITLE } from "./constants";
+import { SIM_COMPANY, SIM_ROLE, SIM_SALARY, SIM_SCREEN_POLICY, SIM_TITLE } from "./constants";
+import { applyCompanyTemplate } from "./simCompanyTemplate";
 import { CLEAR_OVERLAYS, JSON_HEADERS, SimStop, sleep, type SimState, type StepOpts } from "./simulationProviderTypes";
 import type { useSimulationEngine } from "./useSimulationEngine";
+
+/** The audit actor recorded on the demo's screening approval. NOT localized on
+ *  purpose: it is written into a sealed decision record (the Art. 22
+ *  human-approval gate), where the actor is an identity a reviewer and an
+ *  exporter compare across runs and tenants — not UI chrome. Translating it
+ *  would mint four different "who approved this" values for one scripted
+ *  approval and make the audit trail locale-dependent. The persisted screening
+ *  `rationale` is English for exactly the same reason; the UI renders its
+ *  localized mirror from `reasonCode` instead (see SimDecisionWave). */
+const DEMO_APPROVER = "Guided demo (auto-approved)";
 
 export function useSimulationWalk({
   ctrl,
@@ -29,6 +47,21 @@ export function useSimulationWalk({
   engine: ReturnType<typeof useSimulationEngine>;
 }) {
   const { entriesFor, topScreened, waitDom, waitEntry, clickEl, advance, advanceTo, runGroupEval } = engine;
+  const t = useTranslations("simulation");
+  // The demo JD prints a salary band; its digit grouping follows the active
+  // locale like every other figure in the app (app/_lib/format.ts).
+  const locale = useLocale();
+  // The pipeline stage the server hands back is a wire code ("Offer"); the log
+  // line shows its localized label, falling back to the code for a stage the
+  // enum catalog doesn't know.
+  const tEnums = useTranslations("enums");
+  const stageLabel = useCallback(
+    (stage: string) => {
+      const key = `stage.${stage}` as Parameters<typeof tEnums>[0];
+      return tEnums.has(key) ? tEnums(key) : stage;
+    },
+    [tEnums]
+  );
 
   const step = useCallback(
     async (o: StepOpts) => {
@@ -49,22 +82,53 @@ export function useSimulationWalk({
     let targetId = "";
     let targetLabel = "";
     let offerToken = "";
+    // The one prose field of the demo RoleSpec (constants.ts keeps the matcher
+    // input — enum codes, languages, skill tokens — locale-invariant), plus the
+    // branded JD body built from the same copy.
+    const responsibilities = [
+      t("jd.responsibility.backend"),
+      t("jd.responsibility.mentor"),
+      t("jd.responsibility.design"),
+    ];
+    const role = { ...SIM_ROLE, responsibilities };
+    const jdMarkdown = applyCompanyTemplate({
+      title: SIM_TITLE,
+      company: SIM_COMPANY,
+      seniority: SIM_ROLE.seniority,
+      responsibilities,
+      mustHaves: SIM_ROLE.mustHaves,
+      niceToHaves: SIM_ROLE.niceToHaves,
+      salaryBand: [SIM_SALARY.suggestedMinimum, SIM_SALARY.suggestedMaximum],
+      copy: {
+        aboutHeading: t("jd.aboutHeading"),
+        roleHeading: t("jd.roleHeading"),
+        lookingForHeading: t("jd.lookingForHeading"),
+        niceToHaveHeading: t("jd.niceToHaveHeading"),
+        weOfferHeading: t("jd.weOfferHeading"),
+        howToApplyHeading: t("jd.howToApplyHeading"),
+        aboutBody: t("jd.aboutBody", { company: SIM_COMPANY }),
+        weOfferBody: t("jd.weOfferBody"),
+        howToApplyBody: t("jd.howToApplyBody"),
+        period: t("jd.period"),
+        locale,
+      },
+    });
     try {
-      log("Resetting prior simulation runs…");
+      log(t("log.resetting"));
       await fetch("/api/sim/reset", { method: "POST" });
 
       await step({
         id: "design",
         tab: "library",
         target: '[data-sim="jd-builder"]',
-        title: "Designing the job description",
-        caption: `Filling the JD builder for "${SIM_TITLE}" — the role spec drives matching, sourcing and the offer band.`,
+        title: t("step.design.title"),
+        caption: t("step.design.caption", { title: SIM_TITLE }),
         navExtra: {
           jdTitle: SIM_TITLE,
           jdCompany: SIM_COMPANY,
           jdSeniority: SIM_ROLE.seniority,
           jdFamily: SIM_ROLE.roleFamily,
-          jdNeed: SIM_ROLE.responsibilities.join(". ") + ".",
+          jdNeed: responsibilities.join(". ") + ".",
         },
         readMs: 2200,
       });
@@ -73,8 +137,8 @@ export function useSimulationWalk({
         id: "source",
         tab: "jobs",
         target: '[data-sim="job-drafts"]',
-        title: "Source into Pipeline",
-        caption: "The JD is saved as a draft. Sourcing it from the Jobs tab takes it live and pulls the candidate pool into the pipeline.",
+        title: t("step.source.title"),
+        caption: t("step.source.caption"),
         // Leaving the JD builder: clear the prefill (and any other tab-scoped
         // param) from the canonical allowlist rather than re-listing jd* keys.
         navExtra: clearedTabScopedParams(),
@@ -83,20 +147,20 @@ export function useSimulationWalk({
           const save = await fetch("/api/jds/save", {
             method: "POST",
             headers: JSON_HEADERS,
-            body: JSON.stringify({ title: SIM_TITLE, body: SIM_JD_MARKDOWN, role: SIM_ROLE, salary: SIM_SALARY, company: SIM_COMPANY }),
+            body: JSON.stringify({ title: SIM_TITLE, body: jdMarkdown, role, salary: SIM_SALARY, company: SIM_COMPANY }),
           }).then((r) => r.json());
           jobId = save.jobId ?? jdJobId(save.slug);
-          log(`Saved as draft · ${jobId}`);
+          log(t("log.savedDraft", { jobId }));
           notifyDataChanged(); // the Jobs tab picks up the new draft
           await beat(900);
 
           // Source into Pipeline — a real click on the draft's button (sources the pool).
           const clicked = await clickEl(`[data-sim-entry="${jobId}"] [data-sim-click="publish"]`, {
-            title: "Source into Pipeline",
-            caption: "This takes the JD live and sources the candidate pool into the pipeline.",
+            title: t("step.source.clickTitle"),
+            caption: t("step.source.clickCaption"),
           });
           if (!clicked) {
-            log("(draft not visible — sourcing via API)");
+            log(t("log.draftNotVisible"));
             await fetch(`/api/jobs/${jobId}/publish`, { method: "POST" });
           }
 
@@ -109,7 +173,8 @@ export function useSimulationWalk({
             if (sourced > 0) break;
             await sleep(400);
           }
-          log(`Live · sourced ${sourced} candidates → Accepted`);
+          // A RAW number into the plural, never a pre-formatted string.
+          log(t("log.sourced", { count: sourced }));
           notifyDataChanged();
         },
       });
@@ -118,13 +183,13 @@ export function useSimulationWalk({
         id: "match",
         tab: "channels",
         target: '[data-sim="channel-inbound"]',
-        title: "Intake & match",
-        caption: "Candidates enter via channels: an application arrives on the careers page (‘Accepted’) alongside the proactively-sourced pool; all intake is then scored and matched.",
+        title: t("step.match.title"),
+        caption: t("step.match.caption"),
         action: async () => {
           // An inbound application arrives via the careers-page channel → Accepted.
           await beat(700);
           const inbound = await fetch("/api/sim/inbound", { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ jobId }) }).then((r) => r.json());
-          if (inbound?.label) log(`📥 ${inbound.label} applied via the careers page → Accepted`);
+          if (inbound?.label) log(t("log.inbound", { candidate: inbound.label }));
           notifyDataChanged();
           await beat(1400);
 
@@ -139,15 +204,26 @@ export function useSimulationWalk({
               await advanceTo(e.id, "Screened");
             } catch (err) {
               if (err instanceof SimStop) throw err;
-              log(`⚠︎ ${e.candidateLabel} stuck before Screened — skipping (${err instanceof Error ? err.message : "advance failed"})`);
+              log(
+                t("log.stuck", {
+                  candidate: e.candidateLabel,
+                  reason: err instanceof Error ? err.message : t("log.advanceFailed"),
+                })
+              );
             }
           }
           const top = await topScreened(jobId);
-          if (!top) throw new Error("No Screened candidate to walk (intake returned none).");
+          if (!top) throw new Error(t("error.noScreened"));
           targetId = top.id;
           targetLabel = top.candidateLabel;
           patch({ targetLabel });
-          log(`Matched ${intake.length} candidates → Screened · following ${targetLabel} (match ${top.matchScore ?? "—"}) to Hired`);
+          log(
+            t("log.matched", {
+              count: intake.length,
+              candidate: targetLabel,
+              score: top.matchScore ?? t("log.noScore"),
+            })
+          );
         },
       });
 
@@ -158,8 +234,8 @@ export function useSimulationWalk({
         id: "screen",
         tab: "analytics",
         target: '#main',
-        title: "Screening · automated wave",
-        caption: "The first automated decision: score the matched candidates, auto-reject the weakest below threshold (each with a rationale), and pass the rest.",
+        title: t("step.screen.title"),
+        caption: t("step.screen.caption"),
         action: async () => {
           // Preview first to get the approval token, then commit the reviewed set
           // (the Art. 22 human-approval gate) — the demo mirrors the recruiter's
@@ -177,13 +253,13 @@ export function useSimulationWalk({
           const wave = await fetch("/api/decisions/screen-wave", {
             method: "POST",
             headers: JSON_HEADERS,
-            body: JSON.stringify({ ...screenWaveBody, approvalToken: wavePreview.approvalToken, approvedBy: "Guided demo (auto-approved)" }),
+            body: JSON.stringify({ ...screenWaveBody, approvalToken: wavePreview.approvalToken, approvedBy: DEMO_APPROVER }),
           }).then((r) => r.json());
           patch({ screenWave: { decisions: wave.decisions ?? [], rejected: wave.rejected ?? 0, kept: wave.kept ?? 0, cohort: wave.cohort ?? 0 } });
           notifyDataChanged();
           await beat(3400); // let the viewer read the audit
           patch({ screenWave: null });
-          log(`Screening wave · ${wave.rejected ?? 0} auto-rejected (with rationale), ${wave.kept ?? 0} advanced · early-career protected`);
+          log(t("log.screenWave", { rejected: wave.rejected ?? 0, kept: wave.kept ?? 0 }));
 
           // The survivor proceeds toward the interview: attach the deterministic
           // screening recommendation, then accept it. Accepting a screening_review
@@ -195,9 +271,9 @@ export function useSimulationWalk({
           // crashed at the Interview→Offer seam. One accept, one stage.)
           await fetch("/api/sim/screen-draft", { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ entryId: targetId }) });
           await advance(targetId); // accept the screening review: Screened → Interview + calendar gate
-          await waitEntry(targetId, (e) => e.stage === "Interview" || e.approvalKind === "calendar", "screening to open the interview / calendar gate");
+          await waitEntry(targetId, (e) => e.stage === "Interview" || e.approvalKind === "calendar", t("wait.screeningGate"));
           notifyDataChanged();
-          log(`${targetLabel} passed screening → Interview`);
+          log(t("log.passedScreening", { candidate: targetLabel }));
         },
         readMs: 1800,
       });
@@ -208,22 +284,22 @@ export function useSimulationWalk({
         id: "interview",
         tab: "schedule",
         target: '[data-sim="schedule"]',
-        title: "Interview",
-        caption: `Automating the interview round — ${targetLabel} self-schedules (vs. assigning a slot manually).`,
+        title: t("step.interview.title"),
+        caption: t("step.interview.caption", { candidate: targetLabel }),
         action: async () => {
           let scheduled = false;
           try {
             // AUTOMATE: mint a self-scheduling link; the candidate picks a slot.
             const inv = await fetch("/api/schedule/invite", { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ entryId: targetId }) }).then((r) => r.json());
             if (inv?.token) {
-              patch({ frame: { url: `/schedule/${inv.token}`, title: "Candidate self-schedules" } });
+              patch({ frame: { url: `/schedule/${inv.token}`, title: t("step.interview.frameTitle") } });
               await beat(2400); // let the viewer watch the candidate's slot picker
               const slots = await fetch(`/api/schedule/${inv.token}`).then((r) => r.json()).then((p) => p.slots ?? []);
               const slot = slots[0];
               if (slot) {
                 // Confirming fires approve_event on the entry + sends a confirmation.
                 await fetch(`/api/schedule/${inv.token}`, { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ slot: slot.label, slotAt: slot.value }) });
-                log(`${targetLabel} self-scheduled · ${slot.label}`);
+                log(t("log.selfScheduled", { candidate: targetLabel, slot: slot.label }));
                 scheduled = true;
                 notifyDataChanged();
               }
@@ -236,18 +312,18 @@ export function useSimulationWalk({
           if (!scheduled) {
             // MANUAL fallback: the recruiter confirms a slot on the shared calendar.
             const clicked = await clickEl(`[data-sim-entry="${targetId}"] [data-sim-click="confirm"]`, {
-              title: "Confirm the interview",
-              caption: `Recruiter confirms ${targetLabel}'s interview slot.`,
+              title: t("step.interview.confirmTitle"),
+              caption: t("step.interview.confirmCaption", { candidate: targetLabel }),
             });
             if (!clicked) {
-              log("(schedule card not visible — confirming via API)");
+              log(t("log.scheduleNotVisible"));
               await fetch(`/api/pipeline/${targetId}`, { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ action: "approve_event", detail: "Tue 14:00" }) });
               notifyDataChanged();
             }
           }
-          await waitEntry(targetId, (e) => e.approvalKind !== "calendar", "the interview slot to be confirmed");
+          await waitEntry(targetId, (e) => e.approvalKind !== "calendar", t("wait.slotConfirmed"));
           const st = await advanceTo(targetId, "Offer");
-          log(`→ ${st}`);
+          log(t("log.stage", { stage: stageLabel(st) }));
         },
         readMs: 1500,
       });
@@ -257,8 +333,8 @@ export function useSimulationWalk({
         id: "offer",
         tab: "decisions",
         target: '[data-sim="decisions"]',
-        title: "Extending the offer",
-        caption: `Comparing the role's candidates, then sending the offer to ${targetLabel}.`,
+        title: t("step.offer.title"),
+        caption: t("step.offer.caption", { candidate: targetLabel }),
         action: async () => {
           // Group evaluation: compare the field for the role before committing.
           await runGroupEval(jobId, SIM_TITLE);
@@ -269,20 +345,20 @@ export function useSimulationWalk({
           nav({ tab: "decisions" });
           await beat(600);
           const clicked = await clickEl(`[data-sim-entry="${targetId}"] [data-sim-click="accept"]`, {
-            title: "Send offer",
-            caption: `Recruiter clicks ‘Send offer’ — a secure accept/decline link goes to ${targetLabel}.`,
+            title: t("step.offer.clickTitle"),
+            caption: t("step.offer.clickCaption", { candidate: targetLabel }),
           });
           if (!clicked) {
-            log("(offer card not visible — extending via API)");
+            log(t("log.offerNotVisible"));
             // actor:"sim" — the engine (not a recruiter) extends here, so the
             // offer_terms seal reads "auto:sim" (gsim-l2-103).
             await fetch(`/api/pipeline/${targetId}`, { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ action: "accept", actor: "sim" }) });
           }
-          await waitEntry(targetId, (e) => e.approvalKind !== "offer_review", "the offer to be extended");
+          await waitEntry(targetId, (e) => e.approvalKind !== "offer_review", t("wait.offerExtended"));
           const { token } = await fetch(`/api/sim/offer-link?entryId=${targetId}`).then((r) => r.json());
-          if (!token) throw new Error("offer token not found after extend");
+          if (!token) throw new Error(t("error.offerTokenMissing"));
           offerToken = token;
-          log("Offer sent · secure link generated");
+          log(t("log.offerSent"));
         },
         settleMs: 1200,
       });
@@ -292,10 +368,10 @@ export function useSimulationWalk({
         id: "hired",
         tab: "pipeline",
         target: '[data-sim="pipeline-board"]',
-        title: "Candidate accepts",
-        caption: `${targetLabel} opens the secure link and accepts — they move to Hired and onboarding begins.`,
+        title: t("step.hired.title"),
+        caption: t("step.hired.caption", { candidate: targetLabel }),
         action: async () => {
-          patch({ frame: { url: `/offer/${offerToken}`, title: "Candidate's view" } });
+          patch({ frame: { url: `/offer/${offerToken}`, title: t("step.hired.frameTitle") } });
           await beat(1400); // let the candidate page load + the viewer see it
           const doc = await waitDom(() => {
             const ifr = document.querySelector("iframe[data-sim-frame]") as HTMLIFrameElement | null;
@@ -303,32 +379,36 @@ export function useSimulationWalk({
             return d && d.querySelector('[data-sim-click="offer-accept"]') ? d : null;
           });
           const clicked = doc
-            ? await clickEl('[data-sim-click="offer-accept"]', { title: "Accept offer", caption: "The candidate accepts the offer.", doc })
+            ? await clickEl('[data-sim-click="offer-accept"]', {
+                title: t("step.hired.acceptTitle"),
+                caption: t("step.hired.acceptCaption"),
+                doc,
+              })
             : false;
           if (!clicked) {
-            log("(offer page not reachable — accepting via API)");
+            log(t("log.offerPageUnreachable"));
             await fetch(`/api/offer/${offerToken}`, { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ response: "accept" }) });
           }
           await beat(1600); // show the ‘accepted’ confirmation
           patch({ frame: null });
-          log("Accepted · moved to Hired · onboarding comm queued");
+          log(t("log.accepted"));
         },
         readMs: 1200,
         settleMs: 1400,
       });
 
-      patch({ done: true, running: false, status: "Done — candidate hired 🎉", ...CLEAR_OVERLAYS });
+      patch({ done: true, running: false, status: t("status.done"), ...CLEAR_OVERLAYS });
     } catch (e) {
       if (e instanceof SimStop) {
-        patch({ running: false, status: "Stopped", ...CLEAR_OVERLAYS });
-        log("Simulation stopped.");
+        patch({ running: false, status: t("status.stopped"), ...CLEAR_OVERLAYS });
+        log(t("log.stopped"));
         return;
       }
-      const msg = e instanceof Error ? e.message : "Simulation failed.";
-      patch({ running: false, error: msg, status: `Failed: ${msg}`, ...CLEAR_OVERLAYS });
-      log(`Error: ${msg}`);
+      const msg = e instanceof Error ? e.message : t("status.genericError");
+      patch({ running: false, error: msg, status: t("status.failed", { message: msg }), ...CLEAR_OVERLAYS });
+      log(t("log.error", { message: msg }));
     }
-  }, [advance, advanceTo, beat, clickEl, ctrl, entriesFor, topScreened, log, nav, patch, runGroupEval, step, waitDom, waitEntry]);
+  }, [advance, advanceTo, beat, clickEl, ctrl, entriesFor, topScreened, locale, log, nav, patch, runGroupEval, stageLabel, step, t, waitDom, waitEntry]);
 
   return { run };
 }

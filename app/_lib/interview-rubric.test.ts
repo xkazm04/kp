@@ -71,9 +71,10 @@ const {
   industryAxesFor,
   RUBRIC_ANCHOR_LINE,
   rubricForArchetype,
-  RUBRIC_CS,
-  RATING_ANCHORS_CS,
+  competencyKey,
   localizedRubric,
+  localizedRatingAnchors,
+  rubricAnchorLine,
   rubricLabel,
   flagOffRubricRatings,
   flagOffRubricRatingsWithKeys,
@@ -263,54 +264,62 @@ test("RUBRIC_ANCHOR_LINE is derived from RATING_ANCHORS", () => {
 });
 
 // ---------------------------------------------------------------------------
-// PREP3 — the Czech display overlay must stay key-stable: every overlay key is
-// a canonical competency, every canonical competency has an overlay, and
-// localizedRubric keeps the canonical key while swapping display strings.
+// PREP3 / F5 — the display overlay lives in the `rubric` catalog namespace now
+// (interview-rubric-catalog.test.ts pins every locale's key set to the JSON).
+// What belongs HERE is the pure resolution contract: the canonical key survives,
+// display strings are swapped, and an absent catalog entry degrades to canonical
+// English instead of rendering a raw key.
 // ---------------------------------------------------------------------------
 
-test("every RUBRIC_CS key maps to a canonical competency (no orphaned overlay)", () => {
-  const canonical = new Set(ALL_COMPETENCIES.map((c) => c.competency));
-  for (const key of Object.keys(RUBRIC_CS)) {
-    assert.ok(canonical.has(key), `RUBRIC_CS key "${key}" is not a canonical competency`);
-  }
+// A stand-in catalog: every lookup resolves to the key itself, prefixed, so the
+// test can tell "came from the catalog" from "fell back to canonical".
+const FAKE: (key: string) => string | undefined = (key) => `cat:${key}`;
+const EMPTY: (key: string) => string | undefined = () => undefined;
+
+test("competencyKey folds a canonical competency to its catalog key", () => {
+  assert.equal(competencyKey("Technical depth"), "technical_depth");
+  assert.equal(competencyKey("Experience & fit"), "experience_fit");
+  assert.equal(competencyKey("Problem-solving"), "problem_solving");
+  // Every canonical competency must fold to a non-empty, collision-free key.
+  const keys = ALL_COMPETENCIES.map((c) => competencyKey(c.competency));
+  assert.ok(keys.every((k) => /^[a-z0-9_]+$/.test(k)), keys.join(", "));
+  assert.equal(new Set(keys).size, keys.length, "competency keys must be unique");
 });
 
-test("every canonical competency has a cs overlay (no English leaking through cs)", () => {
-  const all = ALL_COMPETENCIES;
-  for (const c of all) {
-    assert.ok(RUBRIC_CS[c.competency], `competency "${c.competency}" has no Czech overlay`);
-    // Early-career competencies carry BARS anchors — their overlay must too.
-    if (c.anchors) {
-      const csAnchors = RUBRIC_CS[c.competency].anchors;
-      assert.ok(csAnchors, `competency "${c.competency}" overlay is missing anchors`);
-      assert.deepEqual(
-        Object.keys(csAnchors ?? {}).sort(),
-        Object.keys(c.anchors).sort(),
-        `competency "${c.competency}" overlay anchors must cover the same levels`
-      );
-    }
-  }
+test("localizedRubric keeps the canonical key and swaps display strings", () => {
+  const resolved = localizedRubric(INTERVIEW_RUBRICS.early_career, FAKE);
+  INTERVIEW_RUBRICS.early_career.forEach((c, i) => {
+    assert.equal(resolved[i].competency, c.competency);
+    assert.equal(resolved[i].label, `cat:competency.${competencyKey(c.competency)}.label`);
+    assert.equal(resolved[i].description, `cat:competency.${competencyKey(c.competency)}.description`);
+    assert.deepEqual(
+      Object.keys(resolved[i].anchors ?? {}).sort(),
+      Object.keys(c.anchors ?? {}).sort(),
+      "the BARS levels must survive localization"
+    );
+  });
 });
 
-test("RATING_ANCHORS_CS covers the same levels as RATING_ANCHORS", () => {
-  assert.deepEqual(
-    Object.keys(RATING_ANCHORS_CS).map(Number).sort(),
-    Object.keys(RATING_ANCHORS).map(Number).sort()
-  );
+test("an absent catalog entry degrades to the canonical strings, anchors all-or-nothing", () => {
+  const resolved = localizedRubric(INTERVIEW_RUBRICS.early_career, EMPTY);
+  INTERVIEW_RUBRICS.early_career.forEach((c, i) => {
+    assert.equal(resolved[i].label, c.competency);
+    assert.equal(resolved[i].description, c.description);
+    assert.deepEqual(resolved[i].anchors, c.anchors);
+  });
+  // A half-translated BARS ladder must fall back WHOLE, not mix languages.
+  const half: (key: string) => string | undefined = (key) => (key.endsWith(".anchor.1") ? "only level one" : undefined);
+  const mixed = localizedRubric(INTERVIEW_RUBRICS.early_career, half);
+  assert.deepEqual(mixed[0].anchors, INTERVIEW_RUBRICS.early_career[0].anchors);
 });
 
-test("localizedRubric keeps the canonical key, swaps display, and falls back for en", () => {
-  const en = localizedRubric(INTERVIEW_RUBRICS.early_career, "en");
-  const cs = localizedRubric(INTERVIEW_RUBRICS.early_career, "cs");
-  for (let i = 0; i < en.length; i++) {
-    // The canonical scoring key is identical across locales.
-    assert.equal(en[i].competency, cs[i].competency);
-    // en falls back to canonical strings; cs uses the overlay.
-    assert.equal(en[i].label, en[i].competency);
-    assert.equal(cs[i].label, RUBRIC_CS[cs[i].competency].label);
-  }
-  // rubricLabel degrades to the canonical key for an unmapped competency.
-  assert.equal(rubricLabel("Some custom LLM competency", "cs"), "Some custom LLM competency");
+test("rubricLabel/localizedRatingAnchors/rubricAnchorLine resolve then degrade", () => {
+  assert.equal(rubricLabel("Technical depth", FAKE), "cat:competency.technical_depth.label");
+  // An LLM-emitted competency outside the fixed rubric keeps its canonical name.
+  assert.equal(rubricLabel("Some custom LLM competency", EMPTY), "Some custom LLM competency");
+  assert.deepEqual(localizedRatingAnchors(EMPTY), RATING_ANCHORS);
+  assert.equal(rubricAnchorLine(EMPTY), RUBRIC_ANCHOR_LINE);
+  assert.match(rubricAnchorLine(FAKE), /^1 = cat:ratingAnchor\.1 · /);
 });
 
 // ---------------------------------------------------------------------------

@@ -185,11 +185,18 @@ test("the accept response offers the follow-up additively and never blocks the a
 });
 
 test("the candidate's follow-up UI is optional by construction", () => {
-  const ui = read("../apply/[id]/ConversationalApply.tsx");
-  assert.match(ui, /gapState !== "dismissed"/, "it can be dismissed outright");
-  assert.match(ui, /setGapState\("dismissed"\)/, "…by an always-available skip control");
-  assert.match(ui, /t\("followup\.skip"\)/, "…with localized copy");
+  // ConversationalApply.tsx was split (F6a); the contract is unchanged but now
+  // spans the view, its follow-up block and the hook that posts. Each assertion
+  // is re-pointed at the file that owns that half, so the test still fails if the
+  // behaviour regresses rather than merely if the code moves.
+  const view = read("../apply/[id]/ConversationalApply.tsx");
+  const block = read("../apply/[id]/ApplyFollowup.tsx");
+  const hook = read("../apply/[id]/use-apply-followup.ts");
+  assert.match(view, /gapState !== "dismissed"/, "it can be dismissed outright");
+  assert.match(hook, /setGapState\("dismissed"\)/, "…by an always-available skip control");
+  assert.match(block, /t\("followup\.skip"\)/, "…with localized copy");
   // It renders only AFTER an accepted outcome, i.e. below the "You're in" card.
-  assert.match(ui, /done\.result === "accepted" && done\.followupToken/, "only offered once the application is filed");
-  assert.match(ui, /lead: done\.followupToken/, "the POST carries the capability token, not an entry id");
+  assert.match(view, /done\.result === "accepted" && done\.followupToken/, "only offered once the application is filed");
+  assert.match(hook, /lead: followupToken/, "the POST carries the capability token, not an entry id");
+  assert.match(view, /submitGapAnswers\(done\.followupToken\)/, "…and the view supplies that token");
 });

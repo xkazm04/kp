@@ -17,10 +17,10 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const read = (rel: string) => readFileSync(path.join(HERE, rel), "utf8");
 
 test("chat knockout buttons are tonally neutral — neither answer is signposted as the passing one", () => {
-  const src = read("ConversationalApply.tsx");
-  // Isolate the ko branch's control block: everything between the `cur.type === "ko"`
-  // test and the next branch (`cur.type === "choice"`).
-  const koBlock = src.slice(src.indexOf('cur.type === "ko"'), src.indexOf('cur.type === "choice"'));
+  const src = read("ApplyStepControls.tsx");
+  // Isolate the ko branch's control block: everything between the `step.type === "ko"`
+  // test and the next branch (`step.type === "choice"`).
+  const koBlock = src.slice(src.indexOf('step.type === "ko"'), src.indexOf('step.type === "choice"'));
   assert.ok(koBlock.length > 0, "could not locate the ko control block");
   assert.equal(
     (koBlock.match(/hover:border-coral\/50/g) ?? []).length,
@@ -40,15 +40,25 @@ test("chat knockout buttons are tonally neutral — neither answer is signposted
 });
 
 test("a declined outcome is recoverable in place", () => {
-  const src = read("ConversationalApply.tsx");
+  // The done card, the view that wires it, and the submit hook that owns `done`
+  // — the three links of the restart chain, since the card was split out.
+  const card = read("ApplyDoneCard.tsx");
+  const view = read("ConversationalApply.tsx");
+  const submit = read("use-apply-submit.ts");
   assert.match(
-    src,
+    card,
     /done\.result === "declined" \? \(/,
     "the done screen forks on a decline to offer a restart"
   );
-  assert.match(src, /onClick=\{restartConversation\}/, "the decline restart reuses the start-over machinery");
-  assert.match(src, /t\("declinedRestartNote"\)/, "the restart is honest that the earlier answers are gone");
-  assert.match(src, /setDone\(null\)/, "restartConversation clears the done state so the chat actually re-runs");
+  assert.match(card, /onClick=\{onRestart\}/, "the decline restart goes through the card's restart callback");
+  assert.match(card, /t\("declinedRestartNote"\)/, "the restart is honest that the earlier answers are gone");
+  assert.match(
+    view,
+    /<ApplyDoneCard done=\{done\} onRestart=\{restartConversation\}/,
+    "…and that callback is the start-over machinery, not a separate path"
+  );
+  assert.match(view, /resetSubmit\(\);/, "restartConversation resets the submit state");
+  assert.match(submit, /setDone\(null\)/, "resetSubmit clears the done state so the chat actually re-runs");
 });
 
 test("the quick form's submit is always live and names what is missing", () => {

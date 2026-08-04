@@ -6,6 +6,7 @@ import type { useTranslations } from "next-intl";
 import type { BuildResult } from "@/app/features/shared/profileTypes";
 import { buildProfilePayload } from "./profileEditorPayload";
 import { toast } from "@/app/_components/toast-store";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
 
 type Translator = ReturnType<typeof useTranslations>;
 
@@ -16,6 +17,9 @@ export function useProfileEditorSubmit(args: {
   sourceAnalysisSlug?: string | null;
 }) {
   const { t, mode, editingId, sourceAnalysisSlug } = args;
+  // Resolve API failures from the machine `code`, never from the server's
+  // English `error` — see app/_lib/use-error-message.ts.
+  const errMsg = useErrorMessage();
   const [result, setResult] = useState<BuildResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -56,7 +60,7 @@ export function useProfileEditorSubmit(args: {
         ),
       });
       const payload = await r.json();
-      if (!r.ok) throw new Error(payload.error ?? t("buildFailedStatus", { status: r.status }));
+      if (!r.ok) throw new Error(errMsg(payload, t("buildFailedStatus", { status: r.status })));
       setResult(payload as BuildResult);
       if (persist) {
         // Stay on the editor and surface the saved result panel — its "Match now"

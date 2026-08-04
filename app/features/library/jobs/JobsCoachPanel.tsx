@@ -2,7 +2,7 @@
 
 import { AlertTriangle, CheckCircle2, Coins, Users } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
 import { jdSlugOfJobId } from "@/app/_lib/jd-limits";
 import { buildUrl, clearedTabScopedParams } from "@/app/features/shell/tabs";
@@ -21,6 +21,8 @@ import { JobsCoachPanelLoosenList } from "./JobsCoachPanelLoosenList";
 // silently emptying the pipeline, and whether the salary undercuts the market.
 export function CoachPanel({ jobId, jobTitle }: { jobId: string; jobTitle: string }) {
   const t = useTranslations("jobs.coach");
+  // Reader-locale digit grouping for the coach's bands (format.ts number-locale contract).
+  const locale = useLocale();
   const router = useRouter();
   const search = useSearchParams();
   const { data, error, reload } = useJsonFetch<Winnability>(
@@ -153,12 +155,12 @@ export function CoachPanel({ jobId, jobTitle }: { jobId: string; jobTitle: strin
           <p className="text-base text-ink">
             {salary.belowMarket
               ? t.rich("salaryBelow", {
-                  job: fmtBand(salary.jobBand) ?? t("salaryUnset"),
-                  market: fmtBand(salary.marketBand) ?? "",
+                  job: fmtBand(salary.jobBand, locale) ?? t("salaryUnset"),
+                  market: fmtBand(salary.marketBand, locale) ?? "",
                   b: (chunks) => <span className="font-semibold text-coral">{chunks}</span>,
                 })
               : t.rich("salaryOk", {
-                  market: fmtBand(salary.marketBand) ?? "",
+                  market: fmtBand(salary.marketBand, locale) ?? "",
                   b: (chunks) => <span className="font-semibold">{chunks}</span>,
                 })}
           </p>

@@ -8,12 +8,16 @@ import { TextInput } from "@/app/_components/TextInput";
 // primitive, replacing the hand-rolled `fixed inset-0` viewport blanket that ate
 // the first outside click and gave no focus-return.
 import { usePopoverDismiss } from "./useSchedulePopoverDismiss";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
 
 // The recruiter's per-interview meeting-link control on the agenda row: a "Join"
 // link when set, plus an add/edit popover that PATCHes /api/schedule. On save it
 // hands the normalized URL up so the row (and its calendar event) refresh in place.
 export function MeetingLinkCell({ token, url, onSaved }: { token: string; url: string | null; onSaved: (url: string | null) => void }) {
   const t = useTranslations("scheduleTab.lifecycle");
+  // PATCH refusals resolve from the machine `code`, never the server's English
+  // `error` — see app/_lib/use-error-message.ts.
+  const errMsg = useErrorMessage();
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(url ?? "");
   const [saving, setSaving] = useState(false);
@@ -41,7 +45,7 @@ export function MeetingLinkCell({ token, url, onSaved }: { token: string; url: s
       });
       const p = await r.json().catch(() => ({}));
       if (!r.ok) {
-        setError(p.error ?? t("linkError"));
+        setError(errMsg(p, t("linkError")));
         return;
       }
       onSaved((p.invite?.meetingUrl as string | null) ?? null);

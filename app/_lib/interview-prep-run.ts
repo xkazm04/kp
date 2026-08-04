@@ -1,10 +1,12 @@
 import { getPipelineEntry } from "./db";
+import { isLocale, DEFAULT_LOCALE } from "@/i18n/locales";
 import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 import { runAutomationTask } from "./automation-run";
 import { getInterviewPrep, saveInterviewPrep } from "./interview-prep";
 import { isEarlyCareer } from "./archetypes";
 import { studentPrepRunOfShow } from "./student-interview";
 import { buildRunOfShow, type PrepQuestion, type RunOfShow } from "./run-of-show";
+import { rosStrings, studentPrepStrings } from "./interview-prep-strings";
 import { rubricCoverage, type RubricCoverage } from "./interview-rubric";
 
 // Build the interview-prep artifact: take the AI-generated, CV-derived interview
@@ -28,7 +30,11 @@ export async function runInterviewPrep(params: Record<string, unknown>, signal?:
   // can't read the cookie). Localizes the LLM questions (--lang) AND the
   // deterministic run-of-show/student-script scaffolding; persisted in the
   // payload so the modal knows which language the pack is in.
-  const lang = params.lang === "cs" ? "cs" : "en";
+  // F5 — was `params.lang === "cs" ? "cs" : "en"`, which silently rewrote a German
+  // or French recruiter's locale to English before it reached either the prompt
+  // directive or the scaffolding. All four locales now survive the narrowing
+  // (runAutomationTask already re-validates with the same guard).
+  const lang = isLocale(params.lang) ? params.lang : DEFAULT_LOCALE;
 
   // The CV-derived recommended questions (LLM with deterministic fallback). The
   // `source` ("llm" | "deterministic") rides along in the payload so the modal can
@@ -42,8 +48,8 @@ export async function runInterviewPrep(params: Record<string, unknown>, signal?:
 
   const entry = getPipelineEntry(entryId, workspaceId);
   const plan = isEarlyCareer(entry?.archetype)
-    ? studentPrepRunOfShow(questions, focusAreas, candidateLabel, jobTitle, lang)
-    : buildRunOfShow(questions, focusAreas, candidateLabel, jobTitle, lang);
+    ? studentPrepRunOfShow(questions, focusAreas, candidateLabel, jobTitle, await studentPrepStrings(lang))
+    : buildRunOfShow(questions, focusAreas, candidateLabel, jobTitle, await rosStrings(lang));
 
   // The keys the generator OWNS — enumerated EXPLICITLY (not spread) so the
   // regeneration invariant is structural, not a comment: the `RunOfShow &` type

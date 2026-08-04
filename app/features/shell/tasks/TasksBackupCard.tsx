@@ -1,8 +1,10 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Download, Upload } from "lucide-react";
 import { downloadFile } from "@/app/_lib/export-utils";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { notifyDataChanged } from "@/app/features/shell/live-refresh";
 import { TasksBackupRestorePlan, type BackupPlan as Plan } from "./TasksBackupRestorePlan";
 
@@ -12,8 +14,20 @@ import { TasksBackupRestorePlan, type BackupPlan as Plan } from "./TasksBackupRe
 // reproducible demo workspace" one click each. Restore is two-step: pick a
 // file → see the dry-run plan (and which live tables would be replaced) →
 // explicitly confirm.
+//
+// NOT English-by-design (an earlier note here claimed it was, by analogy with the
+// sibling operator cards). This is not a readout — it is a DESTRUCTIVE workflow
+// whose warning, typed confirmation and "will be REPLACED" table list are the
+// only thing standing between an operator and losing the database. Comprehension
+// here is a safety property, so the copy reads from `tasks.backup`. The table
+// NAMES it lists stay verbatim: they are schema identifiers.
 
 export function BackupCard() {
+  const t = useTranslations("tasks");
+  // A coded failure resolves through the `errors` catalog; the fallbacks below are
+  // this card's own copy. The server's raw `error` must never be what reaches the
+  // screen (app/_lib/use-error-message.ts).
+  const errMsg = useErrorMessage();
   const fileRef = useRef<HTMLInputElement | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -39,13 +53,13 @@ export function BackupCard() {
     try {
       const r = await fetch("/api/workspace/export");
       if (!r.ok) {
-        const body = (await r.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(body?.error || `Export failed (${r.status}).`);
+        const body = (await r.json().catch(() => null)) as { error?: string; code?: string } | null;
+        throw new Error(errMsg(body, t("backup.exportFailedStatus", { status: r.status })));
       }
       const text = await r.text();
       downloadFile(`kp-dump-${new Date().toISOString().replace(/[:.]/g, "-")}.json`, text, "application/json");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Export failed.");
+      setError(e instanceof Error ? e.message : t("backup.exportFailed"));
     } finally {
       setBusy(false);
     }
@@ -63,12 +77,12 @@ export function BackupCard() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ dump: parsed }),
       });
-      const body = (await r.json().catch(() => null)) as { plan?: Plan; error?: string } | null;
-      if (!r.ok || !body?.plan) throw new Error(body?.error || `Couldn't read that file (${r.status}).`);
+      const body = (await r.json().catch(() => null)) as { plan?: Plan; error?: string; code?: string } | null;
+      if (!r.ok || !body?.plan) throw new Error(errMsg(body, t("backup.readFailedStatus", { status: r.status })));
       setPlan(body.plan);
       setDump(parsed);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Couldn't read that file.");
+      setError(e instanceof Error ? e.message : t("backup.readFailed"));
     } finally {
       setBusy(false);
       if (fileRef.current) fileRef.current.value = ""; // re-picking the same file re-fires onChange
@@ -85,14 +99,14 @@ export function BackupCard() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ dump, apply: true, replace: plan.populated.length > 0 }),
       });
-      const body = (await r.json().catch(() => null)) as { loaded?: { name: string; rows: number }[]; error?: string } | null;
-      if (!r.ok || !body?.loaded) throw new Error(body?.error || `Restore failed (${r.status}).`);
-      const rows = body.loaded.reduce((n, t) => n + t.rows, 0);
-      setDone(`Restored ${body.loaded.length} tables · ${rows} rows. Reload the page to see the restored workspace.`);
+      const body = (await r.json().catch(() => null)) as { loaded?: { name: string; rows: number }[]; error?: string; code?: string } | null;
+      if (!r.ok || !body?.loaded) throw new Error(errMsg(body, t("backup.restoreFailedStatus", { status: r.status })));
+      const rows = body.loaded.reduce((total, tbl) => total + tbl.rows, 0);
+      setDone(t("backup.restored", { tables: body.loaded.length, rows }));
       reset();
       notifyDataChanged();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Restore failed.");
+      setError(e instanceof Error ? e.message : t("backup.restoreFailed"));
     } finally {
       setBusy(false);
     }
@@ -101,14 +115,10 @@ export function BackupCard() {
   return (
     <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
       <div className="flex items-baseline justify-between gap-3">
-        <h3 className="font-serif text-h2 text-ink">Backup &amp; restore</h3>
-        <span className="text-meta uppercase text-steel">full database</span>
+        <h3 className="font-serif text-h2 text-ink">{t("backup.title")}</h3>
+        <span className="text-meta uppercase text-steel">{t("backup.meta")}</span>
       </div>
-      <p className="mt-2 text-sm text-steel">
-        One JSON file carries the entire kp database — all data across every workspace (prompt cache and task runner
-        state excluded), not a single workspace&apos;s slice. Take a backup before a risky bulk action; restore moves the
-        whole database between machines. Per-workspace export/restore will come with workspace data isolation.
-      </p>
+      <p className="mt-2 text-sm text-steel">{t("backup.intro")}</p>
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <button
@@ -117,10 +127,10 @@ export function BackupCard() {
           disabled={busy}
           className="focus-ring inline-flex items-center gap-1.5 rounded-md border border-stone-300 bg-white px-3 py-1.5 text-sm font-semibold text-ink hover:bg-paper disabled:opacity-60"
         >
-          <Download size={13} /> Download backup
+          <Download size={13} /> {t("backup.download")}
         </button>
         <label className="focus-ring inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-stone-300 bg-white px-3 py-1.5 text-sm font-semibold text-ink hover:bg-paper">
-          <Upload size={13} /> Restore from file…
+          <Upload size={13} /> {t("backup.restoreFrom")}
           <input
             ref={fileRef}
             type="file"
@@ -133,7 +143,7 @@ export function BackupCard() {
             }}
           />
         </label>
-        {busy ? <span className="text-sm text-steel">Working…</span> : null}
+        {busy ? <span className="text-sm text-steel">{t("backup.working")}</span> : null}
       </div>
 
       {error ? (

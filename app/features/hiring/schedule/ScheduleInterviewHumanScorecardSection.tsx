@@ -7,7 +7,7 @@
 // keep the modal file under the 200-line cap.
 
 import { ClipboardCheck } from "lucide-react";
-import { useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import { Badge, interviewRecommendationToken } from "@/app/_components/Badge";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import type { Scorecard } from "@/app/_lib/interview-scorecard";
@@ -16,7 +16,6 @@ import { ScorecardRatingRow } from "./ScheduleInterviewScorecardRow";
 export function HumanScorecardSection({ sc }: { sc: Scorecard }) {
   const t = useTranslations("scheduleTab.transcript");
   const enumLabel = useEnumLabel();
-  const locale = useLocale(); // PREP3 — display the stored canonical competency localized
   return (
     <section className="rounded-md border border-coral/30 bg-coral/5 p-3">
       <div className="flex items-center justify-between gap-2">
@@ -35,7 +34,7 @@ export function HumanScorecardSection({ sc }: { sc: Scorecard }) {
       {sc.ratings && sc.ratings.length ? (
         <ul className="mt-2.5 space-y-2.5">
           {sc.ratings.map((r, i) => (
-            <ScorecardRatingRow key={i} r={r} t={t} locale={locale} />
+            <ScorecardRatingRow key={i} r={r} t={t} />
           ))}
         </ul>
       ) : null}

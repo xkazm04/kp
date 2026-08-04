@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { AlarmClock, Archive, Eye, RefreshCw } from "lucide-react";
 import { Modal } from "@/app/_components/Modal";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { DevLifecycleReviewPanel } from "./DevLifecycleReviewPanel";
 import { lifecycleStall } from "@/app/_lib/devcase-sla";
 import { useStageLabel } from "./DevLabels";
@@ -23,6 +24,9 @@ export function LifecycleRow({
   onChanged?: () => void;
 }) {
   const t = useTranslations("devcase");
+  // Resolve API failures from the machine `code`, never from the server's
+  // English `error` — see app/_lib/use-error-message.ts.
+  const errMsg = useErrorMessage();
   // Stage ids are DB values. The lookup + its fallback live in one shared hook so
   // this row and the Cases table can never label the same stage differently.
   const stageLabel = useStageLabel();
@@ -61,8 +65,8 @@ export function LifecycleRow({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ caseId: lc.caseId }),
       });
-      const payload = (await r.json().catch(() => null)) as { error?: string } | null;
-      if (!r.ok) throw new Error(payload?.error ?? t("lifecycle.reSourceFailed"));
+      const payload = (await r.json().catch(() => null)) as { error?: string; code?: string } | null;
+      if (!r.ok) throw new Error(errMsg(payload, t("lifecycle.reSourceFailed")));
       onChanged?.();
     } catch (caught) {
       setSourceError(caught instanceof Error ? caught.message : t("lifecycle.reSourceFailed"));
@@ -76,8 +80,8 @@ export function LifecycleRow({
     setCloseError(null);
     try {
       const r = await fetch(`/api/devcase/lifecycle/${encodeURIComponent(lc.id)}/close`, { method: "POST" });
-      const payload = (await r.json().catch(() => null)) as { error?: string } | null;
-      if (!r.ok) throw new Error(payload?.error ?? t("lifecycle.closeFailed"));
+      const payload = (await r.json().catch(() => null)) as { error?: string; code?: string } | null;
+      if (!r.ok) throw new Error(errMsg(payload, t("lifecycle.closeFailed")));
       onChanged?.();
     } catch (caught) {
       setCloseError(caught instanceof Error ? caught.message : t("lifecycle.closeFailed"));

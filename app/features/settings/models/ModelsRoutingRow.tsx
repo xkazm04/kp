@@ -9,6 +9,7 @@ import type { LlmConfigRow } from "@/app/_lib/db";
 import { bestModelForUseCase } from "@/app/_lib/llm-quality";
 import { QUALITY_SCORES, hasQualityScores } from "@/app/_lib/llm-quality-scores";
 import { saveRoutingPin, resetRoutingPin } from "./modelsRoutingActions";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { ModelsRoutingRowActions } from "./ModelsRoutingRowActions";
 import { useProviderName } from "./modelsProviderNames";
 
@@ -35,6 +36,10 @@ export function ModelsRoutingRow({
   onRows: (rows: LlmConfigRow[]) => void;
 }) {
   const t = useTranslations("models.routing");
+  // Resolve API failures from the machine `code`, never from the server's
+  // English `error` — see app/_lib/use-error-message.ts. Threaded into the plain
+  // action helpers, which can't call the hook themselves.
+  const errMsg = useErrorMessage();
   const format = useFormatter();
   const providerName = useProviderName();
   const [provider, setProvider] = useState(row?.provider ?? "");
@@ -51,7 +56,7 @@ export function ModelsRoutingRow({
     if (!provider || busy) return;
     setBusy("save");
     setNote(null);
-    const result = await saveRoutingPin(useCase, provider, model, row?.params, t("saveFailed"));
+    const result = await saveRoutingPin(useCase, provider, model, row?.params, t("saveFailed"), errMsg);
     if (result.ok) onRows(result.rows);
     else setNote({ text: result.message, ok: false });
     setBusy(null);
@@ -61,7 +66,7 @@ export function ModelsRoutingRow({
     if (busy) return;
     setBusy("reset");
     setNote(null);
-    const result = await resetRoutingPin(useCase, t("resetFailed"));
+    const result = await resetRoutingPin(useCase, t("resetFailed"), errMsg);
     if (result.ok) onRows(result.rows);
     else setNote({ text: result.message, ok: false });
     setBusy(null);
@@ -87,8 +92,9 @@ export function ModelsRoutingRow({
         model?: string;
         latencyMs?: number;
         error?: string;
+        code?: string;
       };
-      if (!r.ok || p.ok !== true) throw new Error(p.error || t("testFailed"));
+      if (!r.ok || p.ok !== true) throw new Error(errMsg(p, t("testFailed")));
       const testedModel = p.model ?? "—";
       setNote({
         ok: true,

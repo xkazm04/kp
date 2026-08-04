@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { BTN_SECONDARY, CARD_PAD, PANEL, PANEL_SUNKEN } from "@/app/_components/ui/recipes";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
 import { labelOr } from "@/app/_lib/use-enum-label";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
 import type { AtsConnectionPublic } from "@/app/_lib/ats/connections-store";
 import { IntegrationsAtsForm } from "./IntegrationsAtsForm";
 import { IntegrationsAtsRow } from "./IntegrationsAtsRow";
@@ -25,6 +26,9 @@ type Payload = { providers: string[]; connections: AtsConnectionPublic[] };
 export function IntegrationsAtsPanel() {
   const t = useTranslations("integrations.ats");
   const { data, error, reload } = useJsonFetch<Payload>("/api/ats/connections", t("loadFailed"));
+  // API failures render from the machine `code`, never from the server's English
+  // `error` — see app/_lib/use-error-message.ts.
+  const errMsg = useErrorMessage();
 
   const [provider, setProvider] = useState("");
   const [baseUrl, setBaseUrl] = useState("");
@@ -71,10 +75,12 @@ export function IntegrationsAtsPanel() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      const p = (await r.json().catch(() => ({}))) as { ok?: boolean; error?: string };
-      // The route's 400s (bad provider, non-public base URL, missing KP_SECRET) ARE the
-      // operator's fix — surfaced verbatim rather than replaced with a generic failure.
-      if (!r.ok || !p.ok) throw new Error(p.error || t("saveFailed"));
+      const p = (await r.json().catch(() => ({}))) as { ok?: boolean; error?: string; code?: string };
+      // The route's 400s (bad provider, non-public base URL, missing KP_SECRET) used to be
+      // surfaced verbatim — but `error` is canonical English, so every non-en operator got
+      // an English string. The detail stays in the server log; the operator gets a message
+      // in their language, from the code when the route ships one.
+      if (!r.ok || !p.ok) throw new Error(errMsg(p, t("saveFailed")));
       setApiToken("");
       setNote({ text: t("saved"), ok: true });
       reload();
@@ -93,8 +99,8 @@ export function IntegrationsAtsPanel() {
       const r = await fetch(`/api/ats/connections?provider=${encodeURIComponent(target)}&forgetLinks=${forgetLinks ? "1" : "0"}`, {
         method: "DELETE",
       });
-      const p = (await r.json().catch(() => ({}))) as { ok?: boolean; error?: string; linksDropped?: number };
-      if (!r.ok || !p.ok) throw new Error(p.error || t("removeFailed"));
+      const p = (await r.json().catch(() => ({}))) as { ok?: boolean; error?: string; code?: string; linksDropped?: number };
+      if (!r.ok || !p.ok) throw new Error(errMsg(p, t("removeFailed")));
       setNote({
         text: forgetLinks ? t("removedForget", { count: p.linksDropped ?? 0 }) : t("removedKeep"),
         ok: true,

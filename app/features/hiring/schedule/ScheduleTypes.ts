@@ -20,6 +20,13 @@ export type SchedEntry = {
 // band, which silently dropped a booking at a KP_INTERVIEW_TIMES hour outside it.
 // DEFAULT_SLOT stays as the weekday-relative seed for a legacy entry with no invite;
 // ScheduleTab resolves it to a concrete upcoming date for the dated grid.
+//
+// NOT COPY, and deliberately English: this is a PARSING PIVOT. `weekdayToDateSlot`
+// feeds it to gridSlotToIso, which reads the same fixed `Ddd HH:MM` grammar the
+// legacy `approvalDetail` column stores — the same reason schedule-slots.ts and
+// timezone.ts pin "en-US" (docs/architecture/localization.md). It never reaches a
+// screen: the grid resolves it to a real date, and slotLabel formats THAT in the
+// reader's locale. Localizing the token would break the parse it exists for.
 export const DEFAULT_SLOT = "Tue 14:00";
 
 export const ARCHETYPE = {

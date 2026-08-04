@@ -5,6 +5,7 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Lock, RefreshCw, ShieldCheck } from "lucide-react";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { Markdown } from "@/app/_components/Markdown";
 import { caseToMarkdown } from "./DevHelpers";
 import { ProbeRow } from "./DevShared";
@@ -21,6 +22,9 @@ import type { CaseScenario, Lifecycle } from "./DevTypes";
 // with the reviewer's feedback instead of a full lifecycle re-run from intake.
 export function DevLifecycleReviewPanel({ lc, onApprove, onChanged }: { lc: Lifecycle; onApprove: () => void; onChanged?: () => void }) {
   const t = useTranslations("devcase.review");
+  // Resolve API failures from the machine `code`, never from the server's
+  // English `error` — see app/_lib/use-error-message.ts.
+  const errMsg = useErrorMessage();
   const kase: CaseScenario = lc.case ?? {};
   const [title, setTitle] = useState(kase.title ?? "");
   const [brief, setBrief] = useState(kase.brief ?? "");
@@ -58,8 +62,8 @@ export function DevLifecycleReviewPanel({ lc, onApprove, onChanged }: { lc: Life
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ case: edits }),
         });
-        const payload = (await r.json().catch(() => null)) as { error?: string } | null;
-        if (!r.ok) throw new Error(payload?.error ?? t("approveFailed"));
+        const payload = (await r.json().catch(() => null)) as { error?: string; code?: string } | null;
+        if (!r.ok) throw new Error(errMsg(payload, t("approveFailed")));
         onChanged?.();
       } else {
         // No edits — the parent's existing approve flow (POST + reload).
@@ -82,8 +86,8 @@ export function DevLifecycleReviewPanel({ lc, onApprove, onChanged }: { lc: Life
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ feedback: feedback.trim() }),
       });
-      const payload = (await r.json().catch(() => null)) as { error?: string } | null;
-      if (!r.ok) throw new Error(payload?.error ?? t("redesignFailed"));
+      const payload = (await r.json().catch(() => null)) as { error?: string; code?: string } | null;
+      if (!r.ok) throw new Error(errMsg(payload, t("redesignFailed")));
       onChanged?.(); // reload brings the revised case; key= reseeds the fields
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : t("redesignFailed"));

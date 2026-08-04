@@ -1,7 +1,7 @@
 "use client";
 
 import { useFormatter, useTranslations } from "next-intl";
-import { formatMoney } from "@/app/_lib/format";
+import { useNumberFormat } from "@/app/_lib/use-number-format";
 import type { Analytics } from "./AnalyticsTab";
 
 // compute-cost-per-hire — surface the (read-only) LLM usage ledger beside the
@@ -27,6 +27,10 @@ export function ComputeCostPanel({
   windowed: boolean;
 }) {
   const t = useTranslations("analytics.compute");
+  // The manual (CZK) leg groups its digits in the READER's locale, like every
+  // other money figure (format.ts number-locale contract). Named `money` rather
+  // than destructured onto `n` because `n` is the usd() parameter below.
+  const { money } = useNumberFormat();
   const format = useFormatter();
   const usd = (n: number) => format.number(n, { style: "currency", currency: "USD", maximumFractionDigits: 2 });
   return (
@@ -73,7 +77,7 @@ export function ComputeCostPanel({
               <div>
                 <dt className="text-meta uppercase tracking-wide text-steel">{t("manualPerHire")}</dt>
                 <dd className="mt-0.5 font-serif text-h3 text-ink">
-                  {costPerHireCzk != null ? `${formatMoney(costPerHireCzk)} ${t("perHireUnit")}` : "—"}
+                  {costPerHireCzk != null ? `${money(costPerHireCzk)} ${t("perHireUnit")}` : "—"}
                 </dd>
                 <dd className="text-xs text-steel">{windowed ? t("manualWindowed") : t("manualAllTime")}</dd>
               </div>

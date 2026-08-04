@@ -16,12 +16,16 @@ const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 export class AnalyzeClientError extends Error {
   code: AnalyzeErrorCode;
   serverText?: string;
-  constructor(code: AnalyzeErrorCode, serverText?: unknown) {
+  /** The failing route's own machine code, when it publishes one — resolved by the
+   *  surface ahead of `serverText`, since a code localizes and English doesn't. */
+  apiCode?: string;
+  constructor(code: AnalyzeErrorCode, serverText?: unknown, apiCode?: unknown) {
     const text = typeof serverText === "string" && serverText.trim() ? serverText.trim() : undefined;
     super(text ?? code);
     this.name = "AnalyzeClientError";
     this.code = code;
     this.serverText = text;
+    this.apiCode = typeof apiCode === "string" && apiCode.trim() ? apiCode.trim() : undefined;
   }
 }
 

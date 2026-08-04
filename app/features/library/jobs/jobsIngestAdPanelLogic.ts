@@ -8,6 +8,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { MIN_AD_CHARS, splitJobAds } from "@/app/_lib/split-ads";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
 
 export type RowStatus = "added" | "exists" | "failed";
 const firstLine = (ad: string) => (ad.split(/\r?\n/)[0] ?? "").slice(0, 60).trim() || "—";
@@ -22,6 +23,9 @@ export function useIngestAdPanelLogic({
   onBulkComplete?: () => void;
 }) {
   const t = useTranslations("jobs.ingest");
+  // Ingest failures resolve from the machine `code`, never the server's English
+  // `error` string — see app/_lib/use-error-message.ts.
+  const errMsg = useErrorMessage();
   const [open, setOpen] = useState(false);
   const [adText, setAdText] = useState("");
   const [busy, setBusy] = useState(false);
@@ -60,9 +64,9 @@ export function useIngestAdPanelLogic({
       body: JSON.stringify({ adText: text }),
       signal,
     });
-    const data = (await res.json()) as { jobId?: string; created?: boolean; title?: string; error?: string };
+    const data = (await res.json()) as { jobId?: string; created?: boolean; title?: string; error?: string; code?: string };
     if (!res.ok || !data.jobId) {
-      return { ok: false, error: data.error ?? t("ingestFailedStatus", { status: res.status }) };
+      return { ok: false, error: errMsg(data, t("ingestFailedStatus", { status: res.status })) };
     }
     return { ok: true, result: { jobId: data.jobId, created: Boolean(data.created), title: data.title ?? t("defaultTitle") } };
   };

@@ -25,7 +25,6 @@ export function AiScorecardSection({
   evidenceTurns,
   jumpToTurn,
   t,
-  locale,
 }: {
   sc: Scorecard;
   coverage: ScorecardCoverage | null;
@@ -34,7 +33,6 @@ export function AiScorecardSection({
   evidenceTurns: number[];
   jumpToTurn: (idx: number) => void;
   t: ReturnType<typeof useTranslations<"scheduleTab.transcript">>;
-  locale: string;
 }) {
   const enumLabel = useEnumLabel();
   return (
@@ -64,7 +62,6 @@ export function AiScorecardSection({
               key={i}
               r={r}
               t={t}
-              locale={locale}
               renderEvidence={(evidence) =>
                 evidenceTurns[i] >= 0 ? (
                   // Clickable: jump to the transcript turn this quote came

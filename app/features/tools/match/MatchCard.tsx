@@ -1,6 +1,6 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { ConfidenceBandBadge, confidenceBandTitle } from "@/app/_components/Badge";
 import type { MatchRef, MatchResult } from "@/app/features/shared/matchTypes";
 import { formatBandCompact, isEarlyCareer } from "@/app/features/shared/matchTypes";
@@ -41,6 +41,8 @@ export function MatchCard({
   onToggleSelect?: () => void;
 }) {
   const t = useTranslations("match");
+  // Compact band digits group in the READER's locale (format.ts number-locale contract).
+  const locale = useLocale();
   const enumLabel = useEnumLabel();
   const matchLabels = useMatchLabels();
   // Localized confidence-band drivers (English fallback baked in) — reused by the
@@ -116,7 +118,7 @@ export function MatchCard({
               workMode: m.workMode ? enumLabel("workMode", m.workMode) : "—",
               family: m.roleFamily ? enumLabel("family", m.roleFamily) : "—",
               seniority: m.seniority ?? "—",
-              salary: formatBandCompact(m.salaryBand),
+              salary: formatBandCompact(m.salaryBand, locale),
               b: (chunks) => <span className="font-medium text-ink">{chunks}</span>,
             })}
           </p>

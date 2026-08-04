@@ -17,7 +17,7 @@ inventing a second scoping dimension.
 - **Settings → Organization** (`app/features/settings/organization/OrganizationTab.tsx`,
   `OrganizationConsole.tsx`) — general org settings, member roster, invites.
 - `/api/auth/switch-workspace` — re-mints the session for a different team.
-- Onboarding wizard (`app/features/setup/`) — first-run org setup.
+- Onboarding wizard (`app/features/shell/setup/`) — first-run org setup.
 
 ## Identity & auth
 
@@ -70,7 +70,41 @@ Reference implementation for scoping a new table: `app/_lib/db/{analyses,profile
 | RBAC | `app/_lib/auth/roles.ts` |
 | Tenancy manifest | `app/_lib/tenancy.ts`, `app/_lib/workspace-lock.ts` |
 | Business logic | `app/_lib/org-actions.ts`, `app/_lib/org-service.ts`, `app/_lib/bulk-invite.ts` |
-| UI | `app/features/settings/organization/*` (`OrganizationTab`, `OrganizationConsole`, `OrganizationMembersPanel`, `OrganizationMemberConfirmModals`, `OrganizationGeneralPanel`) |
+| UI | `app/features/settings/organization/*` (`OrganizationTab`, `OrganizationConsole`, `OrganizationGeneralPanel`, `OrganizationMembersPanel`, `OrganizationMembersTable`, `OrganizationMemberConfirmModals`, `OrganizationMemberPermissionsModal`, `useOrganizationMembers`, `organizationMemberHelpers`) |
+| Shared presenters | `app/features/shared/memberUi.ts` — role labels/tints, member-status badges, the assignable-role list, the overridable-capability rows |
+
+## Copy & localization
+
+The console is fully localized in all four locales from the **`workspaceAdmin`**
+namespace, split three ways: `org` (header, General panel, the onboarding-preview
+button), `members` (roster, invite row, pending invites, both destructive
+confirms, and every toast) and `permissions` (the per-user capability editor).
+`app/features/settings/organization/**/*.tsx` is held at eslint **`error`** for
+`i18next/no-literal-string`.
+
+The interesting part was not the JSX. `app/features/shared/memberUi.ts` is a plain
+`.ts` module, so `useTranslations` cannot be called there — yet it owned the five
+role names, the three member statuses and the four capability label/description
+pairs, and it is imported by `shell/setup/SetupInviteEditor.tsx` and
+`app/invite/[token]/AcceptForm.tsx`, two surfaces already at eslint `error` that
+were therefore rendering English while looking migrated. Following the "a pure
+builder takes its copy as a parameter" rule
+(`docs/architecture/localization.md`) and the translator-type idiom of
+`hiring/pipeline/pipelineTranslator.ts`, those helpers now take a **bound
+translator** from the caller:
+
+| Helper | Signature |
+| --- | --- |
+| `roleLabel` | `(role, t: MembersTranslator)` — `workspaceAdmin.members.role.<slug>` |
+| `statusBadge` | `(status, t: MembersTranslator)` — `workspaceAdmin.members.status.<slug>` |
+| `capabilityMeta` | `(t: PermissionsTranslator)` — replaces the old `CAPABILITY_META` constant; `CAPABILITY_ORDER` keeps the slug order and the catalog key per row (a capability slug carries a `:` and cannot be a catalog key) |
+
+`APP_LANGUAGES.native` stays untranslated on purpose — an endonym is a proper
+noun in every locale.
+
+`useOrganizationMembers` exposes `error` as a **boolean flag**, not a message:
+the hook has no translator, both failure paths render the same line, and the copy
+lives at `workspaceAdmin.members.loadError`.
 
 ## Data model
 
@@ -110,3 +144,12 @@ live for real multi-team customers (see `app/_lib/tenancy.ts` comments and
   DB regardless of caller — a cross-tenant channel the moment multi-tenant is on).
 - Per-session revocation (stateless 7-day tokens can't be killed early) —
   needed before enterprise SSO / audit tracks can close out.
+- **`POST /api/org/invites` emits no error `code`.** All three of its refusals —
+  invalid address (400), inviting above your own privileges (403), and the
+  address already belonging to an active member (409) — return only a canonical
+  English `error`. The panel therefore routes the payload through
+  `useErrorMessage()` and always lands on the localized generic
+  (`workspaceAdmin.members.inviteFailed`), so the *specific* reason is lost in
+  every language, English included. Fixing it means giving the route real codes
+  plus matching `errors.*` catalog entries; no code is invented client-side in
+  the meantime.

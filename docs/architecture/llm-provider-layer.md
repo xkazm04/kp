@@ -1,7 +1,8 @@
 # LLM provider layer — multi-provider wrapper
 
 BYOM (bring-your-own-model) routing: every text-LLM call site — Python
-(`pipeline/jobfit/llm/`) and the one TS-side call (`app/api/github-analysis/route.ts`)
+(`pipeline/jobfit/llm/`) and the one TS-side call (`app/_lib/github/code-review.ts`,
+served by `app/api/github-analysis/route.ts`)
 — resolves through one config, not a hardcoded provider. This is the technical
 foundation for the BYOM pricing tier and the usage ledger the pricing meters bill
 against (`docs/features/billing/README.md`).

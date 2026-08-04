@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { useLocale } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { Rocket } from "lucide-react";
 import { isLocale } from "@/i18n/locales";
 import { setOrgLanguage, setOrgName } from "@/app/_lib/org-actions";
@@ -16,6 +16,7 @@ import type { AppLanguage } from "@/app/features/shared/memberUi";
 // Members are now real too — the console reads /api/org/* (was the mock roster).
 export function OrganizationTab() {
   const router = useRouter();
+  const t = useTranslations("workspaceAdmin.org");
   const appLocale = useLocale();
   const [, startTransition] = useTransition();
   const [onboarding, setOnboarding] = useState(false);
@@ -70,7 +71,7 @@ export function OrganizationTab() {
           onClick={() => setOnboarding(true)}
           className="focus-ring inline-flex items-center gap-1.5 rounded-md border border-coral/40 bg-coral/5 px-3 py-1.5 text-sm font-semibold text-coral transition-colors hover:bg-coral/10 dark:rounded-lg"
         >
-          <Rocket size={14} aria-hidden /> Preview onboarding flow
+          <Rocket size={14} aria-hidden /> {t("previewOnboarding")}
         </button>
       </div>
 

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { useNumberFormat } from "@/app/_lib/use-number-format";
 import { Download } from "lucide-react";
 import { downloadFile, toCsv } from "@/app/_lib/export-utils";
 import { kindLabel, type AutomationImpact } from "@/app/_lib/decision-attribution";
@@ -88,6 +89,9 @@ function RoiLedger({
 }) {
   const t = useTranslations("analytics.roi");
   const tLog = useTranslations("analytics.log");
+  // These CZK figures sit inside localized sentences, so they group in the
+  // READER's locale rather than a hardcoded cs-CZ (format.ts number-locale contract).
+  const { grouped } = useNumberFormat();
   // REC-10 — the ledger's per-kind rows reuse the event-kind labels; with no
   // relay a "…sent" kind renders its honest queued variant here too.
   const relayConfigured = useDeliveryCapability();
@@ -119,7 +123,7 @@ function RoiLedger({
       ) : (
         <>
           <p className="mt-1 font-serif text-h2 leading-tight text-moss">
-            {t("headline", { hours: roi.hoursSaved, czk: roi.czkSaved.toLocaleString("cs-CZ") })}
+            {t("headline", { hours: roi.hoursSaved, czk: grouped(roi.czkSaved) })}
           </p>
           {/* Measured against the manual baseline (UAT M7): a reduction a leader can
               size, not a bare hour count. Honest "pending" until there's a hire. */}
@@ -142,7 +146,7 @@ function RoiLedger({
             </div>
             <div>
               <dt className="text-meta uppercase tracking-wide text-steel">{t("rdCostPerHire")}</dt>
-              <dd className="mt-0.5 font-serif text-h3 text-ink">{costPerHireCzk != null ? t("czkValue", { n: costPerHireCzk.toLocaleString("cs-CZ") }) : "—"}</dd>
+              <dd className="mt-0.5 font-serif text-h3 text-ink">{costPerHireCzk != null ? t("czkValue", { n: grouped(costPerHireCzk) }) : "—"}</dd>
               <dd className="text-xs text-steel">{t("rdAllTime")}</dd>
             </div>
             <div>

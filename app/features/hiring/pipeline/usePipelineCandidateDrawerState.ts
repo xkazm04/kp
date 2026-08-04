@@ -21,6 +21,8 @@ import { buildGithubEvidenceSummary, type GithubEvidenceSummary } from "@/app/_l
 import { githubAnalysisSchema } from "@/app/_lib/schemas";
 import type { Scorecard, ScorecardRating, ScorecardEntities } from "@/app/_lib/interview-scorecard";
 import { postPipelineAction } from "@/app/_lib/useAddToPipeline";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
+import { useGithubErrorMessage } from "@/app/_lib/use-github-error";
 
 export type InterviewOutcome = {
   recommendation?: string;
@@ -56,6 +58,11 @@ export function usePipelineCandidateDrawerState({
   cohort?: BoardEntry[];
 }) {
   const t = useTranslations("pipeline.drawer");
+  // API failures resolve from the machine `code`, never the server's English
+  // `error` — see app/_lib/use-error-message.ts.
+  const errMsg = useErrorMessage();
+  // The GitHub deep-dive answers with its own code namespace (results.github.errors).
+  const ghErrMsg = useGithubErrorMessage();
   const { startTask } = useTasks();
   const [busy, setBusy] = useState<TaskId | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
@@ -287,7 +294,7 @@ export function usePipelineCandidateDrawerState({
         return;
       }
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || `resolve failed (${res.status})`);
+      if (!res.ok) throw new Error(errMsg(data, t("clearFlagFailed")));
       // The flag is cleared server-side; reload the board and close (this entry is now stale).
       onChanged();
       onClose();
@@ -315,17 +322,19 @@ export function usePipelineCandidateDrawerState({
       // the localized permission line, not the server's raw "Unauthorized".
       if (res.status === 401 || res.status === 403) throw new Error(t("notPermitted"));
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || `Move failed (${res.status})`);
+      if (!res.ok) throw new Error(errMsg(data, t("moveFailed")));
       onChanged();
       if (onOpenEntry) onOpenEntry(entry.id);
       else onClose();
       setMovingStage(false);
     } catch (caught) {
-      // Surface the server's own explanation verbatim (the 422 "route through
-      // Offer → extend an offer" guidance, the 409 "changed since you opened it"
-      // hint) rather than the blanket moveFailed that hid the one sentence telling
-      // the recruiter what to do instead (bug-ui pipeline #2). A network throw with
-      // no message falls back to the generic copy.
+      // Surface the server's own explanation (the 422 "route through Offer →
+      // extend an offer" guidance, the 409 "changed since you opened it" hint)
+      // rather than the blanket moveFailed that hid the one sentence telling the
+      // recruiter what to do instead (bug-ui pipeline #2) — resolved from the
+      // machine `code` so it arrives in the reader's language, never as the
+      // server's English `error`. A network throw with no message falls back to
+      // the generic copy.
       setMoveErr(caught instanceof Error && caught.message ? caught.message : t("moveFailed"));
       setMovingStage(false);
     }
@@ -357,10 +366,11 @@ export function usePipelineCandidateDrawerState({
         body: JSON.stringify({ profile: entry.githubHandle, jobDescriptionText: "" }),
       });
       const payload = await res.json();
-      // The route returns 200 + {error} for soft failures (rate limits) — that
-      // message names the actual cause, so surface it verbatim.
-      if (payload && typeof payload === "object" && typeof payload.error === "string") {
-        throw new Error(payload.error);
+      // The route returns 200 + {error, code} for soft failures (rate limits), so the
+      // presence of `error` — not the HTTP status — is the failure discriminator. The
+      // cause still reaches the recruiter, now from the `code` and in their language.
+      if (payload && typeof payload === "object" && "error" in payload) {
+        throw new Error(ghErrMsg(payload, t("githubRunFailed")));
       }
       const parsed = githubAnalysisSchema.safeParse(payload);
       if (!res.ok || !parsed.success) throw new Error(t("githubRunFailed"));

@@ -2,11 +2,13 @@
 
 import { useState } from "react";
 import { Check, ClipboardCheck, Loader2 } from "lucide-react";
-import { useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import { rubricForArchetype, localizedRubric, localizedRatingAnchors, rubricCoverage } from "@/app/_lib/interview-rubric";
+import { useRubricStrings } from "@/app/_lib/use-rubric-strings";
 import { RATING_MAX } from "@/app/_lib/format";
 import type { InterviewRecommendation } from "@/app/_lib/interview-recommendation";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
 import type { Scorecard } from "@/app/_lib/interview-scorecard";
 import { ScheduleHumanScorecardForm } from "./ScheduleHumanScorecardForm";
 
@@ -31,13 +33,16 @@ export function HumanScorecardPanel({
   initial?: Scorecard | null;
 }) {
   const t = useTranslations("scheduleTab.scorecard");
-  const locale = useLocale();
+  // Save failures resolve from the machine `code`, never the server's English
+  // `error` — see app/_lib/use-error-message.ts.
+  const errMsg = useErrorMessage();
+  const rubricStrings = useRubricStrings();
   const enumLabel = useEnumLabel();
   // PREP3 — render the rubric in the recruiter's language; the canonical English
   // `competency` stays the POSTed scorecard key (ratings/evidence are keyed by
   // it below), so localizing display can't corrupt the scoring contract.
-  const rubric = localizedRubric(rubricForArchetype(archetype, roleFamily), locale);
-  const ratingAnchors = localizedRatingAnchors(locale);
+  const rubric = localizedRubric(rubricForArchetype(archetype, roleFamily), rubricStrings);
+  const ratingAnchors = localizedRatingAnchors(rubricStrings);
   // Honest coverage cue, resolved by the SAME pure function the prep header and the
   // scorecard write path use (rubricCoverage), so the pack, the form and the stored
   // record can never disagree about what this rubric covers. It distinguishes "we
@@ -85,7 +90,7 @@ export function HumanScorecardPanel({
         body: JSON.stringify({ ratings: payloadRatings, summary, recommendation: recommendation || undefined }),
       });
       const d = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(d.error || t("saveFailedStatus", { status: res.status }));
+      if (!res.ok) throw new Error(errMsg(d, t("saveFailedStatus", { status: res.status })));
       setSaved(true);
       if (d.gated === true) setGated(true);
     } catch (e) {

@@ -7,13 +7,16 @@
 // reduced motion. kind/status narrow server-side (DATA6); the free-text filter
 // applies client-side over the loaded pages, same as the live window.
 import { useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { useReducedMotion } from "@/app/_lib/useReducedMotion";
 import { useInfiniteScroll, type InfinitePage } from "@/app/_lib/useInfiniteScroll";
+import { renderTaskLabel } from "@/app/_lib/task-label";
 import type { Task, TaskStatus } from "./TasksProvider";
 import { DoneRow } from "./TasksDoneRow";
 import { HISTORY_PAGE_SIZE, RECENT_WINDOW_DAYS } from "./tasksTabHelpers";
 
 export function TaskHistory({ kind, status, text }: { kind: string; status: TaskStatus | null; text: string }) {
+  const t = useTranslations("tasks");
   const reduced = useReducedMotion();
   const buildUrl = useCallback(
     (offset: number, limit: number) => {
@@ -32,15 +35,17 @@ export function TaskHistory({ kind, status, text }: { kind: string; status: Task
     pageSize: HISTORY_PAGE_SIZE,
     buildUrl,
     selectPage,
-    errorLabel: "Couldn't load task history.",
+    errorLabel: t("history.loadFailed"),
   });
 
   return (
     <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
       <div className="flex items-baseline justify-between gap-3">
-        <h3 className="font-serif text-h2 text-ink">History</h3>
+        <h3 className="font-serif text-h2 text-ink">{t("history.title")}</h3>
         <span className="text-meta uppercase text-steel">
-          {total != null && items.length > 0 ? `${items.length} of ${total} · ` : ""}older than {RECENT_WINDOW_DAYS} days
+          {total != null && items.length > 0
+            ? t("history.rangeOlderThan", { shown: items.length, total, days: RECENT_WINDOW_DAYS })
+            : t("history.olderThan", { days: RECENT_WINDOW_DAYS })}
         </span>
       </div>
 
@@ -50,13 +55,18 @@ export function TaskHistory({ kind, status, text }: { kind: string; status: Task
         // of drawing rows that don't exist (was 5 pulsing HistorySkeletonRow).
         <div className="mt-3 reveal-quiet min-h-[15rem]" aria-hidden />
       ) : phase === "idle" && items.length === 0 ? (
-        <p className="mt-3 text-base text-steel">No tasks older than {RECENT_WINDOW_DAYS} days.</p>
+        <p className="mt-3 text-base text-steel">{t("history.empty", { days: RECENT_WINDOW_DAYS })}</p>
       ) : (
         <ul className="mt-3 divide-y divide-stone-100" aria-busy={phase === "more"}>
           {items
-            .filter((t) => !text || (t.label ?? t.kind).toLowerCase().includes(text))
-            .map((t, i) => (
-              <DoneRow key={t.id} task={t} animateDelayMs={reduced ? null : (i % HISTORY_PAGE_SIZE) * 18} />
+            .filter(
+              (task) =>
+                !text ||
+                renderTaskLabel(t, task).toLowerCase().includes(text) ||
+                task.kind.toLowerCase().includes(text)
+            )
+            .map((task, i) => (
+              <DoneRow key={task.id} task={task} animateDelayMs={reduced ? null : (i % HISTORY_PAGE_SIZE) * 18} />
             ))}
           {phase === "more" ? (
             // Tier 2: a next page is loading BELOW the rows already on screen —
@@ -68,13 +78,13 @@ export function TaskHistory({ kind, status, text }: { kind: string; status: Task
 
       {phase === "error" ? (
         <div className="mt-3 flex items-center justify-between gap-3 rounded-md border border-coral/40 bg-coral/5 px-3 py-2">
-          <p className="text-base text-coral">{error ?? "Couldn't load task history."}</p>
+          <p className="text-base text-coral">{error ?? t("history.loadFailed")}</p>
           <button
             type="button"
             onClick={() => void loadMore()}
             className="focus-ring shrink-0 rounded-md border border-stone-300 bg-white px-3 py-1.5 text-sm font-medium text-ink hover:bg-paper"
           >
-            Retry
+            {t("history.retry")}
           </button>
         </div>
       ) : null}
@@ -89,11 +99,11 @@ export function TaskHistory({ kind, status, text }: { kind: string; status: Task
             disabled={phase === "more"}
             className="focus-ring rounded-md border border-stone-300 bg-white px-4 py-1.5 text-sm font-medium text-steel transition-colors hover:bg-paper disabled:opacity-60"
           >
-            {phase === "more" ? "Loading…" : "Load more"}
+            {phase === "more" ? t("history.loading") : t("history.loadMore")}
           </button>
         </div>
       ) : !hasMore && items.length > 0 && phase === "idle" ? (
-        <p className="mt-3 text-center text-sm text-steel">End of history · {items.length} tasks</p>
+        <p className="mt-3 text-center text-sm text-steel">{t("history.end", { count: items.length })}</p>
       ) : null}
     </div>
   );

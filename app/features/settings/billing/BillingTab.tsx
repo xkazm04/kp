@@ -9,6 +9,7 @@ import { Defer } from "@/app/_components/ui/Defer";
 import { EYEBROW, INTRO } from "@/app/_components/ui/recipes";
 import { SectionTitle } from "@/app/_components/ui/SectionTitle";
 import { labelize } from "@/app/_lib/format";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { BillingCurrentPlanPanel } from "./BillingCurrentPlanPanel";
 import { BillingStatusBanners } from "./BillingStatusBanners";
 import { useBillingPortal } from "./useBillingPortal";
@@ -30,6 +31,9 @@ const PlanCatalog = dynamic(() => import("./BillingPlanCatalog").then((m) => ({ 
 
 export function BillingTab() {
   const t = useTranslations("billing");
+  // API failures render from the machine `code`, never from the server's English
+  // `error` — see app/_lib/use-error-message.ts.
+  const errMsg = useErrorMessage();
   const [data, setData] = useState<BillingPayload | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
   // One purchase at a time: which catalog item (plan/pack id) is checking out,
@@ -109,8 +113,8 @@ export function BillingTab() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      const p = (await r.json().catch(() => ({}))) as { url?: string; error?: string };
-      if (!r.ok || !p.url) throw new Error(p.error || t("plans.checkoutFailed"));
+      const p = (await r.json().catch(() => ({}))) as { url?: string; error?: string; code?: string };
+      if (!r.ok || !p.url) throw new Error(errMsg(p, t("plans.checkoutFailed")));
       window.location.assign(p.url);
     } catch (e) {
       setPurchase({ key, error: e instanceof Error ? e.message : t("plans.checkoutFailed") });

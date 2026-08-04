@@ -17,17 +17,20 @@ export type PortalOutcome =
   | { kind: "fallback"; url: string }
   // 404 = no billing customer yet (a calm, expected pre-first-purchase state).
   | { kind: "hint" }
-  // Any other failure (503 unconfigured, 502 gateway, malformed body).
-  | { kind: "error"; message: string | null };
+  // Any other failure (503 unconfigured, 502 gateway, malformed body). The stable
+  // machine `code` rides out, NOT the server's English `error` — the caller resolves
+  // it in the reader's language (app/_lib/use-error-message.ts). Keeping this module
+  // pure means it decides the KIND; the React layer decides the wording.
+  | { kind: "error"; code: string | null };
 
 /** Decide the portal-open outcome from the response and whether the synchronous
  *  pre-open produced a tab. Ordering matters: 404 is the calm "no customer yet"
  *  case and must win over the generic error branch. */
 export function portalOutcome(
-  res: { status: number; ok: boolean; url?: string; error?: string },
+  res: { status: number; ok: boolean; url?: string; code?: string },
   tabOpened: boolean,
 ): PortalOutcome {
   if (res.status === 404) return { kind: "hint" };
-  if (!res.ok || !res.url) return { kind: "error", message: res.error ?? null };
+  if (!res.ok || !res.url) return { kind: "error", code: res.code ?? null };
   return tabOpened ? { kind: "navigate", url: res.url } : { kind: "fallback", url: res.url };
 }

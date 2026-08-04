@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { portalOutcome } from "./billingPortalOpen";
 
 // The "Manage in portal" flow: pre-open a blank tab synchronously (so a popup
@@ -10,6 +11,9 @@ import { portalOutcome } from "./billingPortalOpen";
 // tab component doesn't carry this whole branch inline.
 export function useBillingPortal() {
   const t = useTranslations("billing");
+  // API failures render from the machine `code`, never from the server's English
+  // `error` — see app/_lib/use-error-message.ts.
+  const errMsg = useErrorMessage();
   const [portalBusy, setPortalBusy] = useState(false);
   // `hint` renders calm (steel) — the portal's 404 means "no billing customer
   // yet", a normal pre-first-purchase state, not a failure. `url` is set only when a
@@ -33,8 +37,8 @@ export function useBillingPortal() {
     if (tab) tab.opener = null;
     try {
       const r = await fetch("/api/billing/portal", { method: "POST" });
-      const p = (await r.json().catch(() => ({}))) as { url?: string; error?: string };
-      const outcome = portalOutcome({ status: r.status, ok: r.ok, url: p.url, error: p.error }, Boolean(tab));
+      const p = (await r.json().catch(() => ({}))) as { url?: string; error?: string; code?: string };
+      const outcome = portalOutcome({ status: r.status, ok: r.ok, url: p.url, code: p.code }, Boolean(tab));
       switch (outcome.kind) {
         case "navigate":
           tab!.location.href = outcome.url;
@@ -50,7 +54,7 @@ export function useBillingPortal() {
           break;
         case "error":
           tab?.close();
-          setPortalNote({ text: outcome.message || t("portalFailed"), hint: false });
+          setPortalNote({ text: errMsg({ code: outcome.code }, t("portalFailed")), hint: false });
           break;
       }
     } catch (e) {
