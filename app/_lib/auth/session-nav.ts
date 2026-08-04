@@ -4,7 +4,7 @@
 // localStorage dev gate. The landing's sign-in CTAs call enterWorkspace(); the
 // sidebar's sign-out calls leaveWorkspace().
 
-import { track } from "../analytics/plausible";
+import { track } from "../analytics/track";
 
 /** Enter the workspace from the public landing. Posts to the login endpoint with
  *  NO credentials:

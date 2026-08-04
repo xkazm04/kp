@@ -25,26 +25,15 @@
  * the primitives).
  */
 
+// track() lives in ./track.ts (a plain .ts module) so non-JSX callers — and the
+// Node test runner's type stripping, which loads .ts but not .tsx — can import
+// it without pulling a JSX file. Re-exported here so components use one path.
+export { track, type TrackProps } from "./track";
+
 const PLAUSIBLE_DOMAIN = process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN;
 
 /** The Plausible script include — nothing rendered unless the domain env is set. */
 export function PlausibleScript() {
   if (!PLAUSIBLE_DOMAIN) return null;
   return <script defer data-domain={PLAUSIBLE_DOMAIN} src="https://plausible.io/js/script.js" />;
-}
-
-export type TrackProps = Record<string, string | number | boolean>;
-
-type PlausibleFn = (event: string, options?: { props?: TrackProps }) => void;
-
-/** Fire-and-forget custom event. Silent no-op when Plausible isn't running. */
-export function track(event: string, props?: TrackProps): void {
-  if (typeof window === "undefined") return;
-  const plausible = (window as Window & { plausible?: unknown }).plausible;
-  if (typeof plausible !== "function") return;
-  try {
-    (plausible as PlausibleFn)(event, props ? { props } : undefined);
-  } catch {
-    /* analytics must never break a product flow */
-  }
 }
