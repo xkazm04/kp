@@ -525,6 +525,7 @@
   },
   "landing": {
     "nav": {
+      "proof": "Nachweis",
       "how": "So funktioniert’s",
       "features": "Funktionen",
       "voice": "Sprachinterview",
@@ -537,9 +538,9 @@
       "signIn": "Anmelden"
     },
     "hero": {
-      "badge": "AI fürs Recruiting — der Mensch behält die Kontrolle",
-      "title": "Recruiting, das<br></br>wirklich <emph>vorankommt</emph>.",
-      "subtitle": "KandiDate liest jeden Lebenslauf, führt das erste Interview per Sprache, übernimmt die Terminplanung und legt Ihnen Entscheidungen zur Freigabe vor. Der Stapel verschwindet. Das Urteil bleibt bei Ihnen.",
+      "badge": "Recruiting für die LLM-Ära",
+      "title": "Wer hat das geschrieben:<br></br>Kandidat oder <emph>Modell</emph>?",
+      "subtitle": "Die Frage, die 2026 jede Einstellung aufwirft, beantwortet mit Belegen: Arbeitsproben, verifiziert gegen AI-Delegation, ein Sprachinterview über die eigenen Entscheidungen des Kandidaten, und jedes Urteil versiegelt in einem Audit-Trail, den ein Mensch unterschreibt. Der Stapel verschwindet trotzdem. Die Belege bleiben.",
       "ctaPrimary": "Kostenlos screenen",
       "ctaSecondary": "Interview anhören",
       "ctaDemo": "Live-Demo ansehen",
@@ -563,15 +564,34 @@
       }
     },
     "marquee": [
-      "Lebenslauf-Scoring in Sekunden",
+      "verifizierte Arbeitsproben",
+      "Kandidat oder Modell? Wir erkennen es",
+      "versiegelte, auditierbare Entscheidungen",
       "AI-Sprachinterviews",
-      "Selbstbuchungs-Links",
-      "fünf Kanäle, eine Pipeline",
-      "Gehalts-Radar",
+      "Lebenslauf-Scoring in Sekunden",
       "vom Menschen freigegebene Entscheidungen",
       "Tschechisch + Englisch",
-      "Angebots-Portale"
+      "Gehalts-Radar"
     ],
+    "proof": {
+      "heading": "Verifizierte Arbeit.<br></br><emph>Versiegelte Entscheidungen.</emph>",
+      "subtitle": "Eine polierte Take-Home-Aufgabe generiert heute jeder in einer Minute. KandiDate geht davon aus, dass das Modell mit im Raum war, und verifiziert, was der Kandidat wirklich getan hat: Kontrollen laufen durch die Arbeitsprobe, das Interview lässt ihn die eigenen Entscheidungen verteidigen, und die Entscheidung landet in einer manipulationssicheren Kette.",
+      "cards": {
+        "samples": {
+          "title": "Arbeitsproben, die AI einkalkulieren",
+          "body": "Aufgaben für die LLM-Ära: eingebaute Fehler mit bekannter Lösung, die tatsächlich benutzten Prompts und ein gemessener Abstand zum bloßen One-Shot. AI ist erlaubt. Delegation fällt auf."
+        },
+        "defend": {
+          "title": "Ein Interview über die eigenen Entscheidungen",
+          "body": "Das Sprachinterview greift die zwei Entscheidungen auf, die der Kandidat in der Probe wirklich getroffen hat, und lässt ihn beide laut verteidigen, auf Tschechisch oder Englisch."
+        },
+        "sealed": {
+          "title": "Entscheidungen versiegelt, nicht behauptet",
+          "body": "Jedes Weiterkommen, jede Absage und jedes Angebot wird in eine manipulationssichere Audit-Kette versiegelt, mit dem Namen des Menschen, der unterschrieben hat. Kandidaten sehen, was über sie entschieden wurde und warum."
+        }
+      },
+      "footline": "die Frage jeder Einstellung 2026 — beantwortet mit Belegen"
+    },
     "steps": {
       "heading": "Vom Stapel zur Shortlist<br></br>in <emph>drei Schritten</emph>",
       "drop": {

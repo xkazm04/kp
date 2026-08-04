@@ -8,6 +8,7 @@ import SectionRail from "./SectionRail";
 import Topbar from "./sections/Topbar";
 import Hero from "./sections/Hero";
 import Marquee from "./sections/Marquee";
+import Proof from "./sections/Proof";
 import Steps from "./sections/Steps";
 import FeatureGrid from "./sections/FeatureGrid";
 import VoiceTeaser from "./sections/VoiceTeaser";
@@ -71,6 +72,9 @@ export default function SparkLanding() {
       <Topbar />
       <Hero />
       <Marquee />
+      {/* The wedge band leads; the nine-card FeatureGrid is demoted below it —
+          the verified-work story is the headline, the grid is the inventory. */}
+      <Proof />
       <Steps />
       <FeatureGrid preview={preview} pinned={pinned} onHoverOpen={hoverOpen} onPin={pinOpen} onLeave={leave} />
       <VoiceTeaser />

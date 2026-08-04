@@ -525,6 +525,7 @@
   },
   "landing": {
     "nav": {
+      "proof": "Preuves",
       "how": "Comment ça marche",
       "features": "Fonctionnalités",
       "voice": "Entretien vocal",
@@ -537,9 +538,9 @@
       "signIn": "Se connecter"
     },
     "hero": {
-      "badge": "L'AI pour recruter, l'humain aux commandes",
-      "title": "Un recrutement qui<br></br>avance <emph>vraiment</emph>.",
-      "subtitle": "KandiDate lit chaque CV, mène le premier entretien à voix haute, remplit l'agenda et prépare les décisions que vous validez. La pile disparaît. Le jugement reste le vôtre.",
+      "badge": "Le recrutement à l'ère des LLM",
+      "title": "Écrit par le candidat,<br></br>ou par le <emph>modèle</emph> ?",
+      "subtitle": "La question que soulève chaque embauche en 2026, avec des preuves en réponse : des travaux pratiques vérifiés contre la délégation à l'AI, un entretien vocal sur les propres décisions du candidat, et chaque verdict scellé dans une piste d'audit signée par un humain. La pile disparaît quand même. Les preuves restent.",
       "ctaPrimary": "Présélection gratuite",
       "ctaSecondary": "Écouter un entretien",
       "ctaDemo": "Voir la démo en direct",
@@ -563,15 +564,34 @@
       }
     },
     "marquee": [
-      "notation des CV en quelques secondes",
+      "travaux pratiques vérifiés",
+      "candidat ou modèle ? on le sait",
+      "décisions scellées et auditables",
       "entretiens vocaux par AI",
-      "rendez-vous en libre-service",
-      "cinq canaux, un pipeline",
-      "radar des salaires",
+      "notation des CV en quelques secondes",
       "décisions validées par un humain",
       "tchèque + anglais",
-      "portails d'offres"
+      "radar des salaires"
     ],
+    "proof": {
+      "heading": "Travail vérifié.<br></br><emph>Décisions scellées.</emph>",
+      "subtitle": "N'importe qui génère aujourd'hui un devoir impeccable en une minute. KandiDate part du principe que le modèle était dans la pièce et vérifie ce que le candidat a réellement fait : les contrôles traversent le travail pratique, l'entretien lui fait défendre ses propres choix, et la décision aboutit dans une chaîne infalsifiable.",
+      "cards": {
+        "samples": {
+          "title": "Des travaux pratiques qui anticipent l'AI",
+          "body": "Des cas conçus pour l'ère des LLM : des défauts plantés à la solution connue, les prompts réellement utilisés et une distance mesurée par rapport au simple one-shot. L'AI est permise. La délégation se voit."
+        },
+        "defend": {
+          "title": "Un entretien sur ses propres décisions",
+          "body": "L'entretien vocal reprend les deux décisions que le candidat a réellement prises dans le travail pratique et les lui fait défendre à voix haute, en tchèque ou en anglais."
+        },
+        "sealed": {
+          "title": "Des décisions scellées, pas affirmées",
+          "body": "Chaque avancement, refus et offre est scellé dans une chaîne d'audit infalsifiable, avec le nom de l'humain qui a signé. Le candidat voit ce qui a été décidé à son sujet, et pourquoi."
+        }
+      },
+      "footline": "la question de chaque embauche en 2026 — répondue par des preuves"
+    },
     "steps": {
       "heading": "De la pile à la sélection<br></br>en <emph>trois temps</emph>",
       "drop": {

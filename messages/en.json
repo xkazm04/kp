@@ -525,6 +525,7 @@
   },
   "landing": {
     "nav": {
+      "proof": "Proof",
       "how": "How it works",
       "features": "Features",
       "voice": "Voice interview",
@@ -537,9 +538,9 @@
       "signIn": "Sign in"
     },
     "hero": {
-      "badge": "AI for hiring that keeps humans in charge",
-      "title": "Hiring that<br></br>actually <emph>moves</emph>.",
-      "subtitle": "KandiDate reads every CV, runs the first interview out loud, books the calendar and lines up decisions for you to approve. The pile disappears. The judgment stays yours.",
+      "badge": "Hiring for the LLM era",
+      "title": "Did the candidate write it,<br></br>or the <emph>model</emph>?",
+      "subtitle": "The question every 2026 hire raises, answered with proof: work samples verified against AI delegation, a voice interview about the candidate's own decisions, and every verdict sealed into an audit trail a human signs. The pile still disappears. The evidence stays.",
       "ctaPrimary": "Start screening free",
       "ctaSecondary": "Hear it interview",
       "ctaDemo": "Watch the live demo",
@@ -563,15 +564,34 @@
       }
     },
     "marquee": [
-      "CV scoring in seconds",
+      "verified work samples",
+      "candidate or model? we can tell",
+      "sealed, auditable decisions",
       "AI voice interviews",
-      "self-scheduling links",
-      "five channels, one pipeline",
-      "salary radar",
+      "CV scoring in seconds",
       "human-approved decisions",
       "Czech + English",
-      "offer portals"
+      "salary radar"
     ],
+    "proof": {
+      "heading": "Verified work.<br></br><emph>Sealed decisions.</emph>",
+      "subtitle": "Anyone can generate a polished take-home in a minute. KandiDate assumes the model was in the room and verifies what the candidate actually did: controls run through the work sample, the interview makes them defend their own choices, and the decision lands in a tamper-evident chain.",
+      "cards": {
+        "samples": {
+          "title": "Work samples that assume AI",
+          "body": "Cases built for the LLM era: planted flaws with known answers, the prompts they actually used, and a measured distance from a bare one-shot. AI is allowed. Delegation shows."
+        },
+        "defend": {
+          "title": "An interview about their decisions",
+          "body": "The voice interview picks up the two decisions the candidate really made in the sample and has them defend both out loud, in Czech or English."
+        },
+        "sealed": {
+          "title": "Decisions sealed, not asserted",
+          "body": "Every advance, rejection and offer is sealed into a tamper-evident audit chain naming the human who signed it. Candidates see what was decided about them, and why."
+        }
+      },
+      "footline": "the question every 2026 hire raises — answered with evidence"
+    },
     "steps": {
       "heading": "From pile to shortlist<br></br>in <emph>three moves</emph>",
       "drop": {

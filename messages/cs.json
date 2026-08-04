@@ -525,6 +525,7 @@
   },
   "landing": {
     "nav": {
+      "proof": "Důkazy",
       "how": "Jak to funguje",
       "features": "Funkce",
       "voice": "Hlasový pohovor",
@@ -537,9 +538,9 @@
       "signIn": "Přihlásit se"
     },
     "hero": {
-      "badge": "AI pro nábor, kde rozhodují lidé",
-      "title": "Nábor, který<br></br>konečně <emph>funguje</emph>.",
-      "subtitle": "KandiDate přečte každé CV, vede první pohovor naživo, zarezervuje termín a připraví rozhodnutí, která jen schválíte. Hromada zmizí. Úsudek zůstává na vás.",
+      "badge": "Nábor pro éru AI",
+      "title": "Napsal to kandidát,<br></br>nebo <emph>model</emph>?",
+      "subtitle": "Otázka, kterou dnes vyvolává každý nábor, zodpovězená důkazy: pracovní ukázky ověřené proti delegování na AI, hlasový pohovor nad vlastními rozhodnutími kandidáta a každý verdikt zapečetěný v auditní stopě, kterou podepisuje člověk. Hromada CV pořád zmizí. Důkazy zůstanou.",
       "ctaPrimary": "Začít screening zdarma",
       "ctaSecondary": "Poslechnout si pohovor",
       "ctaDemo": "Spustit živé demo",
@@ -563,15 +564,34 @@
       }
     },
     "marquee": [
-      "hodnocení CV během vteřin",
+      "ověřené pracovní ukázky",
+      "kandidát, nebo model? poznáme to",
+      "zapečetěná auditovatelná rozhodnutí",
       "AI hlasové pohovory",
-      "odkazy pro samoobslužné termíny",
-      "pět kanálů, jedna pipeline",
-      "platový radar",
+      "hodnocení CV během vteřin",
       "rozhodnutí schválená člověkem",
       "česky i anglicky",
-      "portály nabídek"
+      "platový radar"
     ],
+    "proof": {
+      "heading": "Ověřená práce.<br></br><emph>Zapečetěná rozhodnutí.</emph>",
+      "subtitle": "Naleštěný domácí úkol dnes vygeneruje kdokoli za minutu. KandiDate počítá s tím, že model byl u toho, a ověřuje, co kandidát skutečně udělal: pracovní ukázkou projdou kontroly, pohovor ho nechá obhájit vlastní volby a rozhodnutí skončí v řetězci chráněném proti manipulaci.",
+      "cards": {
+        "samples": {
+          "title": "Ukázky práce, které s AI počítají",
+          "body": "Úlohy stavěné pro éru velkých modelů: nastražené chyby se známým řešením, skutečně použité prompty a měřená vzdálenost od holého jednorázového promptu. AI je povolená. Delegování je vidět."
+        },
+        "defend": {
+          "title": "Pohovor o vlastních rozhodnutích",
+          "body": "Hlasový pohovor naváže na dvě rozhodnutí, která kandidát v ukázce opravdu udělal, a nechá ho obě obhájit nahlas, česky nebo anglicky."
+        },
+        "sealed": {
+          "title": "Rozhodnutí zapečetěná, ne tvrzená",
+          "body": "Každý postup, zamítnutí i nabídka se pečetí do auditního řetězce chráněného proti manipulaci, se jménem člověka, který je podepsal. Kandidát vidí, co se o něm rozhodlo a proč."
+        }
+      },
+      "footline": "otázka každého náboru v roce 2026 — zodpovězená důkazy"
+    },
     "steps": {
       "heading": "Od hromady k užšímu výběru<br></br>ve <emph>třech krocích</emph>",
       "drop": {

@@ -28,7 +28,7 @@ cards that drive it sit inside `FeatureGrid`).
 
 | Directory | Holds |
 | --- | --- |
-| `spark/sections/` | One module per band: `Topbar`, `Hero`, `Marquee`, `Steps`, `FeatureGrid`, `VoiceTeaser`, `TrustPillars`, `Cta`, `Footer` |
+| `spark/sections/` | One module per band: `Topbar`, `Hero`, `Marquee`, `Proof`, `Steps`, `FeatureGrid`, `VoiceTeaser`, `TrustPillars`, `Cta`, `Footer` |
 | `spark/previews/` | The nine product mockups a feature card opens, plus `shared.tsx` (the two entrance choreographies and the recurring card/chip/bar shapes) and `index.ts` (the key→icon+body registry) |
 | `spark/about-art/` | One illustration per `/about` pipeline phase, plus `shared.ts` |
 | `spark/Wordmark.tsx` | The brand lockup, used by all three pages |
@@ -57,11 +57,17 @@ The three pages share one rule set, so a visitor learns the chrome once.
   `IntersectionObserver` and pins its label. Collapsed it is a column of dots;
   hovering or tabbing into the rail opens every label. Labels are always in the
   a11y tree (only their width animates), so it reads as a full nav to a screen
-  reader. Sections: `#how`, `#features`, `#voice`, `#trust`, `#pricing`, plus a
-  back-to-top control. Shown from `md` up.
+  reader. Sections: `#proof`, `#how`, `#features`, `#voice`, `#trust`,
+  `#pricing`, plus a back-to-top control. Shown from `md` up.
 - **The language switcher is footer-only.** `LandingLangSwitch` appears once per
   page, in the footer. It used to sit in the `/market` topbar as well; one place
   to change language beats two.
+- **The landing footer carries the legal row** — `/privacy`, `/terms`, `/trust`
+  (`landing.footer.{privacy,terms,trust}`). A product that captures candidate
+  PII exposes its policies from its front door; `/trust` is the evidence page
+  behind the hero's verified-hiring claims (public since 2026-08-05, was
+  noindexed). All three are in `app/sitemap.ts` and the public-routes
+  allow-list.
 - **`/about` is labelled "About the app"** (`landing.nav.about`,
   `jobMarket.nav.about`) — `O aplikaci` · `Über die App` · `À propos de l'app`.
   The page describes the product's workflow, so it must not read as an

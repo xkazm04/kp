@@ -22,6 +22,7 @@ import { useTranslations } from "next-intl";
 // Section ids as they appear down the page — the order doubles as the
 // scroll-spy tiebreak when two sections straddle the viewport midline.
 const SECTIONS = [
+  { id: "proof", key: "proof" },
   { id: "how", key: "how" },
   { id: "features", key: "features" },
   { id: "voice", key: "voice" },

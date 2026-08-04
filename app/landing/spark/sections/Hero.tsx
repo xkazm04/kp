@@ -134,6 +134,11 @@ export default function Hero() {
           transition={{ delay: 0.32 }}
           className="mt-8 flex flex-wrap items-center gap-4"
         >
+          {/* TODO(signup-cta): /signup exists but is gated by the server-side
+              KP_SIGNUP_ENABLED env (the page 404s when unset), which the client
+              cannot detect — so the primary CTA keeps enterWorkspace() (open mode
+              → dashboard, password mode → /login). Point it at /signup once the
+              gate is exposed to the client (e.g. an NEXT_PUBLIC_ mirror). */}
           <button type="button" onClick={() => void enterWorkspace()} className={`${BTN} bg-[#d65a4a] text-white`}>
             {t("hero.ctaPrimary")}
             <ArrowRight className="h-5 w-5" aria-hidden />
