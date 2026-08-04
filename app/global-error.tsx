@@ -15,6 +15,9 @@
 // body rule in globals.css also paints the paper canvas + ink text for free.
 import "./globals.css";
 
+import { useEffect } from "react";
+import { reportBoundaryError } from "@/app/_lib/sentry-client";
+
 // Copy lives in constants rather than JSX literals, one entry per language
 // (en first, cs second — no locale resolution exists here, so both show).
 // This also keeps eslint clean without an override entry: the
@@ -44,6 +47,14 @@ export default function GlobalError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  useEffect(() => {
+    // A layout-level crash is the highest-signal error the app has. The report
+    // is DSN-gated and no-ops on the default local-first deploy
+    // (app/_lib/sentry-client.ts); the console always keeps the stack.
+    console.error("Root layout crashed:", error);
+    reportBoundaryError(error);
+  }, [error]);
+
   return (
     <html lang="en">
       <body>

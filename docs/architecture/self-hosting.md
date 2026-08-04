@@ -122,6 +122,7 @@ off). This is the list to hand your security team.
 | GitHub | `api.github.com` | GitHub repo-analysis feature | anon | Candidate repo signal. `GITHUB_TOKEN` only raises rate limits; skip the feature to avoid entirely. |
 | Polar | `api.polar.sh`, `sandbox-api.polar.sh` | `POLAR_ACCESS_TOKEN` | off | Billing (Merchant of Record). Unset ⇒ billing routes 503; self-host typically leaves this off. See `docs/features/billing/README.md`. |
 | LightTrack | your `LIGHTTRACK_URL` | `LIGHTTRACK_URL` | off | LLM observability (self-hosted sibling). Unset ⇒ off. |
+| Sentry | your DSN's ingest host (`*.sentry.io`, or self-hosted) | `SENTRY_DSN` (server) / `NEXT_PUBLIC_SENTRY_DSN` (browser, baked at build) | off | Error reporting (`instrumentation.ts`, error boundaries). Unset ⇒ no init, no SDK load. `KP_OFFLINE=1` skips it even with a DSN set. |
 | Next.js telemetry | `telemetry.nextjs.org` | — | **off** | Disabled by `NEXT_TELEMETRY_DISABLED=1` (set in the image). |
 
 KP does **not** fetch fonts, scripts, or styles from a CDN at runtime — assets are

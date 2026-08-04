@@ -13,6 +13,16 @@
 // tree-shakes the import away — without this the bundler chases better-sqlite3 →
 // bindings → `fs`, which doesn't exist off-Node).
 
+// Server-side Sentry is DSN-gated on the repo's LightTrack precedent
+// (pipeline/jobfit/llm/monitor.py activates only when LIGHTTRACK_URL is set):
+// no SENTRY_DSN, no init, no SDK load, no egress. KP_OFFLINE=1 skips Sentry
+// entirely regardless of the DSN — an air-gapped deploy must not even try
+// (the offline fetch guard would refuse the transport anyway; this keeps the
+// SDK from initializing at all). Pure env reads — safe in the edge compile.
+function sentryEnabled(): boolean {
+  return Boolean(process.env.SENTRY_DSN) && process.env.KP_OFFLINE !== "1";
+}
+
 export async function register(): Promise<void> {
   if (process.env.NEXT_RUNTIME !== "nodejs") return;
   // Install the KP_OFFLINE egress guard FIRST, before any code path can fetch, so a
@@ -21,6 +31,28 @@ export async function register(): Promise<void> {
   // no SQLite/native imports — so it's safe to import in this edge-compiled hook.
   const { installOfflineFetchGuard } = await import("./app/_lib/offline");
   installOfflineFetchGuard();
+  // Sentry AFTER the egress guard (its transport then plays by the same rules),
+  // BEFORE the clock so scheduler-tick crashes are already reportable.
+  if (sentryEnabled()) {
+    const Sentry = await import("@sentry/nextjs");
+    Sentry.init({
+      dsn: process.env.SENTRY_DSN,
+      // Error reporting only — no performance tracing, no extra egress.
+      tracesSampleRate: 0,
+    });
+  }
   const { startClock } = await import("./instrumentation-node");
   await startClock();
+}
+
+// Next calls this for every unhandled server request error (nested React
+// Server Component errors included, which the route error boundaries never
+// see server-side). Same gates as register(): Node runtime only, DSN set,
+// not offline. The lazy import keeps the SDK out of every compile where the
+// gate is closed at runtime.
+type CaptureRequestErrorArgs = Parameters<(typeof import("@sentry/nextjs"))["captureRequestError"]>;
+export async function onRequestError(...args: CaptureRequestErrorArgs): Promise<void> {
+  if (process.env.NEXT_RUNTIME !== "nodejs" || !sentryEnabled()) return;
+  const Sentry = await import("@sentry/nextjs");
+  Sentry.captureRequestError(...args);
 }
