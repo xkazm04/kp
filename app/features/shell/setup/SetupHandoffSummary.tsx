@@ -11,6 +11,7 @@ import { useTranslations } from "next-intl";
 import { useSimulation } from "@/app/features/shell/simulation/SimulationProvider";
 import { APP_LANGUAGES } from "@/app/features/shared/memberUi";
 import { EYEBROW } from "@/app/_components/ui/recipes";
+import { SetupEngineStatusNote } from "./SetupEngineStatusNote";
 import { roleStepComplete, type OnboardingCtrl } from "./setupSteps";
 
 export function SetupHandoffSummary({ ctrl }: { ctrl: OnboardingCtrl }) {
@@ -36,14 +37,21 @@ export function SetupHandoffSummary({ ctrl }: { ctrl: OnboardingCtrl }) {
       </div>
 
       {hasRole ? (
-        <div className="flex items-center gap-3 rounded-lg border border-stone-200 bg-white p-4">
-          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-coral/10 text-coral">
-            <Sparkles size={18} aria-hidden />
-          </span>
-          <div className="text-sm">
-            <p className="font-semibold text-ink">{t("roleTitle", { role: role.title.trim() })}</p>
-            <p className="text-steel">{imported ? t("roleImportedBody") : t("roleBody")}</p>
+        <div className="space-y-2 rounded-lg border border-stone-200 bg-white p-4">
+          <div className="flex items-center gap-3">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-coral/10 text-coral">
+              <Sparkles size={18} aria-hidden />
+            </span>
+            <div className="text-sm">
+              <p className="font-semibold text-ink">{t("roleTitle", { role: role.title.trim() })}</p>
+              <p className="text-steel">{imported ? t("roleImportedBody") : t("roleBody")}</p>
+            </div>
           </div>
+          {/* Engine preflight (DATA4): finishing HERE is what actually starts the
+              write-path build — repeat the honest degraded-engine note beside the
+              claim so "AI build" is never promised on a server that will serve
+              the deterministic fallback. Import mode renders nothing. */}
+          <SetupEngineStatusNote mode={role.mode} />
         </div>
       ) : null}
 

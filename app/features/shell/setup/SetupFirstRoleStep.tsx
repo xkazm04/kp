@@ -13,6 +13,7 @@ import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import type { OnboardingCtrl, RoleDraft, RoleMode } from "./setupSteps";
 import { Req } from "./SetupRequiredMarker";
+import { SetupEngineStatusNote } from "./SetupEngineStatusNote";
 import { SetupFirstRoleWriteFields } from "./SetupFirstRoleWriteFields";
 
 // First-role step — the activation moment, with two real doors:
@@ -85,6 +86,12 @@ export function FirstRoleStep({ ctrl }: { ctrl: OnboardingCtrl }) {
           },
         ]}
       />
+
+      {/* Engine preflight (DATA4): the WRITE path starts the real AI build, so say
+          honestly — before the user invests in the form — when this server will
+          serve deterministic fallbacks instead. Warns, never blocks: fallback is a
+          designed mode, and Skip/import remain the explicit ways around. */}
+      <SetupEngineStatusNote mode={role.mode} />
 
       <div>
         <label htmlFor="setup-role-title" className={`${META_LABEL} block`}>
