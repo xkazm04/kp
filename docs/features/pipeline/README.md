@@ -133,6 +133,31 @@ saved view → confirm), `pipelineBulkConfirm.test.ts`, and `pipelineMoveTargets
 (which also pins that the drawer's "open full match" link is gated on `candidateId`
 like its "edit profile" sibling, instead of rendering and silently no-opping).
 
+## The activity feed speaks the recruiter's language
+
+The board's activity feed (`PipelineActivityFeed`) renders **every** `pipeline_events`
+row, so its vocabulary is the *whole* writer vocabulary — not the board-lifecycle subset.
+`EVENT_KINDS` (`pipelineEventCatalog.ts`) is that full list (55 kinds); `EVENT_CATALOG` is
+`Record<EventKind, …>`, so a new kind without a glyph is a **compile** error, and
+`useEventVerb` resolves `pipeline.events.<kind>` for each one.
+
+Before this, `EVENT_KINDS` held only 16 kinds and `useEventVerb` fell through to
+`ev.kind.replace(/_/g, " ")` — **34 of the 50 kinds then reachable rendered in raw English
+regardless of locale** (`outreach_sent`, `offer_drafted`, `auto_rejected`, every
+dispatched comm, every policy alert). An unrecognized/legacy kind now degrades through a
+localized frame, `pipeline.events.unknownKind` ("logged an unrecognized event ({kind})"),
+which shows the raw machine token *inside* copy that names it as unrecognized — it must
+not be mistakable for a first-class label.
+
+**The catalog key set is derived, never enumerated by eye.**
+`pipelineEventCatalog.test.ts` reads the code that owns the vocabulary — `DECISION_META`
+and `AUTOMATION_ALERT_KINDS` (`decision-attribution.ts`) plus `ATS_EXPORT_EVENT_KIND` —
+and fails if any of it is missing from `EVENT_KINDS`; then it asserts **set equality**
+between `EVENT_KINDS` and the `pipeline.events` keys **per locale**. That per-locale check
+is the point: `npm run i18n:check` only proves the four locales agree *with each other*,
+so deleting a key from all four leaves it green (measured — 4724 keys, "4 locale(s) in
+parity", while the guard test failed).
+
 ## The drawer and the Comms Center tell one delivery truth
 
 The candidate drawer's **Messages** list and the Comms Center render the same rows, so
