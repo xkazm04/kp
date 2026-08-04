@@ -1,0 +1,28 @@
+# Ruff gate for pipeline/ (wired in .github/workflows/ci.yml, python-gate job).
+#
+# RATCHET, not aspiration: this config passes against the tree TODAY (verified
+# 2026-08-05, ruff 0.15.0 — the version CI pins). The `ignore` list below names
+# exactly the rule families the existing code violates; each entry is a debt
+# marker, not a policy. Ratchet by deleting an entry, running
+# `ruff check pipeline/`, fixing what surfaces, and committing both together.
+# Never add an entry to make a red build green without recording why here.
+[lint]
+# Ruff's default set (pycodestyle errors + pyflakes), pinned explicitly so a
+# future ruff release changing its defaults can't silently widen or narrow CI.
+select = ["E4", "E7", "E9", "F"]
+ignore = [
+    # 1x pipeline/jobfit/taxonomy.py:41 — deliberate late import after the JSON
+    # benchmark load it depends on; restructure when touching that module.
+    "E402",
+    # 10x ambiguous single-letter names (l/I/O), e.g. winnability.py:78.
+    "E741",
+    # 5x unused imports (auto-fixable: `ruff check --fix --select F401`).
+    "F401",
+    # 2x f-strings without placeholders (auto-fixable).
+    "F541",
+    # 1x pipeline/jobfit/pipeline.py:674 — `CandidateProfileV2` used in an
+    # annotation without a runtime import. Worth a real look when touching
+    # pipeline.py: if the module ever drops its lazy-annotation posture this
+    # becomes a NameError at def time.
+    "F821",
+]
