@@ -759,7 +759,11 @@
       "note": "bez platební karty, bez robotů u kormidla"
     },
     "footer": {
-      "tagline": "AI pro nábor, lidé pro rozhodnutí"
+      "tagline": "AI pro nábor, lidé pro rozhodnutí",
+      "legalNav": "Právní informace",
+      "privacy": "Ochrana osobních údajů",
+      "terms": "Obchodní podmínky",
+      "trust": "Důvěra a compliance"
     },
     "previews": {
       "close": "Zavřít náhled",
@@ -7000,6 +7004,253 @@
       "notDelivered": "Nedoručeno — {reason}.",
       "pingFailed": "Ping selhal.",
       "pullNote": "Načtení jednoho kandidáta na vyžádání: <code>{endpoint}</code> vrátí stejný normalizovaný záznam."
+    }
+  },
+  "legal": {
+    "updated": "Poslední aktualizace: {date}",
+    "disclaimer": "Tato stránka popisuje, jak se produkt skutečně chová. Je to technický dokument, nikoli právní poradenství.",
+    "privacy": {
+      "meta": {
+        "title": "Zásady ochrany osobních údajů",
+        "description": "Jak KandiDate zpracovává údaje kandidátů a zákazníků: souhlas, doba uchování, výmaz, transparentnost AI, subdodavatelé a fakturace."
+      },
+      "title": "Zásady ochrany osobních údajů",
+      "intro": "KandiDate je software pro nábor. Čte životopisy, vede pohovory a zaznamenává náborová rozhodnutí, proto jsou tyto zásady napsané kolem údajů, se kterými produkt opravdu pracuje. Popisují skutečné chování produktu, a kde je nastavení volitelné, výslovně to uvádějí.",
+      "roles": {
+        "title": "Kdo za vaše údaje odpovídá",
+        "controller": "U údajů kandidátů (životopisy, přepisy pohovorů, hodnoticí karty a záznamy rozhodnutí) je správcem údajů firma, která náborový workspace provozuje. Ta rozhoduje, proč a jak se kandidáti posuzují.",
+        "processor": "Provozovatel KandiDate je u těchto údajů zpracovatelem: zpracovává je výhradně proto, aby správci poskytl produkt, podle jeho nastavení a pokynů.",
+        "account": "U účtu zákazníka a fakturačních údajů je správcem provozovatel KandiDate."
+      },
+      "data": {
+        "title": "Co produkt zpracovává",
+        "intro": "Produkt zpracovává jen to, co náborový proces potřebuje:",
+        "items": [
+          "Dokumenty se životopisy a text z nich vytěžený",
+          "Zvuk hlasových pohovorů, přepisy a strukturované hodnoticí karty",
+          "Skóre vhodnosti, podklady k němu a odhady mzdy odvozené ze životopisu",
+          "Záznamy rozhodnutí: kdo postoupil, kdo byl odmítnut, komu byla učiněna nabídka, kdy a proč",
+          "Kontaktní údaje potřebné ke komunikaci s kandidátem o jeho přihlášce",
+          "Údaje o účtu, tarifu a využití služby na straně zákazníka"
+        ]
+      },
+      "consent": {
+        "title": "Souhlas a doba uchování",
+        "gate": "Souhlas se získává dřív, než údaje kandidáta čte jakákoli AI. Stránky pro kandidáty uvádějí zapojení AI předem, ne dodatečně.",
+        "retention": "Náborový souhlas má omezenou platnost. V tomto nasazení je doba uchování nejvýše {months, plural, one {# měsíc} few {# měsíce} other {# měsíců}} od udělení souhlasu. Doba je nastavitelná pro každé nasazení zvlášť a číslo na této stránce se odvozuje přímo z aktuální konfigurace, takže se nemůže rozejít s tím, co produkt skutečně vynucuje.",
+        "expiry": "Po vypršení souhlasu se záznam anonymizuje: jméno se zkrátí na neidentifikující zkratku, kontaktní údaje, text životopisu a doslovné citace se odstraní. Neidentifikující náborové signály (dovednosti, skóre, seniorita, mzdové pásmo) zůstávají, aby správce mohl vést zákonné náborové statistiky.",
+        "readGate": "Vypršení platí okamžitě i při čtení: produkt přestane zobrazovat text životopisu a přepisy ještě dřív, než proběhne pravidelná anonymizace, a zablokuje další oslovování kandidáta."
+      },
+      "rights": {
+        "title": "Vaše práva jako kandidáta",
+        "intro": "Každý kandidát dostává osobní odkaz s tokenem. Nevyžaduje žádný účet a otevírá stránku, kde můžete:",
+        "items": [
+          "Zobrazit údaje, které jsou o vás vedené, včetně rozhodnutí zaznamenaných k vaší přihlášce",
+          "Požádat o lidské přezkoumání každého rozhodnutí, na kterém se podílela AI",
+          "Požádat o výmaz svých údajů"
+        ],
+        "erasure": "Výmaz probíhá jako jedna transakce napříč profilem, přepisy pohovorů, hodnoticími kartami i frontou odchozích zpráv: proběhne celý, nebo vůbec.",
+        "carveout": "Jedna kategorie je z výmazu vyňata: zapečetěné záznamy rozhodnutí. Uchovávají se podle čl. 17 odst. 3 písm. b) a e) GDPR, protože regulované náborové rozhodnutí musí zůstat auditovatelné a obhajitelné i zpětně. Po výmazu na vás odkazují jen maskovanou, neidentifikující značkou."
+      },
+      "voice": {
+        "title": "Hlasové pohovory",
+        "body": "Hlasový pohovor se nahrává a přepisuje až poté, co s tím na stránce pohovoru výslovně souhlasíte. Souhlas vynucuje server: bez něj se pohovor vůbec nevytvoří a žádný přepis se neuloží. Můžete odmítnout a vaše přihláška pokračuje bez hlasového pohovoru."
+      },
+      "ai": {
+        "title": "Transparentnost AI",
+        "oversight": "Podle nařízení EU o umělé inteligenci je třídění, hodnocení, řazení a vedení pohovorů s kandidáty vysoce rizikovým použitím. Každá stránka pro kandidáty proto zobrazuje upozornění na zapojení AI dřív, než AI vaše údaje čte, jak vyžaduje článek 50.",
+        "sealed": "Žádný kandidát nepostupuje, není odmítnut ani nedostává nabídku jen na základě stroje. Každé nepříznivé rozhodnutí vyžaduje člověka a každé rozhodnutí, lidské i automatické, se zapečetí do auditního záznamu chráněného proti manipulaci, který uvádí, kdo rozhodl a proč."
+      },
+      "subprocessors": {
+        "title": "Subdodavatelé",
+        "body": "Produkt využívá jen poskytovatele, které si zákazník sám nastaví. Množina, kterou může zapojit, je: {list}. Žádný z nich není povinný: samostatně hostovaná offline instalace nezapojuje žádného externího zpracovatele. Údaje kandidátů se nikdy neprodávají, nesdílejí ani nepoužívají k trénování modelů.",
+        "trustLink": "Udržovaný seznam spolu s postojem produktu k nařízení EU o AI, článek po článku, je zveřejněn na stránce důvěry."
+      },
+      "billing": {
+        "title": "Fakturační údaje",
+        "body": "Placené tarify se prodávají přes Polar, který vystupuje jako merchant of record. Polar zpracovává platební údaje a vystavuje faktury; údaje o kartách se do KandiDate nikdy nedostanou. Produkt ukládá jen stav předplatného potřebný k měření využití."
+      },
+      "security": {
+        "title": "Zabezpečení",
+        "items": [
+          "API klíče poskytovatelů se ukládají pouze pro zápis a šifrované; do prohlížeče se nikdy nevracejí",
+          "Data každého workspace jsou izolovaná po tenantech",
+          "Záznamy rozhodnutí se pečetí do hashovacího řetězce chráněného proti manipulaci, s rotací klíčů",
+          "Offline režim blokuje veškerou komunikaci s modely, pro izolované instalace i provoz ve vlastní VPC"
+        ]
+      },
+      "contact": {
+        "title": "Kontakt",
+        "body": "S žádostmi o své údaje jako kandidát použijte odkaz s tokenem z libovolné zprávy, kterou vám produkt poslal; je to nejrychlejší ověřená cesta. S čímkoli dalším se obraťte na provozovatele tohoto nasazení nebo napište na {email}."
+      }
+    },
+    "terms": {
+      "meta": {
+        "title": "Obchodní podmínky",
+        "description": "Podmínky používání KandiDate: služba, tarify a fakturace přes Polar, odpovědnost zákazníka za údaje kandidátů a prohlášení o AI systému."
+      },
+      "title": "Obchodní podmínky",
+      "intro": "Tyto podmínky upravují používání KandiDate, náborového workspace, který analyzuje životopisy, vede hlasové AI pohovory, ověřuje pracovní ukázky a zaznamenává náborová rozhodnutí. Vytvořením workspace nebo používáním produktu s nimi souhlasíte.",
+      "service": {
+        "title": "Služba",
+        "body": "KandiDate poskytuje software pro posuzování uchazečů o práci: hodnocení vhodnosti, hlasové AI pohovory, ověřené pracovní ukázky, plánování termínů, komunikaci s kandidáty a zapečetěný záznam náborových rozhodnutí. Produkt s posuzováním pomáhá; sám náborová rozhodnutí nedělá a je navržen tak, aby je dělat nemohl."
+      },
+      "accounts": {
+        "title": "Workspace a účty",
+        "body": "Za dění ve svém workspace odpovídáte vy: za důvěrnost přístupových údajů, za zákonnost a správnost dat, která vkládáte, i za jednání lidí, které pozvete."
+      },
+      "billing": {
+        "title": "Tarify a fakturace",
+        "polar": "Placené tarify a měřené minuty pohovorů se prodávají přes Polar, který vystupuje jako merchant of record: zajišťuje pokladnu, zpracování plateb, fakturaci i příslušné daně. Předplatné se obnovuje, dokud je nezrušíte, a spravuje se v zákaznickém portálu.",
+        "meters": "Limity tarifů se měří v lidských jednotkách (kandidáti, pracovní ukázky, minuty pohovorů), nikdy v tokenech. Po vyčerpání limitu se daná funkce pozastaví, dokud se limit neobnoví nebo nedokoupí; vašich dat se to nedotkne."
+      },
+      "customerData": {
+        "title": "Údaje kandidátů a vaše odpovědnost",
+        "controller": "U údajů kandidátů zpracovávaných ve vašem workspace jste správcem vy a provozovatel KandiDate je vaším zpracovatelem. Odpovídáte za právní základ, informování kandidátů, naplňování jejich práv a nastavení doby uchování odpovídající vaší jurisdikci.",
+        "processor": "Údaje kandidátů se zpracovávají výhradně kvůli poskytování služby vám. Nikdy se neprodávají, nesdílejí nad rámec subdodavatelů, které si nastavíte, a nepoužívají se k trénování modelů."
+      },
+      "ai": {
+        "title": "Prohlášení o AI systému",
+        "highRisk": "KandiDate třídí, hodnotí, řadí a vede pohovory s kandidáty. Podle nařízení EU o umělé inteligenci jde o vysoce rizikové použití a produkt je tak postaven: lidský dohled nad každým nepříznivým rozhodnutím, zapečetěné a dohledatelné záznamy rozhodnutí a upozornění na AI směrem ke kandidátům.",
+        "deployer": "Pokud KandiDate nasadíte na své kandidáty, přebíráte povinnosti zavádějícího subjektu podle článku 26, včetně určení lidského dohledu a informování kandidátů. Produkt vám tyto povinnosti usnadňuje, ale nezbavuje vás jich. Žádné tvrzení v produktu ani na těchto stránkách není prohlášením o certifikované shodě."
+      },
+      "use": {
+        "title": "Přípustné užití",
+        "items": [
+          "Nepoužívejte produkt k plně automatizovaným náborovým rozhodnutím; kontroly lidského přezkumu se nesmějí obcházet",
+          "Nenahrávejte údaje kandidátů, k jejichž zpracování nemáte právní základ",
+          "Nepoužívejte produkt k diskriminaci na základě chráněných charakteristik",
+          "Nesondujte, nepřetěžujte ani se nepokoušejte prolomit službu či data jiných tenantů"
+        ]
+      },
+      "ip": {
+        "title": "Vaše data, náš software",
+        "body": "Veškerá práva k datům, která vložíte vy a vaši kandidáti, zůstávají vám. Veškerá práva k softwaru zůstávají provozovateli. Při ukončení si můžete workspace exportovat a požádat o výmaz hostovaných dat."
+      },
+      "warranty": {
+        "title": "Záruky a výhrady",
+        "body": "Služba se poskytuje tak, jak je. Skóre, odhady mezd, přepisy a další výstupy modelů jsou podklad pro rozhodování, ne záruka, a jejich přesnost nelze zaručit. Nic v produktu ani na těchto stránkách není právní poradenství."
+      },
+      "liability": {
+        "title": "Odpovědnost",
+        "body": "V rozsahu, v jakém to právo připouští, je souhrnná odpovědnost provozovatele za nároky vzniklé ze služby omezena částkami zaplacenými za službu ve dvanácti měsících před vznikem nároku. Náborová rozhodnutí zůstávají rozhodnutími zákazníka: ze zákona i z konstrukce produktu je dělají lidé."
+      },
+      "termination": {
+        "title": "Ukončení",
+        "body": "Službu můžete přestat používat a placený tarif kdykoli zrušit v zákaznickém portálu. Provozovatel může pozastavit workspace porušující tyto podmínky, s předchozím upozorněním, kde je to možné. Zapečetěné záznamy rozhodnutí přetrvávají výmaz, jak popisují zásady ochrany osobních údajů."
+      },
+      "law": {
+        "title": "Rozhodné právo",
+        "body": "Tyto podmínky se řídí právem České republiky, kde produkt vzniká a kde je primárně nabízen. Kogentní práva spotřebitelů a práva na ochranu údajů ve vaší jurisdikci zůstávají nedotčena."
+      },
+      "changes": {
+        "title": "Změny",
+        "body": "Tyto podmínky se mohou s vývojem produktu měnit. Podstatné změny oznamujeme v produktu dřív, než nabudou účinnosti; datum výše vždy označuje aktuální verzi."
+      },
+      "contact": {
+        "title": "Kontakt",
+        "body": "Dotazy k těmto podmínkám: {email}."
+      }
+    }
+  },
+  "control": {
+    "eyebrow": "Dohled",
+    "title": "Řídicí centrum autonomie",
+    "intro": "Lidský dohled nad autonomní náborovou pipeline — nouzová brzda, lidské brány, které čekají na vás, a neměnná auditní stopa každého automatického rozhodnutí (evidence, kterou vysoce rizikový systém AI pro nábor musí vést).",
+    "backToDevCases": "← Vývojové případy",
+    "autonomy": {
+      "statePaused": "Automatizace je POZASTAVENA",
+      "stateRunning": "Automatizace běží",
+      "pausedBody": "Automatický postup je zastaven; životní cykly čekají na vás. Obnovením budou pokračovat a proběhne synchronizace.",
+      "runningBody": "Životní cykly postupují podle pravidel. Pozastavením okamžitě zastavíte veškerou automatizaci.",
+      "resume": "Obnovit automatizaci",
+      "pause": "Pozastavit (nouzová brzda)",
+      "reconcile": "Synchronizovat",
+      "reconcileConfirm": "Potvrdit synchronizaci?"
+    },
+    "gates": {
+      "heading": "Čeká na vaše rozhodnutí · {count}",
+      "untitled": "Pozice",
+      "approve": "Schválit a pokračovat",
+      "approveConfirm": "Potvrdit schválení?"
+    },
+    "lifecycles": {
+      "heading": "Aktivní životní cykly · {count}",
+      "empty": "Žádný aktivní."
+    },
+    "audit": {
+      "heading": "Auditní stopa · {count, plural, one {poslední #} few {poslední #} other {posledních #}}",
+      "empty": "Zatím nebyla zaznamenána žádná rozhodnutí."
+    },
+    "outcomes": {
+      "heading": "Výsledky a kalibrace",
+      "blurb": "Zaznamenejte, co se s postoupenými kandidáty skutečně stalo; systém pak kalibruje práh pro postup podle reality — vede vyšší předpovězené skóre opravdu k přijetí? Návrh uplatňujete vy, takže učicí smyčka zůstává pod lidským dohledem.",
+      "candidateLabel": "Reference kandidáta",
+      "candidatePlaceholder": "kandidát",
+      "scoreLabel": "Předpovězené skóre",
+      "scorePlaceholder": "skóre",
+      "outcomeLabel": "Výsledek",
+      "perfLabel": "Hodnocení výkonu",
+      "perfOption": "výkon {n}",
+      "record": "Zaznamenat",
+      "recordFailed": "Výsledek se nepodařilo zaznamenat ({status}).",
+      "recordNetwork": "Chyba sítě — výsledek nebyl zaznamenán.",
+      "perfFailed": "Hodnocení výkonu se nepodařilo zaznamenat ({status}).",
+      "perfNetwork": "Chyba sítě — hodnocení výkonu nebylo zaznamenáno.",
+      "value": {
+        "hired": "přijato",
+        "rejected": "zamítnuto",
+        "withdrawn": "staženo"
+      },
+      "recordedHeading": "Zaznamenané výsledky · {count, plural, one {poslední #} few {poslední #} other {posledních #}}",
+      "colCandidate": "kandidát",
+      "colScore": "skóre",
+      "colOutcome": "výsledek",
+      "colPerf": "výkon",
+      "colRecorded": "zaznamenáno",
+      "autoBadge": "auto",
+      "addPerf": "doplnit výkon",
+      "ratingGroup": "Hodnocení výkonu, 1 až 5",
+      "ratePerformance": "Ohodnotit výkon {n} z 5"
+    },
+    "calibration": {
+      "activeFloor": "Aktivní práh pro postup",
+      "resolved": "{count, plural, one {# vyřešený} few {# vyřešené} other {# vyřešených}}",
+      "applySuggested": "Použít návrh → {floor}",
+      "applyConfirm": "Potvrdit → {floor}?",
+      "colBand": "pásmo skóre",
+      "colN": "n",
+      "colHireRate": "míra přijetí",
+      "colMeanPerf": "prům. výkon",
+      "percent": "{pct} %",
+      "rationale": {
+        "insufficient": "Zatím není dost vyřešených výsledků na kalibraci (je potřeba ≥ {min}).",
+        "weak": "Skóre předpovídá jen slabě — míra přijetí s ním čistě neroste. Než pohnete prahem, prověřte rubriku.",
+        "raise": "Kandidáti pod {suggested} se jen zřídka proměnili v přijetí; práh {current} propouští slabé shody. Zvažte jeho zvýšení na {suggested}.",
+        "lower": "Kandidáti od {suggested} do {current} se proměňovali dobře; práh {current} může být příliš přísný. Zvažte jeho snížení na {suggested}.",
+        "calibrated": "Práh {current} je dobře kalibrovaný — leží v prvním pásmu, kde byla většina postoupených kandidátů přijata."
+      }
+    }
+  },
+  "feedback": {
+    "open": "Poslat zpětnou vazbu",
+    "title": "Poslat zpětnou vazbu",
+    "subtitle": "Napište nám, co zlepšit — jde to přímo produktovému týmu.",
+    "messageLabel": "Vaše zpráva",
+    "messagePlaceholder": "Co fungovalo, co ne, co chybí…",
+    "emailLabel": "E-mail pro odpověď (nepovinné)",
+    "emailPlaceholder": "vy@firma.cz",
+    "send": "Odeslat",
+    "sending": "Odesílání…",
+    "sent": "Děkujeme — vaše zpětná vazba byla odeslána.",
+    "done": "Hotovo",
+    "cancel": "Zrušit",
+    "failed": "Zpětnou vazbu se nepodařilo odeslat. Zkuste to prosím znovu.",
+    "control": {
+      "title": "Zpětná vazba náborářů",
+      "intro": "Zprávy odeslané přes tlačítko „Poslat zpětnou vazbu“ v aplikaci — jen ke čtení, od nejnovějších.",
+      "empty": "Zatím žádná zpětná vazba.",
+      "version": "v{version}"
     }
   }
 }

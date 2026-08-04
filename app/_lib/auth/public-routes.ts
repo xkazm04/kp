@@ -14,6 +14,17 @@ export const PUBLIC_PAGES = [
   "/about",
   "/market",
   "/landing",
+  // Legal pages (2026-08-05): a privacy policy and terms MUST be reachable by an
+  // anonymous visitor — a candidate deciding whether to consent, or a buyer's legal
+  // reviewer — so gating them in password mode would defeat their purpose. Both are
+  // static, four-locale server components with no per-workspace data.
+  "/privacy",
+  "/terms",
+  // The trust posture board, public since 2026-08-05 (was noindexed/internal): it is
+  // the evidence page behind the landing's verified-hiring claims and is linked from
+  // the public footer, so it must survive the fail-closed gate in password mode.
+  // Static claims only (trust-posture.ts), no candidate or workspace data.
+  "/trust",
   "/apply/",
   "/offer/",
   "/schedule/",

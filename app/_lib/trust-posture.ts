@@ -33,12 +33,12 @@ export type ObligationRow = {
  *  hedge. kp screens, scores, ranks and interviews candidates: Annex III point 4. */
 export const CLASSIFICATION = {
   annex: "Annex III, point 4 (employment, workers management, access to self-employment)",
-  conclusion: "kp is a high-risk AI system.",
+  conclusion: "KandiDate is a high-risk AI system.",
   // Art. 6(3)'s "narrow procedural task" derogation is the standard escape hatch. Saying
   // out loud that it does not apply is a stronger signal than any badge.
   derogation:
     "The Art. 6(3) derogation for narrow procedural or preparatory tasks does not apply: the score is designed to shape advance and reject outcomes.",
-  providerRole: "The kp vendor is the provider (Art. 16). A customer running kp on their candidates is a deployer (Art. 26). A self-hosted install that substantially modifies the system makes that customer a provider too.",
+  providerRole: "The KandiDate vendor is the provider (Art. 16). A customer running KandiDate on their candidates is a deployer (Art. 26). A self-hosted install that substantially modifies the system makes that customer a provider too.",
   appliesFrom: "2 August 2026",
 } as const;
 

@@ -55,9 +55,9 @@ export function TrustContent() {
     <main className="mx-auto max-w-4xl px-6 py-12 lg:py-16">
       <header className="border-b border-stone-200 pb-8">
         <p className={EYEBROW}>Trust</p>
-        <h1 className={`mt-1 ${TITLE_DISPLAY}`}>How kp handles a regulated hiring decision</h1>
+        <h1 className={`mt-1 ${TITLE_DISPLAY}`}>How KandiDate handles a regulated hiring decision</h1>
         <p className={`mt-3 max-w-2xl ${INTRO}`}>
-          kp screens, scores, ranks and interviews job candidates. Under the EU AI Act that is a high-risk
+          KandiDate screens, scores, ranks and interviews job candidates. Under the EU AI Act that is a high-risk
           use, and the obligations apply in full from {CLASSIFICATION.appliesFrom}. This page states, article
           by article, which of them the product enforces today — including the ones it does not.
         </p>
@@ -127,7 +127,7 @@ export function TrustContent() {
       <section className="mt-10">
         <h2 className="font-serif text-h2 text-ink">Subprocessors</h2>
         <p className="mt-2 text-body text-steel">
-          kp routes to the engines each customer configures, so this is the set it <em>can</em> engage — not
+          KandiDate routes to the engines each customer configures, so this is the set it <em>can</em> engage — not
           one it always does. Every entry is optional: an offline, self-hosted install engages none of them.
         </p>
         <div className={`mt-4 overflow-x-auto ${PANEL}`}>

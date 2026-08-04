@@ -7,21 +7,22 @@ import { TrustContent } from "./TrustContent";
  * readable projection: article-by-article posture, subprocessors, data handling, and the
  * disclaimer that refuses to claim certified conformance.
  *
- * INTERNAL FOR NOW (user decision, 2026-07-30). It reads as a public trust page and could
- * become one, but today it is a working board for tracking what is enforced vs
- * outstanding — so it is NOINDEXED rather than published. A page that lists three unmet
- * obligations is the right artifact for us and the wrong first impression for a stranger.
- *
- * The plan is to DELETE this route once every obligation is enforced: at that point the
- * board has nothing left to track, and whatever we say publicly should be written as
- * marketing copy rather than left as a gap register with no gaps.
+ * PUBLIC (flipped 2026-08-05, reversing the 2026-07-30 internal-for-now call). The
+ * positioning work (docs/product/competitor-talentpilot.md §4) made auditable, verified
+ * hiring the headline claim, and a headline claim needs its evidence page indexable: the
+ * article-by-article posture, gaps included, is the checkable artifact competitors'
+ * "compliant" badges are not. The gap rows stay — trust-posture.ts already carries only
+ * the public projection (no internal evidence paths, no gap ids), and a page that admits
+ * what is outstanding is the entire differentiator. The no-certification disclaimer stays
+ * with it. Linked from the landing footer; listed in sitemap.ts and public-routes.ts.
  */
+const TITLE = "Trust & compliance — KandiDate";
+const DESCRIPTION =
+  "How KandiDate handles a regulated hiring decision: EU AI Act posture article by article, including what is not yet built, plus data handling and subprocessors.";
 export const metadata: Metadata = {
-  title: "Trust & compliance — KandiDate",
-  description:
-    "How kp handles a regulated hiring decision: EU AI Act posture article by article, including what is not yet built, plus data handling and subprocessors.",
-  // No openGraph: nothing here is meant to unfurl in a chat or a search result yet.
-  robots: { index: false, follow: false },
+  title: TITLE,
+  description: DESCRIPTION,
+  openGraph: { title: TITLE, description: DESCRIPTION },
 };
 
 // The CONTENT is static (no per-request or per-workspace data), but the per-request

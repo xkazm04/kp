@@ -759,7 +759,11 @@
       "note": "no credit card, no robots in charge"
     },
     "footer": {
-      "tagline": "AI for hiring, humans for decisions"
+      "tagline": "AI for hiring, humans for decisions",
+      "legalNav": "Legal",
+      "privacy": "Privacy",
+      "terms": "Terms",
+      "trust": "Trust & compliance"
     },
     "previews": {
       "close": "Close preview",
@@ -7000,6 +7004,253 @@
       "notDelivered": "Not delivered — {reason}.",
       "pingFailed": "Ping failed.",
       "pullNote": "Pull a single candidate on demand: <code>{endpoint}</code> returns the same normalized record."
+    }
+  },
+  "legal": {
+    "updated": "Last updated: {date}",
+    "disclaimer": "This page documents how the product behaves as shipped. It is an engineering artifact, not legal advice.",
+    "privacy": {
+      "meta": {
+        "title": "Privacy policy",
+        "description": "How KandiDate processes candidate and workspace data: consent, retention, erasure, AI transparency, subprocessors and billing."
+      },
+      "title": "Privacy policy",
+      "intro": "KandiDate is hiring software. It reads CVs, runs interviews and records hiring decisions, so this policy is written around the data those features actually touch. It describes shipped behavior, and where a control is configurable, it says so.",
+      "roles": {
+        "title": "Who is responsible for your data",
+        "controller": "For candidate data (CVs, interview transcripts, scorecards and decision records), the company running the hiring workspace is the data controller. It decides why and how candidates are assessed.",
+        "processor": "The KandiDate vendor acts as a processor for that data: it processes candidate data only to provide the product to the controller, under the controller's configuration and instructions.",
+        "account": "For the customer's own workspace account and billing data, the KandiDate vendor is the controller."
+      },
+      "data": {
+        "title": "What the product processes",
+        "intro": "The product processes only what the hiring flow needs:",
+        "items": [
+          "CV documents and the text extracted from them",
+          "Voice interview audio, transcripts and structured scorecards",
+          "Job-fit scores, evidence and salary estimates derived from the CV",
+          "Decision records: who was advanced, rejected or offered, when, and why",
+          "Contact details used to reach a candidate about their application",
+          "Workspace account, plan and usage data for the customer"
+        ]
+      },
+      "consent": {
+        "title": "Consent and retention",
+        "gate": "Consent is captured before any AI reads a candidate's data, and candidate pages state that an AI is involved before it happens, not after.",
+        "retention": "Recruitment consent expires. In this deployment the retention window is up to {months} months from the moment consent is given. The window is configurable per deployment, and the figure shown here is derived from the live configuration rather than typed by hand, so it cannot drift from what is enforced.",
+        "expiry": "When consent expires, the record is anonymized: the name is reduced to a non-identifying handle, contact details, the CV text and verbatim quotes are removed, and non-identifying recruitment signals (skills, scores, seniority, salary band) are retained so the controller can keep lawful hiring statistics.",
+        "readGate": "Expiry also takes effect immediately at read time: the product withholds CV text and transcripts even before the periodic anonymization sweep has run, and suppresses any further outreach to that candidate."
+      },
+      "rights": {
+        "title": "Your rights as a candidate",
+        "intro": "Every candidate receives a personal token link. It requires no account, and it opens a page where you can:",
+        "items": [
+          "See the data held about you, including the decisions recorded about your application",
+          "Ask for human review of any decision an AI was involved in",
+          "Request erasure of your data"
+        ],
+        "erasure": "Erasure runs as a single transaction across your profile, interview transcripts, scorecards and the message outbox: it completes in full or not at all.",
+        "carveout": "One category is exempt from erasure: sealed decision records. They are retained under Article 17(3)(b) and (e) GDPR, because a regulated hiring decision must remain auditable and defensible after the fact. Once you are erased, they refer to you only by a masked, non-identifying reference."
+      },
+      "voice": {
+        "title": "Voice interviews",
+        "body": "A voice interview is recorded and transcribed only after you explicitly consent on the interview page. That consent is enforced on the server: without it the interview session is never created and no transcript is stored. You can decline, and your application continues without a voice interview."
+      },
+      "ai": {
+        "title": "AI transparency",
+        "oversight": "Under the EU AI Act, screening, scoring, ranking and interviewing candidates is a high-risk use. Every candidate-facing page shows an AI disclosure before an AI reads your data, as Article 50 requires.",
+        "sealed": "No candidate is advanced, rejected or offered by the machine alone. Every adverse decision requires a human, and every decision, human or automated, is sealed into a tamper-evident audit record stating who made it and why."
+      },
+      "subprocessors": {
+        "title": "Subprocessors",
+        "body": "The product routes to the providers each customer configures, so the set it can engage is: {list}. None of them is mandatory: a self-hosted, offline installation engages no external processor at all. Candidate data is never sold or shared, and is never used to train models.",
+        "trustLink": "The maintained list, together with the product's article-by-article EU AI Act posture, is published on the trust page."
+      },
+      "billing": {
+        "title": "Billing data",
+        "body": "Paid plans are sold through Polar, acting as merchant of record. Polar processes payment details and issues invoices; card data never reaches KandiDate. The product stores only the subscription state needed to meter usage."
+      },
+      "security": {
+        "title": "Security",
+        "items": [
+          "Provider API keys are stored write-only and encrypted at rest; they never round-trip to a browser",
+          "Each workspace's data is isolated per tenant",
+          "Decision records are sealed into a tamper-evident hash chain with key rotation",
+          "An offline mode blocks all model egress, for air-gapped and in-VPC installs"
+        ]
+      },
+      "contact": {
+        "title": "Contact",
+        "body": "For requests about your data as a candidate, use the token link from any message the product sent you; it is the fastest, verified path. For anything else, contact the operator of this deployment or write to {email}."
+      }
+    },
+    "terms": {
+      "meta": {
+        "title": "Terms of service",
+        "description": "The terms for using KandiDate: the service, plans and billing through Polar, customer responsibilities for candidate data, and the AI system disclosure."
+      },
+      "title": "Terms of service",
+      "intro": "These terms govern the use of KandiDate, a hiring workspace that analyzes CVs, runs AI voice interviews, verifies work samples and records hiring decisions. By creating a workspace or using the product you agree to them.",
+      "service": {
+        "title": "The service",
+        "body": "KandiDate provides software for assessing job candidates: job-fit scoring, AI voice interviews, verified work samples, scheduling, candidate communication and a sealed record of hiring decisions. The product assists assessment; it does not make hiring decisions on its own, and it is designed so that it cannot."
+      },
+      "accounts": {
+        "title": "Workspaces and accounts",
+        "body": "You are responsible for what happens in your workspace: keeping access credentials confidential, the lawfulness and accuracy of the data you provide, and the conduct of the people you invite."
+      },
+      "billing": {
+        "title": "Plans and billing",
+        "polar": "Paid plans and metered interview minutes are sold through Polar, which acts as merchant of record: Polar handles checkout, payment processing, invoicing and applicable taxes. Subscriptions renew until cancelled and can be managed or cancelled through the customer portal.",
+        "meters": "Plan limits are metered in human terms (candidates, work-sample cases, interview minutes), never in tokens. When an allowance runs out, the related feature pauses until the allowance renews or is topped up; your data is unaffected."
+      },
+      "customerData": {
+        "title": "Candidate data and your responsibilities",
+        "controller": "For candidate data processed in your workspace, you are the data controller and the KandiDate vendor is your processor. You are responsible for having a lawful basis, informing candidates, honoring their rights, and configuring the retention window that matches your jurisdiction.",
+        "processor": "Candidate data is processed only to provide the service to you. It is never sold, never shared beyond the subprocessors you configure, and never used to train models."
+      },
+      "ai": {
+        "title": "AI system disclosure",
+        "highRisk": "KandiDate screens, scores, ranks and interviews candidates. Under the EU AI Act this is a high-risk use, and the product is built accordingly: human oversight on every adverse decision, sealed and attributable decision records, and candidate-facing AI disclosures.",
+        "deployer": "If you run KandiDate on your candidates, you take on the deployer obligations of Article 26, including assigning human oversight and informing candidates. The product operationalizes those duties but does not remove them. No statement in the product or on these pages is a claim of certified conformance."
+      },
+      "use": {
+        "title": "Acceptable use",
+        "items": [
+          "Do not use the product to make fully automated hiring decisions; the human-review controls must not be circumvented",
+          "Do not upload candidate data you have no lawful basis to process",
+          "Do not use the product to discriminate on protected characteristics",
+          "Do not probe, overload or attempt to breach the service or other tenants' data"
+        ]
+      },
+      "ip": {
+        "title": "Your data, our software",
+        "body": "You keep all rights to the data you and your candidates bring. The vendor keeps all rights to the software. On termination you can export your workspace, and you can request erasure of hosted data."
+      },
+      "warranty": {
+        "title": "Warranties and disclaimers",
+        "body": "The service is provided as is. Scores, salary estimates, transcripts and other model outputs are decision support, not guarantees, and their accuracy cannot be warranted. Nothing in the product or on these pages is legal advice."
+      },
+      "liability": {
+        "title": "Liability",
+        "body": "To the extent permitted by law, the vendor's aggregate liability for claims arising from the service is limited to the amounts paid for it in the twelve months before the claim. Hiring decisions remain the customer's own: by law and by the product's design, they are made by people."
+      },
+      "termination": {
+        "title": "Termination",
+        "body": "You can stop using the service and cancel a paid plan at any time through the customer portal. The vendor can suspend a workspace that violates these terms, with notice where practicable. Sealed decision records survive erasure as described in the privacy policy."
+      },
+      "law": {
+        "title": "Governing law",
+        "body": "These terms are governed by the law of the Czech Republic, where the product is built and primarily offered. Mandatory consumer and data-protection rights in your jurisdiction remain unaffected."
+      },
+      "changes": {
+        "title": "Changes",
+        "body": "These terms may change as the product evolves. Material changes are announced in the product before they take effect; the date above states the current version."
+      },
+      "contact": {
+        "title": "Contact",
+        "body": "Questions about these terms: {email}."
+      }
+    }
+  },
+  "control": {
+    "eyebrow": "Oversight",
+    "title": "Autonomy control room",
+    "intro": "Human oversight for the autonomous hiring pipeline — a kill switch, the human gates awaiting you, and an immutable audit trail of every automated decision (the record-keeping a high-risk AI hiring system requires).",
+    "backToDevCases": "← Dev cases",
+    "autonomy": {
+      "statePaused": "Automation is PAUSED",
+      "stateRunning": "Automation is running",
+      "pausedBody": "Auto-advancement is halted; lifecycles wait for you. Resume to continue + reconcile.",
+      "runningBody": "Lifecycles advance under policy. Pause to halt all automation immediately.",
+      "resume": "Resume automation",
+      "pause": "Pause (kill switch)",
+      "reconcile": "Reconcile",
+      "reconcileConfirm": "Confirm reconcile?"
+    },
+    "gates": {
+      "heading": "Awaiting your decision · {count}",
+      "untitled": "Role",
+      "approve": "Approve & continue",
+      "approveConfirm": "Confirm approve?"
+    },
+    "lifecycles": {
+      "heading": "Active lifecycles · {count}",
+      "empty": "None active."
+    },
+    "audit": {
+      "heading": "Audit trail · last {count}",
+      "empty": "No decisions logged yet."
+    },
+    "outcomes": {
+      "heading": "Outcomes & calibration",
+      "blurb": "Record what actually happened to promoted candidates; the engine calibrates the promote floor against reality — does a higher predicted score really convert? You apply the suggestion, so the learning loop stays human-in-the-loop.",
+      "candidateLabel": "Candidate reference",
+      "candidatePlaceholder": "candidate",
+      "scoreLabel": "Predicted score",
+      "scorePlaceholder": "score",
+      "outcomeLabel": "Outcome",
+      "perfLabel": "Performance rating",
+      "perfOption": "perf {n}",
+      "record": "Record",
+      "recordFailed": "Failed to record outcome ({status}).",
+      "recordNetwork": "Network error — outcome not recorded.",
+      "perfFailed": "Failed to record performance ({status}).",
+      "perfNetwork": "Network error — performance not recorded.",
+      "value": {
+        "hired": "hired",
+        "rejected": "rejected",
+        "withdrawn": "withdrawn"
+      },
+      "recordedHeading": "Recorded outcomes · last {count}",
+      "colCandidate": "candidate",
+      "colScore": "score",
+      "colOutcome": "outcome",
+      "colPerf": "perf",
+      "colRecorded": "recorded",
+      "autoBadge": "auto",
+      "addPerf": "add perf",
+      "ratingGroup": "Performance rating, 1 to 5",
+      "ratePerformance": "Rate performance {n} of 5"
+    },
+    "calibration": {
+      "activeFloor": "Active promote floor",
+      "resolved": "{count} resolved",
+      "applySuggested": "Apply suggested → {floor}",
+      "applyConfirm": "Confirm → {floor}?",
+      "colBand": "score band",
+      "colN": "n",
+      "colHireRate": "hire rate",
+      "colMeanPerf": "mean perf",
+      "percent": "{pct}%",
+      "rationale": {
+        "insufficient": "Not enough resolved outcomes yet to calibrate (need ≥ {min}).",
+        "weak": "Scores are only weakly predictive — hire rate doesn't rise cleanly with the score. Investigate the rubric before moving the floor.",
+        "raise": "Candidates below {suggested} rarely converted; the floor of {current} is letting weak matches through. Consider raising it to {suggested}.",
+        "lower": "Candidates from {suggested}–{current} converted well; the floor of {current} may be too strict. Consider lowering it to {suggested}.",
+        "calibrated": "The floor of {current} is well-calibrated — it sits at the first band where most promoted candidates were hired."
+      }
+    }
+  },
+  "feedback": {
+    "open": "Send feedback",
+    "title": "Send feedback",
+    "subtitle": "Tell us what to improve — it goes straight to the product team.",
+    "messageLabel": "Your message",
+    "messagePlaceholder": "What worked, what didn't, what's missing…",
+    "emailLabel": "Email for a reply (optional)",
+    "emailPlaceholder": "you@company.com",
+    "send": "Send",
+    "sending": "Sending…",
+    "sent": "Thank you — your feedback was sent.",
+    "done": "Done",
+    "cancel": "Cancel",
+    "failed": "Could not send feedback. Please try again.",
+    "control": {
+      "title": "Recruiter feedback",
+      "intro": "Messages sent through the in-app “Send feedback” door — read-only, newest first.",
+      "empty": "No feedback yet.",
+      "version": "v{version}"
     }
   }
 }

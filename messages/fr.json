@@ -759,7 +759,11 @@
       "note": "sans carte bancaire, sans robots aux commandes"
     },
     "footer": {
-      "tagline": "L'AI pour recruter, l'humain pour décider"
+      "tagline": "L'AI pour recruter, l'humain pour décider",
+      "legalNav": "Mentions légales",
+      "privacy": "Confidentialité",
+      "terms": "Conditions d'utilisation",
+      "trust": "Confiance et conformité"
     },
     "previews": {
       "close": "Fermer l'aperçu",
@@ -7000,6 +7004,253 @@
       "notDelivered": "Non livré — {reason}.",
       "pingFailed": "Échec du ping.",
       "pullNote": "Récupérer un candidat à la demande : <code>{endpoint}</code> renvoie le même enregistrement normalisé."
+    }
+  },
+  "control": {
+    "eyebrow": "Supervision",
+    "title": "Centre de contrôle de l'autonomie",
+    "intro": "Supervision humaine de la pipeline de recrutement autonome — un coupe-circuit, les validations humaines qui vous attendent et une piste d'audit inaltérable de chaque décision automatisée (la traçabilité qu'exige un système d'AI de recrutement à haut risque).",
+    "backToDevCases": "← Cas dev",
+    "autonomy": {
+      "statePaused": "L'automatisation est SUSPENDUE",
+      "stateRunning": "L'automatisation est active",
+      "pausedBody": "L'avancement automatique est arrêté ; les cycles de vie vous attendent. À la reprise, ils repartent et sont synchronisés.",
+      "runningBody": "Les cycles de vie avancent selon les règles. Suspendez pour arrêter immédiatement toute l'automatisation.",
+      "resume": "Reprendre l'automatisation",
+      "pause": "Suspendre (coupe-circuit)",
+      "reconcile": "Synchroniser",
+      "reconcileConfirm": "Confirmer la synchronisation ?"
+    },
+    "gates": {
+      "heading": "En attente de votre décision · {count}",
+      "untitled": "Poste",
+      "approve": "Approuver et continuer",
+      "approveConfirm": "Confirmer l'approbation ?"
+    },
+    "lifecycles": {
+      "heading": "Cycles de vie actifs · {count}",
+      "empty": "Aucun actif."
+    },
+    "audit": {
+      "heading": "Piste d'audit · {count, plural, one {# dernier} other {# derniers}}",
+      "empty": "Aucune décision journalisée pour l'instant."
+    },
+    "outcomes": {
+      "heading": "Résultats et calibration",
+      "blurb": "Enregistrez ce qui est réellement arrivé aux candidats avancés ; le système calibre le seuil d'avancement sur la réalité — un score prédit plus élevé se convertit-il vraiment ? C'est vous qui appliquez la suggestion : la boucle d'apprentissage reste sous supervision humaine.",
+      "candidateLabel": "Référence du candidat",
+      "candidatePlaceholder": "candidat",
+      "scoreLabel": "Score prédit",
+      "scorePlaceholder": "score",
+      "outcomeLabel": "Résultat",
+      "perfLabel": "Évaluation de la performance",
+      "perfOption": "perf. {n}",
+      "record": "Enregistrer",
+      "recordFailed": "Impossible d'enregistrer le résultat ({status}).",
+      "recordNetwork": "Erreur réseau — résultat non enregistré.",
+      "perfFailed": "Impossible d'enregistrer l'évaluation de la performance ({status}).",
+      "perfNetwork": "Erreur réseau — évaluation de la performance non enregistrée.",
+      "value": {
+        "hired": "recruté(e)",
+        "rejected": "rejeté(e)",
+        "withdrawn": "retiré(e)"
+      },
+      "recordedHeading": "Résultats enregistrés · {count, plural, one {# dernier} other {# derniers}}",
+      "colCandidate": "candidat",
+      "colScore": "score",
+      "colOutcome": "résultat",
+      "colPerf": "perf.",
+      "colRecorded": "enregistré",
+      "autoBadge": "auto",
+      "addPerf": "ajouter perf.",
+      "ratingGroup": "Évaluation de la performance, de 1 à 5",
+      "ratePerformance": "Évaluer la performance à {n} sur 5"
+    },
+    "calibration": {
+      "activeFloor": "Seuil d'avancement actif",
+      "resolved": "{count, plural, one {# résolu} other {# résolus}}",
+      "applySuggested": "Appliquer la suggestion → {floor}",
+      "applyConfirm": "Confirmer → {floor} ?",
+      "colBand": "tranche de score",
+      "colN": "n",
+      "colHireRate": "taux de recrutement",
+      "colMeanPerf": "perf. moyenne",
+      "percent": "{pct} %",
+      "rationale": {
+        "insufficient": "Pas encore assez de résultats résolus pour calibrer (il en faut ≥ {min}).",
+        "weak": "Le score n'est que faiblement prédictif — le taux de recrutement ne monte pas nettement avec lui. Examinez la grille avant de déplacer le seuil.",
+        "raise": "Les candidats en dessous de {suggested} se sont rarement convertis ; le seuil de {current} laisse passer des correspondances faibles. Envisagez de le relever à {suggested}.",
+        "lower": "Les candidats de {suggested} à {current} se sont bien convertis ; le seuil de {current} est peut-être trop strict. Envisagez de l'abaisser à {suggested}.",
+        "calibrated": "Le seuil de {current} est bien calibré — il se situe sur la première tranche où la plupart des candidats avancés ont été recrutés."
+      }
+    }
+  },
+  "legal": {
+    "updated": "Dernière mise à jour : {date}",
+    "disclaimer": "Cette page documente le comportement réel du produit. C'est un document technique, pas un conseil juridique.",
+    "privacy": {
+      "meta": {
+        "title": "Politique de confidentialité",
+        "description": "Comment KandiDate traite les données des candidats et des clients : consentement, conservation, effacement, transparence de l'AI, sous-traitants et facturation."
+      },
+      "title": "Politique de confidentialité",
+      "intro": "KandiDate est un logiciel de recrutement. Il lit des CV, mène des entretiens et consigne des décisions d'embauche ; cette politique est donc écrite autour des données que ces fonctions touchent réellement. Elle décrit le comportement livré du produit, et lorsqu'un réglage est configurable, elle le précise.",
+      "roles": {
+        "title": "Qui est responsable de vos données",
+        "controller": "Pour les données des candidats (CV, transcriptions d'entretiens, grilles d'évaluation et registres de décisions), l'entreprise qui exploite l'espace de recrutement est le responsable du traitement. C'est elle qui décide pourquoi et comment les candidats sont évalués.",
+        "processor": "Le fournisseur de KandiDate agit pour ces données comme sous-traitant : il ne traite les données des candidats que pour fournir le produit au responsable du traitement, selon sa configuration et ses instructions.",
+        "account": "Pour les données de compte et de facturation du client lui-même, le fournisseur de KandiDate est le responsable du traitement."
+      },
+      "data": {
+        "title": "Ce que le produit traite",
+        "intro": "Le produit ne traite que ce dont le flux de recrutement a besoin :",
+        "items": [
+          "Les documents de CV et le texte qui en est extrait",
+          "L'audio des entretiens vocaux, les transcriptions et les grilles d'évaluation structurées",
+          "Les scores d'adéquation, leurs justifications et les estimations salariales dérivées du CV",
+          "Les registres de décisions : qui a été retenu, écarté ou a reçu une offre, quand et pourquoi",
+          "Les coordonnées utilisées pour contacter un candidat au sujet de sa candidature",
+          "Les données de compte, d'abonnement et d'usage du client"
+        ]
+      },
+      "consent": {
+        "title": "Consentement et conservation",
+        "gate": "Le consentement est recueilli avant qu'une AI ne lise les données d'un candidat, et les pages candidats signalent l'intervention d'une AI avant qu'elle n'ait lieu, pas après.",
+        "retention": "Le consentement de recrutement expire. Dans ce déploiement, la durée de conservation est d'au plus {months} mois à compter du consentement. Cette durée est configurable par déploiement, et le chiffre affiché ici est dérivé de la configuration en vigueur plutôt que saisi à la main, de sorte qu'il ne peut pas diverger de ce qui est réellement appliqué.",
+        "expiry": "À l'expiration du consentement, l'enregistrement est anonymisé : le nom est réduit à un identifiant non signifiant, les coordonnées, le texte du CV et les citations littérales sont supprimés. Les signaux de recrutement non identifiants (compétences, scores, séniorité, fourchette salariale) sont conservés pour que le responsable du traitement puisse tenir des statistiques d'embauche licites.",
+        "readGate": "L'expiration prend aussi effet immédiatement en lecture : le produit retient le texte du CV et les transcriptions avant même le passage périodique d'anonymisation, et bloque toute nouvelle sollicitation du candidat."
+      },
+      "rights": {
+        "title": "Vos droits en tant que candidat",
+        "intro": "Chaque candidat reçoit un lien personnel à jeton. Il n'exige aucun compte et ouvre une page où vous pouvez :",
+        "items": [
+          "Consulter les données détenues à votre sujet, y compris les décisions consignées sur votre candidature",
+          "Demander la révision humaine de toute décision à laquelle une AI a participé",
+          "Demander l'effacement de vos données"
+        ],
+        "erasure": "L'effacement s'exécute comme une transaction unique couvrant votre profil, les transcriptions d'entretiens, les grilles d'évaluation et la boîte d'envoi : il s'accomplit intégralement ou pas du tout.",
+        "carveout": "Une catégorie est exclue de l'effacement : les registres de décisions scellés. Ils sont conservés au titre de l'article 17, paragraphe 3, points b) et e) du RGPD, car une décision d'embauche réglementée doit rester auditable et défendable après coup. Une fois vos données effacées, ils ne vous désignent plus que par une référence masquée et non identifiante."
+      },
+      "voice": {
+        "title": "Entretiens vocaux",
+        "body": "Un entretien vocal n'est enregistré et transcrit qu'après votre consentement explicite sur la page d'entretien. Ce consentement est appliqué côté serveur : sans lui, la session d'entretien n'est jamais créée et aucune transcription n'est conservée. Vous pouvez refuser, et votre candidature se poursuit sans entretien vocal."
+      },
+      "ai": {
+        "title": "Transparence de l'AI",
+        "oversight": "Au titre du règlement européen sur l'AI, trier, noter, classer et interroger des candidats est un usage à haut risque. Chaque page destinée aux candidats affiche donc une mention AI avant qu'une AI ne lise vos données, comme l'exige l'article 50.",
+        "sealed": "Aucun candidat n'est retenu, écarté ou destinataire d'une offre par la seule machine. Toute décision défavorable exige un humain, et chaque décision, humaine ou automatisée, est scellée dans un registre d'audit infalsifiable indiquant qui a décidé et pourquoi."
+      },
+      "subprocessors": {
+        "title": "Sous-traitants",
+        "body": "Le produit ne sollicite que les fournisseurs que chaque client configure ; l'ensemble qu'il peut engager est : {list}. Aucun n'est obligatoire : une installation auto-hébergée hors ligne n'engage aucun sous-traitant externe. Les données des candidats ne sont jamais vendues, jamais partagées et jamais utilisées pour entraîner des modèles.",
+        "trustLink": "La liste tenue à jour, ainsi que la position du produit article par article vis-à-vis du règlement européen sur l'AI, est publiée sur la page de confiance."
+      },
+      "billing": {
+        "title": "Données de facturation",
+        "body": "Les offres payantes sont vendues via Polar, qui agit comme merchant of record. Polar traite les données de paiement et émet les factures ; les données de carte n'atteignent jamais KandiDate. Le produit ne conserve que l'état d'abonnement nécessaire au décompte de l'usage."
+      },
+      "security": {
+        "title": "Sécurité",
+        "items": [
+          "Les clés API des fournisseurs sont stockées en écriture seule et chiffrées au repos ; elles ne reviennent jamais vers un navigateur",
+          "Les données de chaque espace de travail sont isolées par locataire",
+          "Les registres de décisions sont scellés dans une chaîne de hachage infalsifiable avec rotation des clés",
+          "Un mode hors ligne bloque toute sortie vers les modèles, pour les installations isolées ou en VPC"
+        ]
+      },
+      "contact": {
+        "title": "Contact",
+        "body": "Pour toute demande concernant vos données en tant que candidat, utilisez le lien à jeton présent dans tout message que le produit vous a envoyé ; c'est la voie vérifiée la plus rapide. Pour le reste, adressez-vous à l'exploitant de ce déploiement ou écrivez à {email}."
+      }
+    },
+    "terms": {
+      "meta": {
+        "title": "Conditions d'utilisation",
+        "description": "Les conditions d'utilisation de KandiDate : le service, les offres et la facturation via Polar, les responsabilités du client sur les données des candidats et la déclaration relative au système d'AI."
+      },
+      "title": "Conditions d'utilisation",
+      "intro": "Ces conditions régissent l'utilisation de KandiDate, un espace de recrutement qui analyse des CV, mène des entretiens vocaux par AI, vérifie des travaux pratiques et consigne les décisions d'embauche. En créant un espace de travail ou en utilisant le produit, vous les acceptez.",
+      "service": {
+        "title": "Le service",
+        "body": "KandiDate fournit un logiciel d'évaluation des candidats : notation d'adéquation au poste, entretiens vocaux par AI, travaux pratiques vérifiés, planification, communication avec les candidats et registre scellé des décisions d'embauche. Le produit assiste l'évaluation ; il ne prend pas de décisions d'embauche lui-même, et il est conçu pour ne pas pouvoir le faire."
+      },
+      "accounts": {
+        "title": "Espaces de travail et comptes",
+        "body": "Vous êtes responsable de ce qui se passe dans votre espace de travail : la confidentialité des identifiants, la licéité et l'exactitude des données que vous apportez, et la conduite des personnes que vous invitez."
+      },
+      "billing": {
+        "title": "Offres et facturation",
+        "polar": "Les offres payantes et les minutes d'entretien décomptées sont vendues via Polar, qui agit comme merchant of record : Polar gère le paiement, la facturation et les taxes applicables. Les abonnements se renouvellent jusqu'à résiliation et se gèrent ou se résilient depuis le portail client.",
+        "meters": "Les limites des offres se mesurent en unités humaines (candidats, travaux pratiques, minutes d'entretien), jamais en tokens. Quand un quota est épuisé, la fonction concernée se met en pause jusqu'à son renouvellement ou son rechargement ; vos données ne sont pas affectées."
+      },
+      "customerData": {
+        "title": "Données des candidats et vos responsabilités",
+        "controller": "Pour les données des candidats traitées dans votre espace de travail, vous êtes le responsable du traitement et le fournisseur de KandiDate est votre sous-traitant. Il vous revient d'avoir une base légale, d'informer les candidats, de respecter leurs droits et de configurer la durée de conservation conforme à votre juridiction.",
+        "processor": "Les données des candidats ne sont traitées que pour vous fournir le service. Elles ne sont jamais vendues, jamais partagées au-delà des sous-traitants que vous configurez, et jamais utilisées pour entraîner des modèles."
+      },
+      "ai": {
+        "title": "Déclaration relative au système d'AI",
+        "highRisk": "KandiDate trie, note, classe et interroge des candidats. Au titre du règlement européen sur l'AI, c'est un usage à haut risque, et le produit est construit en conséquence : supervision humaine de toute décision défavorable, registres de décisions scellés et attribuables, et mentions AI destinées aux candidats.",
+        "deployer": "Si vous déployez KandiDate sur vos candidats, vous endossez les obligations de déployeur de l'article 26, dont la désignation d'une supervision humaine et l'information des candidats. Le produit outille ces obligations mais ne vous en décharge pas. Aucune affirmation dans le produit ou sur ces pages ne constitue une déclaration de conformité certifiée."
+      },
+      "use": {
+        "title": "Usage acceptable",
+        "items": [
+          "Ne pas utiliser le produit pour des décisions d'embauche entièrement automatisées ; les contrôles de révision humaine ne doivent pas être contournés",
+          "Ne pas téléverser de données de candidats sans base légale pour les traiter",
+          "Ne pas utiliser le produit pour discriminer sur des caractéristiques protégées",
+          "Ne pas sonder, surcharger ni tenter de compromettre le service ou les données d'autres locataires"
+        ]
+      },
+      "ip": {
+        "title": "Vos données, notre logiciel",
+        "body": "Vous conservez tous les droits sur les données que vous et vos candidats apportez. Le fournisseur conserve tous les droits sur le logiciel. À la résiliation, vous pouvez exporter votre espace de travail et demander l'effacement des données hébergées."
+      },
+      "warranty": {
+        "title": "Garanties et réserves",
+        "body": "Le service est fourni en l'état. Les scores, estimations salariales, transcriptions et autres sorties de modèles sont une aide à la décision, pas des garanties, et leur exactitude ne peut être garantie. Rien dans le produit ni sur ces pages ne constitue un conseil juridique."
+      },
+      "liability": {
+        "title": "Responsabilité",
+        "body": "Dans la mesure permise par la loi, la responsabilité totale du fournisseur pour les réclamations liées au service est limitée aux montants payés pour celui-ci au cours des douze mois précédant la réclamation. Les décisions d'embauche restent celles du client : par la loi et par la conception même du produit, ce sont des personnes qui les prennent."
+      },
+      "termination": {
+        "title": "Résiliation",
+        "body": "Vous pouvez cesser d'utiliser le service et résilier une offre payante à tout moment depuis le portail client. Le fournisseur peut suspendre un espace de travail qui enfreint ces conditions, avec préavis lorsque c'est possible. Les registres de décisions scellés survivent à l'effacement, comme décrit dans la politique de confidentialité."
+      },
+      "law": {
+        "title": "Droit applicable",
+        "body": "Ces conditions sont régies par le droit de la République tchèque, où le produit est développé et principalement proposé. Les droits impératifs des consommateurs et de protection des données de votre juridiction demeurent inchangés."
+      },
+      "changes": {
+        "title": "Modifications",
+        "body": "Ces conditions peuvent évoluer avec le produit. Les changements substantiels sont annoncés dans le produit avant leur prise d'effet ; la date ci-dessus désigne toujours la version en vigueur."
+      },
+      "contact": {
+        "title": "Contact",
+        "body": "Questions sur ces conditions : {email}."
+      }
+    }
+  },
+  "feedback": {
+    "open": "Envoyer un retour",
+    "title": "Envoyer un retour",
+    "subtitle": "Dites-nous quoi améliorer — cela arrive directement à l'équipe produit.",
+    "messageLabel": "Votre message",
+    "messagePlaceholder": "Ce qui a fonctionné, ce qui n'a pas marché, ce qui manque…",
+    "emailLabel": "E-mail pour une réponse (facultatif)",
+    "emailPlaceholder": "vous@entreprise.fr",
+    "send": "Envoyer",
+    "sending": "Envoi…",
+    "sent": "Merci — votre retour a été envoyé.",
+    "done": "Terminé",
+    "cancel": "Annuler",
+    "failed": "Impossible d'envoyer le retour. Veuillez réessayer.",
+    "control": {
+      "title": "Retours des recruteurs",
+      "intro": "Messages envoyés via « Envoyer un retour » dans l'application — lecture seule, du plus récent au plus ancien.",
+      "empty": "Aucun retour pour l'instant.",
+      "version": "v{version}"
     }
   }
 }
