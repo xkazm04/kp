@@ -75,6 +75,27 @@ penalized; over-reliance is inferred only from observed process artifacts
 is not penalized (deleting a line isn't proof of anything) — only a
 **foreign** watermark or a broken chain is decisive.
 
+### The marketed list is the implemented list
+
+The Cases-tab empty state (`app/features/tools/devcases/DevCasesEmptyLedger.tsx`) is
+where these controls are *sold* — it is the first thing a recruiter reads about the
+module. It had drifted from the table above in three ways, all corrected: it omitted
+**canaries** (#3) and substituted the paste/cadence trace, which is a real mechanism
+(`app/_lib/devcase-authenticity.ts`) but **not** one of the six; it described the
+watermark as making "a recycled or leaked solution identifiable on arrival", which
+overstates a control whose own code calls a missing own mark "a mild note, never
+decisive"; and its "baseline diff" blurb described the seed diff
+(`app/_lib/devcase-seed-diff.ts`) rather than #6's comparison against the frozen
+one-shot solve.
+
+The standing rule for that copy: **the six named items are exactly #1–#6 of the table
+above.** The paste/cadence trace is named separately, outside the list. The watermark
+claim is scoped to what a *foreign* mark settles — circulation between candidates —
+and never states where the marker lives or how it is stamped, since the surface is
+recruiter-facing but the claim must not read as a defeat manual. "Held for the live
+interview, never auto-advanced" is the real gate (`devcase-run.ts` `suspectAuth` plus
+the orchestrator's advance-only comm rule), so it stays.
+
 ### Where a reviewer sees them
 
 The six controls were all computed and persisted, but four of them used to
