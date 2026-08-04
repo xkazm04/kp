@@ -74,6 +74,11 @@ export const TENANCY_SCOPED_TABLES: ReadonlySet<string> = new Set([
   // through before KP_MULTI_WORKSPACE is enabled, or a second team's candidate feedback
   // lands in the default team's pack.
   "candidate_nps",
+  // Recruiter feedback door (feedback-store.ts): in-product "Send feedback"
+  // submissions. Scoped because a message can name a team's candidates/roles and
+  // feeds that team's operator view on /control: every read/write in
+  // feedback-store.ts filters/stamps workspace_id (feedback-tenancy.test.ts).
+  "feedback",
   // W2.3 — per-entry outreach memory (sends / replied / manually halted). Scoped because
   // it decides whether a real message goes to a real person: a cross-tenant read would
   // either re-mail someone who already replied to another team, or silence a sequence

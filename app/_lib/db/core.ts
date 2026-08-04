@@ -1236,6 +1236,24 @@ export function ensureDb(): Database.Database {
   } catch {
     /* pre-existing active duplicates prevent the unique index; skip */
   }
+  // Recruiter feedback door: one row per in-product "Send feedback" submission
+  // (message + optional reply email + the route it was sent from + the running
+  // app version). Workspace-scoped like candidate_nps — a team's feedback feeds
+  // that team's operator view, never another tenant's. Idempotent CREATE (no
+  // ALTER migration needed): the table is new-in-full, so a legacy DB simply
+  // gains it on boot (the jd_revisions / consent_events pattern).
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS feedback (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      message TEXT NOT NULL,
+      email TEXT,
+      route TEXT,
+      app_version TEXT,
+      workspace_id TEXT NOT NULL DEFAULT 'workspace',
+      created_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_feedback_ws ON feedback (workspace_id, created_at DESC);
+  `);
   // Tenant foundation (P2): ensure the single default workspace row exists ('workspace'
   // matches DEFAULT_WORKSPACE in auth/session.ts and billing's id).
   db.prepare(`INSERT OR IGNORE INTO workspaces (id, name, created_at) VALUES (?, ?, ?)`).run("workspace", "Default workspace", new Date().toISOString());

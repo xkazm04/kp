@@ -116,6 +116,17 @@ const ROUTES: RouteSpec[] = [
     servedBefore: 'session.status !== "active"',
   },
   {
+    rel: "./feedback/route.ts",
+    // Per-IP. 10/10min: the dialog submits one message per open; a human never
+    // meets this, while unmetered free-text storage on an open-mode deploy is a
+    // spam / disk-pressure vector. Validation refuses BEFORE the limiter so a
+    // rejected submission never consumes budget.
+    key: "`feedback:${clientIpFrom(request.headers)}`",
+    limit: 10,
+    expensive: "recordFeedback(",
+    servedBefore: "parseFeedbackSubmission(body)",
+  },
+  {
     rel: "./devcase/session/[id]/chat/route.ts",
     // Per-apply-TOKEN daily aggregate. Unlike interview-connect's per-candidate token,
     // a dev-case apply token is per-POSTING and shared by every applicant, so this
