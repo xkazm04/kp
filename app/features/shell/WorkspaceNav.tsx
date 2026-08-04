@@ -3,6 +3,7 @@ import { getTranslations } from "next-intl/server";
 import { attentionCounts, type AttentionCounts } from "@/app/_lib/attention";
 import { SignOutButton } from "@/app/_components/auth/SignOutButton";
 import { RecentsNav } from "./WorkspaceRecentsNav";
+import { NavFeedbackButton } from "./nav/NavFeedbackButton";
 import { RailBrandMark } from "./nav/NavRailBrandMark";
 import { RailPreferences } from "./nav/NavRailPreferences";
 import { NavSectionRail } from "./nav/NavSectionRail";
@@ -73,6 +74,7 @@ export async function WorkspaceNav({ active }: { active: WorkspaceTabId }) {
         // has no panel footer at all.
         railFooter={
           <>
+            <NavFeedbackButton />
             <RailPreferences />
             {/* Drop the dev session and return to the landing. */}
             <SignOutButton />

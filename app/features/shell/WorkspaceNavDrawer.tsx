@@ -15,6 +15,7 @@ import { SignOutButton } from "@/app/_components/auth/SignOutButton";
 import { useDialogA11y } from "@/app/_components/useDialogA11y";
 import { CommandPalette } from "./WorkspaceCommandPalette";
 import { RecentsNav } from "./WorkspaceRecentsNav";
+import { NavFeedbackButton } from "./nav/NavFeedbackButton";
 import { RailPreferences } from "./nav/NavRailPreferences";
 import { NavSectionRail } from "./nav/NavSectionRail";
 import { isDrawerInert, shouldTrapDrawerFocus } from "./nav/navDrawerA11y";
@@ -142,6 +143,8 @@ export function WorkspaceNavDrawer({
           // that needs width: the Background-tasks label + load meter.
           railFooter={
             <>
+              {/* The recruiter feedback door — in-product, lands on /control. */}
+              <NavFeedbackButton />
               <RailPreferences />
               {/* Drop the dev session and return to the landing. */}
               <SignOutButton />

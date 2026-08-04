@@ -312,6 +312,17 @@
       ]
     },
     {
+      "doc": "docs/features/feedback/README.md",
+      "sourceGlobs": [
+        "app/_lib/feedback.ts",
+        "app/_lib/feedback-store.ts",
+        "app/api/feedback/**",
+        "app/features/shell/nav/NavFeedbackButton.tsx",
+        "app/features/shell/nav/FeedbackDialog.tsx",
+        "app/control/FeedbackSection.tsx"
+      ]
+    },
+    {
       "doc": "docs/features/marketing/README.md",
       "sourceGlobs": [
         "app/about/**",
