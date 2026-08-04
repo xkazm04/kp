@@ -27,6 +27,7 @@
 import { AlertTriangle, Check, CircleHelp, Flag, type LucideIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { formatFraction } from "@/app/_lib/format";
+import { useCanaryKindLabel } from "./DevLabels";
 import { CANARY_STATUSES, type CanaryOutcome, type CanaryStatus, type ObservedChecks } from "./DevTypes";
 
 // The four-way canary vocabulary, presented as four DISTINCT states — collapsing
@@ -57,13 +58,21 @@ const BRIEF_PASTE_AIM_INTERVIEW = 0.6;
 
 function CanaryRow({ c }: { c: CanaryOutcome }) {
   const t = useTranslations("devcase.checks");
+  const canaryKindLabel = useCanaryKindLabel();
   const status = canaryStatus(c.status);
   const { cls, Icon } = CANARY_TONE[status];
+  // WHAT was planted, not just how it came back. `kind` (seed_materializer.py
+  // CANARY_KINDS) rode in the bundle from the start and was never rendered, so a
+  // reviewer reading "propagated · src/rates.ts" could not tell a wrong constant from
+  // a stale doc without opening the seed. Its catalog is pinned to CANARY_KINDS by
+  // the vocabulary guard, like the verdicts beside it.
+  const kind = canaryKindLabel(c.kind);
   return (
     <li className="flex items-center gap-1.5 text-micro text-ink" title={c.note || undefined}>
       <span className={`inline-flex shrink-0 items-center gap-1 rounded px-1 py-0.5 font-semibold uppercase ${cls}`}>
         <Icon size={11} aria-hidden /> {t(`canary.${status}`)}
       </span>
+      {kind ? <span className="shrink-0 text-steel">{kind}</span> : null}
       {c.path ? <span className="truncate text-steel">{c.path}</span> : null}
     </li>
   );

@@ -5479,7 +5479,8 @@
       "published": "published",
       "collecting": "collecting",
       "ranked": "ranked",
-      "promoted": "promoted"
+      "promoted": "promoted",
+      "closed": "closed"
     },
     "stepState": {
       "done": "done",
@@ -5619,7 +5620,119 @@
       "perturbationStale": "the mid-flight change was shown but no edits followed it",
       "perturbationTitle": "The requirement change was revealed at a server-recorded moment; everything after it is the candidate's observed adaptation to a changed brief.",
       "noSeed": "No materialized seed for this case, so seed engagement could not be measured.",
-      "inProductSession": "in-product session"
+      "inProductSession": "in-product session",
+      "decisionsLogKept": "DECISIONS log: kept",
+      "decisionsLogMissing": "DECISIONS log: missing",
+      "commitsOverSpan": "{count, plural, one {# commit} other {# commits}} over {hours} h",
+      "singleSitting": "single sitting",
+      "singleSittingTitle": "Commits landed in one tight burst — how they worked, not a verdict",
+      "seedEngagement": "Seed engagement: {touched}/{total} planted files touched",
+      "seedEngagementTitle": "Files from the shared starter seed the submission modified — the seed plants each probe's seam, so an untouched file is a seam they never engaged.",
+      "seedUntouched": "untouched: {paths}"
+    },
+    "probeKind": {
+      "ambiguity": "Ambiguity",
+      "legacy_trap": "Legacy trap",
+      "verification_trap": "Verification trap",
+      "underspecified": "Underspecified"
+    },
+    "canaryKind": {
+      "wrong_constant": "wrong constant",
+      "stale_doc": "stale doc",
+      "misleading_comment": "misleading comment",
+      "subtle_bug": "subtle bug"
+    },
+    "probeStatus": {
+      "handled": "handled",
+      "unhandled": "not handled",
+      "detected": "detected",
+      "missed": "missed"
+    },
+    "dimension": {
+      "framing": "Problem framing",
+      "tooling": "Tooling fluency",
+      "judgment": "Judgment",
+      "architecture": "Architecture",
+      "transfer": "Transfer"
+    },
+    "casesTable": {
+      "colAssignment": "Assignment",
+      "colRole": "Role",
+      "colSeniority": "Seniority",
+      "colStage": "Stage",
+      "colSubmissions": "Submissions",
+      "colCreated": "Created",
+      "open": "Open",
+      "untitledAssignment": "Assignment"
+    },
+    "evalPanel": {
+      "capabilityScores": "Capability scores",
+      "transfer": "transfer",
+      "commits": "{count, plural, one {# commit} other {# commits}}",
+      "confidenceTitle": "How much to trust this evaluation — the minimum confidence of the reflection + tooling signals it was built from.",
+      "confidence": "conf {pct}",
+      "authenticityTitle": "Process authenticity {score}/100 — {reasons}",
+      "authenticityCleanTitle": "Process authenticity {score}/100 — genuine incremental work.",
+      "authenticity": "authenticity {score}",
+      "strengths": "+ Strengths",
+      "concerns": "! Concerns",
+      "noFindingsLlm": "No standout strengths or concerns surfaced for this submission.",
+      "noFindingsDeterministic": "No strengths surfaced yet — re-run with the LLM for a richer read.",
+      "readBeforeWrite": "read-before-write",
+      "fluency": "fluency",
+      "gaps": "gaps: {gaps}",
+      "observed": "observed",
+      "inferred": "inferred",
+      "observedTitle": "Tooling watched live in the in-product work surface.",
+      "inferredTitle": "Tooling reconstructed from the submitted git log.",
+      "probeResults": "Probe results",
+      "probeWhere": "in {where}",
+      "probeKindUnknown": "probe",
+      "probeStatusDetectedTitle": "The candidate worked this area, but the trace cannot grade how well they handled it — no assessment ran, so this is not a finding against them.",
+      "followupsTitle": "Interview follow-ups — verify authorship live",
+      "fairnessNote": "Code assumed LLM-generated — using AI is never penalised. Scores are hypotheses from the artifact; the interview follow-ups above are what verifies them.",
+      "degraded": "Degraded evaluation — some steps fell back to deterministic templates. Review before promoting.",
+      "inPipeline": "In pipeline",
+      "promoting": "Promoting…",
+      "promote": "Promote to pipeline",
+      "promoteHint": "→ becomes a Decisions review card"
+    },
+    "emptyLedger": {
+      "eyebrow": "Ledger open",
+      "title": "Nothing sealed yet",
+      "lede": "A case does not just ask a candidate to write code. It records how the work was made, and seals that record so you can trust what you are reading.",
+      "statCases": "Cases",
+      "statSealed": "Sealed",
+      "cta": "Open the first case",
+      "controlsHeading": "What a sealed submission will carry",
+      "control": {
+        "hashChain": {
+          "name": "Tamper-evident hash chain",
+          "proves": "Every observed step is chained server-side as it happens, so a session cannot be quietly rewritten afterwards. A link that fails to recompute — or a client clock that contradicts when the server received the event — marks the whole trace untrustworthy rather than merely odd."
+        },
+        "promptCapture": {
+          "name": "Prompt capture",
+          "proves": "The assistant and stakeholder exchanges the candidate wrote are part of the record. Model use is graded on how they drove it — decomposition, iteration, asking it to verify itself — never on volume, and never as a penalty."
+        },
+        "canaries": {
+          "name": "Planted canaries",
+          "proves": "The starter repo carries deliberate flaws, each with one checkable truth. Every one comes back addressed, flagged, propagated or unverifiable — a planted flaw that survived into the submission is generated output that was shipped unread."
+        },
+        "perturbation": {
+          "name": "Mid-flight perturbation",
+          "proves": "A requirement moves while the work is open, server-timestamped. Everything after that moment is adaptation to a brief no prepared answer anticipated; absorbing it is judgment you can watch happen."
+        },
+        "watermark": {
+          "name": "Session watermark",
+          "proves": "Each session's work carries its own reference. Another session's reference turning up inside this one is decisive evidence a solution circulated between candidates. A narrow control, deliberately: on its own, a missing marker is a note for the reviewer, never a verdict."
+        },
+        "baseline": {
+          "name": "Frozen baseline comparison",
+          "proves": "At approval the case is solved once by a bare model with nobody steering it, and that answer is frozen. Submissions are compared against it. Never a penalty — it tells you where to aim the authorship interview, not what to score."
+        }
+      },
+      "pasteTrace": "Alongside them, one bulk paste with no incremental build-up reads as suspect — and a suspect submission is held for the live interview that verifies authorship, never auto-advanced on score.",
+      "honestDarkness": "Every verdict above is shown to you with its own evidence, including where a check could not run: a control that did not fire is never displayed as one that passed. None of it starts until a case exists — define the need and the engine designs the assignment these controls wrap around."
     }
   },
   "rubricCoverage": {

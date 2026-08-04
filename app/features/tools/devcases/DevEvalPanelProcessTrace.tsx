@@ -34,17 +34,19 @@ export function DevEvalPanelProcessTrace({ ev }: { ev: EvalBundle }) {
               ev.processTrace.decisionsLogPresent ? "bg-moss/10 text-moss" : "bg-coral/15 text-coral"
             }`}
           >
-            DECISIONS log: {ev.processTrace.decisionsLogPresent ? "kept" : "missing"}
+            {ev.processTrace.decisionsLogPresent ? t("decisionsLogKept") : t("decisionsLogMissing")}
           </span>
           {ev.processTrace.cadence?.spanHours != null ? (
             <span className="text-steel">
-              {ev.processTrace.commitCount ?? ev.commitCount ?? 0} commits over{" "}
-              {Math.round(ev.processTrace.cadence.spanHours * 10) / 10} h
+              {t("commitsOverSpan", {
+                count: ev.processTrace.commitCount ?? ev.commitCount ?? 0,
+                hours: Math.round(ev.processTrace.cadence.spanHours * 10) / 10,
+              })}
             </span>
           ) : null}
           {ev.processTrace.cadence?.bursty === true ? (
-            <span className="rounded bg-paper px-1.5 py-0.5 text-steel" title="Commits landed in one tight burst — how they worked, not a verdict">
-              single sitting
+            <span className="rounded bg-paper px-1.5 py-0.5 text-steel" title={t("singleSittingTitle")}>
+              {t("singleSitting")}
             </span>
           ) : null}
         </div>
@@ -110,12 +112,12 @@ export function DevEvalPanelProcessTrace({ ev }: { ev: EvalBundle }) {
             className={`rounded px-1.5 py-0.5 font-semibold uppercase ${
               ev.seedDiff.touched === 0 ? "bg-coral/15 text-coral" : "bg-paper text-steel"
             }`}
-            title="Files from the shared starter seed the submission modified — the seed plants each probe's seam, so an untouched file is a seam they never engaged."
+            title={t("seedEngagementTitle")}
           >
-            Seed engagement: {ev.seedDiff.touched}/{ev.seedDiff.total} planted files touched
+            {t("seedEngagement", { touched: ev.seedDiff.touched, total: ev.seedDiff.total })}
           </span>
           {ev.seedDiff.untouched.length > 0 ? (
-            <span className="ml-1.5 text-steel">untouched: {ev.seedDiff.untouched.join(", ")}</span>
+            <span className="ml-1.5 text-steel">{t("seedUntouched", { paths: ev.seedDiff.untouched.join(", ") })}</span>
           ) : null}
         </div>
       ) : sig ? (

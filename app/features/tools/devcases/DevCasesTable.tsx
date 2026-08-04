@@ -1,10 +1,12 @@
 "use client";
 
 import { ChevronRight } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useRelativeTime } from "@/app/_lib/use-relative-time";
 import type { LoadState } from "@/app/_lib/useLoader";
 import { CasesEmpty } from "./DevCasesEmpty";
-import { LIVE_STAGES, STAGE_LABEL } from "./DevTypes";
+import { useStageLabel } from "./DevLabels";
+import { LIVE_STAGES } from "./DevTypes";
 import type { DevCaseDetail, Lifecycle, Posting } from "./DevTypes";
 
 // Stage chip tint: production states (collecting onwards) read "live", the
@@ -34,6 +36,8 @@ export function CasesTable({
   onDefine: () => void;
 }) {
   const rel = useRelativeTime();
+  const t = useTranslations("devcase.casesTable");
+  const stageLabel = useStageLabel();
   // Tier 2 (docs/design/loading-choreography.md): useLoader's `data` starts as `[]`, so
   // an empty list is ambiguous between "still loading" and "genuinely no cases
   // yet" — `state.lastUpdated` disambiguates. Never loaded + healthy: hold the
@@ -41,8 +45,9 @@ export function CasesTable({
   if (cases.length === 0 && state.lastUpdated == null && !state.failed) {
     return <div className="reveal-quiet min-h-[16rem]" aria-hidden />;
   }
-  // First-run empty list. Prototyping behind CasesEmpty's local switcher —
-  // baseline is the default, so the shipped surface is unchanged on load.
+  // First-run empty list. CasesEmpty renders the sealed-ledger variant directly —
+  // the local prototype switcher this comment used to describe is gone, so what
+  // DevCasesEmptyLedger says about the controls IS the shipped marketing surface.
   if (cases.length === 0) {
     return <CasesEmpty state={state} onDefine={onDefine} />;
   }
@@ -52,13 +57,13 @@ export function CasesTable({
       <table className="w-full border-collapse text-left">
         <thead>
           <tr className="border-b border-stone-200 bg-paper/60 text-micro font-semibold uppercase tracking-wide text-steel">
-            <th scope="col" className="px-3 py-2">Assignment</th>
-            <th scope="col" className="hidden px-3 py-2 md:table-cell">Role</th>
-            <th scope="col" className="hidden px-3 py-2 sm:table-cell">Seniority</th>
-            <th scope="col" className="px-3 py-2">Stage</th>
-            <th scope="col" className="hidden px-3 py-2 sm:table-cell">Submissions</th>
-            <th scope="col" className="hidden px-3 py-2 lg:table-cell">Created</th>
-            <th scope="col" className="w-8 px-2 py-2"><span className="sr-only">Open</span></th>
+            <th scope="col" className="px-3 py-2">{t("colAssignment")}</th>
+            <th scope="col" className="hidden px-3 py-2 md:table-cell">{t("colRole")}</th>
+            <th scope="col" className="hidden px-3 py-2 sm:table-cell">{t("colSeniority")}</th>
+            <th scope="col" className="px-3 py-2">{t("colStage")}</th>
+            <th scope="col" className="hidden px-3 py-2 sm:table-cell">{t("colSubmissions")}</th>
+            <th scope="col" className="hidden px-3 py-2 lg:table-cell">{t("colCreated")}</th>
+            <th scope="col" className="w-8 px-2 py-2"><span className="sr-only">{t("open")}</span></th>
           </tr>
         </thead>
         <tbody>
@@ -84,7 +89,7 @@ export function CasesTable({
                     }}
                     className="focus-ring block w-full truncate rounded text-left text-base font-semibold text-ink hover:text-coral"
                   >
-                    {c.title || "Assignment"}
+                    {c.title || t("untitledAssignment")}
                   </button>
                   <p className="truncate text-micro text-steel md:hidden">{c.roleTitle}</p>
                 </td>
@@ -92,7 +97,7 @@ export function CasesTable({
                 <td className="hidden px-3 py-2.5 text-sm uppercase text-steel sm:table-cell">{c.seniority ?? "—"}</td>
                 <td className="px-3 py-2.5">
                   <span className={`rounded-full px-2 py-0.5 text-micro font-semibold uppercase ${stageChip(stage)}`}>
-                    {STAGE_LABEL[stage] ?? stage}
+                    {stageLabel(stage)}
                   </span>
                 </td>
                 <td className="hidden px-3 py-2.5 text-sm nums text-ink sm:table-cell">{submissions > 0 ? submissions : "—"}</td>

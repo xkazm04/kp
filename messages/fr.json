@@ -5479,7 +5479,8 @@
       "published": "publié",
       "collecting": "collecte",
       "ranked": "classé",
-      "promoted": "promu"
+      "promoted": "promu",
+      "closed": "clôturé"
     },
     "stepState": {
       "done": "terminé",
@@ -5619,7 +5620,119 @@
       "perturbationStale": "le changement en cours a été affiché mais aucune modification n'a suivi",
       "perturbationTitle": "Le changement d'exigence a été révélé à un instant enregistré par le serveur ; tout ce qui suit est l'adaptation observée du candidat à un énoncé modifié.",
       "noSeed": "Aucune base concrète n'a été générée pour ce cas, l'engagement avec la base n'a donc pas pu être mesuré.",
-      "inProductSession": "session intégrée"
+      "inProductSession": "session intégrée",
+      "decisionsLogKept": "Journal DECISIONS : tenu",
+      "decisionsLogMissing": "Journal DECISIONS : absent",
+      "commitsOverSpan": "{count, plural, one {# commit} other {# commits}} sur {hours} h",
+      "singleSitting": "en une seule séance",
+      "singleSittingTitle": "Les commits sont arrivés en une salve serrée — une manière de travailler, pas un jugement",
+      "seedEngagement": "Engagement avec la base : {touched}/{total} fichiers plantés modifiés",
+      "seedEngagementTitle": "Fichiers de la base de départ commune que le rendu a modifiés — la base pose la couture de chaque sonde, un fichier intact est donc une couture jamais abordée.",
+      "seedUntouched": "intacts : {paths}"
+    },
+    "probeKind": {
+      "ambiguity": "Ambiguïté",
+      "legacy_trap": "Piège du code hérité",
+      "verification_trap": "Piège de vérification",
+      "underspecified": "Sous-spécifié"
+    },
+    "canaryKind": {
+      "wrong_constant": "constante erronée",
+      "stale_doc": "documentation périmée",
+      "misleading_comment": "commentaire trompeur",
+      "subtle_bug": "bogue discret"
+    },
+    "probeStatus": {
+      "handled": "traité",
+      "unhandled": "non traité",
+      "detected": "repéré",
+      "missed": "manqué"
+    },
+    "dimension": {
+      "framing": "Cadrage du problème",
+      "tooling": "Maîtrise des outils",
+      "judgment": "Jugement",
+      "architecture": "Architecture",
+      "transfer": "Transférabilité"
+    },
+    "casesTable": {
+      "colAssignment": "Épreuve",
+      "colRole": "Poste",
+      "colSeniority": "Séniorité",
+      "colStage": "Étape",
+      "colSubmissions": "Rendus",
+      "colCreated": "Créé",
+      "open": "Ouvrir",
+      "untitledAssignment": "Épreuve"
+    },
+    "evalPanel": {
+      "capabilityScores": "Scores de compétence",
+      "transfer": "transférabilité",
+      "commits": "{count, plural, one {# commit} other {# commits}}",
+      "confidenceTitle": "Quelle confiance accorder à cette évaluation — le minimum des confiances des signaux de réflexion et d'outillage dont elle est issue.",
+      "confidence": "conf. {pct}",
+      "authenticityTitle": "Authenticité du processus {score}/100 — {reasons}",
+      "authenticityCleanTitle": "Authenticité du processus {score}/100 — un travail réellement progressif.",
+      "authenticity": "authenticité {score}",
+      "strengths": "+ Points forts",
+      "concerns": "! Réserves",
+      "noFindingsLlm": "Aucun point fort ni réserve marquants ne ressortent de ce rendu.",
+      "noFindingsDeterministic": "Aucun point fort pour l'instant — relancez avec le LLM pour une lecture plus riche.",
+      "readBeforeWrite": "lecture avant écriture",
+      "fluency": "aisance",
+      "gaps": "lacunes : {gaps}",
+      "observed": "observé",
+      "inferred": "déduit",
+      "observedTitle": "L'outillage a été observé en direct dans l'espace de travail intégré.",
+      "inferredTitle": "L'outillage a été reconstitué à partir du journal git rendu.",
+      "probeResults": "Résultats des sondes",
+      "probeWhere": "dans {where}",
+      "probeKindUnknown": "sonde",
+      "probeStatusDetectedTitle": "La personne a travaillé cette zone, mais la trace ne permet pas d'évaluer comment elle l'a traitée — aucune évaluation n'a eu lieu, ce n'est donc pas un constat à sa charge.",
+      "followupsTitle": "Relances d'entretien — vérifier la paternité en direct",
+      "fairnessNote": "Le code est supposé produit avec un LLM — recourir à l'IA n'est jamais pénalisé. Les scores sont des hypothèses tirées de l'artefact ; ce sont les relances ci-dessus qui les vérifient.",
+      "degraded": "Évaluation dégradée — certaines étapes se sont repliées sur des gabarits déterministes. À relire avant de promouvoir.",
+      "inPipeline": "Dans le pipeline",
+      "promoting": "Promotion…",
+      "promote": "Promouvoir vers le pipeline",
+      "promoteHint": "→ devient une carte à examiner dans Décisions"
+    },
+    "emptyLedger": {
+      "eyebrow": "Registre ouvert",
+      "title": "Rien de scellé pour l'instant",
+      "lede": "Une épreuve ne demande pas seulement d'écrire du code. Elle consigne comment le travail a été fait et scelle ce relevé — pour que vous puissiez vous fier à ce que vous lisez.",
+      "statCases": "Épreuves",
+      "statSealed": "Scellés",
+      "cta": "Ouvrir la première épreuve",
+      "controlsHeading": "Ce que portera un rendu scellé",
+      "control": {
+        "hashChain": {
+          "name": "Chaîne de hachage infalsifiable",
+          "proves": "Chaque étape observée est chaînée côté serveur au fil de l'eau : une session ne peut donc pas être discrètement réécrite après coup. Un maillon qui ne se recalcule pas — ou une horloge cliente qui contredit l'heure de réception du serveur — rend toute la trace non fiable, et pas seulement curieuse."
+        },
+        "promptCapture": {
+          "name": "Capture des prompts",
+          "proves": "Les échanges avec l'assistant et avec le commanditaire, écrits par la personne elle-même, font partie du relevé. Le recours au modèle est jugé sur la façon dont elle l'a conduit — décomposition, itération, demande de vérification — jamais sur le volume, et jamais comme une pénalité."
+        },
+        "canaries": {
+          "name": "Canaris plantés",
+          "proves": "Le dépôt de départ contient des défauts délibérés, chacun avec une seule vérité vérifiable. Chacun revient corrigé, signalé, propagé ou non évaluable — un défaut planté qui survit jusqu'au rendu, c'est une sortie générée livrée sans être lue."
+        },
+        "perturbation": {
+          "name": "Changement en cours d'épreuve",
+          "proves": "Une exigence se déplace pendant que le travail est ouvert, horodatée par le serveur. Tout ce qui suit est une adaptation à un énoncé qu'aucune réponse préparée ne pouvait anticiper ; l'absorber est un jugement que vous voyez se former."
+        },
+        "watermark": {
+          "name": "Filigrane de session",
+          "proves": "Le travail de chaque session porte sa propre référence. La référence d'une autre session retrouvée à l'intérieur de celle-ci est une preuve décisive qu'une solution a circulé entre candidats. Un contrôle volontairement étroit : à lui seul, un marqueur absent est une note pour l'évaluateur, jamais un verdict."
+        },
+        "baseline": {
+          "name": "Comparaison à la référence figée",
+          "proves": "À l'approbation, l'épreuve est résolue une fois par un modèle nu que personne ne pilote, et cette réponse est figée. Les rendus lui sont comparés. Jamais une pénalité — cela vous dit où viser l'entretien sur la paternité, pas quoi noter."
+        }
+      },
+      "pasteTrace": "À côté d'eux : un collage massif unique sans construction progressive se lit comme suspect — et un rendu suspect est retenu pour l'entretien en direct qui vérifie la paternité, jamais promu automatiquement sur le score.",
+      "honestDarkness": "Chaque verdict ci-dessus vous est montré avec ses propres preuves, y compris là où un contrôle n'a pas pu s'exécuter : un contrôle qui n'a pas joué n'est jamais affiché comme un contrôle réussi. Rien ne démarre tant qu'une épreuve n'existe pas — décrivez le besoin et le moteur conçoit l'énoncé autour duquel ces contrôles se referment."
     }
   },
   "rubricCoverage": {

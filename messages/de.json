@@ -5479,7 +5479,8 @@
       "published": "veröffentlicht",
       "collecting": "sammelt",
       "ranked": "sortiert",
-      "promoted": "weitergeleitet"
+      "promoted": "weitergeleitet",
+      "closed": "abgeschlossen"
     },
     "stepState": {
       "done": "erledigt",
@@ -5619,7 +5620,119 @@
       "perturbationStale": "die Änderung wurde eingeblendet, es folgten aber keine Bearbeitungen",
       "perturbationTitle": "Die Anforderungsänderung wurde zu einem serverseitig festgehaltenen Zeitpunkt eingeblendet; alles danach ist die beobachtete Anpassung an eine geänderte Aufgabenstellung.",
       "noSeed": "Für diesen Fall wurde kein konkreter Seed erzeugt, die Seed-Auseinandersetzung ließ sich daher nicht messen.",
-      "inProductSession": "Sitzung im Produkt"
+      "inProductSession": "Sitzung im Produkt",
+      "decisionsLogKept": "DECISIONS-Log: geführt",
+      "decisionsLogMissing": "DECISIONS-Log: fehlt",
+      "commitsOverSpan": "{count, plural, one {# Commit} other {# Commits}} über {hours} h",
+      "singleSitting": "eine Sitzung",
+      "singleSittingTitle": "Die Commits landeten in einem engen Schub — Arbeitsweise, kein Urteil",
+      "seedEngagement": "Seed-Auseinandersetzung: {touched}/{total} platzierte Dateien bearbeitet",
+      "seedEngagementTitle": "Dateien des gemeinsamen Start-Seeds, die die Einreichung verändert hat — der Seed legt die Nahtstelle jeder Sonde an, eine unberührte Datei ist also eine Nahtstelle, die nie angefasst wurde.",
+      "seedUntouched": "unberührt: {paths}"
+    },
+    "probeKind": {
+      "ambiguity": "Mehrdeutigkeit",
+      "legacy_trap": "Legacy-Falle",
+      "verification_trap": "Verifikationsfalle",
+      "underspecified": "Unterspezifiziert"
+    },
+    "canaryKind": {
+      "wrong_constant": "falsche Konstante",
+      "stale_doc": "veraltete Doku",
+      "misleading_comment": "irreführender Kommentar",
+      "subtle_bug": "subtiler Fehler"
+    },
+    "probeStatus": {
+      "handled": "gemeistert",
+      "unhandled": "nicht gemeistert",
+      "detected": "erkannt",
+      "missed": "übersehen"
+    },
+    "dimension": {
+      "framing": "Problemzuschnitt",
+      "tooling": "Werkzeugsouveränität",
+      "judgment": "Urteilsvermögen",
+      "architecture": "Architektur",
+      "transfer": "Übertragbarkeit"
+    },
+    "casesTable": {
+      "colAssignment": "Aufgabe",
+      "colRole": "Rolle",
+      "colSeniority": "Seniorität",
+      "colStage": "Phase",
+      "colSubmissions": "Einreichungen",
+      "colCreated": "Erstellt",
+      "open": "Öffnen",
+      "untitledAssignment": "Aufgabe"
+    },
+    "evalPanel": {
+      "capabilityScores": "Kompetenzwerte",
+      "transfer": "Übertragbarkeit",
+      "commits": "{count, plural, one {# Commit} other {# Commits}}",
+      "confidenceTitle": "Wie belastbar diese Bewertung ist — das Minimum der Konfidenzen der Reflexions- und Werkzeugsignale, aus denen sie gebaut wurde.",
+      "confidence": "Konf. {pct}",
+      "authenticityTitle": "Prozessauthentizität {score}/100 — {reasons}",
+      "authenticityCleanTitle": "Prozessauthentizität {score}/100 — echte, schrittweise Arbeit.",
+      "authenticity": "Authentizität {score}",
+      "strengths": "+ Stärken",
+      "concerns": "! Bedenken",
+      "noFindingsLlm": "Für diese Einreichung traten keine herausragenden Stärken oder Bedenken zutage.",
+      "noFindingsDeterministic": "Noch keine Stärken sichtbar — für ein reicheres Bild erneut mit dem LLM ausführen.",
+      "readBeforeWrite": "Lesen vor Schreiben",
+      "fluency": "Souveränität",
+      "gaps": "Lücken: {gaps}",
+      "observed": "beobachtet",
+      "inferred": "abgeleitet",
+      "observedTitle": "Der Werkzeugeinsatz wurde live in der Arbeitsfläche im Produkt beobachtet.",
+      "inferredTitle": "Der Werkzeugeinsatz wurde aus dem eingereichten Git-Log rekonstruiert.",
+      "probeResults": "Sondenergebnisse",
+      "probeWhere": "in {where}",
+      "probeKindUnknown": "Sonde",
+      "probeStatusDetectedTitle": "Die Person hat diesen Bereich bearbeitet, aber die Spur kann nicht bewerten, wie gut sie ihn gemeistert hat — es lief keine Bewertung, also ist das kein Befund zu ihren Lasten.",
+      "followupsTitle": "Nachfragen fürs Interview — Autorschaft live prüfen",
+      "fairnessNote": "Beim Code wird LLM-Erzeugung unterstellt — KI-Nutzung wird nie bestraft. Die Werte sind Hypothesen aus dem Artefakt; erst die Nachfragen oben verifizieren sie.",
+      "degraded": "Eingeschränkte Bewertung — einzelne Schritte fielen auf deterministische Vorlagen zurück. Vor dem Weiterleiten prüfen.",
+      "inPipeline": "In der Pipeline",
+      "promoting": "Wird weitergeleitet…",
+      "promote": "In die Pipeline übernehmen",
+      "promoteHint": "→ wird zu einer Prüfkarte in Entscheidungen"
+    },
+    "emptyLedger": {
+      "eyebrow": "Journal offen",
+      "title": "Noch nichts versiegelt",
+      "lede": "Eine Fallaufgabe verlangt nicht nur Code. Sie hält fest, wie die Arbeit entstanden ist, und versiegelt diesen Nachweis — damit Sie dem trauen können, was Sie lesen.",
+      "statCases": "Fälle",
+      "statSealed": "Versiegelt",
+      "cta": "Ersten Fall anlegen",
+      "controlsHeading": "Was eine versiegelte Einreichung mitbringt",
+      "control": {
+        "hashChain": {
+          "name": "Manipulationssichere Hash-Kette",
+          "proves": "Jeder beobachtete Schritt wird serverseitig sofort mit dem vorigen verkettet, eine Sitzung lässt sich also nachträglich nicht still umschreiben. Ein Glied, das sich nicht nachrechnen lässt — oder eine Client-Uhr, die dem Empfangszeitpunkt des Servers widerspricht — macht die gesamte Spur unglaubwürdig, nicht bloß auffällig."
+        },
+        "promptCapture": {
+          "name": "Prompt-Mitschnitt",
+          "proves": "Die Dialoge mit Assistent und Auftraggeber, die die Person selbst geschrieben hat, gehören zum Nachweis. Der Modelleinsatz wird danach bewertet, wie sie ihn geführt hat — Zerlegung, Iteration, das Modell zur Selbstprüfung auffordern — nie nach Menge und nie als Abzug."
+        },
+        "canaries": {
+          "name": "Platzierte Kanarienvögel",
+          "proves": "Das Start-Repository enthält absichtliche Fehler mit je einer prüfbaren Wahrheit. Jeder kommt als behoben, benannt, übernommen oder nicht bewertbar zurück — ein platzierter Fehler, der bis in die Einreichung überlebt, ist generierter Output, der ungelesen abgegeben wurde."
+        },
+        "perturbation": {
+          "name": "Änderung mitten im Lauf",
+          "proves": "Eine Anforderung verschiebt sich, während die Arbeit läuft, serverseitig mit Zeitstempel. Alles danach ist Anpassung an eine Aufgabenstellung, die keine vorbereitete Antwort vorhersehen konnte; sie aufzunehmen ist Urteilsvermögen, dem Sie beim Entstehen zusehen."
+        },
+        "watermark": {
+          "name": "Sitzungs-Wasserzeichen",
+          "proves": "Die Arbeit jeder Sitzung trägt ihre eigene Referenz. Taucht darin die Referenz einer anderen Sitzung auf, ist das der entscheidende Beleg, dass eine Lösung zwischen Kandidatinnen und Kandidaten zirkuliert ist. Bewusst eng gefasst: eine fehlende Markierung allein ist eine Notiz für die prüfende Person, nie ein Urteil."
+        },
+        "baseline": {
+          "name": "Vergleich mit der eingefrorenen Referenzlösung",
+          "proves": "Bei der Freigabe löst ein nacktes Modell den Fall einmal ohne jede Steuerung, und diese Antwort wird eingefroren. Einreichungen werden damit verglichen. Nie als Abzug — es sagt Ihnen, worauf Sie das Autorschaftsinterview richten, nicht was Sie bewerten."
+        }
+      },
+      "pasteTrace": "Daneben gilt: ein einzelnes massenhaftes Einfügen ohne schrittweisen Aufbau liest sich als verdächtig — und eine verdächtige Einreichung wird für das Interview zurückgehalten, das die Autorschaft prüft, und nie allein nach Punktzahl automatisch weitergereicht.",
+      "honestDarkness": "Jedes Urteil oben wird Ihnen mit seinem eigenen Nachweis gezeigt, auch dort, wo eine Prüfung nicht laufen konnte: eine Kontrolle, die nicht gegriffen hat, erscheint nie als bestandene. Nichts davon startet, bevor ein Fall existiert — beschreiben Sie den Bedarf, und die Engine entwirft die Aufgabe, um die sich diese Kontrollen legen."
     }
   },
   "rubricCoverage": {

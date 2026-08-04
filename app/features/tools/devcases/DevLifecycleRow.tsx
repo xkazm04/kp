@@ -6,7 +6,8 @@ import { AlarmClock, Archive, Eye, RefreshCw } from "lucide-react";
 import { Modal } from "@/app/_components/Modal";
 import { DevLifecycleReviewPanel } from "./DevLifecycleReviewPanel";
 import { lifecycleStall } from "@/app/_lib/devcase-sla";
-import { LIFECYCLE_STEPS, LIVE_STAGES, STAGE_LABEL } from "./DevTypes";
+import { useStageLabel } from "./DevLabels";
+import { LIFECYCLE_STEPS, LIVE_STAGES } from "./DevTypes";
 import type { Lifecycle } from "./DevTypes";
 
 export function LifecycleRow({
@@ -22,12 +23,9 @@ export function LifecycleRow({
   onChanged?: () => void;
 }) {
   const t = useTranslations("devcase");
-  // Stage ids are DB values; STAGE_LABEL stays the last-resort fallback for a stage the
-  // catalog doesn't know yet (the engine can introduce one before its strings land).
-  const stageLabel = (stage: string) => {
-    const key = `stage.${stage}` as Parameters<typeof t>[0];
-    return t.has(key) ? t(key) : STAGE_LABEL[stage] ?? stage;
-  };
+  // Stage ids are DB values. The lookup + its fallback live in one shared hook so
+  // this row and the Cases table can never label the same stage differently.
+  const stageLabel = useStageLabel();
   const mapped = lc.stage === "awaiting_approval" ? "designed" : lc.stage === "published" ? "collecting" : lc.stage;
   const idx = LIFECYCLE_STEPS.indexOf(mapped);
   const awaiting = lc.stage === "awaiting_approval";

@@ -1,8 +1,14 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { MotionizedGlyph } from "@/app/_components/glyph/MotionizedGlyph";
 import { DEV_CASES_GLYPH } from "@/app/_components/glyph/glyphs/devCasesGlyph";
 import { BTN_PRIMARY, CARD_PAD, EYEBROW, META_LABEL, PANEL, STAT, STAT_LABEL, STAT_VALUE } from "@/app/_components/ui/recipes";
+// The six control IDs, in reading order. The WORDS live in
+// `devcase.emptyLedger.control.<id>.{name,proves}` — recruiter-facing marketing copy
+// belongs in the catalog like every other recruiter-facing string — and the list itself
+// lives in DevTypes so the vocabulary guard can pin all four locales to exactly six.
+import { LEDGER_CONTROL_IDS } from "./DevTypes";
 
 /* Variant B — "The sealed ledger": a case is EVIDENCE, and the list is its ledger.
  *
@@ -12,10 +18,8 @@ import { BTN_PRIMARY, CARD_PAD, EYEBROW, META_LABEL, PANEL, STAT, STAT_LABEL, ST
  * state reads as an unopened ledger: zero sealed submissions, and the six
  * controls that will seal the first one, drawn as a chain of evidence. */
 
-// The six anti-delegation controls, each phrased as what it PROVES. Indexed, never
-// constructed during render.
-//
-// TRUTH CONTRACT (this copy is the product's headline claim, so it is written
+// TRUTH CONTRACT for the six anti-delegation controls listed below, each phrased as
+// what it PROVES (this copy is the product's headline claim, so it is written
 // against the code, not against the pitch). The six numbered controls are the ones
 // the engine actually runs — #1 hash chain (db/devcase.ts verifyDevSessionChain +
 // getDevSessionIntegrity), #2 prompt capture (prompt_signals.py), #3 planted
@@ -36,40 +40,9 @@ import { BTN_PRIMARY, CARD_PAD, EYEBROW, META_LABEL, PANEL, STAT, STAT_LABEL, ST
 //  - THE BASELINE IS NOT A DIFF AGAINST THE SEED. That is `seedDiff`, a different
 //    mechanism. #6 compares the submission against a frozen one-shot naive-LLM
 //    solve and is EXPLICITLY never a penalty (DevTypes.BaselineSimilarity).
-const CONTROLS = [
-  {
-    name: "Tamper-evident hash chain",
-    proves:
-      "Every observed step is chained server-side as it happens, so a session cannot be quietly rewritten afterwards. A link that fails to recompute — or a client clock that contradicts when the server received the event — marks the whole trace untrustworthy rather than merely odd.",
-  },
-  {
-    name: "Prompt capture",
-    proves:
-      "The assistant and stakeholder exchanges the candidate wrote are part of the record. Model use is graded on how they drove it — decomposition, iteration, asking it to verify itself — never on volume, and never as a penalty.",
-  },
-  {
-    name: "Planted canaries",
-    proves:
-      "The starter repo carries deliberate flaws, each with one checkable truth. Every one comes back addressed, flagged, propagated or unverifiable — a planted flaw that survived into the submission is generated output that was shipped unread.",
-  },
-  {
-    name: "Mid-flight perturbation",
-    proves:
-      "A requirement moves while the work is open, server-timestamped. Everything after that moment is adaptation to a brief no prepared answer anticipated; absorbing it is judgment you can watch happen.",
-  },
-  {
-    name: "Session watermark",
-    proves:
-      "Each session's work carries its own reference. Another session's reference turning up inside this one is decisive evidence a solution circulated between candidates. A narrow control, deliberately: on its own, a missing marker is a note for the reviewer, never a verdict.",
-  },
-  {
-    name: "Frozen baseline comparison",
-    proves:
-      "At approval the case is solved once by a bare model with nobody steering it, and that answer is frozen. Submissions are compared against it. Never a penalty — it tells you where to aim the authorship interview, not what to score.",
-  },
-] as const;
 
 export function CasesEmptyLedger({ onDefine }: { onDefine: () => void }) {
+  const t = useTranslations("devcase.emptyLedger");
   return (
     <section className={`${PANEL} ${CARD_PAD}`}>
       <div className="flex flex-col gap-5 lg:flex-row lg:items-start">
@@ -79,40 +52,37 @@ export function CasesEmptyLedger({ onDefine }: { onDefine: () => void }) {
             viewBox={DEV_CASES_GLYPH.viewBox}
             className="mx-auto h-28 w-28 lg:mx-0"
           />
-          <p className={`mt-2 ${EYEBROW}`}>Ledger open</p>
-          <h3 className="mt-1 font-serif text-h2 text-ink">Nothing sealed yet</h3>
-          <p className="mt-1 text-sm text-steel">
-            A case does not just ask a candidate to write code. It records how the work was made, and seals that record so
-            you can trust what you are reading.
-          </p>
+          <p className={`mt-2 ${EYEBROW}`}>{t("eyebrow")}</p>
+          <h3 className="mt-1 font-serif text-h2 text-ink">{t("title")}</h3>
+          <p className="mt-1 text-sm text-steel">{t("lede")}</p>
           <div className="mt-3 flex justify-center gap-2 lg:justify-start">
             <div className={`${STAT} min-w-[5rem] px-3 py-2`}>
-              <span className={STAT_LABEL}>Cases</span>
+              <span className={STAT_LABEL}>{t("statCases")}</span>
               <span className={`${STAT_VALUE} text-ink`}>0</span>
             </div>
             <div className={`${STAT} min-w-[5rem] px-3 py-2`}>
-              <span className={STAT_LABEL}>Sealed</span>
+              <span className={STAT_LABEL}>{t("statSealed")}</span>
               <span className={`${STAT_VALUE} text-ink`}>0</span>
             </div>
           </div>
           <button type="button" onClick={onDefine} className={`${BTN_PRIMARY} mt-3 h-9 px-3 text-sm`}>
-            Open the first case
+            {t("cta")}
           </button>
         </div>
 
         <div className="min-w-0 flex-1">
-          <h4 className={META_LABEL}>What a sealed submission will carry</h4>
+          <h4 className={META_LABEL}>{t("controlsHeading")}</h4>
           {/* The chain: a ruled rail with a link marker per control, echoing the
               hash chain running beneath the case in the glyph. */}
           <ol className="mt-3 border-l-2 border-dashed border-stone-200 pl-4">
-            {CONTROLS.map((c) => (
-              <li key={c.name} className="relative py-2">
+            {LEDGER_CONTROL_IDS.map((id) => (
+              <li key={id} className="relative py-2">
                 <span
                   aria-hidden
                   className="absolute -left-[1.4rem] top-3.5 h-2.5 w-2.5 rounded-sm border-2 border-stone-300 bg-white"
                 />
-                <p className="text-sm font-semibold text-ink">{c.name}</p>
-                <p className="text-sm text-steel">{c.proves}</p>
+                <p className="text-sm font-semibold text-ink">{t(`control.${id}.name`)}</p>
+                <p className="text-sm text-steel">{t(`control.${id}.proves`)}</p>
               </li>
             ))}
           </ol>
@@ -121,15 +91,8 @@ export function CasesEmptyLedger({ onDefine }: { onDefine: () => void }) {
               numbered controls — and the "held, never auto-advanced" claim is the
               real gate in devcase-run.ts (`suspectAuth`) plus the orchestrator's
               advance-only comm rule. */}
-          <p className="mt-3 text-sm text-steel">
-            Alongside them, one bulk paste with no incremental build-up reads as suspect — and a suspect submission is
-            held for the live interview that verifies authorship, never auto-advanced on score.
-          </p>
-          <p className="mt-2 text-sm text-steel">
-            Every verdict above is shown to you with its own evidence, including where a check could not run: a control
-            that did not fire is never displayed as one that passed. None of it starts until a case exists — define the
-            need and the engine designs the assignment these controls wrap around.
-          </p>
+          <p className="mt-3 text-sm text-steel">{t("pasteTrace")}</p>
+          <p className="mt-2 text-sm text-steel">{t("honestDarkness")}</p>
         </div>
       </div>
     </section>

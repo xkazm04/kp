@@ -5479,7 +5479,8 @@
       "published": "publikováno",
       "collecting": "sběr řešení",
       "ranked": "seřazeno",
-      "promoted": "postoupeno"
+      "promoted": "postoupeno",
+      "closed": "uzavřeno"
     },
     "stepState": {
       "done": "hotovo",
@@ -5619,7 +5620,119 @@
       "perturbationStale": "změna zadání byla ukázána, ale nenásledovaly žádné úpravy",
       "perturbationTitle": "Změna požadavku byla odhalena v okamžiku zaznamenaném serverem; vše po ní je sledovaná reakce kandidáta na změněné zadání.",
       "noSeed": "Pro tento případ nebyl vytvořen konkrétní seed, engagement se seedem tedy nešlo změřit.",
-      "inProductSession": "relace v produktu"
+      "inProductSession": "relace v produktu",
+      "decisionsLogKept": "Log DECISIONS: veden",
+      "decisionsLogMissing": "Log DECISIONS: chybí",
+      "commitsOverSpan": "{count, plural, one {# commit} few {# commity} other {# commitů}} za {hours} h",
+      "singleSitting": "jedno posezení",
+      "singleSittingTitle": "Commity dorazily v jednom těsném shluku — jde o způsob práce, ne o hodnocení",
+      "seedEngagement": "Práce se seedem: upraveno {touched} z {total} nastražených souborů",
+      "seedEngagementTitle": "Soubory ze sdíleného startovacího seedu, které odevzdání změnilo — seed nastražuje šev každé sondy, neupravený soubor je tedy šev, kterého se kandidát nedotkl.",
+      "seedUntouched": "nedotčeno: {paths}"
+    },
+    "probeKind": {
+      "ambiguity": "Nejednoznačnost",
+      "legacy_trap": "Past v legacy kódu",
+      "verification_trap": "Past v ověřování",
+      "underspecified": "Nedostatečné zadání"
+    },
+    "canaryKind": {
+      "wrong_constant": "chybná konstanta",
+      "stale_doc": "zastaralá dokumentace",
+      "misleading_comment": "zavádějící komentář",
+      "subtle_bug": "skrytá chyba"
+    },
+    "probeStatus": {
+      "handled": "zvládnuto",
+      "unhandled": "nezvládnuto",
+      "detected": "odhaleno",
+      "missed": "přehlédnuto"
+    },
+    "dimension": {
+      "framing": "Uchopení problému",
+      "tooling": "Práce s nástroji",
+      "judgment": "Úsudek",
+      "architecture": "Architektura",
+      "transfer": "Přenositelnost"
+    },
+    "casesTable": {
+      "colAssignment": "Zadání",
+      "colRole": "Role",
+      "colSeniority": "Seniorita",
+      "colStage": "Fáze",
+      "colSubmissions": "Odevzdání",
+      "colCreated": "Vytvořeno",
+      "open": "Otevřít",
+      "untitledAssignment": "Zadání"
+    },
+    "evalPanel": {
+      "capabilityScores": "Skóre schopností",
+      "transfer": "přenositelnost",
+      "commits": "{count, plural, one {# commit} few {# commity} other {# commitů}}",
+      "confidenceTitle": "Nakolik této evaluaci věřit — minimum z jistoty reflexe a signálu o práci s nástroji, z nichž vznikla.",
+      "confidence": "jistota {pct}",
+      "authenticityTitle": "Autenticita procesu {score}/100 — {reasons}",
+      "authenticityCleanTitle": "Autenticita procesu {score}/100 — postupná, skutečně odvedená práce.",
+      "authenticity": "autenticita {score}",
+      "strengths": "+ Silné stránky",
+      "concerns": "! Výhrady",
+      "noFindingsLlm": "U tohoto odevzdání se neobjevily žádné výrazné silné stránky ani výhrady.",
+      "noFindingsDeterministic": "Zatím se neukázaly žádné silné stránky — pro bohatší čtení spusťte znovu s LLM.",
+      "readBeforeWrite": "čtení před psaním",
+      "fluency": "plynulost",
+      "gaps": "mezery: {gaps}",
+      "observed": "sledováno",
+      "inferred": "odvozeno",
+      "observedTitle": "Práci s nástroji jsme sledovali živě na pracovní ploše v produktu.",
+      "inferredTitle": "Práce s nástroji byla rekonstruována z odevzdaného git logu.",
+      "probeResults": "Výsledky sond",
+      "probeWhere": "v {where}",
+      "probeKindUnknown": "sonda",
+      "probeStatusDetectedTitle": "Kandidát tuto oblast zpracoval, ale ze záznamu nelze vyhodnotit, jak dobře si s ní poradil — žádné hodnocení neproběhlo, není to tedy zjištění v jeho neprospěch.",
+      "followupsTitle": "Doplňující otázky k pohovoru — ověřte autorství naživo",
+      "fairnessNote": "U kódu se předpokládá, že vznikl s pomocí LLM — používání AI se nikdy netrestá. Skóre jsou hypotézy odvozené z artefaktu; ověří je až doplňující otázky výše.",
+      "degraded": "Zhoršená evaluace — některé kroky spadly zpět na deterministické šablony. Před postoupením ji zkontrolujte.",
+      "inPipeline": "V pipeline",
+      "promoting": "Postupuje…",
+      "promote": "Postoupit do pipeline",
+      "promoteHint": "→ vznikne karta k posouzení v Rozhodnutích"
+    },
+    "emptyLedger": {
+      "eyebrow": "Kniha otevřena",
+      "title": "Zatím nic zapečetěno",
+      "lede": "Případová studie nežádá kandidáta jen o napsání kódu. Zaznamenává, jak práce vznikala, a ten záznam zapečetí — abyste tomu, co čtete, mohli věřit.",
+      "statCases": "Studie",
+      "statSealed": "Zapečetěno",
+      "cta": "Otevřít první studii",
+      "controlsHeading": "Co ponese zapečetěné odevzdání",
+      "control": {
+        "hashChain": {
+          "name": "Hashovaný řetěz odolný proti manipulaci",
+          "proves": "Každý sledovaný krok se hned na serveru zřetězí s předchozím, takže relaci nelze dodatečně nenápadně přepsat. Článek, který nelze přepočítat — nebo hodiny na straně klienta, které si protiřečí s časem doručení na server — označí celý záznam za nedůvěryhodný, ne jen za podivný."
+        },
+        "promptCapture": {
+          "name": "Záznam promptů",
+          "proves": "Rozhovory s asistentem i se zadavatelem, které kandidát napsal, jsou součástí záznamu. Práce s modelem se hodnotí podle toho, jak ji vedl — rozklad problému, iterace, žádost o ověření vlastního výstupu — nikdy podle objemu a nikdy jako postih."
+        },
+        "canaries": {
+          "name": "Nastražené kanárky",
+          "proves": "Startovací repozitář obsahuje záměrné vady, každou s jedinou ověřitelnou pravdou. Každá se vrátí jako opravená, pojmenovaná, přešlá dál, nebo nehodnotitelná — nastražená vada, která přežila až do odevzdání, je vygenerovaný výstup odevzdaný bez přečtení."
+        },
+        "perturbation": {
+          "name": "Změna zadání za běhu",
+          "proves": "Uprostřed rozpracované práce se posune požadavek, s časem zaznamenaným serverem. Vše po tomto okamžiku je reakce na zadání, které žádná připravená odpověď nemohla předvídat; vstřebat ho je úsudek, který vidíte vznikat."
+        },
+        "watermark": {
+          "name": "Vodoznak relace",
+          "proves": "Práce každé relace nese vlastní referenci. Reference jiné relace nalezená uvnitř této je průkazným dokladem, že řešení kolovalo mezi kandidáty. Záměrně úzká kontrola: chybějící značka je sama o sobě jen poznámka pro posuzovatele, nikdy verdikt."
+        },
+        "baseline": {
+          "name": "Porovnání se zmrazeným základem",
+          "proves": "Při schválení studii jednou vyřeší holý model, který nikdo neřídí, a tato odpověď se zmrazí. Odevzdání se s ní porovnávají. Nikdy jako postih — říká vám, kam mířit pohovor o autorství, ne co hodnotit."
+        }
+      },
+      "pasteTrace": "Vedle nich platí: jediné hromadné vložení bez postupného narůstání se čte jako podezřelé — a podezřelé odevzdání se pozdrží pro živý pohovor ověřující autorství, nikdy nepostupuje automaticky podle skóre.",
+      "honestDarkness": "Každý verdikt výše se vám ukáže i s vlastními důkazy, včetně míst, kde kontrola proběhnout nemohla: kontrola, která se nespustila, se nikdy nezobrazí jako kontrola, která prošla. Nic z toho se nerozběhne, dokud studie neexistuje — popište potřebu a engine navrhne zadání, kolem kterého se tyto kontroly ovinou."
     }
   },
   "rubricCoverage": {

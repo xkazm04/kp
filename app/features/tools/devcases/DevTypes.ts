@@ -310,17 +310,83 @@ export const LIFECYCLE_STEPS = ["intake", "analyzed", "designed", "approved", "c
 // (CasesTable) — one source so a stage can't read "live" in one place but not
 // be closable in the other.
 export const LIVE_STAGES = ["published", "collecting", "ranked", "promoted"] as const;
-export const STAGE_LABEL: Record<string, string> = {
-  intake: "intake",
-  analyzed: "analyzed",
-  designed: "designed",
-  awaiting_approval: "needs approval",
-  approved: "approved",
-  published: "published",
-  collecting: "collecting",
-  ranked: "ranked",
-  promoted: "promoted",
-};
+
+// ---- Canonical vocabularies -------------------------------------------------
+//
+// Each tuple below is ONE declaration of an enum whose producer lives elsewhere
+// (the orchestrator, or the Python engine). Two guards keep every one of them
+// honest, and both are required — neither catches what the other does:
+//
+//   1. PRODUCER equality — `devcase-vocabulary.test.ts` reads the producing source
+//      and asserts set equality with the tuple. Without it the tuple is a copy that
+//      silently rots the moment the producer gains a value.
+//   2. CATALOG equality — the same test pins all four i18n catalogs to the tuple by
+//      set equality, in both directions. `npm run i18n:check` compares the locales
+//      to EACH OTHER and never to the domain vocabulary, so deleting a key from all
+//      four leaves it green; typecheck is silent too, because every one of these
+//      lookups is a template-string key. A missing key surfaces only at runtime, as
+//      a raw English code inside an otherwise translated panel.
+//
+// This is the mechanism `_ordered_dimensions` established for rubric dimensions
+// (the engine emits name/label/weight/description so the UI hardcodes none of it),
+// carried to the enums the engine does NOT annotate. Note the deliberate difference:
+// for a LOCALIZED surface the engine can be canonical only for the VOCABULARY, never
+// for the label — a label emitted from Python is English by construction. So the
+// producer owns the key set and the i18n catalog owns the words.
+
+// Every stage `devcase-orchestrator.ts` STAGES can put on a lifecycle. Ten, not the
+// nine the old STAGE_LABEL listed: `closed` is reachable through the W5-3 close-out
+// action (LifecycleRow) and was rendering as the raw id in both the table and the row.
+export const LIFECYCLE_STAGES = [
+  "intake",
+  "analyzed",
+  "designed",
+  "awaiting_approval",
+  "approved",
+  "published",
+  "collecting",
+  "ranked",
+  "promoted",
+  "closed",
+] as const;
+
+// Cover-probe kinds — the designed ambiguities/traps a case plants. Producer:
+// pipeline/jobfit/devcase/design.py PROBE_KINDS.
+export const PROBE_KINDS = ["ambiguity", "legacy_trap", "verification_trap", "underspecified"] as const;
+
+// Canary kinds — what a planted known-ground-truth flaw IS. Producer:
+// pipeline/jobfit/devcase/seed_materializer.py CANARY_KINDS.
+export const CANARY_KINDS = ["wrong_constant", "stale_doc", "misleading_comment", "subtle_bug"] as const;
+
+// Probe-outcome presentation states. UI-derived (there is no producer to pin to):
+// `ProbeOutcome.handledWell` is TRI-state and `detected` is independent, so the four
+// combinations that carry distinct meaning get distinct states. `detected` here means
+// "worked the area, handling not graded" — the observed Live Work Surface path emits
+// handledWell=null by design, and reporting that as `missed` turned an absence of
+// assessment into a finding against the candidate.
+export const PROBE_STATUSES = ["handled", "unhandled", "detected", "missed"] as const;
+export type ProbeStatus = (typeof PROBE_STATUSES)[number];
+
+// The five durable capabilities. Producer: pipeline/jobfit/devcase/models.py
+// RUBRIC_DIMENSIONS. Current bundles carry their own labels on `dimensions`
+// (_ordered_dimensions), so this set is read only for the pre-`dimensions` fallback —
+// which is exactly why it needs a guard: nothing else would ever notice it rotting.
+export const RUBRIC_DIMENSION_NAMES = ["framing", "tooling", "judgment", "architecture", "transfer"] as const;
+
+// The six anti-delegation controls as MARKETED on the Cases-tab empty state, in
+// reading order. Not a producer-owned enum — it is the editorial list, pinned here so
+// the vocabulary guard can hold all four locales to exactly six controls and stop a
+// translated catalog from quietly shipping five. The truth contract that keeps this
+// list equal to the six the engine actually runs lives in DevCasesEmptyLedger.tsx and
+// in docs/features/dev-case/README.md ("The marketed list is the implemented list").
+export const LEDGER_CONTROL_IDS = [
+  "hashChain",
+  "promptCapture",
+  "canaries",
+  "perturbation",
+  "watermark",
+  "baseline",
+] as const;
 
 export const COMPLEXITY: Record<string, string> = {
   low: "bg-moss/15 text-moss",

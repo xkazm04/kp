@@ -147,11 +147,65 @@ materialized seed says engagement could not be measured. `perturbationShown: fal
 renders nothing at all — the reveal never fired, which is no signal rather than a
 failure to adapt.
 
-The four-way canary vocabulary is pinned to the producer by
-`devcase-canary-catalog.test.ts`: it asserts set equality between
-`CANARY_STATUSES`, the statuses `artifact_checks.py` actually emits, and all four
-i18n catalogs. `npm run i18n:check` compares locales only to each other, so
-deleting a verdict from all four catalogs would otherwise stay green.
+## Localization of the studio (phase 1)
+
+The candidate-facing surface has always been fully localized (42 `devApply` strings
+in all four locales). The recruiter studio was at roughly 18% — seven of 35
+components under `app/features/tools/devcases/`. Phase 1 did the seam work rather
+than a string sweep: it made the **enums** localizable, on the theory that a
+hand-written label map is the defect that keeps coming back.
+
+**The canonical-vocabulary contract.** `DevTypes.ts` declares one tuple per enum —
+`LIFECYCLE_STAGES`, `PROBE_KINDS`, `CANARY_KINDS`, `PROBE_STATUSES`,
+`RUBRIC_DIMENSION_NAMES` — and `app/features/tools/devcases/DevLabels.ts` is the only
+place a value becomes a word. This extends the contract `evaluate.py`
+`_ordered_dimensions` established (the engine emits `{name,label,weight,description}`
+so the UI hardcodes no dimension metadata) with one deliberate difference: **for a
+localized surface the producer can be canonical for the VOCABULARY but never for the
+label**, since a label emitted from Python is English by construction. So the producer
+owns the key set; the i18n catalog owns the words.
+
+**The guard.** `devcase-vocabulary.test.ts` pins each tuple twice — to its producing
+source (`devcase-orchestrator.ts` `STAGES`, `design.py` `PROBE_KINDS`,
+`seed_materializer.py` `CANARY_KINDS`, `models.py` `RUBRIC_DIMENSIONS`) and to all
+four locale catalogs by set equality in both directions. Both halves are load-bearing:
+`npm run i18n:check` compares locales only to each other, so deleting a key from all
+four stays green, and `tsc` cannot see a template-string key. Measured on this change:
+deleting `devcase.stage.closed` and `devcase.probeKind.legacy_trap` from all four
+catalogs leaves `i18n:check` reporting "4 locale(s) in parity" while the guard fails
+naming both. `devcase-canary-catalog.test.ts` (the four-way canary verdicts) and
+`outbox-kind-catalog.test.ts` are the same pattern and predate it.
+
+Two defects fell out of doing this by derivation instead of by eye:
+
+- **`closed` was missing.** `STAGE_LABEL` listed nine stages; the orchestrator can set
+  ten. A case closed through the W5-3 close-out rendered the raw id `closed` in both
+  the Cases table and the lifecycle row, in every language.
+- **The same enum rendered keyed on one surface and unkeyed on another.**
+  `DevLifecycleRow` looked stages up through the catalog while `DevCasesTable` printed
+  the hardcoded English map, so a Czech workspace showed "collecting" in the table and
+  "sběr řešení" in the row beneath it.
+
+**Probe outcomes are now four states, not three.** `ProbeOutcome.handledWell` is
+tri-state and `detected` is independent of it. The old three-way collapse read
+`handledWell === null` — which the observed Live Work Surface path emits *by design*,
+because it cannot grade handling — as `missed`, turning an assessment that never ran
+into a finding against the candidate on the product's strongest evidence path.
+`handled` / `unhandled` / `detected` (worked it, handling not graded) / `missed`.
+
+**Canary kind is rendered.** `CanaryOutcome.kind` rode in the bundle from the start
+and was never displayed, so "propagated · src/rates.ts" did not say whether a wrong
+constant or a stale doc had survived.
+
+### Known gap: engine-authored English sentences
+
+Roughly 25 user-facing sentences are still constructed in code and rendered verbatim:
+every `reasons[]` in `app/_lib/devcase-authenticity.ts` and every `evidence[]` in
+`process_events.py` / `prompt_signals.py`. They stay English prose for now — turning
+them into codes+params is one coherent change spanning a TS producer and two Python
+producers plus their consumers, and half-doing it (codes on one side, prose on the
+other) is worse than either end state. The frames around them are translated, so the
+authenticity tooltip is not wholly English. Not in phase 1 scope; do it as one unit.
 
 ## Surface
 

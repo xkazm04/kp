@@ -1,41 +1,55 @@
 "use client";
 
-import { Check, CircleDot, MessageCircleQuestion, Send, X, type LucideIcon } from "lucide-react";
+import { Check, CircleDot, MessageCircleQuestion, Send, TriangleAlert, X, type LucideIcon } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { formatFraction } from "@/app/_lib/format";
 import { describeSource } from "./DevHelpers";
+import { useDimensionLabel, useProbeKindLabel, useProbeStatusLabel } from "./DevLabels";
 import { FollowupQuestionItem } from "./DevShared";
 import { DevEvalPanelScores } from "./DevEvalPanelScores";
 import { DevEvalPanelProcessTrace } from "./DevEvalPanelProcessTrace";
 import { DevEvalPanelIntegrity } from "./DevEvalPanelIntegrity";
 import { DevEvalPanelChecks } from "./DevEvalPanelChecks";
-import type { DimensionScore, EvalBundle, ProbeOutcome } from "./DevTypes";
+import { PROBE_KINDS, RUBRIC_DIMENSION_NAMES } from "./DevTypes";
+import type { DimensionScore, EvalBundle, ProbeOutcome, ProbeStatus } from "./DevTypes";
 
-// Human labels for the legacy fallback only — current evaluations carry their own labels.
-const LEGACY_LABELS: Record<string, string> = {
-  framing: "Problem framing",
-  tooling: "Tooling fluency",
-  judgment: "Judgment",
-  architecture: "Architecture",
-  transfer: "Transfer",
+// Probe-kind TINT only. The label moved to the i18n catalog (useProbeKindLabel) —
+// what stays here is presentation, which is the same in every language. Keyed by
+// PROBE_KINDS so a kind added in design.py fails the vocabulary guard rather than
+// silently losing its colour.
+const PROBE_KIND_TINT: Record<(typeof PROBE_KINDS)[number], string> = {
+  legacy_trap: "bg-coral/15 text-coral",
+  verification_trap: "bg-amber-100 text-amber-700",
+  ambiguity: "bg-blue-50 text-blue-700",
+  underspecified: "bg-stone-100 text-steel",
 };
+const probeKindTint = (k?: string) =>
+  PROBE_KIND_TINT[k as (typeof PROBE_KINDS)[number]] ?? "bg-stone-100 text-steel";
 
-// Probe kind -> readable label + on-palette tint, so the results panel is
-// scannable and color-coded by kind without re-joining to the case's cover_probes.
-const PROBE_KIND: Record<string, { label: string; cls: string }> = {
-  legacy_trap: { label: "Legacy trap", cls: "bg-coral/15 text-coral" },
-  verification_trap: { label: "Verification trap", cls: "bg-amber-100 text-amber-700" },
-  ambiguity: { label: "Ambiguity", cls: "bg-blue-50 text-blue-700" },
-  underspecified: { label: "Underspecified", cls: "bg-stone-100 text-steel" },
+// `handledWell` is TRI-state and `detected` is independent of it, so four
+// combinations carry distinct meaning and the old three-way collapse mislabelled
+// one of them. The observed Live Work Surface path CANNOT grade handling and emits
+// handledWell=null by design (DevTypes: "Consumers must treat null as 'unknown',
+// not 'failed'") — reading that as `missed` reported an assessment that never ran
+// as a finding against the candidate, on exactly the path the product considers its
+// strongest evidence.
+const PROBE_STATUS_TONE: Record<ProbeStatus, { cls: string; Icon: LucideIcon }> = {
+  handled: { cls: "text-moss", Icon: Check },
+  unhandled: { cls: "text-coral", Icon: TriangleAlert },
+  detected: { cls: "text-amber-700", Icon: CircleDot },
+  missed: { cls: "text-coral", Icon: X },
 };
-const probeKind = (k?: string) => PROBE_KIND[k ?? ""] ?? { label: (k || "probe").replace(/_/g, " "), cls: "bg-stone-100 text-steel" };
-
-function probeStatus(o: ProbeOutcome): { label: string; cls: string; Icon: LucideIcon } {
-  if (o.handledWell) return { label: "handled", cls: "text-moss", Icon: Check };
-  if (o.detected) return { label: "detected", cls: "text-amber-700", Icon: CircleDot };
-  return { label: "missed", cls: "text-coral", Icon: X };
+function probeStatus(o: ProbeOutcome): ProbeStatus {
+  if (o.handledWell === true) return "handled";
+  if (o.handledWell === false) return "unhandled";
+  return o.detected ? "detected" : "missed";
 }
 
 export function EvalPanel({ ev, onPromote, promoted, promoting = false }: { ev: EvalBundle; onPromote: () => void; promoted: boolean; promoting?: boolean }) {
+  const tr = useTranslations("devcase.evalPanel");
+  const dimensionLabel = useDimensionLabel();
+  const probeKindLabel = useProbeKindLabel();
+  const probeStatusLabel = useProbeStatusLabel();
   const r = ev.reflection ?? {};
   const t = ev.tooling ?? {};
   const e = ev.evaluation ?? {};
@@ -47,7 +61,7 @@ export function EvalPanel({ ev, onPromote, promoted, promoting = false }: { ev: 
   const breakdown: DimensionScore[] =
     e.dimensions && e.dimensions.length
       ? e.dimensions
-      : Object.keys(LEGACY_LABELS).map((name) => ({ name, label: LEGACY_LABELS[name], weight: 0, score: dims[name] ?? 0, description: "" }));
+      : RUBRIC_DIMENSION_NAMES.map((name) => ({ name, label: dimensionLabel(name), weight: 0, score: dims[name] ?? 0, description: "" }));
   // Prefer the explicit flag; fall back to array length for bundles saved before it existed.
   const hasFindings = e.hasFindings ?? Boolean((e.strengths ?? []).length || (e.concerns ?? []).length);
   return (
@@ -57,22 +71,18 @@ export function EvalPanel({ ev, onPromote, promoted, promoting = false }: { ev: 
       {/* trace + tooling (D5) */}
       <div className="mt-2 border-t border-stone-100 pt-2 text-micro text-steel">
         <span className="rounded bg-paper px-1.5 py-0.5 uppercase">{r.iterationPattern}</span>{" "}
-        read-before-write <b className="text-ink">{formatFraction(r.readBeforeWrite ?? 0, { label: "readBeforeWrite" })}</b>{" "}
-        · fluency <b className="text-ink">{formatFraction(t.fluency ?? 0, { label: "fluency" })}</b>
-        {(x.gaps ?? []).length ? <span> · gaps: {(x.gaps ?? []).join(", ")}</span> : null}{" "}
+        {tr("readBeforeWrite")} <b className="text-ink">{formatFraction(r.readBeforeWrite ?? 0, { label: "readBeforeWrite" })}</b>{" "}
+        · {tr("fluency")} <b className="text-ink">{formatFraction(t.fluency ?? 0, { label: "fluency" })}</b>
+        {(x.gaps ?? []).length ? <span> · {tr("gaps", { gaps: (x.gaps ?? []).join(", ") })}</span> : null}{" "}
         {/* Live Work Surface (moonshot E): was tooling WATCHED (in-product session)
             or RECONSTRUCTED from a git log? Observed > inferred. */}
         <span
-          title={
-            String(ev.perStepSources?.tooling) === "observed"
-              ? "Tooling watched live in the in-product work surface."
-              : "Tooling reconstructed from the submitted git log."
-          }
+          title={String(ev.perStepSources?.tooling) === "observed" ? tr("observedTitle") : tr("inferredTitle")}
           className={`rounded px-1.5 py-0.5 font-semibold uppercase ${
             String(ev.perStepSources?.tooling) === "observed" ? "bg-moss/10 text-moss" : "bg-stone-100 text-steel"
           }`}
         >
-          {String(ev.perStepSources?.tooling) === "observed" ? "observed" : "inferred"}
+          {String(ev.perStepSources?.tooling) === "observed" ? tr("observed") : tr("inferred")}
         </span>
       </div>
 
@@ -89,17 +99,24 @@ export function EvalPanel({ ev, onPromote, promoted, promoting = false }: { ev: 
       {/* probe results (D5) — self-contained from denormalized kind/where, no case re-join */}
       {(t.probeOutcomes ?? []).length ? (
         <div className="mt-2 border-t border-stone-100 pt-2">
-          <p className="mb-1 text-micro font-semibold uppercase tracking-wide text-steel">Probe results</p>
+          <p className="mb-1 text-micro font-semibold uppercase tracking-wide text-steel">{tr("probeResults")}</p>
           <ul className="space-y-1">
             {(t.probeOutcomes ?? []).map((o, i) => {
-              const k = probeKind(o.kind);
-              const s = probeStatus(o);
+              const status = probeStatus(o);
+              const tone = PROBE_STATUS_TONE[status];
               return (
                 <li key={o.probeId ?? i} title={o.note || undefined} className="flex items-center gap-1.5 text-micro text-ink">
-                  <span className={`rounded px-1 py-0.5 text-micro font-semibold uppercase ${k.cls}`}>{k.label}</span>
-                  {o.where ? <span className="truncate text-steel">in {o.where}</span> : null}
-                  <span className={`ml-auto inline-flex shrink-0 items-center gap-1 font-semibold ${s.cls}`}>
-                    <s.Icon size={12} /> {s.label}
+                  <span className={`rounded px-1 py-0.5 text-micro font-semibold uppercase ${probeKindTint(o.kind)}`}>
+                    {probeKindLabel(o.kind)}
+                  </span>
+                  {o.where ? <span className="truncate text-steel">{tr("probeWhere", { where: o.where })}</span> : null}
+                  <span
+                    className={`ml-auto inline-flex shrink-0 items-center gap-1 font-semibold ${tone.cls}`}
+                    /* `detected` means the area was worked but handling was never graded
+                       (observed path) — say so, so an amber chip can't read as a failure. */
+                    title={status === "detected" ? tr("probeStatusDetectedTitle") : undefined}
+                  >
+                    <tone.Icon size={12} /> {probeStatusLabel(status)}
                   </span>
                 </li>
               );
@@ -114,7 +131,7 @@ export function EvalPanel({ ev, onPromote, promoted, promoting = false }: { ev: 
       {(ev.followups?.questions ?? []).length ? (
         <div className="mt-2 rounded-md border border-blue-200 bg-blue-50/60 p-2.5">
           <p className="flex items-center gap-1 text-micro font-semibold uppercase tracking-wide text-blue-700">
-            <MessageCircleQuestion size={11} /> Interview follow-ups — verify authorship live
+            <MessageCircleQuestion size={11} /> {tr("followupsTitle")}
           </p>
           <ol className="mt-1 list-decimal space-y-1.5 pl-4">
             {(ev.followups?.questions ?? []).map((q, i) => (
@@ -126,27 +143,22 @@ export function EvalPanel({ ev, onPromote, promoted, promoting = false }: { ev: 
         </div>
       ) : null}
 
-      <p className="mt-1 text-micro italic text-steel">
-        Code assumed LLM-generated — using AI is never penalised. Scores are hypotheses from the artifact;
-        the interview follow-ups above are what verifies them.
-      </p>
+      <p className="mt-1 text-micro italic text-steel">{tr("fairnessNote")}</p>
 
       {describeSource(ev.source).isDegraded ? (
-        <p className="mt-2 rounded bg-amber-50 px-2 py-1 text-micro text-amber-800">
-          Degraded evaluation — some steps fell back to deterministic templates. Review before promoting.
-        </p>
+        <p className="mt-2 rounded bg-amber-50 px-2 py-1 text-micro text-amber-800">{tr("degraded")}</p>
       ) : null}
 
       <div className="mt-2 flex items-center gap-2 border-t border-stone-100 pt-2">
         {promoted ? (
-          <span className="inline-flex items-center gap-1 text-micro font-semibold text-moss"><Check size={13} /> In pipeline</span>
+          <span className="inline-flex items-center gap-1 text-micro font-semibold text-moss"><Check size={13} /> {tr("inPipeline")}</span>
         ) : (
           <button type="button" onClick={onPromote} disabled={promoting}
             className="focus-ring inline-flex h-7 items-center gap-1 rounded-md bg-ink px-2.5 text-micro font-semibold text-white hover:opacity-90 disabled:opacity-50">
-            <Send size={12} /> {promoting ? "Promoting…" : "Promote to pipeline"}
+            <Send size={12} /> {promoting ? tr("promoting") : tr("promote")}
           </button>
         )}
-        <span className="text-micro text-steel">→ becomes a Decisions review card</span>
+        <span className="text-micro text-steel">{tr("promoteHint")}</span>
       </div>
     </div>
   );
