@@ -187,9 +187,12 @@ jobs:
       # degraded-gracefully product property. Open dev mode (no
       # KP_OPERATOR_PASSWORD) + boot-time fixture seeding give the specs a
       # deterministic seeded tenant on a fresh DB.
+      # KP_ALLOW_OPEN=1 is REQUIRED here: a production build FAILS CLOSED
+      # without KP_OPERATOR_PASSWORD (proxy.ts), and the boot curl below
+      # would read the refusal redirect as ready.
       - name: Start production server (port 3101)
         run: |
-          (PORT=3101 HOSTNAME=127.0.0.1 NEXT_TELEMETRY_DISABLED=1 node .next/standalone/server.js > server.log 2>&1 &)
+          (PORT=3101 HOSTNAME=127.0.0.1 KP_ALLOW_OPEN=1 NEXT_TELEMETRY_DISABLED=1 node .next/standalone/server.js > server.log 2>&1 &)
           for i in $(seq 1 45); do
             curl -sf http://localhost:3101/ > /dev/null && exit 0
             sleep 2
@@ -198,17 +201,14 @@ jobs:
           tail -50 server.log >&2
           exit 1
 
-      # CI is blanked for this one step: playwright.config.ts gates
-      # reuseExistingServer on !process.env.CI, and blanking it makes the
-      # config adopt the production server started above instead of spawning
-      # its own `next dev`. Drop this override once the config grows an
-      # env-driven baseURL/webServer switch (in flight). The positional args
-      # are playwright file FILTERS — `journey` matches the journey specs as
-      # they land and filters to nothing until then.
+      # KP_E2E_BASE_URL points the suite at the production server started
+      # above and skips the config's webServer block entirely (the
+      # env-driven override in playwright.config.ts). The positional args
+      # are playwright file FILTERS.
       - name: Run deterministic specs
         run: npx playwright test modal-escape profile-builder journey --project=chromium
         env:
-          CI: ""
+          KP_E2E_BASE_URL: http://localhost:3101
 
       - name: Server log on failure
         if: failure()
