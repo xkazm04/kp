@@ -2,7 +2,7 @@ import { ImageResponse } from "next/og";
 import { loadOgFonts } from "@/app/_lib/og-fonts";
 import { PAPER, INK, CORAL, STEEL, MOSS, LIMEWASH } from "@/app/_lib/brand";
 
-export const alt = "KP Job Fit & Salary Estimator — Czech market";
+export const alt = "KandiDate — verified AI hiring for the LLM era";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -96,7 +96,7 @@ export default async function OpengraphImage() {
                 letterSpacing: -2
               }}
             >
-              KP
+              KD
             </div>
             <div style={{ display: "flex", flexDirection: "column" }}>
               <div
@@ -108,7 +108,7 @@ export default async function OpengraphImage() {
                   textTransform: "uppercase"
                 }}
               >
-                KP Case Study
+                KandiDate
               </div>
               <div
                 style={{
@@ -119,7 +119,7 @@ export default async function OpengraphImage() {
                   fontWeight: 600
                 }}
               >
-                Czech market
+                Czech + CEE hiring
               </div>
             </div>
           </div>
@@ -132,7 +132,7 @@ export default async function OpengraphImage() {
               textTransform: "uppercase"
             }}
           >
-            nuda.dev
+            Verified AI hiring
           </div>
         </div>
 
@@ -154,7 +154,7 @@ export default async function OpengraphImage() {
               letterSpacing: -3
             }}
           >
-            Job Fit &amp;
+            Did they write it,
           </div>
           <div
             style={{
@@ -168,7 +168,7 @@ export default async function OpengraphImage() {
               marginTop: 8
             }}
           >
-            Salary Estimator
+            or did the model?
           </div>
         </div>
 
@@ -190,7 +190,7 @@ export default async function OpengraphImage() {
               fontWeight: 500
             }}
           >
-            AI-assisted CV seniority scoring and salary estimation pipeline.
+            Verified work samples, AI voice interviews, and every decision sealed into an auditable trail a human signs.
           </div>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
             <div style={{ display: "flex", width: 220, height: 4, background: CORAL, borderRadius: 2 }} />
@@ -205,7 +205,7 @@ export default async function OpengraphImage() {
                 fontWeight: 500
               }}
             >
-              Seniority · Skills · Salary
+              Verify · Interview · Decide
             </div>
           </div>
         </div>

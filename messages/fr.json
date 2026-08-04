@@ -39,8 +39,8 @@
     }
   },
   "meta": {
-    "title": "KP — Adéquation au poste et estimation salariale",
-    "description": "Pipeline assisté par AI pour évaluer le niveau de séniorité d'un CV et estimer les salaires sur le marché tchèque."
+    "title": "KandiDate | Recrutement AI vérifié, décisions scellées",
+    "description": "KandiDate évalue les CV, mène des entretiens vocaux par AI et vérifie les travaux pratiques contre la délégation à l'AI. Chaque décision d'embauche est scellée dans une piste d'audit signée par un humain. Conçu pour le marché tchèque et d'Europe centrale."
   },
   "report": {
     "sections": "Sections du résultat",

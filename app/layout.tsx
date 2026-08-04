@@ -9,6 +9,7 @@ import { BrandProvider } from "./_components/BrandProvider";
 import { getBrand } from "./_lib/brand-store";
 import { DEFAULT_BRAND } from "./_lib/brand-config";
 import { DARK, PAPER } from "./_lib/brand";
+import { siteUrl } from "./_lib/site-url";
 import "./globals.css";
 
 // SHELL5 — `latin-ext` carries the Czech diacritics (ě š č ř ž ů, all over
@@ -37,39 +38,26 @@ const bricolage = Bricolage_Grotesque({
   display: "swap"
 });
 
-const SITE_TITLE = "KP Job Fit & Salary Estimator";
-const SITE_DESCRIPTION = "AI-assisted CV seniority scoring and salary estimation pipeline for the Czech market.";
+// English fallbacks for when the `meta` catalog lacks a key — the catalog is the
+// source of truth (all four locales carry meta.title/description); these only
+// cover a partial catalog.
+const SITE_TITLE = "KandiDate | Verified AI hiring, sealed decisions";
+const SITE_DESCRIPTION =
+  "KandiDate screens CVs, runs AI voice interviews and verifies work samples against AI delegation, with every hiring decision sealed into an auditable trail a human signs.";
+
+// Brand name, not copy — never localized (the Wordmark rule).
+const BRAND = "KandiDate";
 
 // SHELL5 — BCP-47 → OpenGraph locale code (underscored region form og:locale
 // expects). Keep in sync with the LOCALES universe.
 const OG_LOCALE: Record<string, string> = { en: "en_US", cs: "cs_CZ" };
 
-// Anchors relative OG/Twitter image URLs to an absolute origin. Without it Next
-// falls back to http://localhost:3000 and warns at build. Overridable per deploy
-// via NEXT_PUBLIC_SITE_URL (documented in .env.example); defaults to the project's
-// own domain.
-const DEFAULT_SITE_URL = "https://nuda.dev";
-
-// Resolve metadataBase defensively: a malformed NEXT_PUBLIC_SITE_URL fed straight
-// into `new URL()` would THROW at module load and crash the whole app on boot.
-// Parse it, warn, and fall back to the default instead — an un-set or fat-fingered
-// origin must degrade gracefully, not take the site down.
-function resolveSiteUrl(): URL {
-  const raw = process.env.NEXT_PUBLIC_SITE_URL?.trim();
-  if (raw) {
-    try {
-      return new URL(raw);
-    } catch {
-      console.warn(
-        `[layout] Invalid NEXT_PUBLIC_SITE_URL ${JSON.stringify(raw)} — must be an absolute URL; ` +
-          `falling back to ${DEFAULT_SITE_URL}.`
-      );
-    }
-  }
-  return new URL(DEFAULT_SITE_URL);
-}
-
-const SITE_URL = resolveSiteUrl();
+// Anchors metadataBase (and so relative OG/Twitter/canonical URLs) to an
+// absolute origin. Shared with robots.ts/sitemap.ts via app/_lib/site-url.ts so
+// the three can never disagree — the layout used to carry its own copy of the
+// same resolver, which is exactly the kind of duplication that drifts.
+// Overridable per deploy via NEXT_PUBLIC_SITE_URL (documented in .env.example).
+const SITE_URL = siteUrl();
 
 // SHELL5 — locale-aware metadata: `<title>`/description/OG now follow the active
 // locale (resolved per-request, the same path as `<html lang>`) instead of
@@ -86,20 +74,27 @@ export async function generateMetadata(): Promise<Metadata> {
     metadataBase: SITE_URL,
     title,
     description,
-    applicationName: "KP Job Fit & Salary Estimator",
-    authors: [{ name: "Michal Kazdan", url: "https://nuda.dev" }],
+    applicationName: BRAND,
+    authors: [{ name: "Michal Kazdan" }],
     creator: "Michal Kazdan",
     keywords: [
-      "CV scoring",
-      "job fit",
-      "salary estimation",
-      "Czech market",
-      "seniority assessment",
-      "AI hiring tools"
+      "verified work samples",
+      "AI hiring",
+      "anti-AI-cheating",
+      "voice interviews",
+      "auditable hiring decisions",
+      "CV screening",
+      "Czech market"
     ],
+    // Per-route canonical: a relative "./" is resolved against the CURRENT
+    // pathname and then metadataBase (resolveAbsoluteUrlWithPathname in Next's
+    // metadata resolver), so every page canonicalizes to itself on the
+    // configured origin — killing www/query-param duplicates without pinning
+    // every route to the site root.
+    alternates: { canonical: "./" },
     openGraph: {
       type: "website",
-      siteName: SITE_TITLE,
+      siteName: BRAND,
       title,
       description,
       locale: OG_LOCALE[locale] ?? "en_US"

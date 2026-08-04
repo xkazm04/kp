@@ -39,8 +39,8 @@
     }
   },
   "meta": {
-    "title": "KP – hodnocení vhodnosti a odhad mzdy",
-    "description": "Pipeline pro AI hodnocení seniority z CV a odhad mzdy pro český trh."
+    "title": "KandiDate | Ověřený AI nábor se zapečetěnými rozhodnutími",
+    "description": "KandiDate hodnotí životopisy, vede hlasové AI pohovory a ověřuje pracovní ukázky proti delegování na AI. Každé náborové rozhodnutí je zapečetěné v auditní stopě, kterou podepisuje člověk. Postaveno pro český a středoevropský trh."
   },
   "report": {
     "sections": "Sekce výsledku",

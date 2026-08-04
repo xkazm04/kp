@@ -39,8 +39,8 @@
     }
   },
   "meta": {
-    "title": "KP Job-Fit & Gehaltsschätzer",
-    "description": "AI-gestützte Pipeline zur Bewertung der CV-Seniorität und Gehaltsschätzung für den tschechischen Markt."
+    "title": "KandiDate | Verifiziertes AI-Recruiting, versiegelte Entscheidungen",
+    "description": "KandiDate bewertet Lebensläufe, führt AI-Sprachinterviews und verifiziert Arbeitsproben gegen AI-Delegation. Jede Einstellungsentscheidung wird in einem auditierbaren Trail versiegelt, den ein Mensch unterschreibt. Gebaut für Tschechien und die CEE-Region."
   },
   "report": {
     "sections": "Ergebnisabschnitte",
