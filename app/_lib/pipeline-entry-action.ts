@@ -23,6 +23,26 @@ import { publicBaseUrl } from "@/app/_lib/public-base-url";
 export const SIM_ACTOR = "sim";
 const SIM_SEAL_ACTOR = "auto:sim"; // decision-chain vocabulary: "auto:*" | "human:*"
 
+// The AI verdict the human is ratifying or overriding. It lives only in the
+// entry's approval_detail JSON, and the accept/reject write NULLs that column —
+// so unless it is read off the pre-write snapshot and sealed here, the pair
+// (what the machine proposed, what the human decided) is destroyed by the very
+// act of deciding, and the override rate can never be computed after the fact.
+// Absent/unparseable detail yields nulls: a decision with no AI verdict behind
+// it (a plain board move) is the normal case, not an error.
+function aiVerdict(entry: PipelineEntry): { aiRecommendation: string | null; aiConfidence: number | null } {
+  if (!entry.approvalDetail) return { aiRecommendation: null, aiConfidence: null };
+  try {
+    const parsed = JSON.parse(entry.approvalDetail) as { recommendation?: unknown; confidence?: unknown };
+    return {
+      aiRecommendation: typeof parsed.recommendation === "string" ? parsed.recommendation : null,
+      aiConfidence: typeof parsed.confidence === "number" ? parsed.confidence : null,
+    };
+  } catch {
+    return { aiRecommendation: null, aiConfidence: null };
+  }
+}
+
 // The generic accept/reject/approve_event actions (set_stage is validated on its
 // own path). Mirrors the route's ACTIONS list.
 export const GENERIC_ACTIONS: PipelineAction[] = ["accept", "reject", "approve_event"];
@@ -203,6 +223,9 @@ export async function runPipelineEntryAction(input: EntryActionInput): Promise<E
   // the audit chain must tell the truth about machine actions even inside a demo.
   if (action === "accept" || action === "reject") {
     const trimmedDetail = detail?.trim() ?? "";
+    // Read from `current` (the pre-write snapshot), never `updated` — the write
+    // above already cleared the approval columns.
+    const { aiRecommendation, aiConfidence } = aiVerdict(current);
     sealDecisionSafe({
       kind: action === "reject" ? (simActor ? "auto_rejected" : "rejected") : simActor ? "auto_advanced" : "advanced",
       actor: simActor ? SIM_SEAL_ACTOR : "human:recruiter",
@@ -210,7 +233,16 @@ export async function runPipelineEntryAction(input: EntryActionInput): Promise<E
       candidateRef: id,
       rationale: trimmedDetail || `${simActor ? "Guided simulation" : "Recruiter"} ${action} from ${current.stage}.`,
       reasonCode: action,
-      inputs: { fromStage: current.stage, detail: trimmedDetail || null },
+      inputs: {
+        fromStage: current.stage,
+        detail: trimmedDetail || null,
+        // The pair that makes the override rate computable: what the machine
+        // proposed (null when the human acted without an AI verdict on the card),
+        // which gate raised it, and how sure it was.
+        aiRecommendation,
+        aiConfidence,
+        approvalKind: current.approvalKind ?? null,
+      },
     });
   }
   // A human reject is the gate; the candidate hears about it (queued by default).

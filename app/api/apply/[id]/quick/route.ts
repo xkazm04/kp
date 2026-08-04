@@ -5,6 +5,7 @@ import { getJob } from "@/app/_lib/db";
 import { applyKoSteps } from "@/app/_lib/apply";
 import { APPLY_EMAIL_RE, failedKoStepIds, isHoneypotFilled } from "@/app/_lib/apply-intake";
 import { getJobStatus, isJobOpenForApplications } from "@/app/_lib/job-ingest";
+import { linkApplySession } from "@/app/_lib/apply-session-store";
 import { intakeLead } from "@/app/_lib/lead-intake";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
@@ -85,6 +86,9 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       campaign?: unknown;
       variant?: unknown;
       company_url?: unknown;
+      // The apply-funnel attempt this submission belongs to — measurement only,
+      // grants nothing (see apply-session-store.ts).
+      applySessionId?: unknown;
     };
     // Anti-bot honeypot: a hidden `company_url` field no human fills. A bot that
     // auto-fills every input trips it — drop the submission silently (no lead, no
@@ -156,6 +160,8 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     if (outcome.result === "declined") {
       return NextResponse.json({ result: "declined", message: t("declinedMessage") });
     }
+    // The lead was filed (new or duplicate) — link the attempt that produced it.
+    linkApplySession(typeof body.applySessionId === "string" ? body.applySessionId : null, outcome.entryId);
     // `leadToken` lets the success screen's "complete your profile" CTA carry
     // the same identity as the emailed link (see QuickApplyForm); `statusToken`
     // gives the done screen the status link the flow used to omit.

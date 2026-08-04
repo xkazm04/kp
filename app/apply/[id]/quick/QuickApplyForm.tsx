@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useTranslations } from "next-intl";
 import { AiDisclosure } from "@/app/_components/AiDisclosure";
 import { TextInput } from "@/app/_components/TextInput";
 // Registry-free intake module (not the apply.ts barrel), keeping the candidate
 // bundle lean — same import discipline as ConversationalApply.
 import { APPLY_EMAIL_RE, isRetryableApplyStatus } from "@/app/_lib/apply-intake";
+import { clearApplySession, ensureApplySession, readApplySession } from "@/app/_lib/apply-session-client";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 
 type KoStep = { id: string; prompt: string };
@@ -42,6 +43,13 @@ export function QuickApplyForm({
   const t = useTranslations("apply");
   const tCommon = useTranslations("common");
   const errMsg = useErrorMessage();
+  // The apply funnel's denominator for this surface: record that the candidate
+  // opened the form, once per attempt, with the ad attribution so a channel's
+  // abandonment is separable from its volume (see apply-session-store.ts).
+  useEffect(() => {
+    ensureApplySession(jobId, "quick", { campaign, variant });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only, one start per attempt
+  }, []);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [ko, setKo] = useState<Record<string, boolean>>({});
@@ -116,11 +124,20 @@ export function QuickApplyForm({
       const res = await fetch(`/api/apply/${jobId}/quick`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ answers: { name: name.trim(), email: email.trim(), ...ko }, campaign, variant, company_url: companyUrl }),
+        // applySessionId closes the funnel loop — see the conversational route.
+        body: JSON.stringify({
+          answers: { name: name.trim(), email: email.trim(), ...ko },
+          campaign,
+          variant,
+          company_url: companyUrl,
+          applySessionId: readApplySession(jobId, "quick"),
+        }),
       });
       const d = await res.json();
       if (res.ok) {
         setSubmitError(null);
+        // Filed and linked — retire the attempt so a later re-apply counts fresh.
+        clearApplySession(jobId, "quick");
         setDone({
           result: d.result,
           message: d.message,

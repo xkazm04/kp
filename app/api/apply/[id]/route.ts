@@ -19,6 +19,7 @@ import { GAP_FIELDS } from "@/app/_lib/completeness-followup";
 import { applyDedupeKey, applyKoSteps, FALLBACK_ARCHETYPE } from "@/app/_lib/apply";
 import { ANONYMOUS_APPLICANT_LABEL, APPLY_EMAIL_RE, coerceGithubHandle, coerceLeadTokenParam, failedKoStepIds } from "@/app/_lib/apply-intake";
 import { getJobStatus, isJobOpenForApplications } from "@/app/_lib/job-ingest";
+import { linkApplySession } from "@/app/_lib/apply-session-store";
 import { dispatchApplicationReceived } from "@/app/_lib/comms-dispatch";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import type { ApplyAnswers } from "@/app/_lib/apply-intake";
@@ -188,8 +189,17 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       // Lead-enrichment hand-off: the opaque token the apply page threaded
       // through from the ?lead= link. Untrusted — shape-gated and resolved below.
       lead?: unknown;
+      // The apply-funnel attempt this submission belongs to (apply-session-store.ts),
+      // minted client-side when the candidate opened the form. Purely for
+      // measurement — it grants nothing, so an absent or bogus value only leaves
+      // the attempt looking abandoned.
+      applySessionId?: unknown;
     };
     const answers = body.answers ?? {};
+    // Close the funnel loop on whichever path files an entry: a first application,
+    // the dedupe backstop, or a re-apply that merged onto the original. All three
+    // mean the attempt reached the pipeline, which is what the rate measures.
+    const applySessionId = typeof body.applySessionId === "string" ? body.applySessionId : null;
 
     // Knockout gate. Derive THIS job's KO steps from its own script (ko_mode/ko_lang are
     // conditional on workMode/languages) and require every expected KO answer to be present
@@ -372,6 +382,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
         } catch (consentErr) {
           console.error(`[apply] consent refresh failed for entry ${existing.id}:`, consentErr);
         }
+        linkApplySession(applySessionId, existing.id);
         return acknowledgeReapply(
           existing.id,
           profileRebuilt ? t("enrichedMessage") : t("alreadyMessage"),
@@ -417,6 +428,8 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       sourceChannel: "apply",
       workspaceId,
     });
+
+    linkApplySession(applySessionId, entry.id);
 
     // GDPR: stamp data-processing consent + a 12-month expiry on the inbound entry
     // (the candidate agreed at submit, with the retention statement shown via

@@ -1,3 +1,4 @@
+import { elevenLabsBaseUrl } from "./self-hosted.ts";
 import { missingVoiceEnv, type ElevenLabsConnect, type VoiceAdapter } from "./types.ts";
 
 // ElevenLabs Agents (Conversational AI). The agent itself — prompt, voice,
@@ -5,8 +6,14 @@ import { missingVoiceEnv, type ElevenLabsConnect, type VoiceAdapter } from "./ty
 // multilingual model and a Czech-capable voice, then set ELEVENLABS_AGENT_ID.
 // The server mints a short-lived signed URL; the browser connects with the
 // @elevenlabs/react SDK.
+//
+// The host is resolved rather than hardcoded so the same code path can talk to
+// a voice service you run yourself (ELEVENLABS_BASE_URL — see self-hosted.ts).
+// Everything downstream is unchanged: the browser connects to whatever signed
+// URL the server returns, so a local ws:// endpoint needs no client change.
 
-const SIGNED_URL = "https://api.elevenlabs.io/v1/convai/conversation/get-signed-url";
+const signedUrlEndpoint = () =>
+  `${elevenLabsBaseUrl()}/v1/convai/conversation/get-signed-url`;
 
 export class ElevenLabsVoiceAdapter implements VoiceAdapter {
   readonly id = "elevenlabs" as const;
@@ -21,12 +28,16 @@ export class ElevenLabsVoiceAdapter implements VoiceAdapter {
     const agentId = process.env.ELEVENLABS_AGENT_ID;
     if (!key || !agentId) throw new Error("ELEVENLABS_API_KEY and ELEVENLABS_AGENT_ID must be set");
 
-    const res = await fetch(`${SIGNED_URL}?agent_id=${encodeURIComponent(agentId)}`, {
+    const endpoint = signedUrlEndpoint();
+    const res = await fetch(`${endpoint}?agent_id=${encodeURIComponent(agentId)}`, {
       headers: { "xi-api-key": key },
     });
     if (!res.ok) {
       const detail = await res.text().catch(() => "");
-      throw new Error(`ElevenLabs get-signed-url ${res.status}: ${detail.slice(0, 300)}`);
+      // Name the host: with ELEVENLABS_BASE_URL in play, "get-signed-url 404"
+      // is otherwise indistinguishable between a dead local service and a real
+      // ElevenLabs error.
+      throw new Error(`${endpoint} responded ${res.status}: ${detail.slice(0, 300)}`);
     }
     const data = (await res.json()) as { signed_url?: string };
     if (!data.signed_url) throw new Error("ElevenLabs did not return a signed_url");
