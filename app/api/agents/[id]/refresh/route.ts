@@ -27,6 +27,12 @@ const STATUS_MAP: Record<string, AgentStatus> = {
   activated: "active",
   rejected: "rejected",
   retired: "retired",
+  // Personas-side terminal states beyond the original enum: expired = the
+  // approval sat past the 24h consent window; failed = the human approved but
+  // the executor couldn't create the persona. Both terminal, both free the job
+  // for a re-dispatch (the dispatch route's one-live-agent rule).
+  expired: "failed",
+  failed: "failed",
 };
 
 export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {

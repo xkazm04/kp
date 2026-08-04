@@ -54,6 +54,22 @@ export const BUILTIN_CONNECTOR_CATALOG: ConnectorCatalogEntry[] = [
   { name: "web-scraper", description: "Fetch and extract structured data from web pages" },
 ];
 
+/** Personas' management API wraps every payload in its file-wide ApiResult
+ *  envelope `{success, data}` / `{success:false, error}`. Unwrap it when
+ *  present, pass bare bodies through untouched — the client stays compatible
+ *  with both shapes (and with a future flattening on the Personas side). */
+function unwrapEnvelope(body: unknown): unknown {
+  if (body && typeof body === "object" && "success" in body) {
+    const env = body as { success?: unknown; data?: unknown; error?: unknown };
+    if (env.success === true) return env.data;
+    if (env.success === false) {
+      const msg = typeof env.error === "string" && env.error ? env.error : "Personas reported an error.";
+      throw new Error(msg);
+    }
+  }
+  return body;
+}
+
 export type ConnectorCatalogResult = {
   ok: true;
   connectors: ConnectorCatalogEntry[];
@@ -71,11 +87,13 @@ export async function fetchConnectorCatalog(): Promise<ConnectorCatalogResult> {
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });
     if (r.ok) {
-      const body = (await r.json()) as { connectors?: unknown } | unknown[];
+      const body = unwrapEnvelope(await r.json()) as { connectors?: unknown } | unknown[];
       const list = Array.isArray(body) ? body : Array.isArray((body as { connectors?: unknown }).connectors) ? ((body as { connectors: unknown[] }).connectors) : [];
       const connectors = list
         .filter((c): c is Record<string, unknown> => !!c && typeof c === "object")
-        .map((c) => ({ name: String(c.name ?? "").trim(), description: String(c.description ?? "").trim() }))
+        // Personas entries carry {key, name, description}; the display name is
+        // what the recruiter sees and what rides the dispatch spec.
+        .map((c) => ({ name: String(c.name ?? c.key ?? "").trim(), description: String(c.description ?? "").trim() }))
         .filter((c) => c.name);
       if (connectors.length > 0) {
         markBridgeOk();
@@ -126,7 +144,7 @@ export async function dispatchPersonaRequest(
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });
     if (!r.ok) return { ok: false, status: r.status, error: `Personas responded ${r.status}.` };
-    const body = (await r.json().catch(() => null)) as { requestId?: unknown } | null;
+    const body = unwrapEnvelope(await r.json().catch(() => null)) as { requestId?: unknown } | null;
     const requestId = typeof body?.requestId === "string" ? body.requestId : "";
     if (!requestId) return { ok: false, error: "Personas accepted the request but returned no requestId." };
     markBridgeOk();
@@ -150,7 +168,7 @@ export async function fetchRequestStatus(requestId: string): Promise<RequestStat
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });
     if (!r.ok) return { ok: false, status: r.status, error: `Personas responded ${r.status}.` };
-    const body = (await r.json().catch(() => null)) as
+    const body = unwrapEnvelope(await r.json().catch(() => null)) as
       | { status?: unknown; personaId?: unknown; personaName?: unknown }
       | null;
     const status = typeof body?.status === "string" ? body.status : "";
