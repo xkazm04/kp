@@ -117,7 +117,10 @@ test("both catalogs carry the labels the contract renders (pricingBasis names th
     const pricing = messages.decisions.aiReview.pricingBasis;
     assert.ok(pricing?.includes("{score}"), `${locale}: pricingBasis interpolates the score`);
     assert.ok(
-      /fit[- ]check/i.test(pricing),
+      // en pins the "fit check" term; cs may use the localized equivalent
+      // "kontrola shody" (the i18n pass de-anglicized it) — both name the
+      // producer, which is the contract; a bare "match"/"shoda" would not.
+      /fit[- ]check|kontrol\S* shody/i.test(pricing),
       `${locale}: pricingBasis names the producer (a draft-time fit check), not a bare "match"`
     );
     assert.ok(messages.scoreProvenance.analysis.includes("{date}"), `${locale}: analysis provenance carries its date`);

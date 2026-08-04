@@ -223,7 +223,9 @@ test("the bulk bar actually RENDERS the disclosure, in every locale", () => {
     };
     const copy = cat.pipeline?.tab?.selectedOutsideFilter;
     assert.ok(copy, `messages/${file} is missing pipeline.tab.selectedOutsideFilter`);
-    assert.match(copy, /\{count\}/, `messages/${file}: the disclosure must state HOW MANY rows are hidden`);
+    // Literal {count} or an ICU plural over count ({count, plural, …} — the
+    // Czech catalog uses the plural form for proper one/few/other agreement).
+    assert.match(copy, /\{count[,}]/, `messages/${file}: the disclosure must state HOW MANY rows are hidden`);
   }
 });
 
