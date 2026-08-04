@@ -7,7 +7,73 @@ import createNextIntlPlugin from "next-intl/plugin";
 // fits the ?tab=-driven single-page workspace without restructuring routing.
 const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
 
+// --- Security headers (global) -----------------------------------------------
+// Applied to every route via headers() below. The CSP ships REPORT-ONLY first:
+// it was derived from the app's actual load graph (audited 2026-08-05), but a
+// wrongly-enforced CSP on the interview page kills a candidate's live voice
+// call — so it observes before it enforces. Flip to Content-Security-Policy
+// once report noise is clean in a real deploy.
+//
+// Origin inventory the connect-src encodes (verify when adding an integration):
+//   - ElevenLabs Agents: the browser opens the signed-URL websocket to
+//     wss://api.elevenlabs.io (app/_lib/voice/elevenlabs.ts mints the URL
+//     server-side). A SELF-HOSTED voice deploy (ELEVENLABS_BASE_URL → your own
+//     origin) uses a deploy-specific host — add it to connect-src when enforcing.
+//   - OpenAI Realtime (WebRTC): the browser POSTs its SDP offer to
+//     https://api.openai.com (transport/openai.ts, callsUrl); media then flows
+//     over WebRTC, which CSP does not govern.
+//   - Plausible (forward-compat): env-gated analytics (NEXT_PUBLIC_PLAUSIBLE_DOMAIN,
+//     empty = off) loads its script from and posts events to plausible.io —
+//     included now so enabling it later doesn't silently violate the policy.
+//   - Sentry (forward-compat): browser events go to the DSN's ingest host
+//     (oNNN.ingest.<region>.sentry.io) — *.sentry.io covers every region.
+// script-src needs 'unsafe-inline': the pre-paint THEME_INIT inline <script> in
+// app/layout.tsx (plus Next's own inline bootstrap) runs without nonces. In dev,
+// Turbopack/react-refresh also need 'unsafe-eval' — appended only there.
+const CSP_REPORT_ONLY = [
+  "default-src 'self'",
+  `script-src 'self' 'unsafe-inline' https://plausible.io${process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : ""}`,
+  // BrandStyle's inline <style> (white-label accent) + next/font's inline CSS.
+  "style-src 'self' 'unsafe-inline'",
+  // next/font self-hosts all three faces; data: for inline SVG-in-CSS glyphs.
+  "font-src 'self' data:",
+  "img-src 'self' data: blob:",
+  "connect-src 'self' https://api.elevenlabs.io wss://api.elevenlabs.io https://api.openai.com https://plausible.io https://*.sentry.io",
+  // Voice playback buffers; audio worklets load from blob: URLs.
+  "media-src 'self' blob:",
+  "worker-src 'self' blob:",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+].join("; ");
+
+const SECURITY_HEADERS = [
+  // 2 years, subdomains, preload-list eligible. Ignored by browsers over plain
+  // http (dev), so it costs nothing locally and binds only real TLS deploys.
+  { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+  // The app embeds nothing and must not be embedded (clickjacking on the open
+  // operator routes). DENY covers framing; the CSP adds frame-ancestors when
+  // it graduates from report-only (the directive is ignored in report-only).
+  { key: "X-Frame-Options", value: "DENY" },
+  // microphone=(self): the voice interview (/interview/[token]) calls
+  // getUserMedia from this origin's own top-level documents — 'self' keeps that
+  // working while denying the feature to any embedded third-party context.
+  // Camera and geolocation are never used anywhere in the app.
+  { key: "Permissions-Policy", value: "camera=(), microphone=(self), geolocation=()" },
+  { key: "Content-Security-Policy-Report-Only", value: CSP_REPORT_ONLY },
+];
+
 const nextConfig: NextConfig = {
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: SECURITY_HEADERS,
+      },
+    ];
+  },
   // `npm run dev:empty` (scripts/dev-empty.mjs, KP_EMPTY=1) runs a SECOND dev
   // server — the blank-tenant first-run preview — beside the normal seeded one.
   // Next's dev-server lock lives at <distDir>/lock, so the empty server needs its
