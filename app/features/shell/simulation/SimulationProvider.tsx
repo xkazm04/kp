@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { track } from "@/app/_lib/analytics/plausible";
 import { buildUrl } from "@/app/features/shell/tabs";
 import { IDLE_STATE, SLOW_FACTOR, SimStop, sleep, type SimCtx, type SimState } from "./simulationProviderTypes";
 import { useSimulationEngine } from "./useSimulationEngine";
@@ -150,6 +151,9 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
   useEffect(() => {
     if (autoStarted.current || searchParams.get("sim") !== "auto") return;
     autoStarted.current = true;
+    // Fire-and-forget (no-op when Plausible isn't configured): the prospect
+    // actually reached the guided demo — the conversion the landing CTA sells.
+    track("demo_started");
     stepRef.current = false;
     setState((s) => ({ ...s, stepMode: false }));
     start();

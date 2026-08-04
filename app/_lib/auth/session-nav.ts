@@ -4,6 +4,8 @@
 // localStorage dev gate. The landing's sign-in CTAs call enterWorkspace(); the
 // sidebar's sign-out calls leaveWorkspace().
 
+import { track } from "../analytics/plausible";
+
 /** Enter the workspace from the public landing. Posts to the login endpoint with
  *  NO credentials:
  *   - open mode (no KP_OPERATOR_PASSWORD): the endpoint sets the entry marker (and
@@ -20,6 +22,10 @@
  *  and analytics can attribute the intent. */
 export async function enterWorkspace(plan?: string): Promise<void> {
   const query = plan ? `?plan=${encodeURIComponent(plan)}` : "";
+  // Fire-and-forget, before the hard navigation below — the picked pricing tier
+  // is the highest-intent signal on the marketing surface. No-op when Plausible
+  // isn't configured/loaded; never awaited, never allowed to delay entry.
+  track("workspace_entered", plan ? { plan } : undefined);
   try {
     const r = await fetch("/api/auth/login", {
       method: "POST",

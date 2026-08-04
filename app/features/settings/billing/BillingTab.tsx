@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { checkoutBannerState } from "./billingCheckoutBanner";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { track } from "@/app/_lib/analytics/plausible";
 import { Defer } from "@/app/_components/ui/Defer";
 import { EYEBROW, INTRO } from "@/app/_components/ui/recipes";
 import { SectionTitle } from "@/app/_components/ui/SectionTitle";
@@ -106,6 +107,9 @@ export function BillingTab() {
 
   const startCheckout = async (body: { plan: string } | { pack: string }, key: string) => {
     if (purchase && purchase.error === null) return; // redirect already in flight
+    // Fire-and-forget analytics (no-op when Plausible isn't configured): the
+    // checkout intent, before the provider redirect can navigate away.
+    track("checkout_started", { item: key });
     setPurchase({ key, error: null });
     try {
       const r = await fetch("/api/billing/checkout", {
