@@ -1,20 +1,24 @@
-pypdf>=5.1.0
+# Pinned to the exact versions the verified local environment runs (pip freeze,
+# 2026-08-05) so CI and the Docker image resolve the SAME tree the gate was
+# certified against — a floating >= range let any upstream release land untested.
+# Upgrade deliberately: bump the pin, run the full gate, commit both together.
+pypdf==5.4.0
 # Voice eval plane (pipeline/jobfit/eval/voice): PCM resampling in tts.py imports
 # numpy at module level, and test_voice_harness pins that contract in CI.
-numpy>=1.26
+numpy==2.2.4
 # el_ws.py — the headless realtime driver — imports this at module level, so a
 # spoken-interview eval run fails at import without it. It was previously only
 # ever present transitively.
-websockets>=12
+websockets==15.0.1
 
-pydantic>=2.7.0
-google-genai>=1.64.0
-python-dotenv>=1.0.1
-defusedxml>=0.7.1
+pydantic==2.12.5
+google-genai==1.64.0
+python-dotenv==1.0.1
+defusedxml==0.7.1
 # Multi-provider LLM layer (docs/architecture/llm-provider-layer.md) — adapters import these
 # lazily; only the providers you actually route to need their SDK installed.
-anthropic>=0.40.0
-openai>=1.50.0
+anthropic==0.72.0
+openai==2.30.0
 # Optional LLM observability (local dev): the LightTrack SDK lives in the
 # sibling repo — `pip install ../LightTrack/clients/python` — and activates
 # only when LIGHTTRACK_URL is set. See pipeline/jobfit/llm/monitor.py.
