@@ -41,7 +41,9 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       const prevStatus = getJobStatus(id);
       const wasPublished = prevStatus === "published";
       if (wasPublished) return { already: true, wasClosed: false, quota: null };
-      const quota = activeJobsGate(countPublishedJobs(ws));
+      // Org attribution (org-plan Phase 3): the plan read follows the caller's
+      // tenant; the count is already workspace-filtered.
+      const quota = activeJobsGate(countPublishedJobs(ws), new Date(), ws);
       if (!quota) setJobStatus(id, "published");
       // A reopen is a closed→published transition; remember it so the entries this
       // role's close withdrew are restored explicitly below (not left to sourcing).

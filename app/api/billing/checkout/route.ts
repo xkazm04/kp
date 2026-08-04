@@ -1,8 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { hasActiveSubscription, isPackId, isPlanId, isSelfServePlan, polarGatewayFromEnv, type CheckoutRequest } from "@/app/_lib/billing";
+import {
+  billingOrgForWorkspace,
+  hasActiveSubscription,
+  isPackId,
+  isPlanId,
+  isSelfServePlan,
+  polarGatewayFromEnv,
+  type CheckoutRequest,
+} from "@/app/_lib/billing";
 import { getBillingState } from "@/app/_lib/db";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
+import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 
 
 // Start a checkout: body { plan: "starter"|"growth"|"byom" } XOR { pack:
@@ -24,6 +33,11 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // Org scope (org-plan Phase 3): the buying org — resolved from the caller's
+  // session workspace. Stamped into the checkout metadata so the webhook events
+  // attribute back to it, and used for the already-subscribed guard below.
+  const orgId = billingOrgForWorkspace(await currentWorkspace());
+
   const body = (await request.json().catch(() => null)) as { plan?: unknown; pack?: unknown } | null;
   // A contact-sales tier (Enterprise) is a valid plan id but is never self-served —
   // fail it with a clear, distinct message rather than letting it fall through to
@@ -43,7 +57,7 @@ export async function POST(request: NextRequest) {
     // PORTAL; a stale tab (or a crafted raw POST) that reaches here with a live
     // subscription would mint a SECOND, parallel Polar subscription and double-charge.
     // (Pack top-ups are exempt: they're one-time and sold on any tier.)
-    if (hasActiveSubscription(getBillingState())) {
+    if (hasActiveSubscription(getBillingState(orgId))) {
       return NextResponse.json(
         { error: "You already have a plan — change it from the customer portal in Billing (Manage subscription), not a new checkout." },
         { status: 403 }
@@ -64,7 +78,7 @@ export async function POST(request: NextRequest) {
     // `billing=success` flag tells BillingTab to confirm + poll for the settled
     // entitlement (the webhook lands the plan a moment later).
     const successUrl = `${publicBaseUrl(new URL(request.url).origin)}/?tab=billing&billing=success`;
-    const checkout = await gateway.createCheckout(req, { successUrl });
+    const checkout = await gateway.createCheckout(req, { successUrl, orgId });
     return NextResponse.json(checkout);
   } catch (error) {
     return NextResponse.json(

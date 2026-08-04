@@ -666,8 +666,14 @@ export function ensureDb(): Database.Database {
     -- webhook idempotency gate + audit; billing_credits is the prepaid ledger
     -- (minute packs — provider_ref dedupes a redelivered order); billing_usage
     -- holds per-month meter counters the entitlement checks read.
+    -- Org-scoped since org-plan Phase 3 (data layer): billing is per-ORG — one
+    -- subscription/ledger per customer company, SHARED across its teams (the
+    -- tenancy manifest's billing doctrine). org_id keys every table; the legacy
+    -- single row (id 'workspace') is backfilled to 'org-default' by the
+    -- migrations below, so a single-org deployment reads byte-identically.
     CREATE TABLE IF NOT EXISTS billing_state (
       id TEXT PRIMARY KEY DEFAULT 'workspace',
+      org_id TEXT NOT NULL DEFAULT 'org-default',
       plan TEXT NOT NULL DEFAULT 'free',
       status TEXT NOT NULL DEFAULT 'none',
       provider TEXT,
@@ -678,8 +684,11 @@ export function ensureDb(): Database.Database {
       updated_at TEXT NOT NULL
     );
 
+    -- org_id here is ATTRIBUTION only — the PK stays the provider's globally
+    -- unique event id, so the idempotency gate is provider-global by design.
     CREATE TABLE IF NOT EXISTS billing_events (
       id TEXT PRIMARY KEY,
+      org_id TEXT,
       type TEXT NOT NULL,
       payload_json TEXT NOT NULL,
       received_at TEXT NOT NULL
@@ -687,6 +696,7 @@ export function ensureDb(): Database.Database {
 
     CREATE TABLE IF NOT EXISTS billing_credits (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      org_id TEXT NOT NULL DEFAULT 'org-default',
       meter TEXT NOT NULL,
       delta INTEGER NOT NULL,
       reason TEXT NOT NULL,
@@ -695,10 +705,11 @@ export function ensureDb(): Database.Database {
     );
 
     CREATE TABLE IF NOT EXISTS billing_usage (
+      org_id TEXT NOT NULL DEFAULT 'org-default',
       meter TEXT NOT NULL,
       period TEXT NOT NULL,
       qty INTEGER NOT NULL DEFAULT 0,
-      PRIMARY KEY (meter, period)
+      PRIMARY KEY (org_id, meter, period)
     );
 
     -- Durable "needs attention" signal for money events that can't auto-resolve
@@ -707,6 +718,7 @@ export function ensureDb(): Database.Database {
     -- paid-but-dark customers instead of relying on someone watching the logs.
     CREATE TABLE IF NOT EXISTS billing_alerts (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      org_id TEXT NOT NULL DEFAULT 'org-default',
       kind TEXT NOT NULL,
       detail TEXT NOT NULL,
       provider_ref TEXT,
@@ -714,7 +726,7 @@ export function ensureDb(): Database.Database {
       resolved_at TEXT
     );
 
-    CREATE INDEX IF NOT EXISTS idx_billing_credits_meter ON billing_credits (meter);
+    CREATE INDEX IF NOT EXISTS idx_billing_credits_meter ON billing_credits (org_id, meter);
     CREATE INDEX IF NOT EXISTS idx_billing_alerts_open ON billing_alerts (resolved_at);
 
     -- Agent-candidate bridge (db/agents.ts): hire an AI agent for a job via the
@@ -914,6 +926,18 @@ export function ensureDb(): Database.Database {
     // so "leads received" and time-to-first-lead reflect candidates, not pings.
     "ALTER TABLE channel_webhooks ADD COLUMN accepted_count INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE channel_webhooks ADD COLUMN first_accepted_at TEXT",
+    // Org-scoped billing (org-plan Phase 3, data layer): billing is per-ORG —
+    // one subscription + ledger per customer company, shared across its teams.
+    // DEFAULT 'org-default' backfills every existing row to the single seeded
+    // org so a pre-migration deployment reads byte-identically. billing_state's
+    // column is nullable-then-backfilled (its legacy row predates the default);
+    // billing_events' org_id is nullable ATTRIBUTION only (the idempotency PK
+    // stays the provider's global event id). billing_usage is REBUILT below —
+    // its PK must widen to (org_id, meter, period).
+    "ALTER TABLE billing_state ADD COLUMN org_id TEXT",
+    "ALTER TABLE billing_events ADD COLUMN org_id TEXT",
+    "ALTER TABLE billing_credits ADD COLUMN org_id TEXT NOT NULL DEFAULT 'org-default'",
+    "ALTER TABLE billing_alerts ADD COLUMN org_id TEXT NOT NULL DEFAULT 'org-default'",
   ]) {
     migrateExec(sql);
   }
@@ -1367,6 +1391,39 @@ export function ensureDb(): Database.Database {
          SELECT metric, target_value, updated_at, 'workspace' FROM analytics_targets;
        DROP TABLE analytics_targets;
        ALTER TABLE analytics_targets_new RENAME TO analytics_targets;`
+    );
+  }
+  // Org-scoped billing (org-plan Phase 3, data layer) — the org_id backfills the
+  // ALTER loop above can't express:
+  // 1) billing_state's legacy single row (id 'workspace') predates the column, so
+  //    stamp it to the seeded org; one row per org is then enforced by the unique
+  //    index (try/catch like uq_tasks: a hand-edited legacy DB with duplicates
+  //    keeps booting, just without the constraint).
+  db.prepare(`UPDATE billing_state SET org_id = 'org-default' WHERE org_id IS NULL`).run();
+  try {
+    db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS uq_billing_state_org ON billing_state (org_id)`);
+  } catch {
+    /* pre-existing duplicate org rows prevent the unique index; skip */
+  }
+  // 2) billing_usage: widen the (meter, period) PK to (org_id, meter, period) so each
+  //    org keeps its own monthly meter counters. One-time rebuild (SQLite can't alter
+  //    a PK — the channel_spend/analytics_targets pattern); guarded by the absence of
+  //    the org_id column so it runs exactly once. Existing counters belong to the
+  //    single seeded org.
+  const usageCols = db.prepare(`PRAGMA table_info(billing_usage)`).all() as { name: string }[];
+  if (!usageCols.some((c) => c.name === "org_id")) {
+    db.exec(
+      `CREATE TABLE billing_usage_new (
+         org_id TEXT NOT NULL DEFAULT 'org-default',
+         meter TEXT NOT NULL,
+         period TEXT NOT NULL,
+         qty INTEGER NOT NULL DEFAULT 0,
+         PRIMARY KEY (org_id, meter, period)
+       );
+       INSERT INTO billing_usage_new (org_id, meter, period, qty)
+         SELECT 'org-default', meter, period, qty FROM billing_usage;
+       DROP TABLE billing_usage;
+       ALTER TABLE billing_usage_new RENAME TO billing_usage;`
     );
   }
   // Null-contract heal: `approval_detail` is nullable and "no detail" is NULL (its

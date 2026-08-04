@@ -59,6 +59,10 @@ export function mapPolarEvent(eventId: string, payload: unknown): BillingEvent {
 
   const product = (data.product ?? {}) as Record<string, unknown>;
   const customer = (data.customer ?? {}) as Record<string, unknown>;
+  // Checkout metadata round-trip: Polar copies a checkout's metadata onto the
+  // resulting subscription AND order objects, so the `kpOrgId` our createCheckout
+  // stamps comes back here and attributes the money event to the buying org.
+  const metadata = (data.metadata ?? {}) as Record<string, unknown>;
   const str = (v: unknown): string | null => (typeof v === "string" && v ? v : null);
   // Ordered units, defensively parsed: a finite positive integer, else 1. Polar
   // may send quantity as a number or a numeric string; anything else (missing on
@@ -81,6 +85,7 @@ export function mapPolarEvent(eventId: string, payload: unknown): BillingEvent {
     quantity: posInt(data.quantity),
     periodStart: str(data.current_period_start),
     periodEnd: str(data.current_period_end),
+    orgId: str(metadata.kpOrgId),
     raw: payload,
   };
 }
@@ -140,11 +145,16 @@ export class PolarGateway implements BillingGateway {
     return id;
   }
 
-  async createCheckout(req: CheckoutRequest, opts: { successUrl: string }): Promise<Checkout> {
+  async createCheckout(req: CheckoutRequest, opts: { successUrl: string; orgId?: string | null }): Promise<Checkout> {
     const data = await this.post("/v1/checkouts/", {
       products: [this.productFor(req)],
       success_url: opts.successUrl,
-      metadata: req.kind === "plan" ? { kpPlan: req.plan } : { kpPack: req.pack },
+      metadata: {
+        ...(req.kind === "plan" ? { kpPlan: req.plan } : { kpPack: req.pack }),
+        // Org attribution (org-plan Phase 3): Polar copies checkout metadata onto
+        // the subscription/order, and mapPolarEvent reads it back as event.orgId.
+        ...(opts.orgId ? { kpOrgId: opts.orgId } : {}),
+      },
     });
     const url = typeof data.url === "string" ? data.url : null;
     if (!url) throw new Error("Polar checkout response carried no url.");

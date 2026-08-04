@@ -143,10 +143,12 @@ live for real multi-team customers (see `app/_lib/tenancy.ts` comments and
 - Widen the `tasks` dedup index to `(workspace_id, dedupe_key)`.
 - Thread the real session workspace through the inbound lead-intake chain and
   the remaining mutating routes (some still default to the default workspace).
-- **Org-level billing with seats** — `billing_state` is still a single row
-  keyed by the default workspace; no `org_id` on any billing table, no seat
-  quantity in Polar checkout. This is enterprise-readiness E6 / org-plan
-  Phase 3 (`docs/features/billing/README.md` Known gaps).
+- **Org-level billing with seats** — the org-keyed DATA layer has landed
+  (`org_id` on every billing table, org-keyed entitlement/reducer lookups,
+  webhook attribution via checkout metadata; `app/_lib/db/billing-tenancy.test.ts`).
+  Still open from enterprise-readiness E6 / org-plan Phase 3: seat quantity in
+  Polar checkout + webhook, seat enforcement vs. memberships, per-team metering
+  (`docs/features/billing/README.md` Known gaps).
 - **Per-team `llm_usage` attribution** — the usage ledger is global; it's
   written from the Python sidecar off the request path, so propagating org/team
   through the spawn is non-trivial (`docs/architecture/llm-provider-layer.md`).

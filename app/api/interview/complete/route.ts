@@ -158,7 +158,10 @@ export async function POST(request: NextRequest) {
       // RESERVE exactly this amount — gate and debit read one function, never two
       // different numbers (the reserve-vs-debit bug this seam closes).
       const billedMin = Math.min(Math.max(elapsedMin, 1), maxBillableInterviewMin(bookedMin));
-      recordMeterUsage("interview_minutes", billedMin);
+      // Org attribution (org-plan Phase 3): a token-driven flow has no session
+      // cookie, so derive the tenant from the interviewed entry — the same rule
+      // the scorecard scoping below uses. Entry-less sessions land on the default.
+      recordMeterUsage("interview_minutes", billedMin, new Date(), session.entryId ? getEntryWorkspace(session.entryId) : undefined);
       // Cost attribution (tiger F1): the meter above is a quantity-only quota
       // counter, but OpenAI Realtime vs ElevenLabs per-minute costs differ
       // materially — so the SAME billed minutes also land in the llm_usage

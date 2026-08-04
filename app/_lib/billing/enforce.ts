@@ -17,7 +17,7 @@
 // operator-readable fallback.
 
 import { getBillingState } from "../db";
-import { entitledPlan, meterAllowance, meterOverview } from "./entitlements";
+import { billingOrgForWorkspace, entitledPlan, meterAllowance, meterOverview } from "./entitlements";
 import type { Meter } from "./plans";
 
 export const QUOTA_CODE = "quota_exceeded" as const;
@@ -54,9 +54,10 @@ const METER_LABELS: Record<Meter, string> = {
  *  insert), so under better-sqlite3's synchronous writes no request interleaves in the
  *  gap. A null (unlimited) allowance always proceeds.
  *
- *  `workspace` scopes the meter read to the requesting tenant (tenancy arc). Omitted
- *  (or the default workspace) reads exactly the row it read before — byte-identical for
- *  the single-tenant path — so this only starts to differ once per-tenant billing exists. */
+ *  `workspace` scopes the meter read to the requesting tenant's ORG (org-plan Phase 3:
+ *  a subscription is per customer company, shared across its teams — billingOrgForWorkspace).
+ *  Omitted (or the default workspace) reads exactly the rows it read before — byte-identical
+ *  for the single-tenant path. */
 export function meterGate(
   meter: Meter,
   opts: { now?: Date; minUnits?: number; inFlight?: number; workspace?: string } = {}
@@ -67,9 +68,10 @@ export function meterGate(
   // Resolve the entitled plan ONCE: the allowance check and the verdict's plan
   // label both read it, and a single billing_state read also can't observe two
   // different rows under a concurrent webhook write. Scoped to the requesting
-  // workspace (defaulting to the single tenant when unset).
-  const plan = entitledPlan(getBillingState(opts.workspace), now);
-  const remaining = meterOverview(meter, plan, now).remaining;
+  // workspace's org (defaulting to the single tenant when unset).
+  const orgId = billingOrgForWorkspace(opts.workspace);
+  const plan = entitledPlan(getBillingState(orgId), now);
+  const remaining = meterOverview(meter, plan, now, orgId).remaining;
   if (remaining === null || remaining - inFlight >= minUnits) return null;
   return {
     error: `This month's ${METER_LABELS[meter]} on the ${plan.name} plan won't cover this action — upgrade or top up in Billing.`,
@@ -103,9 +105,11 @@ export function meterAllows(meter: Meter, opts: { now?: Date; workspace?: string
 }
 
 /** Active-job cap (free plan: 1). `publishedCount` = authored jobs currently
- *  'published'; seeded corpus jobs (NULL status) don't count. */
-export function activeJobsGate(publishedCount: number, now: Date = new Date()): QuotaVerdict | null {
-  const plan = entitledPlan(getBillingState(), now);
+ *  'published'; seeded corpus jobs (NULL status) don't count. `workspace` scopes
+ *  the plan read to the caller's org like meterGate (the count itself is the
+ *  caller's job — pass a workspace-filtered count alongside). */
+export function activeJobsGate(publishedCount: number, now: Date = new Date(), workspace?: string): QuotaVerdict | null {
+  const plan = entitledPlan(getBillingState(billingOrgForWorkspace(workspace)), now);
   if (plan.activeJobs === null || publishedCount < plan.activeJobs) return null;
   return {
     error: `The ${plan.name} plan allows ${plan.activeJobs} active job${plan.activeJobs === 1 ? "" : "s"} — close one or upgrade in Billing.`,

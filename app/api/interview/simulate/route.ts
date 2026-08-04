@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createInterviewSession } from "@/app/_lib/db";
 import { meterGate } from "@/app/_lib/billing";
 import { jsonError } from "@/app/_lib/api-response";
+import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { defaultInterviewerInstructions, isSelfHostedProvider, pickDefaultProvider, voiceAvailability, type VoiceProviderId } from "@/app/_lib/voice";
 import { QUICK_SCREEN_MIN } from "@/app/_lib/interview-duration.mjs";
 import {
@@ -65,7 +66,8 @@ export async function POST(request: NextRequest) {
     // Metering a free simulation would make a self-hosted install run out of a
     // budget it is not consuming — which is the whole reason to self-host.
     if (!isSelfHostedProvider(provider)) {
-      const quota = meterGate("interview_minutes", { minUnits: durationMin });
+      // Org attribution (org-plan Phase 3): the gate reads the caller's tenant.
+      const quota = meterGate("interview_minutes", { minUnits: durationMin, workspace: await currentWorkspace() });
       if (quota) return NextResponse.json(quota, { status: 402 });
     }
 

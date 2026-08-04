@@ -41,7 +41,7 @@ friction at zero users.
 | Pure reducer | `app/_lib/billing/reduce.ts` | Payload normalization + the state-transition decision table. |
 | Apply / entitlements | `app/_lib/billing/sync.ts`, `app/_lib/billing/entitlements.ts` | Applies reduced events to `billing_state`/`billing_credits`; computes entitled plan + meter allowance. |
 | Enforcement | `app/_lib/billing/enforce.ts` | Hard 402 gates (`quota_exceeded`) at metered-work creation points. |
-| DB | `app/_lib/db/billing.ts` | `billing_state`, `billing_events`, `billing_credits`, `billing_usage`, `billing_alerts`. |
+| DB | `app/_lib/db/billing.ts` | `billing_state`, `billing_events`, `billing_credits`, `billing_usage`, `billing_alerts` — all **org-keyed** (`org_id`, org-plan Phase 3 data layer): one subscription + ledger per org, shared across its teams. Accessors default to the seeded org, so single-org deployments read the exact rows they always did. `billingOrgForWorkspace` (entitlements.ts) maps the routes' existing `workspace` seam to its org (unknown/demo scopes fail closed to an empty scope); the webhook attributes an event via checkout metadata (`kpOrgId`) → stored subscription/customer → default org (`resolveBillingOrg`, sync.ts). Pinned by `app/_lib/db/billing-tenancy.test.ts`. |
 | Routes | `app/api/billing/route.ts`, `checkout/route.ts`, `webhook/route.ts`, `portal/route.ts` (see below) | |
 
 ```
@@ -158,10 +158,13 @@ leave billing off entirely (`docs/architecture/self-hosting.md` §6).
 
 - Billing UI beyond the current plan card + usage bars (richer upgrade flows,
   usage-exhausted banners) — the landing pricing section links here eventually.
-- Multi-tenancy: `billing_state` is still single-workspace (`id='workspace'`),
-  keyed by the default workspace even though the org/team/user model has
-  shipped (`docs/features/organization/README.md`). Adding `org_id` to the
-  billing tables + seat-based checkout is org-plan Phase 3 / enterprise-readiness
-  E6 — not started.
+- Org billing (org-plan Phase 3 / enterprise-readiness E6): the **data layer is
+  done** — `org_id` on every billing table, org-keyed reducer/entitlement
+  lookups, checkout-metadata webhook attribution, per-org meter isolation
+  (`billing-tenancy.test.ts`). Still open from E6: **seat quantity** in checkout
+  + webhook, seat enforcement vs. memberships, per-team metering breakdowns, and
+  `llm_usage` attribution. The metered-work debit call sites now thread the
+  requesting workspace (analyze, interview complete, dev-case lifecycle/redesign);
+  background/legacy paths without a tenant default to the seeded org.
 - BYOM tier enforcement (key-presence checks gating the unlimited meters) not
   built.

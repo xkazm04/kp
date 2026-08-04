@@ -226,11 +226,18 @@ export const TENANCY_EXEMPT_TABLES: ReadonlySet<string> = new Set([
   "llm_config", // deployment-level model/provider config
   "provider_keys", // deployment-level LLM provider keys, keyed by (provider, scope) —
   // the sibling of llm_config; per-org BYOM keys are a KP_MULTI_ORG concern (not per-team).
-  // Billing is per-DEPLOYMENT/org, NOT per-team-workspace: one subscription + ledger for
-  // the whole account (billing.ts: a single billing_state row id='workspace'), correctly
-  // SHARED across an org's teams. Isolated by org (like memberships), so exempt from the
-  // per-team workspace_id invariant. Multi-ORG-on-one-deployment isolation (org_id
-  // filtering in these stores) is a KP_MULTI_ORG concern beyond KP_MULTI_WORKSPACE.
+  // Billing is per-ORG, NOT per-team-workspace: one subscription + ledger per customer
+  // company, correctly SHARED across an org's teams — so these stay EXEMPT from the
+  // per-team workspace_id invariant this manifest governs. Since org-plan Phase 3
+  // (data layer) the org isolation is REAL, not just doctrine: every table carries
+  // org_id, billing.ts keys every read/write on it (billingOrgForWorkspace maps a
+  // team seam to its org; the webhook attributes via checkout metadata → stored
+  // subscription/customer → default org), and billing-tenancy.test.ts pins the
+  // org_id filters + cross-org isolation the way *-tenancy tests pin workspace_id.
+  // Two documented deployment-global exceptions, asserted in that same test:
+  // billing_events dedupes on the provider's GLOBAL event id (org_id is
+  // attribution only) and listBillingAlerts is the operator's cross-customer
+  // worklist (each row still carries its orgId).
   "billing_state",
   "billing_events",
   "billing_credits",

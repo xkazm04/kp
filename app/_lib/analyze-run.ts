@@ -281,7 +281,9 @@ export async function runAnalyze(p: AnalyzeParams, onProgress?: ProgressFn, sign
     // the same person count once). A total wipeout or cancel threw above and never
     // reaches here; a fully-cached re-run (a duplicate / re-analyze of the same CV) did
     // no new work — so the meter counts analyses actually PERFORMED, not submits.
-    if (!allCached) recordMeterUsage("ai_candidates");
+    // Org attribution (org-plan Phase 3): the debit lands on the requesting
+    // workspace's org — the same tenant the gate (meterGate({ workspace })) read.
+    if (!allCached) recordMeterUsage("ai_candidates", 1, new Date(), p.workspace);
 
     // A comparison needs at least MIN_COMPARISON_VARIANTS surviving successes; a
     // 3-variant run that lost one to a failure delivers a 2-way compare, and a

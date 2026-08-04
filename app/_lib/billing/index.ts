@@ -6,6 +6,7 @@
 export { BillingConfigError } from "./gateway";
 export type { BillingEvent, BillingGateway, Checkout, CheckoutRequest, ProductMap } from "./gateway";
 export {
+  billingOrgForWorkspace,
   billingOverview,
   entitledPlan,
   hasActiveSubscription,
@@ -32,4 +33,4 @@ export {
 } from "./plans";
 export { polarGatewayFromEnv } from "./polar";
 export { reduceBillingEvent, type BillingAction } from "./reduce";
-export { applyBillingAction, ingestBillingWebhook, type IngestResult } from "./sync";
+export { applyBillingAction, ingestBillingWebhook, resolveBillingOrg, type IngestResult } from "./sync";

@@ -1,8 +1,17 @@
 // Webhook ingestion: verify → idempotency gate → reduce (pure) → apply (DB).
 // The single write path for money state; nothing else mutates billing_state.
 
-import { ensureDb, getBillingState, grantBillingCredits, insertBillingEvent, recordBillingAlert, upsertBillingState } from "../db";
-import type { BillingGateway } from "./gateway";
+import {
+  billingOrgForProviderRefs,
+  ensureDb,
+  getBillingState,
+  grantBillingCredits,
+  insertBillingEvent,
+  recordBillingAlert,
+  upsertBillingState,
+} from "../db";
+import { DEFAULT_ORG_ID } from "../db/organizations";
+import type { BillingEvent, BillingGateway } from "./gateway";
 import {
   clearSubscriptionIsStale,
   reduceBillingEvent,
@@ -19,7 +28,18 @@ export type IngestResult = {
   detail?: string;
 };
 
-export function applyBillingAction(action: BillingAction, provider: string): string | undefined {
+/** Which org a verified webhook event belongs to (org-plan Phase 3). Precedence:
+ *  1) the checkout metadata the event carries (`kpOrgId` — stamped by our own
+ *     checkout create, propagated by the provider onto its subscription/order);
+ *  2) the org whose stored billing_state already holds this subscription/customer
+ *     (renewals + portal changes for a subscription minted before metadata);
+ *  3) the default org — the exact single-tenant behavior every pre-org
+ *     deployment has today. */
+export function resolveBillingOrg(event: BillingEvent): string {
+  return event.orgId ?? billingOrgForProviderRefs(event.subscriptionId, event.customerId) ?? DEFAULT_ORG_ID;
+}
+
+export function applyBillingAction(action: BillingAction, provider: string, orgId: string = DEFAULT_ORG_ID): string | undefined {
   switch (action.kind) {
     case "set_subscription": {
       // Out-of-order guard: Polar does NOT guarantee ordered delivery, so a stale
@@ -28,7 +48,7 @@ export function applyBillingAction(action: BillingAction, provider: string): str
       // state. For the SAME subscription, refuse a write whose periodStart is older
       // than what's already stored (a missing/unparseable period or a different
       // subscription id — a genuine re-subscribe — still applies).
-      const prior = getBillingState();
+      const prior = getBillingState(orgId);
       if (subscriptionWriteIsStale(prior?.providerSubscriptionId ?? null, prior?.currentPeriodStart ?? null, action.subscriptionId, action.periodStart)) {
         return `stale subscription event ignored (period ${action.periodStart ?? "?"} not newer than stored)`;
       }
@@ -49,6 +69,7 @@ export function applyBillingAction(action: BillingAction, provider: string): str
         );
       }
       upsertBillingState({
+        orgId,
         plan: action.plan,
         status: action.status,
         provider,
@@ -62,7 +83,7 @@ export function applyBillingAction(action: BillingAction, provider: string): str
     case "clear_subscription": {
       // Keep the customer id — the portal (and any win-back checkout) still
       // needs to address the same MoR customer after the plan lapses.
-      const prior = getBillingState();
+      const prior = getBillingState(orgId);
       // Out-of-order guard (revenue-losing direction): a delayed/retried `revoked`
       // for an OLD subscription must not wipe a NEWER active one the customer
       // re-subscribed to. Skip the clear when the revoke targets a different
@@ -71,6 +92,7 @@ export function applyBillingAction(action: BillingAction, provider: string): str
         return `stale revoke ignored (a newer subscription ${prior?.providerSubscriptionId} is active)`;
       }
       upsertBillingState({
+        orgId,
         plan: "free",
         status: "none",
         provider,
@@ -88,6 +110,7 @@ export function applyBillingAction(action: BillingAction, provider: string): str
     }
     case "grant_credits": {
       const granted = grantBillingCredits({
+        orgId,
         meter: action.meter,
         delta: action.qty,
         reason: action.reason,
@@ -114,7 +137,7 @@ export function applyBillingAction(action: BillingAction, provider: string): str
         // collapses repeated DISTINCT subscription.updated events for the same
         // misconfiguration to ONE open alert instead of piling up N rows.
         // bug-ui-scan-2026-07-09 (billing-engine-webhooks #5)
-        recordBillingAlert({ kind: "unmapped_product", detail: action.reason, providerRef: action.providerRef });
+        recordBillingAlert({ orgId, kind: "unmapped_product", detail: action.reason, providerRef: action.providerRef });
       }
       return action.reason;
   }
@@ -131,6 +154,9 @@ export function ingestBillingWebhook(
   // before we open a write.
   const event = gateway.verifyWebhook(rawBody, headers);
   const action = reduceBillingEvent(event, gateway.productMap());
+  // Org attribution (org-plan Phase 3): metadata → stored subscription/customer
+  // → default org. Resolved OUTSIDE the transaction (a read), applied inside.
+  const orgId = resolveBillingOrg(event);
 
   // Idempotency gate + apply in ONE transaction. Previously insertBillingEvent
   // committed the dedupe row before applyBillingAction ran, so a transient apply
@@ -142,11 +168,11 @@ export function ingestBillingWebhook(
   // so these statements share the transaction.)
   const db = ensureDb();
   return db.transaction((): IngestResult => {
-    const fresh = insertBillingEvent(event.id, event.type, rawBody);
+    const fresh = insertBillingEvent(event.id, event.type, rawBody, orgId);
     if (!fresh) {
       return { eventId: event.id, type: event.type, action: "ignore", duplicate: true, detail: "redelivery" };
     }
-    const detail = applyBillingAction(action, gateway.provider);
+    const detail = applyBillingAction(action, gateway.provider, orgId);
     return { eventId: event.id, type: event.type, action: action.kind, duplicate: false, detail };
   })();
 }

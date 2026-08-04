@@ -20,7 +20,27 @@ import {
   incrementBillingUsage,
   type BillingStateRow,
 } from "../db";
+import { DEFAULT_ORG_ID } from "../db/organizations";
+import { getWorkspaceOrgId, DEFAULT_WORKSPACE_ID } from "../db/workspaces";
 import { currentPeriod, PLANS, type Meter, type PlanDef, type PlanId } from "./plans";
+
+/** The billing scope a workspace's spend belongs to: its ORG (org-plan Phase 3 —
+ *  a subscription is per customer company, shared across its teams). The seams
+ *  that already existed (`meterGate`/`meterAllowance`'s `workspace` option) keep
+ *  their workspace-id parameter; this maps it to the org the lookups now key by.
+ *
+ *  - omitted / the default workspace → the default org (byte-identical single-
+ *    tenant path);
+ *  - a real team → its workspaces.org_id (the boot seed backfills legacy rows);
+ *  - anything without an org link (most importantly the anonymous "demo"
+ *    session's isolated workspace, which has no workspaces row) → ITSELF as a
+ *    scope. FAIL-CLOSED on purpose: an unknown scope reads no billing_state row
+ *    → the free plan, and its usage rows can never pollute (or spend) a real
+ *    org's meters. */
+export function billingOrgForWorkspace(workspace?: string): string {
+  if (!workspace || workspace === DEFAULT_WORKSPACE_ID) return DEFAULT_ORG_ID;
+  return getWorkspaceOrgId(workspace) ?? workspace;
+}
 
 /** Grace window after a FAILED payment (`past_due`/`unpaid`): the workspace keeps
  *  its plan for this long past `currentPeriodEnd` while the MoR runs dunning retries,
@@ -117,16 +137,16 @@ export function splitSpend(
   return { fromIncluded, fromCredits, remainingAfter };
 }
 
-export function meterOverview(meter: Meter, plan: PlanDef, now: Date = new Date()): MeterOverview {
+export function meterOverview(meter: Meter, plan: PlanDef, now: Date = new Date(), orgId: string = DEFAULT_ORG_ID): MeterOverview {
   const limit = plan.limits[meter];
-  const used = billingUsageFor(meter, currentPeriod(now));
+  const used = billingUsageFor(meter, currentPeriod(now), orgId);
   // Clamp the spendable/displayed balance at >=0: a refund claw-back (a negative
   // ledger row) that exceeds the minutes still on hand drives the raw SUM negative,
   // but a customer can never have "less than zero" credits to show or spend. The
   // ledger itself stays truthful (the negative row is a real audit record); this is
   // the single place the derived balance is floored, so `remaining` and the displayed
   // credits both stay non-negative. recordMeterUsage clamps its own debit read too.
-  const credits = Math.max(0, creditBalance(meter));
+  const credits = Math.max(0, creditBalance(meter, orgId));
   return {
     meter,
     limit,
@@ -136,15 +156,19 @@ export function meterOverview(meter: Meter, plan: PlanDef, now: Date = new Date(
   };
 }
 
-export function billingOverview(now: Date = new Date()): BillingOverview {
-  const state = getBillingState();
+/** `workspace` scopes the whole overview to the asking tenant's ORG (same seam
+ *  contract as meterAllowance below); omitted, the single-tenant path reads the
+ *  exact rows it always read. */
+export function billingOverview(now: Date = new Date(), workspace?: string): BillingOverview {
+  const orgId = billingOrgForWorkspace(workspace);
+  const state = getBillingState(orgId);
   const plan = entitledPlan(state, now);
   return {
     plan,
     status: state?.status ?? "none",
     periodEnd: state?.currentPeriodEnd ?? null,
     provider: state?.provider ?? null,
-    meters: (Object.keys(plan.limits) as Meter[]).map((meter) => meterOverview(meter, plan, now)),
+    meters: (Object.keys(plan.limits) as Meter[]).map((meter) => meterOverview(meter, plan, now, orgId)),
   };
 }
 
@@ -154,12 +178,14 @@ export type Allowance = { allowed: boolean; remaining: number | null; reason?: "
  *  included remainder + credit balance. Callers degrade to deterministic mode
  *  when not allowed — never hard-block.
  *
- *  `workspace` scopes the billing_state read to the asking tenant, exactly as
- *  meterGate does (enforce.ts) — omitted (or the default workspace) it reads the
- *  same row it always read, so the single-tenant path is byte-identical. Without
- *  it every tenant's degrade switch was decided by the DEFAULT workspace's plan. */
+ *  `workspace` scopes the read to the asking tenant's ORG (billingOrgForWorkspace —
+ *  a subscription is per customer company), exactly as meterGate does (enforce.ts).
+ *  Omitted (or the default workspace) it reads the same rows it always read, so the
+ *  single-tenant path is byte-identical. Without it every tenant's degrade switch
+ *  was decided by the DEFAULT workspace's plan. */
 export function meterAllowance(meter: Meter, now: Date = new Date(), workspace?: string): Allowance {
-  const overview = meterOverview(meter, entitledPlan(getBillingState(workspace), now), now);
+  const orgId = billingOrgForWorkspace(workspace);
+  const overview = meterOverview(meter, entitledPlan(getBillingState(orgId), now), now, orgId);
   if (overview.remaining === null) return { allowed: true, remaining: null };
   if (overview.remaining > 0) return { allowed: true, remaining: overview.remaining };
   return { allowed: false, remaining: 0, reason: "limit_reached" };
@@ -183,24 +209,27 @@ export function meterAllowance(meter: Meter, now: Date = new Date(), workspace?:
  *  a reserve-then-confirm gate across the 4 call sites (analyze / interview-complete
  *  / the two devcase routes) + the failed-run refund (billing-engine #4); tracked
  *  as a follow-up. better-sqlite3 is synchronous, so the ledger itself is safe. */
-export function recordMeterUsage(meter: Meter, qty: number = 1, now: Date = new Date()): void {
+export function recordMeterUsage(meter: Meter, qty: number = 1, now: Date = new Date(), workspace?: string): void {
   if (qty <= 0) return;
-  const plan = entitledPlan(getBillingState(), now);
+  // Same seam contract as meterAllowance: the debit lands on the asking
+  // tenant's ORG. Omitted → the default org, the exact rows it always debited.
+  const orgId = billingOrgForWorkspace(workspace);
+  const plan = entitledPlan(getBillingState(orgId), now);
   const limit = plan.limits[meter];
   const period = currentPeriod(now);
   const db = ensureDb();
   db.transaction(() => {
     if (limit !== null) {
-      const used = billingUsageFor(meter, period);
-      const balance = creditBalance(meter);
+      const used = billingUsageFor(meter, period, orgId);
+      const balance = creditBalance(meter, orgId);
       const { fromCredits } = splitSpend(limit, used, balance, qty);
       // CAS: never debit more credits than exist at write time.
       const debit = Math.min(fromCredits, Math.max(0, balance));
       if (debit > 0) {
-        grantBillingCredits({ meter, delta: -debit, reason: "consumed" });
+        grantBillingCredits({ meter, delta: -debit, reason: "consumed", orgId });
       }
     }
-    incrementBillingUsage(meter, period, qty);
+    incrementBillingUsage(meter, period, qty, orgId);
   })();
 }
 

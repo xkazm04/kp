@@ -30,6 +30,12 @@ export type BillingEvent = {
   quantity?: number;
   periodStart: string | null;
   periodEnd: string | null;
+  // The org this money event belongs to (org-plan Phase 3), read back from the
+  // checkout metadata our own createCheckout stamped (`kpOrgId` — providers
+  // propagate checkout metadata onto the subscription/order). Null/absent on
+  // pre-org subscriptions and hand-built test events — the ingest then falls
+  // back to the stored-state lookup, then the default org (sync.resolveBillingOrg).
+  orgId?: string | null;
   raw: unknown;
 };
 
@@ -53,7 +59,9 @@ export interface BillingGateway {
   readonly provider: string;
   /** Map of provider product ids → plans/packs (drives the reducer). */
   productMap(): ProductMap;
-  createCheckout(req: CheckoutRequest, opts: { successUrl: string }): Promise<Checkout>;
+  /** `orgId` (when given) is stamped into the checkout metadata so the resulting
+   *  subscription/order events attribute to the buying org (org-plan Phase 3). */
+  createCheckout(req: CheckoutRequest, opts: { successUrl: string; orgId?: string | null }): Promise<Checkout>;
   createPortalSession(customerId: string): Promise<{ url: string }>;
   /** Verify signature + freshness and normalize. MUST throw on a bad signature. */
   verifyWebhook(rawBody: string, headers: Record<string, string | null>): BillingEvent;

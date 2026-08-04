@@ -28,9 +28,11 @@ export async function POST(request: NextRequest) {
     if (!body.need) return NextResponse.json({ error: "need is required." }, { status: 400 });
     // Billing hard gate + debit: one lifecycle = one dev-case design pipeline
     // (analyze → role → case). Debited at start; redesigns debit separately.
-    const quota = meterGate("case_designs");
+    // Org attribution (org-plan Phase 3): gate + debit read the caller's tenant.
+    const workspace = await currentWorkspace();
+    const quota = meterGate("case_designs", { workspace });
     if (quota) return NextResponse.json(quota, { status: 402 });
-    recordMeterUsage("case_designs");
+    recordMeterUsage("case_designs", 1, new Date(), workspace);
     // DEVP5 — the candidate-facing artifact language. Prefer an explicit body
     // choice (validated), else the recruiter's active locale; persisted on the
     // lifecycle and threaded to the dev-case CLIs by the orchestrator.
