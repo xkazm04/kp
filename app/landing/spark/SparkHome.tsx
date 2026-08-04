@@ -1,4 +1,6 @@
+import { Suspense } from "react";
 import { Bricolage_Grotesque, Gabarito, Shantell_Sans } from "next/font/google";
+import { DemoUnavailableNotice } from "./DemoUnavailableNotice";
 import SparkLanding from "./SparkLanding";
 
 /*
@@ -31,6 +33,13 @@ const hand = Shantell_Sans({
 export default function SparkHome() {
   return (
     <div className={`${display.variable} ${body.variable} ${hand.variable}`}>
+      {/* Demo-CTA honesty: /api/demo lands here with ?demo=unavailable when a
+          gated deploy refuses the public demo — say so instead of a silent
+          reload. Suspense: useSearchParams in a client child of this
+          server-rendered page. */}
+      <Suspense fallback={null}>
+        <DemoUnavailableNotice />
+      </Suspense>
       <SparkLanding />
     </div>
   );
