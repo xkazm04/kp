@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { ArrowRight } from "lucide-react";
 import { BTN, DISPLAY, HAND } from "../tokens";
 import { enterWorkspace } from "@/app/_lib/auth/session-nav";
+import { track } from "@/app/_lib/analytics/plausible";
 
 /* Closing call to action. */
 export default function Cta() {
@@ -25,7 +26,10 @@ export default function Cta() {
         <p className="relative mx-auto mt-4 max-w-md text-lg text-[#fdf8ee]/90">{t("cta.body")}</p>
         <motion.button
           type="button"
-          onClick={() => void enterWorkspace()}
+          onClick={() => {
+            track("landing_cta_click", { placement: "closing" });
+            void enterWorkspace();
+          }}
           whileHover={{ scale: 1.04, rotate: -1 }}
           whileTap={{ scale: 0.97 }}
           className={`${BTN} relative mt-8 bg-[#fdf8ee]`}

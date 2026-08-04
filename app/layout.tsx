@@ -10,6 +10,7 @@ import { getBrand } from "./_lib/brand-store";
 import { DEFAULT_BRAND } from "./_lib/brand-config";
 import { DARK, PAPER } from "./_lib/brand";
 import { siteUrl } from "./_lib/site-url";
+import { PlausibleScript } from "./_lib/analytics/plausible";
 import "./globals.css";
 
 // SHELL5 — `latin-ext` carries the Czech diacritics (ě š č ř ž ů, all over
@@ -165,6 +166,11 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
     <html lang={locale} className={`${inter.variable} ${fraunces.variable} ${bricolage.variable}`} suppressHydrationWarning>
       <body className="font-sans">
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT }} />
+        {/* Plausible (cookieless, env-gated on NEXT_PUBLIC_PLAUSIBLE_DOMAIN —
+            renders nothing when unset). Its default pageview covers the landing
+            view; custom funnel events go through track() in
+            app/_lib/analytics/plausible.tsx. */}
+        <PlausibleScript />
         {/* White-label accent override (E3) — after globals.css so it wins by source order. */}
         <BrandStyle accent={brand.accentColor} />
         <NextIntlClientProvider locale={locale} messages={messages}>

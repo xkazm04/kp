@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 import { ArrowRight, Mic, Sparkles } from "lucide-react";
 import { BTN, DISPLAY, HAND, STICKER } from "../tokens";
 import { enterWorkspace } from "@/app/_lib/auth/session-nav";
+import { track } from "@/app/_lib/analytics/plausible";
 
 /*
  * Hero — headline, the three calls to action, and the signature interaction:
@@ -139,14 +140,25 @@ export default function Hero() {
               cannot detect — so the primary CTA keeps enterWorkspace() (open mode
               → dashboard, password mode → /login). Point it at /signup once the
               gate is exposed to the client (e.g. an NEXT_PUBLIC_ mirror). */}
-          <button type="button" onClick={() => void enterWorkspace()} className={`${BTN} bg-[#d65a4a] text-white`}>
+          <button
+            type="button"
+            onClick={() => {
+              // Placement-level funnel event; enterWorkspace() itself fires
+              // workspace_entered (with the plan when one was picked).
+              track("landing_cta_click", { placement: "hero" });
+              void enterWorkspace();
+            }}
+            className={`${BTN} bg-[#d65a4a] text-white`}
+          >
             {t("hero.ctaPrimary")}
             <ArrowRight className="h-5 w-5" aria-hidden />
           </button>
           {/* Public guided demo (B1): a plain navigation to /api/demo mints an
               isolated demo-workspace session and lands on /?sim=auto, which
-              auto-plays the JD→Hired run — no login, no key. */}
-          <a href="/api/demo" className={`${BTN} bg-white`}>
+              auto-plays the JD→Hired run — no login, no key. The click event is
+              the funnel step BEFORE demo_started (which fires when the sim
+              actually auto-plays); fire-and-forget, never blocks navigation. */}
+          <a href="/api/demo" onClick={() => track("landing_demo_click")} className={`${BTN} bg-white`}>
             {t("hero.ctaDemo")}
             <ArrowRight className="h-5 w-5 text-[#d65a4a]" aria-hidden />
           </a>

@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { ArrowRight, Check, Gift, KeyRound, Rocket, Stamp, TrendingUp } from "lucide-react";
 import { salesContactHref } from "@/app/_lib/sales-contact";
 import { enterWorkspace } from "@/app/_lib/auth/session-nav";
+import { track } from "@/app/_lib/analytics/plausible";
 import { BTN, DISPLAY, HAND, STICKER } from "./tokens";
 
 /*
@@ -96,7 +97,12 @@ export default function PricingSection() {
                     password mode → the /login form). Enterprise is a sales mailto. */}
                 <button
                   type="button"
-                  onClick={() => void enterWorkspace(tier.id)}
+                  onClick={() => {
+                    // Placement + plan attribution for the tier click; the
+                    // downstream workspace_entered event carries the plan too.
+                    track("landing_cta_click", { placement: "pricing", plan: tier.id });
+                    void enterWorkspace(tier.id);
+                  }}
                   className={`${BTN} mt-6 w-full justify-center ${tier.btnClass}`}
                 >
                   {t(`pricing.tiers.${tier.id}.cta`)}
@@ -124,7 +130,11 @@ export default function PricingSection() {
                   </li>
                 ))}
               </ul>
-              <a href={salesContactHref()} className={`${BTN} mt-5 bg-[#17202a] text-[#fdf8ee]`}>
+              <a
+                href={salesContactHref()}
+                onClick={() => track("landing_cta_click", { placement: "pricing", plan: "enterprise" })}
+                className={`${BTN} mt-5 bg-[#17202a] text-[#fdf8ee]`}
+              >
                 {t("pricing.enterprise.cta")}
                 <ArrowRight className="h-5 w-5" />
               </a>
