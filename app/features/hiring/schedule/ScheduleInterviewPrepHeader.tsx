@@ -7,7 +7,7 @@
 
 import { AlertTriangle, History } from "lucide-react";
 import { Meter } from "@/app/_components/Meter";
-import { PrepSourceBadge } from "@/app/_components/Badge";
+import { PrepSourceBadge, type PrepSourceCopy } from "@/app/_components/Badge";
 import { RubricCoverageNote } from "@/app/_components/RubricCoverageNote";
 import type { RubricCoverage } from "@/app/_lib/interview-rubric";
 import type { useTranslations } from "next-intl";
@@ -39,11 +39,15 @@ export function PrepHeader({
   doneItems: number;
   t: ReturnType<typeof useTranslations<"scheduleTab.prep">>;
 }) {
+  const prepSourceCopy: PrepSourceCopy = {
+    fallback: { label: t("sourceFallback"), ariaLabel: t("sourceFallbackAria") },
+    ai: { label: t("sourceAi"), ariaLabel: t("sourceAiAria") },
+  };
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between gap-3">
         {/* Provenance: AI-tailored vs deterministic template fallback. */}
-        <PrepSourceBadge source={prep.source} />
+        <PrepSourceBadge source={prep.source} copy={prepSourceCopy} />
         <span className="nums shrink-0 rounded-md bg-paper px-2 py-1 text-sm font-semibold text-coral">{t("doneCount", { done: doneItems, total: totalItems })}</span>
       </div>
       {fallback ? (

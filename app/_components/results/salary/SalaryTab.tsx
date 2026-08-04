@@ -15,6 +15,14 @@ import { growthMarkerPercent, roundGrowthTarget } from "./salaryGauge.logic";
 export function SalaryTab({ analysis }: { analysis: Analysis }) {
   const t = useTranslations("report");
   const enumLabel = useEnumLabel();
+  // Localized confidence-badge vocabulary (report.confidence.*), resolved here
+  // and passed to the locale-dumb Badge primitive.
+  const confidenceLabels = {
+    high: t("confidence.high"),
+    medium: t("confidence.medium"),
+    low: t("confidence.low"),
+    unknown: t("confidence.unknown"),
+  };
   const { currency, period } = analysis.salary;
   // Currency-aware rounding (Direction 1 #c): step scales with the figure's
   // magnitude, so a EUR/USD salary no longer snaps to an absurd CZK-scaled 5000.
@@ -53,7 +61,7 @@ export function SalaryTab({ analysis }: { analysis: Analysis }) {
           <div className="mt-1 text-base nums text-ink">
             {formatSalaryRange(analysis.salary.minimum, analysis.salary.maximum, { currency })}
           </div>
-          <p className="mt-1 flex items-center gap-1.5 text-base text-steel">{enumLabel("period", period)} · <ConfidenceBadge value={analysis.salary.confidence} /></p>
+          <p className="mt-1 flex items-center gap-1.5 text-base text-steel">{enumLabel("period", period)} · <ConfidenceBadge value={analysis.salary.confidence} labels={confidenceLabels} /></p>
           {analysis.salary.structureNote ? (
             <p className="mt-2 text-sm leading-5 text-steel">+ {analysis.salary.structureNote}</p>
           ) : null}

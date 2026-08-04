@@ -27,7 +27,7 @@ Columns: **en** · **cs** · **de** · **fr** · note. Add a column per new loca
 | sourcing | sourcing | Sourcing | sourcing | loanword kept |
 | automation pass | (automatický) průchod | Automatiklauf / Durchlauf | passe d'automatisation | "Run pass" = Spustit… / Automatiklauf starten / Lancer la passe |
 | advance (candidate) | postoupit | weiterleiten | faire avancer | stat line uses count-invariant form (see style guides) |
-| reject | zamítnout | ablehnen | rejeter | |
+| reject | zamítnout | ablehnen | rejeter | cs: reserve **odmítnout** for the *candidate* declining (an offer/a role) — the recruiter/system side is always "zamítnout" |
 | hold | pozdržet | zurückhalten | mettre en attente | |
 | flag / alert | označit / upozornění | markieren / Hinweis | signaler / alerte | |
 | consent | souhlas | Einwilligung | consentement | GDPR |
@@ -38,6 +38,13 @@ Columns: **en** · **cs** · **de** · **fr** · note. Add a column per new loca
 | control center | řídicí centrum | Kontrollzentrum | centre de contrôle | pipeline.controlCenter dock |
 | guided tour / demo | řízená prohlídka / ukázka | geführte Tour / Demo | visite guidée / démo | the simulation |
 | operations | provoz | Betrieb | opérations | ops-deck subtitle |
+| board (pipeline board) | nástěnka | Board | tableau | cs: never "tabule" — unified 2026-08 |
+| evidence (proof) | důkaz | Nachweis | preuve | cs **false friend**: "evidence" = record-keeping, not proof. `profile.evidence.*` still uses it — queued |
+| tamper-evident | odolný proti manipulaci | manipulationssicher | inviolable | never "nezfalšovatelný" (overclaims) or "neměnný" (= immutable) |
+| relay (delivery) | relé | Relay | relais | the comms delivery relay; not left in English |
+| lead (group-eval top candidate) | favorit | Spitzenkandidat/in | favori | cs: "vedoucí" reads as *manager*; "lídr" was a third variant — unified 2026-08 |
+| per hire | na jedno přijetí | pro Einstellung | par recrutement | cs: not "na nábor" (= per recruitment drive); cf. hire → přijmout/přijat |
+| Google Calendar | Google Calendar | Google Calendar | Google Calendar | product proper noun, kept verbatim (not "Google Kalendář") |
 
 ## Do-Not-Translate
 
@@ -53,6 +60,13 @@ keyword (`plural`, `select`, `#`).
   loanword — intentional: the tab names the product area, the inline word names
   the technical funnel. Keep both in every locale.
 - "screen" splits verb vs noun (screening) — mirror the source; don't force one.
+- **Two rows below are contested by the catalog itself** and are queued for a
+  native/house decision in `review-cs.md`, not silently applied: **workspace**
+  (glossary says *pracovní plocha*, the catalog overwhelmingly says *pracovní
+  prostor*) and **scorecard** (glossary keeps the loanword, the product UI says
+  *hodnoticí karta* in ~30 keys and only `landing`/`aboutPage` marketing copy
+  keeps "scorecard"). Do not unify either until it is settled — a half-sweep is
+  worse than the split.
 - Per-language voice/typography/plural rules live in `style-<locale>.md`
   (de capitalizes ALL nouns; fr needs narrow-NBSP before `; : ! ?` and guillemets
   `« … »`; cs/de use `„…"`).

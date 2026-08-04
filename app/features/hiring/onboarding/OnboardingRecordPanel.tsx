@@ -38,23 +38,23 @@ export function OnboardingRecordPanel({
     <section className={`${PANEL} ${CARD_PAD}`}>
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
-          <p className={META_LABEL}>Hire</p>
+          <p className={META_LABEL}>{t("hireLabel")}</p>
           {starved ? (
             <div className="mt-1 h-6 w-48 rounded-md border border-dashed border-stone-300 bg-stone-50" aria-hidden />
           ) : (
             <p className="mt-0.5 font-serif text-h2 text-ink">{first!.candidateLabel ?? t("aCandidate")}</p>
           )}
           <p className="mt-1 text-sm text-steel">
-            {starved ? "Filled in from the pipeline entry when the run opens." : first!.jobTitle ?? t("aCandidate")}
+            {starved ? t("recordFilledFromPipeline") : first!.jobTitle ?? t("aCandidate")}
           </p>
         </div>
         <div className="flex gap-2">
           <div className={`${STAT} min-w-[5.5rem] px-3 py-2`}>
-            <span className={STAT_LABEL}>Done</span>
+            <span className={STAT_LABEL}>{t("doneLabel")}</span>
             <span className={`${STAT_VALUE} text-ink`}>0</span>
           </div>
           <div className={`${STAT} min-w-[5.5rem] px-3 py-2`}>
-            <span className={STAT_LABEL}>Signed</span>
+            <span className={STAT_LABEL}>{t("signed")}</span>
             <span className={`${STAT_VALUE} text-ink`}>0</span>
           </div>
         </div>
@@ -86,8 +86,10 @@ export function OnboardingRecordPanel({
           </label>
         ) : (
           <span className="text-sm text-steel">
-            Stamped from <span className="font-semibold text-ink">{active?.name ?? "the standard template"}</span> — the only
-            template so far.
+            {t.rich("recordStampedFrom", {
+              template: active?.name ?? t("standardTemplateFallback"),
+              b: (chunks) => <span className="font-semibold text-ink">{chunks}</span>,
+            })}
           </span>
         )}
         {starved ? null : (

@@ -43,7 +43,7 @@ export function OnboardingRecordLedgers({ taskCount, questionCount }: { taskCoun
         icon={ListChecks}
         name={t("checklist")}
         count={t("progress", { done: 0, total: taskCount })}
-        holds="Every task from the template, each stamped with who ticked it and when."
+        holds={t("ledgerChecklistHolds")}
       />
       <LedgerRow
         icon={MessageSquareText}
@@ -54,7 +54,7 @@ export function OnboardingRecordLedgers({ taskCount, questionCount }: { taskCoun
       <LedgerRow
         icon={FileSignature}
         name={t("signatures")}
-        count="0 requested"
+        count={t("ledgerSignaturesCount", { count: 0 })}
         holds={t("signSeamNote")}
       />
     </ul>

@@ -76,11 +76,11 @@ export function OnboardingEmptyFirstDay({
       {starved ? (
         <ChainEmptyState
           glyph={ONBOARDING_RUN_GLYPH}
-          title="Nobody has been hired yet"
-          body="Onboarding is the last link in the chain: it starts the moment a candidate reaches Hired. Move someone to Hired in the pipeline — usually straight after an accepted offer — and their first day appears here."
+          title={t("nobodyHiredTitle")}
+          body={t("nobodyHiredBody")}
           links={[
-            { tab: "pipeline", label: "Open the pipeline" },
-            { tab: "decisions", label: "Review decisions" },
+            { tab: "pipeline", label: t("upstreamOpenPipeline") },
+            { tab: "decisions", label: t("upstreamReviewDecisions") },
           ]}
         />
       ) : (
@@ -91,14 +91,9 @@ export function OnboardingEmptyFirstDay({
             className="h-24 w-24 shrink-0 sm:h-28 sm:w-28"
           />
           <div>
-            <p className={EYEBROW}>First day</p>
-            <h3 className={`mt-1 ${TITLE_DISPLAY}`}>
-              {hired.length === 1 ? "One hire is waiting for a first day" : `${hired.length} hires are waiting for a first day`}
-            </h3>
-            <p className={`mt-2 max-w-xl ${INTRO}`}>
-              The plan below already exists. Starting a run hands it to a named person, opens their pre-boarding
-              questionnaire, and begins tracking what has actually been done.
-            </p>
+            <p className={EYEBROW}>{t("firstDayEyebrow")}</p>
+            <h3 className={`mt-1 ${TITLE_DISPLAY}`}>{t("firstDayTitle", { count: hired.length })}</h3>
+            <p className={`mt-2 max-w-xl ${INTRO}`}>{t("firstDayIntro")}</p>
           </div>
         </div>
       )}
@@ -107,7 +102,7 @@ export function OnboardingEmptyFirstDay({
       <section className={`${PANEL} ${CARD_PAD}`}>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className={META_LABEL}>The day this plan describes</p>
+            <p className={META_LABEL}>{t("dayPlanLabel")}</p>
             <p className="mt-0.5 text-base font-semibold text-ink">{active?.name ?? t("templatesTitle")}</p>
           </div>
           {templates.length > 1 ? (
@@ -122,23 +117,26 @@ export function OnboardingEmptyFirstDay({
               />
             </label>
           ) : (
-            <span className="text-sm text-steel">Only the standard plan exists so far — edit or add one below.</span>
+            <span className="text-sm text-steel">{t("onlyStandardPlan")}</span>
           )}
         </div>
 
         <div className={`mt-4 ${PANEL_SUNKEN} p-4`}>
-          <p className={META_LABEL}>Before day one</p>
+          <p className={META_LABEL}>{t("beforeDayOne")}</p>
           <p className="mt-1 text-base text-ink">
             {questions.length > 0
-              ? `${questions.length} pre-boarding questions go to the new hire — ${questions
-                  .slice(0, 3)
-                  .map((q) => q.label.toLowerCase())
-                  .join(", ")}${questions.length > 3 ? "…" : ""}`
-              : "This plan asks the new hire nothing before day one."}
+              ? t("preboardQuestions", {
+                  count: questions.length,
+                  list: `${questions
+                    .slice(0, 3)
+                    .map((q) => q.label.toLowerCase())
+                    .join(", ")}${questions.length > 3 ? "…" : ""}`,
+                })
+              : t("noPreboardQuestions")}
           </p>
         </div>
 
-        <p className={`mt-4 ${META_LABEL}`}>Then, in order · {t("progress", { done: 0, total: tasks.length })}</p>
+        <p className={`mt-4 ${META_LABEL}`}>{t("thenInOrder")} · {t("progress", { done: 0, total: tasks.length })}</p>
         <ol className="mt-1.5">
           {tasks.map((task, i) => (
             <PlanStep key={task.id} index={i + 1} label={task.label} />

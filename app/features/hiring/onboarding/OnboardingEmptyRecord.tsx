@@ -25,12 +25,6 @@ import { CARD_PAD, EYEBROW, META_LABEL, PANEL, PANEL_SUNKEN, TITLE_DISPLAY } fro
 import { OnboardingRecordPanel } from "./OnboardingRecordPanel";
 import type { PlanTemplate, WaitingHire } from "./OnboardingEmptyFirstDay";
 
-// Where a hire comes from — the two upstream steps that end in stage Hired.
-const UPSTREAM: { tab: WorkspaceTabId; label: string }[] = [
-  { tab: "pipeline", label: "Move a candidate to Hired" },
-  { tab: "decisions", label: "Close an open decision" },
-];
-
 export function OnboardingEmptyRecord({
   hired,
   templates,
@@ -47,6 +41,11 @@ export function OnboardingEmptyRecord({
   const t = useTranslations("onboarding");
   const search = useSearchParams();
   const searchStr = search.toString();
+  // Where a hire comes from — the two upstream steps that end in stage Hired.
+  const UPSTREAM: { tab: WorkspaceTabId; label: string }[] = [
+    { tab: "pipeline", label: t("upstreamToHired") },
+    { tab: "decisions", label: t("upstreamCloseDecision") },
+  ];
   const active = templates.find((tpl) => tpl.id === templateId) ?? templates[0];
   const taskCount = active?.tasks.length ?? 0;
   const questionCount = active?.questionnaire.length ?? 0;
@@ -62,12 +61,10 @@ export function OnboardingEmptyRecord({
           className="h-24 w-24 shrink-0 sm:h-28 sm:w-28"
         />
         <div>
-          <p className={EYEBROW}>Record</p>
-          <h3 className={`mt-1 ${TITLE_DISPLAY}`}>No hand-off on file</h3>
+          <p className={EYEBROW}>{t("recordEyebrow")}</p>
+          <h3 className={`mt-1 ${TITLE_DISPLAY}`}>{t("recordEmptyTitle")}</h3>
           <p className="mt-2 max-w-xl text-body text-steel">
-            {starved
-              ? "A run is the record of one hand-off — opened when a candidate reaches Hired, closed when the last task is ticked. No candidate has reached Hired, so there is nothing on file to open."
-              : "A run is the record of one hand-off — opened when a candidate reaches Hired, closed when the last task is ticked. Here is the record you are about to open."}
+            {starved ? t("recordBodyStarved") : t("recordBodyReady")}
           </p>
         </div>
       </div>
@@ -90,7 +87,7 @@ export function OnboardingEmptyRecord({
           upstream step that produces one. Otherwise: the rest of the queue. */}
       {starved ? (
         <section className={`${PANEL_SUNKEN} ${CARD_PAD}`}>
-          <p className={META_LABEL}>A record opens when</p>
+          <p className={META_LABEL}>{t("recordOpensWhen")}</p>
           <div className="mt-2 flex flex-wrap gap-x-5 gap-y-2">
             {UPSTREAM.map((u) => (
               <Link
@@ -105,7 +102,7 @@ export function OnboardingEmptyRecord({
         </section>
       ) : hired.length > 1 ? (
         <section className={`${PANEL} ${CARD_PAD}`}>
-          <p className={META_LABEL}>Also waiting</p>
+          <p className={META_LABEL}>{t("recordAlsoWaiting")}</p>
           <ul className="mt-2 divide-y divide-stone-200" role="list">
             {hired.slice(1).map((h) => (
               <li key={h.entryId} className="flex flex-wrap items-center justify-between gap-3 py-2.5">

@@ -60,7 +60,7 @@ Consequences for how you translate:
 
 ---
 
-## The two artifacts (create once, maintain forever)
+## The three artifacts (create once, maintain forever)
 
 These are the memory that makes run N+1 consistent with run N. They live in the
 repo (they're project truth, not skill-internal) under `docs/i18n/`:
@@ -82,9 +82,22 @@ repo (they're project truth, not skill-internal) under `docs/i18n/`:
    left/adapted — decide per term IN THE GLOSSARY and be consistent), and
    length discipline for UI chrome.
 
-Before translating anything, **read both**. If they don't exist yet, the first
-run creates them (bootstrap). When you make a new term decision mid-run, write it
-to the glossary so it sticks.
+3. **`docs/i18n/exemplars-<locale>.md`** — the gold pairs. *Register by
+   demonstration.* ~8 EN→locale pairs harvested from the locale's best
+   already-reviewed strings, one per string class: button/CTA, heading, tooltip,
+   error/status, empty-state **transcreation** (the money example — show the
+   rhythm, not the words), an ICU plural expanded to the locale's CLDR
+   categories, a candidate-facing string, a legal/consent string. Each pair gets
+   a one-line "why this is right" note. Few-shot in-domain exemplars are the
+   best-evidenced quality lever after the glossary — a style guide *describes*
+   the voice, exemplars *demonstrate* it. Keep the file small (quality over
+   quantity); replace a pair when a better one ships.
+
+Before translating anything, **read all three**. If any doesn't exist yet, the
+first run creates it (bootstrap — for exemplars, pick from the existing catalog's
+strongest strings; if the catalog is new, translate the 8 class-examples first,
+polish them hard, and seed the file from those). When you make a new term
+decision mid-run, write it to the glossary so it sticks.
 
 ---
 
@@ -122,7 +135,15 @@ If no locale is given, operate on every non-`en` locale.
 
 ---
 
-## The method — per string, before you type the translation
+## The method — a three-pass loop per namespace batch
+
+Single-pass translation is a ceiling. Run every namespace batch through
+**draft → estimate → refine** (the TEaR shape): translate it, audit it with a
+typed error rubric, then rewrite ONLY what the audit flagged. The gate is the
+point — unanchored "look again and improve" loops measurably *degrade* strings
+that were already right.
+
+### Pass A — Translate
 
 Machine translations fail because they translate the *string*; you translate the
 string **in its place in the product**. For each key (batch by namespace so a
@@ -148,8 +169,11 @@ whole surface stays coherent — see below):
    - *Legal / consent / compliance* (GDPR strings): precise, sober; preserve any
      legally-loaded meaning; don't get clever.
    - *Status / errors*: plain, non-alarming, actionable.
-3. **Apply the glossary + style guide.** Canonical term for every domain word;
-   the locale's register, casing, punctuation, plural rules.
+3. **Apply the glossary + style guide + exemplars.** Canonical term for every
+   domain word; the locale's register, casing, punctuation, plural rules; write
+   *toward* the gold pairs' voice. Keep the translating frame terse — a one-line
+   persona ("bilingual product copywriter for a Czech B2B SaaS") beats a long
+   translation brief, and chain-of-thought does not help the translate step.
 4. **Preserve the ICU skeleton.** Copy every `{var}`, expand `{n, plural, …}` to
    the target's CLDR categories, keep `<tags>`/HTML, keep the placeholder NAMES.
    Move placeholders to where the target grammar wants them.
@@ -158,25 +182,54 @@ whole surface stays coherent — see below):
 
 ---
 
-## Review lens (for `review`, and as self-QA on anything you generate)
+### Pass B — Estimate (typed MQM audit)
 
-Flag/fix a translation when it shows any of:
-- **Calque / literal word order** — reads as English wearing a costume.
-- **Register mismatch** — informal where the B2B tool needs formal (Czech *ty*
-  instead of *vy*), or stiff where a candidate page should be warm.
-- **Terminology drift** — same concept translated two ways across the app, or a
-  glossary term ignored.
-- **Format break** — lost/renamed placeholder, wrong or missing plural category,
-  brace imbalance, translated a `select` keyword, changed a rich-tag name.
-- **Casing/punctuation** — Title Case aped from English, wrong quote glyphs,
-  straight `...` instead of `…`, missing non-breaking space.
-- **Length risk** — visibly longer than the English in a tight control.
-- **Leftover English** or a wrongly-translated brand term.
+Fresh eyes on the batch Pass A just wrote — or, in `review` mode, on the
+existing catalog (**`review` = Pass B + Pass C**; there is no Pass A). Audit
+each key and emit **zero or more typed errors**, not a holistic verdict — error
+spans with category+severity correlate with native judgment; "rate this 1–10"
+does not.
 
-For genuinely ambiguous strings (a pun, a domain term with no settled local
-equivalent, a legal phrase), **don't guess silently**: apply your best version
-AND add it to the run's review list with a one-line note, so a native speaker can
-confirm. The user is not a native reviewer by default — surface these.
+Per error record: `key · quoted span · category · severity · anchor · fix`.
+
+Categories (MQM-derived, mapped to this product):
+- **accuracy** — mistranslation, omission, addition; wrong meaning in context.
+- **terminology** — glossary term ignored, or the same concept rendered two ways
+  across the app.
+- **fluency** — grammar (case, aspect, agreement), calque/English word order,
+  register break (Czech *ty* where *vy* is required; stiff where a candidate
+  page should be warm).
+- **style** — reads translated rather than written; misses the exemplars' voice.
+- **locale-convention** — Title Case aped from English, wrong quote glyphs,
+  straight `...` for `…`, missing NBSP, wrong/missing CLDR plural category.
+- **format** — lost/renamed placeholder, brace imbalance, translated `select`
+  keyword, changed rich-tag name. Always **critical**.
+- **length** — visibly longer than en in a tight control (chip, button, column).
+- **leftover-en** — untranslated English or a wrongly-translated brand term.
+
+Severity: **critical** (wrong meaning, format break, legal/consent distortion) ·
+**major** (a native speaker would stumble or be confused) · **minor** (polish).
+
+**Every finding must cite an anchor** — a glossary row, a style-guide rule, an
+exemplar, the placeholder inventory, a call-site length budget. A finding with
+no anchor is taste, not an error; drop it or queue it for a native. For
+high-visibility surfaces (nav, landing, empty states), add one extra localizer
+question per string: *would a native product team ship this wording on this
+control?* — that's a style finding if the answer is no.
+
+### Pass C — Refine (gated)
+
+- Rewrite **only** keys with ≥1 **critical/major** error, feeding the error
+  records into the rewrite. Re-run Pass B's checks on what you changed.
+- **Minor**-only keys: apply the fix if mechanical (typography, casing);
+  otherwise leave and note.
+- Clean keys: **do not touch.** No drive-by rephrasing — churn on already-good
+  strings is regression, not improvement.
+- For genuinely ambiguous strings (a pun, a domain term with no settled local
+  equivalent, a legal phrase), **don't guess silently**: apply your best version
+  AND add it to `docs/i18n/review-<locale>.md` with its error record, so a
+  native speaker can confirm. The user is not a native reviewer by default —
+  surface these, now with severities so they can triage.
 
 ---
 
@@ -211,6 +264,11 @@ confirm. The user is not a native reviewer by default — surface these.
   hardcode a localized number; keep the placeholder and let the format do it.
 - **Verify, don't assume.** A catalog that "looks translated" can still fail the
   ICU gate on one plural. Run the checks.
+- **Known non-levers — don't drift into these.** Back-translation as a quality
+  gate (fluent mistranslations round-trip cleanly; use it only as an
+  omission/placeholder sanity check). Holistic 1–10 scoring (use typed errors).
+  Long translation briefs (measured worse than a one-line persona). Extra
+  refine loops beyond Pass C without new anchors (churn, not quality).
 
 ---
 
@@ -220,7 +278,8 @@ confirm. The user is not a native reviewer by default — surface these.
 - [ ] `npm run typecheck` clean (no unknown-key regressions).
 - [ ] Touched locale JSON is valid, same key order as en, proper diacritics.
 - [ ] `docs/i18n/glossary.md` + `docs/i18n/style-<locale>.md` updated with any new
-      term/voice decisions made this run.
+      term/voice decisions made this run; `docs/i18n/exemplars-<locale>.md`
+      exists (bootstrap if not) and still holds the locale's best 8.
 - [ ] A short **review list** surfaced to the user: the handful of strings worth a
       native second look (with why), and anything capped/deferred.
 - [ ] One-line summary: locale(s), # keys translated/reviewed/fixed, # flagged.

@@ -52,7 +52,7 @@ export function AnalyticsFunnelPanel({
         <FunnelEmptyGuide
           funnel={data.funnel}
           stageLabel={(stage) => enumLabel("stage", stage)}
-          links={[{ tab: "pipeline", label: "Open the pipeline board" }]}
+          links={[{ tab: "pipeline", label: t("openPipelineBoard") }]}
         />
       ) : data.total === 0 ? (
         // Tab-level first run: nothing has ever existed. The tab's single
@@ -66,7 +66,7 @@ export function AnalyticsFunnelPanel({
         <FunnelEmptyGuide
           funnel={data.funnel}
           stageLabel={(stage) => enumLabel("stage", stage)}
-          links={[{ tab: "pipeline", label: "Open the pipeline board" }]}
+          links={[{ tab: "pipeline", label: t("openPipelineBoard") }]}
         />
       ) : (
       <ul className="mt-4 space-y-2.5">
