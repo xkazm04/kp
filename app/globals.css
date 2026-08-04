@@ -510,6 +510,30 @@ textarea {
     animation-name: hold-hidden;
     animation-duration: 1ms;
   }
+
+  /* Tailwind's own animation utilities carry NO reduced-motion behaviour:
+     `animate-spin` and `animate-pulse` run against the OS preference unless every
+     call site remembers `motion-reduce:animate-none`. It did not scale — 41 spins
+     and 9 pulses were ungated. One rule here covers them all, and any future one.
+
+     The two are treated differently on purpose. A shimmer carries no information,
+     so it stops outright (the same outcome Skeleton's explicit gate already
+     produced). A spinner does carry information — "work is in flight" — and a
+     frozen spinner reads as a hung app, so it keeps turning at 3s instead of
+     stopping: slow enough to be well clear of a vestibular trigger, alive enough
+     to stay honest. Reduced motion means less motion, not no feedback.
+
+     Unlayered on purpose: Tailwind's utilities live in `@layer utilities`, and an
+     unlayered rule beats a layered one in the cascade, so this wins without
+     `!important`. A call site that still wants a full stop keeps
+     `motion-reduce:animate-none` — same layer, later source order. */
+  .animate-spin {
+    animation-duration: 3s;
+    animation-timing-function: linear;
+  }
+  .animate-pulse {
+    animation: none;
+  }
 }
 
 /* Reduced-motion partner for .reveal-quiet: no fade, just "absent until the

@@ -30,6 +30,12 @@
         "label": "v2 — plateforme de matching (désormais construite)",
         "blurb": "La plateforme de matching qui propulse désormais l'application : ingestion d'annonces, routage d'archétypes, le moteur de matching KO→score (déterministe, raisonnement via Claude CLI) et le graphe de taxonomie. Le pont sémantique/embedding est encore prévu."
       }
+    },
+    "controls": {
+      "expandToFullScreen": "Afficher le diagramme en plein écran",
+      "expand": "Agrandir",
+      "zoomIn": "Zoom avant",
+      "zoomOut": "Zoom arrière"
     }
   },
   "meta": {
@@ -821,7 +827,10 @@
     "retry": "Réessayer",
     "dismissNotification": "Ignorer la notification",
     "yes": "Oui",
-    "no": "Non"
+    "no": "Non",
+    "close": "Fermer",
+    "scanningCv": "Analyse du CV en cours",
+    "formatting": "Mise en forme"
   },
   "aiDisclosure": {
     "title": "Comment ça marche",
@@ -1228,7 +1237,8 @@
         "aiSpeaking": "AI parle",
         "listening": "À l'écoute",
         "unstable": "Connexion instable — reconnexion…"
-      }
+      },
+      "transcriptLabel": "Transcription en direct de l'entretien"
     }
   },
   "palette": {

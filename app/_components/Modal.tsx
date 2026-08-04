@@ -3,6 +3,7 @@
 import { useId, useRef } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useDialogA11y } from "./useDialogA11y";
 
 // SHELL4 — re-exported here for back-compat: callers historically import
@@ -39,6 +40,11 @@ export function Modal({
   size?: "md" | "lg" | "xl" | "2xl" | "3xl" | "4xl" | "full";
 }) {
   const ref = useRef<HTMLDivElement | null>(null);
+  // The close affordance is the one string this primitive owns. It was hardcoded
+  // English in a 4-locale app, and the eslint i18n rule runs in `jsx-text-only`
+  // mode, so it structurally cannot see an attribute — nothing was ever going to
+  // catch it. Modal always renders inside the root NextIntlClientProvider.
+  const t = useTranslations("common");
   // Unique per-instance id so stacked dialogs never share id="modal-title" —
   // aria-labelledby resolves to the FIRST match in the DOM, so a hardcoded id
   // made a confirm-over-detail stack announce the wrong dialog's title.
@@ -52,7 +58,13 @@ export function Modal({
   if (typeof document === "undefined") return null;
   return createPortal(
     <div className={`fixed inset-0 z-50 flex items-center justify-center ${isFull ? "p-2 sm:p-4" : "p-4"}`}>
-      <button type="button" aria-label="Close" onClick={onClose} className="absolute inset-0 bg-ink/30 backdrop-blur-[1px]" />
+      {/* The scrim is a click target, not a control. As a <button> it was a
+          focusable phantom tab stop inside the trap — a second, invisible "Close"
+          that keyboard users had to Tab past and that duplicated the header X.
+          A div keeps click-to-close (Escape-to-close lives in useDialogA11y) and
+          is hidden from the a11y tree, so the dialog exposes exactly one close
+          control. Keyboard parity is the X + Escape, both of which remain. */}
+      <div aria-hidden onClick={onClose} className="absolute inset-0 bg-ink/30 backdrop-blur-[1px]" />
       <div
         ref={ref}
         role="dialog"
@@ -73,7 +85,7 @@ export function Modal({
             </h2>
             {subtitle ? <p className="truncate text-sm text-steel">{subtitle}</p> : null}
           </div>
-          <button type="button" onClick={onClose} aria-label="Close" className="focus-ring rounded-md p-1 text-steel hover:bg-stone-100">
+          <button type="button" onClick={onClose} aria-label={t("close")} className="focus-ring rounded-md p-1 text-steel hover:bg-stone-100">
             <X size={18} />
           </button>
         </header>

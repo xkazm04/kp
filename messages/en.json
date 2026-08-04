@@ -30,6 +30,12 @@
         "label": "v2 — matching platform (now built)",
         "blurb": "The matching platform now powering the app: job-ad ingestion, archetype routing, the KO→score matching engine (deterministic, Claude-CLI reasoning), and the taxonomy graph. The embedding/semantic bridge is still planned."
       }
+    },
+    "controls": {
+      "expandToFullScreen": "Expand diagram to full screen",
+      "expand": "Expand",
+      "zoomIn": "Zoom in",
+      "zoomOut": "Zoom out"
     }
   },
   "meta": {
@@ -821,7 +827,10 @@
     "retry": "Try again",
     "dismissNotification": "Dismiss notification",
     "yes": "Yes",
-    "no": "No"
+    "no": "No",
+    "close": "Close",
+    "scanningCv": "Scanning CV",
+    "formatting": "Formatting"
   },
   "aiDisclosure": {
     "title": "How this works",
@@ -1228,7 +1237,8 @@
         "aiSpeaking": "AI speaking",
         "listening": "Listening",
         "unstable": "Connection unstable — reconnecting…"
-      }
+      },
+      "transcriptLabel": "Live interview transcript"
     }
   },
   "palette": {

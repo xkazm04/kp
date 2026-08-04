@@ -1319,7 +1319,7 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
           ref={logRef}
           role="log"
           aria-live="polite"
-          aria-label="Live interview transcript"
+          aria-label={t("transcriptLabel")}
           className="max-h-[520px] space-y-4 overflow-y-auto scroll-smooth p-4"
         >
           {turns.length === 0 ? (

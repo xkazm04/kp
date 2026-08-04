@@ -30,6 +30,12 @@
         "label": "v2 — párovací platforma (nyní hotová)",
         "blurb": "Párovací platforma, která nyní pohání aplikaci: příjem inzerátů, směrování archetypů, párovací engine KO→skóre (deterministický, uvažování přes Claude CLI) a taxonomický graf. Sémantický/embedding most je stále plánován."
       }
+    },
+    "controls": {
+      "expandToFullScreen": "Zobrazit diagram na celou obrazovku",
+      "expand": "Zvětšit",
+      "zoomIn": "Přiblížit",
+      "zoomOut": "Oddálit"
     }
   },
   "meta": {
@@ -821,7 +827,10 @@
     "retry": "Zkusit znovu",
     "dismissNotification": "Zavřít oznámení",
     "yes": "Ano",
-    "no": "Ne"
+    "no": "Ne",
+    "close": "Zavřít",
+    "scanningCv": "Probíhá analýza životopisu",
+    "formatting": "Formátování"
   },
   "aiDisclosure": {
     "title": "Jak to funguje",
@@ -1228,7 +1237,8 @@
         "aiSpeaking": "AI mluví",
         "listening": "Poslouchám",
         "unstable": "Nestabilní spojení — obnovuji…"
-      }
+      },
+      "transcriptLabel": "Živý přepis pohovoru"
     }
   },
   "palette": {

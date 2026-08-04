@@ -8,11 +8,26 @@
 // Exits non-zero (failing CI / the i18n:check script) on any problem. The
 // compile-time half of gap prevention is the next-intl Messages augmentation in
 // global.d.ts (unknown keys are TS errors); this is the cross-locale half.
-import { readFileSync, readdirSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { readFileSync, readdirSync, statSync } from "node:fs";
+import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const MESSAGES_DIR = join(dirname(fileURLToPath(import.meta.url)), "..", "messages");
+const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
+const MESSAGES_DIR = join(REPO_ROOT, "messages");
+// The shared-primitive blind spot. The eslint i18n rule runs in `jsx-text-only`
+// mode, so it structurally cannot see an ATTRIBUTE — and a hardcoded aria-label
+// in a shared primitive is inherited by every consumer, which is how Modal
+// shipped an English-only "Close" twice in a 4-locale app. `jsx-only` is the
+// only plugin mode that reads attributes and it also flags every string inside
+// a JSX expression container, including the message keys passed to t() — 159
+// false positives when measured against the already-graduated file set, so the
+// rule cannot be extended. This grep closes exactly that gap for exactly the
+// attribute that matters. `aria-label` is unambiguous: unlike `title`, nothing
+// in this tree uses it as a component prop, so a literal match is always a real
+// untranslated accessible name.
+const PRIMITIVES_DIR = join(REPO_ROOT, "app", "_components");
+const HARDCODED_ARIA = /aria-label="[^"{]/;
+const LINE_BREAK = /\r?\n/;
 const DEFAULT_LOCALE = "en";
 
 // Full ICU compile is the authoritative syntax check (the brace-balance check
@@ -164,10 +179,38 @@ for (const file of files) {
   }
 }
 
+// ---- Shared primitives may not hardcode an accessible name --------------------
+function tsxFiles(dir) {
+  const out = [];
+  for (const entry of readdirSync(dir)) {
+    const full = join(dir, entry);
+    if (statSync(full).isDirectory()) out.push(...tsxFiles(full));
+    else if (entry.endsWith(".tsx") && !entry.includes(".test.")) out.push(full);
+  }
+  return out;
+}
+
+let primitiveFileCount = 0;
+for (const file of tsxFiles(PRIMITIVES_DIR)) {
+  primitiveFileCount++;
+  const lines = readFileSync(file, "utf8").split(LINE_BREAK);
+  lines.forEach((line, i) => {
+    if (HARDCODED_ARIA.test(line)) {
+      problems.push(
+        `${relative(REPO_ROOT, file).split("\\").join("/")}:${i + 1} — hardcoded aria-label in a shared primitive; ` +
+          `route it through useTranslations() so all 4 locales get it`
+      );
+    }
+  });
+}
+
 if (problems.length) {
   console.error(`[i18n-check] ${problems.length} problem(s):`);
   for (const p of problems) console.error(`  - ${p}`);
   process.exit(1);
 }
 
-console.log(`[i18n-check] OK — ${baseKeys.length} keys, ${files.length} locale(s) in parity.`);
+console.log(
+  `[i18n-check] OK — ${baseKeys.length} keys, ${files.length} locale(s) in parity; ` +
+    `${primitiveFileCount} shared primitive(s) free of hardcoded aria-labels.`
+);

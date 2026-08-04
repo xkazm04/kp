@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Maximize2, ZoomIn, ZoomOut } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { Modal } from "@/app/_components/Modal";
 import { CORAL, DIAL_AMBER, DIAL_STONE, INK, MOSS, PAPER, STEEL, WHITE } from "@/app/_lib/brand";
 import { parsePuml } from "./parse";
@@ -366,6 +367,7 @@ export function PlantUml({
   // class diagrams that legitimately render from edge endpoints alone.
   strict?: boolean;
 }) {
+  const tDiagram = useTranslations("diagrams.controls");
   const [expanded, setExpanded] = useState(false);
   const diagram = useMemo(() => {
     try {
@@ -473,8 +475,8 @@ export function PlantUml({
           <button
             type="button"
             onClick={() => setExpanded(true)}
-            aria-label="Expand diagram to full screen"
-            title="Expand"
+            aria-label={tDiagram("expandToFullScreen")}
+            title={tDiagram("expand")}
             className="focus-ring absolute right-2 top-2 z-10 rounded-md border border-stone-200 bg-white/90 p-1.5 text-steel shadow-sm backdrop-blur transition-colors hover:bg-stone-100 hover:text-ink"
           >
             <Maximize2 size={15} />
@@ -502,6 +504,7 @@ const ZOOM_STEP = 1.2;
 // for adjustments. The diagram scrolls within the viewport when it's larger than
 // the modal; "Fit" scales the whole thing to the available space.
 function ExpandedDiagram({ layout, onClose }: { layout: PositionedDiagram; onClose: () => void }) {
+  const t = useTranslations("diagrams.controls");
   const [zoom, setZoom] = useState(1);
   const viewportRef = useRef<HTMLDivElement | null>(null);
 
@@ -522,11 +525,11 @@ function ExpandedDiagram({ layout, onClose }: { layout: PositionedDiagram; onClo
 
   const controls = (
     <div className="flex items-center gap-1.5">
-      <button type="button" onClick={() => setZoom((z) => clamp(z / ZOOM_STEP))} disabled={zoom <= MIN_ZOOM} aria-label="Zoom out" className={btn}>
+      <button type="button" onClick={() => setZoom((z) => clamp(z / ZOOM_STEP))} disabled={zoom <= MIN_ZOOM} aria-label={t("zoomOut")} className={btn}>
         <ZoomOut size={16} />
       </button>
       <span className="w-12 text-center text-sm tabular-nums text-steel">{Math.round(zoom * 100)}%</span>
-      <button type="button" onClick={() => setZoom((z) => clamp(z * ZOOM_STEP))} disabled={zoom >= MAX_ZOOM} aria-label="Zoom in" className={btn}>
+      <button type="button" onClick={() => setZoom((z) => clamp(z * ZOOM_STEP))} disabled={zoom >= MAX_ZOOM} aria-label={t("zoomIn")} className={btn}>
         <ZoomIn size={16} />
       </button>
       <span className="mx-1 h-5 w-px bg-stone-200" />

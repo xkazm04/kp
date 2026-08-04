@@ -337,6 +337,37 @@ checklist.
 - Focus: the global coral double-ring resolves through `paper`/`coral` tokens,
   so it adapts to both themes automatically; `forced-colors` fallback restores
   a system outline.
+- **Tailwind's own `animate-spin` / `animate-pulse` are gated centrally**, not
+  per call site. Tailwind ships them with no reduced-motion behaviour, so they
+  ran against the OS preference wherever a call site forgot
+  `motion-reduce:animate-none` — which was 41 spins and 9 pulses. One unlayered
+  rule in the `prefers-reduced-motion: reduce` block of `app/globals.css` now
+  covers every current and future site. The two differ on purpose: a **pulse
+  stops** (a shimmer carries no information), a **spin slows to 3s** rather than
+  freezing (it does carry information — "work in flight" — and a frozen spinner
+  reads as a hung app). Unlayered beats Tailwind's `@layer utilities`, so no
+  `!important` is needed; verified against the built CSS chunk, not the
+  stylesheet source. A call site that wants a hard stop still writes
+  `motion-reduce:animate-none`, which wins inside the layer.
+
+### Accessible names on shared primitives
+
+- `Badge` sets `role="img"` + `aria-label` **only** when a token mapper supplies
+  an `ariaLabel` richer than the visible text; otherwise it sets neither. It
+  used to put `aria-label` on the bare `<span>`, which maps to `role="generic"`
+  — ARIA *prohibits* `aria-label` there, so the richer labels were not required
+  to be announced at all. Not `role="status"`: that is an implicit live region
+  and these badges render statically in lists.
+- `Modal` exposes exactly one close control. The scrim is a `<div>` with an
+  `onClick`, not a `<button>` — as a button it was a focusable phantom tab stop
+  inside the focus trap, an invisible duplicate of the header X. Escape-to-close
+  lives in `useDialogA11y` and is unaffected.
+- **No shared primitive may hardcode an `aria-label`.** The eslint i18n rule
+  runs in `jsx-text-only` mode and structurally cannot see an attribute; its
+  `jsx-only` mode can, but also flags every message key passed to `t()` inside a
+  JSX expression (measured: 159 false positives on the already-graduated file
+  set), so extending it is not viable. `npm run i18n:check` greps
+  `app/_components/**/*.tsx` for literal `aria-label="…"` and fails instead.
 
 ## Public landing (status: BUILT, NOT LAUNCHED)
 

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { Bold, Heading, Italic, List, ListOrdered, Underline as UnderlineIcon } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { htmlToMarkdown, markdownToHtml } from "./markdown-html";
 
 // A dependency-free WYSIWYG editor: a Word-like toolbar over a contentEditable
@@ -57,6 +58,7 @@ export function RichTextEditor({
   readOnly?: boolean;
 }) {
   const locked = disabled || readOnly;
+  const tCommon = useTranslations("common");
   const ref = useRef<HTMLDivElement>(null);
   // The markdown the editor's DOM currently reflects — so a `value` prop change we
   // DIDN'T originate (a Duplicate prefill, a reset) re-seeds, while our own onChange
@@ -163,7 +165,7 @@ export function RichTextEditor({
     <div
       className={`overflow-hidden rounded-md border border-stone-200 bg-white transition-colors focus-within:border-coral/50 focus-within:ring-2 focus-within:ring-coral/20 ${className}`}
     >
-      <div className="flex flex-wrap items-center gap-0.5 border-b border-stone-200 bg-paper px-1.5 py-1" role="toolbar" aria-label="Formatting" aria-disabled={locked || undefined}>
+      <div className="flex flex-wrap items-center gap-0.5 border-b border-stone-200 bg-paper px-1.5 py-1" role="toolbar" aria-label={tCommon("formatting")} aria-disabled={locked || undefined}>
         <TB label="Bold" active={marks.bold} disabled={locked} onClick={() => run("bold")}>
           <Bold size={15} aria-hidden />
         </TB>

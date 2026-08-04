@@ -50,16 +50,33 @@ export function Badge({
   // `muted` recedes the badge to a neutral stone tint (icon follows currentColor),
   // for "zero / nothing here" counts that should not compete with what changed.
   // `dot` swaps the icon for a small pulsing status dot that inherits the tone's
-  // text color (a "live" signal echoing the Radio pulse used across the pipeline).
+  // text color (a "live" signal echoing the pipeline's live indicators).
+  //
+  // Accessible name, deliberately per-variant. This used to be a blanket
+  // `aria-label` on the bare <span>: a span maps to role="generic", for which ARIA
+  // PROHIBITS aria-label, so assistive tech is not required to expose it — and the
+  // token mappers below lean on labels far richer than the visible text ("Repo-signal
+  // review status: no owned public repositories to review"). So:
+  //   • richer ariaLabel supplied → role="img" + aria-label. img takes a name, and
+  //     it makes the badge one atomic object, replacing the terse visible text with
+  //     the full description instead of announcing both.
+  //   • no ariaLabel → NO role and NO label. The visible text is already the
+  //     accessible content; naming it would only duplicate it.
+  // Not role="status": that is an implicit live region, and these badges render
+  // statically in lists, which would fire spurious announcements on every paint.
+  const named = !!ariaLabel && ariaLabel !== label;
   return (
     <span
-      aria-label={ariaLabel ?? label}
+      role={named ? "img" : undefined}
+      aria-label={named ? ariaLabel : undefined}
       className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-sm font-semibold ${
         muted ? "bg-stone-100 text-stone-400" : TONE_CLASS[tone]
       } ${className}`}
     >
       {dot ? (
-        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-current" aria-hidden />
+        // Matches Skeleton's gate; globals.css also stops every .animate-pulse
+        // under reduced motion, this keeps the intent readable at the call site.
+        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-current motion-reduce:animate-none" aria-hidden />
       ) : Icon ? (
         <Icon className="h-3 w-3" aria-hidden />
       ) : null}

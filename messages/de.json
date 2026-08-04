@@ -30,6 +30,12 @@
         "label": "v2 — Matching-Plattform (jetzt gebaut)",
         "blurb": "Die Matching-Plattform, die die App jetzt antreibt: Ingestion von Stellenanzeigen, Archetyp-Routing, die KO→Score-Matching-Engine (deterministisch, Claude-CLI-Reasoning) und der Taxonomie-Graph. Die Embedding-/Semantik-Brücke ist noch geplant."
       }
+    },
+    "controls": {
+      "expandToFullScreen": "Diagramm im Vollbild anzeigen",
+      "expand": "Vollbild",
+      "zoomIn": "Vergrößern",
+      "zoomOut": "Verkleinern"
     }
   },
   "meta": {
@@ -821,7 +827,10 @@
     "retry": "Erneut versuchen",
     "dismissNotification": "Benachrichtigung schließen",
     "yes": "Ja",
-    "no": "Nein"
+    "no": "Nein",
+    "close": "Schließen",
+    "scanningCv": "Lebenslauf wird gescannt",
+    "formatting": "Formatierung"
   },
   "aiDisclosure": {
     "title": "So funktioniert es",
@@ -1228,7 +1237,8 @@
         "aiSpeaking": "AI spricht",
         "listening": "Hört zu",
         "unstable": "Verbindung instabil — Wiederverbindung…"
-      }
+      },
+      "transcriptLabel": "Live-Transkript des Interviews"
     }
   },
   "palette": {

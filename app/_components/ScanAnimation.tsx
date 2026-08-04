@@ -1,9 +1,11 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useReducedMotion } from "@/app/_lib/useReducedMotion";
 import { INK, PAPER, MOSS, CORAL, STEEL } from "@/app/_lib/brand";
 
 export function ScanAnimationCompact({ className }: { className?: string }) {
+  const t = useTranslations("common");
   const reducedMotion = useReducedMotion();
   return (
     <svg
@@ -11,7 +13,7 @@ export function ScanAnimationCompact({ className }: { className?: string }) {
       xmlns="http://www.w3.org/2000/svg"
       className={className}
       role="img"
-      aria-label="Scanning CV"
+      aria-label={t("scanningCv")}
     >
       <rect
         x="22"
