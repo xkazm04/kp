@@ -4,7 +4,7 @@
 //   npm run test:unit
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { multiWorkspaceEnabled, canSwitchWorkspace, demoSessionAllowed } from "./workspace-lock.ts";
+import { multiWorkspaceEnabled, canSwitchWorkspace, demoSessionAllowed, signupEnabled } from "./workspace-lock.ts";
 
 const DEFAULT = "workspace";
 
@@ -47,4 +47,22 @@ test("demo session turns ON for explicit opt-in or when scoping is enabled", () 
   }
   // Multi-workspace scoping makes the demo workspace genuinely isolated → allowed.
   assert.equal(demoSessionAllowed({ KP_MULTI_WORKSPACE: "1" }), true);
+});
+
+// Public signup provisions a whole new tenant — while any per-tenant table is
+// still unscoped it must ship DARK by default (/signup + the register API 404).
+test("signup is OFF by default and for junk values", () => {
+  assert.equal(signupEnabled({}), false);
+  assert.equal(signupEnabled({ KP_SIGNUP_ENABLED: "" }), false);
+  assert.equal(signupEnabled({ KP_SIGNUP_ENABLED: "no" }), false);
+  assert.equal(signupEnabled({ KP_SIGNUP_ENABLED: "0" }), false);
+});
+
+test("signup turns ON only for explicit truthy opt-in", () => {
+  for (const v of ["1", "true", "TRUE", "yes", "on"]) {
+    assert.equal(signupEnabled({ KP_SIGNUP_ENABLED: v }), true, v);
+  }
+  // Deliberately NOT implied by multi-workspace: turning tenancy on doesn't
+  // open public registration by itself.
+  assert.equal(signupEnabled({ KP_MULTI_WORKSPACE: "1" }), false);
 });

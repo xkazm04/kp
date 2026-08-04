@@ -26,6 +26,20 @@ export function multiWorkspaceEnabled(env: EnvLike = process.env): boolean {
   return v === "1" || v === "true" || v === "yes" || v === "on";
 }
 
+/** Whether public self-serve signup is reachable: the `/signup` page and
+ *  POST /api/auth/register. DEFAULT (unset/blank/anything else) is OFF — the
+ *  funnel is fully built but GATED, and both surfaces answer 404 as if they
+ *  didn't exist. Every registration provisions a brand-new org + team + owner,
+ *  but while any per-tenant table is still workspace-blind (see the tenancy
+ *  manifest in tenancy.ts) a stranger's account would read the first tenant's
+ *  data through the unscoped paths — so flipping KP_SIGNUP_ENABLED=1 on is a
+ *  TENANCY-COMPLETION decision (pair it with KP_MULTI_WORKSPACE, whose
+ *  assertTenancyReady boot guard refuses unscoped tables), not a build step. */
+export function signupEnabled(env: EnvLike = process.env): boolean {
+  const v = (env.KP_SIGNUP_ENABLED ?? "").trim().toLowerCase();
+  return v === "1" || v === "true" || v === "yes" || v === "on";
+}
+
 /** A switch is allowed when multi-workspace is enabled, or the target IS the single
  *  default workspace (a harmless no-op re-mint that cannot cross tenants). */
 export function canSwitchWorkspace(targetId: string, defaultId: string, env: EnvLike = process.env): boolean {

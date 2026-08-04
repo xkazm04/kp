@@ -90,6 +90,15 @@ test("public JD share links reach the page, but the JD API stays gated", () => {
   assert.equal(isPublicPath("/api/jds/senior-engineer/revisions"), false);
 });
 
+test("signup page + register API pass the proxy gate (feature-gated in-route)", () => {
+  // The proxy must let an anonymous visitor reach them; KP_SIGNUP_ENABLED (checked
+  // by the page/route themselves) decides whether they answer or 404.
+  assert.equal(isPublicPath("/signup"), true);
+  assert.equal(isPublicPath("/api/auth/register"), true); // under the /api/auth/ prefix
+  // Never a longer sibling.
+  assert.equal(isPublicPath("/signup-bonus"), false);
+});
+
 test("recruiter surfaces stay gated", () => {
   for (const p of [
     "/",

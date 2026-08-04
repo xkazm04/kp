@@ -26,6 +26,11 @@ export const PUBLIC_PAGES = [
   // that reads the DB directly and gates its recruiter controls on isOperator(), so the
   // page is public while `/api/jds/*` stays gated.
   "/jds/",
+  // Self-serve registration (the /login sibling): an anonymous visitor must reach the
+  // form to create an account. The page itself (and POST /api/auth/register, already
+  // public under the /api/auth/ prefix) additionally 404s unless KP_SIGNUP_ENABLED is
+  // set (workspace-lock.signupEnabled) — public-by-design here, feature-gated in-route.
+  "/signup",
 ];
 
 export const PUBLIC_API_PREFIXES = [

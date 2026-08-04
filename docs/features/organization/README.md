@@ -18,6 +18,16 @@ inventing a second scoping dimension.
   `OrganizationConsole.tsx`) — general org settings, member roster, invites.
 - `/api/auth/switch-workspace` — re-mints the session for a different team.
 - Onboarding wizard (`app/features/shell/setup/`) — first-run org setup.
+- **Self-serve signup** (`/signup` + `POST /api/auth/register`) — public
+  registration that provisions a brand-new org → team → owner in one
+  transaction (`app/_lib/signup-service.ts`) and signs the user in (same
+  session mint as login; lands on `/` where the onboarding wizard fires).
+  **Gated dark by default:** both surfaces answer 404 unless
+  `KP_SIGNUP_ENABLED` is set (`workspace-lock.signupEnabled`) — flipping it on
+  is a tenancy-completion decision, since a stranger's account would read
+  shared data through any still-unscoped table. Registration is throttled
+  per-IP via the persisted login-throttle store (every attempt counts —
+  the bounded side effect is tenant creation itself).
 
 ## Identity & auth
 
