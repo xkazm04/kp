@@ -114,6 +114,12 @@ export function usePipelineCandidateDrawerState({
   // GDPR consent snapshot + audit trail, now IN the bundle so ConsentPanel reads it
   // from props instead of firing its own second fetch (one-call drawer).
   const [consent, setConsent] = useState<CandidateConsentView | null>(null);
+  // drawer-comms-truth — did the bundle load FAIL (network throw, or a non-OK
+  // response)? `consent` is initialized null — deliberately, because that is what stops
+  // ConsentPanel firing its own second fetch — so null alone cannot distinguish "still
+  // loading" from "gave up", and the GDPR panel rendered a permanent "loading…". This
+  // flag is the missing third state; it is passed to the panel, never used to re-fetch.
+  const [bundleFailed, setBundleFailed] = useState(false);
 
   // WCAG dialog behavior via the shared hook (replacing a hand-rolled, node-bound
   // version whose Escape only fired while focus was inside the drawer and which didn't
@@ -181,9 +187,12 @@ export function usePipelineCandidateDrawerState({
       .then((d) => {
         if (!alive) return;
         if (!d) {
+          // A non-OK response (401/403/5xx): the WHOLE bundle is gone, consent included.
           setHistory([]);
+          setBundleFailed(true);
           return;
         }
+        setBundleFailed(false);
         setHistory((d.events as PipelineEvent[]) ?? []);
         // drawer-note-fresh-hydration — the recruiter note rides the bundle as SERVER
         // TRUTH. Stash it in state here (no ref touched during the fetch effect); a
@@ -201,7 +210,11 @@ export function usePipelineCandidateDrawerState({
         setHumanSc(sc && (sc.ratings?.length || sc.summary) ? sc : null);
       })
       .catch(() => {
-        if (alive) setHistory([]);
+        if (!alive) return;
+        setHistory([]);
+        // The path the consent panel used to hang on: only `history` was reset here, so
+        // `consent` stayed null and read as "still loading" forever.
+        setBundleFailed(true);
       });
     return () => {
       alive = false;
@@ -537,7 +550,7 @@ export function usePipelineCandidateDrawerState({
     ivOutcome, showTranscript, setShowTranscript,
     humanSc,
     timelineErr, mergedHistory, rematchLinks,
-    staleSince, consent,
+    staleSince, consent, bundleFailed,
     revokeNote, setRevokeNote, revokeLinks,
     comms,
     cohortIndex, prevEntry, nextEntry,

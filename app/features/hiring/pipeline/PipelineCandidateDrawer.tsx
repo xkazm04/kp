@@ -34,7 +34,7 @@ export function CandidateDrawer({ entry, onClose, onChanged, onOpenEntry, cohort
   // plain state, and reading them off a shared object during render trips the
   // react-hooks/refs rule (the pre-split component held these as locals).
   const {
-    NOTE_MAX, busy, candNote, cohortIndex, comms, consent, dialogRef, error, ghBusy, ghErr, github,
+    NOTE_MAX, bundleFailed, busy, candNote, cohortIndex, comms, consent, dialogRef, error, ghBusy, ghErr, github,
     humanSc, intakeErr, ivOutcome, mergedHistory, moveErr, moveStage, movingStage, nextEntry,
     noteDirtyRef, noteStatus, prevEntry, rematchLinks, resolveIntake, resolvingIntake, result,
     revokeLinks, revokeNote, run, runGithubDeepDive, sched, setCandNote, setShowTranscript,
@@ -130,8 +130,10 @@ export function CandidateDrawer({ entry, onClose, onChanged, onOpenEntry, cohort
           />
 
           {/* Consent snapshot rides the one-call bundle (view=), so ConsentPanel
-              fires no second fetch on open — the drawer opens with a single request. */}
-          <ConsentPanel key={entry.id} entryId={entry.id} view={consent} />
+              fires no second fetch on open — the drawer opens with a single request.
+              loadFailed is the bundle's give-up signal: without it a failed fetch left
+              this GDPR panel claiming "loading…" forever (drawer-comms-truth). */}
+          <ConsentPanel key={entry.id} entryId={entry.id} view={consent} loadFailed={bundleFailed} />
 
           <PipelineAiActionsGrid
             actions={actions}

@@ -133,6 +133,44 @@ saved view → confirm), `pipelineBulkConfirm.test.ts`, and `pipelineMoveTargets
 (which also pins that the drawer's "open full match" link is gated on `candidateId`
 like its "edit profile" sibling, instead of rendering and silently no-opping).
 
+## The drawer and the Comms Center tell one delivery truth
+
+The candidate drawer's **Messages** list and the Comms Center render the same rows, so
+they must not disagree about the same message. Two derivations are shared, not
+duplicated — both live in `app/_lib/comms-view.ts`:
+
+| Question | Shared function | Rendered by |
+|---|---|---|
+| What is this message's delivery state? | `commsVerdict` | `channelsCommsHelpers.statusTone` · `PipelineCommsList` |
+| Could a real relay address this recipient at all? | `isUnaddressable` | `ChannelsCommsRows` · `PipelineCommsList` |
+
+`isUnaddressable(m, relayConfigured)` warns only when **all three** hold: the relay is
+known-configured (`useDeliveryCapability() === true` — `null`/`false` stay silent,
+because with no relay every message is a terminal local-outbox row for everyone and
+that is a different, honest situation), `deliverable === false`, and the row is not an
+orphaned relay receipt (which has no candidate address by construction). Both surfaces
+show the same glyph and the same sentence, `channels.comms.noAddressHint`. A genuinely
+queued message *with* a real address still reads neutral.
+
+The drawer also renders the rest of the delivery payload the bundle carries —
+`channel` next to the kind chip, and `bouncedAt` / `recoveredAt` appended to the bounce
+and recovery lines through the same localized relative-time helper. (`status` remains
+deliberately unread: it is audit, not truth — see `candidate-timeline.ts`.)
+
+**Consent panel failure state.** The GDPR "Data & consent" panel rides the one-call
+bundle, so `consent` is initialized `null` — which is also what stops `ConsentPanel`
+firing a second fetch. `null` therefore cannot mean "still loading", and a failed bundle
+fetch used to leave the panel claiming it was working forever. The drawer state hook now
+sets `bundleFailed` on **both** give-up paths (a network throw and a non-OK response) and
+passes it as `loadFailed`; the panel's existing failed branch renders
+`pipeline.drawer.consent.loadFailed`. No second fetch was added.
+
+Pinned by `drawerCommsTruth.test.ts` (the predicate's rules incl. the no-relay and
+unknown-capability cases, an over-correction guard that a queued-but-addressable message
+does not warn, source guards that neither surface re-derives `deliverable === false`
+locally, and that `ConsentPanel` still holds exactly one fetch) and
+`comms-delivery-truth.test.ts` (server-side projection parity).
+
 ## Recommendation / route vocabulary
 
 A closed, single-sourced vocabulary validated at every parse boundary:

@@ -10,6 +10,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { Badge } from "@/app/_components/Badge";
 import { META_LABEL } from "@/app/_components/ui/recipes";
 import { labelize } from "@/app/_lib/format";
+import { isUnaddressable } from "@/app/_lib/comms-view";
 import { ColumnFilter, type Option } from "./ChannelsFilters";
 import { formatRecordedAt, isActionable, statusTone, type Message, type StatusLabels } from "./channelsCommsHelpers";
 
@@ -87,9 +88,10 @@ export function ChannelsCommsRows({
         <tbody>
           {shown.map((m) => {
             const st = statusTone(m, statusLabels);
-            // An unmatched receipt has no candidate address by construction
-            // ("(relay callback)"), so the no-address warning is noise on it.
-            const unaddressable = relayConfigured && m.deliverable === false && !m.orphaned;
+            // ONE predicate, shared with the candidate drawer's Messages list — the
+            // rule (incl. the relayConfigured gate and the orphan exemption) lives in
+            // comms-view.ts so the two surfaces cannot disagree about the same message.
+            const unaddressable = isUnaddressable(m, relayConfigured);
             return (
               <tr
                 key={m.id}

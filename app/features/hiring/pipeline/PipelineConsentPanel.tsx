@@ -27,7 +27,22 @@ type ConsentView = {
 // of its own — the drawer opens with a single request. The self-fetch fallback (by
 // entryId) is retained for any caller that renders the panel WITHOUT the bundle, so
 // the component stays usable standalone.
-export function ConsentPanel({ entryId, view: bundled }: { entryId: string; view?: ConsentView | null }) {
+//
+// `loadFailed` closes the hole that left this panel spinning forever: when the DRAWER
+// owns the load, a failed bundle fetch leaves `view` null, and null previously meant
+// "still loading" — so a GDPR surface that had given up kept implying it was working.
+// The drawer now reports its own failure here (it must not re-fetch: the one-call
+// bundle is deliberate, and `view` staying non-undefined is what suppresses the
+// standalone self-fetch below).
+export function ConsentPanel({
+  entryId,
+  view: bundled,
+  loadFailed,
+}: {
+  entryId: string;
+  view?: ConsentView | null;
+  loadFailed?: boolean;
+}) {
   const t = useTranslations("pipeline.drawer.consent");
   const locale = useLocale();
   // REC-10 — "Expiry reminder sent" is only claimed when a relay can deliver
@@ -93,7 +108,7 @@ export function ConsentPanel({ entryId, view: bundled }: { entryId: string; view
       <p className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-steel">
         <ShieldCheck size={13} /> {t("title")}
       </p>
-      {failed ? (
+      {failed || loadFailed ? (
         <p className="mt-2 text-sm text-steel">{t("loadFailed")}</p>
       ) : !view ? (
         <p className="mt-2 text-sm text-steel">{t("loading")}</p>
