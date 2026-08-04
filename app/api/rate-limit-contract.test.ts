@@ -43,6 +43,12 @@ type RouteSpec = {
   /** The limiter key template exactly as it must appear in the route source. */
   key: string;
   limit: number;
+  /** Source text of the limit expression when the route passes a named constant
+   *  instead of the numeric literal. Pair it with `limitDef` so the constant's
+   *  VALUE stays pinned too — otherwise the contract would only pin a name. */
+  limitSrc?: string;
+  /** The exact defining line for `limitSrc`; must appear before the limiter call. */
+  limitDef?: string;
   /** A snippet marking the expensive work the limiter must precede. */
   expensive: string;
   /** Optional snippet that must run BEFORE the limiter (a branch that keeps serving freely). */
@@ -83,8 +89,14 @@ const ROUTES: RouteSpec[] = [
     rel: "./interview/connect/route.ts",
     // Per-TOKEN (the link is the credential; IP rotation must not reset it).
     // 6/10min = one start + five legitimate reconnects after dropped calls.
+    // Self-hosted voice (ELEVENLABS_BASE_URL → loopback/private) mints nothing
+    // billable, so the route raises the budget to 120/10min there (04ea66be);
+    // the contract pins BOTH values via the defining line, and the behavioral
+    // drive below exercises the hosted budget (6) — the one guarding real spend.
     key: "`interview-connect:${token}`",
     limit: 6,
+    limitSrc: "connectLimit",
+    limitDef: "const connectLimit = isSelfHostedVoice() ? 120 : 6;",
     // The provider connect moved behind the failover helper (round 8) — the
     // helper call IS the expensive work the limiter guards.
     expensive: "connectWithFailover(",
@@ -126,9 +138,17 @@ for (const spec of ROUTES) {
     const src = read(spec.rel);
     assert.match(src, /from "@\/app\/_lib\/rate-limit"/, "must reuse the one shared limiter");
 
-    const call = `rateLimit(${spec.key}, { limit: ${spec.limit}, windowMs: ${windowSrc} })`;
+    const call = `rateLimit(${spec.key}, { limit: ${spec.limitSrc ?? spec.limit}, windowMs: ${windowSrc} })`;
     const at = src.indexOf(call);
     assert.ok(at >= 0, `expected the pinned limiter call:\n  ${call}`);
+
+    // When the limit is a named constant, its defining line (with the pinned
+    // VALUES) must exist and precede the call — the budget stays contract-locked.
+    if (spec.limitDef) {
+      const defAt = src.indexOf(spec.limitDef);
+      assert.ok(defAt >= 0, `expected the pinned limit definition:\n  ${spec.limitDef}`);
+      assert.ok(defAt < at, "the limit definition must precede the limiter call");
+    }
 
     // The refusal must follow the shared 429 convention used by every existing
     // limiter consumer: the shared message, status 429, nothing bespoke.
