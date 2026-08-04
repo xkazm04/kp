@@ -913,6 +913,11 @@
         "override": "Überstimmen",
         "signed": "{time} — Shortlist freigegeben, gezeichnet {name} ✓"
       }
+    },
+    "demoNotice": {
+      "title": "Die Live-Demo ist gerade nicht verfügbar.",
+      "body": "Diese Installation hat die öffentliche Demo nicht aktiviert. Sie können sich aber anmelden und Ihren eigenen Workspace erkunden.",
+      "dismiss": "Schließen"
     }
   },
   "aboutPage": {
@@ -1100,7 +1105,10 @@
     "AGENT_PAIR_FAILED": "Die Kopplung mit Personas ist fehlgeschlagen. Bitte versuchen Sie es erneut.",
     "AGENT_CATALOG_FAILED": "Der Konnektor-Katalog konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
     "AGENT_REFRESH_FAILED": "Der Agentenstatus konnte nicht aktualisiert werden. Bitte versuchen Sie es erneut.",
-    "AGENT_REPORT_FAILED": "Die Agentenmeldung konnte nicht erfasst werden. Bitte versuchen Sie es erneut."
+    "AGENT_REPORT_FAILED": "Die Agentenmeldung konnte nicht erfasst werden. Bitte versuchen Sie es erneut.",
+    "FEEDBACK_INVALID": "Prüfen Sie Nachricht (und E-Mail) und versuchen Sie es erneut.",
+    "FEEDBACK_SAVE_FAILED": "Feedback konnte nicht gesendet werden. Bitte versuchen Sie es erneut.",
+    "FEEDBACK_LIST_FAILED": "Feedback konnte nicht geladen werden. Bitte versuchen Sie es erneut."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -6068,6 +6076,10 @@
         "body": "Unternehmen, Stelle, Arbeitsprobe und Kanäle sind verbunden — viel Erfolg beim Einstellen."
       },
       "optional": "Optional"
+    },
+    "engines": {
+      "claudeFallback": "Die Claude-CLI ist auf diesem Server nicht verfügbar — der AI-Build läuft, aber die Entwürfe stammen aus dem deterministischen Fallback statt vom AI-Autor.",
+      "geminiFallback": "Kein Gemini-API-Schlüssel konfiguriert — die Marktgehaltsrecherche fällt auf die interne Gehaltstabelle zurück (ohne Live-Webquellen)."
     }
   },
   "devcase": {

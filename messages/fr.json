@@ -913,6 +913,11 @@
         "override": "Passer outre",
         "signed": "{time} — présélection validée, signé {name} ✓"
       }
+    },
+    "demoNotice": {
+      "title": "La démo en direct n'est pas disponible pour le moment.",
+      "body": "Cette installation n'a pas activé la démo publique. Vous pouvez tout de même vous connecter et explorer votre propre espace de travail.",
+      "dismiss": "Fermer"
     }
   },
   "aboutPage": {
@@ -1100,7 +1105,10 @@
     "AGENT_PAIR_FAILED": "Impossible de se coupler à Personas. Veuillez réessayer.",
     "AGENT_CATALOG_FAILED": "Impossible de charger le catalogue de connecteurs. Veuillez réessayer.",
     "AGENT_REFRESH_FAILED": "Impossible d'actualiser l'état de l'agent. Veuillez réessayer.",
-    "AGENT_REPORT_FAILED": "Impossible d'enregistrer le rapport de l'agent. Veuillez réessayer."
+    "AGENT_REPORT_FAILED": "Impossible d'enregistrer le rapport de l'agent. Veuillez réessayer.",
+    "FEEDBACK_INVALID": "Vérifiez le message (et l'e-mail) et réessayez.",
+    "FEEDBACK_SAVE_FAILED": "Impossible d'envoyer le retour. Veuillez réessayer.",
+    "FEEDBACK_LIST_FAILED": "Impossible de charger les retours. Veuillez réessayer."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -6068,6 +6076,10 @@
         "body": "Entreprise, poste, cas et canaux sont connectés — bon recrutement."
       },
       "optional": "Facultatif"
+    },
+    "engines": {
+      "claudeFallback": "La CLI Claude n'est pas disponible sur ce serveur — la génération se fera, mais les brouillons viendront du repli déterministe plutôt que de l'IA.",
+      "geminiFallback": "Aucune clé API Gemini n'est configurée — la recherche salariale utilisera le barème interne (sans données web en direct)."
     }
   },
   "devcase": {

@@ -913,6 +913,11 @@
         "override": "Přepsat",
         "signed": "{time} — užší výběr schválen, podepsala {name} ✓"
       }
+    },
+    "demoNotice": {
+      "title": "Živá ukázka teď není dostupná.",
+      "body": "Tato instalace nemá veřejnou ukázku povolenou. Můžete se ale přihlásit a prozkoumat vlastní pracovní prostor.",
+      "dismiss": "Zavřít"
     }
   },
   "aboutPage": {
@@ -1100,7 +1105,10 @@
     "AGENT_PAIR_FAILED": "Nepodařilo se spárovat s Personas. Zkuste to prosím znovu.",
     "AGENT_CATALOG_FAILED": "Nepodařilo se načíst katalog konektorů. Zkuste to prosím znovu.",
     "AGENT_REFRESH_FAILED": "Nepodařilo se obnovit stav agenta. Zkuste to prosím znovu.",
-    "AGENT_REPORT_FAILED": "Nepodařilo se zaznamenat hlášení agenta. Zkuste to prosím znovu."
+    "AGENT_REPORT_FAILED": "Nepodařilo se zaznamenat hlášení agenta. Zkuste to prosím znovu.",
+    "FEEDBACK_INVALID": "Zkontrolujte zprávu (a e-mail) a zkuste to znovu.",
+    "FEEDBACK_SAVE_FAILED": "Zpětnou vazbu se nepodařilo odeslat. Zkuste to prosím znovu.",
+    "FEEDBACK_LIST_FAILED": "Zpětnou vazbu se nepodařilo načíst. Zkuste to prosím znovu."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -6068,6 +6076,10 @@
         "body": "Společnost, role, úloha i kanály jsou zapojené — šťastný nábor."
       },
       "optional": "Volitelné"
+    },
+    "engines": {
+      "claudeFallback": "Claude CLI není na tomto serveru k dispozici — AI sestavení proběhne, ale návrhy vytvoří deterministická záloha, ne AI.",
+      "geminiFallback": "Není nastaven klíč Gemini API — průzkum tržních mezd použije interní tabulku mezd (bez živých webových podkladů)."
     }
   },
   "devcase": {

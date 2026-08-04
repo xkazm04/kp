@@ -913,6 +913,11 @@
         "override": "Override",
         "signed": "{time} — shortlist approved, signed {name} ✓"
       }
+    },
+    "demoNotice": {
+      "title": "The live demo is unavailable right now.",
+      "body": "This deployment doesn't have the public demo enabled. You can still sign in to explore your own workspace.",
+      "dismiss": "Dismiss"
     }
   },
   "aboutPage": {
@@ -1100,7 +1105,10 @@
     "AGENT_PAIR_FAILED": "Could not pair with Personas. Please try again.",
     "AGENT_CATALOG_FAILED": "Could not load the connector catalog. Please try again.",
     "AGENT_REFRESH_FAILED": "Could not refresh the agent status. Please try again.",
-    "AGENT_REPORT_FAILED": "Could not record the agent report. Please try again."
+    "AGENT_REPORT_FAILED": "Could not record the agent report. Please try again.",
+    "FEEDBACK_INVALID": "Check the message (and email) and try again.",
+    "FEEDBACK_SAVE_FAILED": "Could not send feedback. Please try again.",
+    "FEEDBACK_LIST_FAILED": "Could not load feedback. Please try again."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -6068,6 +6076,10 @@
         "body": "Company, role, case, and channels are wired — happy hiring."
       },
       "optional": "Optional"
+    },
+    "engines": {
+      "claudeFallback": "The Claude CLI isn't available on this server — the AI build will run, but drafts will come from the deterministic fallback rather than the AI writer.",
+      "geminiFallback": "No Gemini API key is configured — market-salary research will fall back to the internal salary table (no live web evidence)."
     }
   },
   "devcase": {
