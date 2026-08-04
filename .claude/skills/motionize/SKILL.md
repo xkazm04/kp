@@ -1,6 +1,6 @@
 ---
 name: motionize
-description: Upgrade a generic UI icon or loading/empty state into a traced, motion-animated SVG. Generates flat trace-friendly art (gpt-image), validates it with Qwen vision, vectorizes to a clean multi-path SVG, and renders it through kp's shared MotionizedGlyph + motion-preset library (draw, staggered-draw, fade-pop, float, pulse, hover-response, success-settle). For icon + empty/loading-state visual upgrades — not raw image generation.
+description: Upgrade a generic UI icon or loading/empty state into a traced, motion-animated SVG. Generates flat trace-friendly art (gpt-image), validates it with Qwen vision, vectorizes to a clean multi-path SVG, and renders it through kp's shared MotionizedGlyph + motion-preset library (draw, staggered-draw, fade-pop, float, pulse, hover-response). For icon + empty/loading-state visual upgrades — not raw image generation.
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash(node *), Bash(npx *), Bash(npm *), Bash(cd *)
 argument-hint: <UI surface to upgrade, e.g. "pipeline empty state">
 ---
@@ -136,7 +136,6 @@ the loop's start delay is the second value in the path's inline `animation-delay
 | `float` | loop | translateY ±2px + opacity ±0.06, 5s, alternate — ambient idle | none |
 | `pulse` | loop | accent opacity 0.75→1, 3.5s, alternate — attention/activity | none |
 | `hover-response` | hover | scale 1→1.03, 0.18s — a `transition` on the group, not an animation | no transform |
-| `success-settle` | oneshot | scale 1→1.12→1 overshoot, 0.42s, `cubic-bezier(0.34,1.56,0.64,1)` — fires once on completion, never loops | opacity-only |
 
 ### Composition rules
 
@@ -153,7 +152,11 @@ the loop's start delay is the second value in the path's inline `animation-delay
   - **Loading states** → `pulse` (motion may imply activity ONLY where work is
     actually happening).
   - **Icons / interactive chrome** → static render + `hover-response`.
-  - **Completion moments** → `success-settle`, one-shot, gated on the real event.
+  - **Completion moments** — no preset. `MotionizedGlyph` composes exactly three
+    props (`entrance`/`ambient`/`hover`); a one-shot success overshoot would need a
+    fourth. A `success-settle` preset sat here unreachable until 2026-08 and was
+    removed. Add the prop first, then the preset (`motionPresets.test.ts` enforces
+    the pairing).
 
 ### Taste guardrails
 

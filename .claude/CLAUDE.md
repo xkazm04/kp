@@ -26,7 +26,8 @@ The app ships **two themes from one codebase**: **Studio Light** (default —
 calm, editorial; for corporate clients) and **Spark Dark** (experimental —
 playful, sticker-sheet, derived from the /landing art direction; for creative
 users). `[data-theme="dark"]` on `<html>` re-skins everything through the CSS
-variables in `app/globals.css`; `ThemeToggle` in the sidebar flips it.
+variables in `app/globals.css`; `NavRailPreferences` in the sidebar rail flips
+it (`app/features/shell/nav/NavRailPreferences.tsx`).
 
 When writing or changing components, always assume **both** themes:
 
@@ -48,12 +49,15 @@ When writing or changing components, always assume **both** themes:
   outlines, sticker shadows, tilt, Bricolage display face, spring easing).
   Express a theme difference at the cheapest layer that holds it: token →
   `dark:` variant in a recipe (the `dark:` variant follows `data-theme`, not
-  the OS) → markup fork via a CSS-swapped component like `SectionTitle` (or the
-  `.theme-light-only` / `.theme-dark-only` utilities in `app/globals.css`) →
-  behavioral fork via `useTheme()` (both in `app/_components/ui/`). Never a JS
-  fork where CSS suffices.
-- Verify new surfaces in both themes before finishing (toggle in the sidebar
-  footer).
+  the OS) → markup fork via a CSS-swapped component like `SectionTitle`, whose
+  dark-only squiggle is just `hidden dark:block` (for arbitrary two-version
+  markup use `hidden dark:contents` / `contents dark:hidden` — stock Tailwind;
+  there is no `.theme-light-only`/`.theme-dark-only` utility pair, an earlier
+  revision of this file named one that does not exist) → behavioral fork via
+  `useTheme()` (both in `app/_components/ui/`). Never a JS fork where CSS
+  suffices.
+- Verify new surfaces in both themes before finishing (the appearance control
+  on the sidebar rail).
 
 ## Documentation Sync — update the doc in the same change
 

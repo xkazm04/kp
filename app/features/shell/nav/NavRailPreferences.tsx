@@ -8,9 +8,12 @@
  * missing entirely on the deep-link (link-mode) sidebar. On the rail each one
  * collapses to just its ACTIVE variant (the current theme's glyph, the current
  * locale's code); clicking opens a popup with the variants to switch to. Same
- * plumbing as the old LanguageSwitcher/ThemeToggle (which still serve the public
- * apply pages): setTheme flips data-theme on <html>, setLocale writes the
- * NEXT_LOCALE cookie and the router refresh re-renders the server tree.
+ * plumbing as `LanguageSwitcher`, which still serves the public apply/status
+ * pages: setTheme flips data-theme on <html>, setLocale writes the NEXT_LOCALE
+ * cookie and the router refresh re-renders the server tree. This is now the ONLY
+ * theme switcher in the app — the old `ThemeToggle` it replaced was deleted once
+ * it was found to have no importers (the public pages carry a language switcher
+ * but never carried a theme one).
  *
  * One component owns both menus so opening one closes the other, and so the
  * outside-click/Escape dismissal is written once. The popup opens to the RIGHT of

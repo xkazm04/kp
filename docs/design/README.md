@@ -32,8 +32,9 @@ mechanics below are layered so each kind of difference lives at the cheapest
 level that can express it.
 
 Activation is one attribute: `data-theme="dark"` on `<html>`. The
-`ThemeToggle` in the workspace sidebar flips it, persists the choice to
-`localStorage` (`kp-theme`), and defaults from `prefers-color-scheme`. An
+appearance control on the workspace sidebar rail
+(`app/features/shell/nav/NavRailPreferences.tsx`) flips it, persists the choice
+to `localStorage` (`kp-theme`), and defaults from `prefers-color-scheme`. An
 inline pre-hydration script in `app/layout.tsx` applies the stored theme
 before first paint, so there is no flash.
 
@@ -184,16 +185,24 @@ lowest layer that can hold it**:
 4. **Presentational component forks** — when the *markup* differs (extra
    decoration, alternate layout), not just classes. `SectionTitle` is the
    exemplar: plain serif heading in light, hand-drawn amber squiggle under
-   the title in dark. For arbitrary two-version markup, render both
-   variants and let CSS pick via the `.theme-light-only`/`.theme-dark-only`
-   utilities in `app/globals.css` (`display: contents` — no layout box, no
-   hydration flash, server-safe). The dormant variant stays mounted, so keep
-   anything built this way presentational.
+   the title in dark — the squiggle carries `hidden dark:block`, so CSS, not
+   JS, picks the register. For arbitrary two-version markup, render both
+   variants and pair the stock Tailwind display utilities with the `dark:`
+   variant: `hidden dark:contents` on the dark-only branch, `contents
+   dark:hidden` on the light-only one. `contents` produces no layout box, so
+   the branch drops out of flex/grid parents cleanly; both branches are in the
+   server HTML, so there is no hydration flash. The dormant variant stays
+   mounted, so keep anything built this way presentational.
 
-   > There is **no `ThemeSplit` component**. Earlier revisions of this doc
-   > described one at `app/_components/ui/ThemeSplit.tsx`; it was never built.
-   > The CSS-utility approach above is the actual mechanism. If a wrapper
-   > component gets written, document it here and drop this note.
+   > There is **no `ThemeSplit` component** and **no `.theme-light-only` /
+   > `.theme-dark-only` utility pair**. Earlier revisions of this doc described
+   > both; the component was never built and the CSS classes were deleted
+   > (`docs/harness/code-refactor-2026-06-23/shared-ui-design-system.md`) while
+   > the instruction to use them survived — markup written against them did
+   > nothing in either theme. `hidden dark:contents` / `contents dark:hidden`
+   > above is the mechanism that actually works, and it needs no bespoke CSS:
+   > Tailwind generates the utility from the class it finds in the source, so
+   > it cannot go missing the way a hand-written `globals.css` rule did.
 5. **Behavioral forks** — different effects, handlers, chart configs, or
    animation params per theme: `useTheme()`
    (`app/_components/ui/useTheme.ts`), a client hook over the theme store in
@@ -295,7 +304,7 @@ exemption is a path in the eslint `ignores` list or an entry in the script's
 ## Shared recipes — write once, apply multiple times
 
 `app/_components/ui/recipes.ts` holds the canonical class strings for the
-recurring surfaces — `PANEL`, `PANEL_SUNKEN`, `PANEL_ACCENT`, `SECTION`,
+recurring surfaces — `PANEL`, `PANEL_SUNKEN`, `SECTION`,
 `CARD_PAD`, `DIVIDER`, `PAGE_HEADER`, `EYEBROW`, `TITLE_DISPLAY`, `INTRO`,
 `META_LABEL`, `CHIP`, `CHIP_QUIET`, `CHIP_TOGGLE`, `STAT`/`STAT_LABEL`/
 `STAT_VALUE`, `BTN_PRIMARY`/`BTN_SECONDARY`/`BTN_GHOST`, `ICON_STICKER`,

@@ -23,16 +23,20 @@
 export type EntrancePresetName = "draw" | "staggered-draw" | "fade-pop";
 export type AmbientPresetName = "float" | "pulse";
 export type HoverPresetName = "hover-response";
-export type OneshotPresetName = "success-settle";
 
-export type MotionPresetName =
-  | EntrancePresetName
-  | AmbientPresetName
-  | HoverPresetName
-  | OneshotPresetName;
+/**
+ * Every preset name the renderer can actually reach. There is deliberately no
+ * fourth "oneshot" layer: `MotionizedGlyph` composes exactly three props
+ * (`entrance` / `ambient` / `hover`), so a preset outside those three records
+ * would be documented API that no consumer could ever invoke. A `success-settle`
+ * oneshot lived here unreachably until 2026-08 — `motionPresets.test.ts` now
+ * asserts this union equals the three records' keys, so it cannot come back
+ * without the prop that renders it.
+ */
+export type MotionPresetName = EntrancePresetName | AmbientPresetName | HoverPresetName;
 
 export interface MotionPreset {
-  kind: "entrance" | "loop" | "hover" | "oneshot";
+  kind: "entrance" | "loop" | "hover";
   /** `@keyframes` body (from/to or % steps). The renderer scopes it per instance. */
   keyframes: string;
   /** Seconds. For loops this is the period. */
@@ -134,23 +138,16 @@ export const HOVER_PRESETS: Record<HoverPresetName, MotionPreset> = {
   },
 };
 
-export const ONESHOT_PRESETS: Record<OneshotPresetName, MotionPreset> = {
-  /** Completion overshoot. Fires on the actual event, never loops. */
-  "success-settle": {
-    kind: "oneshot",
-    keyframes: "0% { transform: scale(1); } 55% { transform: scale(1.12); } 100% { transform: scale(1); }",
-    durationS: 0.42,
-    ease: "cubic-bezier(0.34, 1.56, 0.64, 1)",
-    iteration: 1,
-    reduced: "opacity-only",
-  },
-};
-
+/**
+ * Flat registry over the three renderable layers. `MotionizedGlyph` imports the
+ * sub-records (it needs to know which layer a name belongs to); this record is
+ * the lookup for anything that only has a bare preset name — and the surface the
+ * set-equality guard in `motionPresets.test.ts` checks `MotionPresetName` against.
+ */
 export const MOTION_PRESETS: Record<MotionPresetName, MotionPreset> = {
   ...ENTRANCE_PRESETS,
   ...AMBIENT_PRESETS,
   ...HOVER_PRESETS,
-  ...ONESHOT_PRESETS,
 };
 
 /**

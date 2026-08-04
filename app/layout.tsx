@@ -131,7 +131,7 @@ export const viewport: Viewport = {
   ]
 };
 
-// Pre-hydration theme bootstrap (paired with ThemeToggle + the
+// Pre-hydration theme bootstrap (paired with NavRailPreferences + the
 // [data-theme="dark"] seam in globals.css). Runs inline before first paint:
 // an explicit choice in localStorage wins, otherwise prefers-color-scheme
 // decides — so a dark-theme user never sees a light flash. Must stay a plain

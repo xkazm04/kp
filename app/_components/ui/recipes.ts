@@ -29,12 +29,6 @@ export const PANEL = "rounded-lg border border-stone-200 bg-white shadow-panel";
  *  recessed against a white PANEL. */
 export const PANEL_SUNKEN = "rounded-lg border border-stone-200 bg-stone-50 dark:rounded-2xl";
 
-/** Accent / chrome surface — verdict banners, callouts, stat clusters, CTAs.
- *  Carries more confidence than PANEL: a drawn 2px border + the offset "pop"
- *  shadow. Reserve for CHROME, never data-dense surfaces — those stay on PANEL
- *  so the board/table register keeps its calm (the Studio Light contract). */
-export const PANEL_ACCENT = "rounded-xl border-2 border-stone-300 bg-white shadow-pop";
-
 /* ── Composition (Option C) — the studio rhythm. One spacing scale, one card
  *    padding default, one ruled header, so sections read as a deliberate
  *    editorial grid on the cream canvas instead of ad-hoc clusters. ── */
@@ -122,8 +116,8 @@ export const BTN_SECONDARY =
 export const FIELD =
   "rounded-md border border-stone-200 bg-white px-3 py-1.5 text-base text-ink placeholder:text-steel caret-coral";
 
-/** Segmented aria-pressed toggle group wrapper (ThemeToggle / LanguageSwitcher
- *  sidebar footer toggles). The bordered pill rail; pair with role="group". Note
+/** Segmented aria-pressed toggle group wrapper (`LanguageSwitcher` on the public
+ *  pages, the org language picker). The bordered pill rail; pair with role="group". Note
  *  these use button-group (aria-pressed) semantics — distinct from the shared
  *  SegmentedControl's radiogroup/roving-tabindex contract — so only the class
  *  strings are shared, not the component. */
