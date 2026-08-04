@@ -114,6 +114,15 @@ export const STORE_ERRORS = {
   COMMAND_FAILED: "Could not run that command. Please try again.",
   // Cross-company reference tier (Phase 2) — the org-wide hiring benchmark (org_id-join).
   BENCHMARK_FAILED: "Could not load the org benchmark. Please try again.",
+  // Agent-candidate bridge routes — all sit on better-sqlite3 + external fetches
+  // whose thrown errors can embed internal detail.
+  AGENT_FIT_FAILED: "Could not start the agent-fit analysis. Please try again.",
+  AGENT_DISPATCH_FAILED: "Could not dispatch the agent to Personas. Please try again.",
+  AGENT_LIST_FAILED: "Could not load the agent roster. Please try again.",
+  AGENT_BRIDGE_FAILED: "Could not load the Personas bridge status. Please try again.",
+  AGENT_PAIR_FAILED: "Could not pair with Personas. Please try again.",
+  AGENT_REFRESH_FAILED: "Could not refresh the agent status. Please try again.",
+  AGENT_REPORT_FAILED: "Could not record the agent report. Please try again.",
 } as const;
 
 export type StoreErrorCode = keyof typeof STORE_ERRORS;

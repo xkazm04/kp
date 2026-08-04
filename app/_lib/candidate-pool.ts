@@ -108,6 +108,13 @@ export function resolveCandidatePoolEntry(
   label?: string,
   workspaceId: string = DEFAULT_WORKSPACE_ID
 ): CandidatePoolEntry | null {
+  // Agent-candidate bridge exclusion: a hired AI agent's pipeline row carries
+  // candidateId "agent-<id>" and creates NO profile/analysis row, so it can never
+  // resolve here today — but the prefix is reserved and guarded explicitly so no
+  // future id collision or store change can rank an agent among human candidates
+  // (buildCandidatePool is safe by construction: it reads only profile/analysis
+  // stores, which agents never write).
+  if (candidateId.startsWith("agent-")) return null;
   const profile = getProfileRecord(candidateId, workspaceId);
   if (profile) return { id: candidateId, label: label ?? profile.row.label, profile: profile.payload };
   const analysis = loadAnalysis(candidateId, workspaceId);

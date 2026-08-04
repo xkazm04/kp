@@ -716,6 +716,77 @@ export function ensureDb(): Database.Database {
 
     CREATE INDEX IF NOT EXISTS idx_billing_credits_meter ON billing_credits (meter);
     CREATE INDEX IF NOT EXISTS idx_billing_alerts_open ON billing_alerts (resolved_at);
+
+    -- Agent-candidate bridge (db/agents.ts): hire an AI agent for a job via the
+    -- external Personas app. agent_fit_specs holds the durable job→AgentFitSpec
+    -- transform artifact (append-only; latest-per-job read — the campaign_packs
+    -- durable-artifact pattern, but versioned rather than upserted so an operator
+    -- edit dispatches from a spec the next transform can't silently clobber).
+    CREATE TABLE IF NOT EXISTS agent_fit_specs (
+      id TEXT PRIMARY KEY,
+      workspace_id TEXT NOT NULL DEFAULT 'workspace',
+      job_id TEXT NOT NULL,
+      fit_json TEXT NOT NULL,
+      spec_json TEXT NOT NULL,
+      budget_json TEXT NOT NULL,
+      metrics_json TEXT NOT NULL,
+      source TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_agent_fit_specs_job ON agent_fit_specs (workspace_id, job_id, created_at);
+
+    -- The hired-agent roster: one row per persona request dispatched to Personas.
+    -- report_token is the CSPRNG capability the PUBLIC inbound report route
+    -- authenticates by (channel_webhooks doctrine: the token IS the auth, minted
+    -- by randomToken, never randomId). persona_id/name arrive later via
+    -- lifecycle reports; request_id is Personas' approval id.
+    CREATE TABLE IF NOT EXISTS hired_agents (
+      id TEXT PRIMARY KEY,
+      workspace_id TEXT NOT NULL DEFAULT 'workspace',
+      job_id TEXT NOT NULL,
+      job_title TEXT NOT NULL,
+      persona_id TEXT,
+      persona_name TEXT,
+      request_id TEXT,
+      status TEXT NOT NULL DEFAULT 'dispatched',
+      spec_json TEXT NOT NULL,
+      fit_json TEXT,
+      metrics_json TEXT,
+      budget_usd REAL,
+      report_token TEXT NOT NULL UNIQUE,
+      created_at TEXT NOT NULL,
+      updated_at TEXT
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_hired_agents_ws_job ON hired_agents (workspace_id, job_id);
+
+    -- The inbound cost/activity ledger: per-run execution events (exec_id keyed —
+    -- the durable idempotency handle), period rollups (UPSERT by
+    -- (hired_agent_id, period), the incrementBillingUsage pattern) and lifecycle
+    -- events. connector_uses_json: [{connector, calls}].
+    CREATE TABLE IF NOT EXISTS agent_activity (
+      id TEXT PRIMARY KEY,
+      workspace_id TEXT NOT NULL DEFAULT 'workspace',
+      hired_agent_id TEXT NOT NULL,
+      kind TEXT NOT NULL,
+      ts TEXT NOT NULL,
+      exec_id TEXT,
+      cost_usd REAL,
+      tokens_in INTEGER,
+      tokens_out INTEGER,
+      status TEXT,
+      duration_ms INTEGER,
+      connector_uses_json TEXT,
+      period TEXT,
+      raw_json TEXT
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_agent_activity_agent ON agent_activity (workspace_id, hired_agent_id, ts);
+    -- Durable idempotency: an execution report replayed with the same exec_id, or a
+    -- rollup re-sent for the same period, can never double-count.
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_agent_activity_exec ON agent_activity (hired_agent_id, exec_id) WHERE exec_id IS NOT NULL;
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_agent_activity_rollup ON agent_activity (hired_agent_id, period) WHERE kind = 'rollup';
   `);
   // Run a DDL migration, swallowing ONLY the benign "already applied" error (re-running
   // ADD COLUMN / CREATE on a DB that already has the column). Any OTHER failure —

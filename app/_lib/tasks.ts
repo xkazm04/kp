@@ -32,6 +32,7 @@ export { RECENT_TASK_WINDOW_DAYS } from "./tasks-window";
 import { runGroupEval } from "./group-eval-run";
 import { runJdBuild } from "./jd-build-run";
 import { runInterviewPrep } from "./interview-prep-run";
+import { runAgentFit } from "./agent-hire/transform-run";
 import { randomId } from "./random-id";
 import { buildDedupeKey } from "./task-dedupe";
 
@@ -197,6 +198,11 @@ const HANDLERS: Record<string, Spec> = {
   interview_prep: {
     run: (ctx) => runInterviewPrep(ctx.params, ctx.signal, ctx.workspaceId),
     label: (p) => `Interview prep · ${p.candidateLabel ?? p.entryId ?? ""}`,
+  },
+  // Agent-candidate bridge: job → AgentFitSpec transform (agent-hire/transform-run.ts).
+  agent_fit: {
+    run: (ctx) => runAgentFit(String(ctx.params.jobId), ctx.signal, ctx.workspaceId),
+    label: (p) => `Agent fit · ${p.jobTitle ?? p.jobId ?? ""}`,
   },
 };
 

@@ -40,6 +40,7 @@ export const LLM_USE_CASES = [
   "devcase_seed",
   "weight_proposal",
   "interview_scorecard",
+  "agent_fit",
   "github_analysis",
   "cv_analysis",
   "profile_extract",
