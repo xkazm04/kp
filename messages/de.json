@@ -1305,7 +1305,8 @@
       "about": "Über",
       "billing": "Abrechnung",
       "models": "Modelle",
-      "integrations": "Integrationen"
+      "integrations": "Integrationen",
+      "agents": "Agenten"
     },
     "groups": {
       "hiring": "Recruiting",
@@ -3020,7 +3021,8 @@
       "tabCompare": "Vergleichen",
       "createCampaignPack": "Kampagnenpaket erstellen",
       "viewCampaignPack": "Kampagnenpaket ansehen",
-      "withdrawFailed": "Stelle geschlossen, aber die laufenden Kandidat/innen konnten nicht zurückgezogen werden — prüfen Sie die Pipeline."
+      "withdrawFailed": "Stelle geschlossen, aber die laufenden Kandidat/innen konnten nicht zurückgezogen werden — prüfen Sie die Pipeline.",
+      "tabAgentFit": "Agenten-Eignung"
     },
     "coach": {
       "loadFailed": "Diese Stelle konnte nicht bewertet werden.",
@@ -5019,6 +5021,33 @@
       "saving": "Wird gespeichert…",
       "saved": "Verbindung gespeichert.",
       "saveFailed": "Die Verbindung konnte nicht gespeichert werden."
+    },
+    "personas": {
+      "title": "Personas-Brücke",
+      "intro": "Stellen Sie KI-Agenten für Ihre Positionen über die Personas-Desktop-App auf diesem Rechner ein. Das Pairing genehmigen Sie selbst in Personas; der ausgetauschte Schlüssel wird verschlüsselt gespeichert und nie wieder angezeigt.",
+      "loadFailed": "Die Personas-Verbindung konnte nicht geladen werden.",
+      "retry": "Erneut versuchen",
+      "statusConnected": "Verbunden",
+      "statusNotConnected": "Nicht verbunden",
+      "lastOk": "Letzter Kontakt {time}",
+      "envManaged": "Diese Verbindung wird über die Umgebungsvariablen PERSONAS_BRIDGE_URL / PERSONAS_BRIDGE_KEY gesetzt — verwalten Sie sie in Ihrer Deployment-Konfiguration.",
+      "connect": "Mit Personas verbinden",
+      "connectHint": "Personas bittet Sie, das Pairing zu genehmigen.",
+      "waitingTitle": "Genehmigen Sie die Anfrage in der Personas-App",
+      "waitingBody": "kp hat Personas um ein Pairing gebeten. Wechseln Sie in die Personas-Desktop-App und genehmigen Sie die Anfrage — diese Karte prüft weiter und schließt von selbst ab.",
+      "waitingCancel": "Abbrechen",
+      "timeoutTitle": "Pairing abgelaufen",
+      "timeoutBody": "Die Anfrage verfällt nach 5 Minuten (Personas hält sie nur im Speicher). Starten Sie erneut und genehmigen Sie zügig.",
+      "retryPair": "Erneut versuchen",
+      "pairFailed": "Pairing fehlgeschlagen — läuft die Personas-Desktop-App?",
+      "paired": "Mit Personas gekoppelt.",
+      "repair": "Neu koppeln",
+      "disconnect": "Trennen",
+      "disconnecting": "Wird getrennt…",
+      "disconnected": "Getrennt — der gespeicherte Schlüssel wurde entfernt.",
+      "disconnectFailed": "Trennen fehlgeschlagen.",
+      "baseUrlLabel": "Personas-URL",
+      "baseUrlHint": "Leer lassen für den Standard — die lokale Personas-App unter http://127.0.0.1:9420. Wird beim Verbinden übernommen."
     }
   },
   "billing": {
@@ -5805,5 +5834,120 @@
   "rubricCoverage": {
     "no_family": "Generische Rubrik — für diese Person ist keine Rollenfamilie hinterlegt, daher konnten die branchenspezifischen Achsen (klinisches Urteil, Arbeitssicherheit, wissenschaftliche Sorgfalt …) nicht ergänzt werden. Sie bewerten nur die Basisrubrik.",
     "family_unrecognized": "Unbekannte Rollenfamilie „{family}“ — sie steht nicht in der kanonischen Taxonomie, daher konnten keine branchenspezifischen Achsen zugeordnet werden. Sie bewerten nur die Basisrubrik."
+  },
+  "agentFit": {
+    "loadFailed": "Agenten-Eignungsdaten konnten nicht geladen werden.",
+    "retry": "Erneut versuchen",
+    "notConnected": "Personas ist nicht verbunden — Sie können die Eignung prüfen, für die Entsendung eines Agenten ist aber das Pairing nötig.",
+    "goToIntegrations": "Integrationen öffnen",
+    "runCta": "Agenten-Eignung prüfen",
+    "rerunCta": "Neu prüfen",
+    "running": "Diese Position wird geprüft…",
+    "runningHint": "Die Position wird in Verantwortlichkeiten zerlegt und der Agent entworfen, der sich für den abdeckbaren Teil lohnt. Läuft im Hintergrund — Sie können den Dialog schließen.",
+    "runFailed": "Die Prüfung konnte nicht gestartet werden.",
+    "emptyTitle": "Noch keine Prüfung",
+    "emptyBody": "Sehen Sie, welche Verantwortlichkeiten dieser Position ein KI-Agent übernehmen könnte, was seine Einstellung kosten würde, und entsenden Sie ihn nach Personas.",
+    "fallbackNote": "Heuristische Einschätzung — kein KI-Modell war erreichbar, dies ist eine Schlagwort-Schätzung und das Urteil bleibt unbewertet. Prüfen Sie neu, sobald ein Modell konfiguriert ist.",
+    "dispatchCta": "Nach Personas entsenden",
+    "dispatching": "Wird entsendet…",
+    "dispatchFailed": "Entsendung nach Personas fehlgeschlagen.",
+    "dispatchNeedsPairing": "Koppeln Sie kp unter Einstellungen → Integrationen mit Personas, um zu entsenden.",
+    "existingAgent": "Für diese Position ist bereits ein Agent unterwegs — siehe Status oben.",
+    "refreshFailed": "Der Status konnte nicht aktualisiert werden.",
+    "verdict": {
+      "heading": "Eignungsurteil",
+      "aria": "Agenten-Eignung: {verdict}",
+      "ratio": "{percent} % der Verantwortlichkeiten abdeckbar",
+      "complete": "Vollständig",
+      "temporary": "Vorübergehend",
+      "unassessed": "Unbewertet",
+      "framingComplete": "Ein Agent kann diese Position vollständig übernehmen — jede Verantwortlichkeit ist automatisierbar oder assistiert.",
+      "framingTemporary": "Ein Agent kann einen Teil der Position abdecken, während Sie für den Rest weiter einstellen.",
+      "framingUnassessed": "Zu wenig Signal für ein Urteil — die Abdeckung unten ist eine Schlagwort-Heuristik, kein Urteil."
+    },
+    "coverage": {
+      "heading": "Abdeckung der Verantwortlichkeiten",
+      "automatable": "automatisierbar",
+      "assisted": "assistiert",
+      "humanOnly": "nur Mensch",
+      "unknown": "nicht zugeordnet"
+    },
+    "spec": {
+      "heading": "Agenten-Spezifikation",
+      "nameLabel": "Name",
+      "missionLabel": "Mission",
+      "connectorsLabel": "Konnektoren",
+      "noConnectors": "Keine Konnektoren ausgewählt",
+      "addConnector": "Konnektor hinzufügen",
+      "removeConnector": "{name} entfernen",
+      "budgetLabel": "Monatsbudget (USD)",
+      "budgetInvalid": "Geben Sie eine nicht negative Zahl ein oder lassen Sie das Feld leer (kein Limit).",
+      "budgetSuggested": "Vorschlag: {amount, number, ::currency/USD}",
+      "budgetNoSuggestion": "Kein Vorschlag — die Position hat kein Gehaltsband.",
+      "metricsLabel": "Erfolgsmetriken"
+    },
+    "status": {
+      "heading": "Einstellungsstatus",
+      "refresh": "Aktualisieren",
+      "refreshing": "Wird aktualisiert…",
+      "approveHint": "Genehmigen Sie die Anfrage in der Personas-App — der Status wandert von selbst weiter, sobald Personas zurückmeldet.",
+      "step": {
+        "dispatched": "Entsendet",
+        "pending_approval": "Freigabe in Personas",
+        "onboarding": "Onboarding",
+        "active": "Aktiv"
+      },
+      "terminal": {
+        "rejected": "Die Anfrage wurde in Personas abgelehnt. Passen Sie die Spezifikation an und entsenden Sie erneut.",
+        "failed": "Entsendung fehlgeschlagen — Personas war nicht erreichbar oder hat die Anfrage abgewiesen. Prüfen Sie die Verbindung und versuchen Sie es erneut.",
+        "retired": "Dieser Agent wurde außer Dienst gestellt."
+      }
+    }
+  },
+  "agentsWorkforce": {
+    "eyebrow": "Belegschaft",
+    "title": "Agenten",
+    "intro": "Die über Ihre Positionen eingestellten KI-Agenten — Lebenszyklus-Status, Ausgaben gegen Budget und ob sie die Erwartungen erfüllen, für die sie eingestellt wurden.",
+    "loadFailed": "Die Agentenliste konnte nicht geladen werden.",
+    "retry": "Erneut versuchen",
+    "emptyUnpairedTitle": "Personas ist nicht verbunden",
+    "emptyUnpairedBody": "Die Einstellung von Agenten läuft über die Personas-Desktop-App. Einmal koppeln, und der Tab „Agenten-Eignung“ jeder Position kann entsenden.",
+    "emptyUnpairedLink": "Personas-Brücke einrichten",
+    "emptyNoneTitle": "Noch keine Agenten eingestellt",
+    "emptyNoneBody": "Öffnen Sie eine Position, führen Sie den Tab „Agenten-Eignung“ aus und entsenden Sie die Spezifikation — die Einstellung erscheint hier mit Live-Zählern.",
+    "emptyNoneLink": "Stellen durchsuchen",
+    "col": {
+      "agent": "Agent",
+      "role": "Position",
+      "spend": "Monatsausgaben",
+      "runs": "Läufe",
+      "connectors": "Konnektoren",
+      "expectations": "Erwartungen"
+    },
+    "spendNote": "Ausgaben meldet das Anbieter-CLI selbst — bei Abo-Authentifizierung kann hier 0 $ stehen.",
+    "spendOfBudget": "{spent} von {budget}",
+    "runsCount": "{count, plural, one {# Lauf} other {# Läufe}}",
+    "successRate": "{rate} % Erfolg",
+    "noRuns": "Noch keine Läufe",
+    "moreConnectors": "+{count} weitere",
+    "expectationsMet": "{met}/{total} erfüllt",
+    "expectationsNoData": "Noch keine Daten",
+    "status": {
+      "dispatched": "Entsendet",
+      "pendingApproval": "Freigabe ausstehend",
+      "onboarding": "Onboarding",
+      "active": "Aktiv",
+      "rejected": "Abgelehnt",
+      "failed": "Fehlgeschlagen",
+      "retired": "Außer Dienst"
+    },
+    "detail": {
+      "mission": "Mission",
+      "metricsHeading": "Erwartungen vs. Ist",
+      "noMetrics": "Für diesen Agenten wurden keine Erfolgsmetriken gesetzt.",
+      "noData": "noch keine Daten",
+      "refresh": "Status aktualisieren",
+      "refreshing": "Wird aktualisiert…"
+    }
   }
 }

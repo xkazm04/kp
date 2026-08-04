@@ -34,9 +34,12 @@ export function deriveChords(): Chord[] {
   const keysById = new Map<WorkspaceTabId, string[]>();
   const overflow: WorkspaceTabDef[] = [];
 
-  // Pass 1 — single letters (unchanged from the original derivation).
+  // Pass 1 — single letters (unchanged from the original derivation). A def
+  // marked chordOverflow (a tab added inside an early group AFTER the singles
+  // were pinned) skips straight to Pass 2 so it can't steal a later tab's
+  // pinned letter — see the WorkspaceTabDef comment in tabs.ts.
   for (const def of tabs) {
-    const key = firstFreeIdLetter(def.id, singleTaken);
+    const key = def.chordOverflow ? undefined : firstFreeIdLetter(def.id, singleTaken);
     if (key) {
       singleTaken.add(key);
       keysById.set(def.id, [key]);

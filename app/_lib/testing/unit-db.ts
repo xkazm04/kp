@@ -48,6 +48,11 @@ for (const key of [
   "DATABASE_URL",
   "KP_DB_BACKEND",
   "KP_OFFLINE",
+  // A dev shell paired with a live Personas app would flip resolveBridge() to
+  // "env" and make bridge/dispatch tests hit a real endpoint. Tests that need
+  // the override set it explicitly.
+  "PERSONAS_BRIDGE_URL",
+  "PERSONAS_BRIDGE_KEY",
 ]) {
   delete process.env[key];
 }

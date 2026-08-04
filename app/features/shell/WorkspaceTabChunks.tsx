@@ -34,6 +34,7 @@ const MatchTab = dynamic(() => import("../tools/match/MatchTab").then((m) => ({ 
 const MatrixTab = dynamic(() => import("../insights/matrix/MatrixTab").then((m) => ({ default: m.MatrixTab })), { loading });
 const AnalyticsTab = dynamic(() => import("../insights/analytics/AnalyticsTab").then((m) => ({ default: m.AnalyticsTab })), { loading });
 const PipelineTab = dynamic(() => import("../hiring/pipeline/PipelineTab").then((m) => ({ default: m.PipelineTab })), { loading });
+const AgentsWorkforceTab = dynamic(() => import("../agents-workforce/AgentsWorkforceTab").then((m) => ({ default: m.AgentsWorkforceTab })), { loading });
 const ChannelsTab = dynamic(() => import("../hiring/channels/ChannelsTab").then((m) => ({ default: m.ChannelsTab })), { loading });
 const DevTab = dynamic(() => import("../tools/devcases/DevTab").then((m) => ({ default: m.DevTab })), { loading });
 const ProfileTab = dynamic(() => import("../tools/profile/ProfileTab").then((m) => ({ default: m.ProfileTab })), { loading });
@@ -59,6 +60,7 @@ export function WorkspaceTabPanel({ navActive, active }: { navActive: WorkspaceT
         {navActive === "decisions" ? <DecisionsTab /> : null}
         {navActive === "schedule" ? <ScheduleTab /> : null}
         {navActive === "onboarding" ? <OnboardingTab /> : null}
+        {navActive === "agents" ? <AgentsWorkforceTab /> : null}
         {navActive === "profile" ? <ProfileTab /> : null}
         {navActive === "match" ? <MatchTab /> : null}
         {navActive === "interview" ? <InterviewSimTab /> : null}

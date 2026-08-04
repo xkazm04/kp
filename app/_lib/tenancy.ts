@@ -184,6 +184,16 @@ export const TENANCY_SCOPED_TABLES: ReadonlySet<string> = new Set([
   // never sees or edits another team's private template; the org-wide default lives only
   // on org rows. No by-id exemptions (templates-tenancy.test.ts).
   "jd_templates",
+  // Agent-candidate bridge (db/agents.ts): the per-team job→AgentFitSpec artifacts,
+  // the hired-agent roster (spec + budget + the report capability token) and the
+  // inbound cost/activity ledger. Every recruiter-facing read/write filters
+  // workspace_id; the PUBLIC report route's by-report-token lookup is the one
+  // exemption (the CSPRNG token is the capability — channel_webhooks doctrine),
+  // and the resolved row supplies the workspace all its writes scope to
+  // (agents-tenancy.test.ts).
+  "agent_fit_specs",
+  "hired_agents",
+  "agent_activity",
   // Phase 2 — the dual-tier hiring policy (decision-config-store.ts, a lazy store). ORG-DEFAULT
   // rows (workspace_id NULL — the company baseline every team inherits: screening rules +
   // compliance jurisdiction) + TEAM OVERRIDE rows (workspace_id = team). Reads CASCADE (the
@@ -234,6 +244,12 @@ export const TENANCY_EXEMPT_TABLES: ReadonlySet<string> = new Set([
   // per-candidate rows it produces land in ats_links, which IS workspace-scoped.
   "ats_connections",
   "comms_relay_config", // the org's outbound comms delivery relay (one endpoint; sibling of ats_config)
+  // Agent-candidate bridge config (agent-hire/bridge-store.ts): the Personas desktop
+  // app's base URL + encrypted pk_ API key + paired flag — deployment-level
+  // integration config exactly like ats_connections (connected once for the
+  // company, holds no candidate data; the per-tenant rows it produces land in
+  // hired_agents/agent_activity, which ARE workspace-scoped).
+  "personas_bridge",
   "login_attempts", // brute-force throttle counters keyed by email/IP — deployment-global, no tenant dimension
   "llm_usage", // deployment-level LLM metering ledger (sibling of billing_usage; written off-request from Python)
   "scheduler", // global background-job scheduler state (ONE clock; its toggle's blast radius is the whole installation — operator-gated, see scheduler-store.ts)
@@ -288,6 +304,7 @@ export const TENANCY_LAZY_TABLES: ReadonlySet<string> = new Set([
   "onboarding_signatures",
   "onboarding_task_states",
   "onboarding_templates",
+  "personas_bridge",
   "rediscovery_alerts",
   "schedule_invites",
   "scheduler",

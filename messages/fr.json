@@ -1305,7 +1305,8 @@
       "about": "À propos",
       "billing": "Facturation",
       "models": "Modèles",
-      "integrations": "Intégrations"
+      "integrations": "Intégrations",
+      "agents": "Agents"
     },
     "groups": {
       "hiring": "Recrutement",
@@ -3020,7 +3021,8 @@
       "tabCompare": "Comparer",
       "createCampaignPack": "Créer le pack de campagne",
       "viewCampaignPack": "Voir le pack de campagne",
-      "withdrawFailed": "Poste fermé, mais ses candidats en cours n'ont pas pu être retirés — vérifiez le pipeline."
+      "withdrawFailed": "Poste fermé, mais ses candidats en cours n'ont pas pu être retirés — vérifiez le pipeline.",
+      "tabAgentFit": "Adéquation agent"
     },
     "coach": {
       "loadFailed": "Impossible d'évaluer ce poste.",
@@ -5019,6 +5021,33 @@
       "saving": "Enregistrement…",
       "saved": "Connexion enregistrée.",
       "saveFailed": "Impossible d'enregistrer la connexion."
+    },
+    "personas": {
+      "title": "Pont Personas",
+      "intro": "Recrutez des agents IA pour vos postes via l'application de bureau Personas sur cette machine. L'appairage est approuvé par vous dans Personas ; la clé échangée est stockée chiffrée et ne s'affiche plus jamais.",
+      "loadFailed": "Impossible de charger la connexion Personas.",
+      "retry": "Réessayer",
+      "statusConnected": "Connecté",
+      "statusNotConnected": "Non connecté",
+      "lastOk": "Dernier contact {time}",
+      "envManaged": "Cette connexion est définie par les variables d'environnement PERSONAS_BRIDGE_URL / PERSONAS_BRIDGE_KEY — gérez-la dans la configuration de votre déploiement.",
+      "connect": "Se connecter à Personas",
+      "connectHint": "Personas vous demandera d'approuver l'appairage.",
+      "waitingTitle": "Approuvez la demande dans l'application Personas",
+      "waitingBody": "kp a demandé l'appairage à Personas. Passez dans l'application de bureau Personas et approuvez la demande — cette carte vérifie en continu et se termine d'elle-même.",
+      "waitingCancel": "Annuler",
+      "timeoutTitle": "Appairage expiré",
+      "timeoutBody": "La demande expire après 5 minutes (Personas ne la garde qu'en mémoire). Recommencez et approuvez sans tarder.",
+      "retryPair": "Réessayer",
+      "pairFailed": "Échec de l'appairage — l'application de bureau Personas est-elle lancée ?",
+      "paired": "Appairé avec Personas.",
+      "repair": "Réappairer",
+      "disconnect": "Déconnecter",
+      "disconnecting": "Déconnexion…",
+      "disconnected": "Déconnecté — la clé stockée a été supprimée.",
+      "disconnectFailed": "Échec de la déconnexion.",
+      "baseUrlLabel": "URL de Personas",
+      "baseUrlHint": "Laissez vide pour la valeur par défaut — l'application Personas locale sur http://127.0.0.1:9420. Appliquée à la connexion."
     }
   },
   "billing": {
@@ -5805,5 +5834,120 @@
   "rubricCoverage": {
     "no_family": "Barème générique — aucune famille de postes n'est renseignée pour ce candidat, les axes propres au métier (jugement clinique, sécurité, rigueur scientifique…) n'ont donc pas pu être ajoutés. Vous n'évaluez que le barème de base.",
     "family_unrecognized": "Famille de postes inconnue « {family} » — elle ne figure pas dans la taxonomie canonique, aucun axe propre au métier n'a donc pu être associé. Vous n'évaluez que le barème de base."
+  },
+  "agentFit": {
+    "loadFailed": "Impossible de charger les données d'adéquation agent.",
+    "retry": "Réessayer",
+    "notConnected": "Personas n'est pas connecté — vous pouvez évaluer l'adéquation, mais l'envoi d'un agent nécessite l'appairage.",
+    "goToIntegrations": "Ouvrir les intégrations",
+    "runCta": "Évaluer l'adéquation agent",
+    "rerunCta": "Réévaluer",
+    "running": "Évaluation du poste…",
+    "runningHint": "Le poste est découpé en responsabilités et l'agent à recruter pour la part couvrable est esquissé. S'exécute en arrière-plan — vous pouvez fermer la fenêtre.",
+    "runFailed": "Impossible de lancer l'évaluation.",
+    "emptyTitle": "Pas encore d'évaluation",
+    "emptyBody": "Voyez quelles responsabilités de ce poste un agent IA pourrait assumer, ce que coûterait son recrutement, et envoyez-le à Personas.",
+    "fallbackNote": "Évaluation heuristique — aucun modèle IA n'était joignable : il s'agit d'une estimation par mots-clés et le verdict reste non évalué. Réévaluez une fois un modèle configuré.",
+    "dispatchCta": "Envoyer à Personas",
+    "dispatching": "Envoi…",
+    "dispatchFailed": "L'envoi à Personas a échoué.",
+    "dispatchNeedsPairing": "Appairez kp avec Personas dans Réglages → Intégrations avant d'envoyer.",
+    "existingAgent": "Un agent pour ce poste est déjà en cours — voir son statut ci-dessus.",
+    "refreshFailed": "Impossible d'actualiser le statut.",
+    "verdict": {
+      "heading": "Verdict d'adéquation",
+      "aria": "Adéquation agent : {verdict}",
+      "ratio": "{percent} % des responsabilités couvrables",
+      "complete": "Complète",
+      "temporary": "Temporaire",
+      "unassessed": "Non évaluée",
+      "framingComplete": "Un agent peut assumer ce poste de bout en bout — chaque responsabilité est automatisable ou assistée.",
+      "framingTemporary": "Un agent peut couvrir une partie du poste pendant que vous continuez à recruter pour le reste.",
+      "framingUnassessed": "Signal insuffisant pour juger — la couverture ci-dessous est une heuristique par mots-clés, pas un verdict."
+    },
+    "coverage": {
+      "heading": "Couverture des responsabilités",
+      "automatable": "automatisable",
+      "assisted": "assistée",
+      "humanOnly": "humain uniquement",
+      "unknown": "non classée"
+    },
+    "spec": {
+      "heading": "Spécification de l'agent",
+      "nameLabel": "Nom",
+      "missionLabel": "Mission",
+      "connectorsLabel": "Connecteurs",
+      "noConnectors": "Aucun connecteur sélectionné",
+      "addConnector": "Ajouter un connecteur",
+      "removeConnector": "Retirer {name}",
+      "budgetLabel": "Budget mensuel (USD)",
+      "budgetInvalid": "Saisissez un nombre positif ou laissez vide (sans plafond).",
+      "budgetSuggested": "Suggestion : {amount, number, ::currency/USD}",
+      "budgetNoSuggestion": "Pas de suggestion — le poste n'a pas de fourchette salariale.",
+      "metricsLabel": "Métriques de réussite"
+    },
+    "status": {
+      "heading": "Statut du recrutement",
+      "refresh": "Actualiser",
+      "refreshing": "Actualisation…",
+      "approveHint": "Approuvez la demande dans l'application Personas — le statut avance de lui-même dès que Personas répond.",
+      "step": {
+        "dispatched": "Envoyé",
+        "pending_approval": "Approbation dans Personas",
+        "onboarding": "Onboarding",
+        "active": "Actif"
+      },
+      "terminal": {
+        "rejected": "La demande a été rejetée dans Personas. Ajustez la spécification et renvoyez-la.",
+        "failed": "Envoi échoué — Personas était injoignable ou a refusé la demande. Vérifiez la connexion et réessayez.",
+        "retired": "Cet agent a été retiré."
+      }
+    }
+  },
+  "agentsWorkforce": {
+    "eyebrow": "Effectifs",
+    "title": "Agents",
+    "intro": "Les agents IA recrutés via vos postes — statut du cycle de vie, dépense contre budget et respect des attentes pour lesquelles ils ont été recrutés.",
+    "loadFailed": "Impossible de charger la liste des agents.",
+    "retry": "Réessayer",
+    "emptyUnpairedTitle": "Personas n'est pas connecté",
+    "emptyUnpairedBody": "Le recrutement d'agents passe par l'application de bureau Personas. Appairez-la une fois et l'onglet « Adéquation agent » de chaque poste pourra envoyer.",
+    "emptyUnpairedLink": "Configurer le pont Personas",
+    "emptyNoneTitle": "Aucun agent recruté pour l'instant",
+    "emptyNoneBody": "Ouvrez un poste, lancez son onglet « Adéquation agent » et envoyez la spécification — le recrutement apparaîtra ici avec des compteurs en direct.",
+    "emptyNoneLink": "Parcourir les postes",
+    "col": {
+      "agent": "Agent",
+      "role": "Poste",
+      "spend": "Dépense mensuelle",
+      "runs": "Exécutions",
+      "connectors": "Connecteurs",
+      "expectations": "Attentes"
+    },
+    "spendNote": "La dépense est auto-déclarée par le CLI du fournisseur — elle peut afficher 0 $ avec une authentification par abonnement.",
+    "spendOfBudget": "{spent} sur {budget}",
+    "runsCount": "{count, plural, one {# exécution} other {# exécutions}}",
+    "successRate": "{rate} % de réussite",
+    "noRuns": "Pas encore d'exécutions",
+    "moreConnectors": "+{count} de plus",
+    "expectationsMet": "{met}/{total} atteintes",
+    "expectationsNoData": "Pas encore de données",
+    "status": {
+      "dispatched": "Envoyé",
+      "pendingApproval": "En attente d'approbation",
+      "onboarding": "Onboarding",
+      "active": "Actif",
+      "rejected": "Rejeté",
+      "failed": "Échoué",
+      "retired": "Retiré"
+    },
+    "detail": {
+      "mission": "Mission",
+      "metricsHeading": "Attentes vs réel",
+      "noMetrics": "Aucune métrique de réussite n'a été définie pour cet agent.",
+      "noData": "pas encore de données",
+      "refresh": "Actualiser le statut",
+      "refreshing": "Actualisation…"
+    }
   }
 }

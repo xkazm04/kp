@@ -1305,7 +1305,8 @@
       "about": "O aplikaci",
       "billing": "Fakturace",
       "models": "Modely",
-      "integrations": "Integrace"
+      "integrations": "Integrace",
+      "agents": "Agenti"
     },
     "groups": {
       "hiring": "Nábor",
@@ -3020,7 +3021,8 @@
       "tabCompare": "Porovnání",
       "createCampaignPack": "Vytvořit balíček kampaně",
       "viewCampaignPack": "Zobrazit balíček kampaně",
-      "withdrawFailed": "Pozice byla uzavřena, ale její kandidáty v procesu se nepodařilo stáhnout — zkontrolujte Pipeline."
+      "withdrawFailed": "Pozice byla uzavřena, ale její kandidáty v procesu se nepodařilo stáhnout — zkontrolujte Pipeline.",
+      "tabAgentFit": "Vhodnost agenta"
     },
     "coach": {
       "loadFailed": "Pozici se nepodařilo vyhodnotit.",
@@ -5019,6 +5021,33 @@
       "saving": "Ukládání…",
       "saved": "Připojení uloženo.",
       "saveFailed": "Připojení se nepodařilo uložit."
+    },
+    "personas": {
+      "title": "Most Personas",
+      "intro": "Najímejte AI agenty pro své pozice přes desktopovou aplikaci Personas na tomto počítači. Párování schvalujete vy přímo v Personas; vyměněný klíč se ukládá šifrovaně a už se nikdy nezobrazí.",
+      "loadFailed": "Připojení k Personas se nepodařilo načíst.",
+      "retry": "Zkusit znovu",
+      "statusConnected": "Připojeno",
+      "statusNotConnected": "Nepřipojeno",
+      "lastOk": "Poslední kontakt {time}",
+      "envManaged": "Toto připojení určují proměnné prostředí PERSONAS_BRIDGE_URL / PERSONAS_BRIDGE_KEY — spravujte ho v konfiguraci nasazení.",
+      "connect": "Připojit k Personas",
+      "connectHint": "Personas vás požádá o schválení párování.",
+      "waitingTitle": "Schvalte požadavek v aplikaci Personas",
+      "waitingBody": "kp požádalo Personas o spárování. Přepněte se do desktopové aplikace Personas a požadavek schvalte — tato karta stav průběžně kontroluje a dokončí se sama.",
+      "waitingCancel": "Zrušit",
+      "timeoutTitle": "Párování vypršelo",
+      "timeoutBody": "Požadavek vyprší po 5 minutách (Personas ho drží jen v paměti). Začněte znovu a schvalte ho bez otálení.",
+      "retryPair": "Zkusit znovu",
+      "pairFailed": "Párování se nezdařilo — běží desktopová aplikace Personas?",
+      "paired": "Spárováno s Personas.",
+      "repair": "Přepárovat",
+      "disconnect": "Odpojit",
+      "disconnecting": "Odpojování…",
+      "disconnected": "Odpojeno — uložený klíč byl odstraněn.",
+      "disconnectFailed": "Odpojení se nezdařilo.",
+      "baseUrlLabel": "Adresa Personas",
+      "baseUrlHint": "Nechte prázdné pro výchozí hodnotu — lokální aplikace Personas na http://127.0.0.1:9420. Použije se při připojení."
     }
   },
   "billing": {
@@ -5805,5 +5834,120 @@
   "rubricCoverage": {
     "no_family": "Obecná rubrika — tento kandidát nemá nastavenou rodinu rolí, takže oborově specifické osy (klinický úsudek, bezpečnost, vědecká přísnost…) nešlo doplnit. Hodnotíte pouze základní rubriku.",
     "family_unrecognized": "Neznámá rodina rolí „{family}“ — není v kanonické taxonomii, takže nešlo přiřadit žádné oborově specifické osy. Hodnotíte pouze základní rubriku."
+  },
+  "agentFit": {
+    "loadFailed": "Data o vhodnosti agenta se nepodařilo načíst.",
+    "retry": "Zkusit znovu",
+    "notConnected": "Personas není připojeno — vhodnost můžete posoudit, ale k vyslání agenta je potřeba párování.",
+    "goToIntegrations": "Otevřít Integrace",
+    "runCta": "Posoudit vhodnost agenta",
+    "rerunCta": "Posoudit znovu",
+    "running": "Posuzujeme tuto pozici…",
+    "runningHint": "Rozkládáme pozici na odpovědnosti a navrhujeme agenta, kterého se vyplatí najmout na pokrytelnou část. Běží na pozadí — dialog můžete zavřít.",
+    "runFailed": "Posouzení se nepodařilo spustit.",
+    "emptyTitle": "Zatím žádné posouzení",
+    "emptyBody": "Zjistěte, které odpovědnosti této pozice by mohl převzít AI agent, kolik by jeho najmutí stálo, a vyšlete ho do Personas.",
+    "fallbackNote": "Heuristické posouzení — žádný AI model nebyl dostupný, jde tedy o odhad podle klíčových slov a verdikt zůstává neposouzený. Po nastavení modelu posuďte znovu.",
+    "dispatchCta": "Vyslat do Personas",
+    "dispatching": "Vysílání…",
+    "dispatchFailed": "Vyslání do Personas se nezdařilo.",
+    "dispatchNeedsPairing": "Před vysláním spárujte kp s Personas v Nastavení → Integrace.",
+    "existingAgent": "Agent pro tuto pozici už je v běhu — viz stav výše.",
+    "refreshFailed": "Stav se nepodařilo obnovit.",
+    "verdict": {
+      "heading": "Verdikt vhodnosti",
+      "aria": "Verdikt vhodnosti agenta: {verdict}",
+      "ratio": "{percent} % odpovědností lze pokrýt",
+      "complete": "Úplná",
+      "temporary": "Dočasná",
+      "unassessed": "Neposouzeno",
+      "framingComplete": "Agent může pozici převzít celou — každá odpovědnost je automatizovatelná nebo asistovaná.",
+      "framingTemporary": "Agent pokryje část pozice, zatímco na zbytek dál nabíráte.",
+      "framingUnassessed": "Není dost signálu k úsudku — pokrytí níže je heuristika podle klíčových slov, ne verdikt."
+    },
+    "coverage": {
+      "heading": "Pokrytí odpovědností",
+      "automatable": "automatizovatelné",
+      "assisted": "asistované",
+      "humanOnly": "jen člověk",
+      "unknown": "nezařazeno"
+    },
+    "spec": {
+      "heading": "Specifikace agenta",
+      "nameLabel": "Název",
+      "missionLabel": "Mise",
+      "connectorsLabel": "Konektory",
+      "noConnectors": "Žádné vybrané konektory",
+      "addConnector": "Přidat konektor",
+      "removeConnector": "Odebrat {name}",
+      "budgetLabel": "Měsíční rozpočet (USD)",
+      "budgetInvalid": "Zadejte nezáporné číslo, nebo nechte prázdné (bez limitu).",
+      "budgetSuggested": "Doporučeno: {amount, number, ::currency/USD}",
+      "budgetNoSuggestion": "Bez doporučení — pozice nemá mzdové pásmo.",
+      "metricsLabel": "Metriky úspěchu"
+    },
+    "status": {
+      "heading": "Stav náboru",
+      "refresh": "Obnovit",
+      "refreshing": "Obnovování…",
+      "approveHint": "Schvalte požadavek v aplikaci Personas — jakmile se Personas ohlásí, stav se posune sám.",
+      "step": {
+        "dispatched": "Vysláno",
+        "pending_approval": "Schválení v Personas",
+        "onboarding": "Onboarding",
+        "active": "Aktivní"
+      },
+      "terminal": {
+        "rejected": "Požadavek byl v Personas zamítnut. Upravte specifikaci a vyšlete ho znovu.",
+        "failed": "Vyslání selhalo — Personas nebylo dosažitelné, nebo požadavek odmítlo. Zkontrolujte připojení a zkuste to znovu.",
+        "retired": "Tento agent byl vyřazen."
+      }
+    }
+  },
+  "agentsWorkforce": {
+    "eyebrow": "Pracovní síla",
+    "title": "Agenti",
+    "intro": "AI agenti najatí přes vaše pozice — stav životního cyklu, útrata vůči rozpočtu a plnění očekávání, se kterými byli najati.",
+    "loadFailed": "Přehled agentů se nepodařilo načíst.",
+    "retry": "Zkusit znovu",
+    "emptyUnpairedTitle": "Personas není připojeno",
+    "emptyUnpairedBody": "Najímání agentů běží přes desktopovou aplikaci Personas. Spárujte ji jednou a karta „Vhodnost agenta“ každé pozice může vysílat.",
+    "emptyUnpairedLink": "Nastavit most Personas",
+    "emptyNoneTitle": "Zatím žádní najatí agenti",
+    "emptyNoneBody": "Otevřete pozici, spusťte kartu „Vhodnost agenta“ a vyšlete specifikaci — najatý agent se objeví zde s živými počitadly.",
+    "emptyNoneLink": "Procházet pozice",
+    "col": {
+      "agent": "Agent",
+      "role": "Pozice",
+      "spend": "Měsíční útrata",
+      "runs": "Běhy",
+      "connectors": "Konektory",
+      "expectations": "Očekávání"
+    },
+    "spendNote": "Útratu hlásí sám poskytovatel (CLI) — při předplatném může ukazovat 0 $.",
+    "spendOfBudget": "{spent} z {budget}",
+    "runsCount": "{count, plural, one {# běh} few {# běhy} other {# běhů}}",
+    "successRate": "{rate} % úspěšnost",
+    "noRuns": "Zatím žádné běhy",
+    "moreConnectors": "{count, plural, one {+# další} few {+# další} other {+# dalších}}",
+    "expectationsMet": "{met}/{total} splněno",
+    "expectationsNoData": "Zatím bez dat",
+    "status": {
+      "dispatched": "Vysláno",
+      "pendingApproval": "Čeká na schválení",
+      "onboarding": "Onboarding",
+      "active": "Aktivní",
+      "rejected": "Zamítnuto",
+      "failed": "Selhalo",
+      "retired": "Vyřazeno"
+    },
+    "detail": {
+      "mission": "Mise",
+      "metricsHeading": "Očekávání vs. skutečnost",
+      "noMetrics": "Pro tohoto agenta nebyly nastaveny žádné metriky úspěchu.",
+      "noData": "zatím bez dat",
+      "refresh": "Obnovit stav",
+      "refreshing": "Obnovování…"
+    }
   }
 }

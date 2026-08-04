@@ -90,6 +90,7 @@ export const DEDUPE_BUILDERS: Record<string, (p: Record<string, unknown>) => str
     return k && `${k}:${p.needText ? String(p.needText).length : 0}:${p.repoUrl ?? ""}`;
   },
   interview_prep: (p) => stableKey("interview_prep", p.entryId), // one plan per entry; re-trigger reuses an in-flight run
+  agent_fit: (p) => stableKey("agent_fit", p.jobId), // one transform per job; a re-trigger reuses the in-flight run
 };
 
 /**

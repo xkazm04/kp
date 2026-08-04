@@ -1305,7 +1305,8 @@
       "about": "About",
       "billing": "Billing",
       "models": "Models",
-      "integrations": "Integrations"
+      "integrations": "Integrations",
+      "agents": "Agents"
     },
     "groups": {
       "hiring": "Hiring",
@@ -3020,7 +3021,8 @@
       "tabCompare": "Compare",
       "createCampaignPack": "Create campaign pack",
       "viewCampaignPack": "View campaign pack",
-      "withdrawFailed": "Role closed, but its in-flight candidates couldn't be withdrawn — check the Pipeline."
+      "withdrawFailed": "Role closed, but its in-flight candidates couldn't be withdrawn — check the Pipeline.",
+      "tabAgentFit": "Agent fit"
     },
     "coach": {
       "loadFailed": "Couldn't grade this role.",
@@ -5019,6 +5021,33 @@
       "saving": "Saving…",
       "saved": "Connection saved.",
       "saveFailed": "Couldn't save the connection."
+    },
+    "personas": {
+      "title": "Personas bridge",
+      "intro": "Hire AI agents for your roles through the Personas desktop app on this machine. Pairing is approved by you inside Personas; the exchanged key is stored encrypted and never shown again.",
+      "loadFailed": "Couldn't load the Personas connection.",
+      "retry": "Retry",
+      "statusConnected": "Connected",
+      "statusNotConnected": "Not connected",
+      "lastOk": "Last contact {time}",
+      "envManaged": "This connection is set by the PERSONAS_BRIDGE_URL / PERSONAS_BRIDGE_KEY environment variables — manage it in your deployment config.",
+      "connect": "Connect to Personas",
+      "connectHint": "Personas will ask you to approve the pairing.",
+      "waitingTitle": "Approve the request in the Personas app",
+      "waitingBody": "kp asked Personas to pair. Switch to the Personas desktop app and approve the request — this card keeps checking and completes on its own.",
+      "waitingCancel": "Cancel",
+      "timeoutTitle": "Pairing timed out",
+      "timeoutBody": "The request expires after 5 minutes (Personas keeps it in memory). Start again and approve it promptly.",
+      "retryPair": "Try again",
+      "pairFailed": "Pairing failed — is the Personas desktop app running?",
+      "paired": "Paired with Personas.",
+      "repair": "Re-pair",
+      "disconnect": "Disconnect",
+      "disconnecting": "Disconnecting…",
+      "disconnected": "Disconnected — the stored key was removed.",
+      "disconnectFailed": "Couldn't disconnect.",
+      "baseUrlLabel": "Personas URL",
+      "baseUrlHint": "Leave empty for the default — the local Personas app at http://127.0.0.1:9420. Applied when you connect."
     }
   },
   "billing": {
@@ -5805,5 +5834,120 @@
   "rubricCoverage": {
     "no_family": "Generic rubric — no role family is set for this candidate, so the industry-specific axes (clinical judgment, safety, scientific rigor…) could not be added. You're scoring the base rubric only.",
     "family_unrecognized": "Unrecognized role family “{family}” — it isn't in the canonical taxonomy, so no industry-specific axes could be matched. You're scoring the base rubric only."
+  },
+  "agentFit": {
+    "loadFailed": "Couldn't load the agent-fit data.",
+    "retry": "Retry",
+    "notConnected": "Personas isn't connected — you can assess fit, but dispatching an agent needs the pairing.",
+    "goToIntegrations": "Open Integrations",
+    "runCta": "Assess agent fit",
+    "rerunCta": "Re-assess",
+    "running": "Assessing this role…",
+    "runningHint": "Splitting the role into responsibilities and drafting the agent worth hiring for the coverable slice. This runs in the background — you can close the dialog.",
+    "runFailed": "Couldn't start the assessment.",
+    "emptyTitle": "No assessment yet",
+    "emptyBody": "See which responsibilities of this role an AI agent could own, what hiring one would cost, and dispatch it to Personas.",
+    "fallbackNote": "Heuristic assessment — no AI model was reachable, so this is a keyword-based estimate and the verdict stays unassessed. Re-assess once a model is configured.",
+    "dispatchCta": "Dispatch to Personas",
+    "dispatching": "Dispatching…",
+    "dispatchFailed": "Dispatch to Personas failed.",
+    "dispatchNeedsPairing": "Pair with Personas in Settings → Integrations to dispatch.",
+    "existingAgent": "An agent for this role is already in flight — see its status above.",
+    "refreshFailed": "Couldn't refresh the status.",
+    "verdict": {
+      "heading": "Agent-fit verdict",
+      "aria": "Agent-fit verdict: {verdict}",
+      "ratio": "{percent}% of responsibilities coverable",
+      "complete": "Complete",
+      "temporary": "Temporary",
+      "unassessed": "Unassessed",
+      "framingComplete": "An agent can own this role end to end — every responsibility is automatable or assisted.",
+      "framingTemporary": "An agent can cover part of this role while you keep hiring for the rest.",
+      "framingUnassessed": "Not enough signal to judge — the coverage below is a keyword heuristic, not a verdict."
+    },
+    "coverage": {
+      "heading": "Responsibility coverage",
+      "automatable": "automatable",
+      "assisted": "assisted",
+      "humanOnly": "human only",
+      "unknown": "unclassified"
+    },
+    "spec": {
+      "heading": "Agent spec",
+      "nameLabel": "Name",
+      "missionLabel": "Mission",
+      "connectorsLabel": "Connectors",
+      "noConnectors": "No connectors selected",
+      "addConnector": "Add connector",
+      "removeConnector": "Remove {name}",
+      "budgetLabel": "Monthly budget (USD)",
+      "budgetInvalid": "Enter a non-negative number, or leave empty for no cap.",
+      "budgetSuggested": "Suggested: {amount, number, ::currency/USD}",
+      "budgetNoSuggestion": "No suggestion — the role has no salary band.",
+      "metricsLabel": "Success metrics"
+    },
+    "status": {
+      "heading": "Hiring status",
+      "refresh": "Refresh",
+      "refreshing": "Refreshing…",
+      "approveHint": "Approve the request in the Personas app — the status moves on its own once Personas reports back.",
+      "step": {
+        "dispatched": "Dispatched",
+        "pending_approval": "Approval in Personas",
+        "onboarding": "Onboarding",
+        "active": "Active"
+      },
+      "terminal": {
+        "rejected": "The request was rejected in Personas. Adjust the spec and dispatch again.",
+        "failed": "Dispatch failed — Personas couldn't be reached or refused the request. Check the connection and try again.",
+        "retired": "This agent has been retired."
+      }
+    }
+  },
+  "agentsWorkforce": {
+    "eyebrow": "Workforce",
+    "title": "Agents",
+    "intro": "The AI agents hired through your roles — lifecycle status, spend against budget, and whether they meet the expectations they were hired for.",
+    "loadFailed": "Couldn't load the agent roster.",
+    "retry": "Retry",
+    "emptyUnpairedTitle": "Personas isn't connected",
+    "emptyUnpairedBody": "Hiring agents runs through the Personas desktop app. Pair it once and every role's Agent fit tab can dispatch.",
+    "emptyUnpairedLink": "Set up the Personas bridge",
+    "emptyNoneTitle": "No agents hired yet",
+    "emptyNoneBody": "Open a role, run its Agent fit tab, and dispatch the spec — the hire shows up here with live counters.",
+    "emptyNoneLink": "Browse roles",
+    "col": {
+      "agent": "Agent",
+      "role": "Role",
+      "spend": "Monthly spend",
+      "runs": "Runs",
+      "connectors": "Connectors",
+      "expectations": "Expectations"
+    },
+    "spendNote": "Spend is self-reported by the provider CLI — it can read $0 on subscription auth.",
+    "spendOfBudget": "{spent} of {budget}",
+    "runsCount": "{count, plural, one {# run} other {# runs}}",
+    "successRate": "{rate}% success",
+    "noRuns": "No runs yet",
+    "moreConnectors": "+{count} more",
+    "expectationsMet": "{met}/{total} met",
+    "expectationsNoData": "No data yet",
+    "status": {
+      "dispatched": "Dispatched",
+      "pendingApproval": "Pending approval",
+      "onboarding": "Onboarding",
+      "active": "Active",
+      "rejected": "Rejected",
+      "failed": "Failed",
+      "retired": "Retired"
+    },
+    "detail": {
+      "mission": "Mission",
+      "metricsHeading": "Expectations vs actuals",
+      "noMetrics": "No success metrics were set for this agent.",
+      "noData": "no data yet",
+      "refresh": "Refresh status",
+      "refreshing": "Refreshing…"
+    }
   }
 }

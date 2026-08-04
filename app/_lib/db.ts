@@ -16,3 +16,4 @@ export * from "./db/skill-profiles";
 export * from "./db/llm";
 export * from "./db/analytics";
 export * from "./db/billing";
+export * from "./db/agents";

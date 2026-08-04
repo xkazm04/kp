@@ -54,6 +54,8 @@ USE_CASE_REQUIREMENTS: dict[str, frozenset[str]] = {
     "devcase_seed": frozenset({CAP_JSON}),
     "weight_proposal": frozenset({CAP_JSON}),
     "interview_scorecard": frozenset({CAP_JSON}),
+    # Agent-candidate bridge: the job → AgentFitSpec transform (agentfit.py).
+    "agent_fit": frozenset({CAP_JSON}),
     "github_analysis": frozenset({CAP_JSON}),
     "cv_analysis": frozenset({CAP_FILE_INPUT}),
     "profile_extract": frozenset({CAP_FILE_INPUT}),

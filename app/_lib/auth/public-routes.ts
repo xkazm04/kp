@@ -40,6 +40,13 @@ export const PUBLIC_API_PREFIXES = [
   // subtree, which served that console to anonymous callers.
   "/api/channels/inbound",
   "/api/invite/",
+  // Agent-bridge inbound report (token-authed): a hired Personas agent POSTs
+  // cost/activity/lifecycle here — a MACHINE with a report token, never a browser
+  // with a session cookie, so the proxy gate would 401 it before the route's own
+  // token auth ran (the documented public-routes trap). Trailing slash = strict
+  // descendants only: the rest of /api/agents (roster, pair, dispatch, refresh)
+  // is the RECRUITER console and stays gated.
+  "/api/agents/report/",
 ];
 
 export const PUBLIC_API_EXACT: ReadonlySet<string> = new Set([

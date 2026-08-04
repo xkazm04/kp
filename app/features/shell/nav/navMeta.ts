@@ -3,6 +3,7 @@
 // lucide component references live only in the client nav layer.
 import {
   BarChart3,
+  Bot,
   Briefcase,
   Building2,
   CalendarClock,
@@ -52,6 +53,7 @@ export const TAB_ICON: Partial<Record<WorkspaceTabId, LucideIcon>> = {
   decisions: Scale,
   schedule: CalendarClock,
   onboarding: Rocket,
+  agents: Bot,
   jobs: Briefcase,
   library: FileText,
   profile: UserCircle,

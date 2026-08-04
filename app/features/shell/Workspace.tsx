@@ -15,6 +15,7 @@ import { WorkspaceTabPanel } from "./WorkspaceTabChunks";
 import { SimSurfaces, FirstRunOnboarding } from "./WorkspaceSimSurfaces";
 import {
   ABOUT_TAB_IN_NAV,
+  AGENTS_TAB_IN_NAV,
   buildTabSwitchUrl,
   DEFAULT_TAB,
   isWorkspaceTabId,
@@ -65,9 +66,13 @@ export function Workspace({ firstRunOnboarding = false }: { firstRunOnboarding?:
   // requires the declared deps to match what the body references (same as selectTab).
   const closeMobileNav = useCallback(() => setMobileNavOpen(false), [setMobileNavOpen]);
   const requested: WorkspaceTabId = isWorkspaceTabId(tabParam) ? tabParam : DEFAULT_TAB;
-  // About is a dev-only deep-dive (ABOUT_TAB_IN_NAV); in production a direct
-  // ?tab=about falls back to the default so the view can't be reached.
-  const active: WorkspaceTabId = requested === "about" && !ABOUT_TAB_IN_NAV ? DEFAULT_TAB : requested;
+  // About is a dev-only deep-dive (ABOUT_TAB_IN_NAV) and Agents is experimental
+  // (AGENTS_TAB_IN_NAV); when the gate is off, a direct ?tab= deep link falls
+  // back to the default so the view can't be reached.
+  const active: WorkspaceTabId =
+    (requested === "about" && !ABOUT_TAB_IN_NAV) || (requested === "agents" && !AGENTS_TAB_IN_NAV)
+      ? DEFAULT_TAB
+      : requested;
   // History is consolidated into Analyze; ?tab=history opens Analyze in history mode.
   const navActive: WorkspaceTabId = active === "history" ? "analyze" : active;
 

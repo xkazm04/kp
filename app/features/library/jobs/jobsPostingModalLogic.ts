@@ -27,7 +27,7 @@ export function useJobPostingModalLogic(
   const td = useTranslations("jobs.drafts");
   const router = useRouter();
   const search = useSearchParams();
-  const [tab, setTab] = useState<"posting" | "coach" | "candidates" | "rediscover" | "compare" | "campaign">("posting");
+  const [tab, setTab] = useState<"posting" | "coach" | "candidates" | "rediscover" | "compare" | "campaign" | "agentfit">("posting");
   const [copied, setCopied] = useState(false);
   const [applyCopied, setApplyCopied] = useState(false);
   const [quickCopied, setQuickCopied] = useState(false);
