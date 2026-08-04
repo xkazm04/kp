@@ -27,6 +27,12 @@ const IntegrationsAtsPanel = dynamic(
   () => import("./IntegrationsAtsPanel").then((m) => ({ default: m.IntegrationsAtsPanel })),
   { loading: () => <div className="reveal-quiet min-h-[16rem]" aria-hidden /> }
 );
+// The Personas bridge card (agent-candidate bridge) — same Tier 3 treatment as
+// the ATS panel: not on the OAuth-callback critical path, own chunk, idle mount.
+const IntegrationsPersonasPanel = dynamic(
+  () => import("./IntegrationsPersonasPanel").then((m) => ({ default: m.IntegrationsPersonasPanel })),
+  { loading: () => <div className="reveal-quiet min-h-[12rem]" aria-hidden /> }
+);
 
 export function IntegrationsTab() {
   const t = useTranslations("integrations.tab");
@@ -43,6 +49,10 @@ export function IntegrationsTab() {
 
       <Defer strategy="idle">
         <IntegrationsAtsPanel />
+      </Defer>
+
+      <Defer strategy="idle">
+        <IntegrationsPersonasPanel />
       </Defer>
     </section>
   );

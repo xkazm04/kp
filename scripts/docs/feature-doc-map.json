@@ -292,6 +292,22 @@
         "app/_components/ui/useTheme.ts",
         "app/_lib/theme.ts"
       ]
+    },
+    {
+      "doc": "docs/features/agents/README.md",
+      "sourceGlobs": [
+        "app/_lib/agent-hire/**",
+        "app/_lib/db/agents.ts",
+        "app/api/agents/**",
+        "app/api/jobs/[id]/agent-fit/**",
+        "app/features/agents-workforce/**",
+        "app/features/library/jobs/JobsAgentFit*",
+        "app/features/library/jobs/jobsAgentFit*",
+        "app/features/settings/integrations/IntegrationsPersonasPanel.tsx",
+        "app/features/settings/integrations/integrationsPersonasLogic.ts",
+        "pipeline/jobfit/agentfit.py",
+        "pipeline/jobfit/agentfit_cli.py"
+      ]
     }
   ]
 }

@@ -19,6 +19,7 @@ in [../product/](../product/); superseded material lives in [../_archive/](../_a
 | Interview scheduling | [scheduling/README.md](scheduling/README.md) | `app/_lib/schedule-{slots,store}.ts`, `app/_lib/calendar/**`, `app/api/schedule`, `app/api/calendar`, `app/schedule`, `app/features/hiring/schedule` |
 | Interviews (voice) | [interviews/README.md](interviews/README.md) | `app/_lib/voice/**`, `app/api/interview`, `app/interview`, `app/interview-lab`, `app/_components/voice` |
 | Candidate comms | [comms/README.md](comms/README.md), [comms/outbound-export.md](comms/outbound-export.md) | `app/_lib/comms*.ts`, `app/api/comms`, `app/api/channels`, `app/features/hiring/channels` |
+| Agents (agent-candidate bridge) | [agents/README.md](agents/README.md) | `app/_lib/agent-hire/**`, `app/_lib/db/agents.ts`, `app/api/agents`, `app/features/agents-workforce`, `app/features/library/jobs/JobsAgentFit*`, `pipeline/jobfit/agentfit.py` |
 
 ## Platform
 

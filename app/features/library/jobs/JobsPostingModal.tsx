@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { BarChart3, FileText, Gauge, History, Megaphone, Scale } from "lucide-react";
+import { BarChart3, Bot, FileText, Gauge, History, Megaphone, Scale } from "lucide-react";
 import { Modal } from "@/app/_components/Modal";
 import { Markdown } from "@/app/_components/Markdown";
 import { JobLifecycleStrip } from "./JobsLifecycleStrip";
@@ -21,6 +21,9 @@ const CampaignTab = dynamic(() => import("./JobsCampaignTab").then((m) => ({ def
   loading: () => <div className="reveal-quiet min-h-[20rem]" aria-hidden />,
 });
 const CoachPanel = dynamic(() => import("./JobsCoachPanel").then((m) => ({ default: m.CoachPanel })), {
+  loading: () => <div className="reveal-quiet min-h-[16rem]" aria-hidden />,
+});
+const AgentFitTab = dynamic(() => import("./JobsAgentFitTab").then((m) => ({ default: m.JobsAgentFitTab })), {
   loading: () => <div className="reveal-quiet min-h-[16rem]" aria-hidden />,
 });
 
@@ -60,6 +63,7 @@ export function JobPostingModal({
           ["candidates", "tabCandidates", BarChart3],
           ["rediscover", "tabRediscover", History],
           ["compare", "tabCompare", Scale],
+          ["agentfit", "tabAgentFit", Bot],
         ] as const).map(([id, labelKey, Icon]) => (
           <button
             key={id}
@@ -116,6 +120,8 @@ export function JobPostingModal({
           <RecruiterCandidates jobId={job.id} jobTitle={job.title} roleFamily={job.roleFamily ?? null} autoLoad />
         ) : tab === "rediscover" ? (
           <RediscoverPanel jobId={job.id} jobTitle={job.title} />
+        ) : tab === "agentfit" ? (
+          <AgentFitTab jobId={job.id} />
         ) : (
           <CompareInterviews jobId={job.id} />
         )}

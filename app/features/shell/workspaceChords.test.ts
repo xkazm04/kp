@@ -56,6 +56,13 @@ test("the previously-dropped tabs now have two-key chords", () => {
   assert.deepEqual(byId.get("models"), ["f", "m"]);
 });
 
+// Agents sits INSIDE the first (hiring) group but is marked chordOverflow, so it
+// takes a two-key chord instead of stealing `a` from Analyze (which would have
+// cascaded through analytics too). Every pinned single above stays untouched.
+test("agents (chordOverflow) gets a two-key chord and steals no pinned single", () => {
+  assert.deepEqual(byId.get("agents"), ["f", "a"]);
+});
+
 // Collision-free BY CONSTRUCTION: no two chords share a full sequence, and no
 // single-letter chord equals the FIRST key of any two-key chord (which would make
 // `g <that letter>` ambiguous — the single would fire before the second key).

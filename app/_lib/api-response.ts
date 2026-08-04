@@ -121,6 +121,7 @@ export const STORE_ERRORS = {
   AGENT_LIST_FAILED: "Could not load the agent roster. Please try again.",
   AGENT_BRIDGE_FAILED: "Could not load the Personas bridge status. Please try again.",
   AGENT_PAIR_FAILED: "Could not pair with Personas. Please try again.",
+  AGENT_CATALOG_FAILED: "Could not load the connector catalog. Please try again.",
   AGENT_REFRESH_FAILED: "Could not refresh the agent status. Please try again.",
   AGENT_REPORT_FAILED: "Could not record the agent report. Please try again.",
 } as const;

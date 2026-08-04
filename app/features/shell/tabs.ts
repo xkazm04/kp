@@ -13,6 +13,9 @@ export const WORKSPACE_TAB_IDS = [
   "decisions",
   "schedule",
   "onboarding",
+  // Agent-candidate bridge: the hired-agents roster (dev/flag-gated in the nav
+  // via AGENTS_TAB_IN_NAV below, same two-place pattern as the About tab).
+  "agents",
   "interview",
   "profile",
   "match",
@@ -71,6 +74,13 @@ export type AttentionKey = "decisions" | "pipeline" | "schedule" | "jobs" | "cha
 export type WorkspaceTabDef = {
   id: WorkspaceTabId;
   label: string;
+  // Chord derivation escape hatch (workspaceChords.ts): a tab added INSIDE an
+  // early nav group after the single-letter chords were pinned must not claim a
+  // single letter — it would steal one from a later tab (e.g. "agents" taking
+  // `a` from Analyze) and shift the pinned muscle-memory assignments. Marking it
+  // chordOverflow sends it straight to the two-key pass, which only draws from
+  // still-free letters and leaves every existing chord untouched.
+  chordOverflow?: boolean;
   badgeKey?: AttentionKey;
   // When set, the badge itself becomes a second click target that opens the tab
   // WITH these deep-link params — landing on the exact slice the count refers to
@@ -90,6 +100,17 @@ export const DEFAULT_TAB: WorkspaceTabId = "pipeline";
 // The user-facing concept introduction lives on the public /about page instead.
 export const ABOUT_TAB_IN_NAV = process.env.NODE_ENV !== "production";
 
+// The Agents module (agent-candidate bridge) is experimental: visible in dev, and
+// in production only when the deployment opts in with NEXT_PUBLIC_KP_AGENT_HIRING=1.
+// The NEXT_PUBLIC_ prefix is load-bearing: this module evaluates in the browser
+// too, where plain env vars are undefined — a server-only flag would render the
+// tab in SSR'd nav and drop it after hydration. Same two-place gating pattern as
+// ABOUT_TAB_IN_NAV — the conditional spread below hides it from the nav /
+// palette / chords, and Workspace falls a direct ?tab=agents back to the
+// default when the gate is off.
+export const AGENTS_TAB_IN_NAV =
+  process.env.NODE_ENV !== "production" || process.env.NEXT_PUBLIC_KP_AGENT_HIRING === "1";
+
 // Grouped structure for the studio left sidebar. A flat tab list, if ever needed
 // (e.g. a deep-link breadcrumb), should be derived from NAV_GROUPS.flatMap(g => g.items)
 // rather than maintained as a fourth parallel declaration.
@@ -106,6 +127,9 @@ export const NAV_GROUPS: NavGroup[] = [
       { id: "decisions", label: "Decisions", badgeKey: "decisions" },
       { id: "schedule", label: "Schedule", badgeKey: "schedule" },
       { id: "onboarding", label: "Onboarding" },
+      // Appended last so the group's existing order (and every derived g-chord —
+      // see chordOverflow) is untouched. Dev/flag-gated like About.
+      ...(AGENTS_TAB_IN_NAV ? [{ id: "agents", label: "Agents", chordOverflow: true } as WorkspaceTabDef] : []),
     ],
   },
   {
