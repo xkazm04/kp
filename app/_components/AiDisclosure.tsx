@@ -35,7 +35,16 @@ let compliancePromise: Promise<CompliancePayload> | null = null;
 function loadCompliance(): Promise<CompliancePayload> {
   if (!compliancePromise) {
     compliancePromise = fetch("/api/compliance")
-      .then((r) => r.json())
+      .then((r) => {
+        // Status-blind parsing made a GATED response indistinguishable from a
+        // successful one: the auth proxy answers `{"error":"Unauthorized"}` with
+        // 401, which parses fine, yields no `jurisdiction`, and silently leaves
+        // the EU default standing. Rejecting on !ok routes that through the same
+        // failure path as a network error, so the endpoint being unreachable is a
+        // real (and retried) failure rather than an invisible fallback.
+        if (!r.ok) throw new Error(`compliance ${r.status}`);
+        return r.json();
+      })
       .catch((err) => {
         // Drop the memo on a hard failure so a later mount can retry — only the
         // SUCCESS is stable for the page's lifetime. (A gated 401 resolves with a
