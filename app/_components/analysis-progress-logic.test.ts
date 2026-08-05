@@ -11,6 +11,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   deriveProgressDisplay,
+  headlineStageOf,
   initialStageState,
   applyStageEvent,
   STAGE_ORDER,
@@ -85,4 +86,53 @@ test("variantsTotal of 1 falls back to the phase strip (not real-progress mode)"
 test("variant done count is clamped into [0,total]", () => {
   assert.equal(deriveProgressDisplay({ stages: initialStageState(), complete: false, variantsDone: 9, variantsTotal: 3 }).percent, 100);
   assert.equal(deriveProgressDisplay({ stages: initialStageState(), complete: false, variantsDone: -4, variantsTotal: 3 }).percent, 0);
+});
+
+// ── headlineStageOf: the panel's <h2> reads from this, so pin every branch ────
+// It was the one exported symbol here with no coverage, while driving the single
+// biggest piece of text on the card.
+test("headlineStageOf names the active phase", () => {
+  assert.equal(headlineStageOf(withActive("reading"), false), "reading");
+  assert.equal(headlineStageOf(withActive("analyzing"), false), "analyzing");
+  assert.equal(headlineStageOf(withActive("saving"), false), "saving");
+});
+
+test("headlineStageOf is null before the first phase arrives (surface shows 'starting')", () => {
+  assert.equal(headlineStageOf(initialStageState(), false), null);
+});
+
+test("headlineStageOf yields to `complete` even while a phase is still active", () => {
+  // The completion headline outranks the strip: a late in-flight phase must not
+  // pull the card back to "Analyzing" once the run has been finalized.
+  assert.equal(headlineStageOf(withActive("analyzing"), true), null);
+});
+
+test("headlineStageOf picks the EARLIEST active phase when two are somehow active", () => {
+  // Defensive: only one phase should ever be active, but a duplicated poll must
+  // resolve deterministically rather than depending on key order.
+  const stages: StageState = { reading: "active", analyzing: "active", saving: "pending" };
+  assert.equal(headlineStageOf(stages, false), "reading");
+});
+
+// ── applyStageEvent's "done" half — the transition finalizeStages relies on ───
+test("applyStageEvent marks a phase done and is idempotent on a repeat", () => {
+  const once = applyStageEvent(withActive("reading"), "reading", "done");
+  assert.equal(once.reading, "done");
+  // Same object back on a repeat — the surface's setState(prev => …) must not
+  // re-render on a duplicated poll.
+  assert.equal(applyStageEvent(once, "reading", "done"), once);
+});
+
+test("a repeated 'active' for the phase already active returns the same state", () => {
+  const s = withActive("analyzing");
+  assert.equal(applyStageEvent(s, "analyzing", "active"), s);
+});
+
+test("marking a LATER phase done leaves earlier phases untouched", () => {
+  // Only the "active" transition back-fills earlier phases; "done" is a targeted
+  // write. Pinned so a future edit to the back-fill rule has to face this.
+  const s = applyStageEvent(initialStageState(), "saving", "done");
+  assert.equal(s.saving, "done");
+  assert.equal(s.reading, "pending");
+  assert.equal(s.analyzing, "pending");
 });
