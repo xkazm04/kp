@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-08-05",
+  "generatedBy": "personas mvp",
+  "verdict": "no-go",
+  "noGoBlockers": [
+    "No production deployment exists. The path is rehearsed and proven (image builds, container boots healthy, runbook in docs/architecture/self-hosting.md) - operator: provision VPS + domain + real .env (KP_OPERATOR_PASSWORD, NEXT_PUBLIC_SITE_URL, optional engine keys, NEXT_PUBLIC_PLAUSIBLE_DOMAIN, SENTRY_DSN), deploy via compose/Helm, then re-run the smoke against the live URL.",
+    "Go-to-market entry decision: KP_SIGNUP_ENABLED stays OFF (the funnel is built and tested; the tenancy manifest is closer to done than audited - ~50 verified tables, gaps() zero on declared schema). Flip it on as a tenancy-completion decision, or launch with manual/enterprise provisioning."
+  ],
+  "acceptedRisks": [
+    "Three live provider keys in .env.local unrotated (open since ship-loop CP1) - operator accepted 2026-08-05"
+  ],
+  "phases": {
+    "P0": "green",
+    "P1": "green",
+    "P2": "partial",
+    "P3": "green",
+    "P4": "green",
+    "P5": "green",
+    "P6": "partial"
+  },
+  "items": {
+    "value-case": { "level": "met", "tool": null, "skippedByChoice": false, "note": "Talentpilot teardown; the anti-AI-cheating wedge is now the landing headline per its own instruction" },
+    "monetization": { "level": "partial", "tool": "polar", "skippedByChoice": false, "note": "Billing engine + org-scoped tables + gated signup funnel all built and tested; Polar in sandbox, signup OFF pending the tenancy flip decision; seat enforcement stays in the E6 gap list" },
+    "artifacts": { "level": "met", "tool": "personas", "skippedByChoice": false, "note": "Map 285 contexts verified (4 stale paths from the landing refactor); rescan queued for when the bridge returns; outbox backed up out-of-band" },
+    "milestone": { "level": "met", "tool": null, "skippedByChoice": false, "note": "ship-loop alive with an operator-set bar (public product path); CP11's key-rotation item resolved as accepted-risk" },
+    "notes": { "level": "met", "tool": null, "skippedByChoice": false, "note": "38KB journal + 184-node outbox with clean context anchoring" },
+    "fleet": { "level": "met", "tool": "personas", "skippedByChoice": false, "note": ".claude/CLAUDE.md placeholders replaced with the real brief; 16 prior agent worktrees evidence orchestration" },
+    "cicd": { "level": "met", "tool": "github-actions", "skippedByChoice": false, "ci": { "checks": true, "gating": true, "preview": false, "testDeploy": false, "prodPromotion": "self-hosted-manual", "mergeQueue": false }, "note": "Three jobs green incl. the maiden keyless e2e run; i18n/ruff/design/skip-baseline all gated; protection requires all three" },
+    "deploy": { "level": "partial", "tool": "docker", "skippedByChoice": false, "note": "Rehearsed 2026-08-05: image built, container Up (healthy), honest keyless /api/health; nuda.dev default neutralized. Not deployed anywhere - VPS+domain is the operator's move" },
+    "observability": { "level": "partial", "tool": "sentry", "skippedByChoice": false, "note": "DSN-gated Sentry wired through instrumentation + egress inventory; LLM cost ledger across all three engines already production-grade. DSN value + live error verification pending" },
+    "code-quality": { "level": "met", "tool": null, "skippedByChoice": false, "note": "tsc 0, lint 0 errors, 2909 JS + 1296 Python tests green; 34 components >200 LOC filed as debt" },
+    "auth": { "level": "met", "tool": null, "skippedByChoice": false, "note": "Fail-closed proxy gate, scrypt, persisted throttles, 192-bit candidate tokens; per-session revocation = first-enterprise follow-up" },
+    "security": { "level": "met", "tool": null, "skippedByChoice": false, "note": "Headers live (report-only CSP, mic-aware Permissions-Policy); npm audit 0; Python pinned; Claude CLI subprocess injection-clean" },
+    "design-system": { "level": "met", "tool": "tailwind", "skippedByChoice": false, "note": "Token gate in CI + pre-push; a11y finding routed to design owner: EYEBROW coral 3.65:1 fails AA on candidate pages" },
+    "i18n": { "level": "met", "tool": "next-intl", "skippedByChoice": false, "note": "6048 keys x 4 locales in parity, gate now wired into CI; 118 native-review rows pending sign-off" },
+    "onboarding": { "level": "met", "tool": null, "skippedByChoice": false, "note": "Engine preflight warns honestly (fallbacks are designed, so no hard-disable); demo CTA fails honestly; wizard covered by the journey spec" },
+    "feedback": { "level": "met", "tool": null, "skippedByChoice": false, "note": "Recruiter feedback door: scoped table + rate-limited API + rail button + control-room list, tenancy-pinned" },
+    "landing": { "level": "met", "tool": null, "skippedByChoice": false, "note": "Wedge hero + Proof band in 4 locales (native Czech); the in-flight tree that held the only copy is committed" },
+    "seo": { "level": "met", "tool": null, "skippedByChoice": false, "note": "KandiDate identity + per-page canonicals; path-prefixed locales + hreflang = first post-launch SEO investment" },
+    "legal": { "level": "met", "tool": null, "skippedByChoice": false, "note": "/privacy + /terms render retention live from consent.ts; /trust public with its admitted-gaps register; DPA authoring = first-enterprise follow-up" },
+    "analytics": { "level": "met", "tool": "plausible", "skippedByChoice": false, "note": "Env-gated cookieless script + 6 funnel events incl. the previously-discarded plan intent; needs NEXT_PUBLIC_PLAUSIBLE_DOMAIN at deploy" },
+    "launch-gate": { "level": "partial", "tool": "playwright", "skippedByChoice": false, "note": "Keyless journey (role -> booked interview) green in CI and against a prod-build container; the live-URL smoke waits on the first real deployment" }
+  }
+}
