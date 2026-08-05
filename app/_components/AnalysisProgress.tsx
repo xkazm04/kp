@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Check, Loader2 } from "lucide-react";
+import { PANEL, BTN_SECONDARY } from "./ui/recipes";
 import {
   STAGE_ORDER,
   deriveProgressDisplay,
@@ -93,7 +94,7 @@ export function AnalysisProgress({
     <div
       role="group"
       aria-label={t("progressAria")}
-      className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel"
+      className={`${PANEL} p-5`}
     >
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         {/* bug-ui-scan-2026-07-09 (cv-analysis-workspace #4): scope the live
@@ -142,10 +143,14 @@ export function AnalysisProgress({
             ) : null}
           </div>
           {onCancel && !complete && (
+            // BTN_SECONDARY carries the shared .focus-ring and the Spark Dark
+            // press-down this button hand-rolled away; h-8 also lifts the target
+            // from ~30px to 32px — this is the only way to abort a long run on a
+            // phone.
             <button
               type="button"
               onClick={onCancel}
-              className="rounded-md border border-stone-300 px-2.5 py-1 text-sm font-medium text-steel transition-colors hover:border-coral hover:text-coral focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral"
+              className={`${BTN_SECONDARY} h-8 px-2.5 text-sm text-steel hover:text-coral`}
             >
               {t("cancelScan")}
             </button>
