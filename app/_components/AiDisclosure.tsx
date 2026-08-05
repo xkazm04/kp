@@ -22,6 +22,31 @@ import { DEFAULT_REGIME_ID, getRegime, type RegimeId } from "@/app/_lib/complian
 // KP_CONSENT_TTL_DAYS), so the consent sentence states the enforced duration
 // instead of a hardcoded "12 months" (REC-08/capst-l1-005); the pre-fetch
 // default 12 mirrors the server default of 365 days.
+type CompliancePayload = { jurisdiction?: unknown; consentRetentionMonths?: unknown };
+
+// One in-flight request per page load, shared by every mount. The disclosure is
+// rendered on ~8 public candidate surfaces and QuickApplyForm alone mounts it in
+// two branches, so the per-mount fetch meant an anonymous visitor could open the
+// unauthenticated endpoint (and the decision-config store behind it) several
+// times for a workspace setting that cannot change mid-visit. The promise is
+// memoized, not the value, so concurrent mounts coalesce onto the same request.
+let compliancePromise: Promise<CompliancePayload> | null = null;
+
+function loadCompliance(): Promise<CompliancePayload> {
+  if (!compliancePromise) {
+    compliancePromise = fetch("/api/compliance")
+      .then((r) => r.json())
+      .catch((err) => {
+        // Drop the memo on a hard failure so a later mount can retry — only the
+        // SUCCESS is stable for the page's lifetime. (A gated 401 resolves with a
+        // JSON error body, so it does not land here; that path is handled below.)
+        compliancePromise = null;
+        throw err;
+      });
+  }
+  return compliancePromise;
+}
+
 export function AiDisclosure({
   className = "",
   showDataConsent = false,
@@ -35,9 +60,8 @@ export function AiDisclosure({
 
   useEffect(() => {
     let alive = true;
-    fetch("/api/compliance")
-      .then((r) => r.json())
-      .then((d: { jurisdiction?: unknown; consentRetentionMonths?: unknown }) => {
+    loadCompliance()
+      .then((d) => {
         if (!alive) return;
         if (typeof d?.jurisdiction === "string") setRegimeId(d.jurisdiction as RegimeId);
         if (typeof d?.consentRetentionMonths === "number" && d.consentRetentionMonths >= 1) {
