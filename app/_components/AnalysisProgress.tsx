@@ -86,7 +86,12 @@ export function AnalysisProgress({
   const elapsedSeconds = useElapsedSeconds();
 
   return (
+    // `aria-label` needs a role to survive: on a bare <div> (an implicit
+    // `generic`) the accessible name is DROPPED by the AAM, so the panel was
+    // effectively unnamed. `role="group"` exposes it without claiming a
+    // landmark this transient card doesn't deserve.
     <div
+      role="group"
       aria-label={t("progressAria")}
       className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel"
     >
@@ -150,12 +155,19 @@ export function AnalysisProgress({
 
       {/* #5 — indeterminate: an animated sweep (no fabricated width) while a long,
           un-instrumented step runs; determinate: the honest fill otherwise. */}
+      {/* A progressbar MUST carry its own accessible name — the card's label does
+          not descend to it. Indeterminate deliberately omits aria-valuenow (that IS
+          the ARIA signal for "unknown"), so it also needs aria-valuetext, or a
+          screen reader announces a named bar with no value at all. */}
       <div
         className="mt-4 h-1.5 w-full overflow-hidden rounded-full bg-stone-200"
         role="progressbar"
+        aria-label={t("progressLabel")}
         aria-valuemin={0}
         aria-valuemax={100}
-        {...(indeterminate ? {} : { "aria-valuenow": percent })}
+        {...(indeterminate
+          ? { "aria-valuetext": t("progressWorking") }
+          : { "aria-valuenow": percent })}
       >
         {indeterminate ? (
           // Reuse the existing pulse utility (same idiom as GithubAnalysisPanel's
