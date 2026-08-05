@@ -2,7 +2,16 @@
 
 import { useTranslations } from "next-intl";
 import { useReducedMotion } from "@/app/_lib/useReducedMotion";
-import { INK, PAPER, MOSS, CORAL, STEEL } from "@/app/_lib/brand";
+
+// Dual theme: this SVG renders into the live DOM, so it resolves the brand hues
+// through the CSS variables rather than the JS mirror in app/_lib/brand.ts.
+// Those constants are the LIGHT values only — `[data-theme="dark"]` inverts
+// --color-ink (#17202a → #f4efe3) and --color-paper (#fdf8ee → #141b24), so the
+// hardcoded pair painted a cream page outlined in near-black onto the dark
+// Spark surface, where the outline all but vanished. brand.ts exists for the
+// stylesheet-LESS surfaces (OG images, icons); an in-page SVG has a stylesheet,
+// and var(--color-*) is the repo's idiom for it (CompareIcon, ScoreDial,
+// SectionTitle).
 
 export function ScanAnimationCompact({ className }: { className?: string }) {
   const t = useTranslations("common");
@@ -21,12 +30,12 @@ export function ScanAnimationCompact({ className }: { className?: string }) {
         width="36"
         height="56"
         rx="3"
-        fill={PAPER}
-        stroke={INK}
+        fill="var(--color-paper)"
+        stroke="var(--color-ink)"
         strokeWidth="2"
       />
 
-      <g opacity="0.55" stroke={STEEL} strokeWidth="1.6" strokeLinecap="round">
+      <g opacity="0.55" stroke="var(--color-steel)" strokeWidth="1.6" strokeLinecap="round">
         <line x1="28" y1="22" x2="48" y2="22" />
         <line x1="28" y1="28" x2="52" y2="28" />
         <line x1="28" y1="34" x2="46" y2="34" />
@@ -45,7 +54,7 @@ export function ScanAnimationCompact({ className }: { className?: string }) {
             y1="14"
             x2="58"
             y2="14"
-            stroke={MOSS}
+            stroke="var(--color-moss)"
             strokeWidth="2"
             strokeLinecap="round"
             opacity="0.9"
@@ -66,7 +75,7 @@ export function ScanAnimationCompact({ className }: { className?: string }) {
             />
           </line>
 
-          <circle r="2.4" fill={CORAL}>
+          <circle r="2.4" fill="var(--color-coral)">
             <animate
               attributeName="cx"
               values="32;48;36;52;32"
