@@ -47,13 +47,17 @@ p50; *background* ops (automation passes, campaign, devcase design) answer to $/
 | deepseek-v4-flash | 88% | **$0.0015** | 26.9s |
 | lfm2.5:8b (local) | 100% | $0 | **12.5s** |
 
-Headlines: Sonnet stays the quality ceiling; Opus does not beat it here at ~1.6× the
-cost. deepseek-v4-flash beats Sonnet on match_reasoning at ~1/100th the $/task —
-the obvious cloud pick for cheap background reasoning. The local 8B is the most
-*reliable* challenger (100% served, valid JSON, fastest, $0) — its gap, like the
-cloud challengers', is substance on multi-deliverable tasks. Full method, per-op
-economics and caveats (n=3, Claude-family judge, qwen-cloud scorecard/devcase runs
-hit the 2048 maxTokens ceiling): see
+What this table is for: the **open-vs-commercial gap**, not a leaderboard. At n=3
+per cell with a Claude-family judge, the Sonnet-vs-Opus ordering is within noise
+(and short structured recruiter tasks don't reward the deliberation tier anyway) —
+read the commercial columns as one ~7-point tier. The real picture: commercial
+Claude holds a ~2.5-point quality lead over every open/challenger model on
+multi-deliverable tasks (scorecards, campaign packs, weight rationales), while the
+gap nearly closes on single-extraction/single-decision ops — deepseek-v4-flash even
+tops match_reasoning at ~1/100th of Sonnet's $/task, and the local 8B is the most
+*reliable* challenger (100% served, valid JSON, fastest, $0). Full method, per-op
+economics and caveats (qwen-cloud scorecard/devcase runs hit the 2048 maxTokens
+ceiling): see
 [`docs/architecture/llm-model-matrix.md`](docs/architecture/llm-model-matrix.md).
 
 ## 1. Preconditions
