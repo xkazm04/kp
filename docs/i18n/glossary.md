@@ -58,6 +58,15 @@ Columns: **en** · **cs** · **de** · **fr** · note. Add a column per new loca
 | revoke (an invite) | odvolat | zurückziehen | révoquer | cs: **odvolat**, never *zrušit* — *zrušit* is the Cancel button beside it |
 | permission | oprávnění | Berechtigung | autorisation | the per-user overrides in the Organization console |
 | capability | oprávnění | Berechtigung | autorisation | the `Capability` slug; folded into *permission* in the UI — the split is internal only |
+| kill switch | nouzová brzda | Not-Aus | coupe-circuit | the control room's pause; matches `landing.features.gates.body` |
+| reconcile (lifecycles) | synchronizovat | abgleichen | synchroniser | cs follows `tasks.system.reconcileFailures` ("synchronizace"), NOT "srovnat" |
+| floor / threshold (a score cut-off) | práh | Schwelle | seuil | promote floor, screening floor, match floor — one word everywhere |
+| score band | pásmo skóre | Score-Band | tranche de score | the calibration table's rows; matches `analytics.calibration.bandsTitle` |
+| hire rate | míra přijetí | Einstellungsquote | taux de recrutement | share of a band that converted to a hire |
+| outcome (recorded) | výsledek | Ergebnis | résultat | what actually happened to a promoted candidate; the `control.outcomes.value.*` triple is neuter/impersonal in cs (*přijato · zamítnuto · staženo*) |
+| salary radar (feature) | mzdový radar | Gehalts-Radar | radar des salaires | cs: **mzdový**, never *platový* — *plat* is public-sector pay; the card body and Market Pulse both say *mzda*. Unified 2026-08 |
+| applicant (public apply portal) | uchazeč | Bewerber/in | candidat(e) | cs: *uchazeč* is reserved for the PORTAL name (`Portál pro uchazeče`); the person inside the pipeline is always **kandidát** |
+| control room | řídicí centrum | Kontrollzentrum | centre de contrôle | `/control`; deliberately the same term as *control center* — one dock, one room, one word |
 
 ## Do-Not-Translate
 
@@ -68,6 +77,20 @@ codes, and every ICU placeholder name (`{count}`, `{role}`, `{label}`, …) and
 keyword (`plural`, `select`, `#`).
 
 ## Notes on inconsistency in the source
+
+## House decisions (2026-08) — settled, do not re-litigate
+
+| Decision | Ruling |
+|---|---|
+| **AI is universal** | `AI` in every locale. German `KI` (24 sites) and French `IA` (24 sites) are retired — the catalog already ran 112 / 111 the other way, and both were logged as MAJOR open items. |
+| **cs role → pozice** | Swept, 138 strings. **Scoped**: an RBAC role (owner/admin/viewer/hiring manager) is a different concept and keeps *role* — 9 strings deliberately untouched. Sweeping those would be the `CS-HOMONYM` error. |
+| **cs moci → moct** | **Rejected.** *moci / mohou* stands. See `constructions-cs.md` → CS-FORMAL. |
+
+Still open, needing one decision then one clean sweep (a half-sweep is worse
+than none — the first full run proved it): fr `Impossible de…` vs
+`Nous n'avons pas pu…` (189 sites, currently split), fr semicolons (95 sites,
+MS bans them outright), fr `JD → offre` vs `fiche`, cs/de *scorecard* and
+*workspace*.
 
 - The **Pipeline** tab is localized (cs "Nábor") while inline "pipeline" stays a
   loanword — intentional: the tab names the product area, the inline word names

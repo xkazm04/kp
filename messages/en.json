@@ -526,7 +526,6 @@
   "landing": {
     "nav": {
       "proof": "Proof",
-      "how": "How it works",
       "features": "Features",
       "voice": "Voice interview",
       "trust": "Responsible AI",
@@ -538,11 +537,10 @@
       "signIn": "Sign in"
     },
     "hero": {
-      "badge": "Hiring for the LLM era",
-      "title": "Did the candidate write it,<br></br>or the <emph>model</emph>?",
-      "subtitle": "The question every 2026 hire raises, answered with proof: work samples verified against AI delegation, a voice interview about the candidate's own decisions, and every verdict sealed into an audit trail a human signs. The pile still disappears. The evidence stays.",
-      "ctaPrimary": "Start screening free",
-      "ctaSecondary": "Hear it interview",
+      "badge": "Automated hiring, human-approved",
+      "title": "Your hiring,<br></br>on <emph>autopilot</emph>",
+      "subtitle": "KandiDate runs the whole funnel: every CV read and scored against the role, promising candidates interviewed the same day, slots booked, offers drafted, onboarding started. You review the calls that matter — the busywork never reaches your desk.",
+      "ctaPrimary": "Start hiring free",
       "ctaDemo": "Watch the live demo",
       "pileHint": "try it — hover the pile ↓",
       "scoreCardAria": "Score the CV of {name}",
@@ -592,25 +590,9 @@
       },
       "footline": "the question every 2026 hire raises — answered with evidence"
     },
-    "steps": {
-      "heading": "From pile to shortlist<br></br>in <emph>three moves</emph>",
-      "drop": {
-        "title": "Drop the pile",
-        "body": "Every CV gets read — really read. KandiDate scores fit against your job description with an evidence-backed rubric, not keyword bingo. Strengths, gaps and a salary estimate included."
-      },
-      "talk": {
-        "title": "Let it talk",
-        "body": "Promising candidates get a friendly AI voice interview within hours, not weeks. Real questions built from their CV, live transcript, structured scorecard at the end."
-      },
-      "call": {
-        "title": "You make the call",
-        "body": "Nothing ships without you. Every screen, shortlist and offer waits at a human gate with the reasoning attached. Approve, override, or send it back."
-      }
-    },
     "features": {
       "heading": "The whole funnel,<br></br>one happy place",
       "hint": "hover any card for a live peek — it all ships today, no asterisks",
-      "peekInside": "peek inside",
       "score": {
         "title": "Job-fit scoring",
         "body": "0–100 fit score per CV with the evidence to back it up. Multiple CV versions? Compare them side by side."
@@ -667,6 +649,7 @@
     "trust": {
       "heading": "Powerful AI.<br></br><emph>A human signs every call.</emph>",
       "subtitle": "Built for regulated hiring under the EU AI Act and GDPR: the machine does the reading, but a qualified person makes every decision that touches a candidate.",
+      "tablist": "Responsible-AI demonstrations",
       "human": {
         "title": "Human in the loop",
         "body": "No candidate is advanced, offered or rejected by the machine alone. Every adverse decision is reviewed and made by a person — by design, not by a setting."
@@ -683,7 +666,78 @@
         "title": "Provable, not promised",
         "body": "Every AI decision is sealed into a tamper-evident, exportable audit trail, and confidence is measured against real outcomes — calibrated, never just asserted."
       },
-      "footnote": "A working demonstration: this reflects the product's design and controls, not a legal certification."
+      "footnote": "A working demonstration: this reflects the product's design and controls, not a legal certification.",
+      "art": {
+        "human": {
+          "stations": {
+            "intake": "CV arrives",
+            "score": "AI reads & scores",
+            "gate": "Human gate",
+            "hired": "Advances"
+          },
+          "score": "fit {fit}",
+          "waiting": "waiting for you…",
+          "signed": "signed · {name}",
+          "allowTitle": "What may run unattended",
+          "gates": {
+            "screen": "Screening",
+            "schedule": "Scheduling",
+            "reject": "Rejection"
+          },
+          "auto": "auto",
+          "you": "you",
+          "lockedNote": "rejections are always yours — that one doesn't unlock",
+          "toggleAria": "{step}: currently {mode}"
+        },
+        "oversight": {
+          "tiers": {
+            "unacceptable": "Unacceptable — banned",
+            "high": "High risk — strict duties",
+            "limited": "Limited risk — disclose it",
+            "minimal": "Minimal risk — no duties"
+          },
+          "marker": "CV screening & ranking",
+          "ladderNote": "the EU AI Act's own risk ladder — hiring sits on the second rung",
+          "controls": {
+            "oversight": "Human oversight",
+            "reasoning": "Readable reasoning",
+            "record": "Every step logged"
+          }
+        },
+        "gdpr": {
+          "cardTitle": "Candidate record",
+          "cardMeta": "personal data · EU",
+          "consent": "consent given",
+          "fields": {
+            "name": "Name",
+            "email": "Email",
+            "cv": "CV"
+          },
+          "consentNote": "before the stamp lands, the AI reads nothing at all",
+          "rights": {
+            "see": "See everything",
+            "review": "Ask for a human",
+            "erase": "Erase me"
+          },
+          "restore": "Bring the demo back",
+          "erased": "erased"
+        },
+        "audit": {
+          "blocks": {
+            "advance": "Advance · {name}",
+            "pass": "Pass · {name}",
+            "offer": "Offer · {name}"
+          },
+          "verified": "Chain verified",
+          "tampered": "Tamper detected — the chain broke",
+          "calibration": {
+            "title": "Score vs. what happened",
+            "predicted": "we predicted",
+            "actual": "actually happened",
+            "note": "the bars line up, so the number means what it says"
+          }
+        }
+      }
     },
     "pricing": {
       "heading": "Tiny prices.<br></br><emph>Zero token math.</emph>",
@@ -1108,7 +1162,11 @@
     "AGENT_REPORT_FAILED": "Could not record the agent report. Please try again.",
     "FEEDBACK_INVALID": "Check the message (and email) and try again.",
     "FEEDBACK_SAVE_FAILED": "Could not send feedback. Please try again.",
-    "FEEDBACK_LIST_FAILED": "Could not load feedback. Please try again."
+    "FEEDBACK_LIST_FAILED": "Could not load feedback. Please try again.",
+    "POSTING_CLOSED": "This role's intake has closed and is no longer accepting submissions.",
+    "OFFER_EXPIRED": "This offer has expired.",
+    "OFFER_NOT_FOUND": "We couldn't find this offer. The link may have been replaced by a newer one.",
+    "SESSION_TOKEN_REQUIRED": "This work session belongs to a different apply link. Open the link from your invitation email to continue."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -1671,7 +1729,6 @@
   },
   "pipeline": {
     "board": {
-      "positions": "Positions",
       "position": "Position",
       "active": "{count, plural, one {# active} other {# active}}",
       "rankCandidates": "Rank candidates →",
@@ -1708,10 +1765,13 @@
       "degradedSuffix": " · intake degraded",
       "openProfileSuffix": " · open analyzed profile",
       "aiActions": "AI actions",
-      "aiActionsFor": "AI actions for {name}",
       "selectCandidate": "Select {name}",
       "moveTo": "Move to…",
-      "moveToFor": "Move {name} to another stage"
+      "moveToFor": "Move {name} to another stage",
+      "openProfile": "Open profile",
+      "menuFor": "Actions for {name}",
+      "moreActions": "More actions",
+      "menuHint": " · right-click for actions"
     },
     "tokenLink": {
       "copy": "Copy link",
@@ -1942,7 +2002,9 @@
       "previewOtherTeamsOnly": "{count, plural, one {No changes for your team. This run has # change waiting for another team.} other {No changes for your team. This run has # changes waiting for other teams.}}",
       "previewApplyGlobal": "{count, plural, one {Apply # change (all teams)} other {Apply # changes (all teams)}}",
       "emptyBoardWaiting": "Your board, waiting",
-      "emptyFirstCandidate": "First candidate"
+      "emptyFirstCandidate": "First candidate",
+      "attentionTitle": "Needs your attention",
+      "filterStateLabel": "State"
     },
     "today": {
       "eyebrow": "Today",
@@ -2624,6 +2686,16 @@
       "reconsiderLine": "{count, plural, one {# auto-rejected candidate is still reconsiderable below.} other {# auto-rejected candidates are still reconsiderable below.}}",
       "hintSchedule": "Accepted screenings waiting on a confirmed slot.",
       "hintPipeline": "The live board — every candidate and the stage they sit in."
+    },
+    "pass": {
+      "reasons": {
+        "staleSkip": "Skipped: stage changed mid-pass. Original policy decision: {original}",
+        "queuedForApproval": "Queued for approval: {original}",
+        "wouldBeQueuedForApproval": "Would be queued for approval: {original}",
+        "fairnessRefused": "Auto-reject refused by fairness backstop: {verdict}. Original policy decision: {original}",
+        "fairnessWouldRefuse": "Auto-reject would be refused by fairness backstop: {verdict}. Original policy decision: {original}",
+        "applyFailed": "Apply failed: {detail}. Original policy decision: {original}"
+      }
     }
   },
   "scheduleTab": {
@@ -3503,7 +3575,8 @@
       "addPipeline": "+ pipeline",
       "couldntAdd": "Couldn't add to the pipeline — {error}",
       "couldntReach": "Couldn't reach out — {error}",
-      "assumptions": "Assumptions:"
+      "assumptions": "Assumptions:",
+      "auditUnder": "under {label}"
     },
     "deeplink": {
       "notFound": "That role isn't in your catalog — it may have been removed, or it belongs to another team.",
@@ -5091,6 +5164,51 @@
       "questionOffer": "How selective the interview loop actually is.",
       "questionHired": "Your end-to-end hire rate, and how long it took.",
       "questionFallback": "How many candidates get this far."
+    },
+    "metricPack": {
+      "title": "Hiring metric pack",
+      "windowAll": "all time",
+      "windowLast": "last {days, plural, one {# day} other {# days}}",
+      "windowLine": "Window: {window} · generated {generatedAt}",
+      "colMetric": "Metric",
+      "colValue": "Value",
+      "colStatus": "Status",
+      "colBasis": "Basis",
+      "metric": {
+        "time_to_hire": "Time to hire",
+        "cost_per_hire": "Cost per hire",
+        "recruiter_hours_saved": "Recruiter hours saved",
+        "recruiter_capacity": "Recruiter capacity",
+        "candidate_nps": "Candidate NPS"
+      },
+      "unit": {
+        "days": "days",
+        "czk": "CZK",
+        "usd": "USD",
+        "hours": "h",
+        "roles_per_recruiter": "roles/recruiter",
+        "pct": "%"
+      },
+      "status": {
+        "measured": "measured",
+        "thin": "THIN SAMPLE",
+        "not_measurable": "not measurable"
+      },
+      "basis": {
+        "timeToHireMedian": "Median days from first contact to hire, over {hires, plural, one {# hire} other {# hires}}.",
+        "timeToHireMean": "Mean days from first contact to hire, over {hires, plural, one {# hire} other {# hires}} — no median available.",
+        "costPerHire": "Recorded channel spend divided by {hires, plural, one {# hire} other {# hires}}. Excludes salary and internal time.",
+        "hoursSaved": "Recruiter hours not spent, from {actions, plural, one {# automated action} other {# automated actions}} at the per-action minute rates in automation-roi.ts.",
+        "hoursSavedNone": "No automated actions recorded.",
+        "capacity": "{roles, plural, one {# open role} other {# open roles}} carried by {recruiters, plural, one {# recruiter} other {# recruiters}}.",
+        "capacityNone": "No open roles or no recruiter roster.",
+        "nps": "Net promoter score from {responses, plural, one {# candidate response} other {# candidate responses}} at a terminal outcome, on the standard -100 to 100 scale."
+      },
+      "caveatNotMeasurable": "{metric}: no data yet — {basis}",
+      "caveatThin": "{metric}: only {sample, plural, one {# observation} other {# observations}} — real, but too thin to publish.",
+      "certifiableNote": "Every metric above is measured over a sufficient sample.",
+      "notPublishable": "**Not publication-ready.** The following metrics cannot yet be defended:",
+      "disclaimer": "_Figures describe this workspace's own recorded activity. kp does not compute an improvement percentage against a pre-kp baseline — that comparison belongs to whoever holds the prior numbers._"
     }
   },
   "candidateOnboarding": {
@@ -5114,7 +5232,15 @@
     "editAgain": "Update my details",
     "loadFailed": "Could not load your onboarding.",
     "invalidLink": "This onboarding link isn't valid",
-    "invalidLinkBody": "The link may be mistyped or no longer active. If you've accepted an offer, contact the hiring team."
+    "invalidLinkBody": "The link may be mistyped or no longer active. If you've accepted an offer, contact the hiring team.",
+    "fieldLicenseNumber": "License / registration number",
+    "fieldLicenseExpiry": "License expiry date",
+    "fieldImmunizationStatus": "Immunization status",
+    "fieldCertifications": "Certifications / licenses you hold",
+    "fieldPpeSize": "PPE / boot size",
+    "fieldGithubHandle": "GitHub / portfolio handle",
+    "fieldWorkAuthorization": "Work-authorization status",
+    "fieldAvailability": "Your weekly availability"
   },
   "onboarding": {
     "eyebrow": "Hand-off",
@@ -5195,8 +5321,70 @@
       "dietaryNeeds": "Dietary needs",
       "equipmentPrefs": "Equipment preferences",
       "emergencyContact": "Emergency contact",
-      "startDateConfirm": "Confirmed start date"
-    }
+      "startDateConfirm": "Confirmed start date",
+      "licenseNumber": "License / registration number",
+      "licenseExpiry": "License expiry date",
+      "immunizationStatus": "Immunization status",
+      "certifications": "Certifications / licenses held",
+      "ppeSize": "PPE / boot size",
+      "githubHandle": "GitHub / portfolio handle",
+      "workAuthorization": "Work-authorization status",
+      "availability": "Weekly availability"
+    },
+    "task": {
+      "contract": "Send & sign the employment contract",
+      "documents": "Collect ID, tax and bank details",
+      "equipment": "Order laptop and equipment",
+      "accounts": "Create email and system accounts",
+      "buddy": "Assign an onboarding buddy",
+      "firstday": "Share the first-day plan and agenda",
+      "intro": "Schedule the team intro meeting",
+      "license-verify": "Verify professional license (primary-source)",
+      "credential-check": "Credentialing & board-certification check",
+      "background": "Background check & references",
+      "immunization": "Collect immunization / health records",
+      "compliance-training": "HIPAA / patient-safety compliance training",
+      "equipment-badge": "Issue badge, equipment and system access",
+      "firstday-unit": "Share the first-day plan and unit orientation",
+      "safety-orientation": "Safety orientation (OSHA / BOZP)",
+      "ppe": "Issue PPE and safety equipment",
+      "drug-screen": "Pre-employment drug screen",
+      "cert-verify": "Verify trade certifications / licenses",
+      "equipment-tools": "Issue tools and equipment",
+      "site-assignment": "Site / shift assignment",
+      "contract-offer": "Send & sign the offer & employment contract",
+      "ip-nda": "Sign IP assignment, NDA & equity / option docs",
+      "accounts-repo": "Create accounts and repo / tool access",
+      "firstweek": "Share the first-week plan and goals",
+      "work-auth": "Confirm work authorization (e.g. I-9 / right to work)",
+      "uniform": "Issue uniform and locker",
+      "pos-training": "POS / floor / station training",
+      "cert": "Food-handler / role certification (if required)",
+      "schedule": "Set up the schedule and availability"
+    },
+    "preset": {
+      "general": {
+        "name": "Standard onboarding",
+        "industry": "General / office"
+      },
+      "healthcare_clinical": {
+        "name": "Clinical / healthcare onboarding",
+        "industry": "Healthcare & clinical"
+      },
+      "skilled_trades": {
+        "name": "Trades / manufacturing onboarding",
+        "industry": "Skilled trades, manufacturing & construction"
+      },
+      "tech_startup": {
+        "name": "Startup / tech onboarding",
+        "industry": "Tech & startups"
+      },
+      "frontline_service": {
+        "name": "Frontline / hourly onboarding",
+        "industry": "Retail, hospitality & food service"
+      }
+    },
+    "removeRow": "Remove row"
   },
   "about": {
     "eyebrow": "About",
@@ -6196,7 +6384,18 @@
       "copied": "Copied",
       "copy": "Copy",
       "export": "Export",
-      "intro": "Each question verifies the candidate owns a real decision from their submission. Listen-for / red-flag notes are interviewer-internal."
+      "intro": "Each question verifies the candidate owns a real decision from their submission. Listen-for / red-flag notes are interviewer-internal.",
+      "doc": {
+        "heading": "Interview kit — {case}",
+        "caseFallback": "Dev case",
+        "candidateLine": "Candidate: {ref}{fit}",
+        "fit": "transfer fit {score}",
+        "intro": "Each question verifies the candidate owns a real decision from their submission. The _listen for_ / _red flag_ notes are interviewer-internal — never read them aloud.",
+        "none": "No follow-up questions were minted for this submission yet — evaluate it first.",
+        "decision": "Decision under test:",
+        "listenFor": "Listen for:",
+        "redFlag": "Red flag:"
+      }
     },
     "probeAudit": {
       "label": "Probe-strength audit",
