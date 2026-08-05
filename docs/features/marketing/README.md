@@ -28,7 +28,10 @@ cards that drive it sit inside `FeatureGrid`).
 
 | Directory | Holds |
 | --- | --- |
-| `spark/sections/` | One module per band: `Topbar`, `Hero`, `Marquee`, `Proof`, `Steps`, `FeatureGrid`, `VoiceTeaser`, `TrustPillars`, `Cta`, `Footer` |
+| `spark/sections/` | One module per band: `Topbar`, `Hero`, `Marquee`, `Proof`, `FeatureGrid`, `VoiceTeaser`, `TrustPillars`, `Cta`, `Footer` |
+| `spark/sections/FeatureCardArt.tsx` | The nine feature cards' watermarks — one traced from each preview |
+| `spark/trust-art/` | The four Responsible-AI demonstrations the `#trust` band switches between, plus `shared.tsx` (the fixed stage and the `cycle()` loop helper) and `index.ts` (the key→accent+body registry) |
+| `spark/useStillMotion.ts` | `prefers-reduced-motion` as an external store — the SSR-safe replacement for framer's hook |
 | `spark/previews/` | The nine product mockups a feature card opens, plus `shared.tsx` (the two entrance choreographies and the recurring card/chip/bar shapes) and `index.ts` (the key→icon+body registry) |
 | `spark/about-art/` | One illustration per `/about` pipeline phase, plus `shared.ts` |
 | `spark/Wordmark.tsx` | The brand lockup, used by all three pages |
@@ -44,6 +47,91 @@ All three are `instant = false` (Blocked under Cache Components): they render
 under the per-request locale layout, so they cannot be statically prerendered.
 All three are listed in `app/_lib/auth/public-routes.ts` and `app/sitemap.ts`.
 
+### What the landing's bands argue, in order
+
+`Topbar · Hero · Marquee · Proof · FeatureGrid · VoiceTeaser · TrustPillars ·
+PricingSection · Cta · Footer`.
+
+**No two coloured bands repeat, and no two neighbours match.** Cream hero →
+coral marquee → steel proof → limewash features → cream voice → **moss trust**
+→ amber pricing → cream CTA/footer. Cream is the page ground, so the bands that
+declare no background of their own (voice, CTA, footer) sit on it; every band
+that *does* paint one uses a different brand hue. `#trust` was cream, directly
+below the cream voice teaser, which meant the section boundary did not read as a
+boundary at all. Moss and ink were the two unused hues; ink is unusable as a
+ground here, because the whole Spark idiom is ink outlines and `6px 6px 0 ink`
+shadows, and both vanish against it. Adding a band means picking the remaining
+hue, not reusing one.
+
+- **The hero sells automation, not detection.** `landing.hero.*` leads on the
+  pipeline running itself — ad to offer, with the operator reviewing only the
+  calls that matter. It used to open on *"Did the candidate write it, or the
+  model?"*, which is a real differentiator but a second-order one: it needs a
+  paragraph of setup before it lands, so the page opened on a worry instead of
+  on the value. That story keeps its home in the `#proof` band directly below,
+  where it has room to argue. Two CTAs — start, and watch the demo; the third
+  ("hear it interview") was an in-page jump to `#voice` competing with the two
+  that actually start something, and the scroll rail already navigates the page.
+- **There is no "how it works" band.** Three generic steps between `#proof` and
+  `#features` re-told the funnel that `/about` tells properly, as a scroll-drawn
+  seven-phase timeline. The landing no longer carries the short, worse version;
+  `landing.steps.*` and `landing.nav.how` are retired from all four catalogs.
+- **A feature card is title + body over its own watermark.** Each of the nine
+  cards renders `sections/FeatureCardArt.tsx` — line art traced from the mockup
+  that card opens (`score` is ScorePreview's dial, `schedule` its slot grid with
+  the picked cell filled, `inbox` five doors funnelling into one tray), plus a
+  corner wash in that card's accent. The leading icon tile and the trailing
+  "peek inside" line both went: the icon reappears in the spotlight header the
+  card opens, and `features.hint` above the grid already says every card peeks —
+  so both spent card space repeating something a scroll away, while making all
+  nine cards look alike. The art is `aria-hidden`, inert, and sits at ~12%
+  opacity so it reads as watermark, never as content; `fill="#fff"` on a white
+  card is invisible by design, knocking holes in the line art the way a
+  sticker's paper does so overlapping shapes stay legible.
+
+### The Responsible-AI band demonstrates, it does not assert
+
+`#trust` was four static cards in a row — icon, heading, paragraph. Four
+paragraphs of compliance prose side by side is the least-read furniture on any
+B2B page, and none of it was evidence: "human in the loop" as a sentence is
+exactly as believable as a competitor's identical sentence. It is now **one
+frame with four tabs below it**, each opening a demonstration of the claim it
+names (`spark/trust-art/`):
+
+| Tab | What it shows |
+| --- | --- |
+| `human` | `HumanLoopArt` — a candidate token rides the rail through intake and scoring on its own, then **stops** at a gate whose barrier is down, and moves only after a stamp lands with a person's name on it. Three toggles below answer the buyer's real follow-up — *which* steps may run unattended. Two flip; `reject` is locked, because "by design, not by a setting" has to survive contact with the setting. |
+| `oversight` | `OversightArt` — the EU AI Act's own four-rung risk ladder, with a marker dropping onto the rung hiring occupies, then the three duties that rung obliges. |
+| `gdpr` | `GdprArt` — the record stays redacted until the consent stamp lands. `erase` is a **live button**: it shreds the record on screen and offers a restore. `see` and `review` are chips, not controls — a button that pretended to file a human-review request would be the one dishonest pixel on the page. |
+| `audit` | `AuditArt` — three sealed decisions linked by their hashes; something edits the middle one, its hash changes, and the link after it snaps. Only the *edited* block's hash crossfades: the others did not change, and what fails downstream is the link, not their digest. Below it, the calibration chart. |
+
+Conventions worth keeping:
+
+- **One fixed stage height per breakpoint** (`ArtStage`), because the tabs sit
+  *below* the frame — a panel that resized would move the control the reader is
+  about to click. Sized to the tallest story in the longest locale; the stage
+  uses `grid-cols-[minmax(0,1fr)]` so the track can shrink below its content's
+  min-content width instead of shouldering the frame open on a phone.
+- **Every story is one `duration` with `times` as fractions of it** (`cycle()`
+  in `trust-art/shared.tsx`). No timeline object: elements mount together and
+  stay in lockstep, which is what keeps the stamp landing on the same beat as
+  the barrier lift.
+- **The tab strip is the WAI-ARIA tabs pattern** — `role="tablist"` with a
+  roving tabindex, arrows/Home/End moving selection and focus together. The
+  active pill slides via a shared `layoutId`.
+- **recharts is lazy** (`trust-art/CalibrationChart.tsx` behind `next/dynamic`,
+  the same lazy-boundary split `app/_components/FactorChart.tsx` uses). It is
+  the one genuinely quantitative claim on the marketing page, and it must not
+  cost every visitor who never opens the tab a chart library. Its `YAxis` is
+  pinned to `[0, 100]`: both series are percentages, and recharts would
+  otherwise fit the domain to the data and exaggerate the very gaps the panel
+  exists to show are small.
+- **Reduced motion goes through `useStillMotion`, never framer's hook.** See
+  the module comment: framer's answer is wrong during SSR, so branching markup
+  or initial styles on it fails hydration and re-renders the whole page on the
+  client — for the visitors who asked for less work. The hero's confetti did
+  exactly that.
+
 ## Navigation conventions
 
 The three pages share one rule set, so a visitor learns the chrome once.
@@ -54,11 +142,25 @@ The three pages share one rule set, so a visitor learns the chrome once.
 - **In-page sections live in the scroll rail.** `app/landing/spark/SectionRail.tsx`
   is a right-hand rail that stays hidden until you scroll past the hero
   (`REVEAL_AT`), then tracks the section under the viewport's middle band via an
-  `IntersectionObserver` and pins its label. Collapsed it is a column of dots;
-  hovering or tabbing into the rail opens every label. Labels are always in the
-  a11y tree (only their width animates), so it reads as a full nav to a screen
-  reader. Sections: `#proof`, `#how`, `#features`, `#voice`, `#trust`,
-  `#pricing`, plus a back-to-top control. Shown from `md` up.
+  `IntersectionObserver`. Sections: `#proof`, `#features`, `#voice`, `#trust`,
+  `#pricing`, plus a back-to-top control. Shown from `lg` up.
+  - **Every label is legible at rest** — inactive entries at 55% opacity, the
+    active one at full. The rail used to collapse to bare dots with only the
+    active label pinned, which made it a scroll-position *readout* rather than a
+    nav: you cannot pick a destination you cannot read. Opacity alone carries
+    the state, so nothing reflows as you scroll.
+  - **It is positioned against the content column, not the viewport edge:**
+    `left: min(calc(50% + 36rem + 0.5rem), calc(100% - 9.25rem))`. Open labels
+    make the rail ~8.9rem wide, and the bands are `max-w-6xl` (72rem) — so a
+    plain `right-5` laid it over the third feature card on a 1440px laptop. The
+    first term parks it just past the content's right edge; the `min()` clamps
+    it back onto the viewport below ~1480px, where no gutter exists and an
+    overlay is the only option.
+  - **Clicks glide, they do not cut.** `scrollToSection` calls
+    `scrollIntoView({ behavior: "smooth" })` (`"auto"` under `prefers-reduced-motion`)
+    and updates the hash with `replaceState`, not `pushState` — the rail is a
+    scrubber, not a trail of destinations, so it must not bury the referring
+    page under five back-presses. The `href="#id"` stays as the no-JS fallback.
 - **The language switcher is footer-only.** `LandingLangSwitch` appears once per
   page, in the footer. It used to sit in the `/market` topbar as well; one place
   to change language beats two.

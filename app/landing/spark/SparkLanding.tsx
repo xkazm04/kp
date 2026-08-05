@@ -9,7 +9,6 @@ import Topbar from "./sections/Topbar";
 import Hero from "./sections/Hero";
 import Marquee from "./sections/Marquee";
 import Proof from "./sections/Proof";
-import Steps from "./sections/Steps";
 import FeatureGrid from "./sections/FeatureGrid";
 import VoiceTeaser from "./sections/VoiceTeaser";
 import TrustPillars from "./sections/TrustPillars";
@@ -73,9 +72,12 @@ export default function SparkLanding() {
       <Hero />
       <Marquee />
       {/* The wedge band leads; the nine-card FeatureGrid is demoted below it —
-          the verified-work story is the headline, the grid is the inventory. */}
+          the verified-work story is the headline, the grid is the inventory.
+          A "how it works" band used to sit between them, re-telling the funnel
+          in three generic steps; /about tells the same story as a scroll-drawn
+          seven-phase timeline, so the landing no longer carries the short,
+          worse version. */}
       <Proof />
-      <Steps />
       <FeatureGrid preview={preview} pinned={pinned} onHoverOpen={hoverOpen} onPin={pinOpen} onLeave={leave} />
       <VoiceTeaser />
       <TrustPillars />

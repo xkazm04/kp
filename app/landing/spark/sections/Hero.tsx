@@ -2,16 +2,27 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { motion, useReducedMotion } from "framer-motion";
+import { motion } from "framer-motion";
 import { useTranslations } from "next-intl";
-import { ArrowRight, Mic, Sparkles } from "lucide-react";
+import { ArrowRight, Sparkles } from "lucide-react";
 import { BTN, DISPLAY, HAND, STICKER } from "../tokens";
 import { enterWorkspace } from "@/app/_lib/auth/session-nav";
 import { track } from "@/app/_lib/analytics/plausible";
+import { useStillMotion } from "../useStillMotion";
 
 /*
- * Hero — headline, the three calls to action, and the signature interaction:
- * a pile of CVs you can stamp a fit score onto.
+ * Hero — headline, two calls to action, and the signature interaction: a pile
+ * of CVs you can stamp a fit score onto.
+ *
+ * The band sells ONE thing: the pipeline runs itself, ad to offer. "Did the
+ * candidate write it or the model?" is a real differentiator but a second-order
+ * one — it needs a paragraph of setup before it lands, which is what the #proof
+ * band below is for. Leading with it made the page open on a worry instead of
+ * on the value, so it does not appear here.
+ *
+ * Two CTAs, not three: the third ("hear it interview") was an in-page jump to
+ * #voice competing with the two that actually start something, and the scroll
+ * rail already navigates the page.
  *
  * Structural data only below; every visible string resolves through the
  * `landing` namespace.
@@ -76,19 +87,18 @@ function StampableCv({ card, index }: { card: (typeof PILE)[number]; index: numb
 
 export default function Hero() {
   const t = useTranslations("landing");
-  const reduceMotion = useReducedMotion();
+  const reduceMotion = useStillMotion();
   return (
     <section className="relative mx-auto grid w-full max-w-6xl gap-10 px-6 pb-20 pt-14 lg:grid-cols-[1.15fr_0.85fr] lg:gap-4">
-      {!reduceMotion &&
-        CONFETTI.map((c, i) => (
-          <motion.span
-            key={i}
-            aria-hidden
-            className={`pointer-events-none absolute ${c.className}`}
-            animate={{ y: [0, -14, 0], rotate: [0, 18, 0] }}
-            transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: c.delay }}
-          />
-        ))}
+      {CONFETTI.map((c, i) => (
+        <motion.span
+          key={i}
+          aria-hidden
+          className={`pointer-events-none absolute ${c.className}`}
+          animate={reduceMotion ? undefined : { y: [0, -14, 0], rotate: [0, 18, 0] }}
+          transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: c.delay }}
+        />
+      ))}
 
       <div className="relative z-10">
         <motion.span
@@ -161,10 +171,6 @@ export default function Hero() {
           <a href="/api/demo" onClick={() => track("landing_demo_click")} className={`${BTN} bg-white`}>
             {t("hero.ctaDemo")}
             <ArrowRight className="h-5 w-5 text-[#d65a4a]" aria-hidden />
-          </a>
-          <a href="#voice" className={`${BTN} bg-white`}>
-            <Mic className="h-5 w-5 text-[#d65a4a]" aria-hidden />
-            {t("hero.ctaSecondary")}
           </a>
         </motion.div>
 

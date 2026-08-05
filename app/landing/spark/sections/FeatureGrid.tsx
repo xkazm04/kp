@@ -2,20 +2,9 @@
 
 import { motion } from "framer-motion";
 import { useTranslations } from "next-intl";
-import {
-  CalendarCheck,
-  Eye,
-  FileSearch,
-  FileSignature,
-  FlaskConical,
-  Gauge,
-  History,
-  Inbox,
-  Mic,
-  ShieldCheck
-} from "lucide-react";
 import { DISPLAY, HAND, STICKER } from "../tokens";
 import type { PreviewKey } from "../previews";
+import FeatureCardArt from "./FeatureCardArt";
 
 /*
  * The feature grid — nine sticker cards, each of which opens its live product
@@ -26,20 +15,26 @@ import type { PreviewKey } from "../previews";
  * shipped and all missing from the shop window; `cases` sits third rather than
  * last because it is the capability nobody else sells, not an afterthought.
  *
+ * A card is title + body over its own watermark (./FeatureCardArt). The
+ * leading icon tile and the trailing "peek inside" line both went: the icon
+ * reappears three inches away in the spotlight header the card opens, and the
+ * hint above the grid already tells you every card peeks — so both spent card
+ * space repeating what was a scroll away, while making all nine look alike.
+ *
  * The spotlight's open/pinned state lives in the page (SparkLanding) because
  * the modal renders at the page root, so this section takes it as props.
  */
 const FEATURES = [
-  { icon: FileSearch, rotate: -1.5, preview: "score" },
-  { icon: Mic, rotate: 1, preview: "voice" },
-  { icon: FlaskConical, rotate: -1, preview: "cases" },
-  { icon: CalendarCheck, rotate: 1.5, preview: "schedule" },
-  { icon: Inbox, rotate: -1.5, preview: "inbox" },
-  { icon: Gauge, rotate: 1, preview: "salary" },
-  { icon: History, rotate: -1, preview: "rediscover" },
-  { icon: FileSignature, rotate: 1.5, preview: "offer" },
-  { icon: ShieldCheck, rotate: -1.5, preview: "gates" }
-] as const satisfies ReadonlyArray<{ icon: typeof FileSearch; rotate: number; preview: PreviewKey }>;
+  { rotate: -1.5, preview: "score" },
+  { rotate: 1, preview: "voice" },
+  { rotate: -1, preview: "cases" },
+  { rotate: 1.5, preview: "schedule" },
+  { rotate: -1.5, preview: "inbox" },
+  { rotate: 1, preview: "salary" },
+  { rotate: -1, preview: "rediscover" },
+  { rotate: 1.5, preview: "offer" },
+  { rotate: -1.5, preview: "gates" }
+] as const satisfies ReadonlyArray<{ rotate: number; preview: PreviewKey }>;
 
 export default function FeatureGrid({
   preview,
@@ -98,19 +93,16 @@ export default function FeatureGrid({
               viewport={{ once: true, margin: "-40px" }}
               transition={{ delay: (i % 3) * 0.1, type: "spring", bounce: 0.3 }}
               whileHover={{ rotate: 0, y: -6 }}
-              className={`${STICKER} group cursor-pointer p-6 text-left focus-ring`}
+              className={`${STICKER} group relative cursor-pointer overflow-hidden p-6 text-left focus-ring`}
             >
-              <span className="inline-grid h-11 w-11 place-items-center rounded-xl border-[3px] border-[#17202a] bg-[#fdf8ee] shadow-[3px_3px_0_#17202a]">
-                <f.icon className="h-5 w-5 text-[#d65a4a]" aria-hidden />
-              </span>
-              <h3 className={`${DISPLAY} mt-4 text-xl font-bold`}>{t(`features.${f.preview}.title`)}</h3>
-              <p className="mt-2 text-[15px] leading-relaxed text-[#42606f]">{t(`features.${f.preview}.body`)}</p>
-              <span
-                className={`${HAND} mt-3 inline-flex items-center gap-1.5 text-[15px] text-[#d65a4a] opacity-70 transition-opacity group-hover:opacity-100`}
-              >
-                <Eye className="h-4 w-4" aria-hidden />
-                {t("features.peekInside")}
-              </span>
+              <FeatureCardArt preview={f.preview} />
+              {/* The art is absolutely positioned, so it would paint over
+                  statically-positioned text. One positioned wrapper puts the
+                  copy back on top without a z-index on every line. */}
+              <div className="relative">
+                <h3 className={`${DISPLAY} text-xl font-bold`}>{t(`features.${f.preview}.title`)}</h3>
+                <p className="mt-2 text-[15px] leading-relaxed text-[#42606f]">{t(`features.${f.preview}.body`)}</p>
+              </div>
             </motion.div>
           ))}
         </div>
