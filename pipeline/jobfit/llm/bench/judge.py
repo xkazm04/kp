@@ -103,10 +103,19 @@ def judge_records(
     *,
     workers: int = 2,
 ) -> int:
-    """Attach an LLM-judge score to every SERVED record (mutated in place). Rows that
-    errored or produced no payload are left unscored. Returns the number scored."""
+    """Attach an LLM-judge score to every REAL LLM output (mutated in place).
 
-    judgeable = [r for r in records if r.error is None and r.payload is not None]
+    Judged quality and measured reliability are deliberately separate axes:
+    a record that degraded to the deterministic fallback is the SAME template
+    for every model, so judging it measures the fallback, not the model — and
+    it drags the model's quality cell down for what is actually a reliability
+    failure (already reported as ``llmRate``). The 2026-08-05 expanded run hit
+    exactly this: interview_scorecard fallback stubs were scored ~2 and
+    contaminated three models' quality cells. Rows that errored, produced no
+    payload, or were served deterministically are left unscored. Returns the
+    number scored."""
+
+    judgeable = [r for r in records if r.error is None and r.payload is not None and r.source == "llm"]
     if not judgeable:
         return 0
 

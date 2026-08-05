@@ -240,17 +240,32 @@ Same 8 ops × n=3, adding `claude_cli:opus` and the new **qwen** provider
 `tmp/bench/expanded/`. Judge-score grid (⚠ = llmRate < 100%, i.e. some scenarios
 degraded to the deterministic fallback and were scored as served):
 
+**Judged quality** (1–10, real LLM outputs only — recomputed after the axis
+separation below; fallback-contaminated cells from the first cut are corrected):
+
 | use case | sonnet | opus | qwen3.8-max | glm-5.2 | deepseek-v4 | lfm2.5:8b |
 |---|--:|--:|--:|--:|--:|--:|
 | automation_screen | 8.0 | 6.3 | 5.5 | 7.0 | 6.3 | 6.7 |
-| campaign_pack | 6.0 | 5.0 | 3.0 | 3.3 | 3.0 ⚠ | 3.3 |
-| devcase_case_design | 8.0 | 7.7 | 3.0 ⚠ | 3.0 | 3.0 ⚠ | 6.0 |
-| group_compare | 8.3 | 7.0 | 5.7 ⚠ | 6.3 ⚠ | 7.0 | 4.3 |
-| interview_scorecard | 7.3 | 7.0 | 2.3 ⚠ | 2.0 | 2.0 ⚠ | 4.3 |
+| campaign_pack | 6.0 | 5.0 | 3.0 | 3.3 | 3.0 | 3.3 |
+| devcase_case_design | 8.0 | 7.7 | 3.0 | 3.0 | 3.0 | 6.0 |
+| group_compare | 8.3 | 7.0 | 5.0 | 6.5 | 7.0 | 4.3 |
+| interview_scorecard | 7.3 | 7.0 | 3.0 | 2.0 | 2.0 | 4.3 |
 | jd_ingest | 6.0 | 6.0 | 5.0 | 4.0 | 4.3 | 5.0 |
 | match_reasoning | 7.3 | 6.0 | 6.7 | 7.3 | 8.0 | 5.7 |
-| weight_proposal | 7.7 | 5.7 | 3.7 ⚠ | 4.0 ⚠ | 4.0 | 3.7 |
+| weight_proposal | 7.7 | 5.7 | 4.0 | 4.0 | 4.0 | 3.7 |
 | **mean** | **7.3** | **6.3** | **4.4** | **4.6** | **4.7** | **4.9** |
+
+**Measured reliability** (llm-rate % — how often the model itself served) and
+**economics** (8-op means):
+
+| model | llm-rate | $/task | p50 | weakest reliability cells |
+|---|--:|--:|--:|---|
+| sonnet (CLI) | 100% | $0.191 | 34.4s | — |
+| opus (CLI) | 100% | $0.309 | 47.5s | — |
+| qwen3.8-max | 66% | $0.020 | 57.0s | devcase/group/scorecard/weights all 33% |
+| glm-5.2 | 92% | $0.013 | 41.7s | group_compare, weight_proposal 67% |
+| deepseek-v4-flash | 88% | $0.0015 | 26.9s | campaign, devcase, scorecard 67% |
+| lfm2.5:8b (local) | 100% | $0 | 12.5s | — |
 
 **Reads:**
 - **Opus buys nothing here.** −1.0 vs Sonnet on mean, 2–3× the latency
@@ -271,6 +286,28 @@ degraded to the deterministic fallback and were scored as served):
 - **The local 8B (lfm2.5) holds the challenger tier's average** (4.9 vs 4.4–4.7)
   while being the only zero-cost, zero-egress option — the open-model story is
   credible for extraction/single-decision ops, not yet for multi-deliverable ones.
+
+### Evaluation mechanics — the three axes are separate (since 2026-08-05)
+
+The scorecard keeps **judged quality** and **measured cost/reliability** next to
+each other without letting them contaminate one another:
+
+- **Judged quality** — `bench/judge.py` scores **real LLM outputs only**
+  (`source == "llm"`). A run that degraded to the deterministic fallback is the
+  same template for every model; scoring it would measure the fallback, not the
+  model (the first expanded cut hit exactly this on interview_scorecard).
+- **Measured reliability** — `errors` / `validRate` / `llmRate` in
+  `runner.summarize()`: did the model actually serve, and was the payload
+  well-shaped. Fallbacks live here, as a low llm-rate.
+- **Measured economics + latency** — `costPerTaskUsd` (from the envelopes'
+  `cost_usd`) and `p50Ms`/`p95Ms`. Which one binds is framed by the op's
+  **mode** (`scenarios.OP_MODES`): *online* ops (a person waits in the UI —
+  match_reasoning, jd_ingest, scorecard, group_compare, weight_proposal,
+  interview_prep) answer to latency; *background* ops (automation passes,
+  campaign_pack, devcase design) answer to $/task.
+
+`summary.md` prints all three groups per row (`judge* | valid | llm | err |
+$/task | p50 | p95`) with the footnote pinned to the table.
 
 _Expanded run generated 2026-08-05 from `tmp/bench/sonnet-vs-lfm25` +
 `tmp/bench/expanded`. 8 ops × 6 models, n=3/cell, judge = Claude CLI._

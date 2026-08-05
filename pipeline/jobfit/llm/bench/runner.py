@@ -170,6 +170,21 @@ def _percentile(values: list[int], pct: float) -> int:
 
 
 def summarize(records: Sequence[BenchRecord]) -> list[dict[str, Any]]:
+    """One row per (use case, target), with the three axes kept SEPARATE so they
+    can sit next to each other without contaminating one another:
+
+    - **judged quality** (``meanJudge``/``judged``) — LLM-as-judge over real LLM
+      outputs only (judge.py skips deterministic fallbacks);
+    - **measured reliability** (``errors``/``validRate``/``llmRate``) — how often
+      the target actually served, with a well-shaped payload;
+    - **measured economics** (``costPerTaskUsd``/``totalCostUsd``/tokens) and
+      **latency** (``p50Ms``/``p95Ms``) — deterministic facts from the envelopes.
+
+    ``mode`` (scenarios.OP_MODES) frames which economic axis binds: an *online*
+    op is judged against latency (a person is waiting), a *background* op
+    against cost per task (an automation pass pays for it)."""
+    from .scenarios import OP_MODES  # local import — scenarios imports nothing from here at module load
+
     groups: dict[tuple[str, str, str], list[BenchRecord]] = {}
     for r in records:
         groups.setdefault((r.use_case, r.provider, r.model), []).append(r)
@@ -182,19 +197,25 @@ def summarize(records: Sequence[BenchRecord]) -> list[dict[str, Any]]:
         rows.append(
             {
                 "useCase": use_case,
+                "mode": OP_MODES.get(use_case, "background"),
                 "provider": provider,
                 "model": model,
                 "n": len(group),
+                # judged quality (real LLM outputs only)
+                "judged": len(judged),
+                "meanJudge": round(sum(judged) / len(judged), 2) if judged else None,
+                # measured reliability
                 "errors": len(group) - len(ok),
                 "validRate": round(sum(1 for r in ok if r.valid) / len(ok), 3) if ok else 0.0,
                 "llmRate": round(sum(1 for r in ok if r.source == "llm") / len(ok), 3) if ok else 0.0,
-                "judged": len(judged),
-                "meanJudge": round(sum(judged) / len(judged), 2) if judged else None,
-                "p50Ms": _percentile(latencies, 50),
-                "p95Ms": _percentile(latencies, 95),
+                # measured economics
+                "costPerTaskUsd": round(sum(costs) / len(ok), 4) if costs and ok else None,
+                "totalCostUsd": round(sum(costs), 4) if costs else None,
                 "meanInputTokens": round(sum(r.input_tokens for r in ok) / len(ok)) if ok else 0,
                 "meanOutputTokens": round(sum(r.output_tokens for r in ok) / len(ok)) if ok else 0,
-                "totalCostUsd": round(sum(costs), 4) if costs else None,
+                # measured latency
+                "p50Ms": _percentile(latencies, 50),
+                "p95Ms": _percentile(latencies, 95),
             }
         )
     return rows
@@ -202,18 +223,24 @@ def summarize(records: Sequence[BenchRecord]) -> list[dict[str, Any]]:
 
 def to_markdown(summary_rows: Sequence[dict[str, Any]]) -> str:
     header = (
-        "| use case | target | n | err | valid | judge | llm | p50 ms | p95 ms | in tok | out tok | cost $ |\n"
-        "|---|---|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|"
+        "| use case | mode | target | n | judge* | valid | llm | err | $/task | p50 ms | p95 ms | in tok | out tok |\n"
+        "|---|---|---|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|"
     )
     lines = [header]
     for row in summary_rows:
         judge = f"{row['meanJudge']:.1f}" if row.get("meanJudge") is not None else "—"
+        cost = f"{row['costPerTaskUsd']:.4f}" if row.get("costPerTaskUsd") is not None else "—"
         lines.append(
-            f"| {row['useCase']} | {row['provider']}:{row['model']} | {row['n']} | {row['errors']} "
-            f"| {row['validRate']:.0%} | {judge} | {row['llmRate']:.0%} | {row['p50Ms']} | {row['p95Ms']} "
-            f"| {row['meanInputTokens']} | {row['meanOutputTokens']} "
-            f"| {row['totalCostUsd'] if row['totalCostUsd'] is not None else '—'} |"
+            f"| {row['useCase']} | {row['mode']} | {row['provider']}:{row['model']} | {row['n']} "
+            f"| {judge} | {row['validRate']:.0%} | {row['llmRate']:.0%} | {row['errors']} "
+            f"| {cost} | {row['p50Ms']} | {row['p95Ms']} "
+            f"| {row['meanInputTokens']} | {row['meanOutputTokens']} |"
         )
+    lines.append(
+        "\n\\* judge scores REAL LLM outputs only (1–10); a run that degraded to the "
+        "deterministic fallback counts against the llm-rate column, never against quality. "
+        "Online ops answer to p50/p95; background ops answer to $/task."
+    )
     return "\n".join(lines)
 
 
