@@ -1,7 +1,7 @@
 ---
 name: scan-sweep
 description: "End-to-end context sweep: reads one feature-area's code once, evaluates it through every scan lens (references/lenses.md), and by default FIXES the accepted S/M findings in-session with atomic commits — one session owns one context end to end. Pass --ideas-only to emit findings to the Personas memory outbox for backlog triage instead of fixing. L moonshot items are always triaged, never auto-built."
-argument-hint: "[--ideas-only] [--lenses key1,key2] [context]"
+argument-hint: "[--develop|--optimize] [--ideas-only] [--lenses key1,key2] [--coverage] [context]"
 category: Development
 contexts: tracked
 memory: project
@@ -20,6 +20,32 @@ nothing real to say returns nothing.
   you could not or should not fix leaves the session as a backlog finding.
 - **Ideas-only (`--ideas-only`)** — scan and emit every finding to the memory
   outbox for app-side triage; change no code.
+
+**Strategies — compose the package weights (optional, pick at most one):**
+
+- `--develop` — direction: NEW capability. Deep tier = feature-scout,
+  innovation-catalyst, ux-reviewer, onboarding-designer, integration-planner,
+  business-strategist, growth-hacker, monetization-advisor (plus any matched
+  lens). Aim ~70% of the finding budget at forward-building items: missing
+  features, UX affordances, integrations, product gaps. Quality lenses still
+  run as a light pass — a real defect is never ignored, but marginal cleanups
+  are dropped, and feature-class S/M items become eligible for resolve.
+- `--optimize` — direction: QUALITY of what exists. Deep tier =
+  code-optimizer, tech-debt-tracker, security-auditor, bounty-hunter,
+  error-handler, test-strategist, risk-assessor, accessibility-checker,
+  mobile-specialist, dependency-auditor, devops-optimizer,
+  documentation-auditor. ~70% of the budget at hardening, performance, debt
+  and coverage; feature ideas are recorded as findings only — never built
+  under this strategy.
+- No flag = balanced (matched-first ordering below). Name the strategy in the
+  report header and record it in the snapshot's `strategy` field so the
+  coverage table can show how each context has been swept.
+
+**Coverage table (`--coverage`):** do NOT scan. Run
+`node .claude/skills/scan-sweep/scripts/coverage.mjs` (append `--all` for
+every context) and present its per-context table — lens coverage, findings vs
+fixed, last strategy and age, least-covered first — the operator's pick list
+for the next targeted sweep. Then stop.
 
 Several sweep sessions may run in this repo at once, each owning a different
 context — the parallel rules in step 6 are what make that safe.
@@ -229,7 +255,7 @@ package-ordering rule read. `findings` counts BOTH fixed and proposed (both
 spend the 30-item budget):
 
 ```json
-{"at":"<ISO-8601>","scope":"<context>","mode":"resolve|ideas","lens_keys":["<key>","<key>"],"lenses":<n>,"findings":<n>,"fixed":<n>,"escalations":<n>,"degraded":<true|false>,"note":"<≤80 chars>"}
+{"at":"<ISO-8601>","scope":"<context>","mode":"resolve|ideas","strategy":"develop|optimize|balanced","lens_keys":["<key>","<key>"],"lenses":<n>,"findings":<n>,"fixed":<n>,"escalations":<n>,"degraded":<true|false>,"note":"<≤80 chars>"}
 ```
 
 If prior lines exist for the SAME scope, add a trend line to the report
