@@ -5,14 +5,14 @@ import { trackLlmToLightTrack } from "@/app/_lib/llm-lighttrack";
 // The model id lives here next to its price book on purpose: the cost stamped on
 // the ledger row must always belong to the model that was actually called, so the
 // two can never be edited apart. code-review.ts imports GEMINI_MODEL from here.
-export const GEMINI_MODEL = "gemini-3-flash-preview";
+export const GEMINI_MODEL = "gemini-3.6-flash";
 
 // USD per million tokens for GEMINI_MODEL — keep in sync with MTOK_PRICES in
 // pipeline/jobfit/llm/base.py (Python is the price book of record; this pair
 // exists only so the one TS-direct Gemini call stamps the same cost_usd on its
 // llm_usage ledger row as the Python adapters do).
-const GEMINI_MTOK_PRICE_IN_USD = 0.3;
-const GEMINI_MTOK_PRICE_OUT_USD = 2.5;
+const GEMINI_MTOK_PRICE_IN_USD = 1.5;
+const GEMINI_MTOK_PRICE_OUT_USD = 7.5;
 
 // Stamp the deep-review Gemini call into BOTH telemetry sinks — the durable
 // llm_usage ledger and LightTrack. The LLM-cost audit flagged this site as the
@@ -25,16 +25,23 @@ const GEMINI_MTOK_PRICE_OUT_USD = 2.5;
 export function recordGeminiUsage(
   requestId: string | undefined,
   usage: { promptTokenCount?: number; candidatesTokenCount?: number; cachedContentTokenCount?: number } | undefined,
-  latencyMs?: number
+  latencyMs?: number,
+  model: string = GEMINI_MODEL
 ): void {
   if (!usage) return;
   const inputTokens = typeof usage.promptTokenCount === "number" ? usage.promptTokenCount : null;
   const outputTokens = typeof usage.candidatesTokenCount === "number" ? usage.candidatesTokenCount : null;
   if (inputTokens === null && outputTokens === null) return;
   const cachedTokens = typeof usage.cachedContentTokenCount === "number" ? usage.cachedContentTokenCount : null;
-  const costUsd = round6(
-    ((inputTokens ?? 0) * GEMINI_MTOK_PRICE_IN_USD + (outputTokens ?? 0) * GEMINI_MTOK_PRICE_OUT_USD) / 1_000_000
-  );
+  // The price pair belongs to GEMINI_MODEL only. A config-pinned different model
+  // stays unpriced (cost_usd null, token-metered) — same convention as Azure
+  // deployment names in MTOK_PRICES: never bill against the wrong price row.
+  const costUsd =
+    model === GEMINI_MODEL
+      ? round6(
+          ((inputTokens ?? 0) * GEMINI_MTOK_PRICE_IN_USD + (outputTokens ?? 0) * GEMINI_MTOK_PRICE_OUT_USD) / 1_000_000
+        )
+      : null;
   // Durable spend ledger — written first, independent of LightTrack below (same
   // ordering as gemini.py _meter_success: the ledger must persist even when
   // observability is off, the default deployment).
@@ -42,7 +49,7 @@ export function recordGeminiUsage(
     insertLlmUsage({
       useCase: "github_analysis",
       provider: "gemini",
-      model: GEMINI_MODEL,
+      model,
       inputTokens,
       outputTokens,
       cachedTokens,
@@ -58,7 +65,7 @@ export function recordGeminiUsage(
   // unless LIGHTTRACK_URL is set; best-effort and exception-swallowed.
   trackLlmToLightTrack({
     provider: "gemini",
-    model: GEMINI_MODEL,
+    model,
     useCase: "github_analysis",
     inputTokens,
     outputTokens,

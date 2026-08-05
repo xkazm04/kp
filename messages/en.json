@@ -5797,6 +5797,9 @@
       "openai": "OpenAI",
       "azure_openai": "Azure OpenAI",
       "gemini": "Gemini",
+      "openrouter": "OpenRouter",
+      "qwen": "Qwen Cloud",
+      "ollama": "Ollama",
       "claude_cli": "Claude CLI"
     },
     "keys": {

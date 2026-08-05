@@ -23,7 +23,7 @@ from .i18n import language_name
 from .taxonomy import ROLE_FAMILIES, role_family_catalog
 
 
-GEMINI_MODEL = "gemini-3-flash-preview"
+GEMINI_MODEL = "gemini-3.6-flash"
 
 
 ANALYSIS_RESPONSE_SCHEMA = {

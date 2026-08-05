@@ -3,7 +3,7 @@ import { GoogleGenAI } from "@google/genai";
 import { codeReviewSchema } from "@/app/_lib/schemas";
 import { describeEvidenceBasis } from "@/app/_lib/github-evidence";
 import { withGeminiRetry } from "@/app/_lib/gemini-retry";
-import { resolveProviderKey } from "@/app/_lib/llm-config";
+import { configuredModelFor, resolveProviderKey } from "@/app/_lib/llm-config";
 import { fetchRepoBundle, type GithubRepo, type RepoBundle } from "./client";
 import { GEMINI_MODEL, recordGeminiUsage } from "./usage";
 
@@ -182,6 +182,11 @@ export async function runCodeReview(
 
   try {
     const ai = new GoogleGenAI({ apiKey });
+    // Honor a Models-tab re-pin of the github_analysis model (specific row, then
+    // "*", when routed to gemini) — this site speaks the Gemini SDK only, so a
+    // provider swap can't be honored here, but the model must not be hardcoded
+    // (the last structural wrapper bypass; tiger #7).
+    const model = configuredModelFor("github_analysis", "gemini") ?? GEMINI_MODEL;
     // Bounded retry on transient failures only (429/5xx/timeouts) — this was the
     // one Gemini call site in the app with no retry, so a single rate-limit blip
     // hard-failed the whole review. Policy mirrors the Python side (llm/base.py):
@@ -190,7 +195,7 @@ export async function runCodeReview(
     const geminiStartedAt = Date.now();
     const response = await withGeminiRetry(() =>
       ai.models.generateContent({
-        model: GEMINI_MODEL,
+        model,
         contents: prompt,
         config: {
           temperature: 0.1,
@@ -199,7 +204,7 @@ export async function runCodeReview(
         },
       })
     );
-    recordGeminiUsage(requestId, response.usageMetadata, Date.now() - geminiStartedAt);
+    recordGeminiUsage(requestId, response.usageMetadata, Date.now() - geminiStartedAt, model);
     const text = response.text ?? "";
     const review = geminiReviewSchema.safeParse(parseGeminiJson(text));
     if (!review.success) {

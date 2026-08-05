@@ -6,6 +6,7 @@ import { openStore } from "./db-path";
 import type { JobRecord } from "./db";
 import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "./python-runner";
+import { buildLlmConfigEnv } from "./llm-config";
 
 // Direction #1: turn authored/ingested job descriptions into structured,
 // matchable Job rows. insertJob writes into the SHARED `jobs` table (so
@@ -230,7 +231,13 @@ async function runJobsCli(cliArgs: string[], fileName: string, payload: unknown,
     const isText = fileName.endsWith(".txt");
     await writeFile(p, isText ? String(payload) : JSON.stringify(payload), "utf-8");
     const flag = isText ? "--ad-file" : "--record-json";
-    const { result } = spawnPython(["-m", "pipeline.jobfit.jobs_cli", ...cliArgs, flag, p], { signal });
+    // buildLlmConfigEnv: the ingest command resolves the jd_ingest use case —
+    // without this env the configured BYOM provider/key re-route is silently dead
+    // (tiger 2026-08-05 coverage sweep; normalize is deterministic and unaffected).
+    const { result } = spawnPython(["-m", "pipeline.jobfit.jobs_cli", ...cliArgs, flag, p], {
+      signal,
+      env: buildLlmConfigEnv(),
+    });
     const { stdout, stderr, exitCode } = await result;
     if (exitCode !== 0) throw new Error(parseStderrError(stderr, exitCode).message);
     return parsePythonJson<JobCliOut>(stdout, stderr);

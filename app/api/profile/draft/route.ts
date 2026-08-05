@@ -8,6 +8,7 @@ import {
   parseStderrError,
   spawnPython,
 } from "@/app/_lib/python-runner";
+import { buildLlmConfigEnv } from "@/app/_lib/llm-config";
 import { getServerLocale } from "@/i18n/server";
 
 // bug-ui-scan-2026-07-09 (pipeline-clis-script-bridges #2): this route spawns a
@@ -45,7 +46,9 @@ export async function POST(request: NextRequest) {
     // keeps it inside the function budget so cleanupWorkdir always runs.
     const { result } = spawnPython(
       ["-m", "pipeline.jobfit.profile_draft_cli", "--input-json", inputPath, "--lang", lang],
-      { signal: request.signal, timeoutMs: DRAFT_TIMEOUT_MS },
+      // buildLlmConfigEnv: the CLI resolves the profile_draft use case — without
+      // this env the configured BYOM provider/key re-route is silently dead.
+      { signal: request.signal, timeoutMs: DRAFT_TIMEOUT_MS, env: buildLlmConfigEnv() },
     );
     const { stdout, stderr, exitCode } = await result;
     if (exitCode !== 0) {

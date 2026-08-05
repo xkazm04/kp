@@ -30,6 +30,11 @@ PROVIDER_CAPABILITIES: dict[str, frozenset[str]] = {
     # OpenRouter serves the JSON/text use cases via prompt-embedded JSON; file input
     # varies per proxied model, so it is not advertised here.
     "openrouter": frozenset({CAP_JSON}),
+    # Local/on-box models through Ollama's OpenAI-compatible /v1 endpoint.
+    "ollama": frozenset({CAP_JSON}),
+    # Qwen Cloud (DashScope-intl compatible mode) — Qwen family + hosted
+    # third-party models by slug, one key. Text/JSON only here.
+    "qwen": frozenset({CAP_JSON}),
 }
 
 # The use-case catalog (docs/architecture/llm-provider-layer.md). Unknown use cases default
@@ -66,11 +71,15 @@ USE_CASE_REQUIREMENTS: dict[str, frozenset[str]] = {
 DEFAULT_MODELS: dict[str, str | None] = {
     "anthropic": "claude-haiku-4-5",
     "openai": "gpt-5-mini",
-    "gemini": "gemini-3-flash-preview",
+    "gemini": "gemini-3.6-flash",
     "azure_openai": None,
     "claude_cli": None,  # the CLI's configured default
     # OpenRouter models are addressed by slug — always explicit, like Azure deployments.
     "openrouter": None,
+    # Ollama models are addressed by local tag (`lfm2.5:8b`) — always explicit.
+    "ollama": None,
+    # Qwen Cloud models are addressed by slug — always explicit, like OpenRouter.
+    "qwen": None,
 }
 
 # Quality-sensitive use cases step up a model class when no model is pinned.

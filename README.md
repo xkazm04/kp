@@ -4,11 +4,39 @@ Next.js + TypeScript hiring workspace backed by a Python analysis pipeline. What
 
 Three LLM engines power it, each picked for its cost/capability profile:
 
-- **Gemini** (`gemini-3-flash-preview`) — the production single-analysis path: multimodal CV extraction, role-fit scoring, salary estimation with optional Google Search grounding.
+- **Gemini** (`gemini-3.6-flash`) — the production single-analysis path: multimodal CV extraction, role-fit scoring, salary estimation with optional Google Search grounding.
 - **Claude Code CLI** (headless `claude -p`, billed to your Claude Pro/Max **subscription**, not the metered API) — the batch engine for HR automation tasks, dev-case design/evaluation, match reasoning, and eval sweeps.
 - **ElevenLabs Conversational AI** (or OpenAI Realtime) — voice agents that run first-round screening interviews in Czech or English.
 
 Everything degrades gracefully: features that need an engine you haven't configured fall back to deterministic logic or simply hide.
+
+### Model benchmark — BYOM candidates (measured 2026-08-05)
+
+LLM-as-judge scores (1–10, Claude-CLI judge) over 8 production use cases, n=3 each,
+run through the real production prompts/fallbacks via `pipeline/jobfit/llm/bench/`.
+`claude_cli` Sonnet/Opus; `qwen` = Qwen Cloud API (qwen3.8-max, glm-5.2,
+deepseek-v4-flash-0731); `ollama` = local LFM2.5-8B-A1B. ⚠ = some runs degraded to
+the deterministic fallback (scored as served).
+
+| use case | sonnet | opus | qwen3.8-max | glm-5.2 | deepseek-v4 | lfm2.5:8b |
+|---|--:|--:|--:|--:|--:|--:|
+| automation_screen | 8.0 | 6.3 | 5.5 | 7.0 | 6.3 | 6.7 |
+| campaign_pack | 6.0 | 5.0 | 3.0 | 3.3 | 3.0 ⚠ | 3.3 |
+| devcase_case_design | 8.0 | 7.7 | 3.0 ⚠ | 3.0 | 3.0 ⚠ | 6.0 |
+| group_compare | 8.3 | 7.0 | 5.7 ⚠ | 6.3 ⚠ | 7.0 | 4.3 |
+| interview_scorecard | 7.3 | 7.0 | 2.3 ⚠ | 2.0 | 2.0 ⚠ | 4.3 |
+| jd_ingest | 6.0 | 6.0 | 5.0 | 4.0 | 4.3 | 5.0 |
+| match_reasoning | 7.3 | 6.0 | 6.7 | 7.3 | **8.0** | 5.7 |
+| weight_proposal | 7.7 | 5.7 | 3.7 ⚠ | 4.0 ⚠ | 4.0 | 3.7 |
+| **mean** | **7.3** | **6.3** | **4.4** | **4.6** | **4.7** | **4.9** |
+
+Headlines: Sonnet stays the quality ceiling; Opus is slower, ~10× the cost, and does
+not beat it here. deepseek-v4-flash matches or beats Sonnet on match_reasoning at
+~1/200th the cost. The fully local 8B model is competitive with the cloud
+challengers on average and never emits invalid JSON on 7 of 8 ops — its gap (like
+theirs) is substance on multi-deliverable tasks, not format. Full method, latency,
+cost columns and caveats (n=3, Claude-family judge): see
+[`docs/architecture/llm-model-matrix.md`](docs/architecture/llm-model-matrix.md).
 
 ## 1. Preconditions
 
@@ -258,7 +286,7 @@ docs/diagrams/                      PlantUML sources rendered on /diagrams
 
 1. `extractors.py` — extracts a pypdf baseline from PDF/DOCX/TXT/MD, repairs Czech encoding artifacts, and detects the dominant language. Used for both the Extraction-tab side-by-side comparison and the bilingual output flag.
 2. **Deterministic pre-pass** (`pipeline.py::_build_deterministic_evidence`) — runs `taxonomy.py` over the raw text and the company text to detect: role family, seniority bucket, anchor salary band (looked up in `data/salary_benchmarks.json`), salary signals (cloud / ai / security / devops / leadership / english / german / regulated_industry), surface-form skills, company type, company modifiers. Output is bundled as a JSON evidence block.
-3. `gemini.py` — single Gemini call gets the CV bytes plus the evidence block plus the output-language flag and returns the structured analysis: profile, score sub-totals, salary range (anchored to the band), optional job-fit, grounded market evidence. Uses `gemini-3-flash-preview`.
+3. `gemini.py` — single Gemini call gets the CV bytes plus the evidence block plus the output-language flag and returns the structured analysis: profile, score sub-totals, salary range (anchored to the band), optional job-fit, grounded market evidence. Uses `gemini-3.6-flash`.
 4. `insights.py` — company-type classification, multiplier application (capped at 1.20×), evidence trace.
 5. `ats.py` — JD keyword coverage (matched / missing / over-used) consumed by the Job-fit tab.
 6. `interview.py` — interview question pack with STAR scaffolds derived from job-fit gaps.

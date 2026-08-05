@@ -17,7 +17,7 @@ import { assertPublicHttpsEndpointResolved } from "./ats-egress-guard.ts";
 // Keep in sync with PROVIDER_CAPABILITIES / USE_CASE_REQUIREMENTS in
 // pipeline/jobfit/llm/capabilities.py — Python is authoritative; these lists
 // only gate what the admin API will accept.
-export const LLM_PROVIDERS = ["anthropic", "openai", "azure_openai", "gemini", "openrouter", "claude_cli"] as const;
+export const LLM_PROVIDERS = ["anthropic", "openai", "azure_openai", "gemini", "openrouter", "qwen", "ollama", "claude_cli"] as const;
 export type LlmProvider = (typeof LLM_PROVIDERS)[number];
 
 export const LLM_USE_CASES = [
@@ -51,14 +51,16 @@ export function isLlmProvider(value: unknown): value is LlmProvider {
   return typeof value === "string" && (LLM_PROVIDERS as readonly string[]).includes(value);
 }
 
-// Providers that take a stored key. claude_cli runs keyless (local default), so
-// it is never offered in the keys form and the PUT rejects it. Single source for
+// Providers that take a stored key. claude_cli runs keyless (local default) and
+// ollama authenticates nothing on a stock server (endpoint set via OLLAMA_BASE_URL),
+// so neither is offered in the keys form and the PUT rejects them. Single source for
 // that "keyable provider" rule — the route and the admin UI both derive from here
-// instead of hand-coding `!== "claude_cli"`.
-export const KEYABLE_PROVIDERS = LLM_PROVIDERS.filter((p) => p !== "claude_cli");
+// instead of hand-coding the exclusions.
+const KEYLESS_PROVIDERS: readonly LlmProvider[] = ["claude_cli", "ollama"];
+export const KEYABLE_PROVIDERS = LLM_PROVIDERS.filter((p) => !KEYLESS_PROVIDERS.includes(p));
 
 export function isKeyableProvider(value: unknown): value is LlmProvider {
-  return isLlmProvider(value) && value !== "claude_cli";
+  return isLlmProvider(value) && !KEYLESS_PROVIDERS.includes(value);
 }
 
 export function isLlmUseCase(value: unknown): value is LlmUseCase {
@@ -166,6 +168,20 @@ export function resolveProviderKey(provider: LlmProvider, envVars: readonly stri
     env: process.env,
     envVars,
   });
+}
+
+/**
+ * Configured model for a use case, honored only when its row (specific, then the
+ * "*" wildcard) routes to `provider`. For the TS-direct call sites that speak ONE
+ * vendor SDK (github-analysis → Gemini): they cannot honor a provider swap, but
+ * they must honor a model re-pin on their own provider instead of hardcoding it
+ * (tiger #7 — the last structural bypass). Returns undefined when nothing matches.
+ */
+export function configuredModelFor(useCase: LlmUseCase, provider: LlmProvider): string | undefined {
+  const rows = listLlmConfig();
+  const row = rows.find((r) => r.useCase === useCase) ?? rows.find((r) => r.useCase === "*");
+  if (!row || row.provider !== provider || !row.model) return undefined;
+  return row.model;
 }
 
 // ---- KP_LLM_CONFIG assembly --------------------------------------------------

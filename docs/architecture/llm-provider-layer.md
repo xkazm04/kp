@@ -43,6 +43,8 @@ deliberate bench run to pick metered default models, org-level (per-tenant)
 | Gemini | `gemini_api.py` | Multimodal (PDF/image) + Google Search grounding; the CV-analysis workhorse. |
 | Claude CLI | `pipeline/jobfit/claude_cli.py` | Subprocess provider, **local/dev only** (subscription billing — fine for one dev machine, not for hosted SaaS). |
 | OpenRouter | `openrouter.py` | Bench-only adapter — routes many third-party models through one key for the model-matrix comparison (`docs/architecture/llm-model-matrix.md`); not a production routing target. |
+| Ollama | `ollama.py` | First-class local/on-box models through Ollama's OpenAI-compatible `/v1`. Keyless (not offered in the keys form); models addressed by tag (`lfm2.5:8b`) with no built-in default; endpoint defaults to `http://localhost:11434/v1`, overridable via `keys.ollama.baseUrl` in `KP_LLM_CONFIG` or the `OLLAMA_BASE_URL` env var. |
+| Qwen Cloud | `qwen.py` | qwencloud.com / DashScope-intl **compatible mode** (`https://dashscope-intl.aliyuncs.com/compatible-mode/v1`, override `QWEN_BASE_URL`). One key (`QWEN_API_KEY`/`DASHSCOPE_API_KEY`) serves the Qwen family plus hosted third-party models (`glm-5.2`, `deepseek-v4-flash-0731`) by explicit slug — an OpenRouter-style gateway that IS a production routing target. |
 
 Every call site already has a deterministic fallback and an envelope
 `source: "llm" | "deterministic"` (`reasoning-cache-policy.ts` depends on this
@@ -77,6 +79,15 @@ that env, no DB access from Python, no second source of truth.
 
 **Key resolution order:** workspace BYOM key → platform key → provider
 unavailable → existing deterministic fallback (`app/_lib/provider-key-precedence.ts`).
+
+**Environment-aware default (no config row):** local dev keeps the Claude CLI,
+byte-for-byte the pre-wrapper behavior. Under `NODE_ENV=production` (cloud /
+`next start`), `resolve_provider` prefers **Gemini Flash** (`gemini-3.6-flash`)
+— but only when Gemini can actually serve (key + SDK resolve; `available()` also
+honors `KP_OFFLINE`), so a keyless self-hosted deployment keeps the unchanged
+CLI default and its deterministic fallbacks. An explicit config row — including
+`claude_cli` — always wins. (`registry._production_gemini_default`; use cases
+needing `file_input` are excluded and keep their dedicated `gemini.py` path.)
 
 ## Observability — LightTrack (`pipeline/jobfit/llm/monitor.py`)
 
@@ -114,11 +125,26 @@ hand-edit).
 
 ## Known gaps
 
-- `cv_analysis` still Gemini-only (multimodal + grounding not yet in the shared
-  adapter contract).
+- `cv_analysis` / `profile_extract` still Gemini-only (multimodal + grounding not
+  yet in the shared adapter contract) — both are listed in the use-case catalog
+  but route through the dedicated `gemini.py` path; a config row for them has no
+  effect today.
+- `grounded_salary` (market salary via `market_salary_cli.py`) also calls
+  `gemini.py` directly and is not in the use-case catalog — un-routable.
+- Voice (OpenAI Realtime / ElevenLabs) is deliberately outside the provider
+  layer: env-configured, per-minute ledger attribution via
+  `app/_lib/voice/minute-prices.ts`; its OpenAI key does not use
+  `resolveProviderKey`.
 - Per-tenant `llm_usage` attribution not built (global ledger today).
-- The TS-side wrapper covers one call site (github-analysis); future TS call
-  sites would need the same `resolve(use_case)` treatment.
+- The TS-side github-analysis call honors the BYOM **key** layering and (since
+  2026-08-05) a Models-tab **model** re-pin on its gemini row
+  (`configuredModelFor`), but it speaks the Gemini SDK only — a provider *swap*
+  configured for `github_analysis` is not honored there.
+- Spawn-site coverage is pinned by `app/_lib/llm-spawn-contract.test.ts` — every
+  TS module spawning an LLM-resolving Python CLI must pass
+  `env: buildLlmConfigEnv()` (a 2026-08-05 sweep found four sites where the
+  re-route was silently dead: `jd_ingest`, `weight_proposal`, `group_compare`,
+  `profile_draft` — all fixed).
 
 ## Testing
 

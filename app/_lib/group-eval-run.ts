@@ -10,6 +10,7 @@ import { isSameCurrency } from "./salary-band";
 import { FIT_PROMISING_FLOOR } from "./fit-thresholds";
 import { poolEntryFromAnalysis, type CandidatePoolEntry } from "./candidate-pool";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "./python-runner";
+import { buildLlmConfigEnv } from "./llm-config";
 import { rankPoolForJob } from "./recruiter-run";
 import { computeDifferentiators } from "./group-eval-differentiators";
 import { leadSeparation, separationNote } from "./group-eval-separation";
@@ -239,7 +240,9 @@ async function runGroupCompare(
     // on-demand and in the background eval pass, which has no request cookie).
     const { result } = spawnPython(
       ["-m", "pipeline.jobfit.group_compare_cli", "--input-json", inputPath, "--lang", getWorkspaceDefaultLocale()],
-      { signal }
+      // buildLlmConfigEnv: the CLI resolves the group_compare use case — without
+      // this env the configured BYOM provider/key re-route is silently dead.
+      { signal, env: buildLlmConfigEnv() }
     );
     const { stdout, stderr, exitCode } = await result;
     if (exitCode !== 0) {

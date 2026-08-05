@@ -197,3 +197,80 @@ OPENROUTER_API_KEY=… python -m pipeline.jobfit.llm.bench.bench_cli \
 
 _Generated 2026-07-07 from `tmp/bench-full` + `tmp/bench-new` + `tmp/bench-tencent`.
 15 ops × 7 models, n=2/cell, judge = Claude CLI, composite + reliability from real LLM output._
+
+---
+
+## Local-model snapshot — Claude CLI (Sonnet) vs Ollama `lfm2.5:8b` (2026-08-05)
+
+First run of the new first-class **ollama** provider (`adapters/ollama.py`): can an 8B
+edge model (LFM2.5-8B-A1B, Q4, ~5 GB, fully local) stand in for the commercial default?
+8 ops × n=3 × both targets, judge = Claude CLI, records in `tmp/bench/sonnet-vs-lfm25/`.
+
+| op | sonnet judge | lfm2.5 judge | gap | sonnet valid | lfm valid | sonnet p50 | lfm p50 |
+|---|--:|--:|--:|--:|--:|--:|--:|
+| jd_ingest | 6.0 | 5.0 | −1.0 | 100% | 100% | 8.6s | 8.8s |
+| automation_screen | 8.0 | 6.7 | −1.3 | 100% | 100% | 11.5s | 5.4s |
+| match_reasoning | 7.3 | 5.7 | −1.6 | 100% | 67% | 12.7s | 6.5s |
+| devcase_case_design | 8.0 | 6.0 | −2.0 | 100% | 100% | 62.9s | 11.4s |
+| campaign_pack | 6.0 | 3.3 | −2.7 | 100% | 100% | 35.9s | 17.4s |
+| interview_scorecard | 7.3 | 4.3 | −3.0 | 100% | 100% | 17.1s | 11.2s |
+| weight_proposal | 7.7 | 3.7 | −4.0 | 100% | 100% | 110.5s | 30.4s |
+| group_compare | 8.3 | 4.3 | −4.0 | 100% | 100% | 15.6s | 9.0s |
+| **mean** | **7.3** | **4.9** | **−2.4** | 100% | 96% | | |
+
+**Read:** the failure mode is NOT format (JSON validity 96%, llmRate 100%, zero errors —
+the wrapper's `complete_json` guard holds) and NOT speed (2–4× faster than the CLI, which
+pays per-call process spawn). It is **substance under complexity**: the judge transcripts
+show internal contradictions (rationale vs verdict, rating vs summary), dropped
+deliverables (campaign packs with no channels/targeting), empty rationales at scale
+(weight_proposal: ~62/66 candidates unjustified), and unnormalized weight vectors.
+Single-extraction and single-decision ops (jd_ingest, automation_screen) are within ~1
+point — plausible with a fallback-review UX; anything multi-candidate, multi-deliverable,
+or long-form is not usable from this tier yet.
+
+Caveats: n=3/cell; judge is Claude-family scoring a Claude generator (style-bias risk —
+the −2.4 mean gap is directional); CLI latency includes subprocess startup, so it
+understates the API-side Sonnet.
+
+### Expanded run — Opus + Qwen Cloud (same day)
+
+Same 8 ops × n=3, adding `claude_cli:opus` and the new **qwen** provider
+(qwencloud.com / DashScope-intl compatible mode, one key): `qwen3.8-max` ($2/$6),
+`glm-5.2` ($1.4/$4.4), `deepseek-v4-flash-0731` ($0.2/$0.4). Records in
+`tmp/bench/expanded/`. Judge-score grid (⚠ = llmRate < 100%, i.e. some scenarios
+degraded to the deterministic fallback and were scored as served):
+
+| use case | sonnet | opus | qwen3.8-max | glm-5.2 | deepseek-v4 | lfm2.5:8b |
+|---|--:|--:|--:|--:|--:|--:|
+| automation_screen | 8.0 | 6.3 | 5.5 | 7.0 | 6.3 | 6.7 |
+| campaign_pack | 6.0 | 5.0 | 3.0 | 3.3 | 3.0 ⚠ | 3.3 |
+| devcase_case_design | 8.0 | 7.7 | 3.0 ⚠ | 3.0 | 3.0 ⚠ | 6.0 |
+| group_compare | 8.3 | 7.0 | 5.7 ⚠ | 6.3 ⚠ | 7.0 | 4.3 |
+| interview_scorecard | 7.3 | 7.0 | 2.3 ⚠ | 2.0 | 2.0 ⚠ | 4.3 |
+| jd_ingest | 6.0 | 6.0 | 5.0 | 4.0 | 4.3 | 5.0 |
+| match_reasoning | 7.3 | 6.0 | 6.7 | 7.3 | 8.0 | 5.7 |
+| weight_proposal | 7.7 | 5.7 | 3.7 ⚠ | 4.0 ⚠ | 4.0 | 3.7 |
+| **mean** | **7.3** | **6.3** | **4.4** | **4.6** | **4.7** | **4.9** |
+
+**Reads:**
+- **Opus buys nothing here.** −1.0 vs Sonnet on mean, 2–3× the latency
+  (devcase p50 149s, weight_proposal 110s), ~1.5–3× the per-run cost ($0.63–$1.95
+  per 3 scenarios). These short structured recruiter tasks don't reward the
+  extra-deliberation tier; note the Claude-family judge scored both, so the
+  *ordering* between the two Claude models is judged by their own family.
+- **deepseek-v4-flash is the cost-performance outlier**: 8.0 on match_reasoning
+  (top of the column) at $0.002/3-runs — ~1/200th of Sonnet's CLI-equivalent API
+  cost — and respectable on group_compare (7.0). Cheap enough to be the obvious
+  cloud BYOM default for simple reasoning ops.
+- **The interview_scorecard collapse (all qwen-cloud ≤2.3) is partly a wrapper
+  artifact**: their verbose JSON hits the 2048 default maxTokens ceiling,
+  truncates, and the production path coerces to the "3 / Not assessed" fallback
+  stub — which the judge then scores. Re-run with `params.maxTokens` raised
+  before concluding these models can't do scorecards. Same suspicion applies to
+  devcase_case_design (out-tok 3.2–4.0k against the ceiling).
+- **The local 8B (lfm2.5) holds the challenger tier's average** (4.9 vs 4.4–4.7)
+  while being the only zero-cost, zero-egress option — the open-model story is
+  credible for extraction/single-decision ops, not yet for multi-deliverable ones.
+
+_Expanded run generated 2026-08-05 from `tmp/bench/sonnet-vs-lfm25` +
+`tmp/bench/expanded`. 8 ops × 6 models, n=3/cell, judge = Claude CLI._
