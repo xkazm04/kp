@@ -43,23 +43,60 @@ export async function runIntakeOpening(lang: string, signal?: AbortSignal): Prom
   return coerceExchange(parsePythonJson<unknown>(stdout, stderr));
 }
 
-// The realtime-voice system brief (persona + technique + spoken preamble —
-// pipeline/jobfit/intake.py::intake_voice_brief). Static per language, so one
-// spawn per process per lang: the voice-connect route must not pay a Python
-// spawn on every credential mint.
-const voiceBriefCache = new Map<string, string>();
+export type IntakeVoiceTurn = {
+  reply: string;
+  done: boolean;
+  source: "llm" | "deterministic";
+  // Present only when the DETERMINISTIC fast thread answered (it extracts
+  // inline for free); the LLM fast thread leaves extraction to the periodic
+  // thread and omits it.
+  brief?: RoleBrief;
+  fallbackReason?: string;
+};
 
-export async function intakeVoiceBrief(lang: string, signal?: AbortSignal): Promise<string> {
-  const key = lang === "cs" ? "cs" : "en";
-  const cached = voiceBriefCache.get(key);
-  if (cached) return cached;
-  const { result } = spawnPython(["-m", "pipeline.jobfit.intake_cli", "--voice-brief", "--lang", key], { signal });
-  const { stdout, stderr, exitCode } = await result;
-  if (exitCode !== 0) throw new Error(parseStderrError(stderr, exitCode).message);
-  const payload = parsePythonJson<{ brief?: unknown }>(stdout, stderr);
-  if (typeof payload.brief !== "string" || !payload.brief) throw new Error("Voice brief unavailable.");
-  voiceBriefCache.set(key, payload.brief);
-  return payload.brief;
+// The FAST voice thread (docs/architecture/voice-conversation-plane.md): one
+// spoken utterance in → the next spoken utterance out, at speech pace — the
+// conversational brain stays OURS, the provider is only the speech transport.
+export async function runIntakeVoiceTurn(
+  input: { transcript: VoiceTurn[]; brief: RoleBrief | null; message: string; lang: string },
+  signal?: AbortSignal
+): Promise<IntakeVoiceTurn> {
+  const workdir = await createWorkdir();
+  try {
+    const transcriptPath = path.join(workdir, "transcript.json");
+    await writeFile(transcriptPath, JSON.stringify(input.transcript), "utf-8");
+    const args = [
+      "-m",
+      "pipeline.jobfit.intake_cli",
+      "--voice-turn",
+      "--transcript-json",
+      transcriptPath,
+      "--message",
+      input.message,
+      "--lang",
+      input.lang || "en",
+    ];
+    if (input.brief) {
+      const briefPath = path.join(workdir, "brief.json");
+      await writeFile(briefPath, JSON.stringify(input.brief), "utf-8");
+      args.push("--brief-json", briefPath);
+    }
+    const { result } = spawnPython(args, { signal, env: buildLlmConfigEnv() });
+    const { stdout, stderr, exitCode } = await result;
+    if (exitCode !== 0) throw new Error(parseStderrError(stderr, exitCode).message);
+    const raw = parsePythonJson<Record<string, unknown>>(stdout, stderr);
+    const reply = typeof raw.reply === "string" ? raw.reply : "";
+    if (!reply) throw new Error("Voice turn returned no utterance.");
+    return {
+      reply,
+      done: raw.done === true,
+      source: raw.source === "llm" ? "llm" : "deterministic",
+      ...(raw.brief && typeof raw.brief === "object" ? { brief: raw.brief as RoleBrief } : {}),
+      ...(typeof raw.fallbackReason === "string" ? { fallbackReason: raw.fallbackReason } : {}),
+    };
+  } finally {
+    await cleanupWorkdir(workdir);
+  }
 }
 
 export type IntakeExtractResult = {

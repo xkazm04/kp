@@ -7,14 +7,22 @@ import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
 import { safeJsonError } from "@/app/_lib/api-response";
 
-// POST /api/intake/[id]/voice-complete — the hang-up half of the intake voice
-// plane: the browser posts the accumulated VoiceTurn[] transcript, the server
-// appends it to the dialog and runs ONE batch extraction over it
-// (pipeline/jobfit/intake.py::extract_transcript — merge-protected like every
-// text exchange). Keyless the extraction honestly declines (extracted: false):
-// the transcript is preserved, the brief is untouched, and the requestor
-// continues in text. The session NEVER closes here — voice is an input mode,
-// the read-back/confirm contract stays with the text plane.
+// POST /api/intake/[id]/voice-complete — the PERIODIC EXTRACTION THREAD of the
+// two-thread voice design (docs/architecture/voice-conversation-plane.md) and
+// the drop-recovery path in one route:
+//
+// * WITHOUT `turns` (the normal periodic call, fired by the client every few
+//   exchanges and at hang-up): run ONE batch extraction over the transcript
+//   ALREADY STORED by /voice-turn — the live brief panel fills DURING the
+//   call, a turn or two behind the conversation (honest lag by design).
+// * WITH `turns` (recovery — a dropped call whose per-turn posts didn't land):
+//   append the posted turns first, then extract. v1's hang-up-only behavior.
+//
+// Extraction runs pipeline/jobfit/intake.py::extract_transcript —
+// merge-protected like every text exchange. Keyless it honestly declines
+// (extracted: false): transcript preserved, brief untouched. The session never
+// closes here — the close travels through /voice-turn (spoken confirm) or the
+// text plane.
 
 const MAX_VOICE_TURNS = 400;
 
@@ -36,23 +44,23 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const clamped = rawTurns
       .map((t) => clampTurn((t ?? {}) as { role?: unknown; text: unknown; at?: unknown }).turn)
       .filter((t) => t.text.trim().length > 0);
-    if (clamped.length === 0) {
-      return NextResponse.json({ error: "turns are required" }, { status: 400 });
-    }
     const { turns } = capTranscriptTurns(clamped);
+    if (turns.length === 0 && intake.transcript.length === 0) {
+      return NextResponse.json({ error: "nothing to extract yet" }, { status: 400 });
+    }
 
-    // THROTTLE (rate-limit-contract.test.ts): each accepted hang-up runs one
-    // paid batch extraction. 6/10min per IP — a human records at most a couple
-    // of voice sessions in a sitting; a scripted loop is pinned. After the
-    // cheap refusals, before the DB write + model call.
-    if (!rateLimit(`intake-voice-complete:${clientIpFrom(request.headers)}`, { limit: 6, windowMs: 10 * 60_000 })) {
+    // THROTTLE (rate-limit-contract.test.ts): each accepted call runs one paid
+    // batch extraction. 20/10min per IP — the periodic thread fires every few
+    // exchanges of a live call (a long coaching call legitimately reaches
+    // double digits), while a scripted loop stays pinned. After the cheap
+    // refusals, before the DB write + model call.
+    if (!rateLimit(`intake-voice-complete:${clientIpFrom(request.headers)}`, { limit: 20, windowMs: 10 * 60_000 })) {
       return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
     }
 
     const lang = intake.lang === "cs" ? "cs" : "en";
-    const result = await runIntakeTranscriptExtract({ transcript: turns, brief: intake.brief, lang });
-
     const transcript = [...intake.transcript, ...turns];
+    const result = await runIntakeTranscriptExtract({ transcript, brief: intake.brief, lang });
     const briefTitle = typeof result.brief?.title === "string" ? result.brief.title : "";
     updateIntakeDialog(
       id,

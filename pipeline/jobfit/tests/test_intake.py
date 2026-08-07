@@ -19,7 +19,9 @@ from pipeline.jobfit.intake import (
     detect_shape,
     extract_transcript,
     intake_system_brief,
-    intake_voice_brief,
+    brief_gap_summary,
+    intake_voice_fast_brief,
+    run_voice_turn,
     merge_brief,
     opening_turn,
     run_intake_turn,
@@ -279,13 +281,60 @@ class VoicePlaneTest(unittest.TestCase):
         {"role": "candidate", "text": "Take over the services, on-call runs without gaps. Java and Spring are dealbreakers."},
     ]
 
-    def test_voice_brief_speaks_no_json_contract(self) -> None:
-        brief = intake_voice_brief("en")
-        # Persona + technique carry over; the text-plane machinery must NOT.
-        for marker in ("coaching session, not an interrogation", "ONE question per turn", "SPOKEN conversation", "transcribed"):
+    def test_voice_fast_brief_speaks_no_json_contract(self) -> None:
+        brief = intake_voice_fast_brief("en")
+        # Persona + technique carry over; the text-plane JSON machinery must NOT.
+        for marker in ("coaching session, not an interrogation", "ONE question per turn", "SPOKEN conversation"):
             self.assertIn(marker, brief)
-        for forbidden in ("<<END>>", "JSON", "spineProvenance", "done=true"):
+        for forbidden in ("no JSON",):
+            self.assertIn(forbidden, brief)
+        for forbidden in ("spineProvenance", "done=true", "Respond as JSON"):
             self.assertNotIn(forbidden, brief)
+
+    def test_voice_turn_llm_is_plain_text_and_leaves_brief_to_extraction(self) -> None:
+        class FakeFastProvider:
+            def complete(self, prompt, *, system=None, timeout=None):
+                class R:
+                    text = "So the on-call gaps are the real pain — who covers them today?"
+                assert "CAPTURED SO FAR" in prompt  # the gap digest feeds the fast thread
+                assert "no JSON" in (system or "")
+                return R()
+
+        base = RoleBrief(title="Java Developer", spine_provenance={"title": "stated"})
+        result = run_voice_turn(FakeFastProvider(), self._TURNS, base.model_dump(by_alias=True), "Nobody, that's the problem", lang="en")
+        self.assertEqual(result["source"], "llm")
+        self.assertFalse(result["done"])
+        self.assertNotIn("brief", result)  # extraction belongs to the periodic thread
+        self.assertTrue(result["reply"].startswith("So the on-call"))
+
+    def test_voice_turn_keyless_uses_scripted_engine_with_inline_brief(self) -> None:
+        result = run_voice_turn(None, self._TURNS[:1], None, "It's a backfill — our Java developer left", lang="en")
+        self.assertEqual(result["source"], "deterministic")
+        self.assertIn("brief", result)  # the scripted engine extracts inline for free
+        self.assertTrue(result["reply"])
+
+    def test_voice_turn_provider_failure_degrades_with_reason(self) -> None:
+        class Down:
+            def complete(self, prompt, *, system=None, timeout=None):
+                raise RuntimeError("down")
+
+        result = run_voice_turn(Down(), self._TURNS[:1], None, "hello", lang="en")
+        self.assertEqual(result["source"], "deterministic")
+        self.assertIn("fallbackReason", result)
+        self.assertIn("brief", result)
+
+    def test_brief_gap_summary_names_captured_and_missing(self) -> None:
+        base = RoleBrief(
+            title="Java Developer",
+            spine_provenance={"title": "stated"},
+            requirements=[BriefRequirement(skill="Java", kind="must_have", provenance="stated")],
+        )
+        digest = brief_gap_summary(base)
+        self.assertIn("title: Java Developer", digest)
+        self.assertIn("dealbreakers: Java", digest)
+        self.assertIn("STILL MISSING", digest)
+        self.assertIn("90-day outcomes", digest)
+        self.assertIn("seniority", digest)
 
     def test_extract_keyless_is_honest(self) -> None:
         # No provider → the brief is UNCHANGED and the result says so; nothing

@@ -1,24 +1,35 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getIntake } from "@/app/_lib/db/intakes";
-import { intakeVoiceBrief } from "@/app/_lib/intake-run";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { getVoiceAdapter, isSelfHostedVoice, missingVoiceEnv, voiceAvailability } from "@/app/_lib/voice";
 import { rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
 import { safeJsonError } from "@/app/_lib/api-response";
 
-// Voice plane for the role-intake dialog (docs/features/intake/README.md):
-// mint short-lived OpenAI Realtime credentials so the requestor can TALK the
-// intake instead of typing it. AUTHENTICATED-internal — this is the operator's
-// own workspace session, so the candidate-link machinery (token, consent
-// record, expiry/revoke, minute billing) deliberately does not apply; the
-// guards that remain are the ones about money and tenancy.
+// Voice plane for the role-intake dialog
+// (docs/architecture/voice-conversation-plane.md): mint short-lived realtime
+// credentials so the requestor can TALK the intake. AUTHENTICATED-internal —
+// the operator's own workspace session, so the candidate-link machinery
+// (token, consent record, expiry/revoke, minute billing) deliberately does
+// not apply; the guards that remain are the ones about money and tenancy.
 //
-// v1 is OPENAI-ONLY by design: OpenAI receives the intake brief SERVER-SIDE in
-// the session config, while ElevenLabs' signed-url flow takes its prompt
-// override from the CLIENT — a seam we don't need to open for an internal
-// surface (the interview feature carries a whole candidate-safe-brief
-// apparatus for it; the intake brief is internal and stays off the wire).
+// TRANSPORT-ONLY session: the provider receives the RELAY instruction below —
+// never the intake persona. The conversational brain is OUR engine
+// (/voice-turn → run_voice_turn); the provider transcribes the requestor and
+// speaks the utterances we inject (relay: true ⇒ create_response: false).
+// That is what removes the vendor lock: any provider that can transcribe and
+// speak-on-command can carry this conversation, and the persona/brief never
+// leave our infrastructure. Residual provider exposure (the AUDIO transits
+// the provider) is a Terms-of-Service disclosure item, not an architecture
+// dependency.
+
+// The transport relay instruction — deliberately persona-free. English on
+// purpose (a meta-instruction to the transport, not dialog content); verbatim
+// delivery in the utterance's own language is pinned per response.create.
+const RELAY_INSTRUCTIONS =
+  "You are a speech relay for an internal business conversation. You never answer, comment, or speak " +
+  "on your own initiative. When instructed to say something, say exactly that text, verbatim, in its " +
+  "own language, with natural spoken delivery.";
 
 // GET → provider availability (the mic button enables/disables from this).
 export async function GET() {
@@ -61,10 +72,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     }
 
     const lang = intake.lang === "cs" ? "cs" : "en";
-    // The spoken-variant brief (persona + technique, no JSON contract) goes to
-    // OpenAI server-side in the session config — it never rides this response.
-    const instructions = await intakeVoiceBrief(lang);
-    const connect = await adapter.connect({ instructions, language: lang });
+    const connect = await adapter.connect({ instructions: RELAY_INSTRUCTIONS, language: lang, relay: true });
     return NextResponse.json({ provider: connect.provider, connect });
   } catch (error) {
     return safeJsonError(error, "api:intake/voice-connect", "INTAKE_VOICE_CONNECT_FAILED");

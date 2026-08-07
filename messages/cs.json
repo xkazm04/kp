@@ -1173,6 +1173,7 @@
     "INTAKE_MESSAGE_FAILED": "Zprávu se nepodařilo zpracovat. Zkuste to prosím znovu.",
     "INTAKE_PROMOTE_FAILED": "Inzerát se z tohoto zadání nepodařilo vytvořit. Zkuste to prosím znovu.",
     "INTAKE_VOICE_CONNECT_FAILED": "Hlasový hovor se nepodařilo spustit. Zkuste to prosím znovu.",
+    "INTAKE_VOICE_TURN_FAILED": "Tuto repliku se nepodařilo zpracovat. Zkuste to prosím znovu.",
     "INTAKE_VOICE_COMPLETE_FAILED": "Přepis hovoru se nepodařilo zpracovat. Zkuste to prosím znovu."
   },
   "resilience": {

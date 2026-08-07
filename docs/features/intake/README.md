@@ -141,49 +141,64 @@ markdown re-extraction. (c) The graded dealbreakers themselves ride
 the deterministic path, instructed on the LLM path), which is what the
 transfer assessment then weighs demonstrated capability against.
 
-## Voice plane (input mode)
+## Voice plane (input mode — transport-only providers, our brain)
 
-The requestor can TALK the intake instead of typing it ("Talk instead" beside
-the composer). Flow: POST `/api/intake/[id]/voice-connect` mints short-lived
-**OpenAI Realtime** credentials (authenticated-internal — `requireOperator` +
-workspace-scoped intake; none of the candidate-link machinery applies: no
-token, no consent record, no expiry/revoke, no minute billing) with the
-SPOKEN-variant brief `intake_voice_brief` (persona + technique, no JSON
-contract — `pipeline/jobfit/intake.py`) delivered server-side; the browser
-connects over WebRTC via the shared transport
-(`app/_components/voice/transport/openai.ts`, reused —
-`JdsIntakeVoice.tsx` is a lean shell, not a fork of the candidate
-`VoiceInterview`). On hang-up the accumulated `VoiceTurn[]` posts to
-`/api/intake/[id]/voice-complete`, which clamps/caps the turns
-(`interview-transcript.ts` helpers), appends them to the dialog, and runs ONE
-batch extraction (`intake_cli --extract-transcript` →
-`intake.py::extract_transcript`) through the same coerce + `merge_brief` path
-as the text plane — prior `stated` content survives; provenance discipline
-applies. **Voice is an input mode, not a session type**: the session stays
-open and the read-back/confirm close stays with the text plane.
+Architecture contract:
+[docs/architecture/voice-conversation-plane.md](../../architecture/voice-conversation-plane.md).
+The requestor can TALK the intake ("Talk instead" beside the composer). The
+provider session is a pure **speech transport in relay mode** — it transcribes
+utterances and speaks the lines we inject, never answers on its own
+(`relay: true` ⇒ `create_response: false`; the session instruction is a
+persona-free relay directive, the intake persona never leaves our
+infrastructure). Conversation direction is OURS, in two LLM threads:
 
-v1 is **OpenAI-only by design**: OpenAI takes the brief server-side, while
-ElevenLabs' signed-url flow takes its prompt from the client — a seam the
-internal brief has no reason to ride (the interview feature carries a whole
-candidate-safe-brief apparatus for it).
+- **Fast thread** — each transcribed utterance POSTs to
+  `/api/intake/[id]/voice-turn` → `intake_cli --voice-turn` →
+  `run_voice_turn` (use case `role_intake_voice`, plain text, 30 s timeout):
+  persona + a CAPTURED/MISSING brief digest + recent turns → the next spoken
+  utterance, injected via the transport's `speakText`. The exchange persists
+  server-side BEFORE the reply is spoken, so a drop or transport swap loses
+  at most the utterance in flight. A spoken confirmed read-back (`<<END>>`)
+  closes the session like the text plane.
+- **Periodic extraction thread** — every couple of exchanges (and at hang-up)
+  the client fires `/api/intake/[id]/voice-complete` with no body:
+  `extract_transcript` runs over the STORED transcript through the same
+  coerce + `merge_brief` path as text, so the **live brief panel fills during
+  the call** (lagging a turn or two — honest by design). With `{turns}` the
+  same route is the drop-recovery path (append strays, then extract).
 
-Keyless/voiceless behavior: no OpenAI key → the mic button becomes a quiet
-"voice isn't configured" note (text path untouched). No LLM provider at
-extraction time → the transcript is stored, the brief stays **unchanged**, and
-the UI says so (`voice.storedNote`) — a free voice conversation can't be
-slot-parsed by the deterministic script, so nothing is silently invented.
-Rate limits: credential minting 6/10min per intake (120 self-hosted), one
-batch extraction 6/10min per IP — both pinned in
-`app/api/rate-limit-contract.test.ts`.
+Client pieces: `JdsIntakeVoice.tsx` (thin driver) over the pure orchestrator
+`voiceOrchestration.ts` (serializes fast turns, coalesces utterances spoken
+mid-turn, extraction cadence, barge-in via `cancelSpeech`) and the shared
+transport (`app/_components/voice/transport/openai.ts` — `speakText` /
+`cancelSpeech` are the relay additions). On connect the agent SPEAKS the
+pending question from the text thread (`spokenOpener`) — voice continues the
+same conversation.
+
+Providers: **OpenAI Realtime implemented; ElevenLabs designed-not-wired** —
+with the brain out of the provider its client-sent-prompt seam is no longer a
+blocker (it would receive the same persona-free relay line); residual
+audio-transits-provider exposure is a Terms-of-Service disclosure item (line
+in the architecture doc), not an architecture dependency.
+
+Keyless/voiceless behavior: no voice key → quiet "not configured" note, text
+untouched. No LLM mid-call → the scripted slot engine IS the fast thread
+(deterministic, milliseconds, extracts inline). No LLM at extraction → the
+transcript is stored, the brief stays **unchanged**, the UI says so
+(`voice.storedNote`). Rate limits (all pinned in
+`app/api/rate-limit-contract.test.ts`): connect 6/10min per intake (120
+self-hosted), fast turns 60/10min per intake, extraction sweeps 20/10min
+per IP.
 
 ## Known gaps
 
 - Dialog languages are en/cs (UI chrome is 4-locale); de/fr dialogs fall back
   to the language directive only.
 - The voice plane is **not live-verified**: built and unit/contract-tested,
-  but no OpenAI Realtime key was available in the build session, so no real
-  call was placed (mirrors the voice-interview feature's harness needs).
-  ElevenLabs voice intake is deliberately out (see above).
+  but no OpenAI Realtime key was available in the build sessions, so no real
+  call has been placed. The audio-in-the-loop harness hook is designed in the
+  architecture doc (Future work). The ElevenLabs transport is designed, not
+  wired.
 - The visual pass in both themes is pending (built from shared
   recipes/tokens; browser verification wasn't available in the build session).
 - Re-opening a `complete` session (append more turns, re-extract) is not yet

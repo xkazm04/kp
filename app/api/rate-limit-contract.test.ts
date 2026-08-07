@@ -141,11 +141,23 @@ const ROUTES: RouteSpec[] = [
     servedBefore: 'intake.status !== "open"',
   },
   {
+    rel: "./intake/[id]/voice-turn/route.ts",
+    // Per-INTAKE, 60/10min: the FAST voice thread — each accepted utterance is
+    // a paid (fast-model) call; one per 10s sustained is ~2x natural spoken
+    // pacing while a scripted loop is pinned. Keyed by intake id, not IP
+    // (operator retries share the office NAT).
+    key: "`intake-voice-turn:${id}`",
+    limit: 60,
+    expensive: "runIntakeVoiceTurn(",
+    servedBefore: 'intake.status !== "open"',
+  },
+  {
     rel: "./intake/[id]/voice-complete/route.ts",
-    // Per-IP, 6/10min: each accepted hang-up runs one paid batch extraction; a
-    // human records a couple of voice sessions per sitting, a loop is pinned.
+    // Per-IP, 20/10min: the PERIODIC extraction thread fires every few
+    // exchanges of a live call (a long coaching call legitimately reaches
+    // double digits) plus the hang-up recovery; a scripted loop stays pinned.
     key: "`intake-voice-complete:${clientIpFrom(request.headers)}`",
-    limit: 6,
+    limit: 20,
     expensive: "runIntakeTranscriptExtract(",
     servedBefore: 'intake.status !== "open"',
   },
