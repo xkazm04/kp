@@ -1,8 +1,14 @@
 # Role Intake Dialog — the hiring need as a first-class entity
 
-Status: **Phase 0 shipped, Phase 1 gated on tone research** (2026-08-07). This
-doc records the design direction agreed for redesigning JD creation + candidate
-scoring around a dialog-captured hiring need.
+Status: **Phases 0, 0.5 and 1 shipped** (2026-08-07). This doc records the
+design direction for redesigning JD creation + candidate scoring around a
+dialog-captured hiring need. Phase 0.5 research lives in
+`docs/development/role-intake-research.md`; the shipped Phase 1 feature is
+documented in `docs/features/intake/README.md` (text intake dialog in the
+Library tab: `role_intakes` store, `pipeline/jobfit/intake.py` engine with the
+evidence-backed persona, live brief panel, Promote → the existing JD build).
+Next: Phase 2 (voice plane + requestor-persona eval harness), Phase 3
+(brief-as-reference across the pipeline).
 
 Phase 0 (shipped): `RoleBrief` schema in `pipeline/jobfit/rolebrief.py`
 (codegen'd to `roleBriefSchema`/`roleSpecSchema` in

@@ -6,7 +6,8 @@ import { runDesignArtifacts, runNeedAnalysis, type DevNeed } from "./devcase-run
 import { validateJdBuildInput } from "./jd-limits";
 import { marketSalaryLabel, normalizeMarketSalary, type MarketSalary } from "./salary-band";
 import { type RepoSnapshot } from "./repo-snapshot";
-import { parseRoleSpec, type RoleSpec } from "./rolespec";
+import { parseRoleSpec, type RoleBrief, type RoleSpec } from "./rolespec";
+import { briefMustSkills, needTextFromBrief } from "./intake-brief";
 import { failJdAnalysis, finishJdAnalysis } from "./db/jobs";
 import { ingestStructuredJob } from "@/app/api/jds/save/ingest-job";
 import { renderTemplate } from "@/app/features/shared/renderTemplate";
@@ -31,6 +32,13 @@ export type JdBuildInput = {
   seniority?: string;
   roleFamily?: string;
   needText: string;
+  // Promoted role-intake (docs/concepts/role-intake-dialog.md): the structured
+  // RoleBrief behind needText. When present, the DevNeed is filled from the
+  // brief's graded fields (stack = must-have skills, responsibilities = 90-day
+  // outcomes + responsibilities) instead of newline-splitting the need text —
+  // closing the old asymmetry where this path and the Cases tab filled the
+  // same type in incompatible ways.
+  brief?: RoleBrief;
   repoUrl?: string;
   // JDL5 — the JD output language (en|cs). Threaded into the design chain
   // (--lang on design-artifacts) + the market-salary summary, and used to
@@ -218,13 +226,22 @@ export async function runJdBuild(params: Record<string, unknown>, progress?: Pro
       throw new Error("A role title is required.");
     }
 
+    // Promoted-intake path: the brief fills the DevNeed's structured fields
+    // directly (and regenerates the composed need text so a task replay stays
+    // faithful even if the caller sent a stale needText). Free-text path:
+    // unchanged newline split.
+    const brief: RoleBrief | undefined =
+      input.brief && typeof input.brief === "object" ? (input.brief as RoleBrief) : undefined;
+    if (brief) needText = needTextFromBrief(brief) || needText;
     const need: DevNeed = {
       title,
-      stack: [],
-      responsibilities: needText.split("\n").map((l) => l.trim()).filter(Boolean),
+      stack: brief ? briefMustSkills(brief).slice(0, 10) : [],
+      responsibilities: brief
+        ? [...(brief.successCriteria ?? []), ...(brief.responsibilities ?? [])].filter(Boolean).slice(0, 12)
+        : needText.split("\n").map((l) => l.trim()).filter(Boolean),
       codebaseRefs: input.repoUrl?.trim() ? [{ kind: "github", ref: input.repoUrl.trim() }] : [],
-      seniorityTarget: input.seniority || "medior",
-      roleFamily: input.roleFamily || "software_engineering",
+      seniorityTarget: input.seniority || brief?.seniority || "medior",
+      roleFamily: input.roleFamily || brief?.roleFamily || "software_engineering",
       notes: needText,
     };
 

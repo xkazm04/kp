@@ -799,6 +799,30 @@ export function ensureDb(): Database.Database {
     -- rollup re-sent for the same period, can never double-count.
     CREATE UNIQUE INDEX IF NOT EXISTS uq_agent_activity_exec ON agent_activity (hired_agent_id, exec_id) WHERE exec_id IS NOT NULL;
     CREATE UNIQUE INDEX IF NOT EXISTS uq_agent_activity_rollup ON agent_activity (hired_agent_id, period) WHERE kind = 'rollup';
+
+    -- Role-intake dialogs (docs/concepts/role-intake-dialog.md, Phase 1): the
+    -- captured conversation with a team lead / HR requestor and the evolving
+    -- structured RoleBrief it fills. transcript_json is VoiceTurn[] (the shared
+    -- cross-plane dialog contract); brief_json is a RoleBrief
+    -- (pipeline/jobfit/rolebrief.py, roleBriefSchema on the TS side).
+    -- jd_slug/job_id are stamped on promotion so a job can be walked back to
+    -- the conversation that defined it. Operator-internal — no public token.
+    CREATE TABLE IF NOT EXISTS role_intakes (
+      id TEXT PRIMARY KEY,
+      workspace_id TEXT NOT NULL DEFAULT 'workspace',
+      title TEXT NOT NULL DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'open',
+      lang TEXT,
+      transcript_json TEXT,
+      brief_json TEXT,
+      shape TEXT,
+      jd_slug TEXT,
+      job_id TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_role_intakes_ws ON role_intakes (workspace_id, created_at);
   `);
   // Run a DDL migration, swallowing ONLY the benign "already applied" error (re-running
   // ADD COLUMN / CREATE on a DB that already has the column). Any OTHER failure —

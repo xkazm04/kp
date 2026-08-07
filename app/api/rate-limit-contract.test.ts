@@ -116,6 +116,18 @@ const ROUTES: RouteSpec[] = [
     servedBefore: 'session.status !== "active"',
   },
   {
+    rel: "./intake/[id]/message/route.ts",
+    // Per-IP. 30/10min, same budget as /api/analyze: each accepted message is a
+    // potentially-paid LLM exchange, and in open mode the operator gate is a
+    // no-op so the route must self-limit. A coaching-paced human never meets
+    // one message per 20s; a scripted loop is pinned. The 404/409/400 lifecycle
+    // refusals run first so a rejected call never consumes budget.
+    key: "`intake-message:${clientIpFrom(request.headers)}`",
+    limit: 30,
+    expensive: "runIntakeExchange(",
+    servedBefore: 'intake.status !== "open"',
+  },
+  {
     rel: "./feedback/route.ts",
     // Per-IP. 10/10min: the dialog submits one message per open; a human never
     // meets this, while unmetered free-text storage on an open-mode deploy is a

@@ -1,0 +1,68 @@
+import { NextResponse } from "next/server";
+import { getIntake, markIntakePromoted } from "@/app/_lib/db/intakes";
+import { insertAnalyzingJd, setJdAnalysisTask } from "@/app/_lib/db/jobs";
+import { briefReadyToPromote, needTextFromBrief } from "@/app/_lib/intake-brief";
+import { jdJobId } from "@/app/_lib/jd-limits";
+import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { requireOperator } from "@/app/_lib/auth/require-operator";
+import { startTask } from "@/app/_lib/tasks";
+import { safeJsonError } from "@/app/_lib/api-response";
+
+// POST /api/intake/[id]/promote — turn a captured RoleBrief into a JD + a
+// matchable Job through the EXISTING backgrounded build (the same
+// insertAnalyzingJd → jd_build task → ingest path as /api/jds/generate), with
+// the brief threading the DevNeed's structured fields. The intake row is
+// stamped with the produced jd_slug/job_id so the job can be walked back to
+// the conversation that defined it.
+export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const denied = await requireOperator();
+  if (denied) return denied;
+  try {
+    const { id } = await params;
+    const ws = await currentWorkspace();
+    const intake = getIntake(id, ws);
+    if (!intake) return NextResponse.json({ error: "Intake not found." }, { status: 404 });
+    if (intake.status === "promoted") {
+      return NextResponse.json({ error: "This intake was already promoted.", jdSlug: intake.jdSlug }, { status: 409 });
+    }
+    if (!briefReadyToPromote(intake.brief)) {
+      return NextResponse.json(
+        { error: "The brief needs at least a role title plus one dealbreaker or 90-day outcome before it can become a JD." },
+        { status: 400 }
+      );
+    }
+    const body = (await request.json().catch(() => ({}))) as { company?: unknown; caseDesign?: unknown };
+    const brief = intake.brief;
+    const title = (brief.title ?? "").trim();
+    const needText = needTextFromBrief(brief);
+    const lang = intake.lang === "cs" ? "cs" : "en";
+    const options = {
+      description: true,
+      marketResearch: true,
+      caseDesign: body.caseDesign === true,
+    };
+
+    // Same three-step contract as /api/jds/generate: placeholder row in the
+    // Ledger, detached build (survives navigation), row↔task link for progress.
+    const buildInput = { needText, seniority: brief.seniority, roleFamily: brief.roleFamily, lang, options };
+    const { slug } = insertAnalyzingJd({ title, options, buildInput }, ws);
+    const task = startTask("jd_build", {
+      title,
+      company: typeof body.company === "string" ? body.company : undefined,
+      seniority: brief.seniority,
+      roleFamily: brief.roleFamily,
+      needText,
+      brief,
+      lang,
+      jdSlug: slug,
+      options,
+    });
+    setJdAnalysisTask(slug, task.id);
+    // jdJobId(slug) is the DETERMINISTIC id the best-effort ingest will use;
+    // stamped now so the back-link exists even while the build is running.
+    markIntakePromoted(id, { jdSlug: slug, jobId: jdJobId(slug) }, ws);
+    return NextResponse.json({ slug, jobId: jdJobId(slug), taskId: task.id });
+  } catch (error) {
+    return safeJsonError(error, "api:intake/promote", "INTAKE_PROMOTE_FAILED");
+  }
+}
