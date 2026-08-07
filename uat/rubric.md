@@ -115,3 +115,37 @@ evidence, the real JD, the role's comp band, the bank's brand/process, prior
 pipeline history), or only **thin inputs / sample data**? "Good machinery fed thin
 context" is the most common defect in AI products and is fully visible in code —
 it's a `quality-gap` against **senior-quality**, citable at `file:line`.
+
+## Conversational-surface behavior overlay (promoted from the role-intake work, 2026-08-07)
+
+Dialog surfaces (role-intake, the voice interviewer, conversational apply, the
+devcase stakeholder chat) fail differently from form/table surfaces: the defect
+usually lives in how the agent handles a *kind of interlocutor*, not a kind of
+input. So Characters testing a dialog surface pick up a second axis — **behavior
+modes** — drawn from the evidence-graded taxonomy in
+`docs/development/role-intake-research.md` §4 (built on MI/coaching/RE-interview
+literature) and machine-encoded in `pipeline/jobfit/eval/intake_scenarios.json`:
+
+`vague_requester` · `over_specifier` · `solution_jumper` · `contradicts_self` ·
+`leaver_template` · `cant_articulate_level` · `evaluation_anxious` ·
+`budget_evader` · `derailer` · `llm_era_confused` — plus the **session-shape**
+axis (`power_unit` transactional vs `story` exploratory; depth must be *earned
+by detected ambiguity*, or the coaching register becomes the annoying register).
+
+How to use it:
+- A Character file MAY declare `Behavior modes` — the 2–3 modes this person
+  realistically exhibits (a first-time team lead is `evaluation_anxious` +
+  `llm_era_confused`; a director is `over_specifier` + `derailer`). A dialog
+  journey run samples ONE declared mode per pass and judges through it.
+- Dialog-specific checks (join the seven dimensions): does the agent ask **one
+  question per turn**; does it **reflect before asking** (expansion paraphrase,
+  not a yes/no read-back); does it **reuse the speaker's words**; does it
+  **park premature solutions** instead of specing them; does it **name
+  contradictions** aloud; does the close **read back what was captured**
+  (grounded, correctable) rather than a generic goodbye; and is machine-vs-said
+  **provenance** honest (`stated` never claimed for inferred content).
+- The deterministic mirror of these checks already runs in CI
+  (`pipeline/jobfit/eval/intake_eval.py` — reliability invariants + the
+  100-scenario market-breadth bank). UAT's job on a dialog surface is the part
+  CI can't judge: does the *live* conversation feel like the Character's world,
+  and would they hand it to their requestors/candidates.
