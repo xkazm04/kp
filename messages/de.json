@@ -1167,11 +1167,13 @@
     "OFFER_EXPIRED": "Dieses Angebot ist abgelaufen.",
     "OFFER_NOT_FOUND": "Dieses Angebot wurde nicht gefunden. Möglicherweise wurde der Link durch einen neueren ersetzt.",
     "SESSION_TOKEN_REQUIRED": "Diese Arbeitssitzung gehört zu einem anderen Bewerbungslink. Öffnen Sie bitte den Link aus Ihrer Einladungs-E-Mail, um fortzufahren.",
-    "INTAKE_CREATE_FAILED": "Das Gespräch konnte nicht gestartet werden. Bitte versuchen Sie es erneut.",
-    "INTAKE_LIST_FAILED": "Die Gespräche konnten nicht geladen werden. Bitte versuchen Sie es erneut.",
-    "INTAKE_READ_FAILED": "Das Gespräch konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
-    "INTAKE_MESSAGE_FAILED": "Die Nachricht konnte nicht verarbeitet werden. Bitte versuchen Sie es erneut.",
-    "INTAKE_PROMOTE_FAILED": "Die Stellenbeschreibung konnte aus diesem Briefing nicht erstellt werden. Bitte erneut versuchen."
+    "INTAKE_CREATE_FAILED": "Die Aufnahme-Sitzung konnte nicht gestartet werden. Bitte erneut versuchen.",
+    "INTAKE_LIST_FAILED": "Die Aufnahme-Sitzungen konnten nicht geladen werden. Bitte erneut versuchen.",
+    "INTAKE_READ_FAILED": "Die Aufnahme-Sitzung konnte nicht geladen werden. Bitte erneut versuchen.",
+    "INTAKE_MESSAGE_FAILED": "Die Nachricht konnte nicht verarbeitet werden. Bitte erneut versuchen.",
+    "INTAKE_PROMOTE_FAILED": "Die Stellenbeschreibung konnte aus diesem Briefing nicht erstellt werden. Bitte erneut versuchen.",
+    "INTAKE_VOICE_CONNECT_FAILED": "Der Sprachanruf konnte nicht gestartet werden. Bitte erneut versuchen.",
+    "INTAKE_VOICE_COMPLETE_FAILED": "Das Gesprächstranskript konnte nicht verarbeitet werden. Bitte erneut versuchen."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -3136,6 +3138,16 @@
           "stated": "Ihre Aussage",
           "inferred": "KI-Deutung",
           "default": "Annahme"
+        },
+        "voice": {
+          "start": "Lieber sprechen",
+          "startHint": "Startet einen Sprachanruf — das Gespräch wird transkribiert und das Briefing füllt sich danach von selbst.",
+          "stop": "Anruf beenden",
+          "connecting": "Verbinde…",
+          "processing": "Anruf wird ausgewertet…",
+          "unavailable": "Sprache ist auf diesem Server nicht eingerichtet — bitte im Text fortfahren.",
+          "failed": "Der Anruf kam nicht zustande. Bitte im Text fortfahren.",
+          "storedNote": "Gesprächstranskript gespeichert. Die KI-Auswertung benötigt einen verbundenen Anbieter — das Briefing blieb unverändert; bitte im Text fortfahren."
         }
       }
     },

@@ -6,6 +6,7 @@ import { briefReadyToPromote } from "@/app/_lib/intake-brief";
 import { BTN_GHOST, BTN_PRIMARY, BTN_SECONDARY, CHIP_QUIET, INTRO, META_LABEL, PANEL } from "@/app/_components/ui/recipes";
 import { JdsIntakeBriefPanel } from "./JdsIntakeBriefPanel";
 import { JdsIntakeChat } from "./JdsIntakeChat";
+import { JdsIntakeVoice } from "./JdsIntakeVoice";
 import { useIntakeLogic } from "./jdsIntakeLogic";
 
 // Role-intake dialog surface (docs/concepts/role-intake-dialog.md, Phase 1):
@@ -16,8 +17,22 @@ import { useIntakeLogic } from "./jdsIntakeLogic";
 export function JdsIntakePanel({ onPromoted }: { onPromoted?: () => void }) {
   const t = useTranslations("library.tab.intake");
   const locale = useLocale();
-  const { sessions, active, sending, creating, promoting, degraded, error, startNew, openSession, closeSession, send, promote } =
-    useIntakeLogic(onPromoted);
+  const {
+    sessions,
+    active,
+    sending,
+    creating,
+    promoting,
+    degraded,
+    error,
+    startNew,
+    openSession,
+    closeSession,
+    send,
+    promote,
+    voiceNote,
+    applyVoiceResult,
+  } = useIntakeLogic(onPromoted);
   // Work-sample case design at promote — explicit opt-in (JD-builder checklist semantics).
   const [withCase, setWithCase] = useState(false);
 
@@ -113,10 +128,17 @@ export function JdsIntakePanel({ onPromoted }: { onPromoted?: () => void }) {
         </div>
       </div>
       {degraded ? <p className="mt-2 text-meta text-steel">{t("degradedNote")}</p> : null}
+      {voiceNote === "stored" ? <p className="mt-2 text-meta text-steel">{t("voice.storedNote")}</p> : null}
       {error === "send" ? <p className="mt-2 text-body text-red-700">{t("sendError")}</p> : null}
       {error === "promote" ? <p className="mt-2 text-body text-red-700">{t("promoteError")}</p> : null}
       <div className="mt-4 grid gap-4 lg:grid-cols-[3fr_2fr]">
-        <JdsIntakeChat transcript={active.transcript} sending={sending} closed={closed} onSend={send} />
+        <JdsIntakeChat
+          transcript={active.transcript}
+          sending={sending}
+          closed={closed}
+          onSend={send}
+          voiceSlot={!closed ? <JdsIntakeVoice intakeId={active.id} disabled={sending} onCompleted={applyVoiceResult} /> : null}
+        />
         <JdsIntakeBriefPanel brief={active.brief} />
       </div>
     </div>

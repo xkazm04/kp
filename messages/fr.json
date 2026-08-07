@@ -1171,7 +1171,9 @@
     "INTAKE_LIST_FAILED": "Impossible de charger les sessions de cadrage. Veuillez réessayer.",
     "INTAKE_READ_FAILED": "Impossible de charger la session de cadrage. Veuillez réessayer.",
     "INTAKE_MESSAGE_FAILED": "Impossible de traiter ce message. Veuillez réessayer.",
-    "INTAKE_PROMOTE_FAILED": "Impossible de créer la fiche de poste depuis ce brief. Veuillez réessayer."
+    "INTAKE_PROMOTE_FAILED": "Impossible de créer la fiche de poste à partir de ce brief. Veuillez réessayer.",
+    "INTAKE_VOICE_CONNECT_FAILED": "Impossible de démarrer l'appel vocal. Veuillez réessayer.",
+    "INTAKE_VOICE_COMPLETE_FAILED": "Impossible de traiter la transcription de l'appel. Veuillez réessayer."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -3136,6 +3138,16 @@
           "stated": "vos mots",
           "inferred": "lecture IA",
           "default": "supposé"
+        },
+        "voice": {
+          "start": "Parler plutôt",
+          "startHint": "Démarre un appel vocal — la conversation est transcrite et le brief se remplit ensuite tout seul.",
+          "stop": "Terminer l'appel",
+          "connecting": "Connexion…",
+          "processing": "Rédaction de l'appel…",
+          "unavailable": "La voix n'est pas configurée sur ce serveur — continuez par écrit.",
+          "failed": "L'appel n'a pas abouti. Continuez par écrit.",
+          "storedNote": "Transcription de l'appel enregistrée. L'extraction IA nécessite un fournisseur connecté — le brief est inchangé ; continuez par écrit."
         }
       }
     },
