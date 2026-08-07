@@ -2,7 +2,9 @@
 // module is imported by /api/schedule for ONE duration helper, so the barrel made
 // that route's first-hit compile the entire data layer on top of its own graph.
 import { getDevCase, getSubmission } from "./db/devcase";
-import { getJob } from "./db/jobs";
+import { getJob, getJobWorkspace } from "./db/jobs";
+import { promotedBriefForJob } from "./db/intakes";
+import { briefIntentSummary } from "./intake-brief";
 import { getPipelineEntry } from "./db/pipeline";
 import type { PipelineEntry } from "./db/core";
 import type { VoiceTurn } from "./voice/types";
@@ -127,7 +129,12 @@ export function composeBrief(
   title: string,
   roleLine: string,
   prep: PrepPayload | undefined,
-  durationMin: number
+  durationMin: number,
+  // Phase 3 (role-intake): the interviewer-internal hiring-intent digest from
+  // the promoted RoleBrief behind this job (intake-brief.ts::briefIntentSummary).
+  // Rides AFTER the run-of-show so agenda order stays untouched; null on jobs
+  // with no intake behind them.
+  roleIntent?: string | null
 ): string {
   const chron = prep?.chronology ?? [];
   if (chron.length === 0) return defaultInterviewerInstructions({ role: roleLine });
@@ -154,6 +161,7 @@ export function composeBrief(
     `Begin by briefly introducing yourself as an AI assistant, ${company}, and the ${title} position in two or three sentences, and mention that the call is transcribed for a human recruiter.`,
     `Then lead the conversation through this run of show (about ${durationMin} minutes total), keeping each topic roughly time-boxed. Ask the listed questions naturally, one at a time, with short follow-ups, and adapt to the candidate's answers:`,
     runOfShow + importedLine,
+    ...(roleIntent ? [roleIntent] : []),
     "Do not give feedback, scores, or any hiring decision, and never praise or judge the quality of an answer or tell the candidate their thinking, instinct, or approach is right (avoid “great”, “impressive”, “exactly right”, “the right instinct”, “on the right track”) — stay warm by showing interest and inviting them to continue (“thank you”, “understood”, “tell me more”), not by approving. When the agenda is covered, invite the candidate's questions, thank them, and say a human recruiter will review the conversation.",
   ].join(" ");
 }
@@ -314,7 +322,20 @@ export async function buildGroundedInterview(entryId: string): Promise<{
   const grounded = (prep?.chronology?.length ?? 0) > 0;
   const durationMin = grounded ? prep?.durationMin ?? GROUNDED_DEFAULT_MIN : QUICK_SCREEN_MIN;
   const runOfShow = (prep?.chronology ?? []).map((b) => b.topic).filter(Boolean);
-  const instructions = withOpeningLanguage(composeBrief(company, title, roleLine, prep, durationMin), preferredLang);
+  // Phase 3 (role-intake): a job promoted from an intake carries the requestor's
+  // stated intent (90-day outcomes, dealbreakers) — ground the interviewer on it.
+  // Interviewer-internal only; the candidate-safe brief deliberately omits it.
+  // Workspace derived from the job (the tenancy rule for out-of-session reads);
+  // best-effort — a missing/legacy job grounds exactly as before.
+  let roleIntent: string | null = null;
+  if (entry.jobId) {
+    try {
+      roleIntent = briefIntentSummary(promotedBriefForJob(entry.jobId, getJobWorkspace(entry.jobId)));
+    } catch {
+      roleIntent = null;
+    }
+  }
+  const instructions = withOpeningLanguage(composeBrief(company, title, roleLine, prep, durationMin, roleIntent), preferredLang);
   return {
     instructions,
     runOfShow,

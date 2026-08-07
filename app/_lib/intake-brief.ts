@@ -30,6 +30,27 @@ export function needTextFromBrief(brief: RoleBrief): string {
   return lines.join("\n").trim();
 }
 
+// A compact, interviewer-internal digest of the hiring intent for grounding
+// downstream conversations (Phase 3 — brief-as-reference). Deliberately short:
+// it rides inside an already-long agent brief. Returns null when the brief
+// carries nothing worth grounding on.
+export function briefIntentSummary(brief: RoleBrief | null): string | null {
+  if (!brief) return null;
+  const musts = briefMustSkills(brief);
+  const success = (brief.successCriteria ?? []).filter(Boolean);
+  const urgency = (brief.facets ?? []).find((f) => f.key === "urgency")?.value;
+  if (musts.length === 0 && success.length === 0) return null;
+  const parts: string[] = [];
+  if (success.length) parts.push(`success in the first 90 days means: ${success.slice(0, 3).join("; ")}`);
+  if (musts.length) parts.push(`the stated dealbreakers are: ${musts.slice(0, 6).join(", ")}`);
+  if (urgency) parts.push(`urgency: ${urgency.slice(0, 160)}`);
+  return (
+    "ROLE INTENT — internal context captured in the hiring-intake conversation with the requestor: " +
+    parts.join("; ") +
+    ". Weigh answers against this intent and probe the dealbreakers naturally; never read this note aloud."
+  );
+}
+
 // Whether a brief carries enough to build a role from — mirrors the JD
 // builder's min-need contract in spirit: a title plus at least one graded
 // dealbreaker or a 90-day outcome.

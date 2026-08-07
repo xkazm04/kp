@@ -176,6 +176,23 @@ export function updateIntakeDialog(
   return run.immediate();
 }
 
+// The promoted RoleBrief behind a job — the back-link consumers (interview
+// grounding, decision audit) read. Latest promoted intake wins when a job was
+// re-promoted. Workspace-scoped like every role_intakes query; callers derive
+// the workspace from the job (getJobWorkspace) when outside a session scope.
+export function promotedBriefForJob(jobId: string, workspaceId: string = DEFAULT_WORKSPACE_ID): RoleBrief | null {
+  const row = ensureDb()
+    .prepare(
+      `SELECT id, brief_json FROM role_intakes
+       WHERE job_id = ? AND workspace_id = ? AND status = 'promoted'
+       ORDER BY created_at DESC LIMIT 1`
+    )
+    .get(jobId, workspaceId) as Pick<IntakeRow, "id" | "brief_json"> | undefined;
+  if (!row) return null;
+  const brief = safeRowParse<RoleBrief>(row.brief_json, "roleIntake.brief", row.id);
+  return brief && typeof brief === "object" ? brief : null;
+}
+
 // Promotion stamps the produced JD/job onto the intake and closes it. The
 // jd_slug/job_id back-links are what let downstream surfaces walk a job back
 // to the conversation that defined it.

@@ -75,13 +75,36 @@ job_id, created_at, updated_at`. The RoleBrief schema is Pydantic-authoritative
 (`pipeline/jobfit/rolebrief.py`) and codegen'd to `roleBriefSchema`
 (`app/_lib/schemas.generated.ts`).
 
+## Eval harness (Phase 2)
+
+`pipeline/jobfit/eval/intake_eval.py` + `intake_scenarios.json` — the
+12-persona requestor bank from the research doc (vague requester,
+over-specifier, solution jumper, …) driven against the real
+`run_intake_turn`. Offline mode (`--no-llm`: deterministic agent + golden
+requestor answers) certifies the keyless path and the reliability invariants
+(completed, one-question-per-turn, no premature `<<END>>`, grounded read-back,
+brief completeness, shape triage + power-unit turn budget) — gated by
+`tests/test_intake_eval.py`. Live mode runs both sides on the `role_intake`
+provider.
+
+## Brief as reference (Phase 3)
+
+A job promoted from an intake grounds downstream conversations:
+`promotedBriefForJob` (`app/_lib/db/intakes.ts`) resolves the brief via the
+`job_id` back-link, and `briefIntentSummary` (`app/_lib/intake-brief.ts`)
+rides the experienced-path interviewer brief (`composeBrief`'s `roleIntent`)
+as interviewer-internal context — never the candidate-safe brief.
+
 ## Known gaps
 
 - Dialog languages are en/cs (UI chrome is 4-locale); de/fr dialogs fall back
   to the language directive only.
-- No voice plane yet (Phase 2: authenticated connect variant of the generic
-  voice adapter layer) and no requestor-persona eval harness yet (Phase 2).
+- No voice plane yet (authenticated connect variant of the generic voice
+  adapter layer — the remaining Phase 2 item).
 - The visual pass in both themes is pending (built from shared
   recipes/tokens; browser verification wasn't available in the build session).
 - Re-opening a `complete` session (append more turns, re-extract) is not yet
   supported — promote or start a new session.
+- Intake intent grounds interviews; devcase design consumes the brief only via
+  the promoted `DevNeed`. Decision-audit surfacing of the back-link is future
+  work.

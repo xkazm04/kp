@@ -4,7 +4,7 @@
 //   npm run test:unit
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { briefMustSkills, briefNiceSkills, briefReadyToPromote, needTextFromBrief } from "./intake-brief.ts";
+import { briefIntentSummary, briefMustSkills, briefNiceSkills, briefReadyToPromote, needTextFromBrief } from "./intake-brief.ts";
 import type { RoleBrief } from "./rolespec.ts";
 
 const brief: RoleBrief = {
@@ -46,4 +46,15 @@ test("readiness needs a title plus substance; empty briefs refuse", () => {
   assert.equal(briefReadyToPromote({ title: "X" }), false);
   assert.equal(briefReadyToPromote({ title: "X", successCriteria: ["ships"] }), true);
   assert.equal(briefReadyToPromote({ successCriteria: ["ships"] }), false);
+});
+
+test("briefIntentSummary digests outcomes + dealbreakers, never fires on empty briefs", () => {
+  const intent = briefIntentSummary(brief);
+  assert.ok(intent);
+  assert.ok(intent.includes("success in the first 90 days means: Weekly reporting runs without manual work"));
+  assert.ok(intent.includes("dealbreakers are: SQL"));
+  assert.ok(intent.includes("urgency: Ops team is losing trust"));
+  assert.ok(intent.includes("never read this note aloud"));
+  assert.equal(briefIntentSummary(null), null);
+  assert.equal(briefIntentSummary({ title: "X" }), null);
 });

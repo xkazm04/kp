@@ -56,7 +56,12 @@ voice service — see [Self-hosted voice](#self-hosted-voice)).
    (`defaultInterviewerInstructions`, `composeBrief`,
    `caseGroundedInterviewerInstructions`, `studentInterviewerInstructions`);
    `app/_lib/interview-prep.ts` / `interview-prep-run.ts` assemble the
-   grounded prep-chronology brief from a pipeline entry.
+   grounded prep-chronology brief from a pipeline entry. Jobs promoted from a
+   role-intake conversation additionally ground the experienced-path brief on
+   the requestor's stated intent — `composeBrief`'s `roleIntent` parameter
+   carries `briefIntentSummary(promotedBriefForJob(jobId, …))` (90-day
+   outcomes + dealbreakers, interviewer-internal; the candidate-safe brief
+   deliberately omits it). See `docs/features/intake/README.md`.
 
 ## Surface
 
