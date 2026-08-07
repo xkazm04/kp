@@ -134,6 +134,8 @@ _BASE_MUST_HOLD = ["completed", "one_question_per_turn", "no_premature_end", "gr
 
 
 def _golden_answers(shape: str, seniority: str, content: dict[str, Any]) -> list[str]:
+    # Every list ends with the confirm turn answering the read-back — the close
+    # is a separate exchange by contract (UAT L1-CONV-2).
     title = content["titles"][seniority]
     musts = ", ".join(content["musts"])
     if shape == "power_unit":
@@ -144,6 +146,7 @@ def _golden_answers(shape: str, seniority: str, content: dict[str, Any]) -> list
             musts,
             seniority,
             "skip",
+            "ok",
         ]
     return [
         f"We've never had this role and we're not sure of the exact shape — {content['urgency'].lower()}",
@@ -156,6 +159,7 @@ def _golden_answers(shape: str, seniority: str, content: dict[str, Any]) -> list
         content["team"].capitalize(),
         content["urgency"],
         "skip",
+        "ok",
     ]
 
 

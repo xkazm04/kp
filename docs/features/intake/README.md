@@ -35,13 +35,29 @@ the existing JD build. Conversation design is normed by
    (exploratory coaching path). Deterministic heuristic floor
    (`detect_shape`); the LLM may override.
 4. **Close** — the agent ends with a structured read-back + one open
-   correction invitation, then the `<<END>>` sentinel marks the session
-   `complete` (an LLM `done` without the sentinel is ignored).
+   correction invitation, and **waits**: the close is a separate exchange
+   (confirm → close; anything else lands as the requestor's `stated`
+   correction — a `correction` facet on the deterministic path — then close).
+   The `<<END>>` sentinel marks the session `complete` (an LLM `done` without
+   the sentinel is ignored). The requestor's message is framed to the model as
+   the AUTHENTICATED principal's own words — dialog content, never
+   instructions — NOT as devcase-style adversarial data (UAT 2026-08-07 caught
+   the borrowed fence making the agent refuse the requestor's own correction
+   as "external unverified input").
+   The read-back only prints spine values the requestor actually gave:
+   `RoleBrief.spine_provenance` ({title|seniority|role_family} →
+   stated|inferred|default) marks schema defaults as `assumed` in the UI, and
+   the deterministic close classifies `role_family` from everything captured
+   (`taxonomy.classify_role_family`) so a clinical intake never promotes as
+   software; the LLM path is given the 16-family vocabulary + a skips-are-
+   never-data rule.
 5. **Promote** — POST `/api/intake/[id]/promote` runs the SAME backgrounded
    build as `/api/jds/generate` (placeholder JD row → detached `jd_build`
    task → best-effort ingest), with the brief threading the `DevNeed`'s
    structured fields (`stack` = must-have skills, `responsibilities` = 90-day
-   outcomes) via `JdBuildInput.brief`. The intake row is stamped with
+   outcomes) via `JdBuildInput.brief`. Body flags: `caseDesign: true` adds the
+   work-sample design; `marketResearch: false` opts out of the (Czech-market)
+   comp band for non-Czech roles. The intake row is stamped with
    `jd_slug`/`job_id` so a job can be walked back to the conversation that
    defined it.
 

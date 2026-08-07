@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "_note": "Requestor-persona bank for the role-intake dialog eval (intake_eval.py) — the behavioral coverage table from docs/development/role-intake-research.md §4. Each persona plays the HIRING REQUESTOR (team lead / HR). golden_answers drive the OFFLINE (--no-llm) mode against the deterministic agent script, in the script's ask order; requestor_prompt drives the live persona LLM. expect.shape pins the session-shape triage; expect.must_hold names the reliability invariants checked deterministically.",
+  "_note": "Requestor-persona bank for the role-intake dialog eval (intake_eval.py) — the behavioral coverage table from docs/development/role-intake-research.md §4. Each persona plays the HIRING REQUESTOR (team lead / HR). golden_answers drive the OFFLINE (--no-llm) mode against the deterministic agent script, in the script's ask order; requestor_prompt drives the live persona LLM. expect.shape pins the session-shape triage; expect.must_hold names the reliability invariants checked deterministically. Each golden list ends with a confirm turn ('ok') answering the read-back — the close is a separate turn by contract (UAT L1-CONV-2).",
   "scenarios": [
     {
       "name": "power_unit_backfill",
@@ -13,9 +13,20 @@
         "Takes over Jarda's services and the on-call rotation runs without gaps",
         "Java, Spring, Kafka",
         "senior",
-        "skip"
+        "skip",
+        "ok"
       ],
-      "expect": { "shape": "power_unit", "max_agent_turns": 8, "must_hold": ["completed", "one_question_per_turn", "no_premature_end", "grounded_readback", "brief_core"] }
+      "expect": {
+        "shape": "power_unit",
+        "max_agent_turns": 8,
+        "must_hold": [
+          "completed",
+          "one_question_per_turn",
+          "no_premature_end",
+          "grounded_readback",
+          "brief_core"
+        ]
+      }
     },
     {
       "name": "power_unit_scaling",
@@ -28,9 +39,20 @@
         "Ships features independently in our design system within the first quarter",
         "React, TypeScript",
         "medior",
-        "skip"
+        "skip",
+        "ok"
       ],
-      "expect": { "shape": "power_unit", "max_agent_turns": 8, "must_hold": ["completed", "one_question_per_turn", "no_premature_end", "grounded_readback", "brief_core"] }
+      "expect": {
+        "shape": "power_unit",
+        "max_agent_turns": 8,
+        "must_hold": [
+          "completed",
+          "one_question_per_turn",
+          "no_premature_end",
+          "grounded_readback",
+          "brief_core"
+        ]
+      }
     },
     {
       "name": "vague_requester",
@@ -47,9 +69,19 @@
         "Czech and English",
         "Small team, they'd report to me",
         "We keep losing the ops team's trust",
-        "skip"
+        "skip",
+        "ok"
       ],
-      "expect": { "shape": "story", "must_hold": ["completed", "one_question_per_turn", "no_premature_end", "grounded_readback", "brief_core"] }
+      "expect": {
+        "shape": "story",
+        "must_hold": [
+          "completed",
+          "one_question_per_turn",
+          "no_premature_end",
+          "grounded_readback",
+          "brief_core"
+        ]
+      }
     },
     {
       "name": "over_specifier",
@@ -66,9 +98,19 @@
         "English",
         "Platform team of three",
         "Every release slips a week",
-        "skip"
+        "skip",
+        "ok"
       ],
-      "expect": { "shape": "story", "must_hold": ["completed", "one_question_per_turn", "no_premature_end", "grounded_readback", "brief_core"] }
+      "expect": {
+        "shape": "story",
+        "must_hold": [
+          "completed",
+          "one_question_per_turn",
+          "no_premature_end",
+          "grounded_readback",
+          "brief_core"
+        ]
+      }
     },
     {
       "name": "solution_jumper",
@@ -85,9 +127,19 @@
         "English",
         "Web team of five",
         "Every second release rolls back",
-        "skip"
+        "skip",
+        "ok"
       ],
-      "expect": { "shape": "story", "must_hold": ["completed", "one_question_per_turn", "no_premature_end", "grounded_readback", "brief_core"] }
+      "expect": {
+        "shape": "story",
+        "must_hold": [
+          "completed",
+          "one_question_per_turn",
+          "no_premature_end",
+          "grounded_readback",
+          "brief_core"
+        ]
+      }
     },
     {
       "name": "contradicts_self",
@@ -104,9 +156,19 @@
         "Czech",
         "Backend guild, mentored by the tech lead",
         "The lead is drowning in review work",
-        "skip"
+        "skip",
+        "ok"
       ],
-      "expect": { "shape": "story", "must_hold": ["completed", "one_question_per_turn", "no_premature_end", "grounded_readback", "brief_core"] }
+      "expect": {
+        "shape": "story",
+        "must_hold": [
+          "completed",
+          "one_question_per_turn",
+          "no_premature_end",
+          "grounded_readback",
+          "brief_core"
+        ]
+      }
     },
     {
       "name": "leaver_template",
@@ -123,9 +185,19 @@
         "Czech, English",
         "Marketing duo with one designer",
         "The autumn campaign has no owner",
-        "skip"
+        "skip",
+        "ok"
       ],
-      "expect": { "shape": "story", "must_hold": ["completed", "one_question_per_turn", "no_premature_end", "grounded_readback", "brief_core"] }
+      "expect": {
+        "shape": "story",
+        "must_hold": [
+          "completed",
+          "one_question_per_turn",
+          "no_premature_end",
+          "grounded_readback",
+          "brief_core"
+        ]
+      }
     },
     {
       "name": "cant_articulate_level",
@@ -142,9 +214,19 @@
         "English",
         "They'd be the only mobile person, next to two backenders",
         "The agency contract ends this quarter",
-        "skip"
+        "skip",
+        "ok"
       ],
-      "expect": { "shape": "story", "must_hold": ["completed", "one_question_per_turn", "no_premature_end", "grounded_readback", "brief_core"] }
+      "expect": {
+        "shape": "story",
+        "must_hold": [
+          "completed",
+          "one_question_per_turn",
+          "no_premature_end",
+          "grounded_readback",
+          "brief_core"
+        ]
+      }
     },
     {
       "name": "evaluation_anxious",
@@ -161,9 +243,19 @@
         "Czech",
         "They'd join our five-person web team",
         "We spend two days per release on manual testing",
-        "skip"
+        "skip",
+        "ok"
       ],
-      "expect": { "shape": "story", "must_hold": ["completed", "one_question_per_turn", "no_premature_end", "grounded_readback", "brief_core"] }
+      "expect": {
+        "shape": "story",
+        "must_hold": [
+          "completed",
+          "one_question_per_turn",
+          "no_premature_end",
+          "grounded_readback",
+          "brief_core"
+        ]
+      }
     },
     {
       "name": "budget_evader",
@@ -180,9 +272,19 @@
         "English",
         "Product trio: PM, two engineers",
         "Sprints keep stalling on missing designs",
-        "let's not go there yet, finance owns that"
+        "let's not go there yet, finance owns that",
+        "ok"
       ],
-      "expect": { "shape": "story", "must_hold": ["completed", "one_question_per_turn", "no_premature_end", "grounded_readback", "brief_core"] }
+      "expect": {
+        "shape": "story",
+        "must_hold": [
+          "completed",
+          "one_question_per_turn",
+          "no_premature_end",
+          "grounded_readback",
+          "brief_core"
+        ]
+      }
     },
     {
       "name": "derailer",
@@ -199,9 +301,19 @@
         "English",
         "They'd sit with me until the reorg settles, honestly who knows where after",
         "Finance asks for numbers we can't produce since the reorg",
-        "skip"
+        "skip",
+        "ok"
       ],
-      "expect": { "shape": "story", "must_hold": ["completed", "one_question_per_turn", "no_premature_end", "grounded_readback", "brief_core"] }
+      "expect": {
+        "shape": "story",
+        "must_hold": [
+          "completed",
+          "one_question_per_turn",
+          "no_premature_end",
+          "grounded_readback",
+          "brief_core"
+        ]
+      }
     },
     {
       "name": "llm_era_confused",
@@ -218,9 +330,19 @@
         "English",
         "Rotating across two squads with a named mentor",
         "Seniors burn out on work a supervised junior could own",
-        "skip"
+        "skip",
+        "ok"
       ],
-      "expect": { "shape": "story", "must_hold": ["completed", "one_question_per_turn", "no_premature_end", "grounded_readback", "brief_core"] }
+      "expect": {
+        "shape": "story",
+        "must_hold": [
+          "completed",
+          "one_question_per_turn",
+          "no_premature_end",
+          "grounded_readback",
+          "brief_core"
+        ]
+      }
     }
   ]
 }

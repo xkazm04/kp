@@ -55,6 +55,7 @@ class DeterministicScriptTest(unittest.TestCase):
             "Team of 4, reports to the head of data",
             "Another quarter of manual reports and we lose the ops team's trust",
             "skip",
+            "ok",  # confirm turn answering the read-back (close is a separate turn)
         ]
         _turns, result = _drive(answers)
         self.assertTrue(result["done"])
@@ -72,9 +73,12 @@ class DeterministicScriptTest(unittest.TestCase):
         self.assertLessEqual({"why_now", "team_context", "urgency"}, facet_keys)
         # Skipped budget leaves no facet — a skip is not data.
         self.assertNotIn("budget_band", facet_keys)
-        # The close is a read-back with the END sentinel.
+        # The confirmed close carries the END sentinel and stays grounded.
         self.assertIn("<<END>>", result["reply"])
         self.assertIn("Data Analyst", result["reply"])
+        # Spine provenance (UAT L1-CONV-3): the stated seniority is marked.
+        self.assertEqual(brief.spine_provenance.get("seniority"), "stated")
+        self.assertEqual(brief.spine_provenance.get("title"), "stated")
 
     def test_power_unit_dialog_is_short(self) -> None:
         answers = [
@@ -84,13 +88,46 @@ class DeterministicScriptTest(unittest.TestCase):
             "Java, Spring",
             "senior",
             "skip",
+            "ok",
         ]
         turns, result = _drive(answers)
         self.assertTrue(result["done"])
         self.assertEqual(result["shape"], "power_unit")
-        # Short path: opener + 5 questions + read-back ⇒ well under the story script.
+        # Short path: opener + 5 questions + read-back + close ⇒ ≤8 agent turns.
         agent_turns = [t for t in turns if t["role"] == "interviewer"]
-        self.assertLessEqual(len(agent_turns), 7)
+        self.assertLessEqual(len(agent_turns), 8)
+
+    def test_readback_correction_lands_and_closes(self) -> None:
+        # UAT L1-CONV-2 (3/3 Characters): the read-back's invited correction
+        # must LAND — captured as the requestor's stated words — and only then
+        # does the session close.
+        answers = [
+            "Backfill — same as our old Java developer",
+            "Java Developer",
+            "Services run without gaps",
+            "Java, Kafka",
+            "senior",
+            "skip",
+            "Actually Kafka is not required, general messaging experience is enough",
+        ]
+        _turns, result = _drive(answers)
+        self.assertTrue(result["done"])
+        self.assertIn("<<END>>", result["reply"])
+        brief = coerce_role_brief(result["brief"])
+        corrections = [f for f in brief.facets if f.key == "correction"]
+        self.assertEqual(len(corrections), 1)
+        self.assertIn("messaging", corrections[0].value)
+        self.assertEqual(corrections[0].provenance, "stated")
+        # The close acknowledges the correction verbatim-ish.
+        self.assertIn("Kafka", result["reply"])
+
+    def test_readback_waits_for_confirmation(self) -> None:
+        # The read-back turn itself must NOT close the session.
+        answers = ["Backfill — same again", "QA Engineer", "Releases ship tested", "Playwright", "junior", "skip"]
+        _turns, result = _drive(answers)
+        self.assertFalse(result["done"])
+        self.assertNotIn("<<END>>", result["reply"])
+        self.assertIn("QA Engineer", result["reply"])  # grounded read-back, awaiting confirm
 
     def test_czech_script_localizes(self) -> None:
         opener = opening_turn("cs")

@@ -232,6 +232,7 @@ export const roleBriefSchema = z.object({
     confidence: z.number(),
     sourceTurn: z.number().nullish()
   })),
+  spineProvenance: z.record(z.string(), z.string()),
   promptVersion: z.string()
 });
 

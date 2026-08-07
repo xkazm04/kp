@@ -110,6 +110,14 @@ class RoleBrief(_Base):
     success_criteria: list[str] = Field(default_factory=list)  # "great after 90 days"
     requirements: list[BriefRequirement] = Field(default_factory=list)
     facets: list[BriefFacet] = Field(default_factory=list)
+    # Provenance for the SPINE scalars (keys: "title" | "seniority" |
+    # "role_family"; values: BRIEF_PROVENANCE). Requirements/facets carry
+    # per-entry provenance; without this map the schema defaults ("medior",
+    # "software_engineering") were indistinguishable from captured values and
+    # rendered as if the requestor said them (UAT 2026-08-07-intake,
+    # L1-CONV-3 — convergent across all three Characters). A missing key
+    # reads as "default".
+    spine_provenance: dict[str, str] = Field(default_factory=dict)
     prompt_version: str = ""
 
 
@@ -186,6 +194,12 @@ def coerce_role_brief(payload: Any) -> RoleBrief:
 
     requirements = pick("requirements")
     facets = pick("facets")
+    spine_raw = pick("spine_provenance", "spineProvenance")
+    spine = {
+        key: _vocab(value, BRIEF_PROVENANCE, "default")
+        for key, value in (spine_raw.items() if isinstance(spine_raw, dict) else [])
+        if key in ("title", "seniority", "role_family")
+    }
     return RoleBrief(
         title=_text(pick("title")),
         seniority=_vocab(pick("seniority"), ("junior", "medior", "senior", "lead"), "medior"),
@@ -196,6 +210,7 @@ def coerce_role_brief(payload: Any) -> RoleBrief:
         success_criteria=_text_list(pick("success_criteria", "successCriteria")),
         requirements=[r for r in (req(e) for e in (requirements if isinstance(requirements, list) else [])) if r],
         facets=[f for f in (facet(e) for e in (facets if isinstance(facets, list) else [])) if f],
+        spine_provenance=spine,
         prompt_version=_text(pick("prompt_version", "promptVersion")),
     )
 
@@ -220,10 +235,18 @@ def role_brief_from_spec(spec: Any, *, provenance: str = "inferred", confidence:
             for s in _text_list(skills)
         ]
 
+    spine: dict[str, str] = {}
+    if _text(raw.get("title")):
+        spine["title"] = prov
+    if _vocab(raw.get("seniority"), ("junior", "medior", "senior", "lead"), "") in ("junior", "medior", "senior", "lead"):
+        spine["seniority"] = prov
+    if _text(raw.get("role_family", raw.get("roleFamily"))):
+        spine["role_family"] = prov
     return RoleBrief(
         title=_text(raw.get("title")),
         seniority=_vocab(raw.get("seniority"), ("junior", "medior", "senior", "lead"), "medior"),
         role_family=_text(raw.get("role_family", raw.get("roleFamily"))) or "software_engineering",
+        spine_provenance=spine,
         languages=_text_list(raw.get("languages")),
         responsibilities=_text_list(raw.get("responsibilities")),
         requirements=(

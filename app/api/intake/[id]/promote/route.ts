@@ -31,14 +31,21 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         { status: 400 }
       );
     }
-    const body = (await request.json().catch(() => ({}))) as { company?: unknown; caseDesign?: unknown };
+    const body = (await request.json().catch(() => ({}))) as {
+      company?: unknown;
+      caseDesign?: unknown;
+      marketResearch?: unknown;
+    };
     const brief = intake.brief;
     const title = (brief.title ?? "").trim();
     const needText = needTextFromBrief(brief);
     const lang = intake.lang === "cs" ? "cs" : "en";
     const options = {
       description: true,
-      marketResearch: true,
+      // Opt-out (UAT L1-HRBP-6): the market layer is Czech-single-market, so a
+      // non-Czech role must be able to promote WITHOUT auto-attaching a
+      // wrong-market comp band. Default stays on.
+      marketResearch: body.marketResearch !== false,
       caseDesign: body.caseDesign === true,
     };
 

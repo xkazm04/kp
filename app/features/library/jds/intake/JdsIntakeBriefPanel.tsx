@@ -41,9 +41,16 @@ export function JdsIntakeBriefPanel({ brief }: { brief: RoleBrief | null }) {
       ) : (
         <>
           <Section label={t("role")}>
-            <div className="text-body text-ink">
-              {brief?.title || "—"}
-              {brief?.seniority ? <span className={`${CHIP_QUIET} ml-2`}>{brief.seniority}</span> : null}
+            <div className="flex flex-wrap items-center gap-2 text-body text-ink">
+              <span>{brief?.title || "—"}</span>
+              {brief?.seniority ? (
+                <>
+                  <span className={CHIP_QUIET}>{brief.seniority}</span>
+                  {/* Spine provenance (UAT L1-CONV-3): a defaulted seniority must
+                      read as "assumed", never as captured. Missing key = default. */}
+                  <ProvenanceChip provenance={brief?.spineProvenance?.seniority ?? "default"} />
+                </>
+              ) : null}
             </div>
           </Section>
           {(brief?.successCriteria ?? []).length > 0 ? (
