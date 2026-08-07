@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { countTaskHistory, listTaskHistory } from "@/app/_lib/db";
+import { countTaskHistory, listTaskHistory } from "@/app/_lib/db/tasks";
 import { recentTaskCutoffIso } from "@/app/_lib/tasks";
 
 

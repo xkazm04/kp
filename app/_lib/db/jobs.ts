@@ -19,6 +19,24 @@ export type JdRow = {
   // JSON string: { role, salary, salarySources, salarySource, snapshot, case, options }
   // once ready; { options } while analyzing. Parsed by the JD detail view.
   analysis_json?: string | null;
+  // JSON string of the recruiter's original build intent (JdBuildIntent): the
+  // "describe the need" prompt + the checklist options / lang / role facets /
+  // templateId the Generate took. NULL on legacy rows + plain draft saves. Powers
+  // Duplicate's prompt re-seed and Retry's row-fallback replay.
+  build_input_json?: string | null;
+};
+
+// The recruiter's original build intent, persisted on the JD row at Generate so it
+// survives the build (the rendered markdown ≠ the intent) and the task's pruning.
+export type JdBuildIntent = {
+  needText?: string;
+  company?: string;
+  seniority?: string;
+  roleFamily?: string;
+  repoUrl?: string;
+  lang?: string;
+  templateId?: string;
+  options?: unknown;
 };
 
 // What the list endpoint exposes: identity + a short, server-truncated preview
@@ -58,23 +76,26 @@ export function saveJd(input: SaveJdInput, workspaceId: string = DEFAULT_WORKSPA
 // Backgrounded AI generation writers. The generate route inserts a placeholder JD
 // up front (analysis_status='analyzing', empty body) so it appears in the Ledger
 // immediately; the detached jd_build handler then flips it to ready/failed — which
-// is why the JD survives the user navigating away (see docs/JD_LIFECYCLE.md).
+// is why the JD survives the user navigating away (see docs/features/jobs/README.md).
 
 /** Create the up-front placeholder for a backgrounded build. `options` (the ticked
  *  checklist) is stashed in analysis_json so the row knows what was requested even
- *  before the build finishes. Returns the minted slug. */
+ *  before the build finishes; `buildInput` (the recruiter's original prompt + all
+ *  the options the build took) is persisted in build_input_json so the intent
+ *  survives the build for Duplicate/Retry. Returns the minted slug. */
 export function insertAnalyzingJd(
-  input: { title: string; options: unknown },
+  input: { title: string; options: unknown; buildInput?: JdBuildIntent },
   workspaceId: string = DEFAULT_WORKSPACE_ID
 ): { slug: string; createdAt: string } {
   const db = ensureDb();
   const createdAt = new Date().toISOString();
   const stmt = db.prepare(
-    `INSERT INTO jds (slug, title, body, created_at, analysis_status, analysis_json, workspace_id)
-     VALUES (?, ?, '', ?, 'analyzing', ?, ?)`
+    `INSERT INTO jds (slug, title, body, created_at, analysis_status, analysis_json, build_input_json, workspace_id)
+     VALUES (?, ?, '', ?, 'analyzing', ?, ?, ?)`
   );
   const analysisJson = JSON.stringify({ options: input.options });
-  const slug = insertWithUniqueSlug((s) => stmt.run(s, input.title, createdAt, analysisJson, workspaceId));
+  const buildInputJson = input.buildInput ? JSON.stringify(input.buildInput) : null;
+  const slug = insertWithUniqueSlug((s) => stmt.run(s, input.title, createdAt, analysisJson, buildInputJson, workspaceId));
   return { slug, createdAt };
 }
 
@@ -107,6 +128,21 @@ export function failJdAnalysis(slug: string, error: string): void {
  *  Ledger reflects the re-run immediately, before the replayed build lands. */
 export function markJdAnalyzing(slug: string): void {
   ensureDb().prepare(`UPDATE jds SET analysis_status = 'analyzing', analysis_error = NULL WHERE slug = ?`).run(slug);
+}
+
+/** Whether any ready JD build in this workspace produced a case-design artifact
+ *  (analysis_json.case — the JD builder's caseDesign checklist output). Feeds the
+ *  Getting-started checklist's "case designed" derivation alongside dev_cases. */
+export function hasJdCaseArtifact(workspaceId: string = DEFAULT_WORKSPACE_ID): boolean {
+  const row = ensureDb()
+    .prepare(
+      `SELECT 1 FROM jds
+       WHERE workspace_id = ? AND archived_at IS NULL AND analysis_status = 'ready'
+         AND json_valid(analysis_json) AND json_extract(analysis_json, '$.case') IS NOT NULL
+       LIMIT 1`
+    )
+    .get(workspaceId);
+  return row !== undefined;
 }
 
 export function listJds(limit = 100, workspaceId: string = DEFAULT_WORKSPACE_ID): JdListItem[] {
@@ -146,7 +182,7 @@ export function loadJd(slug: string, workspaceId: string = DEFAULT_WORKSPACE_ID)
   const row = db
     .prepare(
       `SELECT slug, title, body, created_at, archived_at,
-              analysis_status, analysis_task_id, analysis_error, analysis_json
+              analysis_status, analysis_task_id, analysis_error, analysis_json, build_input_json
        FROM jds WHERE slug = ? AND workspace_id = ?`
     )
     .get(slug, workspaceId) as JdRow | undefined;
@@ -204,6 +240,20 @@ export function listJdRevisions(slug: string, limit = 30, workspaceId: string = 
   return ensureDb()
     .prepare(`SELECT id, slug, title, body, created_at FROM jd_revisions WHERE slug = ? AND workspace_id = ? ORDER BY id DESC LIMIT ?`)
     .all(slug, workspaceId, Math.min(Math.max(limit, 1), 100)) as JdRevision[];
+}
+
+/** The timestamp of the JD's last CONTENT change, or null if it was never edited.
+ *  Each jd_revisions row is a PRE-edit snapshot written AT edit time (updateJd and
+ *  revertJd both stamp created_at = now before overwriting), so the MAX(created_at)
+ *  over a slug's revisions is exactly when the live body last changed. A revert
+ *  writes a snapshot too, so it counts as a change — the honest source for "was
+ *  this analysis scored against stale text?". Workspace-scoped like every other
+ *  jd_revisions read. */
+export function jdLastEditedAt(slug: string, workspaceId: string = DEFAULT_WORKSPACE_ID): string | null {
+  const row = ensureDb()
+    .prepare(`SELECT MAX(created_at) AS ts FROM jd_revisions WHERE slug = ? AND workspace_id = ?`)
+    .get(slug, workspaceId) as { ts: string | null } | undefined;
+  return row?.ts ?? null;
 }
 
 export type JdRevertResult =
@@ -340,9 +390,50 @@ export function getJob(id: string): JobRecord | null {
  *  corpus job (workspace_id NULL) has no single owner, so its applicants fall back to
  *  the default workspace. */
 export function getJobWorkspace(id: string): string {
+  return getJobOwnerWorkspace(id) ?? DEFAULT_WORKSPACE_ID;
+}
+
+/** The RAW ownership fact behind getJobWorkspace: the owning team's id, or null for a
+ *  seeded corpus row (workspace_id NULL) AND for an unknown id. getJobWorkspace folds
+ *  both into the default workspace — correct for "where do this job's applicants go?",
+ *  but it destroys exactly the distinction an ownership CHECK needs (a seeded corpus
+ *  job is shared by every tenant; the default workspace is one tenant among many). */
+export function getJobOwnerWorkspace(id: string): string | null {
   const db = ensureDb();
   const row = db.prepare(`SELECT workspace_id FROM jobs WHERE id = ?`).get(id) as { workspace_id: string | null } | undefined;
-  return row?.workspace_id ?? DEFAULT_WORKSPACE_ID;
+  return row?.workspace_id ?? null;
+}
+
+/** Ownership gate for the LIFECYCLE WRITES (POST /api/jobs/[id]/close|publish).
+ *
+ *  setJobStatus is a by-id UPDATE with no workspace predicate (job-ingest.ts) — safe for
+ *  a by-id READ, but as a WRITE it let workspace B close workspace A's live role or force
+ *  A's draft live on B's quota (publish then reopened A's withdrawn entries into B's
+ *  scope). The routes gate on this instead of re-scoping the shared primitive, which the
+ *  seeded-corpus paths depend on.
+ *
+ *  DECISION (seeded rows, workspace_id NULL): allowed for every tenant. A seeded corpus
+ *  job is inserted with status NULL — i.e. already live and shared — and publishing one
+ *  is how a tenant adopts a corpus role into its own pipeline (publish sources candidates
+ *  into `ws`); closing one is reachable from the same modal today. Gating them off would
+ *  be a functional regression, so only an OTHER tenant's AUTHORED job is rejected.
+ *  (Residual, deliberately out of scope: the `status` column on a seeded row is itself
+ *  shared, so one tenant closing a corpus role affects all — that needs per-tenant
+ *  lifecycle state on shared rows, not an ownership check.) */
+export function canWriteJobLifecycle(id: string, workspaceId: string): boolean {
+  // Same predicate as visibility: a team may retire/adopt exactly the roles it can see.
+  return jobVisibleToWorkspace(id, workspaceId);
+}
+
+/** Is this job visible to a team? The by-id form of listJobs' `(workspace_id IS NULL OR
+ *  workspace_id = @workspaceId)` predicate — the shared seeded corpus plus the team's own
+ *  authored openings. Used by the by-id GET that resolves a ?job= deep link whose target
+ *  fell outside the list slice, so a point-fetch can't hand out what the list wouldn't.
+ *  An unknown id reads as "visible" (no owner to conflict with) — callers establish
+ *  existence with getJob first and 404 on a miss. */
+export function jobVisibleToWorkspace(id: string, workspaceId: string): boolean {
+  const owner = getJobOwnerWorkspace(id);
+  return owner === null || owner === workspaceId;
 }
 
 /** Batch getJob (idea-f946db9d): one IN-query — chunked under the SQLite

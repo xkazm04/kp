@@ -5,6 +5,7 @@ import Link from "next/link";
 import { AlertTriangle, RotateCcw } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { BTN_PRIMARY, BTN_SECONDARY, EYEBROW, INTRO, PANEL } from "@/app/_components/ui/recipes";
+import { reportBoundaryError } from "@/app/_lib/sentry-client";
 
 // Shared route-level error fallback — the branded panel every segment
 // `error.tsx` (and the root one) renders instead of Next's unstyled default.
@@ -26,9 +27,11 @@ export function RouteError({
   const t = useTranslations("resilience");
 
   useEffect(() => {
-    // No remote error sink is wired up; the console keeps the stack (and the
-    // server-side digest correlation id) for diagnosis.
+    // The console keeps the stack (and the server-side digest correlation id)
+    // for local diagnosis; the Sentry report is DSN-gated and no-ops entirely
+    // on the default local-first deploy (app/_lib/sentry-client.ts).
     console.error("Route render failed:", error);
+    reportBoundaryError(error);
   }, [error]);
 
   return (

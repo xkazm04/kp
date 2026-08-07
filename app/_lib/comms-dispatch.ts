@@ -1,13 +1,17 @@
-import { createTranslator } from "next-intl";
 import { sendComm } from "./comms";
 import type { OutboxStatus } from "./comms-status";
-import { ensureErasureToken, recordAutomationEvent, type PipelineEntry } from "./db";
+import type { PipelineEntry } from "./db/core";
+import { ensureErasureToken, entryProfileGaps, recordAutomationEvent } from "./db/pipeline";
+import { buildRejectionFeedback, renderRejectionFeedback } from "./rejection-feedback";
+import { outreachHaltFor, recordOutreachSend } from "./outreach-state-store";
+import type { HaltReason } from "./outreach-halt";
 import { isEarlyCareer } from "./archetypes";
 import { candidateOutreachSuppression } from "./rediscovery-alert-store";
 import { extractDeliverableAddress, extractRecipientName } from "./comms-recipient";
 import { buildIcs } from "./export-utils";
-import { publicBaseUrl } from "./public-base-url";
+import { publicBaseUrl, publicOriginIsFallback } from "./public-base-url.ts";
 import { resolveCommsLocale } from "./comms-locale";
+import { commsTranslator, type CommsTranslator } from "./comms-translator";
 
 // Direction #3 — real comms delivery for the hiring pipeline. Routes recruiter
 // automation through the shared sendComm channel (durable local outbox by
@@ -27,30 +31,11 @@ import { resolveCommsLocale } from "./comms-locale";
 // their deterministic chrome (fallback subject, the offer's terms + response
 // footers) localizes here.
 
-// One cached translator per locale: createTranslator is the non-request core
-// API, so it needs the messages handed in — loaded once per locale via the same
-// relative-path dynamic import the request config uses (so the bundler can
-// statically enumerate the catalogs). Synchronous after the first load.
-//
-// The catalogs load as `Record<string, unknown>`, so next-intl's compile-time
-// key checking can't see the `comms.*` keys and types every key as `never`.
-// This module is the one place that loads messages dynamically, so we narrow
-// the translator to a plain `(key, values) => string` callable — the catalog is
-// instead pinned by comms-dispatch.test.ts, which renders every key.
-type CommsTranslator = (key: string, values?: Record<string, string | number>) => string;
-const translatorByLocale = new Map<string, CommsTranslator>();
+// The locale-pinned `comms` translator lives in comms-translator.ts —
+// devcase-feedback.ts needed the same cache, and two copies of "how to load a
+// catalog outside a request" is one too many.
 
-async function commsTranslator(locale: string | null | undefined): Promise<CommsTranslator> {
-  const loc = resolveCommsLocale(locale);
-  const cached = translatorByLocale.get(loc);
-  if (cached) return cached;
-  const messages = (await import(`../../messages/${loc}.json`)).default as Record<string, unknown>;
-  const t = createTranslator({ locale: loc, messages, namespace: "comms" }) as unknown as CommsTranslator;
-  translatorByLocale.set(loc, t);
-  return t;
-}
-
-// RECIPIENT CONTRACT (full write-up in docs/COMMS_DELIVERY.md). Resolved in
+// RECIPIENT CONTRACT (full write-up in docs/features/comms/README.md). Resolved in
 // priority:
 //   1. contact        — a real address captured at inbound apply (idea APP2). When
 //      present this is a directly-deliverable recipient, not just an identifier —
@@ -107,9 +92,13 @@ async function candidateLinkBase(): Promise<string> {
     /* no ambient request (scheduler/heartbeat) — rely on the env override */
   }
   const base = publicBaseUrl(origin);
-  if (!base) {
+  // publicBaseUrl now always returns an absolute origin (it falls back to the canonical
+  // site default rather than the old ""), so a candidate link is never a dead relative
+  // path. But a fallback means nothing deployment-specific was configured — the link uses
+  // the DEFAULT origin, which may be wrong for this deploy — so still warn loudly.
+  if (publicOriginIsFallback(origin)) {
     console.warn(
-      "[comms] no public origin configured — a candidate link in this email will be a dead relative path. Set APP_BASE_URL (or NEXT_PUBLIC_APP_BASE_URL) for detached sends."
+      "[comms] no public origin configured — candidate links use the default site origin, which may be wrong for this deploy. Set APP_BASE_URL (or NEXT_PUBLIC_APP_BASE_URL) for detached sends."
     );
   }
   return base;
@@ -150,7 +139,7 @@ async function dataFooter(entry: CandidateCommTarget, t: CommsTranslator): Promi
 async function sendCandidateComm(
   entry: CandidateCommTarget,
   t: CommsTranslator,
-  msg: { subject: string; body: string; kind: string; ref?: string }
+  msg: { subject: string; body: string; kind: string; ref?: string; workspaceId?: string | null }
 ): Promise<OutboxStatus> {
   const recorded = await sendComm({
     to: candidateRecipient(entry),
@@ -158,6 +147,9 @@ async function sendCandidateComm(
     body: msg.body + (await dataFooter(entry, t)),
     kind: msg.kind,
     ref: msg.ref ?? entry.id ?? undefined,
+    // Fallback tenant for the case where `ref` names no pipeline entry (a slot/link
+    // ref on an entry-less dispatch). Ignored whenever the entry resolves.
+    workspaceId: msg.workspaceId,
   });
   return recorded.status;
 }
@@ -197,7 +189,10 @@ export async function dispatchApplicationReceived(
 
 /** Outcome of an outreach dispatch: delivered, or SUPPRESSED for a consent reason
  *  (so the caller/UI shows "cannot contact" rather than a false "reached out"). */
-export type OutreachResult = { sent: true } | { sent: false; reason: "anonymized" | "consent_expired" };
+// `replied`/`manual` join the consent reasons (W2.3): every way a send can be refused
+// is one union, so a caller cannot handle the compliance refusals and silently miss the
+// sequence-stopped ones.
+export type OutreachResult = { sent: true } | { sent: false; reason: "anonymized" | "consent_expired" | HaltReason };
 
 /** Dispatch an outreach message — the LLM/deterministic draft just generated.
  *  The body is the model's; only the fallback subject (used when the draft has
@@ -231,11 +226,23 @@ export async function dispatchOutreach(
     recordAutomationEvent(entry.id, "outreach_suppressed", suppress);
     return { sent: false, reason: suppress };
   }
+  // W2.3 — the sequence stops once the person answers it (or a recruiter stops it by
+  // hand). Checked AFTER consent so the irreversible gate stays first, and audited the
+  // same way: a send that did not happen must be visible in the log.
+  const halt = outreachHaltFor(entry.id);
+  if (halt) {
+    recordAutomationEvent(entry.id, "outreach_suppressed", halt);
+    return { sent: false, reason: halt };
+  }
   const t = await commsTranslator(entry.locale);
   const role = entry.jobTitle ?? t("aRole");
   const subject = String(draft.subject ?? t("outreach.subjectFallback", { role })).trim();
   const body = String(draft.body ?? "").trim();
   await sendCandidateComm(entry, t, { subject, body, kind: "outreach" });
+  // Recorded only after the send actually happened — counting an attempt would make a
+  // failed send look like a contact, and `sends > 0` is what later distinguishes a reply
+  // from a fresh application.
+  recordOutreachSend(entry.id);
   recordAutomationEvent(entry.id, "outreach_sent", entry.jobTitle ?? "");
   return { sent: true };
 }
@@ -245,6 +252,12 @@ export async function dispatchOutreach(
  * respectful template — no LLM, so it works in a batch policy pass and never
  * ghosts a rejected candidate. Early-career archetypes get an encouraging line,
  * keeping the fairness lever consistent through to the adverse comm.
+ *
+ * W0.6 — when the record holds a REASON (the recruiter's own still-unmet checklist
+ * items), the letter now says it. Sourced from what was recorded, never generated: a
+ * fresh LLM call here would be slow in a batch pass and would invent a rationale that
+ * was never the actual reason. Protected-attribute lines are dropped whole, and with
+ * nothing recorded the template ships exactly as before (rejection-feedback.ts).
  */
 export async function dispatchRejection(entry: PipelineEntry, opts?: { automated?: boolean }): Promise<void> {
   const t = await commsTranslator(entry.locale);
@@ -252,11 +265,30 @@ export async function dispatchRejection(entry: PipelineEntry, opts?: { automated
   const role = entry.jobTitle ?? t("theRole");
   const middle = isEarlyCareer(entry.archetype) ? t("rejection.early") : t("rejection.standard");
 
+  // Workspace resolution matches every sibling dispatcher in this module (they all let
+  // recordAutomationEvent take the default): PipelineEntry carries no workspaceId, and a
+  // lone deviation here would read as a tenancy fix while being a guess.
+  const feedback = buildRejectionFeedback({ profileGaps: entryProfileGaps(entry.id) });
+  const feedbackBlock = renderRejectionFeedback(feedback, t("rejection.feedbackIntro"), t("rejection.feedbackOutro"));
+
   const subject = t("rejection.subject", { role });
-  const body = t("rejection.opening", { name, role }) + middle + t("rejection.closing", { team: t("team") });
+  const body = t("rejection.opening", { name, role }) + middle + feedbackBlock + t("rejection.closing", { team: t("team") });
 
   await sendCandidateComm(entry, t, { subject, body, kind: "rejection" });
-  recordAutomationEvent(entry.id, "rejection_sent", opts?.automated ? "policy auto-reject" : "manual reject");
+  recordAutomationEvent(
+    entry.id,
+    "rejection_sent",
+    // The detail records whether the candidate got a reason and where it came from, so
+    // the decision log can answer "was this rejection explained?" without reopening the
+    // outbox body. `filtered` is recorded too — a dropped line is a fairness event.
+    [
+      opts?.automated ? "policy auto-reject" : "manual reject",
+      `feedback:${feedback.source}`,
+      feedback.filtered ? "protected-filter:fired" : null,
+    ]
+      .filter(Boolean)
+      .join(" · ")
+  );
 }
 
 /** Tell a KO-declined lead the outcome — entry-less by design. Channel leads are
@@ -265,19 +297,28 @@ export async function dispatchRejection(entry: PipelineEntry, opts?: { automated
  *  ships null context (comms-envelope handles a missing entry). The own quick-apply
  *  form shows the decline live in the UI — this comm is for webhook surfaces whose
  *  candidate saw "submitted" on a third-party board and would otherwise hear
- *  nothing, ever. */
+ *  nothing, ever.
+ *
+ *  TENANT (comms-tenancy-pair): with no entry there is nothing for recordOutbox to
+ *  derive a workspace from, so the row used to land in the DEFAULT team's Comms
+ *  Center — for a non-default team, in a board its recruiters cannot see, while the
+ *  decline itself was correctly recorded (recordKnockoutDecline) in their own. The
+ *  caller holds the authoritative tenant (the webhook's / the opening's team) and
+ *  passes it here, so the notice and the decline record file together. */
 export async function dispatchKnockoutDecline(input: {
   email: string;
   name?: string | null;
   jobTitle?: string | null;
   locale?: string | null;
+  /** The team that owns the declined lead. Omitted ⇒ the default workspace. */
+  workspaceId?: string | null;
 }): Promise<void> {
   const t = await commsTranslator(input.locale);
   const name = (input.name ?? "").trim() || t("there");
   const role = input.jobTitle ?? t("theRole");
   const subject = t("koDecline.subject", { role });
   const body = t("koDecline.body", { name, role, team: t("team") });
-  await sendComm({ to: input.email, subject, body, kind: "ko_decline" });
+  await sendComm({ to: input.email, subject, body, kind: "ko_decline", workspaceId: input.workspaceId });
 }
 
 /**
@@ -441,11 +482,17 @@ export async function dispatchScheduleInvite(
  *  The audit write that follows is post-send bookkeeping; were it allowed to throw
  *  (e.g. a transient SQLite contention after the message already left), the caller
  *  would re-arm and send the candidate a DUPLICATE reminder. So it is logged and
- *  swallowed, never surfaced as a delivery failure. */
+ *  swallowed, never surfaced as a delivery failure.
+ *
+ *  TENANT (comms-tenancy-pair): this is the one reminder whose `ref` can fail to name
+ *  a pipeline entry — the sweep reminds an invite whose linked entry has since been
+ *  deleted (dueReminders LEFT JOINs and keeps a null entry eligible), and then `ref`
+ *  degrades to the human-readable slot string, which resolves to nothing. The invite
+ *  row carries the owning team, so the caller passes it as the fallback tenant. */
 export async function dispatchInterviewReminder(
   entry: { id?: string | null; candidateLabel?: string | null; candidateId?: string | null; jobTitle?: string | null; locale?: string | null },
   slot: string,
-  opts?: { durationMin?: number | null }
+  opts?: { durationMin?: number | null; workspaceId?: string | null }
 ): Promise<void> {
   const t = await commsTranslator(entry.locale);
   const name = greetName(entry, t);
@@ -453,7 +500,13 @@ export async function dispatchInterviewReminder(
   const length = opts?.durationMin ? t("interviewReminder.length", { minutes: opts.durationMin }) : "";
   const subject = t("interviewReminder.subject", { slot });
   const body = t("interviewReminder.body", { name, role, slot, length, team: t("team") });
-  await sendCandidateComm(entry, t, { subject, body, kind: "interview_reminder", ref: entry.id ?? slot });
+  await sendCandidateComm(entry, t, {
+    subject,
+    body,
+    kind: "interview_reminder",
+    ref: entry.id ?? slot,
+    workspaceId: opts?.workspaceId,
+  });
   // Post-send: the reminder is delivered. Do not let an audit-log failure re-throw —
   // that would look like a delivery failure and trigger a duplicate send.
   try {

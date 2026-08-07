@@ -88,6 +88,49 @@ type SecretResponse = {
   client_secret?: { value?: string } | string;
 };
 
+/** Normalize a coerceLanguage()-validated hint ("cs", "en", "en-US", …) to the
+ *  ISO-639-1 primary subtag the Realtime transcription config wants ("cs", "en").
+ *  Returns null for an absent/unknown hint so the caller omits the field entirely
+ *  and preserves the pre-existing bilingual-open behavior byte-for-byte. Only
+ *  well-formed two-letter primary subtags pass; anything else → null (the
+ *  transcription model then auto-detects, as before). */
+export function normalizeTranscriptionLanguage(language?: string | null): string | null {
+  if (typeof language !== "string") return null;
+  const primary = language.split("-")[0]?.toLowerCase() ?? "";
+  return /^[a-z]{2}$/.test(primary) ? primary : null;
+}
+
+/** Build the OpenAI Realtime client_secrets session payload. Pure and exported so
+ *  the language-parity behavior (idea: language enforcement parity for OpenAI) is
+ *  unit-testable without a network call. When the candidate locale is known it
+ *  sets input-audio transcription `language` — the voice harness showed
+ *  prompt-level language locks lose to transport config, so Czech speech was
+ *  transcribing against an English default (the ElevenLabs path already pins
+ *  language client-side; this closes the OpenAI gap). Unknown/absent locale →
+ *  no language field, identical to the prior bilingual-open payload. */
+export function buildOpenAiSessionPayload(opts: {
+  model: string;
+  instructions: string;
+  transcriptionModel: string;
+  voice: string;
+  language?: string | null;
+}): { session: Record<string, unknown> } {
+  const transcription: { model: string; language?: string } = { model: opts.transcriptionModel };
+  const lang = normalizeTranscriptionLanguage(opts.language);
+  if (lang) transcription.language = lang;
+  return {
+    session: {
+      type: "realtime",
+      model: opts.model,
+      instructions: opts.instructions,
+      audio: {
+        input: { transcription },
+        output: { voice: opts.voice },
+      },
+    },
+  };
+}
+
 export class OpenAiVoiceAdapter implements VoiceAdapter {
   readonly id = "openai" as const;
   readonly requiredEnv = ["OPENAI_API_KEY"] as const;
@@ -96,7 +139,7 @@ export class OpenAiVoiceAdapter implements VoiceAdapter {
     return missingVoiceEnv(this).length === 0;
   }
 
-  async connect({ instructions }: { instructions: string; language?: string | null }): Promise<OpenAiConnect> {
+  async connect({ instructions, language }: { instructions: string; language?: string | null }): Promise<OpenAiConnect> {
     const key = process.env.OPENAI_API_KEY;
     if (!key) throw new Error("OPENAI_API_KEY is not set");
     const model = openAiRealtimeModel();
@@ -104,17 +147,13 @@ export class OpenAiVoiceAdapter implements VoiceAdapter {
     const res = await fetch(SECRETS_URL, {
       method: "POST",
       headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        session: {
-          type: "realtime",
-          model,
-          instructions,
-          audio: {
-            input: { transcription: { model: TRANSCRIPTION_MODEL } },
-            output: { voice: VOICE },
-          },
-        },
-      }),
+      // Pin transcription language to the candidate's locale when known — a
+      // prompt-level lock alone loses to the transport default (the ElevenLabs
+      // path pins it client-side for the same reason). Unknown locale → payload
+      // unchanged from the bilingual-open default.
+      body: JSON.stringify(
+        buildOpenAiSessionPayload({ model, instructions, transcriptionModel: TRANSCRIPTION_MODEL, voice: VOICE, language }),
+      ),
     });
 
     if (!res.ok) {

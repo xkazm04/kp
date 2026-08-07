@@ -3,14 +3,14 @@
 // uses these lives in db/pipeline.ts (recordEntryConsent / anonymizeEntry /
 // anonymizeExpiredConsents); the borrowed pattern (anonymize-on-expiry but RETAIN
 // the non-identifying scoring artifacts for re-engagement) is documented in
-// docs/GDPR_AND_HIRING_EXTENSIONS.md. See the DPO note there before enabling in prod.
+// docs/_archive/GDPR_AND_HIRING_EXTENSIONS.md. See the DPO note there before enabling in prod.
 
 /** Default retention window for a recruitment consent: 12 months from grant
  *  (Recruitis/Sloneek both default to ~1 year). This is a GLOBAL default, blind to
  *  jurisdiction and source — the lawful retention period varies by country and by how
  *  the candidate was acquired, so a deployment SHOULD set it for its legal basis via
  *  KP_CONSENT_TTL_DAYS (whole days, 1..3650). The per-call `ttlDays` arg overrides it
- *  for a future per-jurisdiction/per-source policy. See docs/GDPR_AND_HIRING_EXTENSIONS.md. */
+ *  for a future per-jurisdiction/per-source policy. See docs/_archive/GDPR_AND_HIRING_EXTENSIONS.md. */
 export function consentTtlDays(): number {
   const raw = Number(process.env.KP_CONSENT_TTL_DAYS);
   return Number.isFinite(raw) && raw >= 1 && raw <= 3650 ? Math.floor(raw) : 365;
@@ -59,6 +59,31 @@ export function consentStatus(snap: ConsentSnapshot, nowMs: number): ConsentStat
   if (exp <= nowMs) return "expired";
   if (exp <= nowMs + CONSENT_EXPIRING_DAYS * DAY_MS) return "expiring";
   return "active";
+}
+
+/** Read-time PII gate — the SYNCHRONOUS counterpart to the deferred expiry sweep
+ *  (anonymizeExpiredConsents). A consent that has EXPIRED, or an entry already
+ *  ANONYMIZED, must not surface PII at a read boundary regardless of whether the
+ *  periodic sweep has run yet: the sweep is an optimization, THIS is the control
+ *  (bug-ui-scan-2026-07-09 privacy-consent-provenance #3 — enforcement previously
+ *  lived only in the sweep, so an expired-consent candidate's CV/transcript stayed
+ *  fully served in the window before/without a sweep). Callers holding a snapshot
+ *  withhold or scrub PII when this returns true. */
+export function consentWithholdsPii(snap: ConsentSnapshot, nowMs: number = Date.now()): boolean {
+  const status = consentStatus(snap, nowMs);
+  return status === "expired" || status === "anonymized";
+}
+
+/** De-identify a transcript-bearing interview record for a read boundary when
+ *  consent withholds PII (bug-ui-scan-2026-07-09 privacy-consent-provenance #3):
+ *  drop the verbatim transcript + the free-text scorecard synthesis (both quote
+ *  the candidate's own words) and mask the label, while KEEPING the non-identifying
+ *  session metadata (status, timing, provider) so the modal still renders a state.
+ *  Pure + generic over the session shape; never mutates its input. */
+export function redactTranscriptForConsent<
+  T extends { transcript: unknown; scorecard: unknown; candidateLabel: string | null },
+>(session: T): T {
+  return { ...session, transcript: null, scorecard: null, candidateLabel: maskCandidateName(session.candidateLabel) };
 }
 
 /** Why a candidate may NOT receive unsolicited OUTREACH — the suppression gate the

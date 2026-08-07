@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { listPipelineEvents, listPipelineEventsForEntry, listPipelineEventsSince } from "@/app/_lib/db";
+import { listPipelineEvents, listPipelineEventsSince } from "@/app/_lib/db/pipeline";
 import { toPublicPipelineEvent } from "@/app/_lib/pipeline-events-public";
+import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { safeJsonError } from "@/app/_lib/api-response";
 
 
@@ -16,31 +17,32 @@ import { safeJsonError } from "@/app/_lib/api-response";
 // `cursor` is the id to resume from on the next poll in both modes.
 export async function GET(request: NextRequest) {
   try {
-    // Per-candidate history for the drawer (PIPE3): full, oldest-first events for
-    // one entry. Recruiter context (keyed by the internal entry id, not exposed on
-    // the public feed), so NOT run through the anonymizing public projection — the
-    // timeline needs the real stage transitions + detail.
-    const entry = request.nextUrl.searchParams.get("entry");
-    if (entry !== null) {
-      if (!entry.trim() || entry.length > 120) {
-        return NextResponse.json({ error: "entry must be a non-empty id" }, { status: 400 });
-      }
-      return NextResponse.json({ events: listPipelineEventsForEntry(entry) });
-    }
-
+    // Tenant scope (P1): every read below scopes to the caller's team. GET
+    // /api/pipeline already scopes its board to currentWorkspace(); the three
+    // event reads MUST too, or the feed + drawer history read another tenant's
+    // audit trail (they fell to DEFAULT_WORKSPACE_ID before this).
+    const ws = await currentWorkspace();
+    // NOTE: per-candidate history (the `?entry=` branch) was removed here. It
+    // served the entry's full, un-anonymized recruiter events (real labels,
+    // archetype, rejection detail) with NO requireOperator() gate — unlike the
+    // sibling GET /api/pipeline/[id] and /timeline routes, which are all
+    // operator-gated because they expose the same PII. The drawer now reads that
+    // history through the operator-gated /api/pipeline/[id]/timeline bundle, so
+    // the ungated branch was also dead code. Any future per-entry read on this
+    // route MUST call requireOperator() first (see [id]/route.ts).
     const sinceRaw = request.nextUrl.searchParams.get("since");
     if (sinceRaw !== null) {
       const since = Number(sinceRaw);
       if (!Number.isSafeInteger(since) || since < 0) {
         return NextResponse.json({ error: "since must be a non-negative integer" }, { status: 400 });
       }
-      const events = listPipelineEventsSince(since);
+      const events = listPipelineEventsSince(since, 200, ws);
       const cursor = events.length > 0 ? events[events.length - 1].id : since;
       // Public projection (idea-4c41d103): identity reduced to initials, no
       // internal ids — see pipeline-events-public.ts.
       return NextResponse.json({ events: events.map(toPublicPipelineEvent), cursor });
     }
-    const events = listPipelineEvents(40);
+    const events = listPipelineEvents(40, 0, undefined, ws);
     const cursor = events.length > 0 ? events[0].id : 0; // newest-first → [0] is the max id
     return NextResponse.json({ events: events.map(toPublicPipelineEvent), cursor });
   } catch (error) {

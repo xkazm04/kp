@@ -1,8 +1,9 @@
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
-import type { JobRecord } from "./db";
+import type { JobRecord } from "./db/core";
 import type { CandidatePoolEntry } from "./candidate-pool";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, PipelineError, spawnPython } from "./python-runner";
+import { buildLlmConfigEnv } from "./llm-config";
 
 // The recruiter_cli ranking-spawn envelope shared by every "rank this pool
 // against this job" site (the candidates list, rediscovery, the automation
@@ -37,7 +38,9 @@ export async function rankPoolForJob<T>(
     if (opts.weightsLlm) args.push("--weights-llm");
     if (opts.embeddings) args.push("--embeddings");
 
-    const { result } = spawnPython(args, { signal: opts.signal });
+    // buildLlmConfigEnv: --weights-llm resolves the weight_proposal use case —
+    // without this env the configured provider re-route never reaches the child.
+    const { result } = spawnPython(args, { signal: opts.signal, env: buildLlmConfigEnv() });
     const { stdout, stderr, exitCode } = await result;
     if (exitCode !== 0) throw new PipelineError(parseStderrError(stderr, exitCode));
     // parsePythonJson, not raw JSON.parse: the interpreter routinely prints

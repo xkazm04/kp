@@ -56,16 +56,18 @@ class CandidateProfile(_Base):
 class ScoreBreakdown(_Base):
     """Fit score split into a total and its five weighted components.
 
-    Contract: ``total`` is the sum of the five components
+    Contract: ``total`` IS the sum of the five components
     (experience/skills/role_seniority/education/traits), whose maxima
-    25/30/23/12/10 add to exactly 100. ``_score_from_payload`` in pipeline.py
-    takes the model's own ``total`` (clamped) rather than recomputing it, so a
-    bad generation can return a ``total`` that disagrees with its parts. The web
-    UI treats the component sum as authoritative for display and pins the score
-    dial to it (see ``reconcileScoreTotal`` / the score-breakdown invariant in
-    app/_lib/format.ts) so the dial can never contradict the factor breakdown.
-    On the Python side ``_score_sanity_checks`` flags a divergence past
-    ``SCORE_TOTAL_TOLERANCE`` into ``sanity_checks`` for manual review.
+    25/30/23/12/10 add to exactly 100. ``_score_from_payload`` in pipeline.py is
+    server-authoritative — it ALWAYS computes ``total`` from the components and never
+    trusts the model's own ``total``, so a bad generation can no longer persist a
+    headline that disagrees with its parts. The model's claimed total survives only
+    as a sanity SIGNAL: ``_score_sanity_checks`` compares it against the sum and, past
+    ``SCORE_TOTAL_TOLERANCE``, flags the divergence into ``sanity_checks`` for
+    observability. The web UI still pins the displayed dial to the component sum (see
+    ``reconcileScoreTotal`` / the score-breakdown invariant in app/_lib/format.ts);
+    with the server total now equal to the sum that reconciliation is a no-op for
+    freshly computed analyses (it still guards older stored ones on read).
     """
 
     total: int
@@ -190,6 +192,28 @@ class JobFitResult(_Base):
     must_prove_evidence: list[str] = Field(default_factory=list)
     negotiation_angle: str = ""
     recruiter_risk_flags: list[str] = Field(default_factory=list)
+    # Analyze-surface HONESTY cross-check (Direction: analyze-emits-honesty-fields).
+    # The Gemini job_fit above emits FLAT matching/missing skill lists that cannot
+    # express what the matching engine proves: a skill the model called "missing"
+    # may be an ADJACENCY near-miss (the candidate holds a sibling/specialization)
+    # or a provenance-discounted claim — not a true gap. These additive fields carry
+    # matching.score_job's unproven bucket (names mirror MatchResult's), computed by
+    # re-scoring the SAME candidate against the JD's DETECTED skills — each wrapped as
+    # a DEFAULTED must_have/prerequisite JobRequirement (a uniform deterministic
+    # assumption, NOT something the ad stated). It is a cross-check over detected JD
+    # skills, NEVER a second headline score: the synthesized matching total + its
+    # confidence band are discarded, only this bucket surfaces.
+    # ``unproven_skill_reason`` values: "adjacency" | "provenance" | "both".
+    #
+    # NULLABLE (not default_factory like MatchResult's twins): JobFitResult is
+    # embedded in the DB-cached AnalysisResult and RE-VALIDATED on read (codegen →
+    # .nullish()), so a required key would fail the zod parse of analyses cached
+    # before this field existed — the CandidateProfile.credentials/publications/links
+    # precedent. ``None`` on such old rows (and on a JD-less or empty cross-check);
+    # a fresh JD-backed run with adjacency/provenance findings populates them.
+    unproven_skills: list[str] | None = None
+    unproven_skill_strength: dict[str, float] | None = None
+    unproven_skill_reason: dict[str, str] | None = None
 
 
 class DeterministicEvidence(_Base):
@@ -202,6 +226,21 @@ class DeterministicEvidence(_Base):
     detected_company_modifiers: list[str] = Field(default_factory=list)
 
 
+class RunCost(_Base):
+    """The metered cost of the flagship LLM call that produced this analysis, so
+    the saved report can show what the run actually cost (not a UI re-guess).
+    ``cost_usd`` is priced from the shared MTOK_PRICES table (llm.base.price_usd),
+    the SAME mechanism the usage ledger uses — an ESTIMATE (``estimated`` true),
+    non-contractual, like the voice per-minute prices. ``cost_usd`` is null when
+    the model isn't in the price book (visible-but-unpriced, never a silent 0)."""
+    model: str | None = None
+    input_tokens: int = 0
+    output_tokens: int = 0
+    cached_tokens: int | None = None
+    cost_usd: float | None = None
+    estimated: bool = True
+
+
 class AnalysisMetadata(_Base):
     analysis_engine: str
     text_extractor: str
@@ -209,6 +248,9 @@ class AnalysisMetadata(_Base):
     parsing_notes: list[str] = Field(default_factory=list)
     grounding_sources: list[str] = Field(default_factory=list)
     deterministic_evidence: DeterministicEvidence | None = None
+    # Per-run metered LLM cost estimate (surfaced on the saved report). None when
+    # no token usage was reported for the run.
+    run_cost: RunCost | None = None
 
 
 # --- Soft-signal panel (SCOR1) -------------------------------------------------

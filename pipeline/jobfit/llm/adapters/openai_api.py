@@ -1,7 +1,7 @@
 """OpenAI Chat Completions adapter (official ``openai`` SDK).
 
 Also serves any **OpenAI-compatible** endpoint via ``base_url`` — the enterprise
-self-host path (docs/SELF_HOSTING.md, E-SH-5): point it at Azure OpenAI's
+self-host path (docs/architecture/self-hosting.md, E-SH-5): point it at Azure OpenAI's
 OpenAI-compatible gateway, vLLM, Ollama (``/v1``), LiteLLM, or an in-VPC proxy so
 inference never leaves the customer's network. The base URL comes from
 ``KP_LLM_CONFIG`` (keys.<provider>.baseUrl) or the ``OPENAI_BASE_URL`` env var; such
@@ -15,7 +15,7 @@ from typing import Any
 
 # load_local_env imported so the base's _load_env dispatch (and the tests that
 # patch it on this module) resolve it here; _resolved_key/available live in base.
-from ..base import DEFAULT_MAX_TOKENS, DEFAULT_TIMEOUT_S, LLMResult, TextProvider, load_local_env, price_usd  # noqa: F401
+from ..base import DEFAULT_MAX_TOKENS, DEFAULT_TIMEOUT_S, LLMError, LLMResult, TextProvider, load_local_env, price_usd  # noqa: F401
 
 
 class OpenAIProvider(TextProvider):
@@ -78,6 +78,44 @@ class OpenAIProvider(TextProvider):
             max_retries=0,
         )
 
+    @staticmethod
+    def _error_message(err_obj: Any) -> str:
+        """Best-effort human message from a gateway's top-level error (dict from a
+        raw body, or an SDK/pydantic object exposing ``.message``/``.code``)."""
+        if isinstance(err_obj, dict):
+            return str(err_obj.get("message") or err_obj.get("code") or err_obj)
+        msg = getattr(err_obj, "message", None) or getattr(err_obj, "code", None)
+        return str(msg or err_obj)
+
+    def _raise_on_error_response(self, resp: Any) -> None:
+        """Raise a typed LLMError for a 200-with-error / empty-choices / filtered
+        response instead of letting the base meter it as a paid success.
+        bug-ui-scan-2026-07-09 (llm-provider-layer-python #3)."""
+        err_obj = getattr(resp, "error", None)
+        if err_obj:
+            raise LLMError(
+                f"{self.name} returned a 200 with a provider error: "
+                f"{self._error_message(err_obj)}",
+                provider=self.name,
+                subtype="provider_error",
+            )
+        choices = getattr(resp, "choices", None)
+        if not choices:
+            # No content AND no explicit error object — a proxied model that failed
+            # without populating `choices`. Not a real empty-prose answer.
+            raise LLMError(
+                f"{self.name} returned no choices (empty response body)",
+                provider=self.name,
+                subtype="empty_choices",
+            )
+        finish_reason = getattr(choices[0], "finish_reason", None)
+        if finish_reason in ("error", "content_filter"):
+            raise LLMError(
+                f"{self.name} finished with reason {finish_reason!r} (no usable output)",
+                provider=self.name,
+                subtype=finish_reason,
+            )
+
     def _call(self, prompt: str, *, system: str | None, timeout: int) -> LLMResult:
         client = self._make_client(timeout)
         messages: list[dict[str, str]] = []
@@ -92,6 +130,17 @@ class OpenAIProvider(TextProvider):
             # reasoning-class models and accepted by the rest.
             max_completion_tokens=self.max_tokens,
         )
+
+        # bug-ui-scan-2026-07-09 (llm-provider-layer-python #3): an OpenAI-compatible
+        # gateway — notably OpenRouter — can answer HTTP 200 whose body carries a
+        # top-level {"error": ...} and/or no usable choices when the proxied model
+        # errors (provider outage, moderation, credit issue). The old code coerced
+        # that to text="" and the base then recorded a metered SUCCESS + ledger line,
+        # so a provider-side error read as a healthy (billed) completion and only
+        # tripped later as a downstream parse failure — after also burning the
+        # complete_json self-repair re-prompt. Detect it and raise a typed LLMError so
+        # it emits as an error (never metered as paid) and complete_json skips repair.
+        self._raise_on_error_response(resp)
 
         choice = resp.choices[0] if getattr(resp, "choices", None) else None
         text = (getattr(getattr(choice, "message", None), "content", None) or "") if choice else ""

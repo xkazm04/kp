@@ -1,15 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getTranslations } from "next-intl/server";
 import { getServerLocale } from "@/i18n/server";
-import { getJob } from "@/app/_lib/db";
+import { getJob } from "@/app/_lib/db/jobs";
 import { applyKoSteps } from "@/app/_lib/apply";
 import { APPLY_EMAIL_RE, failedKoStepIds, isHoneypotFilled } from "@/app/_lib/apply-intake";
 import { getJobStatus, isJobOpenForApplications } from "@/app/_lib/job-ingest";
+import { linkApplySession } from "@/app/_lib/apply-session-store";
 import { intakeLead } from "@/app/_lib/lead-intake";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
 import { getOrCreateStatusLink } from "@/app/_lib/application-status-store";
-import { isRelayConfigured } from "@/app/_lib/comms-truth";
+import { isRelayConfigured } from "@/app/_lib/comms-relay";
+import { safeJsonError } from "@/app/_lib/api-response";
+import { afterResponse } from "@/app/_lib/after-response";
 
 // Mint (or reuse) the entry's status-link token, best-effort — the application
 // already succeeded, so a status-link failure must never turn it into an error
@@ -83,6 +86,9 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       campaign?: unknown;
       variant?: unknown;
       company_url?: unknown;
+      // The apply-funnel attempt this submission belongs to — measurement only,
+      // grants nothing (see apply-session-store.ts).
+      applySessionId?: unknown;
     };
     // Anti-bot honeypot: a hidden `company_url` field no human fills. A bot that
     // auto-fills every input trips it — drop the submission silently (no lead, no
@@ -128,6 +134,9 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       sourceCampaign: campaign || null,
       sourceVariant: variant || null,
       channelLabel: "quick apply",
+      // E4 speed-to-lead is about the LEAD landing fast, not about the applicant
+      // watching an SMTP round-trip: the ack dispatch runs after this response.
+      defer: (task) => afterResponse("quick-apply-ack", task),
       // STRICT verdict: every expected KO answer must be present AND true.
       failedKoIds: failedKoStepIds(expectedKoIds, answers),
       // …so an ACCEPT means every gate was explicitly answered true: record them
@@ -138,15 +147,21 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       // capst-l1-002 — the ack email carries the same durable status link the
       // conversational path has always sent (getOrCreateStatusLink is idempotent
       // per entry, so email and success screen share ONE token).
+      // …pinned to the applied-in language, exactly like enrichLink above: the
+      // ack email is read outside the app, with no NEXT_LOCALE cookie, so a bare
+      // link dropped a Czech lead onto an English status page (proxy.ts turns
+      // ?lang= back into the cookie).
       statusLinkFor: (entryId) => {
         const token = safeStatusToken(entryId);
-        return token ? `${base}/status/${token}` : null;
+        return token ? `${base}/status/${token}?lang=${applicantLocale}` : null;
       },
     });
 
     if (outcome.result === "declined") {
       return NextResponse.json({ result: "declined", message: t("declinedMessage") });
     }
+    // The lead was filed (new or duplicate) — link the attempt that produced it.
+    linkApplySession(typeof body.applySessionId === "string" ? body.applySessionId : null, outcome.entryId);
     // `leadToken` lets the success screen's "complete your profile" CTA carry
     // the same identity as the emailed link (see QuickApplyForm); `statusToken`
     // gives the done screen the status link the flow used to omit.
@@ -170,6 +185,8 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       statusToken,
     });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "apply failed" }, { status: 500 });
+    // Same public-surface hygiene as the conversational POST: the raw message
+    // behind this catch is store/subprocess internals, never candidate copy.
+    return safeJsonError(error, "api:apply:quick", "APPLY_FAILED");
   }
 }

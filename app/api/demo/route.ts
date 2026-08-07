@@ -27,9 +27,11 @@ export async function GET(request: NextRequest) {
   // secret. In a gated deploy, mint the isolated demo session — but ONLY when the
   // public demo is explicitly allowed: while tenancy is half-built, this anonymous
   // recruiter session can read the real tenant's PII via the ~28 unscoped tables, so
-  // by default a gated deploy refuses to mint it and just lands on the marketing page.
+  // by default a gated deploy refuses to mint it and lands back on the marketing
+  // page — with `?demo=unavailable`, so the landing can SAY so (DemoUnavailableNotice)
+  // instead of dead-ending the "Try the live demo" CTA on a silent no-op reload.
   if (process.env.KP_SECRET && !demoSessionAllowed()) {
-    return NextResponse.redirect(new URL("/", request.url));
+    return NextResponse.redirect(new URL("/?demo=unavailable", request.url));
   }
 
   const res = NextResponse.redirect(new URL("/?sim=auto", request.url));

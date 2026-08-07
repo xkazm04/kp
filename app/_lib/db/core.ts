@@ -8,6 +8,7 @@ import type { PipelineStage } from "../pipeline-stages";
 import { assertTenancyReady } from "../tenancy";
 import { multiWorkspaceEnabled } from "../workspace-lock";
 import { seedBenchmarkTeam } from "./seed-benchmark-team";
+import { fixtureSeedEnabled } from "./seed-gate";
 
 // Memoized on globalThis (not just module scope): Next dev HMR re-evaluates this
 // module with a fresh module-local binding, which would re-run the ENTIRE
@@ -337,7 +338,22 @@ export function ensureDb(): Database.Database {
       role_family TEXT,
       completeness REAL DEFAULT 0,
       payload_json TEXT NOT NULL,
-      created_at TEXT NOT NULL
+      created_at TEXT NOT NULL,
+      -- Source lineage (profile ↔ CV): when a profile was built FROM a saved CV
+      -- analysis, these back-reference it so "a newer analysis of the same CV
+      -- exists since this profile was built" (staleness) is detectable. All NULL
+      -- on a hand-built profile (never fabricated) ⇒ no staleness, no badge.
+      source_analysis_slug TEXT,
+      source_cv_hash TEXT,
+      source_analyzed_at TEXT,
+      -- Divergence tracking (profile "rebuild that respects hand edits"): updated_at
+      -- is stamped on every CONTENT write (create/edit); lineage_stamped_at on every
+      -- time source lineage is (re)stamped (build-from-analysis / rebuild). A profile
+      -- has DIVERGED from its analysis when updated_at > lineage_stamped_at — it was
+      -- hand-edited after it was built — so a rebuild can warn before clobbering the
+      -- recruiter's edits. NULL on legacy rows ⇒ divergence unprovable ⇒ no warning.
+      updated_at TEXT,
+      lineage_stamped_at TEXT
     );
 
     CREATE INDEX IF NOT EXISTS idx_profiles_created_at ON profiles (created_at DESC);
@@ -488,6 +504,28 @@ export function ensureDb(): Database.Database {
       -- migration below (a DB created before this column existed).
       size INTEGER,
       created_at TEXT NOT NULL,
+      -- Tamper-evidence (LLM-era controls #1): server-computed SHA-256 chain link —
+      -- hash(prev_hash | session | seq | event fields | server receive time). Computed
+      -- at INSERT inside appendDevSessionEvents (never client-supplied), so any later
+      -- edit/delete/reorder of the log breaks every downstream link and
+      -- verifyDevSessionChain reports the first broken seq. NULL only on legacy rows
+      -- that predate the column (verify treats a NULL-hash prefix as unverifiable).
+      hash TEXT,
+      PRIMARY KEY (session_id, seq)
+    );
+
+    -- LLM-era controls #2: the captured prompt channel. Every assistant / stakeholder
+    -- exchange in the Live Work Surface flows through the platform and lands here —
+    -- the human<->LLM dialogue is first-class evidence (prompt quality, clarifying
+    -- questions) evaluated beside the artifact. role: 'user' | 'model'.
+    CREATE TABLE IF NOT EXISTS dev_session_chat (
+      session_id TEXT NOT NULL,
+      seq INTEGER NOT NULL,
+      channel TEXT NOT NULL,
+      role TEXT NOT NULL,
+      text TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      workspace_id TEXT NOT NULL DEFAULT 'workspace',
       PRIMARY KEY (session_id, seq)
     );
 
@@ -573,7 +611,7 @@ export function ensureDb(): Database.Database {
     CREATE INDEX IF NOT EXISTS idx_interview_token ON interview_sessions (token);
     CREATE INDEX IF NOT EXISTS idx_interview_entry ON interview_sessions (entry_id);
 
-    -- Multi-provider LLM layer (docs/LLM_PROVIDER_LAYER.md). llm_config pins
+    -- Multi-provider LLM layer (docs/architecture/llm-provider-layer.md). llm_config pins
     -- provider+model per use case (explicit rows only — absence means the
     -- built-in default, i.e. Claude CLI locally); provider_keys holds
     -- UI-entered keys encrypted with KP_SECRET (env keys keep working without
@@ -622,14 +660,20 @@ export function ensureDb(): Database.Database {
     CREATE INDEX IF NOT EXISTS idx_llm_usage_ts ON llm_usage (ts);
     CREATE INDEX IF NOT EXISTS idx_llm_usage_use_case ON llm_usage (use_case, provider);
 
-    -- Payment gate (docs/BILLING.md). Single-workspace model mirrors the rest
+    -- Payment gate (docs/features/billing/README.md). Single-workspace model mirrors the rest
     -- of the app: billing_state is a one-row subscription snapshot synced from
     -- provider webhooks (never trusted from the client); billing_events is the
     -- webhook idempotency gate + audit; billing_credits is the prepaid ledger
     -- (minute packs — provider_ref dedupes a redelivered order); billing_usage
     -- holds per-month meter counters the entitlement checks read.
+    -- Org-scoped since org-plan Phase 3 (data layer): billing is per-ORG — one
+    -- subscription/ledger per customer company, SHARED across its teams (the
+    -- tenancy manifest's billing doctrine). org_id keys every table; the legacy
+    -- single row (id 'workspace') is backfilled to 'org-default' by the
+    -- migrations below, so a single-org deployment reads byte-identically.
     CREATE TABLE IF NOT EXISTS billing_state (
       id TEXT PRIMARY KEY DEFAULT 'workspace',
+      org_id TEXT NOT NULL DEFAULT 'org-default',
       plan TEXT NOT NULL DEFAULT 'free',
       status TEXT NOT NULL DEFAULT 'none',
       provider TEXT,
@@ -640,8 +684,11 @@ export function ensureDb(): Database.Database {
       updated_at TEXT NOT NULL
     );
 
+    -- org_id here is ATTRIBUTION only — the PK stays the provider's globally
+    -- unique event id, so the idempotency gate is provider-global by design.
     CREATE TABLE IF NOT EXISTS billing_events (
       id TEXT PRIMARY KEY,
+      org_id TEXT,
       type TEXT NOT NULL,
       payload_json TEXT NOT NULL,
       received_at TEXT NOT NULL
@@ -649,6 +696,7 @@ export function ensureDb(): Database.Database {
 
     CREATE TABLE IF NOT EXISTS billing_credits (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      org_id TEXT NOT NULL DEFAULT 'org-default',
       meter TEXT NOT NULL,
       delta INTEGER NOT NULL,
       reason TEXT NOT NULL,
@@ -657,10 +705,11 @@ export function ensureDb(): Database.Database {
     );
 
     CREATE TABLE IF NOT EXISTS billing_usage (
+      org_id TEXT NOT NULL DEFAULT 'org-default',
       meter TEXT NOT NULL,
       period TEXT NOT NULL,
       qty INTEGER NOT NULL DEFAULT 0,
-      PRIMARY KEY (meter, period)
+      PRIMARY KEY (org_id, meter, period)
     );
 
     -- Durable "needs attention" signal for money events that can't auto-resolve
@@ -669,6 +718,7 @@ export function ensureDb(): Database.Database {
     -- paid-but-dark customers instead of relying on someone watching the logs.
     CREATE TABLE IF NOT EXISTS billing_alerts (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      org_id TEXT NOT NULL DEFAULT 'org-default',
       kind TEXT NOT NULL,
       detail TEXT NOT NULL,
       provider_ref TEXT,
@@ -676,8 +726,79 @@ export function ensureDb(): Database.Database {
       resolved_at TEXT
     );
 
-    CREATE INDEX IF NOT EXISTS idx_billing_credits_meter ON billing_credits (meter);
+    CREATE INDEX IF NOT EXISTS idx_billing_credits_meter ON billing_credits (org_id, meter);
     CREATE INDEX IF NOT EXISTS idx_billing_alerts_open ON billing_alerts (resolved_at);
+
+    -- Agent-candidate bridge (db/agents.ts): hire an AI agent for a job via the
+    -- external Personas app. agent_fit_specs holds the durable job→AgentFitSpec
+    -- transform artifact (append-only; latest-per-job read — the campaign_packs
+    -- durable-artifact pattern, but versioned rather than upserted so an operator
+    -- edit dispatches from a spec the next transform can't silently clobber).
+    CREATE TABLE IF NOT EXISTS agent_fit_specs (
+      id TEXT PRIMARY KEY,
+      workspace_id TEXT NOT NULL DEFAULT 'workspace',
+      job_id TEXT NOT NULL,
+      fit_json TEXT NOT NULL,
+      spec_json TEXT NOT NULL,
+      budget_json TEXT NOT NULL,
+      metrics_json TEXT NOT NULL,
+      source TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_agent_fit_specs_job ON agent_fit_specs (workspace_id, job_id, created_at);
+
+    -- The hired-agent roster: one row per persona request dispatched to Personas.
+    -- report_token is the CSPRNG capability the PUBLIC inbound report route
+    -- authenticates by (channel_webhooks doctrine: the token IS the auth, minted
+    -- by randomToken, never randomId). persona_id/name arrive later via
+    -- lifecycle reports; request_id is Personas' approval id.
+    CREATE TABLE IF NOT EXISTS hired_agents (
+      id TEXT PRIMARY KEY,
+      workspace_id TEXT NOT NULL DEFAULT 'workspace',
+      job_id TEXT NOT NULL,
+      job_title TEXT NOT NULL,
+      persona_id TEXT,
+      persona_name TEXT,
+      request_id TEXT,
+      status TEXT NOT NULL DEFAULT 'dispatched',
+      spec_json TEXT NOT NULL,
+      fit_json TEXT,
+      metrics_json TEXT,
+      budget_usd REAL,
+      report_token TEXT NOT NULL UNIQUE,
+      created_at TEXT NOT NULL,
+      updated_at TEXT
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_hired_agents_ws_job ON hired_agents (workspace_id, job_id);
+
+    -- The inbound cost/activity ledger: per-run execution events (exec_id keyed —
+    -- the durable idempotency handle), period rollups (UPSERT by
+    -- (hired_agent_id, period), the incrementBillingUsage pattern) and lifecycle
+    -- events. connector_uses_json: [{connector, calls}].
+    CREATE TABLE IF NOT EXISTS agent_activity (
+      id TEXT PRIMARY KEY,
+      workspace_id TEXT NOT NULL DEFAULT 'workspace',
+      hired_agent_id TEXT NOT NULL,
+      kind TEXT NOT NULL,
+      ts TEXT NOT NULL,
+      exec_id TEXT,
+      cost_usd REAL,
+      tokens_in INTEGER,
+      tokens_out INTEGER,
+      status TEXT,
+      duration_ms INTEGER,
+      connector_uses_json TEXT,
+      period TEXT,
+      raw_json TEXT
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_agent_activity_agent ON agent_activity (workspace_id, hired_agent_id, ts);
+    -- Durable idempotency: an execution report replayed with the same exec_id, or a
+    -- rollup re-sent for the same period, can never double-count.
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_agent_activity_exec ON agent_activity (hired_agent_id, exec_id) WHERE exec_id IS NOT NULL;
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_agent_activity_rollup ON agent_activity (hired_agent_id, period) WHERE kind = 'rollup';
   `);
   // Run a DDL migration, swallowing ONLY the benign "already applied" error (re-running
   // ADD COLUMN / CREATE on a DB that already has the column). Any OTHER failure —
@@ -739,6 +860,13 @@ export function ensureDb(): Database.Database {
     // so the enrichment chat can skip exactly those gates — recorded pass-state,
     // never derived. NULL = nothing verified (the chat asks every gate).
     "ALTER TABLE pipeline_entries ADD COLUMN lead_passed_ko_json TEXT",
+    // The archetype checklist's still-unmet items for this entry's profile
+    // (profile_cli `missingGaps`, JSON array of {check,label}) — recorded at
+    // intake so the post-apply follow-up can ask the CANDIDATE the targeted gap
+    // questions (completeness-followup.ts) that only they can answer, and so an
+    // UNANSWERED gap stays on the record. Rewritten (never appended) whenever the
+    // profile is rebuilt or a gap answer merges. NULL = nothing recorded.
+    "ALTER TABLE pipeline_entries ADD COLUMN profile_gaps_json TEXT",
     // Persistent per-candidate recruiter note: call facts ("wants 80k, available
     // August, hybrid") autosaved from the drawer's always-visible scratchpad, so
     // they survive closing it instead of living in spreadsheets. Free text,
@@ -779,6 +907,18 @@ export function ensureDb(): Database.Database {
     "ALTER TABLE workspaces ADD COLUMN type TEXT",
     // Per-user permission overrides on a membership (P0) — see the memberships CREATE.
     "ALTER TABLE memberships ADD COLUMN capability_overrides TEXT",
+    // First-run onboarding (per-user): when this person finished — or explicitly
+    // skipped — the setup wizard. Both NULL = never seen ⇒ the / gate shows it.
+    // Timestamps (not booleans) so support can see WHEN, and a skip can later be
+    // distinguished from a completion (the getting-started checklist re-offers
+    // itself to skippers). Workspace-level twin below covers open-dev/operator
+    // sessions where no user id exists (current-user.ts short-circuits to null).
+    "ALTER TABLE users ADD COLUMN onboarding_completed_at TEXT",
+    "ALTER TABLE users ADD COLUMN onboarding_skipped_at TEXT",
+    // First-run onboarding (workspace fallback): 'completed' | 'skipped' | NULL.
+    // The authority when the session has no user claim (open dev mode, operator
+    // password) — mirrors the default_locale per-workspace-scalar pattern.
+    "ALTER TABLE workspaces ADD COLUMN onboarding_state TEXT",
     "ALTER TABLE channel_webhooks ADD COLUMN first_received_at TEXT",
     // E5 metric honesty: `received_count`/`first_received_at` stamp EVERY POST (probes,
     // health-checks, malformed integrations), so they overstate real leads. Track
@@ -786,6 +926,18 @@ export function ensureDb(): Database.Database {
     // so "leads received" and time-to-first-lead reflect candidates, not pings.
     "ALTER TABLE channel_webhooks ADD COLUMN accepted_count INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE channel_webhooks ADD COLUMN first_accepted_at TEXT",
+    // Org-scoped billing (org-plan Phase 3, data layer): billing is per-ORG —
+    // one subscription + ledger per customer company, shared across its teams.
+    // DEFAULT 'org-default' backfills every existing row to the single seeded
+    // org so a pre-migration deployment reads byte-identically. billing_state's
+    // column is nullable-then-backfilled (its legacy row predates the default);
+    // billing_events' org_id is nullable ATTRIBUTION only (the idempotency PK
+    // stays the provider's global event id). billing_usage is REBUILT below —
+    // its PK must widen to (org_id, meter, period).
+    "ALTER TABLE billing_state ADD COLUMN org_id TEXT",
+    "ALTER TABLE billing_events ADD COLUMN org_id TEXT",
+    "ALTER TABLE billing_credits ADD COLUMN org_id TEXT NOT NULL DEFAULT 'org-default'",
+    "ALTER TABLE billing_alerts ADD COLUMN org_id TEXT NOT NULL DEFAULT 'org-default'",
   ]) {
     migrateExec(sql);
   }
@@ -813,6 +965,58 @@ export function ensureDb(): Database.Database {
       created_at TEXT NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_consent_events_entry ON consent_events (entry_id, id DESC);
+
+    -- W0.6b — candidate NPS. Captured on a TERMINAL outcome from the public status
+    -- page, so the candidate-experience claim the rejection-feedback work rests on is
+    -- measured rather than asserted. entry_id is the PRIMARY KEY: one response per
+    -- application, so a link-holder cannot ballot-stuff their own outcome. A resubmit
+    -- REPLACEs (people change their mind before they hit send twice); the original
+    -- created_at is not preserved because a rewritten answer is a new answer.
+    CREATE TABLE IF NOT EXISTS candidate_nps (
+      entry_id TEXT PRIMARY KEY,
+      score INTEGER NOT NULL,
+      comment TEXT,
+      created_at TEXT NOT NULL,
+      workspace_id TEXT NOT NULL DEFAULT 'workspace'
+    );
+    CREATE INDEX IF NOT EXISTS idx_candidate_nps_ws ON candidate_nps (workspace_id, created_at DESC);
+
+    -- W2.3 — outreach memory, per pipeline entry (candidate × role). dispatchOutreach
+    -- used to gate on consent and fire with no record that it had ever run, so a campaign
+    -- re-run mailed the same people again, including the ones who had already written
+    -- back. The sends counter is what makes an inbound message a REPLY rather than a
+    -- re-application (outreach-halt.ts); replied_at/manual_halt_at stop the sequence.
+    CREATE TABLE IF NOT EXISTS outreach_state (
+      entry_id TEXT PRIMARY KEY,
+      sends INTEGER NOT NULL DEFAULT 0,
+      last_sent_at TEXT,
+      replied_at TEXT,
+      manual_halt_at TEXT,
+      workspace_id TEXT NOT NULL DEFAULT 'workspace'
+    );
+    CREATE INDEX IF NOT EXISTS idx_outreach_state_ws ON outreach_state (workspace_id);
+
+    -- W1.1 — the external-id link table: the piece that makes an ATS sync IDEMPOTENT.
+    -- ats-record.ts emits candidates outward keyed by kp's own entry id, which is fine for
+    -- egress. Pulling candidates IN needs the other direction: the vendor's id for an
+    -- application, so the second sync UPDATES the person it already imported instead of
+    -- creating a twin. Without this table a nightly sync duplicates the entire pipeline
+    -- every night, which is how an integration destroys a customer's funnel metrics.
+    --
+    -- The PK is (provider, external_id, workspace_id): ids are only unique within a
+    -- vendor, and two tenants can legitimately connect the same ATS account.
+    -- last_seen_stage is what the vendor last told us, so a re-sync can tell an actual
+    -- stage change from a no-op re-send.
+    CREATE TABLE IF NOT EXISTS ats_links (
+      provider TEXT NOT NULL,
+      external_id TEXT NOT NULL,
+      workspace_id TEXT NOT NULL DEFAULT 'workspace',
+      entry_id TEXT NOT NULL,
+      last_seen_stage TEXT,
+      last_synced_at TEXT NOT NULL,
+      PRIMARY KEY (provider, external_id, workspace_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_ats_links_entry ON ats_links (entry_id, workspace_id);
   `);
   // Migration for dev_submissions evaluation + contact columns (Phase D6 / B),
   // plus the interview run-of-show column added when the voice screen grew a
@@ -843,6 +1047,13 @@ export function ensureDb(): Database.Database {
     // against; authored JDs (a status was set) are backfilled to the default team
     // below. job-ingest.ts mirrors this ALTER on its own connection.
     "ALTER TABLE jobs ADD COLUMN workspace_id TEXT",
+    // When the role first went live. status alone says whether a job is published
+    // now, never since when, so any publish-anchored cycle metric (publish→hire,
+    // publish→first offer) had no start date — which is why pipelineAnalytics
+    // measures entry→hire instead. Stamped by setJobStatus on the first flip to
+    // 'published' and left alone afterwards, so a close/republish keeps the
+    // original cycle start. NULL = seeded corpus, or authored before this column.
+    "ALTER TABLE jobs ADD COLUMN published_at TEXT",
     // Human disposition + reason on a saved analysis (RES5) — see the table CREATE.
     "ALTER TABLE analyses ADD COLUMN disposition TEXT",
     "ALTER TABLE analyses ADD COLUMN decision_note TEXT",
@@ -857,8 +1068,32 @@ export function ensureDb(): Database.Database {
     // Tenant scope (P2): the workspace a saved analysis belongs to. NULL on legacy
     // rows ⇒ backfilled to the default workspace below. The first scoped table.
     "ALTER TABLE analyses ADD COLUMN workspace_id TEXT",
+    // Content-addressed candidate identity: the SHA-256 of the CV bytes (the same
+    // per-CV content hash the analyze intake already computes for variant dedupe /
+    // the cache key). Identity used to BE the filename — two filenames for one person
+    // never linked, two "CV.pdf" collided, and re-running a cached CV+JD kept INSERTing
+    // duplicate History rows. With this, the same content is one identity regardless
+    // of filename: History collapses same-(cv_hash, jd) re-runs, the report links the
+    // same person's other-job analyses, and a filename-derived label shared by two
+    // different hashes surfaces a collision caution. NULL on legacy rows (never grouped).
+    "ALTER TABLE analyses ADD COLUMN cv_hash TEXT",
     // Tenant scope (P2): the profiles domain (2nd scoped table). Same backfill below.
     "ALTER TABLE profiles ADD COLUMN workspace_id TEXT",
+    // Source lineage (profile ↔ CV): the saved analysis a profile was built from,
+    // its content hash (SHA-256 of the CV bytes), and that analysis's created_at.
+    // Stamped from the source analysis at save (never from the client), so a NEWER
+    // same-cv_hash analysis is detectable as "this profile was built from an older
+    // CV". All NULL on legacy/hand-built rows (never grouped, never stale).
+    "ALTER TABLE profiles ADD COLUMN source_analysis_slug TEXT",
+    "ALTER TABLE profiles ADD COLUMN source_cv_hash TEXT",
+    "ALTER TABLE profiles ADD COLUMN source_analyzed_at TEXT",
+    // Divergence tracking ("rebuild that respects hand edits"): updated_at is stamped
+    // on every content write, lineage_stamped_at whenever source lineage is (re)stamped.
+    // updated_at > lineage_stamped_at ⇒ the profile was hand-edited after it was built
+    // from its analysis, so a rebuild warns before overwriting. NULL on legacy rows ⇒
+    // divergence unprovable ⇒ rebuild behaves exactly as before (no warning).
+    "ALTER TABLE profiles ADD COLUMN updated_at TEXT",
+    "ALTER TABLE profiles ADD COLUMN lineage_stamped_at TEXT",
     // Tenant scope (P1): the Library JD tables — a team's private drafts/openings +
     // their edit history. Backfilled to the default workspace below.
     "ALTER TABLE jds ADD COLUMN workspace_id TEXT",
@@ -873,6 +1108,13 @@ export function ensureDb(): Database.Database {
     // separately — its single-column PK must widen to (channel, workspace_id).
     "ALTER TABLE channel_webhooks ADD COLUMN workspace_id TEXT",
     "ALTER TABLE dev_outbox ADD COLUMN workspace_id TEXT",
+    // failure-truth-everywhere: WHY a send dead-lettered. comms.ts already computed a
+    // precise reason per attempt ("http 503", "getaddrinfo ENOTFOUND …", a timeout) and
+    // spent it on a console.error + comms.log line, then wrote the row without it — so
+    // the Comms Center could say a message failed but never why, and the recruiter's
+    // only recourse was server logs. Additive + nullable: legacy `failed` rows keep
+    // reading as "no reason recorded", never as a fabricated one.
+    "ALTER TABLE dev_outbox ADD COLUMN failure_detail TEXT",
     // JD archive (W8-4/JDL1): archived JDs drop out of listJds and the pickers,
     // but loadJd keeps serving them so existing analysis links never 404.
     "ALTER TABLE jds ADD COLUMN archived_at TEXT",
@@ -890,6 +1132,12 @@ export function ensureDb(): Database.Database {
     // salary band + sources + provenance, repo snapshot, interview case, and the
     // selected options) — JSON, read by the JD detail view. NULL until ready.
     "ALTER TABLE jds ADD COLUMN analysis_json TEXT",
+    // The recruiter's original build INTENT captured at Generate — the free-text
+    // "describe the need" prompt plus the checklist options / output lang / role
+    // facets / template selection the build actually took. JSON. Lets Duplicate
+    // re-seed from intent (not the rendered output) and Retry replay even after the
+    // task row is pruned. NULL on legacy rows (draft saves + pre-migration builds).
+    "ALTER TABLE jds ADD COLUMN build_input_json TEXT",
     // DEVP5 — the candidate-facing language for this role's case artifacts
     // (brief/tasks, seed README+DECISIONS, interview narration), captured at
     // need intake. NULL ⇒ "en" when threaded to the dev-case CLIs.
@@ -916,6 +1164,15 @@ export function ensureDb(): Database.Database {
     // predate observed paste capture). migrateExec tolerates the re-run on a DB whose
     // CREATE TABLE above already includes the column.
     "ALTER TABLE dev_session_events ADD COLUMN size INTEGER",
+    // LLM-era controls #1: the server-computed hash-chain link (see CREATE TABLE above).
+    // Legacy rows stay NULL — verifyDevSessionChain treats a NULL-hash prefix as
+    // unverifiable rather than tampered.
+    "ALTER TABLE dev_session_events ADD COLUMN hash TEXT",
+    // LLM-era controls #6: one-shot naive-LLM baseline solutions frozen per case at
+    // approval ({solutions: [{files, note}], promptVersion}). Evaluation diffs each
+    // submission against them — never a penalty, but similarity aims the authorship
+    // interview at what the human added beyond the bare model.
+    "ALTER TABLE dev_cases ADD COLUMN baseline_json TEXT",
     // Durable skill profiles (E0 Phase 1): stamped from the submission's workspace on
     // issue; public token / by-submission_id reads are exempt (skill-profiles-tenancy.test.ts).
     "ALTER TABLE skill_profiles ADD COLUMN workspace_id TEXT NOT NULL DEFAULT 'workspace'",
@@ -946,6 +1203,15 @@ export function ensureDb(): Database.Database {
   // access_token (new credentials); index it like the other single-row token lookups.
   // Created AFTER the ALTER loop above so a legacy DB already holds the column.
   db.exec(`CREATE INDEX IF NOT EXISTS idx_skill_profiles_access_token ON skill_profiles (access_token)`);
+  // Content-addressed identity lookups: History grouping (newest per cv_hash+jd),
+  // cross-job linkage (same cv_hash, other JDs), and the label-collision probe all
+  // filter analyses by (workspace_id, cv_hash). Created AFTER the ALTER loop so a
+  // legacy DB already holds the column.
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_analyses_cv_hash ON analyses (workspace_id, cv_hash)`);
+  // Profile ↔ CV staleness: profileStaleness joins profiles to analyses on
+  // (workspace_id, source_cv_hash) to find a newer same-CV analysis. Created AFTER
+  // the ALTER loop so a legacy DB already holds the column.
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_profiles_source_cv_hash ON profiles (workspace_id, source_cv_hash)`);
   // Atomic dedup: a (posting, candidate, repo) triple is unique, so two
   // concurrent submits can't both INSERT (double-click / webhook retry storm).
   // Guarded: a legacy DB may already hold duplicate triples that block the
@@ -957,6 +1223,22 @@ export function ensureDb(): Database.Database {
     );
   } catch {
     /* pre-existing duplicate rows prevent the unique index; skip */
+  }
+  // Publish idempotency (bug-ui-scan-2026-07-09 (dev-case-authoring-publishing #4)):
+  // at most ONE OPEN posting per (workspace, case, channel). The partial UNIQUE index
+  // turns createPosting's INSERT ... ON CONFLICT DO NOTHING into a hard guarantee, so a
+  // concurrent / multi-tab / reload re-publish can't mint a second live apply token for
+  // one case and split its submissions across two tokens. A CLOSED posting is outside
+  // the index, so a deliberate re-publish after closing still mints a fresh posting.
+  // Guarded like the submissions index — a legacy DB with duplicate OPEN postings keeps
+  // the app-level reuse (createPosting's read-then-insert) instead of the index.
+  try {
+    db.exec(
+      `CREATE UNIQUE INDEX IF NOT EXISTS uq_dev_postings_open
+         ON dev_postings (workspace_id, case_id, channel) WHERE status = 'open'`
+    );
+  } catch {
+    /* pre-existing duplicate open postings prevent the unique index; skip */
   }
   // Atomic task dedup across connections (the scheduler ticks on its own connection
   // and an external cron can hit /api/automation/run): a partial UNIQUE index forbids
@@ -978,6 +1260,24 @@ export function ensureDb(): Database.Database {
   } catch {
     /* pre-existing active duplicates prevent the unique index; skip */
   }
+  // Recruiter feedback door: one row per in-product "Send feedback" submission
+  // (message + optional reply email + the route it was sent from + the running
+  // app version). Workspace-scoped like candidate_nps — a team's feedback feeds
+  // that team's operator view, never another tenant's. Idempotent CREATE (no
+  // ALTER migration needed): the table is new-in-full, so a legacy DB simply
+  // gains it on boot (the jd_revisions / consent_events pattern).
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS feedback (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      message TEXT NOT NULL,
+      email TEXT,
+      route TEXT,
+      app_version TEXT,
+      workspace_id TEXT NOT NULL DEFAULT 'workspace',
+      created_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_feedback_ws ON feedback (workspace_id, created_at DESC);
+  `);
   // Tenant foundation (P2): ensure the single default workspace row exists ('workspace'
   // matches DEFAULT_WORKSPACE in auth/session.ts and billing's id).
   db.prepare(`INSERT OR IGNORE INTO workspaces (id, name, created_at) VALUES (?, ?, ?)`).run("workspace", "Default workspace", new Date().toISOString());
@@ -1006,15 +1306,26 @@ export function ensureDb(): Database.Database {
   } catch {
     /* index already exists */
   }
-  seedExampleJd(db);
-  seedOrgMembers(db);
-  seedJobs(db);
-  seedCandidates(db);
-  seedAnalyses(db);
-  seedPipeline(db);
+  // KP_EMPTY=1 (npm run dev:empty) skips ALL fixture content — the ČS demo corpus,
+  // candidates, analyses, pipeline, example JD, seed members — so the app boots as a
+  // truly blank tenant for first-run/onboarding verification. Structural bootstrap
+  // above (schema, default workspace/org) still runs: a real deployment has it too.
+  if (fixtureSeedEnabled()) {
+    seedExampleJd(db);
+    seedOrgMembers(db);
+    seedJobs(db);
+    seedCandidates(db);
+    seedAnalyses(db);
+    seedPipeline(db);
+    seedBenchmarkTeam(db); // a 2nd org team so the Phase-2 org benchmark (org_id-join) has cross-team data
+    // A fixture-seeded tenant is an ESTABLISHED demo environment, not a first
+    // run — mark it onboarded so the setup wizard doesn't ambush existing dev
+    // DBs. COALESCE keeps a real recorded state; dev:empty (KP_EMPTY=1) skips
+    // this whole block, so the blank tenant stays NULL and the wizard fires.
+    db.prepare(`UPDATE workspaces SET onboarding_state = COALESCE(onboarding_state, 'completed') WHERE id = 'workspace'`).run();
+  }
   migratePipelineStages(db); // remap any legacy 7-stage rows to the 5-stage model
   backfillDeclinedStatus(db); // split candidate declines out of overloaded `rejected`
-  seedBenchmarkTeam(db); // a 2nd org team so the Phase-2 org benchmark (org_id-join) has cross-team data
 
   // Tenant scope (P2): backfill ANY analyses row missing a workspace_id (legacy
   // rows AND freshly-seeded ones) to the default workspace. After all seeders so
@@ -1058,6 +1369,61 @@ export function ensureDb(): Database.Database {
          SELECT channel, amount_czk, updated_at, 'workspace' FROM channel_spend;
        DROP TABLE channel_spend;
        ALTER TABLE channel_spend_new RENAME TO channel_spend;`
+    );
+  }
+  // analytics_targets: same additive migration as channel_spend — widen the single-column
+  // PK to (metric, workspace_id) so each team keeps its own hiring goals (funnel conversion
+  // targets, the time-to-hire goal, and the recruiter_hourly_czk rate that drives the
+  // automation-ROI figure). One-time rebuild (SQLite can't alter a PK); guarded by the
+  // absence of the workspace_id column so it runs exactly once. Existing rows keep working
+  // for the default workspace.
+  const targetCols = db.prepare(`PRAGMA table_info(analytics_targets)`).all() as { name: string }[];
+  if (!targetCols.some((c) => c.name === "workspace_id")) {
+    db.exec(
+      `CREATE TABLE analytics_targets_new (
+         metric TEXT NOT NULL,
+         target_value REAL NOT NULL,
+         updated_at TEXT NOT NULL,
+         workspace_id TEXT NOT NULL DEFAULT 'workspace',
+         PRIMARY KEY (metric, workspace_id)
+       );
+       INSERT INTO analytics_targets_new (metric, target_value, updated_at, workspace_id)
+         SELECT metric, target_value, updated_at, 'workspace' FROM analytics_targets;
+       DROP TABLE analytics_targets;
+       ALTER TABLE analytics_targets_new RENAME TO analytics_targets;`
+    );
+  }
+  // Org-scoped billing (org-plan Phase 3, data layer) — the org_id backfills the
+  // ALTER loop above can't express:
+  // 1) billing_state's legacy single row (id 'workspace') predates the column, so
+  //    stamp it to the seeded org; one row per org is then enforced by the unique
+  //    index (try/catch like uq_tasks: a hand-edited legacy DB with duplicates
+  //    keeps booting, just without the constraint).
+  db.prepare(`UPDATE billing_state SET org_id = 'org-default' WHERE org_id IS NULL`).run();
+  try {
+    db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS uq_billing_state_org ON billing_state (org_id)`);
+  } catch {
+    /* pre-existing duplicate org rows prevent the unique index; skip */
+  }
+  // 2) billing_usage: widen the (meter, period) PK to (org_id, meter, period) so each
+  //    org keeps its own monthly meter counters. One-time rebuild (SQLite can't alter
+  //    a PK — the channel_spend/analytics_targets pattern); guarded by the absence of
+  //    the org_id column so it runs exactly once. Existing counters belong to the
+  //    single seeded org.
+  const usageCols = db.prepare(`PRAGMA table_info(billing_usage)`).all() as { name: string }[];
+  if (!usageCols.some((c) => c.name === "org_id")) {
+    db.exec(
+      `CREATE TABLE billing_usage_new (
+         org_id TEXT NOT NULL DEFAULT 'org-default',
+         meter TEXT NOT NULL,
+         period TEXT NOT NULL,
+         qty INTEGER NOT NULL DEFAULT 0,
+         PRIMARY KEY (org_id, meter, period)
+       );
+       INSERT INTO billing_usage_new (org_id, meter, period, qty)
+         SELECT 'org-default', meter, period, qty FROM billing_usage;
+       DROP TABLE billing_usage;
+       ALTER TABLE billing_usage_new RENAME TO billing_usage;`
     );
   }
   // Null-contract heal: `approval_detail` is nullable and "no detail" is NULL (its

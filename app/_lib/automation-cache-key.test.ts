@@ -11,6 +11,9 @@ import assert from "node:assert/strict";
 import {
   computeAutomationCacheKey,
   computeCorpusFingerprint,
+  LANG_KEYED_TASKS,
+  LETTER_LANG_TASKS,
+  UI_LANG_TASKS,
   type AutomationKeyInput,
 } from "./automation-cache-key.ts";
 
@@ -98,9 +101,9 @@ test("THE FIX: github evidence splits the key for screen/prep/scorecard; other t
   const evidence = JSON.stringify({ username: "ada-dev", confirmedSkills: ["python"] });
   const refreshed = JSON.stringify({ username: "ada-dev", confirmedSkills: ["python", "rust"] });
   const consumers: Array<[string, string]> = [
-    ["screen", "screening-v1"],
+    ["screen", "screening-v2"],
     ["prep", "interview-prep-v1"],
-    ["scorecard", "scorecard-v3"],
+    ["scorecard", "scorecard-v6"],
   ];
   for (const [task, version] of consumers) {
     const t = { ...base, task, version };
@@ -126,16 +129,26 @@ test("THE FIX: github evidence splits the key for screen/prep/scorecard; other t
   );
 });
 
-test("the locale splits the key for prep AND the letter tasks; non-lang tasks ignore it", () => {
+test("THE FIX: the locale splits the key for EVERY task that receives --lang", () => {
   // Backlog #34 — the letter tasks (outreach/rejection/offer) render in the
   // entry's resolved comms locale, so a locale fix (or a workspace-default
   // change) must genuinely re-draft instead of a stale HIT serving the
-  // wrong-language letter for the full 168h TTL. prep keeps its PREP2 axis.
+  // wrong-language letter for the full 168h TTL.
+  //
+  // …and the recruiter-narrative tasks are the SAME contract: screen's
+  // rationale/strengths/redFlags and the scorecard's summary are prose generated
+  // in the requested --lang. The pre-fix key ignored the locale for those two
+  // (and this test asserted that as if it were correct), so switching the org
+  // language served the old language's screening rationale / scorecard summary
+  // for the full TTL. The set that receives --lang and the set that keys on it
+  // are now ONE union (LANG_KEYED_TASKS).
   for (const [task, version] of [
     ["prep", "interview-prep-v1"],
     ["outreach", "outreach-v2"],
     ["rejection", "rejection-v2"],
-    ["offer", "offer-v2"],
+    ["offer", "offer-v3"],
+    ["screen", "screening-v2"],
+    ["scorecard", "scorecard-v6"],
   ] as Array<[string, string]>) {
     const t = { ...base, task, version };
     assert.notEqual(
@@ -144,11 +157,48 @@ test("the locale splits the key for prep AND the letter tasks; non-lang tasks ig
       task
     );
   }
-  // screen's verdict is language-free — a lang must not split its key.
-  const screen = { ...base, task: "screen", version: "screening-v1" };
+  // rematch is handed no --lang at all (it ranks a corpus, it drafts no prose),
+  // so a stray lang must not split its key — the task-scoping the other axes keep.
+  const rematch = { ...base, task: "rematch", version: "rematch-v1" };
   assert.equal(
-    computeAutomationCacheKey({ ...screen, lang: "en" }),
-    computeAutomationCacheKey({ ...screen, lang: "cs" })
+    computeAutomationCacheKey({ ...rematch, lang: "en" }),
+    computeAutomationCacheKey({ ...rematch, lang: "cs" })
+  );
+});
+
+test("the lang-task union is exactly the tasks automation-run passes --lang to", () => {
+  // The drift guard: LANG_KEYED_TASKS is the union of the two --lang authorities
+  // automation-run gates on (letter locale vs recruiter-UI locale). If a task is
+  // added to either set without the key folding its locale, the 168h cache starts
+  // serving wrong-language output again — which is exactly the bug this union
+  // exists to make structurally impossible.
+  assert.deepEqual([...LETTER_LANG_TASKS].sort(), ["offer", "outreach", "rejection"]);
+  assert.deepEqual([...UI_LANG_TASKS].sort(), ["prep", "scorecard", "screen"]);
+  assert.deepEqual(
+    [...LANG_KEYED_TASKS].sort(),
+    [...new Set([...LETTER_LANG_TASKS, ...UI_LANG_TASKS])].sort()
+  );
+});
+
+test("THE FIX: a degraded (--no-llm) result never shares a key with an LLM result", () => {
+  // Past the ai_candidates allowance the run spends the deterministic template
+  // instead of the model. Both used to be stored under ONE key, so a
+  // quota-exhausted workspace's stubs kept serving for the full 168h TTL after
+  // the allowance reset — and a quota exhaustion re-served a stale LLM result.
+  // The axis applies to EVERY task, not just the drafting ones.
+  for (const task of ["screen", "prep", "scorecard", "outreach", "rejection", "offer", "rematch"]) {
+    const t = { ...base, task };
+    assert.notEqual(
+      computeAutomationCacheKey({ ...t, degraded: false }),
+      computeAutomationCacheKey({ ...t, degraded: true }),
+      task
+    );
+  }
+  // An omitted flag is the non-degraded (LLM) namespace — legacy callers key as
+  // the model path, never as the stub path.
+  assert.equal(
+    computeAutomationCacheKey({ ...base }),
+    computeAutomationCacheKey({ ...base, degraded: false })
   );
 });
 

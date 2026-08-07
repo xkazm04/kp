@@ -1,8 +1,12 @@
 // Canonical absolute origin for the deployment, shared by metadataBase
 // (app/layout.tsx), robots.ts and sitemap.ts so they can never disagree.
-// Configured via NEXT_PUBLIC_SITE_URL (documented in .env.example); defaults to
-// the project's own domain.
-const DEFAULT_SITE_URL = "https://nuda.dev";
+// Configured via NEXT_PUBLIC_SITE_URL (documented in .env.example). The
+// fallback is a deliberately NEUTRAL placeholder (.example is the RFC 2606
+// reserved TLD): it keeps `new URL()` valid and the build warning-free, but an
+// unset origin should be obvious in emitted metadata rather than silently
+// pointing at somebody's real domain. Every deployment must set
+// NEXT_PUBLIC_SITE_URL.
+const DEFAULT_SITE_URL = "https://kandidate.example";
 
 // Resolve defensively: a malformed NEXT_PUBLIC_SITE_URL fed straight into
 // `new URL()` would THROW at module load and crash the app on boot. Parse it,

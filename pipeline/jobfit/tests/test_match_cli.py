@@ -123,6 +123,55 @@ class MatchCliJobsJsonTest(unittest.TestCase):
         self.assertEqual(by_id[seed_id]["title"], "Override Title Wins")
 
 
+def _valid_db_job(job_id: str, title: str):
+    return normalize_job(
+        {
+            "title": title,
+            "seniority": "medior",
+            "role_family": "software_engineering",
+            "languages": ["English"],
+            "description": "Build things.",
+            "requirements": [{"skill": "Python", "kind": "must_have", "hardness": "learnable"}],
+        },
+        job_id=job_id,
+    )
+
+
+class MatchCliMalformedCorpusTest(unittest.TestCase):
+    """A single poison-pill job in the --jobs-json corpus override (a DB row with a
+    null/missing required company & location) must be SKIPPED, not abort the whole
+    match run with a 500. The other N-1 jobs still rank — mirroring the
+    per-candidate isolation the CLIs already implement."""
+
+    def test_one_malformed_job_does_not_abort_the_run(self) -> None:
+        valid_a = _valid_db_job("job-valid-a", "Valid A Engineer")
+        valid_b = _valid_db_job("job-valid-b", "Valid B Engineer")
+        # Job.company and Job.location are required non-optional strings, so a record
+        # omitting them fails Job.model_validate — the exact poison pill the finding
+        # describes (a partially-ingested/legacy job persisted without them).
+        malformed = {"id": "job-poison", "title": "No company or location"}
+
+        # Skip-and-log writes a note to stderr; capture it so the run stays quiet.
+        with contextlib.redirect_stderr(io.StringIO()):
+            result = _run_match(
+                [
+                    valid_a.model_dump(mode="json"),
+                    malformed,
+                    valid_b.model_dump(mode="json"),
+                ]
+            )
+
+        # Pre-fix: the bare validate loop raised ValidationError -> emit_error ->
+        # exit 1 (a hard 500 for every candidate). Post-fix the run succeeds.
+        self.assertEqual(result["code"], 0)
+        ranked = [m["jobId"] for m in result["payload"]["matches"]]
+        # The two valid DB jobs still score…
+        self.assertIn("job-valid-a", ranked)
+        self.assertIn("job-valid-b", ranked)
+        # …and the poison row is dropped, not scored.
+        self.assertNotIn("job-poison", ranked)
+
+
 class ReasoningCliJobsJsonTest(unittest.TestCase):
     def test_db_ingested_job_id_resolves(self) -> None:
         result = _run_reasoning([DB_JOB.model_dump(mode="json")], DB_JOB.id)

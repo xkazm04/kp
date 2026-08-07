@@ -19,9 +19,10 @@ returning garbage; with it an operator/UI can tell those apart.
 
 from __future__ import annotations
 
+import inspect
 import json
 import logging
-from typing import Any, Callable, Iterable
+from typing import Any, Callable, Iterable, Sequence
 
 
 def fenced_untrusted(label: str, obj: Any) -> str:
@@ -129,6 +130,29 @@ def describe_fallback(exc: BaseException) -> str:
     return text[:_MAX_REASON_CHARS]
 
 
+def _complete_json(provider: Any, prompt: str, system: str, expected_keys: Sequence[str] | None) -> Any:
+    """Call ``provider.complete_json``, forwarding ``expected_keys`` only when the provider
+    accepts it.
+
+    ``expected_keys`` pins the answer object BY SHAPE so an adversary-authored submission
+    (commits, DECISIONS.md — all candidate-controlled) cannot smuggle a trailing injected
+    JSON object past the ``_extract_json`` selector, which otherwise returns the LAST
+    top-level value (bug-hunter #3). Every production provider (:class:`ClaudeCliProvider`,
+    the metered adapters) accepts the kwarg; a minimal test fake that predates it is called
+    without it (its answer is a canned dict, so it carries no injection risk), keeping the
+    change non-breaking for existing callers/mocks."""
+    if expected_keys:
+        try:
+            params = inspect.signature(provider.complete_json).parameters
+            if "expected_keys" in params or any(
+                p.kind is inspect.Parameter.VAR_KEYWORD for p in params.values()
+            ):
+                return provider.complete_json(prompt, system=system, expected_keys=expected_keys)
+        except (TypeError, ValueError):  # unintrospectable callable — fall through to the plain call
+            pass
+    return provider.complete_json(prompt, system=system)
+
+
 def generate_with_fallback(
     provider: Any | None,
     prompt: str,
@@ -136,8 +160,15 @@ def generate_with_fallback(
     deterministic: Callable[[], dict],
     coerce: Callable[[Any], dict],
     logger: logging.Logger,
+    *,
+    expected_keys: Sequence[str] | None = None,
 ) -> tuple[dict, str]:
     """Run an LLM JSON completion with a deterministic fallback, RECORDING why it fell back.
+
+    ``expected_keys`` (the step's known top-level schema keys) is forwarded to the provider's
+    JSON extraction so the genuine answer is pinned by shape and a trailing prompt-injected
+    object that LACKS those keys can't win — the submission is adversary-authored, so this is a
+    trust-boundary control, not a convenience (bug-hunter #3).
 
     The single LLM-or-deterministic contract shared by every ``_generate`` in
     analyze/design/evaluate/reflect (they differ only in their ``system`` preamble and
@@ -161,7 +192,7 @@ def generate_with_fallback(
     if provider is None:
         return deterministic(), SOURCE_DETERMINISTIC
     try:
-        payload = provider.complete_json(prompt, system=system)
+        payload = _complete_json(provider, prompt, system, expected_keys)
         return coerce(payload), SOURCE_LLM
     except Exception as exc:
         reason = describe_fallback(exc)

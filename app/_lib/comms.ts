@@ -1,7 +1,9 @@
-import { getPipelineEntry, recordOutbox, type OutboxEntry } from "./db";
+import { recordOutbox, type OutboxEntry } from "./db/devcase";
+import { getPipelineEntry } from "./db/pipeline";
 import { COMMS_RELAY_RETRY, isRetryableHttpStatus, type OutboxStatus } from "./comms-status";
-import { isRelayConfigured } from "./comms-truth";
+import { resolveRelay } from "./comms-relay";
 import { buildCommEnvelope, type CommEnvelope } from "./comms-envelope";
+import { SIGNATURE_HEADER, signWebhookBody } from "./ats-webhook";
 import { logComms } from "./logger";
 
 // Direction B — outbound communications. Pluggable channel, mirroring the deterministic-
@@ -10,7 +12,7 @@ import { logComms } from "./logger";
 // mail relay / Zapier / an ATS). Every message is recorded either way.
 //
 // DELIVERY CONTRACT (statuses defined once in comms-status.ts; full write-up in
-// docs/COMMS_DELIVERY.md):
+// docs/features/comms/README.md):
 //   • queued  — local outbox, no relay configured. A *terminal* dev state: the outbox
 //               IS the delivery target (dev inbox + audit log); nothing dequeues it.
 //   • sent    — relayed successfully (HTTP 2xx).
@@ -23,7 +25,15 @@ import { logComms } from "./logger";
 // real address; `msg.ref` (the pipeline entry id) is always carried so an unaddressable
 // message stays traceable in the audit log.
 
-export type OutboundMessage = { to: string; subject: string; body: string; kind: string; ref?: string };
+// TENANT CONTRACT (comms-tenancy-pair): `ref` (a pipeline entry id) is the primary
+// tenant source — recordOutbox derives the owning team from the entry, so nearly no
+// dispatcher threads a workspace. `workspaceId` is the fallback for an ENTRY-LESS comm
+// (a KO decline is dispatched before any entry exists) whose caller nonetheless knows
+// the team: without it the row lands in the DEFAULT workspace's Comms Center and is
+// invisible to the team that actually owns the lead. It NEVER overrides an entry-derived
+// tenant — it is consulted only when `ref` resolves to no entry. Not part of the wire
+// envelope: it's kp-internal bookkeeping, not something a relay should see.
+export type OutboundMessage = { to: string; subject: string; body: string; kind: string; ref?: string; workspaceId?: string | null };
 
 export interface CommsChannel {
   readonly name: string;
@@ -38,7 +48,16 @@ const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve,
 class OutboxChannel implements CommsChannel {
   readonly name = "outbox";
   async send(msg: OutboundMessage): Promise<OutboxEntry> {
-    return recordOutbox({ recipient: msg.to, subject: msg.subject, body: msg.body, kind: msg.kind, channel: this.name, status: "queued", ref: msg.ref });
+    return recordOutbox({
+      recipient: msg.to,
+      subject: msg.subject,
+      body: msg.body,
+      kind: msg.kind,
+      channel: this.name,
+      status: "queued",
+      ref: msg.ref,
+      workspaceId: msg.workspaceId,
+    });
   }
 }
 
@@ -48,12 +67,18 @@ class OutboxChannel implements CommsChannel {
 // alert — a dropped offer/rejection must never look as benign as a local `queued` row.
 //
 // E8 — the wire payload is the versioned kp.comm.v1 envelope (comms-envelope.ts,
-// documented in docs/OUTBOUND_EXPORT.md): the flat legacy fields verbatim, plus
+// documented in docs/features/comms/outbound-export.md): the flat legacy fields verbatim, plus
 // candidate/job/stage context enriched from the pipeline entry the message
 // references — so a relay can map kp → any ATS without calling back.
 class WebhookChannel implements CommsChannel {
   readonly name = "webhook";
-  constructor(private readonly url: string) {}
+  constructor(
+    private readonly url: string,
+    // Optional HMAC signing secret (UI-configured relays): when set, the exact
+    // serialized body is signed into the shared x-kp-signature header — same
+    // scheme (and verify helper) as the ATS webhook, so one receiver can check both.
+    private readonly secret: string | null = null
+  ) {}
 
   async send(msg: OutboundMessage): Promise<OutboxEntry> {
     // `ref` is the pipeline entry id for every pipeline dispatcher; dev-case and
@@ -61,16 +86,34 @@ class WebhookChannel implements CommsChannel {
     const envelope = buildCommEnvelope(msg, msg.ref ? getPipelineEntry(msg.ref) : null, new Date().toISOString());
     const { status, attempts, detail } = await this.deliver(envelope);
     if (status === "failed") await this.alertDeadLetter(msg, attempts, detail);
-    return recordOutbox({ recipient: msg.to, subject: msg.subject, body: msg.body, kind: msg.kind, channel: this.name, status, ref: msg.ref });
+    // failure-truth-everywhere: `detail` is the precise reason this attempt died
+    // ("http 503", "getaddrinfo ENOTFOUND …"). It used to be spent entirely on the
+    // dead-letter alert and then dropped, so the row the recruiter actually looks at
+    // said "failed" and nothing more. It now rides the row (recordOutbox keeps it only
+    // for `failed`), which is what the Comms Center reads.
+    return recordOutbox({
+      recipient: msg.to,
+      subject: msg.subject,
+      body: msg.body,
+      kind: msg.kind,
+      channel: this.name,
+      status,
+      ref: msg.ref,
+      failureDetail: detail,
+      workspaceId: msg.workspaceId,
+    });
   }
 
   // Attempt delivery with bounded retry. Returns the terminal status plus how many
   // attempts ran and the last failure detail (for the dead-letter alert / audit).
   private async deliver(envelope: CommEnvelope): Promise<{ status: OutboxStatus; attempts: number; detail: string }> {
     let detail = "";
+    const body = JSON.stringify(envelope);
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (this.secret) headers[SIGNATURE_HEADER] = signWebhookBody(this.secret, body);
     for (let attempt = 1; attempt <= COMMS_RELAY_RETRY.maxAttempts; attempt++) {
       try {
-        const r = await fetch(this.url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(envelope) });
+        const r = await fetch(this.url, { method: "POST", headers, body });
         if (r.ok) return { status: "sent", attempts: attempt, detail: "" };
         detail = `http ${r.status}`;
         // Permanent (caller/config) error — retrying changes nothing, dead-letter now.
@@ -96,10 +139,11 @@ class WebhookChannel implements CommsChannel {
 }
 
 export function getCommsChannel(): CommsChannel {
-  // Capability resolved through the shared honesty helper (comms-truth.ts) so
-  // channel selection and every UI "sent" claim key off the SAME bit.
-  const url = process.env.COMMS_WEBHOOK_URL;
-  return isRelayConfigured() && url ? new WebhookChannel(url) : new OutboxChannel();
+  // Capability resolved through the shared resolver (comms-relay.ts: env →
+  // stored config → nothing) so channel selection and every UI "sent" claim key
+  // off the SAME bit.
+  const relay = resolveRelay();
+  return relay ? new WebhookChannel(relay.url, relay.secret) : new OutboxChannel();
 }
 
 /** Convenience: dispatch one message through the active channel. */

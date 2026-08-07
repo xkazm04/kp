@@ -17,6 +17,11 @@
 // (a "has notes" flag, an optional caseId, a JD length) are appended only after
 // the required parts have produced a real key.
 
+// The one non-trivial builder that folds MULTIPLE identity dimensions (role +
+// governance mode + candidate-set fingerprint) lives in its own pure module so its
+// logic is unit-testable in isolation (bug-ui-scan-2026-07-09 #3).
+import { groupEvalDedupeKey } from "./group-eval-dedupe.ts";
+
 /**
  * Join a dedupe key from a prefix and its REQUIRED identifying parts. Returns
  * `null` if any part is null/undefined or blank after trimming — the signal that
@@ -52,6 +57,15 @@ export const DEDUPE_BUILDERS: Record<string, (p: Record<string, unknown>) => str
   },
   reasoning: (p) => stableKey("reasoning", p.profileId ?? p.analysisSlug ?? identityJson(p.candidate), p.jobId),
   batch_screen: () => "batch_screen", // singleton: one batch-screen at a time, by design
+  // Keyed by the SORTED cohort fingerprint: a double-click (or retried fetch) on the
+  // same selection dedupes onto the in-flight run, while a different cohort starts its
+  // own. Empty/absent selection → null (no identity), so it never merges spuriously.
+  batch_outreach: (p) => {
+    const ids = Array.isArray(p.entryIds)
+      ? (p.entryIds as unknown[]).filter((x): x is string => typeof x === "string").sort()
+      : [];
+    return ids.length ? stableKey("batch_outreach", ids.join(",")) : null;
+  },
   analyze: (p) => stableKey("analyze", p.baseDir), // baseDir is unique per upload
   need_analysis: (p) => stableKey("need_analysis", identityJson(p.need)),
   design_artifacts: (p) => {
@@ -60,7 +74,12 @@ export const DEDUPE_BUILDERS: Record<string, (p: Record<string, unknown>) => str
   },
   evaluate_submission: (p) => stableKey("evaluate_submission", p.submissionId),
   lifecycle: (p) => stableKey("lifecycle", p.lifecycleId), // one run per case; a re-trigger resumes when idle
-  group_eval: (p) => stableKey("group_eval", p.roleKey), // one run per role; re-trigger reuses an in-flight run
+  // bug-ui-scan-2026-07-09 #3: keyed by role + governance mode + candidate-set
+  // fingerprint (NOT the role alone) so a concurrent re-trigger with a different mode
+  // or pool starts its OWN run instead of being handed the in-flight run's stale,
+  // auto-sealed result. A true retry (same role, mode AND set) still dedupes. See
+  // group-eval-dedupe.ts for the pure key logic.
+  group_eval: groupEvalDedupeKey,
   jd_build: (p) => {
     // Backgrounded flow: a placeholder JD owns the build, so the slug IS the
     // identity — each Generate mints a distinct JD (hence a distinct build), while
@@ -71,6 +90,7 @@ export const DEDUPE_BUILDERS: Record<string, (p: Record<string, unknown>) => str
     return k && `${k}:${p.needText ? String(p.needText).length : 0}:${p.repoUrl ?? ""}`;
   },
   interview_prep: (p) => stableKey("interview_prep", p.entryId), // one plan per entry; re-trigger reuses an in-flight run
+  agent_fit: (p) => stableKey("agent_fit", p.jobId), // one transform per job; a re-trigger reuses the in-flight run
 };
 
 /**

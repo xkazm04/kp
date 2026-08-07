@@ -9,7 +9,7 @@
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { cleanupUnitDb } from "../testing/unit-db.ts";
-import { SIM_MARKER } from "@/app/features/simulation/constants";
+import { SIM_MARKER } from "@/app/features/shell/simulation/constants";
 import { pipelineAnalytics } from "./analytics.ts";
 import { createPipelineEntry, listPipeline } from "./pipeline.ts";
 import { ensureDb } from "./core.ts";

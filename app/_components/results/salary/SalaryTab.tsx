@@ -2,7 +2,8 @@
 
 import { CircleDollarSign } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { formatCzk, formatSalaryRange, labelize } from "@/app/_lib/format";
+import { labelize } from "@/app/_lib/format";
+import { useNumberFormat } from "@/app/_lib/use-number-format";
 import type { Analysis } from "@/app/_lib/schemas";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { ConfidenceBadge } from "@/app/_components/Badge";
@@ -10,12 +11,32 @@ import { dedupeBy } from "@/app/_lib/dedupe";
 import { safeHttpLinks } from "@/app/_lib/safe-url";
 import { BulletList, InlineList } from "../shared";
 import { SalaryGauge } from "./SalaryGauge";
+import { growthMarkerPercent, roundGrowthTarget } from "./salaryGauge.logic";
 
 export function SalaryTab({ analysis }: { analysis: Analysis }) {
   const t = useTranslations("report");
   const enumLabel = useEnumLabel();
+  // Reader-locale digit grouping for every figure on this tab (format.ts
+  // number-locale contract) — the currency code still comes from the analysis.
+  const n = useNumberFormat();
+  // Localized confidence-badge vocabulary (report.confidence.*), resolved here
+  // and passed to the locale-dumb Badge primitive.
+  const confidenceLabels = {
+    high: t("confidence.high"),
+    medium: t("confidence.medium"),
+    low: t("confidence.low"),
+    unknown: t("confidence.unknown"),
+  };
   const { currency, period } = analysis.salary;
-  const targetSalary = Math.round((analysis.salary.midpoint * 1.3) / 5000) * 5000;
+  // Currency-aware rounding (Direction 1 #c): step scales with the figure's
+  // magnitude, so a EUR/USD salary no longer snaps to an absurd CZK-scaled 5000.
+  const targetSalary = roundGrowthTarget(analysis.salary.midpoint);
+  // The growth percent shown on the card is derived from the SAME rounded target
+  // and the SAME pure helper the gauge marker uses (growthMarkerPercent), so the
+  // card caption and the gauge marker can never disagree (Direction 1 #b). null
+  // for a degenerate midpoint → the card drops the "+NN%" and reads a plain target.
+  const growthPct = growthMarkerPercent(analysis.salary.midpoint, targetSalary);
+  const periodLabel = enumLabel("period", period);
   // marketEvidence.sources are model-supplied (CV/JD text -> LLM), so they are
   // untrusted at this render boundary: vet to http(s) only, drop the rest, and
   // dedupe by normalized href before taking the first three.
@@ -42,14 +63,25 @@ export function SalaryTab({ analysis }: { analysis: Analysis }) {
             />
           </div>
           <div className="mt-1 text-base nums text-ink">
-            {formatSalaryRange(analysis.salary.minimum, analysis.salary.maximum, { currency })}
+            {n.salaryRange(analysis.salary.minimum, analysis.salary.maximum, { currency })}
           </div>
-          <p className="mt-1 flex items-center gap-1.5 text-base text-steel">{enumLabel("period", period)} · <ConfidenceBadge value={analysis.salary.confidence} /></p>
+          <p className="mt-1 flex items-center gap-1.5 text-base text-steel">{enumLabel("period", period)} · <ConfidenceBadge value={analysis.salary.confidence} labels={confidenceLabels} /></p>
           {analysis.salary.structureNote ? (
             <p className="mt-2 text-sm leading-5 text-steel">+ {analysis.salary.structureNote}</p>
           ) : null}
           <div className="mt-4 rounded-md bg-limewash p-3 text-base font-medium text-ink">
-            {t("panel.growthTarget", { amount: formatCzk(targetSalary) })}
+            {growthPct != null
+              ? t("panel.growthTarget", {
+                  pct: growthPct,
+                  amount: n.grouped(targetSalary),
+                  currency,
+                  period: periodLabel,
+                })
+              : t("panel.growthTargetPlain", {
+                  amount: n.grouped(targetSalary),
+                  currency,
+                  period: periodLabel,
+                })}
           </div>
         </div>
 
@@ -91,7 +123,7 @@ export function SalaryTab({ analysis }: { analysis: Analysis }) {
               <ConfidenceBadge value={analysis.marketEvidence.confidence} />
               {analysis.marketEvidence.suggestedMinimum && analysis.marketEvidence.suggestedMaximum
                 ? t("panel.groundedRange", {
-                    range: formatSalaryRange(analysis.marketEvidence.suggestedMinimum, analysis.marketEvidence.suggestedMaximum, { currency }),
+                    range: n.salaryRange(analysis.marketEvidence.suggestedMinimum, analysis.marketEvidence.suggestedMaximum, { currency }),
                   })
                 : ""}
             </p>
@@ -105,6 +137,18 @@ export function SalaryTab({ analysis }: { analysis: Analysis }) {
                   </li>
                 ))}
               </ul>
+            ) : null}
+            {/* marketEvidence.notes — the caveats/methodology the grounding produced,
+                dead payload until now. Guarded so no notes adds no chrome. */}
+            {analysis.marketEvidence.notes.length > 0 ? (
+              <div className="mt-3">
+                <p className="text-meta uppercase tracking-wide text-steel">{t("panel.marketNotes")}</p>
+                <BulletList
+                  items={analysis.marketEvidence.notes}
+                  listClassName="mt-2 space-y-1.5"
+                  itemClassName="text-sm leading-5 text-steel"
+                />
+              </div>
             ) : null}
           </div>
         ) : null}

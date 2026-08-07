@@ -7,6 +7,8 @@ from pipeline.jobfit.matching import (
     MatchCandidate,
     aggregate_ko_reasons,
     build_score_breakdown,
+    candidate_assumption_codes,
+    candidate_assumptions,
     ko_filter,
     match,
     score_career,
@@ -23,6 +25,12 @@ from pipeline.jobfit.tests._helpers import (
 )
 
 
+# provenance_default is explicit on the fixtures below: the shipped default is now
+# `self_declared`, which applies an evidence discount that would push even an exact
+# skill match under the match threshold. These scoring tests are about the matching
+# semantics (matched vs missing, hierarchy strength, weights), not about the evidence
+# discount, so the fixtures pin the professional tier — an experienced hire whose
+# skills came from production work.
 SENIOR_PY = MatchCandidate(
     skills=["Python", "Django", "PostgreSQL", "AWS"],
     seniority="senior",
@@ -30,6 +38,7 @@ SENIOR_PY = MatchCandidate(
     education_level="master",
     languages=["Czech", "English"],
     years_experience=8,
+    provenance_default="professional",
 )
 JUNIOR = MatchCandidate(
     skills=["Python"],
@@ -97,6 +106,29 @@ class KoFilterTest(unittest.TestCase):
         passed, _ = ko_filter(cand, job)
         self.assertTrue(passed)
 
+    def test_native_surface_matches_newly_bucketed_language(self) -> None:
+        # Before the EU-language buckets existed, a "polish" requirement fell back to
+        # a raw casefold substring test, so a Czech CV listing the language as
+        # "polština" (the native surface) silently FAILED to match — the KO filter
+        # would either drop a qualified candidate or, on the lenient path, pass a real
+        # miss. With the alias bucket, the native Czech surface satisfies the English
+        # requirement. This asserts the whole KO filter, not just _has_language.
+        job = mkjob(languages=["Polish"])
+        cand = MatchCandidate(
+            skills=["Reklamace"],
+            seniority="senior",
+            languages=["Čeština (rodilý mluvčí)", "Polština (B2)"],
+        )
+        passed, reasons = ko_filter(cand, job)
+        self.assertTrue(passed, f"native 'Polština' should satisfy a 'Polish' requirement; reasons={reasons}")
+        self.assertFalse(any(r.key == "language" for r in reasons))
+
+        # And it still correctly BLOCKS a candidate who genuinely lacks the language:
+        czech_only = MatchCandidate(seniority="senior", languages=["Čeština"])
+        blocked, block_reasons = ko_filter(czech_only, job)
+        self.assertFalse(blocked)
+        self.assertTrue(any(r.key == "language" for r in block_reasons))
+
     def test_work_mode_preference(self) -> None:
         job = mkjob(work_mode="onsite", languages=["English"])
         cand = MatchCandidate(seniority="senior", languages=["English"], preferred_work_modes=["remote", "hybrid"])
@@ -131,7 +163,7 @@ class ScoringTest(unittest.TestCase):
                 {"skill": "Kubernetes", "kind": "nice_to_have", "hardness": "learnable"},
             ]
         )
-        score, matched, missing, strength = score_skills(SENIOR_PY, job)
+        score, matched, missing, strength, _unproven = score_skills(SENIOR_PY, job)
         self.assertIn("Python", matched)
         self.assertIn("Django", matched)
         self.assertGreater(score, STRONG_SKILL_SCORE)
@@ -143,9 +175,12 @@ class ScoringTest(unittest.TestCase):
 
     def test_hierarchy_partial_match_counts(self) -> None:
         # Candidate knows Next.js; role wants React -> specialization implies it.
-        cand = MatchCandidate(skills=["Next.js"], seniority="medior", languages=["English"])
+        cand = MatchCandidate(
+            skills=["Next.js"], seniority="medior", languages=["English"],
+            provenance_default="professional",
+        )
         job = mkjob(requirements=[{"skill": "React", "kind": "must_have", "hardness": "prerequisite"}])
-        score, matched, _, strength = score_skills(cand, job)
+        score, matched, _, strength, _unproven = score_skills(cand, job)
         self.assertIn("React", matched)
         self.assertGreater(score, PARTIAL_SKILL_SCORE)
         # A taxonomy/sibling hit is a PARTIAL match: strength below an exact 1.0.
@@ -154,7 +189,7 @@ class ScoringTest(unittest.TestCase):
     def test_missing_must_have_listed(self) -> None:
         cand = MatchCandidate(skills=["Python"], seniority="senior", languages=["English"])
         job = mkjob(requirements=[{"skill": "Go", "kind": "must_have", "hardness": "prerequisite"}])
-        _, _, missing, _ = score_skills(cand, job)
+        _, _, missing, _, _unproven = score_skills(cand, job)
         self.assertIn("Go", missing)
 
     def test_self_declared_exact_must_have_is_not_missing(self) -> None:
@@ -168,13 +203,13 @@ class ScoringTest(unittest.TestCase):
             skills=["Python"], seniority="junior", languages=["English"], provenance_default="self_declared"
         )
         job = mkjob(requirements=[{"skill": "Python", "kind": "must_have", "hardness": "prerequisite"}])
-        score, matched, missing, _strength = score_skills(cand, job)
+        score, matched, missing, _strength, _unproven = score_skills(cand, job)
         self.assertNotIn("Python", missing)  # named -> never "missing"
         self.assertNotIn("Python", matched)  # but below threshold -> not a matched partial either
         self.assertAlmostEqual(score, 0.4, places=4)  # the provenance discount still lowers the sub-score
         # A must-have the candidate makes NO claim to at all (best == 0.0) is still missing.
         absent = mkjob(requirements=[{"skill": "Go", "kind": "must_have", "hardness": "prerequisite"}])
-        _, _, absent_missing, _ = score_skills(cand, absent)
+        _, _, absent_missing, _, _unproven = score_skills(cand, absent)
         self.assertIn("Go", absent_missing)
 
     def test_career_same_family_beats_different(self) -> None:
@@ -213,6 +248,15 @@ class ScoreBreakdownTest(unittest.TestCase):
         student = [d.label for d in build_score_breakdown("student", 0.5, 0.5, 0.5)]
         self.assertEqual(bau, ["Skills", "Career", "Personal"])
         self.assertEqual(student, ["Foundation", "Potential", "Fit"])
+
+    def test_label_codes_are_locale_independent_slugs(self) -> None:
+        # localize-python-seam: each dimension carries a stable, English-free code the
+        # UI localizes via match.dims.* — the slot slug for BAU, the renamed slug for
+        # early-career — so the archetype-aware DISPLAY name is chosen language-side.
+        bau = [d.label_code for d in build_score_breakdown("bau", 0.5, 0.5, 0.5)]
+        student = [d.label_code for d in build_score_breakdown("student", 0.5, 0.5, 0.5)]
+        self.assertEqual(bau, ["skills", "career", "personal"])
+        self.assertEqual(student, ["foundation", "potential", "fit"])
 
 
 class ScorePersonalOverlapTest(unittest.TestCase):
@@ -339,6 +383,29 @@ class MatchTest(unittest.TestCase):
         self.assertEqual(m.confidence.level, "wide")
         self.assertIn("Education level unknown", m.confidence.drivers)
         self.assertIn("No languages listed", m.confidence.drivers)
+        # localize-python-seam: the same drivers ride as locale-independent codes,
+        # PARALLEL to the English strings (same order/length), so the UI localizes
+        # them and can still fall back index-for-index to the English text.
+        self.assertEqual(len(m.confidence.driver_codes), len(m.confidence.drivers))
+        codes = [c.code for c in m.confidence.driver_codes]
+        self.assertIn("eduUnknown", codes)
+        self.assertIn("noLanguages", codes)
+
+    def test_parametrized_driver_carries_render_params(self) -> None:
+        # A count-bearing driver ("Misses N must-have skills") ships the count as a
+        # param, not baked into prose, so the UI pluralizes it in its own language.
+        cand = MatchCandidate(skills=["Python"], seniority="senior", education_level="master", languages=["English"])
+        job = mkjob(
+            seniority="senior",
+            languages=["English"],
+            requirements=[
+                {"skill": s, "kind": "must_have", "hardness": "prerequisite"}
+                for s in ("Go", "Rust", "Elixir", "Haskell")
+            ],
+        )
+        m = match(cand, [job], limit=1).matches[0]
+        misses = next(c for c in m.confidence.driver_codes if c.code == "missesMusts")
+        self.assertEqual(misses.params.get("count"), 4)
 
     def test_confidence_band_is_tight_with_no_drivers(self) -> None:
         strong = MatchCandidate(
@@ -352,6 +419,25 @@ class MatchTest(unittest.TestCase):
         m = resp.matches[0]
         self.assertEqual(m.confidence.level, "tight")
         self.assertEqual(m.confidence.drivers, [])
+        self.assertEqual(m.confidence.driver_codes, [])
+
+    def test_assumption_codes_parallel_the_english_assumptions(self) -> None:
+        # localize-python-seam: assumptions ride BOTH as English strings (back-compat)
+        # and as parallel locale-independent codes (match.assumptions.*), so the UI
+        # localizes them while an older codeless payload still renders the strings.
+        cand = MatchCandidate(
+            skills=["Python"], archetype="student", education_level="unknown",
+            languages=[], skill_provenance={"Python": "self_declared"},
+        )
+        strings = candidate_assumptions(cand)
+        codes = [c.code for c in candidate_assumption_codes(cand)]
+        self.assertEqual(len(strings), len(codes))
+        for c in ("eduUnknown", "noLanguages", "earlyCareer", "selfDeclared", "thinProfile"):
+            self.assertIn(c, codes)
+        # match() surfaces the codes on the candidate block for the client.
+        resp = match(cand, [mkjob(seniority="junior", description="Graduates welcome.")], limit=1)
+        emitted = [c["code"] for c in resp.candidate["assumptionCodes"]]
+        self.assertEqual(emitted, codes)
 
     def test_empty_result_explains_itself_via_ko_reasons(self) -> None:
         # SENIOR_PY (Czech/English) is KO'd from a German-only role -> 0 matches.

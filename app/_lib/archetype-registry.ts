@@ -6,7 +6,7 @@ import path from "node:path";
 // full ArchetypeDef stays declared separately on each side: the client/server
 // split is intentional (this module imports node:fs) and the weight/dimension
 // maps differ (Record<Slot,...> here vs the literal object client-side).
-import type { ArchetypeChecklistItem } from "@/app/features/sub_profile/ProfileTypes";
+import { BUILT_IN_ARCHETYPE_IDS, type ArchetypeChecklistItem } from "@/app/features/shared/profileTypes";
 
 // Server-side read/write for the shared archetype registry (pipeline/jobfit/
 // archetypes.json) — the SAME file the Python pipeline reads per spawn, so an
@@ -33,7 +33,19 @@ export type ArchetypeDef = {
   weights: Record<Slot, number>;
   dimensionLabels: Record<Slot, string>;
   checklist: ArchetypeChecklistItem[];
+  // Retired custom archetype (additive). The entry STAYS in the registry so a profile
+  // routed to it still scores/routes; the flag only removes it from the pickers. NULL/
+  // absent on active archetypes. The Python reader tolerates the extra key (it reads by
+  // known keys / .get) — see registry.py archived_ids() + test_registry.
+  archived?: boolean;
 };
+
+const BUILT_IN = new Set<string>(BUILT_IN_ARCHETYPE_IDS);
+
+// A structured validation/lifecycle error: a stable `code` the client maps to a
+// localized label (the labelOr id→label pattern), plus the English `message` kept as
+// the fallback for direct API callers. `params` fill the localized ICU placeholders.
+export type ArchetypeError = { code: string; message: string; params?: Record<string, string | number> };
 
 type Registry = {
   archetypes: ArchetypeDef[];
@@ -95,24 +107,28 @@ function serializeWrite<T>(fn: () => Promise<T>): Promise<T> {
 
 // Validate the compliance- and scoring-critical invariants the Python contract
 // test (test_registry.py) also enforces, so a bad edit is rejected at the API
-// boundary rather than desyncing the registry. Returns an error string or null.
-export function validateArchetype(a: Partial<ArchetypeDef>): string | null {
-  if (!a.label || !a.label.trim()) return "Label is required.";
+// boundary rather than desyncing the registry. Returns a structured error (stable
+// `code` + English `message` fallback) or null. The client localizes by `code`; a
+// direct API caller still gets the readable English `message`.
+export function validateArchetype(a: Partial<ArchetypeDef>): ArchetypeError | null {
+  if (!a.label || !a.label.trim()) return { code: "label_required", message: "Label is required." };
   if (!a.scoringModel || !(SCORING_MODELS as readonly string[]).includes(a.scoringModel)) {
-    return "Scoring model must be 'experienced' or 'early_career'.";
+    return { code: "scoring_model_invalid", message: "Scoring model must be 'experienced' or 'early_career'." };
   }
-  if (!a.weights) return "Weights are required.";
+  if (!a.weights) return { code: "weights_required", message: "Weights are required." };
   for (const slot of SLOTS) {
     if (typeof a.weights[slot] !== "number" || Number.isNaN(a.weights[slot])) {
-      return `Weight for ${slot} must be a number.`;
+      return { code: "weight_not_number", message: `Weight for ${slot} must be a number.`, params: { slot } };
     }
   }
   const sum = SLOTS.reduce((n, s) => n + (a.weights as Record<Slot, number>)[s], 0);
-  if (Math.abs(sum - 1) > 0.001) return `Weights must sum to 1.0 (currently ${sum.toFixed(2)}).`;
-  if (!a.dimensionLabels) return "Dimension labels are required.";
+  if (Math.abs(sum - 1) > 0.001) {
+    return { code: "weights_sum", message: `Weights must sum to 1.0 (currently ${sum.toFixed(2)}).`, params: { sum: sum.toFixed(2) } };
+  }
+  if (!a.dimensionLabels) return { code: "dimension_labels_required", message: "Dimension labels are required." };
   for (const slot of SLOTS) {
     if (!a.dimensionLabels[slot] || !a.dimensionLabels[slot].trim()) {
-      return `Dimension label for ${slot} is required.`;
+      return { code: "dimension_label_required", message: `Dimension label for ${slot} is required.`, params: { slot } };
     }
   }
   return null;
@@ -135,14 +151,61 @@ export async function listArchetypes(): Promise<ArchetypeDef[]> {
 export async function updateArchetype(
   id: string,
   patch: Record<string, unknown>
-): Promise<{ archetype: ArchetypeDef } | { error: string }> {
+): Promise<{ archetype: ArchetypeDef } | { error: ArchetypeError }> {
   return serializeWrite(async () => {
     const reg = await readRegistry();
     const idx = reg.archetypes.findIndex((a) => a.id === id);
-    if (idx === -1) return { error: "Archetype not found." };
-    const merged = { ...reg.archetypes[idx], ...pickEditable(patch) };
+    if (idx === -1) return { error: { code: "not_found", message: "Archetype not found." } };
+    const current = reg.archetypes[idx];
+    const editable = pickEditable(patch);
+    // A built-in's fairness shield can't be edited away (candidate-profile-job-matching
+    // #1). setArchetypeArchived already refuses to retire built-ins because that would
+    // strip the shield — but updateArchetype had no such guard, so unticking the
+    // fairness checkbox (or a raw PUT of fairnessProtected/scoringModel) silently
+    // disabled the "early-career candidates are never auto-rejected" guarantee, or
+    // re-ranked students on the experienced model. Reject those two changes for
+    // built-ins (label/badge/weights edits still go through); mirrors archive_builtin.
+    if (
+      BUILT_IN.has(id) &&
+      (("fairnessProtected" in editable && editable.fairnessProtected !== current.fairnessProtected) ||
+        ("scoringModel" in editable && editable.scoringModel !== current.scoringModel))
+    ) {
+      return {
+        error: {
+          code: "edit_builtin_shield",
+          message: `'${id}' is a built-in archetype; its fairness protection and scoring model can't be changed.`,
+          params: { id },
+        },
+      };
+    }
+    // pickEditable omits `archived`, so a normal edit never flips retirement — only the
+    // explicit archive endpoint touches it, and the flag survives weight/label edits.
+    const merged = { ...current, ...editable };
     const err = validateArchetype(merged);
     if (err) return { error: err };
+    reg.archetypes[idx] = merged;
+    await writeRegistry(reg);
+    return { archetype: merged };
+  });
+}
+
+// Retire (archive) or restore (unarchive) a CUSTOM archetype. Built-in archetypes are
+// refused with an honest reason — retiring them would strip the fairness shield /
+// default routing the pipeline depends on. The entry is never deleted, so profiles
+// routed to a retired archetype keep scoring; the flag only hides it from the pickers.
+// Atomic through the same serializeWrite + temp-file rename machinery as every edit.
+export async function setArchetypeArchived(
+  id: string,
+  archived: boolean
+): Promise<{ archetype: ArchetypeDef } | { error: ArchetypeError }> {
+  if (BUILT_IN.has(id)) {
+    return { error: { code: "archive_builtin", message: `'${id}' is a built-in archetype and can't be retired.`, params: { id } } };
+  }
+  return serializeWrite(async () => {
+    const reg = await readRegistry();
+    const idx = reg.archetypes.findIndex((a) => a.id === id);
+    if (idx === -1) return { error: { code: "not_found", message: "Archetype not found." } };
+    const merged = { ...reg.archetypes[idx], archived };
     reg.archetypes[idx] = merged;
     await writeRegistry(reg);
     return { archetype: merged };
@@ -155,14 +218,14 @@ export async function updateArchetype(
 // items only — both are safe, honest defaults the recruiter can extend later.
 export async function createArchetype(
   body: Record<string, unknown>
-): Promise<{ archetype: ArchetypeDef } | { error: string }> {
+): Promise<{ archetype: ArchetypeDef } | { error: ArchetypeError }> {
   const id = String(body.id ?? "").trim().toLowerCase();
   if (!/^[a-z][a-z0-9_]*$/.test(id)) {
-    return { error: "Id must be lowercase letters, digits, or underscores and start with a letter." };
+    return { error: { code: "id_invalid", message: "Id must be lowercase letters, digits, or underscores and start with a letter." } };
   }
   return serializeWrite(async () => {
     const reg = await readRegistry();
-    if (reg.archetypes.some((a) => a.id === id)) return { error: `An archetype with id '${id}' already exists.` };
+    if (reg.archetypes.some((a) => a.id === id)) return { error: { code: "id_exists", message: `An archetype with id '${id}' already exists.`, params: { id } } };
 
     const def: ArchetypeDef = {
       id,

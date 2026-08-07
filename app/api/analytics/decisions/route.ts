@@ -1,6 +1,17 @@
 import { NextResponse } from "next/server";
-import { countPipelineEvents, listPipelineEvents } from "@/app/_lib/db";
-import { DECISION_META } from "@/app/_lib/decision-attribution";
+import { countPipelineEvents, listPipelineEvents, listPipeline, hasEvent, type PipelineEvent } from "@/app/_lib/db/pipeline";
+import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { listDecisionRecordsForRefs } from "@/app/_lib/decision-record-store";
+import {
+  DECISION_META,
+  GROUP_EVAL_EVENT_KIND,
+  GROUP_EVAL_OUTCOME_KINDS,
+  matchCohortProvenance,
+  parseRematchCounterpartId,
+  sealedReasonOf,
+  type CohortProvenance,
+  type SealedReason,
+} from "@/app/_lib/decision-attribution";
 
 
 const DEFAULT_LIMIT = 20;
@@ -29,6 +40,80 @@ function resolveKindFilter(kindRaw: string | null, attributionRaw: string | null
   return undefined;
 }
 
+// The wire shape of one enriched log row — a PipelineEvent plus the three sealed-record
+// joins (log-tells-the-whole-story). Each join is optional and only present when a
+// reliable match exists, so a row the data can't back shows nothing (never guesses).
+type EnrichedEvent = PipelineEvent & {
+  cohort?: CohortProvenance | null; // group-eval cohort provenance (advance rows)
+  reason?: SealedReason | null; // sealed structured reason (auto_rejected rows)
+  counterpart?: { label: string } | null; // rematch counterpart, resolved to a live board entry
+};
+
+const REMATCH_KINDS: ReadonlySet<string> = new Set(["rematched", "rematched_from"]);
+
+// Join one page of log rows to the sealed decision-record store, PER PAGE (never a
+// workspace scan): at most one records read per distinct candidate on the page (≤ page
+// size) and, only when the page has a rematch row, one board read to resolve
+// counterparts to a linkable label. All three joins are additive views over the sealed
+// chain — the hash-verified records themselves are never touched.
+function enrichPage(rows: PipelineEvent[], workspaceId: string): EnrichedEvent[] {
+  // Refs whose records we actually need: a group_eval event (the DIRECT anchor), a
+  // group-eval advance outcome (the fallback join), or an auto-reject.
+  const needsRecords = new Set<string>();
+  // Advance-outcome refs — the subset we must check for a direct group_eval anchor.
+  const advanceRefs = new Set<string>();
+  let hasRematch = false;
+  for (const r of rows) {
+    if (r.entryId && (r.kind === GROUP_EVAL_EVENT_KIND || GROUP_EVAL_OUTCOME_KINDS.has(r.kind) || r.kind === "auto_rejected")) {
+      needsRecords.add(r.entryId);
+    }
+    if (r.entryId && GROUP_EVAL_OUTCOME_KINDS.has(r.kind)) advanceRefs.add(r.entryId);
+    if (r.entryId && REMATCH_KINDS.has(r.kind)) hasRematch = true;
+  }
+  // decision-io-diet: one chunked read for every ref the page needs, replacing the
+  // per-ref SELECT loop (≤ page size queries per load). Per-ref semantics unchanged.
+  const recordsByRef = listDecisionRecordsForRefs([...needsRecords], { workspaceId, limit: 20 });
+  // group-eval-event-anchor precedence: an advance row whose entry HAS a group_eval event
+  // is directly anchored (the group_eval row carries the chip), so the advance row must NOT
+  // window-join. hasEvent is an indexed existence probe, bounded by the advance-refs on this
+  // page. Refs without a group_eval event (pre-existing data) still fall back to the window.
+  const directAnchored = new Set<string>();
+  for (const ref of advanceRefs) {
+    if (hasEvent(ref, GROUP_EVAL_EVENT_KIND, workspaceId)) directAnchored.add(ref);
+  }
+  // Counterpart resolution reuses the records-panel idiom: entry id → live board label,
+  // so the deep-link uses the board's ?q=<label> search (which matches on label, not id).
+  // A counterpart that no longer resolves (records outlive entries) stays plain text.
+  const liveLabels = hasRematch ? new Map(listPipeline(workspaceId).map((e) => [e.id, e.candidateLabel])) : null;
+
+  return rows.map((r): EnrichedEvent => {
+    if (!r.entryId) return r;
+    const records = recordsByRef.get(r.entryId);
+    // The DIRECT anchor: the group_eval event's own seal moment resolves the cohort at a
+    // ~0-delta match — no time-window guessing. Covers advisory/committee runs (no advance).
+    if (r.kind === GROUP_EVAL_EVENT_KIND && records) {
+      const cohort = matchCohortProvenance(r.createdAt, records);
+      if (cohort) return { ...r, cohort };
+    }
+    // The FALLBACK join for an advance outcome — ONLY when the entry has no direct group_eval
+    // event anchoring it (pre-existing data). See the precedence note in decision-attribution.
+    if (GROUP_EVAL_OUTCOME_KINDS.has(r.kind) && records && !directAnchored.has(r.entryId)) {
+      const cohort = matchCohortProvenance(r.createdAt, records);
+      if (cohort) return { ...r, cohort };
+    }
+    if (r.kind === "auto_rejected" && records) {
+      const reason = sealedReasonOf(records, "auto_rejected");
+      if (reason) return { ...r, reason };
+    }
+    if (REMATCH_KINDS.has(r.kind) && liveLabels) {
+      const counterpartId = parseRematchCounterpartId(r.kind, r.detail);
+      const label = counterpartId ? liveLabels.get(counterpartId) : undefined;
+      if (label != null) return { ...r, counterpart: { label } };
+    }
+    return r;
+  });
+}
+
 // Cursor-by-offset page of the decision log. The analytics tab loads this 20 at
 // a time on scroll so the full audit trail is never pulled into the client at
 // once. `hasMore`/`nextOffset` let the client chain pages without re-deriving
@@ -39,8 +124,14 @@ export async function GET(request: Request) {
     const limit = clampInt(searchParams.get("limit"), DEFAULT_LIMIT, 1, MAX_LIMIT);
     const offset = clampInt(searchParams.get("offset"), 0, 0, Number.MAX_SAFE_INTEGER);
     const kinds = resolveKindFilter(searchParams.get("kind"), searchParams.get("attribution"));
-    const total = countPipelineEvents(kinds);
-    const decisions = listPipelineEvents(limit, offset, kinds);
+    // P1 — the decision log is a per-team audit trail; scope both the count and
+    // the page to the caller's workspace (previously unscoped → every team saw
+    // the default workspace's trail).
+    const ws = await currentWorkspace();
+    const total = countPipelineEvents(kinds, ws);
+    // log-tells-the-whole-story: enrich the page with the sealed-record joins (cohort
+    // provenance, auto-reject reason, rematch counterpart link) before returning it.
+    const decisions = enrichPage(listPipelineEvents(limit, offset, kinds, ws), ws);
     const nextOffset = offset + decisions.length;
     return NextResponse.json({ decisions, total, hasMore: nextOffset < total, nextOffset });
   } catch (error) {

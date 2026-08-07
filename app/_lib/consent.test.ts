@@ -4,8 +4,10 @@ import {
   CONSENT_TTL_DAYS,
   consentExpiresAt,
   consentStatus,
+  consentWithholdsPii,
   maskCandidateName,
   outreachSuppressionReason,
+  redactTranscriptForConsent,
   scrubPiiFromPayload,
   type ConsentSnapshot,
 } from "./consent.ts";
@@ -30,6 +32,42 @@ test("outreach suppression: active / expiring / none / open-ended candidates ARE
   assert.equal(outreachSuppressionReason(none, NOW), null); // recruiter-sourced, never applied
   const openEnded: ConsentSnapshot = { givenAt: "x", expiresAt: null, anonymizedAt: null };
   assert.equal(outreachSuppressionReason(openEnded, NOW), null);
+});
+
+test("consentWithholdsPii is the read-time gate: expired + anonymized withhold, the rest serve (#3)", () => {
+  // Read boundaries must withhold PII the moment consent lapses — independent of the
+  // deferred anonymize sweep.
+  const expired: ConsentSnapshot = { givenAt: "x", expiresAt: new Date(NOW - DAY).toISOString(), anonymizedAt: null };
+  assert.equal(consentWithholdsPii(expired, NOW), true);
+  const anon: ConsentSnapshot = { givenAt: "x", expiresAt: new Date(NOW + 200 * DAY).toISOString(), anonymizedAt: "y" };
+  assert.equal(consentWithholdsPii(anon, NOW), true);
+  // still-valid / near-expiry / never-applied / open-ended all keep serving PII
+  assert.equal(consentWithholdsPii({ givenAt: "x", expiresAt: new Date(NOW + 200 * DAY).toISOString(), anonymizedAt: null }, NOW), false);
+  assert.equal(consentWithholdsPii({ givenAt: "x", expiresAt: new Date(NOW + 10 * DAY).toISOString(), anonymizedAt: null }, NOW), false);
+  assert.equal(consentWithholdsPii({ givenAt: null, expiresAt: null, anonymizedAt: null }, NOW), false);
+  assert.equal(consentWithholdsPii({ givenAt: "x", expiresAt: null, anonymizedAt: null }, NOW), false);
+});
+
+test("redactTranscriptForConsent drops transcript + scorecard and masks label, keeps metadata (#3)", () => {
+  const session = {
+    id: "s1",
+    status: "completed",
+    endedAt: "2026-06-17T00:00:00.000Z",
+    candidateLabel: "Monika Marešová",
+    transcript: [{ role: "candidate", text: "my verbatim spoken answer" }],
+    scorecard: { summary: "free-text quoting the candidate" },
+  };
+  const red = redactTranscriptForConsent(session);
+  assert.equal(red.transcript, null);
+  assert.equal(red.scorecard, null);
+  assert.equal(red.candidateLabel, "Monika M."); // masked, no full surname
+  // non-identifying metadata preserved so the modal still renders a state
+  assert.equal(red.status, "completed");
+  assert.equal(red.endedAt, "2026-06-17T00:00:00.000Z");
+  // input not mutated + no PII survives the projection
+  assert.equal(session.transcript.length, 1);
+  assert.ok(!JSON.stringify(red).includes("Marešová"));
+  assert.ok(!JSON.stringify(red).includes("verbatim spoken answer"));
 });
 
 test("consentExpiresAt defaults to a 365-day window", () => {

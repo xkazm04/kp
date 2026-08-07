@@ -3,7 +3,8 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight, type LucideIcon } from "lucide-react";
 import { PANEL_SUNKEN } from "./ui/recipes";
-import { buildTabSwitchUrl, type WorkspaceTabId } from "@/app/features/tabs";
+import { MotionizedGlyph, type TracedGlyph } from "./glyph/MotionizedGlyph";
+import { buildTabSwitchUrl, type WorkspaceTabId } from "@/app/features/shell/tabs";
 
 // Chain-aware empty state: an empty tab explains WHERE its data comes from and
 // links to the upstream step instead of dead-ending ("no candidates" → set up a
@@ -15,12 +16,18 @@ import { buildTabSwitchUrl, type WorkspaceTabId } from "@/app/features/tabs";
 // clean. Client-only: meant for tab bodies inside the Workspace SPA.
 export function ChainEmptyState({
   icon: Icon,
+  glyph,
   title,
   body,
   links,
   extraAction,
 }: {
   icon?: LucideIcon;
+  // A /motionize traced glyph (app/_components/glyph/glyphs/), rendered instead of
+  // the lucide `icon`. Reserved for the first-run "nothing here yet" case — a
+  // self-drawing illustration on a filtered-to-zero list is noise, so those call
+  // sites keep the flat icon.
+  glyph?: TracedGlyph;
   title: string;
   body?: string;
   links: { tab: WorkspaceTabId; label: string }[];
@@ -32,8 +39,12 @@ export function ChainEmptyState({
   const search = useSearchParams();
   return (
     <div className={`${PANEL_SUNKEN} p-6 text-center`}>
-      {Icon ? <Icon className="mx-auto text-moss" size={28} aria-hidden /> : null}
-      <p className={`text-base font-semibold text-ink ${Icon ? "mt-2" : ""}`}>{title}</p>
+      {glyph ? (
+        <MotionizedGlyph data={glyph.data} viewBox={glyph.viewBox} className="mx-auto h-28 w-28" />
+      ) : Icon ? (
+        <Icon className="mx-auto text-moss" size={28} aria-hidden />
+      ) : null}
+      <p className={`text-base font-semibold text-ink ${Icon || glyph ? "mt-2" : ""}`}>{title}</p>
       {body ? <p className="mx-auto mt-1 max-w-lg text-sm text-steel">{body}</p> : null}
       {links.length > 0 || extraAction ? (
         <div className="mt-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5">

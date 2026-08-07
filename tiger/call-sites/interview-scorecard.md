@@ -3,16 +3,23 @@ id: interview-scorecard
 type: tiger/call-site
 modality: text
 file: pipeline/jobfit/automation.py:639 (interview_scorecard → _generate → complete_json :97)
-wrapper: resolve_provider — but via use_case "automation", NOT "interview_scorecard" (routing collision)
+wrapper: resolve_provider — FIXED 2026-07-16: now via use_case "interview_scorecard" (was mis-routed under "automation")
 provider: claude_cli (MonitoredClaudeCli)  model: CLI default
 schema: no (hand-rolled coerce :601-637)
 grounding: 4/5 sources
-quality_score: 4  code_score: 3
+quality_score: 4  code_score: 4
 recommended_model: "—"
-status: assessed
-last_scanned: 2026-06-20
+status: improved
+last_scanned: 2026-07-16
 characters: ["[[tomas-hiring-manager]]", "[[katerina-ta-analytics]]", "[[lucie-dpo-compliance]]"]
 ---
+
+> **✅ RESOLVED 2026-07-16 (#6).** `automation_cli.py` now maps the `scorecard` command to
+> `resolve_provider("interview_scorecard")` (via `_USE_CASE_BY_COMMAND`), and both
+> `emit_deterministic` calls use the same use_case — restoring the config row + telemetry tag
+> that were mis-attributed to `automation`. Verified keyless resolve → MonitoredClaudeCli; 104
+> automation/scorecard tests pass. code_score 3→4. (Protected-attribute prompt instruction —
+> the other open item here — remains, tracked as T6 #24.) → [[2026-07-16-backlog]].
 ## What it does
 Synthesizes a structured, rubric-anchored interview scorecard from a transcript (Task 5). runInterviewScorecard (interview-run.ts:250) flattens the transcript → runAutomationTask(entryId,"scorecard",notes) → automation_cli scorecard → automation.interview_scorecard → complete_json (:97). Sets the scorecard_review approval (Interview→Offer gate) and seals a decision record.
 

@@ -23,6 +23,8 @@ import {
   coerceLeadTokenParam,
   seedLeadPrefillAnswers,
   trimSeededSteps,
+  mergeDraftAnswers,
+  applyDraftFingerprint,
   isHoneypotFilled,
 } from "./apply-intake.ts";
 import type { JobRecord } from "./db.ts";
@@ -573,4 +575,92 @@ test("trimSeededSteps with no seeded answers returns the full script", () => {
     "ko_auth",
     "ko_lang",
   ]);
+});
+
+// ---------------------------------------------------------------------------
+// applyDraftFingerprint — the saved draft's SCRIPT identity. A draft stores
+// answers keyed by step id plus a positional `idx`; replaying it onto a script
+// that has since changed (job edited so a conditional ko_* gate appeared or
+// vanished, archetype options changed, or the candidate switched language)
+// desyncs the transcript from the questions — and a KO gate that MOVED can be
+// skipped positionally, declining a candidate who actually qualifies. So a
+// mismatch discards the draft. Copy changes must NOT: rewording a prompt can't
+// be allowed to throw away a candidate's half-finished application.
+// ---------------------------------------------------------------------------
+
+test("the fingerprint is stable for the same script + locale", () => {
+  const ids = ["cv", "name", "email", "ko_auth"];
+  assert.equal(applyDraftFingerprint(ids, "cs"), applyDraftFingerprint([...ids], "cs"));
+});
+
+test("a gained, lost, or MOVED step changes the fingerprint (the positional-KO-skip bug)", () => {
+  const base = applyDraftFingerprint(["cv", "name", "email", "ko_auth"], "en");
+  // The job gained a conditional gate (ko_mode is conditional on workMode).
+  assert.notEqual(base, applyDraftFingerprint(["cv", "name", "email", "ko_auth", "ko_mode"], "en"));
+  // …or lost one.
+  assert.notEqual(base, applyDraftFingerprint(["cv", "name", "email"], "en"));
+  // …or kept the same set but REORDERED it: same ids, so an id-only check would
+  // pass while the draft's `idx` now points at a different question.
+  assert.notEqual(base, applyDraftFingerprint(["cv", "name", "ko_auth", "email"], "en"));
+});
+
+test("a locale switch changes the fingerprint (the transcript would be in the wrong language)", () => {
+  const ids = ["cv", "name", "email"];
+  assert.notEqual(applyDraftFingerprint(ids, "en"), applyDraftFingerprint(ids, "cs"));
+});
+
+// ---------------------------------------------------------------------------
+// mergeDraftAnswers — the restore-vs-prefill precedence. A stale localStorage
+// draft (idea-939d96e9) must NEVER clobber the enrichment prefill's seeded keys
+// — especially the passed-KO gates, which on an enrichment visit live ONLY in
+// the prefill because page.tsx trims their steps out of the chat. If the draft
+// won, the seeded KO=true would be wiped and the server's strict failedKoStepIds
+// verdict would wrongly DECLINE an already-qualified returning lead. A normal
+// (prefill-less) restore must still return the draft verbatim. See the restore
+// effect in app/apply/[id]/ConversationalApply.tsx.
+// ---------------------------------------------------------------------------
+
+test("prefill's seeded KO keys survive a stale draft that lacks them (the wrongful-decline bug)", () => {
+  // The stale first-time draft has no KO answer at all — it was abandoned before
+  // the enrichment link seeded ko_auth=true. Pre-fix (draft wins) ko_auth would
+  // stay absent and the server would DECLINE; the merge keeps the seeded true.
+  const staleDraft = { name: "Old Typo", skills: "Rust" };
+  const prefill = { name: "Jana Nová", email: "jana@example.com", ko_auth: true, ko_lang: true };
+  const merged = mergeDraftAnswers(staleDraft, prefill);
+  assert.equal(merged.ko_auth, true);
+  assert.equal(merged.ko_lang, true);
+  // Non-vacuity guard: the draft-wins (pre-fix) result for the same inputs would
+  // leave ko_auth undefined — the exact state that triggers a wrongful decline.
+  assert.equal(({ ...prefill, ...staleDraft } as Record<string, unknown>).ko_auth, true);
+  assert.equal((staleDraft as Record<string, unknown>).ko_auth, undefined);
+});
+
+test("prefill overrides a draft that carries a STALE ko=false for the same gate", () => {
+  // Worst case: the draft actively holds ko_auth=false (the candidate answered
+  // "no" in an earlier first-time attempt). The seeded pass must still win.
+  const staleDraft = { ko_auth: false, skills: "Go" };
+  const merged = mergeDraftAnswers(staleDraft, { ko_auth: true });
+  assert.equal(merged.ko_auth, true);
+});
+
+test("the prefill's identity keys (name/email) win over the draft's stale copies", () => {
+  const staleDraft = { name: "Wrong Name", email: "typo@old.example", skills: "SQL" };
+  const merged = mergeDraftAnswers(staleDraft, { name: "Jana Nová", email: "jana@example.com" });
+  assert.equal(merged.name, "Jana Nová");
+  assert.equal(merged.email, "jana@example.com");
+  // A field the prefill does NOT seed is preserved from the draft.
+  assert.equal(merged.skills, "SQL");
+});
+
+test("a normal (prefill-less) restore returns the draft answers verbatim", () => {
+  const draft = { name: "Dan", skills: "Go", experience: "3 years" };
+  assert.deepEqual(mergeDraftAnswers(draft, null), draft);
+  assert.deepEqual(mergeDraftAnswers(draft, undefined), draft);
+  // A fresh object (not the same reference) so callers can't mutate the draft.
+  assert.notEqual(mergeDraftAnswers(draft, null), draft);
+});
+
+test("an empty prefill object leaves the draft untouched", () => {
+  const draft = { name: "Dan", ko_auth: false };
+  assert.deepEqual(mergeDraftAnswers(draft, {}), draft);
 });

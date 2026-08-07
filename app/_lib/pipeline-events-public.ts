@@ -1,4 +1,4 @@
-import type { PipelineEvent } from "./db";
+import type { PipelineEvent } from "./db/pipeline";
 
 // Public projection of the Activity feed (idea-4c41d103).
 //
@@ -38,6 +38,14 @@ export function initialsLabel(label: string | null): string | null {
   return parts.map((p) => `${p[0].toUpperCase()}.`).join(" ");
 }
 
+// rematch-story-navigable — the re-engagement details ("<job> -> <job> (<entryId>)"
+// / "<entryId> (<jobId>)") embed an INTERNAL pipeline entry id: the exact IDOR handle
+// this projection exists to strip. The public feed renders these kinds by verb alone
+// (useEventVerb), so the detail is operationally unused here — null it out rather than
+// leak the counterpart entry id. The payload shape stays additive (detail is still the
+// same nullable field).
+const DETAIL_REDACTED_KINDS = new Set(["rematched", "rematched_from"]);
+
 /** Project a raw event row to its public shape — initials for identity, no
  *  entryId (IDOR handle), no archetype. */
 export function toPublicPipelineEvent(ev: PipelineEvent): PublicPipelineEvent {
@@ -48,7 +56,7 @@ export function toPublicPipelineEvent(ev: PipelineEvent): PublicPipelineEvent {
     kind: ev.kind,
     fromStage: ev.fromStage,
     toStage: ev.toStage,
-    detail: ev.detail,
+    detail: DETAIL_REDACTED_KINDS.has(ev.kind) ? null : ev.detail,
     createdAt: ev.createdAt,
   };
 }

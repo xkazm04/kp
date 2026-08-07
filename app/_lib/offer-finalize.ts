@@ -1,9 +1,12 @@
-import { actOnPipelineEntry, getJob, recordAutomationEvent } from "./db";
+import type { RefusalErrorCode } from "./api-response";
+import { getJob } from "./db/jobs";
+import { actOnPipelineEntry, recordAutomationEvent } from "./db/pipeline";
 import { dispatchAtsEvent } from "./ats-egress";
 import { dispatchOnboarding } from "./comms-dispatch";
 import { recordAudit } from "./dev-control";
 import { recordPipelineOutcome } from "./dev-outcomes";
 import { expireOfferIfDue, getOfferByToken, markEntryStatus, markOfferResponded, type OfferRow } from "./offers-store";
+import { offerHoursRemaining } from "./offer-policy";
 import { startRun } from "./onboarding-store";
 
 // Direction #4 — capture the candidate's offer response and run the terminal
@@ -13,18 +16,21 @@ import { startRun } from "./onboarding-store";
 
 export type OfferResponseResult =
   | { ok: true; status: "accepted" | "declined"; alreadyResponded: boolean; jobTitle: string | null; candidateLabel: string | null }
-  | { ok: false; error: string; expired?: boolean };
+  // A refusal carries its CODE, not a sentence: the candidate page localizes it
+  // (REFUSAL_ERRORS in api-response.ts). `expired` stays because the route needs
+  // it to choose 410-vs-404, which is a different question from what to say.
+  | { ok: false; code: RefusalErrorCode; expired?: boolean };
 
 export async function respondToOffer(token: string, response: "accept" | "decline"): Promise<OfferResponseResult> {
   // Lapse first (idea-29361408): an offer past its deadline must not be acceptable
   // even if the candidate is holding a stale tab — the deadline is the lever.
   const offer = expireOfferIfDue(token);
-  if (!offer) return { ok: false, error: "Offer not found." };
+  if (!offer) return { ok: false, code: "OFFER_NOT_FOUND" };
 
   // Past its deadline — the link is dead. Reported distinctly so the route can
   // 410 and the page can show an "expired" state instead of mislabeling it declined.
   if (offer.status === "expired") {
-    return { ok: false, error: "This offer has expired.", expired: true };
+    return { ok: false, code: "OFFER_EXPIRED", expired: true };
   }
 
   // Already answered — idempotent (candidate refreshed, or recruiter + candidate both clicked).
@@ -63,7 +69,7 @@ export async function respondToOffer(token: string, response: "accept" | "declin
       // actOnPipelineEntry now refuses to advance a TERMINAL entry, so a stale
       // offer link accepted after the candidate was rejected/closed elsewhere
       // returns null instead of resurrecting them to Hired + firing onboarding.
-      const hired = actOnPipelineEntry(offer.entryId, "accept", undefined, { actor: "system" });
+      const hired = actOnPipelineEntry(offer.entryId, "accept", undefined, { actor: "system" }, offer.workspaceId);
       // Only stamp the accept on the timeline when it actually advanced (mirrors the
       // decline path's conditional event), so a closed entry can't grow a phantom
       // offer_accepted; record the conflict instead so a recruiter can see it.
@@ -144,7 +150,7 @@ export async function respondToOffer(token: string, response: "accept" | "declin
     // reports whether the entry actually transitioned. Only stamp the decline on
     // the entry's timeline when it did, so a Hired candidate's history can't grow a
     // phantom `offer_declined` (recordAutomationEvent logs the entry's CURRENT stage).
-    const transitioned = markEntryStatus(offer.entryId, "declined");
+    const transitioned = markEntryStatus(offer.entryId, "declined", offer.workspaceId);
     if (transitioned) recordAutomationEvent(offer.entryId, "offer_declined", offer.jobTitle ?? "");
   }
   return { ok: true, status: "declined", alreadyResponded: false, jobTitle: offer.jobTitle, candidateLabel: offer.candidateLabel };
@@ -169,6 +175,9 @@ export function offerView(token: string) {
     salary: offer.salary,
     company,
     expiresAt: offer.expiresAt,
+    // Countdown computed on the SERVER clock (offers-onboarding #5) so the candidate's
+    // "X hours left" copy can't drift from server-enforced expiry under client clock skew.
+    hoursRemaining: offerHoursRemaining(offer.expiresAt),
   };
 }
 

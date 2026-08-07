@@ -1,7 +1,7 @@
 import Database from "better-sqlite3";
 import { openStore } from "./db-path";
 import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
-import { SIM_TITLE_LIKE } from "@/app/features/simulation/constants";
+import { SIM_TITLE_LIKE } from "@/app/features/shell/simulation/constants";
 
 // Pipeline simulation — reset helper. Isolated connection (job-ingest/offers
 // pattern; avoids the fork-churned db.ts) that clears every artifact a sim run
@@ -55,10 +55,16 @@ export function resetSim(workspaceId: string = DEFAULT_WORKSPACE_ID): { entries:
       d.prepare(`DELETE FROM pipeline_events WHERE entry_id IN (${placeholders}) AND workspace_id = ?`).run(...ids, workspaceId);
     }
     const entries = d.prepare(`DELETE FROM pipeline_entries WHERE job_title LIKE ? AND workspace_id = ?`).run(MARKER, workspaceId).changes;
-    const jobs = d.prepare(`DELETE FROM jobs WHERE title LIKE ?`).run(MARKER).changes;
+    // bug-ui-scan-2026-07-09 (guided-pipeline-simulation #2): scope the jobs/jds
+    // purge by workspace_id too. Previously these were workspace-UNSCOPED, so ANY
+    // caller's reset (an operator's, or a demo session's auto-reset at run start)
+    // reached across the shared jobs/jds tables and destroyed another tenant's
+    // (SIM) rows. The sim's JD/job are ingested under the caller's currentWorkspace()
+    // (jds/save threads it), so scoping here purges exactly the caller's tenant.
+    const jobs = d.prepare(`DELETE FROM jobs WHERE title LIKE ? AND workspace_id = ?`).run(MARKER, workspaceId).changes;
     let jds = 0;
     try {
-      jds = d.prepare(`DELETE FROM jds WHERE title LIKE ?`).run(MARKER).changes;
+      jds = d.prepare(`DELETE FROM jds WHERE title LIKE ? AND workspace_id = ?`).run(MARKER, workspaceId).changes;
     } catch (err) {
       if (!isNoSuchTable(err)) throw err; // tolerate only a not-yet-created table
     }

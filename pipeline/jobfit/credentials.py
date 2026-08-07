@@ -48,7 +48,21 @@ _LICENCE_SPECS: tuple[tuple[re.Pattern[str], str, tuple[re.Pattern[str], ...]], 
 )
 
 _YEAR_RE = re.compile(r"\b(19[5-9]\d|20[0-4]\d)\b")
-_MONTH_RE = re.compile(r"\b(0?[1-9]|1[0-2])\b")
+
+
+def _month_for_year(expiry: str, year: int) -> int | None:
+    """The month (1-12) directly adjacent to ``year`` — ``YYYY-MM`` / ``YYYY/MM`` or
+    ``MM-YYYY`` / ``MM/YYYY`` — or None. Deliberately NOT "any 1-12 number in the
+    string": a stray day or an id (e.g. ``'cert #3'``) must not be read as a month.
+    bug-ui-scan-2026-07-09 (llm-provider-layer-python #5)."""
+    ys = re.escape(str(year))
+    m = re.search(rf"\b{ys}[-/](0?[1-9]|1[0-2])\b", expiry)  # YYYY-MM
+    if m:
+        return int(m.group(1))
+    m = re.search(rf"\b(0?[1-9]|1[0-2])[-/]{ys}\b", expiry)  # MM-YYYY
+    if m:
+        return int(m.group(1))
+    return None
 
 
 def _parse_past(expiry: str, today: date) -> bool:
@@ -57,17 +71,24 @@ def _parse_past(expiry: str, today: date) -> bool:
     covers the narrative)."""
     if not expiry:
         return False
-    ym = _YEAR_RE.search(expiry)
-    if not ym:
+    years = [int(y) for y in _YEAR_RE.findall(expiry)]
+    if not years:
         return False
-    year = int(ym.group(1))
+    # Two years in one string (e.g. "Issued 2020, expires 2028") → the LATER one is
+    # the expiry. Take the max, not re.search's FIRST match, which read the issue
+    # year and false-flagged a still-current licence as expired.
+    # bug-ui-scan-2026-07-09 (llm-provider-layer-python #5).
+    year = max(years)
     if year < today.year:
         return True
     if year > today.year:
         return False
-    # Same year — only past if a month is present and earlier than this month.
-    mm = _MONTH_RE.search(expiry[: ym.start()] + expiry[ym.end():])
-    return bool(mm) and int(mm.group(1)) < today.month
+    # Same year — only past when a month tied to THAT year clearly precedes this
+    # month. Using a month adjacent to the year (not any stray number elsewhere)
+    # avoids a false past-flag from a day / id; no adjacent month → conservative
+    # don't-flag, honoring the module's "false positives to a glance" promise.
+    mm = _month_for_year(expiry, year)
+    return mm is not None and mm < today.month
 
 
 def _name(cred: Any) -> str:

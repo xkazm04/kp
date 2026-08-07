@@ -4,16 +4,17 @@ import { useRef } from "react";
 import Link from "next/link";
 import { motion, useScroll, useSpring, useTransform } from "framer-motion";
 import { ArrowRight } from "lucide-react";
-import KandidateMark from "../_components/KandidateMark";
+import Wordmark from "./Wordmark";
 import { LandingLangSwitch } from "./LandingLangSwitch";
-import { StepArt, type AboutStepKey } from "./aboutIllustrations";
+import { StepArt, type AboutStepKey } from "./about-art";
+import { ART_TYPE_SCALE } from "./tokens";
 import { useTranslations } from "next-intl";
 import { enterWorkspace } from "@/app/_lib/auth/session-nav";
 
 /*
  * /about — the public concept introduction as a scroll-drawn curved timeline of
  * the seven pipeline phases the app actually walks (SIM_PHASES). Same Spark art
- * direction as the home landing (literal hexes — the docs/DESIGN.md exemption);
+ * direction as the home landing (literal hexes — the docs/design/README.md exemption);
  * all copy resolves through the `aboutPage` i18n namespace. The spine draws with
  * scroll and each step grows to full size at centre, then shrinks as it passes.
  */
@@ -59,7 +60,14 @@ function StepRow({ stepKey, color, n, index }: { stepKey: AboutStepKey; color: s
 
   return (
     <div ref={ref} className="relative grid min-h-[80vh] items-center gap-6 py-10 md:grid-cols-[1fr_auto_1fr] md:gap-10">
-      <motion.div style={{ scale, opacity }} className={`flex justify-center ${artLeft ? "md:order-1" : "md:order-3"}`}>
+      {/* ART_TYPE_SCALE: the step illustrations are mockups of product UI, so
+          they were drawn at product text sizes and ended up a full step smaller
+          than the copy beside them. One class on the art column lifts every
+          size inside the card; see app/globals.css. */}
+      <motion.div
+        style={{ scale, opacity }}
+        className={`${ART_TYPE_SCALE} flex justify-center ${artLeft ? "md:order-1" : "md:order-3"}`}
+      >
         <StepArt stepKey={stepKey} color={color} />
       </motion.div>
 
@@ -94,14 +102,11 @@ export default function AboutCurve() {
   return (
     <main className="overflow-x-clip bg-[#fdf8ee] pb-28 text-[#17202a] font-[family-name:var(--font-spark-body)]">
       {/* ── Topbar ─────────────────────────────────────────────── */}
-      <header className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 pt-6">
-        <Link href="/" className="flex items-center gap-3">
-          <KandidateMark className="h-10 w-10 text-[#d65a4a] [--k-fg:#fdf8ee] [--k-accent:#17202a]" />
-          <span className={`${DISPLAY} text-2xl font-bold`}>
-            Kandi<span className="text-[#d65a4a]">D</span>ate
-          </span>
+      <header className="mx-auto flex w-full max-w-7xl items-center justify-between px-6 pt-6">
+        <Link href="/">
+          <Wordmark />
         </Link>
-        <nav className="hidden items-center gap-6 text-[15px] font-bold sm:flex">
+        <nav className="hidden items-center gap-6 text-[17px] font-bold sm:flex">
           <Link href="/" className="hover:text-[#d65a4a]">
             {t("nav.home")}
           </Link>
@@ -133,7 +138,7 @@ export default function AboutCurve() {
       </section>
 
       {/* ── Timeline ───────────────────────────────────────────── */}
-      <div ref={trackRef} className="relative mx-auto max-w-5xl px-6">
+      <div ref={trackRef} className="relative mx-auto max-w-7xl px-6">
         <svg
           aria-hidden
           className="pointer-events-none absolute left-1/2 top-0 hidden h-full w-[140px] -translate-x-1/2 md:block"
@@ -169,10 +174,10 @@ export default function AboutCurve() {
 
       {/* ── Footer ─────────────────────────────────────────────── */}
       <footer className="mt-20 border-t-[3px] border-[#17202a]">
-        <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-4 px-6 py-8 text-[15px]">
+        <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center justify-between gap-4 px-6 py-8 text-[17px]">
           <div className="flex items-center gap-2 font-bold">
-            <KandidateMark className="h-7 w-7 text-[#17202a] [--k-fg:#fdf8ee]" />
-            KandiDate · {t("footer.tagline")}
+            <Wordmark size="sm" />
+            <span>· {t("footer.tagline")}</span>
           </div>
           <div className="flex items-center gap-5">
             <Link href="/" className="font-bold text-[#42606f] hover:text-[#d65a4a]">

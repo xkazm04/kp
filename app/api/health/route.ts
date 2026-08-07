@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
-import { getSeedHealth, coreTableCounts, countActiveTasks, ensureDb } from "@/app/_lib/db";
+// Slices, not the `./db` barrel — see the note in app/_lib/llm-config.ts. This
+// route returns 0.2 KB, but through the barrel its first-hit compile was the whole
+// data layer.
+import { getSeedHealth, ensureDb } from "@/app/_lib/db/core";
+import { coreTableCounts, countActiveTasks } from "@/app/_lib/db/tasks";
 import { engineAvailability } from "@/app/_lib/engine-preflight";
 import { schedulerLiveness, schedulerLivenessReason } from "@/app/_lib/scheduler-health";
 

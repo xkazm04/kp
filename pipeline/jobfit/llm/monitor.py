@@ -37,6 +37,25 @@ _ledger_lock = threading.Lock()
 # Anthropic spend — with an engine tag keeping the billing path distinguishable.
 _TRACK_PROVIDER = {"claude_cli": "anthropic"}
 
+# Explicit opt-OUT tokens for KP_LLM_USAGE_LOG. Metering is ON BY DEFAULT (the
+# spawnPython seam sets the env to a per-call sidecar path for every child), so the
+# flagship CV-analysis spend lands in the ledger without any opt-in. An operator who
+# genuinely wants NO metering sets KP_LLM_USAGE_LOG to one of these — a real opt-out
+# switch rather than a value that would otherwise be misread as a file literally named
+# "0". An unset/blank env is also off (nowhere to write), same as before.
+_LEDGER_OFF_TOKENS = {"0", "off", "false", "no", "disable", "disabled"}
+
+
+def _ledger_path() -> str | None:
+    """The usage-ledger sidecar path, or None when metering is disabled — either
+    unset/blank (nowhere to write) or an explicit opt-out token."""
+    raw = os.getenv("KP_LLM_USAGE_LOG")
+    if not raw:
+        return None
+    if raw.strip().lower() in _LEDGER_OFF_TOKENS:
+        return None
+    return raw
+
 
 def reset() -> None:
     """Forget the cached client (tests; env changes mid-process)."""
@@ -108,7 +127,7 @@ def _append_ledger(
     real provider calls (emit_result) and "deterministic" when a CLI's template
     fallback served instead (emit_deterministic) — parseLedgerLine on the TS side
     accepts exactly these two values."""
-    path = os.getenv("KP_LLM_USAGE_LOG")
+    path = _ledger_path()
     if not path:
         return
     try:

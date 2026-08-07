@@ -18,11 +18,18 @@ export type ForecastFunnelRow = { stage: string; reached: number; current: numbe
 export type ForecastInput = {
   // The momentum "added" series (new candidates per recent week).
   weeklyAdded: number[];
-  // The funnel rows, Accepted-first … Hired-last (the last row is the hire stage).
+  // The funnel rows, Accepted-first … Hired-last (the last row is the hire stage;
+  // the row BEFORE it is the offer stage — the last gate before a hire).
   funnel: ForecastFunnelRow[];
   avgTimeToHireDays: number | null;
   // Horizons (in weeks) to project inflow hires for.
   horizonsWeeks?: number[];
+  // Direction 1 — the observed offer-acceptance probability (0..1) from the offer
+  // event ledger, honesty-gated upstream (null below the min-offers floor). When
+  // present it REPLACES the funnel-implied offer→hire leg so the projection rests
+  // on the measured accept rate instead of a funnel-derived one; null → the math
+  // is byte-identical to its pre-offer behaviour (below the gate = today).
+  offerAcceptRate?: number | null;
 };
 
 export type Forecast = {
@@ -31,6 +38,10 @@ export type Forecast = {
   inFlightExpectedHires: number; // expected hires from candidates already active
   projected: { weeks: number; hires: number }[]; // inflow-driven hires per horizon
   etaDays: number | null; // average time-to-hire, the realization lag for inflow
+  // Direction 1 — the accept rate (0..1) actually applied to the projection, or
+  // null when none was supplied (or there was no offer leg to apply it to). Lets
+  // the UI state its acceptance basis honestly ("assuming the observed NN%…").
+  offerAcceptRate: number | null;
   // True when there's enough signal to project (a non-empty cohort that has
   // produced at least one hire). The UI shows a "not enough signal yet" state
   // otherwise rather than a misleading flat-zero forecast.
@@ -55,20 +66,36 @@ export function forecastHires(input: ForecastInput): Forecast {
   const overallConversion = firstReached > 0 ? hiredReached / firstReached : null;
   const overallConversionPct = overallConversion != null ? Math.round(overallConversion * 100) : null;
 
+  // Direction 1 — the offer stage is the row before the hire stage (the last gate
+  // before a hire). When an observed accept rate is supplied AND there is a real
+  // offer leg to apply it to, the projection's offer→hire leg is rebuilt from the
+  // MEASURED accept rate: (reach → offer) × observed-accept. A null rate (below
+  // the gate, or no offer leg) leaves the offer-derived conversion untouched, so
+  // the projection is byte-identical to its pre-offer behaviour.
+  const offerRow = funnel.length >= 2 ? funnel[funnel.length - 2] : undefined;
+  const offerReached = offerRow?.reached ?? 0;
+  const applyAccept = input.offerAcceptRate != null && firstReached > 0 && offerReached > 0;
+  const offerAcceptRate = applyAccept ? (input.offerAcceptRate as number) : null;
+  const projectionConversion =
+    offerAcceptRate != null ? (offerReached / firstReached) * offerAcceptRate : overallConversion;
+
   // In-flight: each active candidate credited the forward conversion from their
-  // stage. The hire stage itself is already-hired, not in-flight, so skip it.
+  // stage. The hire stage itself is already-hired, not in-flight, so skip it. When
+  // an observed accept rate applies, candidates already AT the offer stage are
+  // credited that measured rate directly rather than the funnel-derived one.
   let inFlight = 0;
   for (let i = 0; i < funnel.length - 1; i += 1) {
     const row = funnel[i];
     if (row.current <= 0 || row.reached <= 0) continue;
-    inFlight += row.current * (hiredReached / row.reached);
+    const atOfferLeg = offerAcceptRate != null && i === funnel.length - 2;
+    inFlight += atOfferLeg ? row.current * offerAcceptRate : row.current * (hiredReached / row.reached);
   }
   const inFlightExpectedHires = Math.round(inFlight * 10) / 10;
 
   const hasSignal = overallConversion != null && hiredReached > 0;
   const projected = horizons.map((weeks) => ({
     weeks,
-    hires: hasSignal ? Math.round(weeklyVelocity * weeks * (overallConversion as number) * 10) / 10 : 0,
+    hires: hasSignal ? Math.round(weeklyVelocity * weeks * (projectionConversion as number) * 10) / 10 : 0,
   }));
 
   return {
@@ -78,5 +105,6 @@ export function forecastHires(input: ForecastInput): Forecast {
     projected,
     etaDays: avgTimeToHireDays,
     hasSignal,
+    offerAcceptRate,
   };
 }

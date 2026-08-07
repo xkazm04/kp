@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { deleteLlmConfig, listLlmConfig, upsertLlmConfig } from "@/app/_lib/db";
+import { deleteLlmConfig, listLlmConfig, upsertLlmConfig } from "@/app/_lib/db/llm";
 import { isLlmProvider, isLlmUseCase, LLM_PROVIDERS, LLM_USE_CASES } from "@/app/_lib/llm-config";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 
 
-// Models admin API, headless-first (docs/LLM_PROVIDER_LAYER.md): pin a
+// Models admin API, headless-first (docs/architecture/llm-provider-layer.md): pin a
 // provider/model per use case. GET returns the pins + catalogs; PUT upserts one
 // pin; DELETE reverts a use case to the built-in default (Claude CLI locally).
 // The Python registry validates capability fit at resolve time — a bad pin

@@ -1,7 +1,5 @@
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
-import os from "node:os";
-import path from "node:path";
 import fs from "node:fs";
 import { registerHooks } from "node:module";
 import { fileURLToPath } from "node:url";
@@ -32,11 +30,17 @@ registerHooks({
   },
 });
 
-// Point the store at a throwaway DB BEFORE importing it: db-path reads KP_DB_PATH
-// at module load, and the store opens its connection lazily. node --test isolates
-// each file in its own process, so this can't leak to the pure tests.
-const TMP = path.join(os.tmpdir(), `kp-schedule-store-test-${process.pid}.sqlite`);
-process.env.KP_DB_PATH = TMP;
+// Point the store at a throwaway DB BEFORE importing it: db-path reads KP_DB_PATH at
+// module load (DB_PATH is frozen then), so this MUST stay the first project import;
+// the store opens its connection lazily.
+//
+// It used to be a hand-rolled `os.tmpdir()/kp-schedule-store-test-${process.pid}.sqlite`.
+// `--test-isolation=process` gives each FILE a fresh process, but the OS RECYCLES pids:
+// a later run drawing a pid this file used before re-opens that run's leftover database
+// and inherits its committed invites/booked slots (see 7c63692, the billing-suite flake).
+// unit-db.ts is the repo-wide fix: a mkdtemp'd run directory (unique by construction,
+// never pid-derived), a liveness-gated sweep of abandoned dirs, and cleanupUnitDb().
+const { cleanupUnitDb, UNIT_DB_PATH: TMP } = await import("./testing/unit-db.ts");
 
 const {
   createScheduleInvite,
@@ -45,9 +49,17 @@ const {
   getScheduleInviteByToken,
   confirmAttendance,
   cancelAttendance,
+  declineScheduleInvite,
+  markScheduleInviteNoShow,
+  markScheduleInviteNeedsReconcile,
+  resolveScheduleInviteReconcile,
+  setScheduleInviteProposals,
+  declineScheduleInviteProposals,
   bookedSlots,
+  isTerminalScheduleInviteStatus,
   MAX_RESCHEDULES,
 } = await import("./schedule-store.ts");
+const { INVITE_LINK_TTL_DAYS, gridSlotToIso, isoToGridSlot } = await import("./schedule-slots.ts");
 
 // Mint a confirmed invite at a specific slot, returning its token. Each test uses
 // globally-unique slot_at times so confirmed rows from other tests can't collide.
@@ -58,14 +70,53 @@ function makeConfirmed(slotAt: string, slot = slotAt): string {
   return inv.token;
 }
 
-after(() => {
-  for (const f of [TMP, `${TMP}-wal`, `${TMP}-shm`]) {
-    try {
-      fs.rmSync(f, { force: true });
-    } catch {
-      /* locked / absent — disposable temp, process exits next */
-    }
-  }
+// Closes the memoized main connection and removes this run's temp dir. The store's own
+// isolated handle has no close API, so on Windows the delete can fail — the fixture's
+// liveness-gated sweep reclaims the dir on a later run instead.
+after(cleanupUnitDb);
+
+// --- Direction 1: terminal state machine (decline / no_show / expired) ----------
+
+test("declineScheduleInvite closes a pending invite terminally", () => {
+  const inv = createScheduleInvite({ entryId: "e-decline-pending", candidateLabel: "P", jobTitle: "Role" });
+  const out = declineScheduleInvite(inv.token);
+  assert.equal(out?.status, "declined");
+  assert.equal(isTerminalScheduleInviteStatus(out!.status), true);
+  // Already terminal → not re-declinable.
+  assert.equal(declineScheduleInvite(inv.token), null);
+});
+
+test("declineScheduleInvite frees a confirmed slot and drops it from bookedSlots", () => {
+  const slotAt = "2030-06-01T10:00:00.000Z";
+  const token = makeConfirmed(slotAt, "Decline me");
+  assert.ok(bookedSlots().includes(slotAt), "slot booked before decline");
+  const out = declineScheduleInvite(token);
+  assert.equal(out?.status, "declined");
+  assert.equal(out?.slotAt, null, "slot freed on decline");
+  assert.ok(!bookedSlots().includes(slotAt), "declined slot no longer blocks the pool");
+});
+
+test("markScheduleInviteNoShow only closes a confirmed invite and keeps the missed slot", () => {
+  const slotAt = "2030-07-01T10:00:00.000Z";
+  const token = makeConfirmed(slotAt, "No show");
+  const out = markScheduleInviteNoShow(token);
+  assert.equal(out?.status, "no_show");
+  assert.equal(out?.slotAt, slotAt, "no_show retains the record of the missed time");
+  // A pending invite can't no-show.
+  const pending = createScheduleInvite({ entryId: "e-ns-pending", candidateLabel: "P", jobTitle: "Role" });
+  assert.equal(markScheduleInviteNoShow(pending.token), null);
+});
+
+test("an EXPIRED pending invite is not reused by re-invite — a fresh token is minted", () => {
+  const entryId = "e-expired-reuse";
+  const first = createScheduleInvite({ entryId, candidateLabel: "P", jobTitle: "Role" });
+  // Age the row past the TTL via a raw connection on the same DB file.
+  const raw = new Database(TMP);
+  const oldCreated = new Date(Date.now() - (INVITE_LINK_TTL_DAYS + 1) * 86_400_000).toISOString();
+  raw.prepare(`UPDATE schedule_invites SET created_at = ? WHERE token = ?`).run(oldCreated, first.token);
+  raw.close();
+  const second = createScheduleInvite({ entryId, candidateLabel: "P", jobTitle: "Role" });
+  assert.notEqual(second.token, first.token, "expired pending invite must not be handed back");
 });
 
 test("moves a confirmed booking to a new slot and frees the old one", () => {
@@ -175,4 +226,166 @@ test("re-confirming after a cancel clears the stale cancelled RSVP", () => {
   const r = confirmScheduleInvite(token, "Re", "2031-03-10T10:00:00.000Z");
   assert.ok(r.ok);
   if (r.ok) assert.equal(r.invite.attendanceStatus, null, "a fresh booking starts with no RSVP");
+});
+
+// --- one active invite per entry (bug-ui-scan-2026-07-09 #2) ------------------
+// Non-vacuity: against the pre-fix createScheduleInvite (unconditional INSERT)
+// each call minted a NEW token/id for the same entry_id, so both assertions
+// (same token, single row) fail — the whole point of the bug.
+
+test("re-inviting a pending entry reuses the live invite instead of minting a duplicate", () => {
+  const entryId = "e-dup-pending";
+  const a = createScheduleInvite({ entryId, candidateLabel: "Dup", jobTitle: "Role" });
+  const b = createScheduleInvite({ entryId, candidateLabel: "Dup", jobTitle: "Role" });
+  assert.equal(b.token, a.token, "second invite for the same pending entry returns the first token");
+  assert.equal(b.id, a.id);
+  const d = new Database(TMP);
+  const rows = d.prepare(`SELECT COUNT(*) AS n FROM schedule_invites WHERE entry_id = ?`).get(entryId) as { n: number };
+  d.close();
+  assert.equal(rows.n, 1, "exactly one row exists for the entry");
+});
+
+test("re-inviting an already-confirmed entry returns the confirmed invite (no second bookable token)", () => {
+  const entryId = "e-dup-confirmed";
+  const a = createScheduleInvite({ entryId, candidateLabel: "Booked" });
+  const r = confirmScheduleInvite(a.token, "Slot", "2031-05-01T10:00:00.000Z");
+  assert.ok(r.ok);
+  const b = createScheduleInvite({ entryId, candidateLabel: "Booked" });
+  assert.equal(b.token, a.token, "re-invite returns the same (confirmed) invite, not a new pending one");
+  assert.equal(b.status, "confirmed");
+  const d = new Database(TMP);
+  const rows = d.prepare(`SELECT COUNT(*) AS n FROM schedule_invites WHERE entry_id = ?`).get(entryId) as { n: number };
+  d.close();
+  assert.equal(rows.n, 1, "no duplicate token minted for a confirmed entry");
+});
+
+test("a distinct entry still mints its own invite", () => {
+  const x = createScheduleInvite({ entryId: "e-dup-x" });
+  const y = createScheduleInvite({ entryId: "e-dup-y" });
+  assert.notEqual(x.token, y.token, "different entries get different invites");
+});
+
+// --- Direction 2: recruiter-side invite control ---------------------------------
+
+test("recruiter reschedule bypasses MAX_RESCHEDULES and doesn't spend the candidate budget", () => {
+  const token = makeConfirmed("2031-01-06T08:00:00.000Z", "R0");
+  // Exhaust the candidate's reschedule budget with slots distinct from the initial one
+  // (an unchanged slot is a no-op that doesn't consume the budget).
+  for (let n = 1; n <= MAX_RESCHEDULES; n += 1) {
+    const r = rescheduleScheduleInvite(token, `C${n}`, `2031-01-06T${String(10 + n).padStart(2, "0")}:00:00.000Z`);
+    assert.equal(r.ok, true, `candidate move ${n} should succeed`);
+  }
+  // A further CANDIDATE move is capped...
+  const capped = rescheduleScheduleInvite(token, "Cx", "2031-01-06T20:00:00.000Z");
+  assert.equal(capped.ok, false);
+  if (!capped.ok) assert.equal(capped.reason, "limit");
+  const countBefore = getScheduleInviteByToken(token)!.rescheduleCount;
+  // ...but a RECRUITER move goes through and does not consume the budget.
+  const rec = rescheduleScheduleInvite(token, "Rec", "2031-01-07T10:00:00.000Z", null, { recruiter: true });
+  assert.equal(rec.ok, true, "recruiter move bypasses the cap");
+  if (rec.ok) {
+    assert.equal(rec.invite.slotAt, "2031-01-07T10:00:00.000Z");
+    assert.equal(rec.invite.rescheduleCount, countBefore, "recruiter move must not consume the candidate's budget");
+    assert.equal(rec.invite.reminderSentAt, null, "reminder cycle resets on the recruiter move");
+  }
+});
+
+test("recruiter reschedule still honors the per-team collision check", () => {
+  makeConfirmed("2031-02-03T10:00:00.000Z", "Occupied");
+  const token = makeConfirmed("2031-02-03T09:00:00.000Z", "Mover");
+  const clash = rescheduleScheduleInvite(token, "x", "2031-02-03T10:00:00.000Z", null, { recruiter: true });
+  assert.equal(clash.ok, false);
+  if (!clash.ok) assert.equal(clash.reason, "taken");
+});
+
+test("resolveScheduleInviteReconcile clears the drift flag once (idempotent)", () => {
+  const inv = createScheduleInvite({ entryId: "e-reconcile", candidateLabel: "P", jobTitle: "Role" });
+  markScheduleInviteNeedsReconcile(inv.token, "stage gate not ready");
+  assert.equal(getScheduleInviteByToken(inv.token)!.needsReconcile, true);
+  assert.equal(resolveScheduleInviteReconcile(inv.token), true, "first resolve flips the flag");
+  const after = getScheduleInviteByToken(inv.token)!;
+  assert.equal(after.needsReconcile, false);
+  assert.equal(after.reconcileReason, null);
+  assert.equal(resolveScheduleInviteReconcile(inv.token), false, "second resolve is a no-op");
+});
+
+// --- Direction 3: the grid confirm composes the ONE scheduling engine -----------
+// Mirrors the /api/schedule `book` action: resolve the grid pick to a canonical
+// instant, then produce/update a collision-checked confirmed invite. Pins the seam
+// at the store level (the route can't run under bare node --test in a worktree).
+test("grid book: resolve pick → confirm a canonical, collision-checked invite; re-book moves it", () => {
+  const entryId = "e-grid-book";
+  const resolved = gridSlotToIso("Tue 14:00");
+  assert.ok(resolved, "a valid grid cell resolves to an instant");
+  // First confirm (pending → confirmed) at the resolved instant.
+  const inv = createScheduleInvite({ entryId, candidateLabel: "Grid Cand", jobTitle: "Role" });
+  const booked = confirmScheduleInvite(inv.token, resolved!.label, resolved!.value);
+  assert.equal(booked.ok, true);
+  assert.equal(getScheduleInviteByToken(inv.token)!.slotAt, resolved!.value);
+  // The booking round-trips back onto the grid cell it came from.
+  assert.equal(isoToGridSlot(resolved!.value), "Tue 14:00");
+  // A different entry can't book the SAME instant (grid collision check).
+  const other = createScheduleInvite({ entryId: "e-grid-clash", candidateLabel: "Other", jobTitle: "Role" });
+  const clash = confirmScheduleInvite(other.token, resolved!.label, resolved!.value);
+  assert.equal(clash.ok, false);
+  if (!clash.ok) assert.equal(clash.reason, "taken");
+  // Re-booking the same entry onto another cell is a recruiter move (idempotent invite
+  // reuse + recruiter reschedule) — no candidate reschedule budget consumed.
+  const moved = gridSlotToIso("Wed 10:00");
+  const reInv = createScheduleInvite({ entryId, candidateLabel: "Grid Cand", jobTitle: "Role" });
+  assert.equal(reInv.token, inv.token, "book reuses the live invite for the entry");
+  const rebooked = rescheduleScheduleInvite(reInv.token, moved!.label, moved!.value, null, { recruiter: true });
+  assert.equal(rebooked.ok, true);
+  if (rebooked.ok) {
+    assert.equal(rebooked.invite.slotAt, moved!.value);
+    assert.equal(rebooked.invite.rescheduleCount, 0, "recruiter grid move doesn't spend the candidate budget");
+  }
+});
+
+// --- Candidate "propose your own times" escalation -------------------------------
+test("setScheduleInviteProposals stores server-authored times on a pending invite and marks it pending", () => {
+  const inv = createScheduleInvite({ entryId: "e-prop-1", candidateLabel: "Prop Cand", jobTitle: "Role" });
+  const proposals = [
+    { value: "2026-06-09T11:00:00.000Z", label: "Tue 9 Jun · 11:00" },
+    { value: "2026-06-10T15:00:00.000Z", label: "Wed 10 Jun · 15:00" },
+  ];
+  const saved = setScheduleInviteProposals(inv.token, proposals);
+  assert.ok(saved, "proposals saved on a pending invite");
+  assert.equal(saved!.proposalStatus, "pending");
+  assert.deepEqual(saved!.proposals, proposals);
+  // Round-trips through the store (JSON persisted + parsed back).
+  const reread = getScheduleInviteByToken(inv.token)!;
+  assert.deepEqual(reread.proposals, proposals);
+  assert.equal(reread.proposalStatus, "pending");
+});
+
+test("a terminal invite refuses proposals; a confirmed invite accepts them", () => {
+  const declinedInv = createScheduleInvite({ entryId: "e-prop-2", candidateLabel: "X", jobTitle: "R" });
+  declineScheduleInvite(declinedInv.token); // → terminal 'declined'
+  assert.equal(setScheduleInviteProposals(declinedInv.token, [{ value: "2026-06-09T11:00:00.000Z", label: "L" }]), null, "terminal invite refuses proposals");
+  const confirmedTok = makeConfirmed("2026-06-11T11:00:00.000Z");
+  const saved = setScheduleInviteProposals(confirmedTok, [{ value: "2026-06-12T11:00:00.000Z", label: "Fri 12 Jun · 11:00" }]);
+  assert.ok(saved, "a confirmed invite (e.g. at the reschedule cap) can carry proposals");
+  assert.equal(saved!.proposalStatus, "pending");
+});
+
+test("declineScheduleInviteProposals clears the times and records the honest 'declined' state", () => {
+  const inv = createScheduleInvite({ entryId: "e-prop-3", candidateLabel: "Y", jobTitle: "R" });
+  setScheduleInviteProposals(inv.token, [{ value: "2026-06-09T11:00:00.000Z", label: "Tue 9 Jun · 11:00" }]);
+  const declined = declineScheduleInviteProposals(inv.token);
+  assert.ok(declined);
+  assert.equal(declined!.proposalStatus, "declined");
+  assert.equal(declined!.proposals, null, "proposed times are cleared on decline");
+  // Idempotent: a second decline (no longer pending) is a no-op.
+  assert.equal(declineScheduleInviteProposals(inv.token), null);
+});
+
+test("booking (confirm) clears a pending proposal — the booking is the record", () => {
+  const inv = createScheduleInvite({ entryId: "e-prop-4", candidateLabel: "Z", jobTitle: "R" });
+  setScheduleInviteProposals(inv.token, [{ value: "2026-06-09T11:00:00.000Z", label: "Tue 9 Jun · 11:00" }]);
+  const r = confirmScheduleInvite(inv.token, "Tue 9 Jun · 11:00", "2026-06-13T11:00:00.000Z");
+  assert.ok(r.ok);
+  const reread = getScheduleInviteByToken(inv.token)!;
+  assert.equal(reread.proposalStatus, null, "confirm clears proposal_status");
+  assert.equal(reread.proposals, null, "confirm clears proposals");
 });

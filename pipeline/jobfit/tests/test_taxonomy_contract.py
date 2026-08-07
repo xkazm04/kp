@@ -20,7 +20,22 @@ SENIORITIES = ("junior", "medior", "senior", "lead")
 class TaxonomyContractTest(unittest.TestCase):
     def setUp(self) -> None:
         self.taxonomy = json.loads(TAXONOMY_PATH.read_text(encoding="utf-8"))
-        self.benchmarks = json.loads(BENCHMARKS_PATH.read_text(encoding="utf-8"))
+        self.raw_benchmarks = json.loads(BENCHMARKS_PATH.read_text(encoding="utf-8"))
+        # Benchmarks are keyed by market (markets[market_id]); a legacy flat file
+        # (top-level 'roles') is read as the single active-market block. Expose the
+        # ACTIVE market's block as ``self.benchmarks`` so the existing role-shape
+        # assertions keep pinning the pilot's bands unchanged.
+        self.market_blocks = self._market_blocks(self.raw_benchmarks)
+        self.benchmarks = self.market_blocks[taxonomy.ACTIVE_MARKET.market_id]
+
+    @staticmethod
+    def _market_blocks(raw: dict) -> dict:
+        markets = raw.get("markets")
+        if isinstance(markets, dict) and markets:
+            return markets
+        if isinstance(raw.get("roles"), list):
+            return {taxonomy.ACTIVE_MARKET.market_id: raw}
+        raise AssertionError("salary_benchmarks.json has neither 'markets' nor a top-level 'roles'.")
 
     def test_terms_have_unique_id_and_match_list(self) -> None:
         terms = self.taxonomy.get("terms")
@@ -42,23 +57,27 @@ class TaxonomyContractTest(unittest.TestCase):
                 self.assertIn(parent, ids, f"taxonomy.json: term {term['id']!r} has unknown parent {parent!r}")
 
     def test_benchmark_roles_have_family(self) -> None:
-        roles = self.benchmarks.get("roles")
-        self.assertIsInstance(roles, list, "salary_benchmarks.json: 'roles' must be a list")
-        self.assertGreater(len(roles), 0, "salary_benchmarks.json: 'roles' must be non-empty")
-        for i, role in enumerate(roles):
-            self.assertIsInstance(role, dict, f"salary_benchmarks.json: roles[{i}] must be an object")
-            self.assertTrue(role.get("family"), f"salary_benchmarks.json: roles[{i}] missing 'family'")
+        # Every market block (not just the active one) must carry a well-formed
+        # 'roles' array, so a re-homed market never boots on malformed data.
+        for mid, block in self.market_blocks.items():
+            roles = block.get("roles")
+            self.assertIsInstance(roles, list, f"salary_benchmarks.json[{mid}]: 'roles' must be a list")
+            self.assertGreater(len(roles), 0, f"salary_benchmarks.json[{mid}]: 'roles' must be non-empty")
+            for i, role in enumerate(roles):
+                self.assertIsInstance(role, dict, f"salary_benchmarks.json[{mid}]: roles[{i}] must be an object")
+                self.assertTrue(role.get("family"), f"salary_benchmarks.json[{mid}]: roles[{i}] missing 'family'")
 
     def test_benchmark_role_bands_are_well_formed(self) -> None:
-        for i, role in enumerate(self.benchmarks["roles"]):
-            for sen in SENIORITIES:
-                band = role.get(sen)
-                if band is None:
-                    continue
-                self.assertIsInstance(band, list, f"roles[{i}].{sen} must be a list")
-                self.assertEqual(len(band), 2, f"roles[{i}].{sen} must be [min, max]")
-                self.assertTrue(all(isinstance(n, (int, float)) for n in band), f"roles[{i}].{sen} non-numeric band")
-                self.assertLessEqual(band[0], band[1], f"roles[{i}].{sen} has min > max")
+        for mid, block in self.market_blocks.items():
+            for i, role in enumerate(block["roles"]):
+                for sen in SENIORITIES:
+                    band = role.get(sen)
+                    if band is None:
+                        continue
+                    self.assertIsInstance(band, list, f"[{mid}] roles[{i}].{sen} must be a list")
+                    self.assertEqual(len(band), 2, f"[{mid}] roles[{i}].{sen} must be [min, max]")
+                    self.assertTrue(all(isinstance(n, (int, float)) for n in band), f"[{mid}] roles[{i}].{sen} non-numeric band")
+                    self.assertLessEqual(band[0], band[1], f"[{mid}] roles[{i}].{sen} has min > max")
 
     def test_default_family_is_known(self) -> None:
         families = {r["family"] for r in self.benchmarks["roles"]}
@@ -81,6 +100,26 @@ class TaxonomyContractTest(unittest.TestCase):
             fam = role["family"]
             self.assertIn(fam, role_families, f"role family {fam!r} has no description in taxonomy.json::role_families")
             self.assertTrue(str(role_families[fam]).strip(), f"role family {fam!r} has an empty description")
+
+    def test_role_band_reads_the_market_block(self) -> None:
+        # role_band defaults to the ACTIVE (Czech) market — byte-identical to before
+        # the file was market-keyed — and returns the market's OWN bands when a market
+        # is passed. The de-berlin SAMPLE block proves the read path re-homes: its
+        # EUR bands differ from (and are far smaller than) the CZK bands.
+        from pipeline.jobfit.market_config import BERLIN_MARKET, CZECH_MARKET
+
+        cz_band = taxonomy.role_band("software_engineering", "medior")
+        self.assertEqual(cz_band, taxonomy.role_band("software_engineering", "medior", market=CZECH_MARKET))
+        self.assertEqual(list(cz_band), self.benchmarks["roles"][0]["medior"])  # SE is first
+
+        de_block = self.market_blocks.get("de-berlin")
+        if de_block is not None:  # committed markets-map file
+            de_band = taxonomy.role_band("software_engineering", "medior", market=BERLIN_MARKET)
+            self.assertIsNotNone(de_band)
+            self.assertNotEqual(de_band, cz_band)
+            self.assertLess(de_band[1], cz_band[0])  # EUR figures are far below the CZK band
+            de_se = next(r for r in de_block["roles"] if r["family"] == "software_engineering")
+            self.assertEqual(list(de_band), de_se["medior"])
 
     def test_taxonomy_covers_non_tech_industries(self) -> None:
         # P0-1: the role-family vocabulary must reach beyond the original 3 IT families

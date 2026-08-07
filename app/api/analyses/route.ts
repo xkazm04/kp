@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { listAnalyses } from "@/app/_lib/db";
+import { listAnalyses } from "@/app/_lib/db/analyses";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 
 

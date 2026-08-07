@@ -26,7 +26,7 @@ import { mkdtempSync } from "node:fs";
 // the db layer. Keep it first (ESM evaluates imports in source order).
 import "../../_lib/testing/unit-db.ts";
 import { POST } from "./route.ts";
-import { EVIDENCE_INCOMPLETE_NOTE } from "../../_lib/github-evidence.ts";
+import { hasEvidenceIncomplete, type GithubNote } from "../../_lib/github-evidence.ts";
 
 const realFetch = globalThis.fetch;
 
@@ -94,6 +94,23 @@ function githubResponse(pathname: string): Response {
       return Response.json([]);
     case "/repos/emptyuser/repo/contents":
       return Response.json([]);
+
+    // --- #4: overlapping-bucket dedupe (pyuser: python-only evidence) -----------
+    case "/users/pyuser":
+      return Response.json({
+        login: "pyuser",
+        html_url: "https://github.com/pyuser",
+        public_repos: 1,
+        followers: 0,
+        type: "User",
+      });
+    case "/users/pyuser/repos":
+      // A python-only candidate — NO react/typescript/javascript/next.js token anywhere,
+      // so a React requirement in the JD is a genuine, single gap.
+      return Response.json([repo("pyuser", "svc", "A python service", "Python")]);
+    case "/repos/pyuser/svc/languages":
+      return Response.json({ Python: 1000 });
+
     default:
       throw new Error(`unexpected GitHub fetch in test: ${pathname}`);
   }
@@ -182,7 +199,7 @@ test("#2 a 403 on a /languages sub-request yields 'could not determine', never a
   const body = (await res.json()) as {
     error?: string;
     jobFitSignals: { matchingSkills: string[]; potentialGaps: string[] };
-    limitations: string[];
+    limitations: GithubNote[];
     codeReview?: { status: string };
   };
 
@@ -198,12 +215,12 @@ test("#2 a 403 on a /languages sub-request yields 'could not determine', never a
 
   // "Could not determine" is propagated to the panel via the shared limitation note.
   assert.ok(
-    body.limitations.includes(EVIDENCE_INCOMPLETE_NOTE),
-    "the panel-facing could-not-determine note must be present",
+    hasEvidenceIncomplete(body.limitations),
+    "the panel-facing could-not-determine finding must be present",
   );
   // NON-VACUITY: pre-fix, the 403 emptied app's language map so rust became a gap
   // (potentialGaps === ["rust"]) and the incomplete note was never appended — so both
-  // the deepEqual([]) and the limitations.includes(...) assertions fail.
+  // the deepEqual([]) and the hasEvidenceIncomplete(...) assertions fail.
 });
 
 test("#2 a genuinely empty account yields 'no evidence' (codeReview 'empty'), not a coverage warning", async () => {
@@ -213,7 +230,7 @@ test("#2 a genuinely empty account yields 'no evidence' (codeReview 'empty'), no
     const body = (await res.json()) as {
       error?: string;
       jobFitSignals: { potentialGaps: string[] };
-      limitations: string[];
+      limitations: GithubNote[];
       codeReview?: { status: string };
     };
 
@@ -223,8 +240,8 @@ test("#2 a genuinely empty account yields 'no evidence' (codeReview 'empty'), no
     // a distinct, successful state from "could not determine".
     assert.equal(body.codeReview?.status, "empty", "no signals + complete coverage = empty, not error");
     assert.ok(
-      !body.limitations.includes(EVIDENCE_INCOMPLETE_NOTE),
-      "a complete run must NOT carry the could-not-determine note",
+      !hasEvidenceIncomplete(body.limitations),
+      "a complete run must NOT carry the could-not-determine finding",
     );
     // Coverage is complete, so a real gap is legitimately asserted.
     assert.ok(body.jobFitSignals.potentialGaps.includes("python"), "a genuine gap is still reported");
@@ -234,4 +251,26 @@ test("#2 a genuinely empty account yields 'no evidence' (codeReview 'empty'), no
   } finally {
     delete process.env.GEMINI_API_KEY;
   }
+});
+
+// --- Finding #4 ---------------------------------------------------------------------
+
+test("#4 one JD skill produces ONE gap, not several, across overlapping buckets", async () => {
+  // A React requirement against a python-only candidate. "react" used to be an alias of
+  // three buckets (typescript, javascript, react), so this fanned into THREE gap bullets
+  // for one underlying missing skill.
+  const res = await POST(post({ profile: "pyuser", jobDescriptionText: "We need a strong react developer." }) as never);
+  const body = (await res.json()) as {
+    error?: string;
+    jobFitSignals: { matchingSkills: string[]; potentialGaps: string[] };
+  };
+
+  assert.equal(body.error, undefined);
+  // Exactly one concept-level gap — the buckets are now mutually exclusive.
+  assert.deepEqual(body.jobFitSignals.potentialGaps, ["react"], "one skill = one gap");
+  assert.ok(!body.jobFitSignals.potentialGaps.includes("typescript"), "no phantom typescript gap");
+  assert.ok(!body.jobFitSignals.potentialGaps.includes("javascript"), "no phantom javascript gap");
+  // NON-VACUITY: against pre-fix aliases, "react" fired the typescript, javascript AND
+  // react buckets, so potentialGaps was ["typescript","javascript","react"] — the
+  // deepEqual(["react"]) assertion fails.
 });

@@ -18,7 +18,7 @@ correctness it cannot verify (the prompt says so)."""
 from __future__ import annotations
 
 import json
-from typing import Sequence
+from typing import Any, Sequence
 
 from ...claude_cli import ClaudeCliProvider
 from ...devcase.llm_judge import run_judge
@@ -72,6 +72,25 @@ def _judge_prompt(record: BenchRecord) -> str:
     )
 
 
+def _coerce_dim(value: Any) -> float | None:
+    """Coerce a judge dimension to a float when the judge emits one in a slightly
+    off shape (a numeric string like ``"8"``); genuinely non-numeric formats
+    (``"8/10"``, ``"high"``) or a missing value become ``None``. Rescues a numeric
+    string that ``bake_quality._med_dim`` would otherwise discard as non-numeric,
+    while keeping a truly unparseable dim out of the median.
+    bug-ui-scan-2026-07-09 (llm-provider-layer-python #4)."""
+    if isinstance(value, bool):  # bool is an int subclass; True/False isn't a 1-10 score
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    if isinstance(value, str):
+        try:
+            return float(value.strip())
+        except ValueError:
+            return None
+    return None
+
+
 def default_judge_provider(model: str | None = None, *, timeout: int = 120) -> ClaudeCliProvider:
     """The default bench judge: the Claude CLI, stamped so its calls are attributable
     in LightTrack under the ``bench_judge`` operation."""
@@ -84,10 +103,19 @@ def judge_records(
     *,
     workers: int = 2,
 ) -> int:
-    """Attach an LLM-judge score to every SERVED record (mutated in place). Rows that
-    errored or produced no payload are left unscored. Returns the number scored."""
+    """Attach an LLM-judge score to every REAL LLM output (mutated in place).
 
-    judgeable = [r for r in records if r.error is None and r.payload is not None]
+    Judged quality and measured reliability are deliberately separate axes:
+    a record that degraded to the deterministic fallback is the SAME template
+    for every model, so judging it measures the fallback, not the model — and
+    it drags the model's quality cell down for what is actually a reliability
+    failure (already reported as ``llmRate``). The 2026-08-05 expanded run hit
+    exactly this: interview_scorecard fallback stubs were scored ~2 and
+    contaminated three models' quality cells. Rows that errored, produced no
+    payload, or were served deterministically are left unscored. Returns the
+    number scored."""
+
+    judgeable = [r for r in records if r.error is None and r.payload is not None and r.source == "llm"]
     if not judgeable:
         return 0
 
@@ -102,9 +130,12 @@ def judge_records(
         # guard skips just this row (verdict left unscored), never the whole pass.
         record.judge_score = float(payload["score"])
         record.judge_detail = {
-            "relevance": payload.get("relevance"),
-            "correctness": payload.get("correctness"),
-            "adherence": payload.get("adherence"),
+            # Coerce each dim (bug-ui-scan-2026-07-09 #4): a numeric string is
+            # rescued to a float, a non-numeric one becomes None (skipped by the
+            # median) — so one soft dim can't later void the whole judged cell.
+            "relevance": _coerce_dim(payload.get("relevance")),
+            "correctness": _coerce_dim(payload.get("correctness")),
+            "adherence": _coerce_dim(payload.get("adherence")),
             "verdict": payload.get("verdict"),
             "issues": payload.get("issues"),
         }

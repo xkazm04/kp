@@ -41,6 +41,14 @@ ROOT = Path(__file__).resolve().parents[3]
 OUT_DIR = ROOT / "data" / "seed_calibration"
 JOBS_PATH = OUT_DIR / "jobs.json"
 RAW_CACHE = OUT_DIR / "_raw_rows.json"
+# Freeze marker written by calibrate.py --freeze. Its presence means jobs.json is the
+# canonical Part-2 fixture (an expensive, hand-blessed corpus), so a SMALLER build must not
+# silently truncate it — see _persist_jobs / CorpusFrozenError (bug-hunter #1).
+FROZEN_PATH = OUT_DIR / "FROZEN.json"
+
+
+class CorpusFrozenError(RuntimeError):
+    """Raised when a build would shrink/overwrite a FROZEN canonical corpus without --force."""
 
 # Free, auth-less source: the HF datasets-server serves rows of any public dataset
 # over HTTPS. Verified shape: row = {position_title, company_name, job_description,
@@ -141,15 +149,49 @@ def _fetch_page(offset: int, length: int) -> dict[str, Any]:
         return json.loads(resp.read().decode("utf-8"))
 
 
+def _cache_meta_path() -> Path:
+    # Derived from RAW_CACHE at call time (not a module constant) so it follows any test
+    # reassignment of RAW_CACHE. Records the EXTENT of the cached fetch — see fetch_rows (#4).
+    return RAW_CACHE.with_suffix(".meta.json")
+
+
+def _read_cache_meta() -> dict[str, Any]:
+    p = _cache_meta_path()
+    if p.exists():
+        try:
+            meta = json.loads(p.read_text(encoding="utf-8"))
+            return meta if isinstance(meta, dict) else {}
+        except Exception:
+            return {}
+    return {}
+
+
 def fetch_rows(*, limit: int | None = None, resume: bool = True) -> list[dict[str, Any]]:
     """All (or ``limit``) raw rows from the dataset, cached to RAW_CACHE.
 
-    With ``resume`` (default) a present cache is reused — the corpus source is a
-    one-time pull, so we don't re-hit the network on every regeneration."""
+    With ``resume`` (default) a present cache is reused — the corpus source is a one-time
+    pull, so we don't re-hit the network on every regeneration. But a cache written under a
+    smaller ``--fetch-limit`` must NOT silently satisfy a later BROADER request: doing so
+    rebuilds the whole corpus from a tiny, tech-skewed slice while every report reads green
+    (bug-ui-scan-2026-07-09 dev-case-pipeline-python #4). The cache records its extent in a
+    sibling meta file (``_raw_rows.meta.json``: was the fetch full? how many rows?); we reuse
+    only when the cache can actually COVER what is now asked, else we re-fetch."""
     if resume and RAW_CACHE.exists():
-        cached = json.loads(RAW_CACHE.read_text(encoding="utf-8"))
+        try:
+            cached = json.loads(RAW_CACHE.read_text(encoding="utf-8"))
+        except Exception:
+            cached = []
         if cached:
-            return cached if limit is None else cached[:limit]
+            was_full = bool(_read_cache_meta().get("full"))
+            # A FULL prior pull holds everything the dataset had, so it covers any request.
+            if was_full:
+                return cached if limit is None else cached[:limit]
+            # A truncated (limited) prior pull covers only a request that asks for no more than
+            # it holds. An unlimited/broader request must re-fetch rather than reuse the slice.
+            # (A meta-less legacy cache is treated as truncated — conservatively re-fetched when
+            # asked for "all" — so we never certify a broad corpus built from an unknown slice.)
+            if limit is not None and len(cached) >= limit:
+                return cached[:limit]
 
     first = _fetch_page(0, _PAGE)
     total = int(first.get("num_rows_total") or 0)
@@ -166,6 +208,14 @@ def fetch_rows(*, limit: int | None = None, resume: bool = True) -> list[dict[st
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     RAW_CACHE.write_text(json.dumps(rows, ensure_ascii=False), encoding="utf-8")
+    # Stamp the fetch extent so a later broader request can tell a full pull from a truncated
+    # --fetch-limit slice (#4). "full" == this fetch was unlimited, OR it drained every available
+    # row (limit >= total) — either way it holds the whole dataset and can satisfy any request.
+    is_full = limit is None or (total > 0 and len(rows) >= total)
+    _cache_meta_path().write_text(
+        json.dumps({"full": is_full, "count": len(rows), "total": total}, ensure_ascii=False),
+        encoding="utf-8",
+    )
     return rows if limit is None else rows[:limit]
 
 
@@ -277,13 +327,36 @@ def load_jobs() -> list[dict[str, Any]]:
     return json.loads(JOBS_PATH.read_text(encoding="utf-8"))
 
 
-def build_corpus(count: int, *, resume: bool = True, fetch_limit: int | None = None) -> list[dict[str, Any]]:
+def _persist_jobs(jobs: list[dict[str, Any]], *, force: bool = False) -> None:
+    """Write the corpus to JOBS_PATH, REFUSING to shrink a FROZEN corpus.
+
+    A frozen corpus (FROZEN.json present) is the canonical, expensively-generated Part-2
+    fixture. A smaller build — e.g. a ``calibrate --count 12`` pilot — must never truncate it,
+    which would leave FROZEN.json describing a run that no longer exists on disk and quietly run
+    Part 2 on the shrunken set (bug-hunter #1). We refuse rather than clobber; pass ``force``
+    (``calibrate --rebuild --force`` / ``real_corpus --force``) to override deliberately.
+    A same-size or larger (re)build, or any build when no freeze marker exists, writes normally."""
+    OUT_DIR.mkdir(parents=True, exist_ok=True)
+    if not force and JOBS_PATH.exists() and FROZEN_PATH.exists():
+        try:
+            existing = json.loads(JOBS_PATH.read_text(encoding="utf-8"))
+        except Exception:
+            existing = []
+        if isinstance(existing, list) and len(jobs) < len(existing):
+            raise CorpusFrozenError(
+                f"refusing to shrink the FROZEN corpus ({len(existing)} jobs) to {len(jobs)}: "
+                f"jobs.json is the canonical Part-2 fixture. Re-run at the frozen size, delete "
+                f"{FROZEN_PATH.name}, or pass --force to overwrite deliberately."
+            )
+    JOBS_PATH.write_text(json.dumps(jobs, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def build_corpus(count: int, *, resume: bool = True, fetch_limit: int | None = None, force: bool = False) -> list[dict[str, Any]]:
     rows = fetch_rows(limit=fetch_limit, resume=resume)
     by_family = classify_rows(rows)
     picked = stratify(by_family, count)
     jobs = build_jobs(picked)
-    OUT_DIR.mkdir(parents=True, exist_ok=True)
-    JOBS_PATH.write_text(json.dumps(jobs, ensure_ascii=False, indent=2), encoding="utf-8")
+    _persist_jobs(jobs, force=force)
     return jobs
 
 
@@ -293,9 +366,14 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--count", type=int, default=100, help="Target corpus size (stratified across families).")
     p.add_argument("--no-resume", action="store_true", help="Ignore the raw cache and re-fetch from the dataset.")
     p.add_argument("--fetch-limit", type=int, default=None, help="Cap raw rows fetched (debug / quick runs).")
+    p.add_argument("--force", action="store_true", help="Overwrite a FROZEN corpus even if this build is smaller (destroys the blessed fixture).")
     args = p.parse_args(argv)
 
-    jobs = build_corpus(args.count, resume=not args.no_resume, fetch_limit=args.fetch_limit)
+    try:
+        jobs = build_corpus(args.count, resume=not args.no_resume, fetch_limit=args.fetch_limit, force=args.force)
+    except CorpusFrozenError as exc:
+        print(f"real_corpus: {exc}", file=sys.stderr)
+        return 1
 
     dist = Counter(j["role_family"] for j in jobs)
     sen = Counter(j["seniority"] for j in jobs)

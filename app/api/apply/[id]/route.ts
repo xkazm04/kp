@@ -1,20 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getTranslations } from "next-intl/server";
 import { getServerLocale } from "@/i18n/server";
-import {
-  createPipelineEntry,
-  findApplicationByApplicant,
-  findEntryByLeadToken,
-  getJob,
-  getJobWorkspace,
-  mergeReapplication,
-  recordAutomationEvent,
-  recordEntryConsent,
-  recordKnockoutDecline,
-} from "@/app/_lib/db";
+import { getJob, getJobWorkspace } from "@/app/_lib/db/jobs";
+import { createPipelineEntry, ensureLeadEnrichToken, findApplicationByApplicant, findEntryByLeadToken, mergeReapplication, recordAutomationEvent, recordEntryConsent, recordKnockoutDecline, setEntryProfileGaps, type EntryProfileGap } from "@/app/_lib/db/pipeline";
+import { GAP_FIELDS } from "@/app/_lib/completeness-followup";
 import { applyDedupeKey, applyKoSteps, FALLBACK_ARCHETYPE } from "@/app/_lib/apply";
 import { ANONYMOUS_APPLICANT_LABEL, APPLY_EMAIL_RE, coerceGithubHandle, coerceLeadTokenParam, failedKoStepIds } from "@/app/_lib/apply-intake";
 import { getJobStatus, isJobOpenForApplications } from "@/app/_lib/job-ingest";
+import { linkApplySession } from "@/app/_lib/apply-session-store";
 import { dispatchApplicationReceived } from "@/app/_lib/comms-dispatch";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import type { ApplyAnswers } from "@/app/_lib/apply-intake";
@@ -22,6 +15,8 @@ import { buildApplicantProfile } from "@/app/_lib/applicant-profile";
 import { randomId } from "@/app/_lib/random-id";
 import { getOrCreateStatusLink } from "@/app/_lib/application-status-store";
 import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
+import { safeJsonError } from "@/app/_lib/api-response";
+import { afterResponse } from "@/app/_lib/after-response";
 
 // Mint (or reuse) the candidate's status-link token for an entry (idea-e76a6fb2),
 // best-effort: the application already succeeded, so a status-link failure must
@@ -35,6 +30,42 @@ function safeStatusLink(entryId: string): string | null {
   }
 }
 
+
+// How many of the profile's unmet-checklist gaps the candidate is offered right
+// after "You're in". Deliberately small: this is a courtesy ask on a flow that has
+// ALREADY succeeded, not a second form. The rest stay recorded on the entry.
+const MAX_FOLLOWUP_QUESTIONS = 3;
+
+/** The optional post-accept gap follow-up offered to the candidate. Absent
+ *  entirely when there's nothing askable — the client then renders the plain
+ *  done screen it always has. */
+type FollowupOffer = { followupToken: string; followupGaps: EntryProfileGap[] } | Record<string, never>;
+
+// Record the profile build's unmet gaps on the entry and, when any of them is a
+// question we actually know how to ask, mint the capability the candidate answers
+// under. The token is the EXISTING lead-enrichment token (ensureLeadEnrichToken —
+// CSPRNG, opaque, already meaning "this candidate may enrich this entry"), never
+// the raw entry id. Wholly best-effort: the application is already filed, so a
+// failure here silently degrades to "no follow-up offered".
+function recordAndOfferGaps(entryId: string, gaps: EntryProfileGap[], workspaceId: string): FollowupOffer {
+  try {
+    setEntryProfileGaps(entryId, gaps, workspaceId);
+  } catch (err) {
+    console.error(`[apply] could not record profile gaps for entry ${entryId}:`, err instanceof Error ? err.message : err);
+  }
+  // Only gaps this build knows a localized question for — an unknown/new
+  // checklist id stays RECORDED (the recruiter still sees it) but is never
+  // rendered as a label with no input.
+  const askable = gaps.filter((g) => GAP_FIELDS[g.check]).slice(0, MAX_FOLLOWUP_QUESTIONS);
+  if (askable.length === 0) return {};
+  try {
+    const token = ensureLeadEnrichToken(entryId, undefined, workspaceId);
+    return token ? { followupToken: token, followupGaps: askable } : {};
+  } catch (err) {
+    console.error(`[apply] could not mint follow-up token for entry ${entryId}:`, err instanceof Error ? err.message : err);
+    return {};
+  }
+}
 
 // Input caps for this PUBLIC, unauthenticated, side-effecting endpoint. Without
 // them a single POST can buffer a multi-hundred-MB body in the Node heap
@@ -70,14 +101,30 @@ const APPLY_RATE_LIMIT = { limit: 20, windowMs: 60_000 };
 // lead following its enrichment link, or any degraded stub recovered). The
 // client celebrates it as a completed profile rather than shrugging "already
 // applied" at a candidate who just did exactly what we asked them to.
-function acknowledgeReapply(entryId: string, message: string, changes: string[] = [], enriched = false, workspaceId?: string): NextResponse {
+function acknowledgeReapply(
+  entryId: string,
+  message: string,
+  changes: string[] = [],
+  enriched = false,
+  workspaceId?: string,
+  // The gap follow-up, when the repeat REBUILT the profile (an enrichment walk):
+  // the freshly computed gaps are the honest ones to ask about.
+  followup: FollowupOffer = {}
+): NextResponse {
   const detail = changes.length
     ? `repeat application via conversational apply — ${changes.join("; ")}`
     : "repeat application via conversational apply";
   recordAutomationEvent(entryId, "re_applied", detail, workspaceId);
   // The repeat reuses the ORIGINAL entry, so it returns the SAME status link
   // (getOrCreateStatusLink is keyed on entry_id) — a returning candidate can track.
-  return NextResponse.json({ result: "accepted", duplicate: true, enriched, message, statusToken: safeStatusLink(entryId) });
+  return NextResponse.json({
+    result: "accepted",
+    duplicate: true,
+    enriched,
+    message,
+    statusToken: safeStatusLink(entryId),
+    ...followup,
+  });
 }
 
 // POST → evaluate KO answers. Pass → create an Accepted pipeline entry; fail → a
@@ -130,8 +177,17 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       // Lead-enrichment hand-off: the opaque token the apply page threaded
       // through from the ?lead= link. Untrusted — shape-gated and resolved below.
       lead?: unknown;
+      // The apply-funnel attempt this submission belongs to (apply-session-store.ts),
+      // minted client-side when the candidate opened the form. Purely for
+      // measurement — it grants nothing, so an absent or bogus value only leaves
+      // the attempt looking abandoned.
+      applySessionId?: unknown;
     };
     const answers = body.answers ?? {};
+    // Close the funnel loop on whichever path files an entry: a first application,
+    // the dedupe backstop, or a re-apply that merged onto the original. All three
+    // mean the attempt reached the pipeline, which is what the rate measures.
+    const applySessionId = typeof body.applySessionId === "string" ? body.applySessionId : null;
 
     // Knockout gate. Derive THIS job's KO steps from its own script (ko_mode/ko_lang are
     // conditional on workMode/languages) and require every expected KO answer to be present
@@ -149,6 +205,9 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
         jobTitle: job.title,
         channel: "conversational apply",
         failedKoIds: failedKo,
+        // The opening's team — the decline belongs to whoever owns the role, not
+        // to the default workspace (see recordKnockoutDecline).
+        workspaceId,
       });
       return NextResponse.json({
         result: "declined",
@@ -200,6 +259,9 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // Apply doesn't HARD-block on a missing email (the entry still files; comms
     // just stay undeliverable until a contact is captured) — but a clearly
     // malformed address is rejected so the stored recipient is never junk.
+    // This leniency is for SCRIPTED/webhook callers only; the conversational UI
+    // requires the address. See the decision comment on the `email` step in
+    // app/_lib/apply.ts — that step owns the contract.
     if (email.length > MAX_EMAIL_LENGTH) {
       return NextResponse.json({ error: "Your email is too long." }, { status: 400 });
     }
@@ -257,6 +319,8 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
         const changes: string[] = [];
         const updates: { contact?: string; candidateId?: string; archetype?: string | null; githubHandle?: string } = {};
         let profileRebuilt = false;
+        // The gap follow-up offered on THIS response, populated only by a rebuild.
+        let followup: FollowupOffer = {};
         if (email && !existing.contact) {
           updates.contact = email;
           changes.push("contact email captured");
@@ -274,6 +338,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
             updates.candidateId = rebuilt.id;
             updates.archetype = rebuilt.archetype;
             profileRebuilt = true;
+            followup = recordAndOfferGaps(existing.id, rebuilt.missingGaps, workspaceId);
             changes.push(
               existing.intakeDegraded ? "degraded intake recovered (profile rebuilt)" : "profile rebuilt with CV"
             );
@@ -283,16 +348,19 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
           const merged = mergeReapplication(existing.id, updates, workspaceId);
           // Newly reachable: the original acknowledgment dead-lettered (no
           // recipient existed), so send it to the address just captured.
-          // Best-effort, same contract as the first-apply ack below.
+          // Best-effort, same contract as the first-apply ack below — and, like
+          // it, dispatched AFTER this response rather than in front of it.
           if (updates.contact && merged) {
-            try {
-              await dispatchApplicationReceived(merged);
-            } catch (ackErr) {
-              console.error(
-                `[apply] re-apply merged but acknowledgement failed for entry ${merged.id}:`,
-                ackErr instanceof Error ? ackErr.message : ackErr
-              );
-            }
+            afterResponse("apply-reack", async () => {
+              try {
+                await dispatchApplicationReceived(merged);
+              } catch (ackErr) {
+                console.error(
+                  `[apply] re-apply merged but acknowledgement failed for entry ${merged.id}:`,
+                  ackErr instanceof Error ? ackErr.message : ackErr
+                );
+              }
+            });
           }
         }
         // Re-applying re-consents: refresh the data-processing consent + expiry
@@ -302,12 +370,14 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
         } catch (consentErr) {
           console.error(`[apply] consent refresh failed for entry ${existing.id}:`, consentErr);
         }
+        linkApplySession(applySessionId, existing.id);
         return acknowledgeReapply(
           existing.id,
           profileRebuilt ? t("enrichedMessage") : t("alreadyMessage"),
           changes,
           profileRebuilt,
-          workspaceId
+          workspaceId,
+          followup
         );
       }
     }
@@ -347,6 +417,8 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       workspaceId,
     });
 
+    linkApplySession(applySessionId, entry.id);
+
     // GDPR: stamp data-processing consent + a 12-month expiry on the inbound entry
     // (the candidate agreed at submit, with the retention statement shown via
     // AiDisclosure). The expiry drives the anonymization sweep. Best-effort — never
@@ -381,16 +453,29 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // SAME token — the email is the durable touchpoint that survives the candidate
     // closing the tab (without it the unguessable token was lost forever on tab
     // close, defeating the whole status-tracking feature).
+    // The dispatch itself runs AFTER this response: it's an SMTP/relay round-trip
+    // whose failure already can't change the outcome, so awaiting it only made a
+    // slow provider look like a slow (or broken) apply form for an application
+    // that had already succeeded. The token is minted BEFORE, synchronously, so
+    // the response and the email still carry the same one.
     const statusToken = safeStatusLink(entry.id);
-    const statusLink = statusToken ? `${publicBaseUrl(new URL(request.url).origin)}/status/${statusToken}` : undefined;
-    try {
-      await dispatchApplicationReceived(entry, { statusLink });
-    } catch (ackErr) {
-      console.error(
-        `[apply] application accepted but acknowledgement failed for entry ${entry.id}:`,
-        ackErr instanceof Error ? ackErr.message : ackErr
-      );
-    }
+    // Pinned to the language the candidate applied in — this ABSOLUTE link is
+    // opened from an email, outside the app, where no NEXT_LOCALE cookie exists
+    // yet; without ?lang= a Czech applicant lands on an English status page.
+    // Same convention (and the same proxy.ts handler) as the enrichment link.
+    const statusLink = statusToken
+      ? `${publicBaseUrl(new URL(request.url).origin)}/status/${statusToken}?lang=${applicantLocale}`
+      : undefined;
+    afterResponse("apply-ack", async () => {
+      try {
+        await dispatchApplicationReceived(entry, { statusLink });
+      } catch (ackErr) {
+        console.error(
+          `[apply] application accepted but acknowledgement failed for entry ${entry.id}:`,
+          ackErr instanceof Error ? ackErr.message : ackErr
+        );
+      }
+    });
 
     return NextResponse.json({
       result: "accepted",
@@ -398,8 +483,18 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       // A tokenized link so the applicant can track their status (idea-e76a6fb2)
       // instead of going dark after applying.
       statusToken,
+      // The OPTIONAL post-accept gap questions. profile_cli already computed which
+      // checklist items this profile still misses on every build; until now the
+      // list was discarded, so the only person who can answer them — the candidate,
+      // standing right here — was never asked. Purely additive to the response:
+      // absent when there is nothing askable, and the client treats it as an
+      // after-the-fact courtesy (the application is already filed).
+      ...(built.ok ? recordAndOfferGaps(entry.id, built.missingGaps, workspaceId) : {}),
     });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "apply failed" }, { status: 500 });
+    // Public + unauthenticated: a raw err.message here is SQLite/Python/fs
+    // internals on the wire. Log it server-side, answer generically (same
+    // contract the sibling /api/status token route already follows).
+    return safeJsonError(error, "api:apply", "APPLY_FAILED");
   }
 }

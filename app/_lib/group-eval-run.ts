@@ -1,27 +1,36 @@
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
-import { getJob, getProfileRecord, loadAnalysis, type JobRecord } from "./db";
-import { getWorkspaceDefaultLocale } from "./db/workspaces";
+import { loadAnalysis } from "./db/analyses";
+import type { JobRecord } from "./db/core";
+import { getJob } from "./db/jobs";
+import { recordAutomationEvent } from "./db/pipeline";
+import { getProfileRecord } from "./db/profiles";
+import { DEFAULT_WORKSPACE_ID, getWorkspaceDefaultLocale } from "./db/workspaces";
 import { runReasoning } from "./reasoning-run";
 import { getGroupEval, saveGroupEval } from "./group-eval";
 import { isEarlyCareer } from "./archetypes";
 import { APP_CURRENCY } from "./format";
 import { isSameCurrency } from "./salary-band";
+import { FIT_PROMISING_FLOOR } from "./fit-thresholds";
 import { poolEntryFromAnalysis, type CandidatePoolEntry } from "./candidate-pool";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "./python-runner";
+import { buildLlmConfigEnv } from "./llm-config";
 import { rankPoolForJob } from "./recruiter-run";
 import { computeDifferentiators } from "./group-eval-differentiators";
+import { leadSeparation, separationNote } from "./group-eval-separation";
+import { hasComparableCohort, GROUP_EVAL_CAP, GROUP_EVAL_MIN_COHORT } from "./group-eval-cohort";
 import { compareByMatchScoreDesc, compareScoreDesc } from "./match-score";
 import { sealDecisionSafe } from "./decision-record-store";
 import { buildEligibilityList, governanceNote, normalizeGovernanceMode, resolveGovernanceMode, sealsLead } from "./group-eval-governance";
-import type { MatchResultView, ScoreDimension, Confidence, Reasoning as CanonicalReasoning } from "@/app/features/sub_match/MatchTypes";
-import type { Comparison, Fairness, FairnessScheme } from "@/app/features/sub_decisions/group-eval/types";
-import { assessRobustness } from "@/app/features/sub_decisions/group-eval/types";
+import type { MatchResultView, ScoreDimension, Confidence, Reasoning as CanonicalReasoning } from "@/app/features/shared/matchTypes";
+import type { Comparison, Fairness, FairnessScheme, RiskFact, SummaryFacts } from "@/app/features/shared/groupEvalTypes";
+import { selectionCacheKey } from "@/app/features/hiring/decisions/groupEval/cache-key";
+import { assessRobustness } from "@/app/features/shared/groupEvalTypes";
 
-// Cap on how many candidates one comparative evaluation covers. The strongest
-// are selected by fit BEFORE the cap (see below), and the modal surfaces
+// Cap on how many candidates one comparative evaluation covers (GROUP_EVAL_CAP,
+// single-sourced from group-eval-cohort so the client selection UI shares it). The
+// strongest are selected by fit BEFORE the cap (see below), and the modal surfaces
 // "top N of M" so a bounded comparison never reads as full coverage.
-const GROUP_EVAL_CAP = 6;
 
 // Decisions "group evaluation": a comparative read of every candidate competing
 // for one role. For each candidate it pulls the gathered profile data, the FULL
@@ -116,13 +125,15 @@ type ResolvedCandidate = {
   analysis: ReturnType<typeof loadAnalysis>;
 };
 
-function resolveCandidates(input: GroupEvalCandidate[]): Map<string, ResolvedCandidate> {
+function resolveCandidates(input: GroupEvalCandidate[], workspaceId: string): Map<string, ResolvedCandidate> {
   const resolved = new Map<string, ResolvedCandidate>();
   for (const c of input) {
     if (!c.candidateId || resolved.has(c.candidateId)) continue;
     // The analysis doubles as the pool fallback AND the salary source, so it is
-    // loaded for everyone; profile-only candidates simply carry null.
-    resolved.set(c.candidateId, { profile: getProfileRecord(c.candidateId), analysis: loadAnalysis(c.candidateId) });
+    // loaded for everyone; profile-only candidates simply carry null. Both reads
+    // are scoped to the caller's team so the eval never composes from another
+    // tenant's profile/analysis rows.
+    resolved.set(c.candidateId, { profile: getProfileRecord(c.candidateId, workspaceId), analysis: loadAnalysis(c.candidateId, workspaceId) });
   }
   return resolved;
 }
@@ -233,7 +244,9 @@ async function runGroupCompare(
     // on-demand and in the background eval pass, which has no request cookie).
     const { result } = spawnPython(
       ["-m", "pipeline.jobfit.group_compare_cli", "--input-json", inputPath, "--lang", getWorkspaceDefaultLocale()],
-      { signal }
+      // buildLlmConfigEnv: the CLI resolves the group_compare use case — without
+      // this env the configured BYOM provider/key re-route is silently dead.
+      { signal, env: buildLlmConfigEnv() }
     );
     const { stdout, stderr, exitCode } = await result;
     if (exitCode !== 0) {
@@ -251,12 +264,63 @@ async function runGroupCompare(
   }
 }
 
-export async function runGroupEval(params: Record<string, unknown>, signal?: AbortSignal): Promise<Record<string, unknown>> {
+export async function runGroupEval(
+  params: Record<string, unknown>,
+  signal?: AbortSignal,
+  // Tenant (P1): the workspace whose cohort this eval runs on. Threaded from the
+  // task's workspaceId (tasks.ts group_eval handler), so the persisted governance
+  // read, the profile/analysis reads, the per-candidate reasoning, and the saved
+  // eval all resolve on the CALLER's team — never composed from default-workspace
+  // data. Defaults to the single default workspace so scripts keep today's behavior.
+  workspaceId: string = DEFAULT_WORKSPACE_ID
+): Promise<Record<string, unknown>> {
   const roleKey = String(params.roleKey ?? "");
   const roleTitle = (params.roleTitle as string) ?? "the role";
   const jobId = params.jobId ? String(params.jobId) : null;
-  const allCandidates = (params.candidates as GroupEvalCandidate[]) ?? [];
-  const totalCandidates = allCandidates.length;
+  // group-eval-cohort-choice — the candidates to actually compare.
+  //   • Default (no explicit selection): `params.candidates` IS the whole role
+  //     cohort; the top GROUP_EVAL_CAP by fit are compared (today's behaviour,
+  //     byte-identical) and `params.cohort` is absent.
+  //   • Explicit selection ("compare these four"): `params.candidates` carries the
+  //     recruiter's chosen subset and `params.cohort` carries the FULL role cohort.
+  //     The eval runs over the selection, but every coverage / drift bookkeeping stays
+  //     anchored to the full cohort so a narrowed comparison never reads as a shrunk pool.
+  const requested = (params.candidates as GroupEvalCandidate[]) ?? [];
+  const cohortParam = params.cohort as GroupEvalCandidate[] | undefined;
+  const hasSelectionParam = Array.isArray(cohortParam);
+  const cohort = hasSelectionParam ? cohortParam! : requested;
+  const totalCandidates = cohort.length;
+  const idOf = (c: GroupEvalCandidate) => c.candidateId || c.entryId;
+  // Server-validated membership + cap: a passed selection is filtered to members that
+  // actually belong to the role cohort (a client can't smuggle in a cross-role or
+  // stale candidate), and the GROUP_EVAL_CAP slice below enforces the bound regardless
+  // of how many ids were sent. A selection that validates to nothing (all stale /
+  // cross-role) falls back to the default top-N rather than evaluating an empty field.
+  const cohortIds = new Set(cohort.map(idOf));
+  const validatedSelection = hasSelectionParam ? requested.filter((c) => cohortIds.has(idOf(c))) : requested;
+  // selection-memory-rerun — a selection is honored only when it validates to at least a
+  // head-to-head pair (GROUP_EVAL_MIN_COHORT). This matters on a Re-run that REPLAYS a
+  // saved selection whose members have since left the cohort: with ≥2 survivors the eval
+  // proceeds over the survivors (coverage discloses "your selection of {survivors} of
+  // {total}"); with fewer than 2 it falls back to the default top-N over the full cohort
+  // rather than an "insufficient sample" single-candidate selection — the more useful,
+  // still-honest result, and the coverage disclosure then reads as the top-N that ran.
+  // (Fresh selections are UI-gated to ≥2 — RoleDecisionRow.canCompare — so this only
+  // changes the degenerate replay/bypass case, never a normal first-run selection.)
+  const useSelection = hasSelectionParam && validatedSelection.length >= GROUP_EVAL_MIN_COHORT;
+  const preCap = useSelection ? validatedSelection : cohort;
+  // selection-rerun-cache — WHERE this run is persisted. A default top-N run keeps
+  // the bare roleKey (byte-identical to before, so legacy rows and the "evaluated"
+  // chip are untouched); a selection run is stored under a key that also carries a
+  // deterministic hash of its sorted member ids, so reopening the IDENTICAL
+  // comparison serves the cache instead of re-spawning the whole ≤8-process
+  // pipeline. The client computes the same key from the same ids before it spawns
+  // (DecisionsTab.openGroupEval) — see group-eval/cache-key.ts for why the key is
+  // layered onto role_key rather than migrated into a new column. The ids hashed are
+  // the ones the CLIENT sent (pre-cap/dedupe), because that is what the client can
+  // key on at lookup time; a fallback-to-top-N run (`useSelection` false) is stored
+  // under the plain roleKey exactly as it is today.
+  const cacheKey = useSelection ? selectionCacheKey(roleKey, validatedSelection.map((c) => c.entryId)) : roleKey;
   // Governance mode (P1-3): "recommendation" (default — AI synthesizes + seals a
   // single lead) vs "committee" / "eligibility_list" (the AI is ADVISORY only — it
   // never seals a winner; the committee / eligibility certification is the human's).
@@ -268,7 +332,11 @@ export async function runGroupEval(params: Record<string, unknown>, signal?: Abo
   // last run under. resolveGovernanceMode keeps a committee/eligibility role governed so a
   // rerun whose client state reset can never silently downgrade it and auto-seal an AI lead.
   const requestedGovernanceMode = normalizeGovernanceMode(params.governanceMode);
-  const priorEval = getGroupEval(roleKey);
+  // Governance is a property of the ROLE, so the stickiness read stays anchored to the
+  // role-level row; a selection run falls back to its own prior selection row when the
+  // role has never been evaluated as a top-N (before selection-rerun-cache a selection
+  // run wrote the role-level row, so this keeps governance exactly as sticky as it was).
+  const priorEval = getGroupEval(roleKey, workspaceId) ?? (cacheKey !== roleKey ? getGroupEval(cacheKey, workspaceId) : null);
   const storedGovernanceMode = priorEval
     ? normalizeGovernanceMode((priorEval.payload as { governanceMode?: unknown }).governanceMode)
     : null;
@@ -289,7 +357,7 @@ export async function runGroupEval(params: Record<string, unknown>, signal?: Abo
   // measured candidate) but is never fabricated into a "score 0" — past the cap
   // it is dropped as "unranked", not as a fake bottom scorer.
   const seenIdentity = new Set<string>();
-  const input = [...allCandidates]
+  const input = [...preCap]
     .sort(compareByMatchScoreDesc)
     .filter((c) => {
       const identity = c.candidateId || c.entryId;
@@ -301,7 +369,15 @@ export async function runGroupEval(params: Record<string, unknown>, signal?: Abo
 
   // Resolve every candidate's stored rows ONCE; rankCandidates, the payload
   // read and the salary expectation below all share this snapshot (idea-c7c2d014).
-  const resolved = resolveCandidates(input);
+  const resolved = resolveCandidates(input, workspaceId);
+
+  // Min-cohort floor (bug-ui-scan-2026-07-09 #4): a comparative verdict — a lead "over
+  // the field", "unique" differentiators, a robust cross-scheme ranking — is meaningless
+  // below GROUP_EVAL_MIN_COHORT (a single candidate). Every candidate produces exactly
+  // one row below, so the compared-field size IS input.length. When too small, we crown
+  // NO lead (so nothing auto-seals), claim NO robustness, and report "insufficient
+  // sample" — the same defect class adverse-impact.ts guards with its own min-cohort.
+  const comparable = hasComparableCohort(input.length);
 
   // Full deterministic breakdown per candidate (best-effort; needs the role's job).
   const job = jobId ? getJob(jobId) : null;
@@ -324,8 +400,10 @@ export async function runGroupEval(params: Record<string, unknown>, signal?: Abo
   // proves something when the ranker ran AND the weights actually vary. Resolve the honest
   // status ONCE from the same facts — a job (so a ranker ran) + whether it produced a
   // varying fairness matrix — so the panel and the sealed record can never imply a check
-  // that did not run (a no-op, a ranker failure, or a job-less role).
-  const robustness = assessRobustness(!!job, fairness);
+  // that did not run (a no-op, a ranker failure, or a job-less role). Below the
+  // min-cohort floor there is no field to re-rank, so robustness is "insufficient_sample"
+  // — never a trivial length-1 "pass" (bug-ui-scan-2026-07-09 #4).
+  const robustness = comparable ? assessRobustness(!!job, fairness) : "insufficient_sample";
 
   // Per-candidate AI reasoning, CONCURRENTLY (idea-bce9547b): this used to be a
   // sequential `await runReasoning(...)` per candidate — on cache misses, up to
@@ -336,16 +414,28 @@ export async function runGroupEval(params: Record<string, unknown>, signal?: Abo
   // concurrency bound. Per-candidate failures degrade to the deterministic
   // source exactly as before.
   const reasonings = await Promise.all(
-    input.map(async (c): Promise<{ reasoning: Reasoning; source: string | null }> => {
-      if (!jobId || !c.candidateId) return { reasoning: {}, source: null };
+    input.map(async (c): Promise<{ reasoning: Reasoning; source: string | null; promptVersion: string | null }> => {
+      if (!jobId || !c.candidateId) return { reasoning: {}, source: null, promptVersion: null };
       try {
-        const out = await runReasoning({ jobId, profileId: c.candidateId }, signal);
-        return { reasoning: (out.reasoning as Reasoning) ?? {}, source: String(out.source ?? "deterministic") };
+        const out = await runReasoning({ jobId, profileId: c.candidateId }, signal, workspaceId);
+        return {
+          reasoning: (out.reasoning as Reasoning) ?? {},
+          source: String(out.source ?? "deterministic"),
+          // W0.3 — reasoning_cli stamps the prompt version that produced this verdict.
+          // It used to be dropped here, which is why the sealed lead could not say WHICH
+          // prompt generated the reasoning behind it (EU AI Act Art. 12 traceability).
+          promptVersion: typeof out.promptVersion === "string" ? out.promptVersion : null,
+        };
       } catch {
-        return { reasoning: {}, source: "deterministic" };
+        return { reasoning: {}, source: "deterministic", promptVersion: null };
       }
     })
   );
+
+  // The distinct prompt versions behind this cohort's reasoning. Normally one; a mixed
+  // set (a cache straddling a prompt bump) is recorded as-is rather than collapsed to
+  // the first — the record must not imply one prompt when two produced the ranking.
+  const promptVersions = [...new Set(reasonings.map((r) => r.promptVersion).filter((v): v is string => !!v))].sort();
 
   const sources: string[] = [];
   const candidates: PerCandidate[] = [];
@@ -401,10 +491,12 @@ export async function runGroupEval(params: Record<string, unknown>, signal?: Abo
     return compareScoreDesc(a.score, b.score);
   });
   const top = candidates[0] ?? null;
-  // The recommended LEAD must pass knockout. With the ko-aware sort above, top is
-  // the best ko-passing candidate when one exists; if the whole field failed KO,
-  // there is no lead to crown or seal (top.koPassed === false).
-  const lead = top && top.koPassed !== false ? top : null;
+  // The recommended LEAD must pass knockout AND the field must clear the min-cohort
+  // floor. With the ko-aware sort above, top is the best ko-passing candidate when one
+  // exists; if the whole field failed KO — or there is only ONE candidate, so there is
+  // no field to lead over (bug-ui-scan-2026-07-09 #4) — there is no lead to crown or
+  // seal. A null lead means no `group_eval_lead`/`group_eval_advisory` is sealed below.
+  const lead = comparable && top && top.koPassed !== false ? top : null;
 
   // Canonical role requirements (must-have first): the role's declared
   // requirements, so the skills matrix is ordered and complete even for a skill no
@@ -420,11 +512,20 @@ export async function runGroupEval(params: Record<string, unknown>, signal?: Abo
     ? computeDifferentiators(lead, candidates.filter((c) => c.entryId !== lead.entryId), requirements)
     : [];
 
-  const risks: string[] = [];
+  // Watch-outs as STRUCTURED FACTS (eval-speaks-your-language), not baked English
+  // sentences: the eval is persisted once and re-opened by whoever is on the team,
+  // so a frozen English string would render untranslated forever in a Czech/German/
+  // French workspace. The client composes the sentence from the fact through the
+  // `decisions.groupEval.risk.*` catalog (group-eval/localize.ts).
+  const risks: RiskFact[] = [];
   for (const c of candidates) {
-    if (c.score != null && c.score > 0 && c.score < 55) risks.push(`${c.label}: lower fit (${c.score}) — confirm must-haves at interview.`);
-    if (isEarlyCareer(c.archetype)) risks.push(`${c.label}: early-career — assess potential and trajectory, not only current skills.`);
-    if (c.gaps.length) risks.push(`${c.label}: gaps in ${c.gaps.slice(0, 3).join(", ")}.`);
+    // Lower-fit watch-out. `score != null` ALREADY means measured (REC-03: an unscored
+    // candidate carries null, never a fabricated 0), so the old `> 0` clause exempted
+    // exactly the worst measured candidate in the field — a genuine 0 — from the flag.
+    // The floor is the shared FIT_PROMISING_FLOOR, not a re-hardcoded 55.
+    if (c.score != null && c.score < FIT_PROMISING_FLOOR) risks.push({ kind: "low_fit", label: c.label, score: c.score });
+    if (isEarlyCareer(c.archetype)) risks.push({ kind: "early_career", label: c.label });
+    if (c.gaps.length) risks.push({ kind: "gaps", label: c.label, gaps: c.gaps.slice(0, 3) });
   }
 
   const uniqueSources = new Set(sources.filter(Boolean));
@@ -438,26 +539,101 @@ export async function runGroupEval(params: Record<string, unknown>, signal?: Abo
   // An all-unscored field can surface a null-scored lead: the summary then says
   // "unscored" instead of asserting a fit number that was never computed.
   const leadDesc = lead ? `${lead.label} (${lead.score != null ? `fit ${lead.score}` : "unscored"})` : null;
+  // Lead separation (UAT L1-TOM-GEF-01): the crown ranks on the bare point estimate
+  // while every candidate already carries an honest confidence band. Ask whether the
+  // gap to the runner-up actually survives that uncertainty, so the summary and the
+  // sealed record can say "not separated" instead of implying a decisive win. The
+  // runner-up is the next candidate in the SAME honest order — nothing is reordered.
+  const runnerUp = lead ? (candidates.find((c) => c !== lead) ?? null) : null;
+  const separation = leadSeparation(lead, runnerUp);
+  const separationCaveat = lead && runnerUp ? separationNote(separation, lead.label, runnerUp.label) : "";
+  // The summary is produced TWICE, on purpose:
+  //   • `deterministicSummary` — English prose. It is the SEALED decision rationale
+  //     below (English by convention — see the seal site) and the only thing a
+  //     pre-facts reader has.
+  //   • `summaryFacts` — the same branch as a discriminator + params, which the
+  //     modal renders through the catalog in the reader's language
+  //     (eval-speaks-your-language). The two must stay in lockstep: each branch
+  //     sets both.
+  let summaryKind: SummaryFacts["kind"];
   let deterministicSummary: string;
   if (!candidates.length) {
+    summaryKind = "empty";
     deterministicSummary = `No candidates to evaluate for ${roleTitle}.`;
+  } else if (!comparable) {
+    // Single-candidate field (bug-ui-scan-2026-07-09 #4): nothing to compare against, so
+    // no lead is crowned/sealed and the weighting-robustness check does not apply.
+    summaryKind = "insufficient";
+    deterministicSummary = `Only ${candidates.length} candidate for ${roleTitle} — a single candidate can't be ranked against a field, so no lead is crowned and the weighting-robustness check does not apply (insufficient sample). Add more candidates to compare.`;
   } else if (!lead) {
+    summaryKind = "no_lead";
     deterministicSummary = `${candidates.length} candidate(s) for ${roleTitle}, but none pass the role's must-haves (knockout) — no lead. Review the field below.`;
   } else if (governanceMode === "eligibility_list") {
+    summaryKind = "eligibility";
     deterministicSummary = `${candidates.length} candidate(s) for ${roleTitle}, ranked into an ordinal eligibility list (top by fit: ${leadDesc}). Apply any statutory preferences before certifying — nothing is auto-sealed.`;
   } else if (governanceMode === "committee") {
+    summaryKind = "committee";
     deterministicSummary = `${candidates.length} candidate(s) for ${roleTitle}. Top by fit (advisory): ${leadDesc}. The search committee decides — the AI does not pick or seal a hire.${risks.length ? ` ${risks.length} watch-out(s) below.` : ""}`;
   } else {
+    summaryKind = "recommendation";
     deterministicSummary = `${candidates.length} candidate(s) for ${roleTitle}. Recommended lead: ${leadDesc}. ${
       differentiators.length ? `Unique strengths: ${differentiators.join(", ")}. ` : ""
     }${risks.length ? `${risks.length} watch-out(s) flagged below.` : "No blocking risks flagged."}`;
   }
+  // Append the separation caveat to EVERY governance mode that names a lead — the
+  // hedge belongs wherever the crown is stated, and it rides into the sealed
+  // rationale below (which is this same string), so the audit record carries it too.
+  if (separationCaveat) deterministicSummary = `${deterministicSummary} ${separationCaveat}`;
+  // The structured twin of the branch just taken. Only the fields that branch
+  // actually renders are populated; the client's composer ignores the rest.
+  const summaryFacts: SummaryFacts = {
+    kind: summaryKind,
+    roleTitle,
+    count: candidates.length,
+    leadLabel: lead?.label ?? null,
+    leadScore: lead?.score ?? null,
+    differentiators,
+    riskCount: risks.length,
+    separation: lead && runnerUp ? { verdict: separation, leadLabel: lead.label, runnerUpLabel: runnerUp.label } : null,
+  };
 
+  // SEALED RATIONALE LANGUAGE — CONVENTION (eval-speaks-your-language).
+  // Everything the MODAL shows is composed in the reader's language from persisted
+  // facts. The sealed `rationale` below is deliberately the opposite: it stays the
+  // ENGLISH `deterministicSummary`, in every workspace, forever. A decision record
+  // is an immutable audit artifact — it is read by auditors, exported, and compared
+  // across tenants and across time, so its wording must not depend on whichever org
+  // locale happened to be configured when the eval ran (and must not change if that
+  // setting is later flipped). Same rule as `separationNote` (group-eval-separation.ts)
+  // and the reasonCode/kind enums: the RECORD is canonical English, the UI localizes.
+  // Do NOT "fix" this by feeding a localized string into sealDecisionSafe.
+  //
   // Decision SoR (moonshot D backfill): seal the AI's recommended lead — the
   // group-eval recommendation a recruiter acts on, with the eval source as the
   // policy version. Best-effort; this is the real (non-sim) eval path — the sim has
   // its own client-side runGroupEval. Only sealed when there IS a ko-passing lead —
   // a knockout-failed field must not seal a "lead" into the decision record.
+  // W0.3 — AI Act Art. 12 traceability for the sealed record. `rationale` is and stays
+  // the DETERMINISTIC summary (a localized or model-authored string must never become the
+  // record's own account of itself). But a record that says only "the AI led with X" is
+  // not reconstructible: an auditor cannot see WHICH prompt produced the ranking, nor what
+  // the model actually SAID about the candidate it crowned. Both were computed and then
+  // dropped on the floor. They ride in `inputs` alongside the other machine facts:
+  //   promptVersion  — the reasoning prompt(s) behind this cohort ([] when no LLM ran)
+  //   leadReasoning  — the model's own verdict/strengths/gaps for the crowned lead,
+  //                    VERBATIM and clipped, never re-narrated by us.
+  // Clipped because a decision record is an audit artifact, not a transcript store.
+  const MAX_REASON_ITEMS = 6;
+  const MAX_REASON_CHARS = 400;
+  const clip = (s: unknown) => String(s ?? "").slice(0, MAX_REASON_CHARS);
+  const clipList = (xs: unknown) => (Array.isArray(xs) ? xs.slice(0, MAX_REASON_ITEMS).map(clip) : []);
+  const traceability = {
+    promptVersion: promptVersions,
+    leadReasoning: lead
+      ? { verdict: clip(lead.verdict), strengths: clipList(lead.strengths), gaps: clipList(lead.gaps) }
+      : null,
+  };
+
   if (lead && sealsLead(governanceMode)) {
     sealDecisionSafe({
       kind: "group_eval_lead",
@@ -470,7 +646,15 @@ export async function runGroupEval(params: Record<string, unknown>, signal?: Abo
       // the absence rather than fabricating a 0 (REC-03). robustness states whether the
       // weighting-robustness check was actually assessed, so the sealed lead never reads
       // as robustness-verified when it wasn't (bug-ui-scan-2026-07-09 A).
-      inputs: { score: lead.score, candidates: candidates.length, roleTitle, robustness },
+      // cohortSource records whether the compared field was the recruiter's explicit
+      // selection or the default top-N — so the sealed record is honest about cohort
+      // provenance (a lead crowned over a chosen four ≠ over the whole fit-ranked field).
+      // confidence/separation (UAT L1-TOM-GEF-01): the sealed record used to assert a
+      // lead on a bare point estimate. It now carries the lead's honest band and
+      // whether that lead actually clears the runner-up's band — so a record can never
+      // read as a decisive crown when the two top candidates were a tie on the
+      // evidence. "unknown" is recorded as such, never silently as separation.
+      inputs: { score: lead.score, confidence: lead.confidence ?? null, separation, candidates: candidates.length, roleTitle, robustness, cohortSource: useSelection ? "selection" : "top", cohortSize: totalCandidates, ...traceability },
     });
   } else if (lead) {
     // Governance mode (P1-3): the AI is advisory and must NOT seal a winner. Record
@@ -483,8 +667,28 @@ export async function runGroupEval(params: Record<string, unknown>, signal?: Abo
       candidateRef: lead.entryId,
       rationale: deterministicSummary,
       reasonCode: "advisory",
-      inputs: { score: lead.score, candidates: candidates.length, roleTitle, governanceMode, robustness },
+      // Same confidence/separation honesty as the recommendation branch above — an
+      // advisory ranking is still a ranking someone will read as a shortlist.
+      inputs: { score: lead.score, confidence: lead.confidence ?? null, separation, candidates: candidates.length, roleTitle, governanceMode, robustness, cohortSource: useSelection ? "selection" : "top", cohortSize: totalCandidates, ...traceability },
     });
+  }
+
+  // group-eval-event-anchor — write a `group_eval` pipeline event at seal time on BOTH
+  // branches (recommendation lead + advisory), keyed on the lead's entry. This is the
+  // DIRECT provenance anchor for the decision log (decision-attribution.GROUP_EVAL_EVENT_KIND):
+  // it gives an advisory/committee run — which never advances a candidate — a visible,
+  // provenance-bearing log row, and anchors the cohort chip at the eval's own moment even
+  // when the crowned lead is advanced hours later or by someone else (the two blind spots the
+  // advance-only 6h window join could not cover). The detail is an honest machine summary —
+  // cohortSource + compared/field sizes, NO candidate id (safe for the public feed's
+  // pass-through). Gated on `lead` so it mirrors the seal exactly: no lead sealed ⇒ no event.
+  if (lead) {
+    recordAutomationEvent(
+      lead.entryId,
+      "group_eval",
+      `${useSelection ? "selection" : "top"} · ${candidates.length}/${totalCandidates}`,
+      workspaceId
+    );
   }
 
   const payload: Record<string, unknown> = {
@@ -494,6 +698,10 @@ export async function runGroupEval(params: Record<string, unknown>, signal?: Abo
     // Governance (P1-3): the mode, its human-facing note, whether the AI output is
     // advisory (no auto-sealed lead), and the ordinal eligibility list when relevant.
     governanceMode,
+    // The English note is still persisted for readers that predate the mode enum,
+    // but the modal composes the banner from `governanceMode` through the catalog
+    // (eval-speaks-your-language): this banner is compliance guidance and must not
+    // be the one English paragraph in a Czech workspace's modal.
     governanceNote: governanceNote(governanceMode),
     advisory,
     eligibilityList: governanceMode === "eligibility_list" && lead ? buildEligibilityList(candidates) : null,
@@ -502,21 +710,47 @@ export async function runGroupEval(params: Record<string, unknown>, signal?: Abo
     // capped comparison read as full coverage, and diff the pool for staleness.
     totalCandidates,
     cap: GROUP_EVAL_CAP,
-    capped: totalCandidates > GROUP_EVAL_CAP,
-    // Every candidate label considered at eval time (pre-cap) — the modal diffs
-    // this against the role's current pending entries to warn about pool drift.
-    evaluatedLabels: allCandidates.map((c) => c.label),
+    // "capped" (top-N of a larger pool) and "selection" (the recruiter chose the
+    // field) are mutually exclusive coverage stories — an explicit selection did NOT
+    // silently drop the rest by fit, so it never reads as a capped top-N.
+    capped: !useSelection && totalCandidates > GROUP_EVAL_CAP,
+    // group-eval-cohort-choice — provenance of the compared field: present only when
+    // the recruiter picked an explicit subset, so the modal can disclose "comparing
+    // your selection of {count} of {total}" honestly instead of the top-N wording.
+    selection: useSelection ? { count: input.length, total: totalCandidates } : null,
+    // Every candidate label in the FULL role cohort at eval time — the modal diffs
+    // this against the role's current pending entries to warn about pool drift
+    // (anchored to the whole cohort, not just a narrowed selection).
+    evaluatedLabels: cohort.map((c) => c.label),
+    // selection-memory-rerun — stable ids alongside the labels. evaluatedIds mirrors
+    // evaluatedLabels (the FULL cohort) for id-based drift; comparedIds is the field
+    // actually compared (post validation/cap/dedupe), replayed as the selection on a
+    // selection-launched eval's Re-run. Both additive — legacy payloads simply omit them.
+    evaluatedIds: cohort.map((c) => c.entryId),
+    comparedIds: input.map((c) => c.entryId),
     topPick: lead
       ? {
           label: lead.label,
+          // The lead's stable identity — the modal keys the "Unique strengths" chips on
+          // it (candIdentity), so a duplicate display name can't decorate the rival's tab.
+          entryId: lead.entryId,
           // null = unscored (the modal's ScoreBadge renders a dash) — sealed and
           // displayed as "not measured", never as 0.
           score: lead.score,
           why:
             lead.verdict ||
             (lead.score != null ? `Highest fit (${lead.score}) in this role.` : "Top of the field, but no fit score has been computed yet."),
+          // eval-speaks-your-language — which of the two canned fallbacks was used,
+          // so the modal can render it in the reader's language. Absent when the AI
+          // VERDICT supplied the text (that is already produced in the org locale
+          // and is candidate-specific, so it is rendered verbatim).
+          whyKind: lead.verdict ? undefined : lead.score != null ? ("highest_fit" as const) : ("unscored" as const),
         }
       : null,
+    // Does the crown survive both top candidates' confidence bands? Carried so the
+    // modal can hedge the lead visually the same way the summary and the sealed
+    // record now do (UAT L1-TOM-GEF-01). "unknown" = not assessable, not "fine".
+    leadSeparation: separation,
     recommendedOrder: candidates.map((c) => c.label),
     candidates,
     differentiators,
@@ -539,11 +773,17 @@ export async function runGroupEval(params: Record<string, unknown>, signal?: Abo
     // check that did not run.
     robustness,
     summary: deterministicSummary,
+    // eval-speaks-your-language — the structured twin of `summary`. `summary` stays
+    // (it is the sealed English rationale and the legacy reader's only copy); the
+    // modal prefers these facts and composes the sentence in the reader's language.
+    summaryFacts,
     // Structured, bold-formatted AI comparison (the modal prefers it).
     comparison: compare?.comparison ?? null,
     comparisonSource: compare?.source ?? null,
   };
 
-  saveGroupEval(roleKey, roleTitle, payload);
+  // Persist under the run's cache key (roleKey for a top-N run, the selection key for
+  // a selection run — selection-rerun-cache). Same workspace scoping either way.
+  saveGroupEval(cacheKey, roleTitle, payload, workspaceId);
   return payload;
 }

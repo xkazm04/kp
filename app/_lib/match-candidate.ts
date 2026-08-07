@@ -1,4 +1,5 @@
-import { loadAnalysis } from "@/app/_lib/db";
+import { loadAnalysis } from "@/app/_lib/db/analyses";
+import { DEFAULT_WORKSPACE_ID } from "@/app/_lib/db/workspaces";
 import { DEFAULT_ROLE_FAMILY } from "./role-families.ts";
 
 // Shape passed to the Python matcher (camelCase; MatchCandidate accepts aliases).
@@ -20,6 +21,12 @@ export type CandidateInput = {
   aspirations?: string[];
   learningSignals?: string[];
   transferableSkills?: string[];
+  // Career-switcher bridge grade ("adjacent" | "moderate" | "far"). The reasoning
+  // prompt consumes it for switchers (match_reasoning.reasoning_context /
+  // build_prompt / deterministic_reasoning: it seeds the bridge narrative and the
+  // ramp-up estimate), so it MUST ride the cache key — two switchers differing only
+  // in domainDistance otherwise collide and the first verdict is served to the second.
+  domainDistance?: string | null;
   potentialScore?: number | null;
   skillProvenance?: Record<string, string>;
 };
@@ -30,12 +37,17 @@ export type ResolvedCandidate = { candidate: CandidateInput } | { error: string;
  * Build a CandidateInput from either a saved analysis slug or an inline candidate.
  * Shared by /api/match and /api/match/reasoning so the mapping stays in one place.
  */
-export function resolveCandidate(body: {
-  analysisSlug?: string;
-  candidate?: CandidateInput;
-}): ResolvedCandidate {
+export function resolveCandidate(
+  body: {
+    analysisSlug?: string;
+    candidate?: CandidateInput;
+  },
+  // Tenancy: an analysisSlug must resolve only within the caller's workspace, so a
+  // cross-workspace slug is not-found rather than leaking another tenant's candidate.
+  workspaceId: string = DEFAULT_WORKSPACE_ID
+): ResolvedCandidate {
   if (body.analysisSlug) {
-    const loaded = loadAnalysis(body.analysisSlug);
+    const loaded = loadAnalysis(body.analysisSlug, workspaceId);
     if (!loaded) return { error: "Analysis not found.", status: 404 };
     const payload = loaded.payload as { candidate?: Record<string, unknown>; v2Profile?: { archetype?: string } };
     const c = payload?.candidate ?? {};
@@ -63,6 +75,9 @@ export function resolveCandidate(body: {
         // student/switcher. The Python ko_filter fails closed on "unknown"
         // (no seniority auto-KO) and weights_for falls back to neutral BAU weights.
         archetype: payload?.v2Profile?.archetype ?? "unknown",
+        // Carry a career-switcher's bridge grade through when the analysis captured
+        // one, so both the reasoning prompt and its cache key see it.
+        domainDistance: (c.domainDistance as string | undefined) ?? null,
         label: loaded.row.candidate_label ?? (c.name as string) ?? "Candidate",
       },
     };
@@ -87,12 +102,20 @@ export function candidateSignature(c: CandidateInput): string {
     // soft-signal traits collide and the first verdict is served to the second.
     yearsExperience: c.yearsExperience ?? 0,
     traits: [...(c.traits ?? [])].sort(),
-    archetype: c.archetype ?? "bau",
+    // Fail-closed sentinel, matching resolveCandidate's "unknown" default (af60167):
+    // defaulting to "bau" here disagreed with the resolved candidate's archetype, so
+    // an inline candidate with no archetype was keyed as "bau" while scored as
+    // "unknown". Now both agree — see the commit body for the cache-key impact.
+    archetype: c.archetype ?? "unknown",
     // Early-career / career-switcher prompt inputs — same collision hazard, and
     // these are exactly the carefully-handled candidates a wrong verdict hurts most.
     aspirations: [...(c.aspirations ?? [])].sort(),
     learningSignals: [...(c.learningSignals ?? [])].sort(),
     transferableSkills: [...(c.transferableSkills ?? [])].sort(),
+    // Career-switcher bridge grade — consumed by the reasoning prompt (see the
+    // CandidateInput field note), so a switcher's cached verdict must not survive a
+    // change from "far" to "adjacent".
+    domainDistance: c.domainDistance ?? null,
     potentialScore: c.potentialScore ?? null,
     // Object key order is not guaranteed, so sort entries for a stable hash.
     skillProvenance: Object.entries(c.skillProvenance ?? {}).sort(([a], [b]) => a.localeCompare(b)),

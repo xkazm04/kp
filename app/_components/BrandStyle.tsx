@@ -3,7 +3,7 @@
 // re-skinning the whole app (buttons, active nav, focus rings, badges, AND the
 // candidate-facing offer/apply/schedule pages, which share this root layout)
 // through the single CSS-variable seam the design system was built for
-// (docs/DESIGN.md). Rendered near the top of <body>, AFTER globals.css (which Next
+// (docs/design/README.md). Rendered near the top of <body>, AFTER globals.css (which Next
 // injects into <head>), so these :root / [data-theme] overrides win by source order.
 //
 // The accent is passed in by the root layout (which reads getBrand() once and also

@@ -6,9 +6,10 @@ import { runDesignArtifacts, runNeedAnalysis, type DevNeed } from "./devcase-run
 import { validateJdBuildInput } from "./jd-limits";
 import { marketSalaryLabel, normalizeMarketSalary, type MarketSalary } from "./salary-band";
 import { type RepoSnapshot } from "./repo-snapshot";
-import { failJdAnalysis, finishJdAnalysis } from "./db";
+import { failJdAnalysis, finishJdAnalysis } from "./db/jobs";
 import { ingestStructuredJob } from "@/app/api/jds/save/ingest-job";
-import { renderTemplate } from "@/app/features/sub_library/render-template";
+import { renderTemplate } from "@/app/features/shared/renderTemplate";
+import { jdTemplateTokens } from "./jd-template-tokens";
 
 // The AI job-description builder: a free-text need (+ optional GitHub repo for
 // dev roles) → our devcase need→design machinery → a structured RoleSpec, then
@@ -167,7 +168,9 @@ function composeMarkdown(
   // "Salary: 0 CZK" or "salary unavailable" to candidates; omission is the
   // graceful degradation here. (The Ledger detail's read-only SalaryCard surfaces
   // the unavailability to the recruiter.)
-  const salaryLabel = marketSalaryLabel(s);
+  // Grouped in the POSTING's language (opts.lang), like every other scaffold
+  // string here — an English JD must not carry Czech digit grouping.
+  const salaryLabel = marketSalaryLabel(s, opts.lang === "cs" ? "cs" : "en");
   if (salaryLabel) lines.push(`**${str.salary}** ${salaryLabel}`);
 
   lines.push("", `## ${str.aboutRole}`);
@@ -269,15 +272,23 @@ export async function runJdBuild(params: Record<string, unknown>, progress?: Pro
         ? // Render through the chosen company template (same data the client preview
           // fed renderTemplate): the salary slot gets the market label, placeholders
           // the role's fields; unfilled sections collapse per renderTemplate's rules.
-          renderTemplate(templateBody, {
-            title,
-            company: input.company?.trim(),
-            seniority: input.seniority || spec.seniority || "medior",
-            salary: marketSalaryLabel(salaryBand),
-            responsibilities: spec.responsibilities ?? [],
-            mustHaves: spec.mustHaves ?? [],
-            niceToHaves: spec.niceToHaves ?? [],
-          })
+          // `lang` localizes the template's structural scaffolding (the seeded default's
+          // heading/filler tokens, resolved from the catalog by jdTemplateTokens) so a
+          // localized build isn't localized content under English headings — matching
+          // composeMarkdown's localized headings on the other path.
+          renderTemplate(
+            templateBody,
+            {
+              title,
+              company: input.company?.trim(),
+              seniority: input.seniority || spec.seniority || "medior",
+              salary: marketSalaryLabel(salaryBand, lang),
+              responsibilities: spec.responsibilities ?? [],
+              mustHaves: spec.mustHaves ?? [],
+              niceToHaves: spec.niceToHaves ?? [],
+            },
+            await jdTemplateTokens(lang)
+          )
         : composeMarkdown(spec, { company: input.company, location: input.location, salary: salaryBand, lang });
     }
 

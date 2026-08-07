@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-import { getJob } from "@/app/_lib/db";
+import { getJob } from "@/app/_lib/db/jobs";
 import { rediscoverForJob } from "@/app/_lib/rediscover";
+import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 
 
 // Talent rediscovery (on-demand panel): rank the whole candidate pool against
@@ -16,7 +17,10 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
 
     // Threads the request's AbortSignal so abandoning rediscovery (clicking to the
     // next role, closing the panel) promptly SIGKILLs the recruiter_cli child.
-    const { rediscovered, skipped, more } = await rediscoverForJob(job, { signal: request.signal });
+    const { rediscovered, skipped, more } = await rediscoverForJob(job, {
+      signal: request.signal,
+      workspaceId: await currentWorkspace(),
+    });
     return NextResponse.json({
       job: { id: job.id, title: job.title },
       rediscovered,

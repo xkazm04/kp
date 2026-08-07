@@ -10,7 +10,12 @@ import type { PipelineAddInput } from "./useAddToPipeline";
 // /api/jobs/[id]/candidates/outreach, which files the candidate into the pipeline
 // AND dispatches a first-touch outreach in one server call (both idempotent), so a
 // "reach out" is also implicitly an "add to pipeline".
-export function useReachOut(jobId: string) {
+// `source` is the sourcing channel the surface files under (d95fed6d) — e.g.
+// "sourcing" for the recruiter candidate ranking + rediscovery panel. It rides the
+// POST so the reach-out's minted entry gets an honest source_channel (matching the
+// surface's "add to pipeline" button), instead of landing unattributed like it did
+// before. Omitted = unattributed (legacy behavior preserved).
+export function useReachOut(jobId: string, source?: string | null) {
   const [reached, setReached] = useState<Set<string>>(() => new Set());
   const [reaching, setReaching] = useState<Set<string>>(() => new Set());
   const [failed, setFailed] = useState<Map<string, string>>(() => new Map());
@@ -35,6 +40,9 @@ export function useReachOut(jobId: string) {
           archetype: c.archetype ?? null,
           matchScore: c.matchScore ?? null,
           roleFamily: c.roleFamily ?? null,
+          // Per-candidate source wins if set; else the surface's default. Omitted
+          // (both null) sends nothing, so the route keeps the unattributed default.
+          ...(c.source ?? source ? { source: c.source ?? source } : {}),
         }),
       });
       const payload = (await r.json().catch(() => null)) as { error?: string } | null;

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getPipelineEntry, setApproval } from "@/app/_lib/db";
+import { getPipelineEntry, setApproval } from "@/app/_lib/db/pipeline";
 import { jsonError } from "@/app/_lib/api-response";
 
 

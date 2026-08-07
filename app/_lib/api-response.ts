@@ -72,6 +72,8 @@ export const STORE_ERRORS = {
   SCHEDULE_CONFIRM_FAILED: "Could not confirm that slot. Please try again.",
   // Recruiter invite-lifecycle read (W6-3).
   SCHEDULE_LOOKUP_FAILED: "Could not load the scheduling overview. Please try again.",
+  // Recruiter-side invite control: cancel / reschedule / no-show / resolve-reconcile.
+  SCHEDULE_MANAGE_FAILED: "Could not update that interview. Please try again.",
   // Command-palette cross-entity search (SHELL1) — sits directly on better-sqlite3.
   SEARCH_FAILED: "Search is unavailable right now. Please try again.",
   // Sidebar attention badges (SHELL2) — same store class.
@@ -80,6 +82,25 @@ export const STORE_ERRORS = {
   // Candidate application-status lookup (idea-e76a6fb2) — public token route over
   // the application-status store.
   STATUS_LOOKUP_FAILED: "Could not load your application status. Please try again.",
+  // Art. 86 candidate decision history (public status-token sibling route).
+  STATUS_DECISIONS_FAILED: "Could not load your decision history. Please try again.",
+  // W0.6b candidate-NPS capture (public status-token sibling route). Separate read and
+  // write codes: a failed submit must not read as "we could not load the question", or
+  // the candidate re-answers into the same error.
+  STATUS_NPS_READ_FAILED: "Could not load the feedback question. Please try again.",
+  STATUS_NPS_WRITE_FAILED: "Could not record your feedback. Please try again.",
+  // The two PUBLIC apply submissions (conversational + quick lead form). Their
+  // catch paths sit on better-sqlite3, a Python profile-build subprocess, an fs
+  // temp write and the comms dispatcher — every one throws messages carrying
+  // internal detail (SQLITE_* codes, absolute db/temp paths, Python tracebacks)
+  // that these routes were forwarding verbatim to ANONYMOUS visitors. The
+  // deliberate human-written 4xx validation strings above them stay as they are:
+  // those are client-safe by construction and tell the applicant what to fix.
+  APPLY_FAILED: "Could not submit your application. Please try again.",
+  // The candidate's OPTIONAL post-accept profile-gap answers (public capability
+  // token route; same subprocess/SQLite catch surface as the apply routes above).
+  // Framed so it can never read as "your application failed" — it didn't.
+  FOLLOWUP_FAILED: "Could not save those answers. Your application is safely filed — please try again.",
   // Standing silver-medalist feed (idea-fdb45cd0) over the rediscovery-alert store.
   REDISCOVERY_ALERTS_FAILED: "Could not load rediscovery alerts. Please try again.",
   // GDPR self-service data/erasure (public token route over the pipeline entry).
@@ -93,6 +114,16 @@ export const STORE_ERRORS = {
   COMMAND_FAILED: "Could not run that command. Please try again.",
   // Cross-company reference tier (Phase 2) — the org-wide hiring benchmark (org_id-join).
   BENCHMARK_FAILED: "Could not load the org benchmark. Please try again.",
+  // Agent-candidate bridge routes — all sit on better-sqlite3 + external fetches
+  // whose thrown errors can embed internal detail.
+  AGENT_FIT_FAILED: "Could not start the agent-fit analysis. Please try again.",
+  AGENT_DISPATCH_FAILED: "Could not dispatch the agent to Personas. Please try again.",
+  AGENT_LIST_FAILED: "Could not load the agent roster. Please try again.",
+  AGENT_BRIDGE_FAILED: "Could not load the Personas bridge status. Please try again.",
+  AGENT_PAIR_FAILED: "Could not pair with Personas. Please try again.",
+  AGENT_CATALOG_FAILED: "Could not load the connector catalog. Please try again.",
+  AGENT_REFRESH_FAILED: "Could not refresh the agent status. Please try again.",
+  AGENT_REPORT_FAILED: "Could not record the agent report. Please try again.",
 } as const;
 
 export type StoreErrorCode = keyof typeof STORE_ERRORS;
@@ -101,6 +132,44 @@ export type StoreErrorCode = keyof typeof STORE_ERRORS;
  *  under `[route] CODE`, then returns `{ error: <generic message>, code }` — the
  *  raw `err.message` (and any SQLite/filesystem detail in it) never crosses the
  *  wire. `route` is a short tag for the server log only, e.g. "api:jds". */
+// --- Deliberate refusals -----------------------------------------------------
+//
+// The sibling of STORE_ERRORS, and deliberately NOT part of it. A store error is
+// an accident whose real message must be hidden; a refusal is a decision whose
+// message IS the information the candidate needs ("this offer has expired").
+// STORE_ERRORS' own note above says these client-safe 4xx strings are a separate
+// class — this registry is that class, given the one thing it was missing.
+//
+// They were being returned as bare `{ error }`, so the client had no code to
+// resolve and useErrorMessage() fell through to a generic "something went wrong"
+// in all four languages — on public, token-authenticated candidate surfaces
+// where the specific reason is the entire point. Each code now has an
+// `errors.<CODE>` message; npm run i18n:check pins this registry to the catalog
+// exactly as it pins STORE_ERRORS, so a typo or a new refusal cannot silently
+// degrade to the generic.
+//
+// The English here stays canonical for the server log and for API consumers;
+// the client renders the localized message from the code.
+export const REFUSAL_ERRORS = {
+  /** A submission arrived for a posting whose intake is closed (410). */
+  POSTING_CLOSED: "This role's intake has closed and is no longer accepting submissions.",
+  /** The offer link is past its deadline (410). */
+  OFFER_EXPIRED: "This offer has expired.",
+  /** No offer for this token (404). */
+  OFFER_NOT_FOUND: "Offer not found.",
+  /** A work-session id presented without, or with the wrong, apply token (403). */
+  SESSION_TOKEN_REQUIRED: "This work session belongs to a different apply link.",
+} as const;
+
+export type RefusalErrorCode = keyof typeof REFUSAL_ERRORS;
+
+/** Refusal envelope: the canonical English plus its code, at `status`. Unlike
+ *  safeJsonError this logs nothing — a refusal is an expected outcome, not a
+ *  fault, and logging every closed posting would be noise. */
+export function jsonRefusal(code: RefusalErrorCode, status: number): NextResponse {
+  return NextResponse.json({ error: REFUSAL_ERRORS[code], code }, { status });
+}
+
 export function safeJsonError(err: unknown, route: string, code: StoreErrorCode, status = 500): NextResponse {
   console.error(`[${route}] ${code}`, err);
   return NextResponse.json({ error: STORE_ERRORS[code], code }, { status });

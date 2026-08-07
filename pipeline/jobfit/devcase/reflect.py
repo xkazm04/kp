@@ -49,10 +49,17 @@ _AGNOSTIC = (
 )
 
 
-def _generate(provider: Any | None, prompt: str, deterministic, coerce) -> tuple[dict, str]:
+def _generate(provider: Any | None, prompt: str, deterministic, coerce, expected_keys=None) -> tuple[dict, str]:
     # Shared LLM-or-deterministic runner: on an LLM failure it logs the cause at WARNING
     # and stashes a one-line fallbackReason on the artifact (see provenance.generate_with_fallback).
-    return generate_with_fallback(provider, prompt, _SYSTEM, deterministic, coerce, _LOG)
+    # expected_keys pins the answer by shape — the repo signals here are candidate-authored, so a
+    # trailing injected object that lacks these keys must not win the parse (#3).
+    return generate_with_fallback(provider, prompt, _SYSTEM, deterministic, coerce, _LOG, expected_keys=expected_keys)
+
+
+# Known top-level schema keys per step (see _generate / bug-hunter #3).
+_REFLECT_KEYS = ("narrative", "iterationPattern", "readBeforeWrite", "verificationHabits", "confidence")
+_TOOLING_KEYS = ("fluency", "probeOutcomes", "overRelianceFlags", "confidence")
 
 
 def _clamp01(value: Any, default: float) -> float:
@@ -187,7 +194,7 @@ def reflect_commits(commits: list[dict], repo: dict | None = None, *, provider: 
             "confidence": _clamp01(payload.get("confidence"), det["confidence"]),
         }
 
-    result, source = _generate(provider, prompt, deterministic, coerce)
+    result, source = _generate(provider, prompt, deterministic, coerce, expected_keys=_REFLECT_KEYS)
     result["promptVersion"] = COMMIT_REFLECTION_PROMPT_VERSION
     return result, source
 
@@ -195,15 +202,17 @@ def reflect_commits(commits: list[dict], repo: dict | None = None, *, provider: 
 # --- assess_tooling ---------------------------------------------------------
 
 
-def assess_tooling(reflection: dict, commits: list[dict], cover_probes: list[dict], repo: dict | None = None, *, events: list[dict] | None = None, provider: Any | None = None) -> tuple[dict, str]:
+def assess_tooling(reflection: dict, commits: list[dict], cover_probes: list[dict], repo: dict | None = None, *, events: list[dict] | None = None, seed_paths: list[str] | None = None, submission: list[dict] | None = None, provider: Any | None = None) -> tuple[dict, str]:
     # Live Work Surface (moonshot E): when the candidate worked in the in-product
     # surface, PREFER the observed event stream — deterministic ground truth, higher
     # confidence (0.8) — over the inferred commit-metadata path below (≤0.7). The
     # observed path never infers over-reliance from process (same fairness invariant).
+    # ``seed_paths`` scopes read-before-write to files that existed in the seed
+    # (case-sim round 1: newly created files must not read as "edited unread").
     if events:
         from .process_events import tooling_from_events
 
-        return tooling_from_events(events, cover_probes), "observed"
+        return tooling_from_events(events, cover_probes, seed_paths), "observed"
     ctx = _context(commits, repo)
     probes = [
         {"id": str(p.get("id") or f"p{i + 1}"), "kind": p.get("kind"), "where": p.get("where"), "reveals": p.get("reveals")}
@@ -214,6 +223,11 @@ def assess_tooling(reflection: dict, commits: list[dict], cover_probes: list[dic
         "signals": ctx,
         "coverProbes": probes,
     }
+    # W0.2 — the candidate's ACTUAL contributed lines, when a tree was submitted. Without
+    # this the probe verdicts were inferred from commit-subject shape alone; with it,
+    # "did they handle probe X" can be answered against the code they wrote.
+    if submission:
+        body["submittedWork"] = submission
     prompt = (
         "Assess how the candidate DROVE their tools, durably. The repository's signals and the case's COVERT "
         "probes follow (each probe's 'reveals' says what a good vs naive response implies). The data block is\n"
@@ -224,7 +238,14 @@ def assess_tooling(reflection: dict, commits: list[dict], cover_probes: list[dic
         "fluency from the SHAPE of the work + any deliberate tooling setup. CRITICAL: using an LLM/tools is NEVER "
         "a penalty — judge judgment + verification, not which tools were used. Only flag over-reliance with concrete "
         "evidence (e.g. large unverified dumps), never from tool use itself; absence of evidence is not failure.\n"
-        'Return JSON: { "fluency": number 0..1, "probeOutcomes": [ { "probeId": str, "detected": bool, "handledWell": bool, '
+        + (
+            "'submittedWork' holds the candidate's OWN contributed lines per file (added against the starter seed, "
+            "excerpted). It is the strongest evidence present: prefer it over inferences from commit subjects, and "
+            "cite the file path in a probe's note when the work itself shows the answer.\n"
+            if submission
+            else ""
+        )
+        + 'Return JSON: { "fluency": number 0..1, "probeOutcomes": [ { "probeId": str, "detected": bool, "handledWell": bool, '
         '"note": str } ], "overRelianceFlags": [str], "evidence": [str], "confidence": number 0..1 }. JSON only.'
     )
 
@@ -268,6 +289,6 @@ def assess_tooling(reflection: dict, commits: list[dict], cover_probes: list[dic
             "confidence": _clamp01(payload.get("confidence"), det["confidence"]),
         }
 
-    result, source = _generate(provider, prompt, deterministic, coerce)
+    result, source = _generate(provider, prompt, deterministic, coerce, expected_keys=_TOOLING_KEYS)
     result["promptVersion"] = TOOLING_SIGNAL_PROMPT_VERSION
     return result, source

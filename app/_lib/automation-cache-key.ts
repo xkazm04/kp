@@ -15,14 +15,25 @@ const shortHash = (s: string) => createHash("sha256").update(s).digest("hex").sl
 // the prompt input can never drift apart.
 export const GITHUB_EVIDENCE_TASKS: ReadonlySet<string> = new Set(["screen", "prep", "scorecard"]);
 
-// Backlog #34 — the tasks whose output LANGUAGE is an input axis: prep renders
-// in the recruiter's UI locale, and the candidate-facing letter tasks
-// (outreach/rejection/offer) render in the entry's RESOLVED comms locale.
-// Folding the locale into their keys means a locale fix (or a workspace-default
-// change) genuinely re-drafts instead of serving a cached wrong-language letter
-// for up to the 168h TTL. Exported so automation-run passes --lang to exactly
-// the set that keys on it.
-export const LANG_KEYED_TASKS: ReadonlySet<string> = new Set(["prep", "outreach", "rejection", "offer"]);
+// Backlog #34 — the tasks whose output LANGUAGE is an input axis. There are two
+// language AUTHORITIES, so the sets are declared separately (automation-run pushes
+// a different --lang for each), but the cache key reads their UNION: every task
+// that receives a --lang must key on it, or a locale switch serves the previous
+// language's output for up to the 168h TTL.
+//
+// LETTER: candidate-facing letters render in the entry's RESOLVED comms locale.
+export const LETTER_LANG_TASKS: ReadonlySet<string> = new Set(["outreach", "rejection", "offer"]);
+// UI: recruiter-facing narrative (screening rationale, interview prep, scorecard
+// summary — all surfaced in Decisions) renders in the recruiter's UI locale.
+// screen/scorecard were receiving --lang WITHOUT keying on it: a locale switch
+// served the old language's screening rationale / scorecard summary for the full
+// TTL. Their AUTOMATION_VERSIONs are bumped (screening-v2 / scorecard-v6) so the
+// pre-fix, wrongly-shared entries self-invalidate.
+export const UI_LANG_TASKS: ReadonlySet<string> = new Set(["prep", "screen", "scorecard"]);
+// THE one lang-task union — consumed by the key below AND (via the two sets above)
+// by automation-run's --lang gating, mirroring the GITHUB_EVIDENCE_TASKS pattern:
+// the cache axis and the prompt input can never drift apart.
+export const LANG_KEYED_TASKS: ReadonlySet<string> = new Set([...LETTER_LANG_TASKS, ...UI_LANG_TASKS]);
 
 export type AutomationKeyInput = {
   /** AUTOMATION_VERSION[task] — bumps retire prior cache entries. */
@@ -44,11 +55,21 @@ export type AutomationKeyInput = {
    *  rematch could route to a since-closed role — or miss a newly-opened one — for the
    *  full 168h TTL. Absent for every other task. */
   corpusFingerprint?: string;
-  /** Folded into the key for the LANG_KEYED_TASKS: prep's narrative locale
-   *  (PREP2) and the letter tasks' resolved candidate-comms locale (backlog
-   *  #34), so a cached draft in one language never serves the other. Absent/
-   *  undefined for every other task and for legacy callers. */
+  /** Folded into the key for the LANG_KEYED_TASKS: the recruiter-narrative locale
+   *  (prep/screen/scorecard — PREP2) and the letter tasks' resolved candidate-comms
+   *  locale (backlog #34), so a cached draft in one language never serves the
+   *  other. Absent/undefined for every other task and for legacy callers. */
   lang?: string;
+  /** DEGRADED axis: true when the run spends the deterministic-template path
+   *  (`--no-llm`, pushed past the ai_candidates allowance) instead of the model.
+   *  The two produce materially different output under ONE key otherwise: a
+   *  quota-exhausted workspace's stubs kept serving for the full 168h TTL after
+   *  the allowance reset, and a quota exhaustion re-served a stale LLM result as
+   *  if it were the degraded template. `payload.source` recorded which — the key
+   *  did not. Folded UNCONDITIONALLY (not only when true) so entries cached
+   *  BEFORE this axis existed — the ones that may already be poisoned — are
+   *  retired on deploy rather than lingering for a week. */
+  degraded?: boolean;
   /** GH7 — only folded into the key for the GITHUB_EVIDENCE_TASKS
    *  (screen/prep/scorecard): EXACTLY the serialized evidence bytes handed to
    *  Python as github.json, hashed. Those prompts now render the evidence, so a
@@ -95,6 +116,8 @@ export function computeAutomationCacheKey(input: AutomationKeyInput): string {
       // GH7 — evidence axis for the prompts that render it; "" for a bare entry
       // so attaching evidence later genuinely re-keys.
       GITHUB_EVIDENCE_TASKS.has(input.task) && input.githubEvidenceJson ? shortHash(input.githubEvidenceJson) : "",
+      // Degraded (template) vs LLM output never share a key — see `degraded` above.
+      input.degraded ? "no-llm" : "llm",
     ].join("|")
   );
 }

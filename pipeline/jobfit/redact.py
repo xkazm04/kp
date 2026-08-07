@@ -118,6 +118,12 @@ class RedactResult:
     text: str
     categories: list[str] = field(default_factory=list)
     detected_name: str | None = None
+    # Explicit "did we find a name to redact?" signal (cv-extraction-pipeline #1). A
+    # False here with blind mode on means the real name is still in `text` and reached
+    # the model, so the caller must NOT claim "identity redacted". Equivalent to
+    # detected_name is not None / "name" in categories, surfaced as its own flag so
+    # the fail-open case can't be missed.
+    name_detected: bool = False
 
 
 def redact_pii(text: str) -> RedactResult:
@@ -161,4 +167,9 @@ def redact_pii(text: str) -> RedactResult:
     if gendered_hits:
         categories.append("gendered terms")
 
-    return RedactResult(text=redacted, categories=categories, detected_name=detected_name)
+    return RedactResult(
+        text=redacted,
+        categories=categories,
+        detected_name=detected_name,
+        name_detected=detected_name is not None,
+    )

@@ -42,12 +42,15 @@ test("the Ledger offers an in-place re-ingest for a JD with no matchable job (no
   // A JD that never got a matchable Job (ingest failed, or a description-less build)
   // reads as `unlinked` and MUST offer an in-place re-ingest — never a
   // Source-into-Pipeline dead end (POST /publish → 404).
-  const ledger = read("../../../features/sub_library/LibrarySavedJdsLedger.tsx");
-  assert.match(ledger, /isUnlinked\(row\)[\s\S]{0,120}?<RowIngest/, "unlinked JDs must get the RowIngest affordance");
-  assert.match(ledger, /Couldn't ingest[\s\S]{0,10}?retry/, "a failed ingest must offer a retry, not dead-end");
+  const row = read("../../../features/library/jds/JdsLedgerRow.tsx");
+  assert.match(row, /isUnlinked\(row\)[\s\S]{0,120}?<RowIngest/, "unlinked JDs must get the RowIngest affordance");
+  // The retry copy was localized (bug-ui-scan-2026-07-09 jd-authoring-library-templates #3):
+  // the RowIngest error state must still offer a retry — now via the ingestRetry* key.
+  const rowIngest = read("../../../features/library/jds/JdsLedgerRowIngest.tsx");
+  assert.match(rowIngest, /state === "error"[\s\S]{0,40}?ingestRetry/, "a failed ingest must offer a retry, not dead-end");
 
   // The re-ingest re-uses the existing slug (re-ingest in place, not a duplicate draft).
-  const hooks = read("../../../features/sub_library/jd-hooks.ts");
+  const hooks = read("../../../features/library/jds/jdsHooks.ts");
   assert.match(
     hooks,
     /\/api\/jds\/\$\{encodeURIComponent\(slug\)\}\/ingest-job/,

@@ -1,7 +1,7 @@
 "use client";
 
-import { GitBranch } from "lucide-react";
-import { useEffect, useState } from "react";
+import { GitBranch, Plus } from "lucide-react";
+import { useEffect, useId, useState } from "react";
 import { useTranslations } from "next-intl";
 import { GithubAnalysisPanel } from "@/app/_components/GithubAnalysisPanel";
 import { hasRenderableComparison } from "@/app/_lib/comparison";
@@ -9,6 +9,7 @@ import { reconcileScoreTotal } from "@/app/_lib/format";
 import { AddToPipelineButton, type PipelineRef } from "./AddToPipelineButton";
 import { ArchetypeBanner } from "./ArchetypeBanner";
 import { QualityStrip } from "./QualityStrip";
+import { VerdictBanner } from "./VerdictBanner";
 import type { Analysis, GithubAnalysis } from "@/app/_lib/schemas";
 import { CompareIcon, ExtractionIcon, InterviewIcon, JobFitIcon, SalaryIcon } from "../icons";
 import { CompareTab } from "./compare/CompareTab";
@@ -35,11 +36,77 @@ type ResultPanelProps = {
   // act on a job-fit read without leaving for the Match tab. Omitted where the
   // identifiers aren't available (e.g. a fresh, not-yet-saved analyze run).
   pipelineRef?: PipelineRef;
+  // Metering (Direction 2): when the live Analyze tab served this result from the
+  // prompt cache, it passes cached=true so the cost line reads "no new cost"
+  // instead of the recorded estimate. Omitted on saved reports (which always show
+  // the cost the run actually recorded).
+  runCached?: boolean;
+  // Direction 1 — when the run CAN'T be filed under a job (a JD-less analysis, or
+  // one that didn't persist), the live Analyze tab passes an honest one-line
+  // reason instead of a hidden button, so the recruiter's dead-end is explained
+  // rather than silent. Ignored when `pipelineRef` is present (the button wins).
+  pipelineDisabledReason?: string;
+  // Lineage (profile ↔ CV): the saved analysis slug this result renders, threaded
+  // to ArchetypeBanner's "Save as profile" so profiles born there carry source
+  // lineage (staleness detection). Absent on unsaved runs → lineage-less save,
+  // exactly the old behavior.
+  analysisSlug?: string;
+  // The live pipeline entry this candidate is ON (resolved by the report page from
+  // the on-board lookup). Present ONLY when the candidate is active on the board —
+  // it is the honest handle the Interview tab needs to push its question kit into
+  // the real interview-prep pack. Absent on off-pipeline reports → no import
+  // affordance (a fresh analyze run, or a candidate never added to the board).
+  prepEntryId?: string;
 };
 
 type ResultTab = "extraction" | "compare" | "jobFit" | "salary" | "interview" | "github";
 
-export function ResultPanel({ analysis, github, onGithubRetry, pipelineRef }: ResultPanelProps) {
+// Format a small USD figure: sub-cent runs keep 4 decimals so they don't read as
+// "$0.00"; larger ones use the usual 2. Non-contractual estimate (see RunCostLine).
+function formatCostUsd(cost: number): string {
+  return `$${cost < 0.01 ? cost.toFixed(4) : cost.toFixed(2)}`;
+}
+
+// Metering cost line (Direction 2): the per-analysis LLM cost estimate, from what
+// the run actually recorded (metadata.runCost, priced through the shared table) —
+// not a UI re-guess. A cache-served run shows a no-new-cost note instead.
+function RunCostLine({
+  runCost,
+  cached,
+}: {
+  runCost: NonNullable<Analysis["metadata"]>["runCost"] | undefined;
+  cached?: boolean;
+}) {
+  const t = useTranslations("report");
+  if (cached) {
+    return <p className="text-xs text-steel">{t("runCost.cached")}</p>;
+  }
+  if (!runCost) return null;
+  const model = runCost.model ?? "—";
+  if (runCost.costUsd == null) {
+    return (
+      <p className="text-xs text-steel" title={t("runCost.titleEstimate")}>
+        {t("runCost.unpriced", { model })}
+      </p>
+    );
+  }
+  // Direction 1 (#f): an ESTIMATED cost (priced from token counts × list prices) is
+  // marked as an estimate; a METERED cost (the provider's own reported figure) reads
+  // as an exact cost with no "estimate" tag — the two no longer render identically.
+  const cost = formatCostUsd(runCost.costUsd);
+  return (
+    <p
+      className="text-xs text-steel"
+      title={runCost.estimated ? t("runCost.titleEstimate") : t("runCost.titleMetered")}
+    >
+      {runCost.estimated
+        ? t("runCost.lineEstimate", { cost, model })
+        : t("runCost.lineMetered", { cost, model })}
+    </p>
+  );
+}
+
+export function ResultPanel({ analysis, github, onGithubRetry, pipelineRef, runCached, pipelineDisabledReason, analysisSlug, prepEntryId }: ResultPanelProps) {
   // RES2 — the report chrome (tab labels, aria) is bilingual; the tab CONTENT
   // is the LLM narrative, already generated in the recruiter's language.
   const t = useTranslations("report");
@@ -124,6 +191,12 @@ export function ResultPanel({ analysis, github, onGithubRetry, pipelineRef }: Re
 
   return (
     <section className="animate-fade-in space-y-5">
+      {/* Direction 1 — the report LEADS with the verdict (the eval-report standard),
+          so the reconciled overall score + band is above the fold instead of buried
+          in the Extraction tab's dial. On a multi-variant run (which defaults to the
+          Compare tab) it shows the winner's verdict. Both consumers — live Analyze
+          and the saved report — render the same banner. */}
+      <VerdictBanner analysis={analysis} />
       {pipelineRef ? (
         <div className="flex items-start justify-end">
           <AddToPipelineButton
@@ -132,9 +205,15 @@ export function ResultPanel({ analysis, github, onGithubRetry, pipelineRef }: Re
             github={github?.status === "done" ? github.analysis : null}
           />
         </div>
+      ) : pipelineDisabledReason ? (
+        <div className="flex items-start justify-end">
+          <PipelineDisabledNote reason={pipelineDisabledReason} label={t("addToPipeline")} />
+        </div>
       ) : null}
-      {analysis.v2Profile ? <ArchetypeBanner v2Profile={analysis.v2Profile} /> : null}
+      {analysis.v2Profile ? <ArchetypeBanner v2Profile={analysis.v2Profile} sourceAnalysisSlug={analysisSlug} /> : null}
       <QualityStrip checks={analysis.sanityChecks ?? []} />
+      <RunCostLine runCost={analysis.metadata?.runCost} cached={runCached} />
+
       <div className="rounded-lg border border-stone-200 bg-white p-2 shadow-panel">
         <div role="tablist" aria-label={t("sections")} onKeyDown={onTabKeyDown} className={`grid gap-1 sm:grid-cols-2 ${lgGridClass}`}>
           {tabs.map((tab) => {
@@ -166,7 +245,7 @@ export function ResultPanel({ analysis, github, onGithubRetry, pipelineRef }: Re
         {activeTab === "compare" ? <CompareTab analysis={analysis} /> : null}
         {activeTab === "jobFit" ? <JobFitTab analysis={analysis} /> : null}
         {activeTab === "salary" ? <SalaryTab analysis={analysis} /> : null}
-        {activeTab === "interview" ? <InterviewTab analysis={analysis} /> : null}
+        {activeTab === "interview" ? <InterviewTab analysis={analysis} prepEntryId={prepEntryId} /> : null}
         {activeTab === "github" && github ? (
           <GithubAnalysisPanel
             status={github.status}
@@ -178,5 +257,30 @@ export function ResultPanel({ analysis, github, onGithubRetry, pipelineRef }: Re
         ) : null}
       </div>
     </section>
+  );
+}
+
+// Direction 1 — the honest counterpart to AddToPipelineButton: when a run can't be
+// filed under a job, show a DISABLED add affordance with a one-line reason rather
+// than hiding the action (so the recruiter learns WHY they can't add, e.g. "board
+// lanes are keyed by a job"). Tokens only; reads correctly in both themes.
+function PipelineDisabledNote({ reason, label }: { reason: string; label: string }) {
+  const reasonId = useId();
+  return (
+    <div className="flex flex-col items-end gap-1">
+      <button
+        type="button"
+        disabled
+        aria-disabled
+        aria-describedby={reasonId}
+        className="inline-flex h-10 cursor-not-allowed items-center justify-center gap-2 rounded-md border border-stone-300 px-4 text-base font-semibold text-steel opacity-70"
+      >
+        <Plus className="h-4 w-4" aria-hidden />
+        {label}
+      </button>
+      <p id={reasonId} className="max-w-xs text-right text-sm text-steel">
+        {reason}
+      </p>
+    </div>
   );
 }

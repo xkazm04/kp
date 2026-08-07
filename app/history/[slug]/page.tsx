@@ -1,12 +1,17 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getTranslations } from "next-intl/server";
+import { History } from "lucide-react";
+import { getLocale, getTranslations } from "next-intl/server";
 import { ResultPanel } from "@/app/_components/results/ResultPanel";
 import { ReportActions } from "@/app/_components/results/ReportActions";
 import { DispositionEditor } from "@/app/_components/results/DispositionEditor";
-import { WorkspaceShell } from "@/app/features/WorkspaceNav";
-import { RecordRecent } from "@/app/features/RecordRecent";
-import { findActiveEntriesByCandidateLabel, loadAnalysis, parseStoredGithubAnalysis, type PipelineEntry } from "@/app/_lib/db";
+import { WorkspaceShell } from "@/app/features/shell/WorkspaceNav";
+import { RecordRecent } from "@/app/features/shell/RecordRecent";
+import { hasLabelCollision, listAnalysesByCvHash, loadAnalysis, parseStoredGithubAnalysis } from "@/app/_lib/db/analyses";
+import type { PipelineEntry } from "@/app/_lib/db/core";
+import { jdLastEditedAt } from "@/app/_lib/db/jobs";
+import { findActiveEntriesByCandidateLabel } from "@/app/_lib/db/pipeline";
+import { isScoreStale } from "@/app/features/shared/decisionsTypes";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { analysisSchema } from "@/app/_lib/schemas";
 import type { ResultPanelGithub } from "@/app/_components/results/ResultPanel";
@@ -90,6 +95,50 @@ export default async function HistoryDetailPage({
     return tEnums.has(key) ? tEnums(key) : stage;
   };
 
+  // Content-addressed identity (cv_hash) surfaces two things, both best-effort so a
+  // store fault never breaks the report:
+  //  1. Cross-job linkage — the SAME CV content analyzed against OTHER jobs, so the
+  //     recruiter sees the candidate's full footprint. Deduped to one link per JD,
+  //     newest first (the store returns newest-first), workspace-scoped.
+  //  2. Label collision — another saved analysis shares this filename-derived label
+  //     but a DIFFERENT CV, i.e. two different people under one "CV.pdf"-style name.
+  const alsoAnalyzed: { jdSlug: string; slug: string }[] = [];
+  let labelCollision = false;
+  try {
+    const seenJds = new Set<string>();
+    for (const other of listAnalysesByCvHash(found.row.cv_hash, ws, slug)) {
+      if (!other.jd_slug || other.jd_slug === found.row.jd_slug || seenJds.has(other.jd_slug)) continue;
+      seenJds.add(other.jd_slug);
+      alsoAnalyzed.push({ jdSlug: other.jd_slug, slug: other.slug });
+    }
+    labelCollision = hasLabelCollision(found.row.candidate_label, found.row.cv_hash, ws);
+  } catch (error) {
+    console.error(`[history] identity lookup failed for "${slug}"`, error);
+  }
+
+  // Direction 2 (saved-report-whole-truth) — "JD edited since this analysis" cue.
+  // Server-derived (this is a Server Component; no client fetch): the SAME shared
+  // rule the decisions cards / pipeline drawer use — a score computed strictly
+  // BEFORE the JD's last content edit reflects the earlier text. Best-effort like
+  // every other lookup on this page: a store fault hides the chip, never breaks the
+  // report. Only meaningful when the analysis was run against a saved JD.
+  const locale = await getLocale();
+  let jdEditedAt: string | null = null;
+  try {
+    if (found.row.jd_slug) jdEditedAt = jdLastEditedAt(found.row.jd_slug, ws);
+  } catch (error) {
+    console.error(`[history] jd-edit lookup failed for "${slug}"`, error);
+  }
+  const scoreStale = isScoreStale(found.row.created_at, jdEditedAt);
+  const staleDate = jdEditedAt ? new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(new Date(jdEditedAt)) : "";
+
+  // Direction 2 (a) — the honest disabled-reason the LIVE tab shows. The saved
+  // report can only be JD-less (it always persisted), so the sole reason here is
+  // "board lanes are keyed by a job". Reuse the analyze catalog's wording (single
+  // source) instead of a second copy, mirroring deriveAnalyzePipelineAffordance's
+  // "jdless" branch.
+  const tAnalyze = await getTranslations("analyze");
+
   return (
     <WorkspaceShell active="analyze">
       {/* SHELL3: visiting the saved report IS opening the entity — record it. */}
@@ -133,6 +182,32 @@ export default async function HistoryDetailPage({
             </>
           ) : null}
         </p>
+        {alsoAnalyzed.length > 0 ? (
+          <p className="text-sm text-steel">
+            {t("alsoAnalyzedFor")}{" "}
+            {alsoAnalyzed.map((entry, i) => (
+              <span key={entry.slug}>
+                {i > 0 ? ", " : ""}
+                <Link href={`/history/${encodeURIComponent(entry.slug)}`} className="font-mono text-coral hover:underline">
+                  JD {entry.jdSlug}
+                </Link>
+              </span>
+            ))}
+          </p>
+        ) : null}
+        {scoreStale ? (
+          <span
+            className="inline-flex w-fit items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-sm font-semibold text-amber-800"
+            title={t("jdEditedTitle", { date: staleDate })}
+          >
+            <History size={12} aria-hidden /> {t("jdEditedBadge", { date: staleDate })}
+          </span>
+        ) : null}
+        {labelCollision ? (
+          <p className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800">
+            {t("labelCollision")}
+          </p>
+        ) : null}
         <DispositionEditor
           slug={slug}
           initialDisposition={found.row.disposition ?? null}
@@ -143,6 +218,12 @@ export default async function HistoryDetailPage({
       <div className="mt-6">
         <ResultPanel
           analysis={parsed.data}
+          analysisSlug={slug}
+          // When this candidate is live on the board, hand the Interview tab the
+          // real pipeline entry id so it can push its question kit into the actual
+          // interview-prep pack (Direction 2). Off-board → undefined → no import
+          // affordance. Same on-board lookup that drives the header chip above.
+          prepEntryId={onBoard[0]?.id}
           github={parseGithub(found.row.github_json, slug)}
           // Offer "Add to pipeline" only when the analysis was run against a saved
           // JD — that slug is the role the candidate is filed under (the board keys
@@ -161,6 +242,11 @@ export default async function HistoryDetailPage({
                 }
               : undefined
           }
+          // Direction 2 (a) — a JD-less saved report now shows the SAME honest
+          // disabled-reason note the live tab does, instead of a silent blank where
+          // the add affordance would be. Ignored by ResultPanel when pipelineRef is
+          // present (the button wins).
+          pipelineDisabledReason={found.row.jd_slug ? undefined : tAnalyze("addToPipelineJdless")}
         />
       </div>
     </WorkspaceShell>

@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { aggregateLlmUsage, promptCacheStats } from "@/app/_lib/db";
+import { promptCacheStats } from "@/app/_lib/db/analyses";
+import { aggregateLlmUsage } from "@/app/_lib/db/llm";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 
 
 // Usage/cost read surface for the Models tab — the first reader of the llm_usage
-// ledger (docs/LLM_PROVIDER_LAYER.md, T0.1): per (day × use_case × provider ×
+// ledger (docs/architecture/llm-provider-layer.md, T0.1): per (day × use_case × provider ×
 // model) rollups plus the prompt-cache hit stats. Operator-gated exactly like
 // /api/llm/keys (requireOperator rejects the anonymous demo session): spend
 // figures are operator telemetry, not demo content. Read-only by design — the

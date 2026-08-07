@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getJob, loadJd, setJdArchived, updateJd } from "@/app/_lib/db";
+import { getJob, loadJd, setJdArchived, updateJd } from "@/app/_lib/db/jobs";
 import { ingestJobAd } from "@/app/_lib/job-ingest";
 import { jdJobId, validateJdFields } from "@/app/_lib/jd-limits";
 import { safeJsonError } from "@/app/_lib/api-response";
@@ -9,14 +9,25 @@ import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 // The best-effort re-ingest on a body edit is one LLM parse.
 export const maxDuration = 60;
 
-export async function GET(_request: Request, context: { params: Promise<{ slug: string }> }) {
+export async function GET(request: Request, context: { params: Promise<{ slug: string }> }) {
   const { slug } = await context.params;
   try {
     const row = loadJd(slug);
     if (!row) {
       return NextResponse.json({ error: "JD not found." }, { status: 404 });
     }
-    return NextResponse.json(row);
+    // The JD detail is public/shareable, but the stored build intent
+    // (build_input_json — the recruiter's raw "describe the need" text) is
+    // internal authoring material and must not ride the public payload. It is
+    // returned only when explicitly requested (?intent=1) by a caller whose
+    // workspace owns the row — the recruiter Ledger's Duplicate flow — so a
+    // cross-tenant or share-link fetch never sees it.
+    const { build_input_json, ...publicRow } = row;
+    const wantsIntent = new URL(request.url).searchParams.has("intent");
+    if (wantsIntent && loadJd(slug, await currentWorkspace())) {
+      return NextResponse.json({ ...publicRow, build_input_json });
+    }
+    return NextResponse.json(publicRow);
   } catch (error) {
     return safeJsonError(error, "api:jds/[slug]", "JD_LOAD_FAILED");
   }

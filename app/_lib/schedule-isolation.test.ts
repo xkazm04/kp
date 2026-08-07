@@ -2,7 +2,7 @@ import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { cleanupUnitDb } from "./testing/unit-db.ts";
 import { createScheduleInvite, listScheduleInvites, getScheduleInviteByToken, confirmScheduleInvite } from "./schedule-store.ts";
-import { createPipelineEntry } from "./db/pipeline.ts";
+import { createPipelineEntry, actOnPipelineEntry } from "./db/pipeline.ts";
 
 after(() => cleanupUnitDb());
 
@@ -35,4 +35,21 @@ test("slot collisions are per-team — two teams can book the same instant", () 
   assert.equal(confirmScheduleInvite(ia.token, "Sat 10:00", slotAt).ok, true);
   // Same instant, different team → NOT a clash (separate per-team calendars).
   assert.equal(confirmScheduleInvite(ib.token, "Sat 10:00", slotAt).ok, true, "team B books the same slot (per-team calendar)");
+});
+
+// Direction: re-invite from the Closed bucket — the recruiter agenda read surfaces the
+// linked entry's status/stage so a surface can gate on the entry's fate (the Closed
+// re-invite is withheld for a terminal/hired entry).
+test("the agenda read surfaces the linked entry's status + stage (for the Closed re-invite gate)", () => {
+  const { entry } = createPipelineEntry({ candidateId: "c-e", candidateLabel: "E", jobId: "j2", jobTitle: "R", workspaceId: "ws-e" });
+  const invite = createScheduleInvite({ entryId: entry.id, candidateLabel: "E" });
+  const before = listScheduleInvites(200, "ws-e").find((i) => i.token === invite.token);
+  assert.ok(before, "the invite is on its team's agenda");
+  assert.equal(before!.entryStatus, "active", "the live entry's status rides the agenda projection");
+  assert.equal(typeof before!.entryStage, "string", "the entry's stage is surfaced too");
+
+  // Reject the entry → the projection reflects the terminal status on the next read.
+  actOnPipelineEntry(entry.id, "reject", undefined, undefined, "ws-e");
+  const after = listScheduleInvites(200, "ws-e").find((i) => i.token === invite.token);
+  assert.equal(after!.entryStatus, "rejected", "a terminal entry status is visible to the agenda gate");
 });

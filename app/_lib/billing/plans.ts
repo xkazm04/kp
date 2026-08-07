@@ -1,4 +1,4 @@
-// Plan catalog — the pricing design (memory: pricing-design / docs/BILLING.md)
+// Plan catalog — the pricing design (memory: pricing-design / docs/features/billing/README.md)
 // as code. Customer-facing meters are candidates / cases / interview minutes,
 // never tokens. `null` limit = unlimited (BYOM runs text AI + voice on the
 // customer's own keys, so there is nothing of ours to meter).
@@ -26,7 +26,7 @@ export type PlanDef = {
   /** Contact-sales tier: custom-priced, negotiated per hiring volume — not sold
    *  through self-serve checkout. The published price is "Custom", entitlement is
    *  granted per contract, and the UI shows a "Talk to sales" path instead of a
-   *  Buy button. See docs/ENTERPRISE_READINESS.md for the capability roadmap. */
+   *  Buy button. See docs/product/enterprise-readiness.md for the capability roadmap. */
   contactSales?: boolean;
 };
 

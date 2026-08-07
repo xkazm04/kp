@@ -13,12 +13,47 @@
 
 /** The fields `buildApplicantProfile` consumes from `profile_cli`'s stdout JSON.
  *  Mirrors what profile_cli emits (profile_cli.py): a normalized profile object,
- *  a routed archetype id, and a numeric completeness score. */
+ *  a routed archetype id, a numeric completeness score, and the machine-readable
+ *  unmet-checklist list. */
 export type ProfileCliResult = {
   profile: Record<string, unknown>;
   archetype: string;
   completeness: number;
+  /** profile_cli's `missingGaps` — the archetype checklist's unmet items, biggest
+   *  gap first, as {check, label}. Was parsed off the CLI and silently DISCARDED
+   *  here, which left the gap-question engine (completeness-followup.ts) reachable
+   *  only from the recruiter's banner — never from the candidate, the one person
+   *  who can answer. SOFT: a missing/malformed list degrades to [] rather than
+   *  failing the build (it is an enrichment nicety, never a reason to demote an
+   *  applicant to a non-matchable stub). */
+  missingGaps: CompletenessGap[];
 };
+
+import type { CompletenessGap } from "./completeness-followup.ts";
+
+// Bounds on the gap list read back from the CLI. It rides a DB column and a
+// candidate-facing payload, so cap both the list and each field at the trust
+// boundary rather than trusting the subprocess's output length.
+const MAX_GAPS = 12;
+const MAX_CHECK_LEN = 64;
+const MAX_LABEL_LEN = 160;
+
+/** Narrow profile_cli's `missingGaps` to well-formed {check,label} pairs. Never
+ *  throws and never fails the validation — an absent/garbled list simply means
+ *  "no follow-up questions to offer". */
+export function coerceCompletenessGaps(value: unknown): CompletenessGap[] {
+  if (!Array.isArray(value)) return [];
+  const out: CompletenessGap[] = [];
+  for (const item of value) {
+    if (out.length >= MAX_GAPS) break;
+    if (!isPlainObject(item)) continue;
+    const check = typeof item.check === "string" ? item.check.trim() : "";
+    const label = typeof item.label === "string" ? item.label.trim() : "";
+    if (!check || check.length > MAX_CHECK_LEN) continue;
+    out.push({ check, label: label.slice(0, MAX_LABEL_LEN) });
+  }
+  return out;
+}
 
 export type ProfileCliValidation =
   | { ok: true; value: ProfileCliResult }
@@ -60,6 +95,11 @@ export function validateProfileCliResult(data: unknown): ProfileCliValidation {
   }
   return {
     ok: true,
-    value: { profile: data.profile, archetype: data.archetype, completeness: data.completeness },
+    value: {
+      profile: data.profile,
+      archetype: data.archetype,
+      completeness: data.completeness,
+      missingGaps: coerceCompletenessGaps(data.missingGaps),
+    },
   };
 }

@@ -62,8 +62,19 @@ export type InterviewLike = {
   durationMin: number | null;
 };
 
-// Default interview length when the invite didn't capture one.
-const DEFAULT_DURATION_MIN = 45;
+// Default interview length when the invite didn't capture one. Exported so the
+// candidate-side builder (candidateCalendarEvent) derives the SAME fallback —
+// bug-ui-scan-2026-07-09 (interview-scheduling-prep-rubric #5): SchedulePicker
+// used to inline `durationMin ?? 30` while this file used 45, so an invite with no
+// planned length blocked 30 min on the candidate's calendar and 45 on the
+// recruiter's for one interview. One constant, one duration.
+export const DEFAULT_DURATION_MIN = 45;
+
+// Neutral location when no real join link is attached — shared fallback so the
+// candidate and recruiter events agree on the location text too (bug-ui-scan
+// -2026-07-09 #5). The candidate UI localizes it (passes a translated string);
+// the recruiter side uses this English default.
+export const DEFAULT_LOCATION = "Online interview";
 
 /** Build the polished calendar event for a confirmed interview. Returns null when the
  *  invite has no slot yet. `baseUrl` (the app origin) turns the reschedule page into a
@@ -91,5 +102,26 @@ export function interviewCalendarEvent(
     .filter((l) => l !== null)
     .join("\n");
   // A real join link becomes the event location; otherwise a neutral placeholder.
-  return { title, start: inv.slotAt, end, description, location: meetingUrl ?? "Online interview" };
+  return { title, start: inv.slotAt, end, description, location: meetingUrl ?? DEFAULT_LOCATION };
+}
+
+// Candidate-side "add to calendar" event for the booked card. Kept HERE (not
+// inlined in SchedulePicker.tsx) so it shares DEFAULT_DURATION_MIN and the
+// location fallback with the recruiter's interviewCalendarEvent — bug-ui-scan
+// -2026-07-09 (interview-scheduling-prep-rubric #5). Title/description/location
+// text are passed in already-localized (the candidate UI translates them); the
+// duration and location-fallback DEFAULTS come from one place so both calendars
+// block the same length and name the same location for one interview. Returns
+// null when there's no booked slot yet.
+export function candidateCalendarEvent(
+  inv: { slotAt: string | null; durationMin: number | null; meetingUrl?: string | null },
+  strings: { title: string; description: string; joinLabel?: string; locationOnline: string }
+): CalendarEvent | null {
+  if (!inv.slotAt) return null;
+  const durMin = inv.durationMin && inv.durationMin > 0 ? inv.durationMin : DEFAULT_DURATION_MIN;
+  const end = new Date(new Date(inv.slotAt).getTime() + durMin * 60_000).toISOString();
+  const meetingUrl = inv.meetingUrl?.trim() ? inv.meetingUrl.trim() : null;
+  const description =
+    meetingUrl && strings.joinLabel ? `${strings.description}\n${strings.joinLabel}: ${meetingUrl}` : strings.description;
+  return { title: strings.title, start: inv.slotAt, end, description, location: meetingUrl ?? strings.locationOnline };
 }

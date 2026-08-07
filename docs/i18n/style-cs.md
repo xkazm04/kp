@@ -32,6 +32,10 @@ on buttons/labels/headings. ("Popisy pozic", "Vývojové případy", "Řídicí 
   dash) or "až".
 - **Non-breaking space** before units and after single-letter prepositions
   (v, k, s, z, o, u) where practical: "5 min", "k rozhodnutí".
+- **Percent:** a **space** before `%` when it is a noun ("{pct} %", "shoda 60 %",
+  "spodních 20 %") — that is the reading in nearly every kp string. Unspaced
+  "60%" is the *adjectival* form ("60% shoda") and is rare here. The catalog was
+  unified on the spaced form in 2026-08; keep it.
 
 ## Grammar traps a mechanical translation gets wrong
 
@@ -52,6 +56,18 @@ on buttons/labels/headings. ("Popisy pozic", "Vývojové případy", "Řídicí 
 - **Aspect:** pick perfective vs imperfective deliberately. Actions/CTAs are
   perfective ("Spustit", "Přejít", "Zavřít"); ongoing states imperfective
   ("Probíhá…", "Spouštění…").
+- **Progress / busy labels are a VERBAL NOUN, never 1st person.** "Ukládání…",
+  "Generování…", "Zamítání…", "Odesílání…" — not *"Ukládám…"*, *"Generuji…"*,
+  *"Odesílám…"*. The app speaks as a system, and where it does need a person it
+  is 1st person **plural** ("nepodařilo se nám", "Sestavujeme…"), never
+  singular. The catalog was split ~64/29 on this; the 29 first-person leaks were
+  converted in the 2026-08 review. Also avoid a bare 3rd-person form on a
+  recruiter action ("Postupuje…" reads as the *candidate* advancing) — use
+  "Probíhá …".
+- **Unknown-gender participles take the "/a" form**, in one style: `postoupil/a`,
+  `zamítnut/a`, `nedostavil/a se`, `náborář/ka`. Not `navrhl(a)`, not a bare
+  masculine. Where a neuter/impersonal form exists it is better still
+  ("Zamítnuto", "Vráceno k novému posouzení").
 - **Word order:** Czech is freer than English but not English. Don't calque SVO
   when a fronted object/verb reads more naturally.
 - **Gender:** where a status refers to a person of unknown gender, prefer the

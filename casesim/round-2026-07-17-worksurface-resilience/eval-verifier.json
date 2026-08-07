@@ -1,0 +1,239 @@
+{
+  "result": {
+    "reflection": {
+      "narrative": "The provided signal extract is empty: zero commits, no messages, no change-shape or cadence data, and no top-level structure. There is no evidence from which to reconstruct the candidate's working process â€” this may reflect an extraction failure, a squashed/orphaned history, or a submission made outside version control rather than anything about the candidate's actual habits. No inference about decomposition, validation, or recovery is possible, and no judgment (positive or negative) should be drawn from this absence.",
+      "iterationPattern": "unclear",
+      "deadEnds": [],
+      "readBeforeWrite": 0.5,
+      "verificationHabits": [],
+      "confidence": 0.05,
+      "promptVersion": "commit-reflection-v3"
+    },
+    "tooling": {
+      "fluency": 1.0,
+      "probeOutcomes": [
+        {
+          "probeId": "p1",
+          "kind": "ambiguity",
+          "where": "the brief's 'feel safe' â€” restore-on-reload vs local draft persistence vs warn-before-leave vs tighter flush cadence",
+          "detected": false,
+          "handledWell": null,
+          "note": "observed: probe area not opened/edited"
+        },
+        {
+          "probeId": "p2",
+          "kind": "legacy_trap",
+          "where": "the existing flush()/re-buffer logic and the session event log's append-only integrity contract (server-side hash chain) â€” naive rewrites break event ordering or the chain",
+          "detected": false,
+          "handledWell": null,
+          "note": "observed: probe area not opened/edited"
+        },
+        {
+          "probeId": "p3",
+          "kind": "verification_trap",
+          "where": "a resilience fix that looks right but double-appends the re-buffered event batch on retry, or restores stale files over newer local edits â€” passes a quick manual check",
+          "detected": false,
+          "handledWell": null,
+          "note": "observed: probe area not opened/edited"
+        }
+      ],
+      "overRelianceFlags": [],
+      "evidence": [
+        "Opened 7 file(s), edited 8 (observed).",
+        "Read-before-write ratio 1.0 from event order.",
+        "Recorded 7 decision-log edit(s).",
+        "Edited a test/spec file (observed verification).",
+        "Used the captured assistant/stakeholder channel 9 time(s) (observed; never a penalty).",
+        "Adapted to the mid-flight requirement change: 10 edit(s) and 4 decision-log entrie(s) after the reveal."
+      ],
+      "signals": {
+        "filesOpened": 7,
+        "filesEdited": 8,
+        "readBeforeWrite": 1.0,
+        "decisionLogEntries": 7,
+        "editedTest": true,
+        "editedDecisions": true,
+        "iterationPattern": "single-pass",
+        "perturbationShown": true,
+        "editsAfterPerturbation": 10,
+        "decisionsAfterPerturbation": 4,
+        "promptExchanges": 9
+      },
+      "confidence": 0.8
+    },
+    "evaluation": {
+      "dimensionScores": {
+        "framing": 72,
+        "tooling": 78,
+        "judgment": 66,
+        "architecture": 60,
+        "transfer": 64
+      },
+      "strengths": [
+        "Strong prompt hygiene: zero brief-pasting, substantive prompts (mean 444 chars) with iteration depth 4 â€” the candidate decomposed and steered the assistant rather than delegating wholesale.",
+        "Asked 4 stakeholder questions (3 clarifying), showing they treated the ambiguous brief as something to negotiate, not guess at.",
+        "Explicit verification behavior: asked the model to check its output twice, edited a test/spec file, and read every file before writing (read-before-write 1.0).",
+        "Kept a decision log (7 entries) and adapted cleanly to the mid-flight requirement change (10 edits, 4 decision entries after the reveal) â€” evidence of deliberate, documented process under changing constraints."
+      ],
+      "concerns": [
+        "None of the three planted probes (ambiguity, legacy trap, verification trap) were even opened, so the hardest judgment tests â€” catching a double-append retry bug or respecting the hash-chain integrity contract â€” went unexercised; judgment is scored on softer signals only.",
+        "The git/commit signal extract is empty, so decomposition cadence and recovery-from-dead-ends cannot be corroborated; scores lean heavily on the event/prompt telemetry alone.",
+        "Narrow observed footprint (7 files opened, 8 edited) leaves the flush/re-buffer core and the 'feel safe' brief ambiguity untouched, which caps confidence on architecture and transfer for this role's actual surface."
+      ],
+      "hasFindings": true,
+      "summary": "A process-strong but coverage-limited submission. The observed telemetry shows a candidate who drives AI well â€” original, iterative prompts with no brief-pasting, explicit verification asks, stakeholder clarification, a maintained decision log, and a composed response to the mid-flight requirement change. However, all three planted probes sat in code the candidate never opened, so the sharpest tests of judgment (the retry double-append trap, the append-only hash-chain contract) and of framing the brief's central 'feel safe' ambiguity were never exercised, and the empty commit history removes corroborating process evidence. For a medior product engineer this reads as solid tooling fluency and workmanlike habits with unproven depth on the risky core of the task.",
+      "dimensions": [
+        {
+          "name": "framing",
+          "label": "Problem framing",
+          "weight": 0.2,
+          "score": 72,
+          "description": "Turns an ambiguous need into a sound plan."
+        },
+        {
+          "name": "tooling",
+          "label": "Tooling fluency",
+          "weight": 0.25,
+          "score": 78,
+          "description": "Drives AI and other tools well; iterates and verifies."
+        },
+        {
+          "name": "judgment",
+          "label": "Judgment",
+          "weight": 0.25,
+          "score": 66,
+          "description": "Catches AI/tooling mistakes; validates; pushes back."
+        },
+        {
+          "name": "architecture",
+          "label": "Architecture",
+          "weight": 0.15,
+          "score": 60,
+          "description": "Structure and trade-offs that fit the real materials and constraints."
+        },
+        {
+          "name": "transfer",
+          "label": "Transfer",
+          "weight": 0.15,
+          "score": 64,
+          "description": "Capability transfers to THIS role's tools and responsibilities."
+        }
+      ],
+      "confidence": 0.05,
+      "promptVersion": "case-eval-v1"
+    },
+    "transfer": {
+      "transferScore": 63,
+      "transfers": [
+        "Effective AI-assisted development workflow (original iterative prompting, explicit verification requests) transfers directly to a product-engineering role where LLM tooling is part of the daily stack",
+        "Stakeholder clarification and a maintained decision log map well to owning candidate-facing surfaces end to end, where product ambiguity is constant",
+        "Composed handling of a mid-flight requirement change is directly relevant to iterative product work on live surfaces",
+        "Workmanlike framing of the brief suggests the candidate can scope UI+API+storage features without heavy specification"
+      ],
+      "gaps": [
+        "No demonstrated verification against failure paths: the retry double-append trap was never opened, which is the exact 'trustworthy data-capture pipeline' responsibility this role centers on",
+        "The append-only hash-chain contract went unexamined, leaving storage-layer contract reasoning (SQLite-adjacent, a must-have) unevidenced",
+        "Architecture score (60) rests on limited coverage â€” no evidence of end-to-end reasoning across the UI/API/storage seam the role requires ownership of",
+        "Empty commit history removes corroboration of incremental, reviewable delivery habits expected at medior level",
+        "The brief's central 'feel safe' ambiguity was never framed, so product-judgment depth on candidate-facing trust surfaces is unproven"
+      ],
+      "hasTransfers": true,
+      "roleFitRationale": "The strongest observed signals â€” tooling fluency (78) and framing habits (72) â€” transfer well to a medior full-stack product role and suggest a candidate who can ship with AI leverage. But this role's weight sits on trustworthy data capture and failure-path verification, and precisely those tests (all three planted probes, the hash-chain contract, the double-append trap) were never exercised, leaving the middling judgment (66) and architecture (60) scores uncorroborated on the risky core. Capability shown is relevant but shallow where the role is deepest, so transfer lands modestly above the dimension floor rather than at the tooling ceiling.",
+      "confidence": 0.05,
+      "promptVersion": "transfer-v1"
+    },
+    "followups": {
+      "questions": [
+        {
+          "id": "q1",
+          "probeId": "p1",
+          "decision": "The submission shipped without ever opening the code around the brief's central 'feel safe' ambiguity â€” no restore-on-reload, local draft, or warn-before-leave path was touched, so a persistence approach was implicitly chosen by omission.",
+          "question": "The brief asked that users 'feel safe' about losing work. Walk me through the loss scenarios you considered â€” a reload mid-session, a failed flush, an edit made offline â€” and tell me which one you decided NOT to protect against and why. What would have to be true about the users or the deadline for you to pick a different one?",
+          "listenFor": "Names concrete loss modes unprompted (unflushed buffer on reload, stale server copy over newer local edits), articulates why the shipped scope excluded some, and gives a real counterfactual (e.g. 'if sessions were longer than X I'd add localStorage drafts'). A genuine author remembers wrestling with the trade-off even if they scoped it out.",
+          "redFlag": "Describes the feature that exists rather than the decision space; treats all three loss modes as equally handled or claims they were 'covered' without saying how; cannot name anything they deliberately left unprotected."
+        },
+        {
+          "id": "q2",
+          "probeId": "p2",
+          "decision": "The changes stayed entirely outside the flush()/re-buffer pipeline and the append-only event log â€” either a deliberate choice to leave the capture contract untouched, or the code was never read.",
+          "question": "Your changes never touched the session event capture path â€” the flush loop and the append-only event log. Was that a deliberate boundary you drew, and if so, what did you learn about that code that made you decide not to change it? Specifically: what does that event log guarantee, and what would break if you'd rewritten the flush loop?",
+          "listenFor": "Can describe the hash-chain / append-only ordering guarantee in their own words and explain the blast radius of touching it (broken chain verification, event reordering). A genuine author who chose 'work within the contract' can say what the contract IS.",
+          "redFlag": "Surprised the event log has an integrity mechanism at all; retrofits a rationale ('it wasn't in scope') without being able to describe what the code does; the boundary turns out to be where the assistant's generated diff happened to stop, not a decision."
+        },
+        {
+          "id": "q3",
+          "probeId": "p3",
+          "decision": "The decision log and telemetry show verification asks to the model and an edited test file, but no evidence the failure paths (reload mid-session, failed flush then retry) were ever exercised.",
+          "question": "You asked the assistant to check its own output twice and you edited a test file. Take the retry path after a failed flush: describe exactly how you would prove, on this codebase, that a retried batch doesn't get appended twice. What did you actually run or observe, and what did you accept on trust?",
+          "listenFor": "Distinguishes between 'the model said it's fine' and observed evidence; can sketch a concrete repro (kill the request, retry, count events in the log) even if they didn't run it, and honestly says which parts they trusted. Genuine authors remember what they saw, not just what they wrote.",
+          "redFlag": "Equates the model's self-check with verification; describes tests in the abstract ('there are unit tests for that') but can't say what a double-append would look like in the event log; claims everything was verified but can't name a single observed output."
+        },
+        {
+          "id": "q4",
+          "probeId": "",
+          "decision": "The candidate asked 4 stakeholder questions (3 clarifying) instead of guessing at the ambiguous brief.",
+          "question": "You asked the stakeholder several clarifying questions early on. Pick the one whose answer most changed what you built â€” what were you going to do before the answer, and what did you do instead? And which question did you consider asking but decided to resolve yourself?",
+          "listenFor": "Recalls the specific question and the fork it resolved; can name an assumption they chose to carry silently and their reasoning for not spending a question on it. Shows the questions were load-bearing, not process theater.",
+          "redFlag": "Remembers that questions were asked but not what changed as a result; every answer 'confirmed the plan'; cannot name any assumption they knowingly carried â€” suggests the questions were generated for appearance rather than to resolve real forks."
+        },
+        {
+          "id": "q5",
+          "probeId": "",
+          "decision": "After the mid-flight requirement change, the log shows 10 edits and 4 decision entries â€” the candidate adapted rather than restarting.",
+          "question": "When the requirement changed mid-task, you made about ten edits rather than rebuilding. What part of your earlier structure survived the change unchanged, what did you have to throw away, and â€” in hindsight â€” is there a decision from before the reveal you'd make differently knowing a change was coming?",
+          "listenFor": "Maps the change onto their architecture concretely (which seam absorbed it, which earlier choice made adaptation cheap or expensive); genuine authors can name what they regretted or what luckily held. Trade-off language grounded in the actual files.",
+          "redFlag": "Describes the new requirement but not the delta in their own code; claims nothing needed rework and nothing would be done differently; cannot connect the decision-log entries to specific edits â€” pattern of narrating a diff someone else produced."
+        },
+        {
+          "id": "q6",
+          "probeId": "",
+          "decision": "The prompt telemetry shows long, original prompts with iteration depth 4 and zero brief-pasting â€” the candidate decomposed the task before delegating pieces.",
+          "question": "Your prompts to the assistant were substantive and you never pasted the brief wholesale. Reconstruct your decomposition: what was the first sub-task you handed the assistant, what did it get wrong or half-right on the first pass, and what did you change in your follow-up prompt to fix it?",
+          "listenFor": "Remembers a concrete first-draft flaw and the specific steering that fixed it (added a constraint, supplied a file, narrowed scope). Iteration depth 4 means four rounds of correction â€” a genuine author can replay at least one of them with specifics.",
+          "redFlag": "Describes an idealized prompting workflow in the abstract; claims the assistant's first outputs were essentially correct (contradicting the observed iteration depth); can't name a single thing the model got wrong â€” suggests someone else drove the session."
+        }
+      ],
+      "promptVersion": "followups-v1"
+    },
+    "observedChecks": {
+      "promptSignals": {
+        "observed": true,
+        "assistantPrompts": 4,
+        "stakeholderQuestions": 4,
+        "clarifyingQuestions": 3,
+        "verificationAsks": 2,
+        "meanPromptChars": 444,
+        "iterationDepth": 4,
+        "briefPasteRatio": 0.0,
+        "confidence": 0.8
+      },
+      "promptEvidence": [
+        "Assistant prompts: 4 (mean 444 chars, iteration depth 4).",
+        "Stakeholder questions: 4 (3 clarifying).",
+        "Asked the model to verify/check its output 2 time(s)."
+      ]
+    }
+  },
+  "source": "partial",
+  "perStepSources": {
+    "reflect": "llm",
+    "tooling": "observed",
+    "evaluate": "llm",
+    "transfer": "llm",
+    "followups": "llm"
+  },
+  "confidence": {
+    "byStep": {
+      "reflect": 0.05,
+      "tooling": 0.8,
+      "evaluate": 0.05,
+      "transfer": 0.05
+    },
+    "threshold": 0.4,
+    "low": [
+      "evaluate",
+      "reflect",
+      "transfer"
+    ]
+  }
+}

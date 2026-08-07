@@ -13,13 +13,17 @@
 // The shared comma/semicolon list splitter (pure, dependency-free). These are
 // single-line answers, so no newline splitting — the default behavior here.
 import { splitList } from "./split-list.ts";
+// Type-only (erased at runtime): the shape of the injected translator. See GapTranslator.
+import type { useTranslations } from "next-intl";
 
 export type CompletenessGap = { check: string; label: string };
 
 export type GapFieldSpec = {
-  /** Candidate-facing prompt for the missing item. */
-  prompt: string;
-  placeholder: string;
+  /** Key under the `apply.gapFields` catalog namespace holding this field's
+   *  `.prompt` and `.placeholder`. The copy itself is NOT stored here: these
+   *  questions are now asked of the CANDIDATE (post-apply follow-up) as well as
+   *  the recruiter, so they must render in the candidate's language. */
+  key: string;
   /** Render a textarea (free story) instead of a single-line input. */
   multiline?: boolean;
 };
@@ -31,46 +35,42 @@ export type GapFieldSpec = {
  * for yet, and the profile stays saveable either way.
  */
 export const GAP_FIELDS: Record<string, GapFieldSpec> = {
-  has_project_or_thesis: {
-    prompt: "Tell us about a school project or thesis you're proud of",
-    placeholder: "e.g. Bachelor thesis: a small REST API for lab scheduling…",
-    multiline: true,
-  },
-  has_aspirations: {
-    prompt: "What kind of role are you aiming for?",
-    placeholder: "e.g. junior backend developer",
-  },
-  has_education_detail: {
-    prompt: "What are you studying, and when do you expect to graduate?",
-    placeholder: "e.g. Computer Science at CTU, graduating June 2027",
-  },
-  has_activity: {
-    prompt: "Any internship, certification, club, or part-time work worth knowing about?",
-    placeholder: "e.g. summer internship at a web agency",
-    multiline: true,
-  },
-  education_known: {
-    prompt: "What's your highest education level (or the one in progress)?",
-    placeholder: "e.g. bachelor",
-  },
-  has_languages: {
-    prompt: "Which languages do you work in? (comma-separated)",
-    placeholder: "e.g. Czech, English",
-  },
-  min_3_skills: {
-    prompt: "List a few skills we should know about (comma-separated)",
-    placeholder: "e.g. Python, SQL, Git",
-  },
-  has_years: {
-    prompt: "How many years of professional experience do you have?",
-    placeholder: "e.g. 4",
-  },
-  has_job: {
-    prompt: "What's your most relevant work experience?",
-    placeholder: "e.g. 3 years as a backend developer at…",
-    multiline: true,
-  },
+  has_project_or_thesis: { key: "hasProjectOrThesis", multiline: true },
+  has_aspirations: { key: "hasAspirations" },
+  has_education_detail: { key: "hasEducationDetail" },
+  has_activity: { key: "hasActivity", multiline: true },
+  education_known: { key: "educationKnown" },
+  has_languages: { key: "hasLanguages" },
+  min_3_skills: { key: "min3Skills" },
+  has_years: { key: "hasYears" },
+  has_job: { key: "hasJob", multiline: true },
 };
+
+/** The `apply.gapFields`-namespace translator the caller threads in, exactly like
+ *  buildApplyScript's ApplyTranslator — so this module keeps NO runtime next-intl
+ *  dependency (the import below is type-only and erased) and stays directly
+ *  unit-testable. Server-resolved via getTranslations("apply.gapFields"), or the
+ *  client hook of the same name; both satisfy this type. */
+export type GapTranslator = ReturnType<typeof useTranslations<"apply.gapFields">>;
+
+/** Localized copy for one gap field, or null for a check this form can't collect
+ *  for (an unknown/new registry id — see GAP_FIELDS). */
+export function gapFieldCopy(
+  check: string,
+  t: GapTranslator
+): { prompt: string; placeholder: string; multiline: boolean } | null {
+  const spec = GAP_FIELDS[check];
+  if (!spec) return null;
+  // The key is composed from the GAP_FIELDS registry (never from user input), so
+  // it is a valid catalog path by construction — next-intl's key type can't see
+  // that through the template literal.
+  const key = (leaf: string) => `${spec.key}.${leaf}` as Parameters<GapTranslator>[0];
+  return {
+    prompt: t(key("prompt")),
+    placeholder: t(key("placeholder")),
+    multiline: Boolean(spec.multiline),
+  };
+}
 
 /**
  * Fold the answered gap fields into a copy of the analyzed v2Profile payload.

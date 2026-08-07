@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { approveLifecycleCase, getLifecycle } from "@/app/_lib/db";
+import { approveLifecycleCase, getLifecycle } from "@/app/_lib/db/devcase";
 import { isAtReviewGate } from "@/app/_lib/devcase-orchestrator";
 import { recordAudit } from "@/app/_lib/dev-control";
 import { startTask } from "@/app/_lib/tasks";
@@ -67,6 +67,18 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       const reason =
         [edits ? `with edits: ${Object.keys(edits).join(", ")}` : null, gate.auditReason].filter(Boolean).join("; ") || undefined;
       recordAudit({ lifecycleId: id, actor: "human", action: "approved", ref: caseId, reason });
+    } else if (edits) {
+      // Not at the review gate (a second tab/reviewer already approved, or a retry
+      // landed twice) but this request carried reviewer edits. The approve block
+      // above is skipped, so those edits would be silently dropped while we still
+      // returned { ok: true } — the reviewer never learns their corrections didn't
+      // land and the published case differs from what they think they approved.
+      // Mirror the redesign route: 409 with the current stage so the UI can say
+      // "already approved elsewhere — reload". (An editless body still resumes.)
+      return NextResponse.json(
+        { error: `lifecycle is at '${lc.stage}', not awaiting review — your edits were not applied.`, stage: lc.stage },
+        { status: 409 }
+      );
     }
     const task = startTask("lifecycle", { lifecycleId: id, title: lc.title });
     return NextResponse.json({ ok: true, task });

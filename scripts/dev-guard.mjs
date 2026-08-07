@@ -18,10 +18,19 @@
 //         cross-env DEV_INSPECT=1 DEV_GUARD_MAX_NODE=150 node scripts/dev-guard.mjs next dev --webpack
 //
 // Env:
-//   DEV_GUARD_MAX_NODE   if set, enable the storm circuit breaker: trip when the
-//                        number of node processes grows by more than this many
-//                        over the baseline measured at launch (default: off).
-//   DEV_GUARD_POLL_MS    breaker poll interval in ms (default 8000).
+//   DEV_GUARD_MAX_NODE      if set, enable the storm circuit breaker: trip when the
+//                           number of node processes grows by more than this many
+//                           over the baseline measured at launch (default: off).
+//   DEV_GUARD_POLL_MS       breaker poll interval in ms (default 8000).
+//   DEV_GUARD_WATCH_PARENT  if "1", ALSO reap the tree when this guard's PARENT
+//                           process disappears. Signals cover Ctrl-C / terminal
+//                           close, but a HARD kill of the wrapper that spawned us
+//                           (taskkill without /T, a task-runner kill) delivers no
+//                           signal — the guard and the whole dev tree survive as
+//                           orphans holding ports and file handles (the
+//                           kp-empty.sqlite EPERM). Watching the parent closes
+//                           that last gap. Opt-in (dev-empty sets it) so plain
+//                           `npm run dev` behavior is unchanged.
 
 import { spawn, spawnSync } from "node:child_process";
 
@@ -72,6 +81,30 @@ child.on("error", (err) => {
   console.error(`dev-guard: failed to launch '${argv.join(" ")}': ${err.message}`);
   process.exit(1);
 });
+
+// ---- optional parent watch (DEV_GUARD_WATCH_PARENT=1) --------------------
+// The signal handlers above only fire when a signal is DELIVERED; a hard kill of
+// the spawning wrapper delivers none, orphaning this guard and everything under
+// it. process.ppid is captured once — on Windows the id is never reparented, so
+// "parent gone" is exactly "that pid no longer exists" (kill(ppid, 0) throws).
+if (process.env.DEV_GUARD_WATCH_PARENT === "1") {
+  const parentPid = process.ppid;
+  const watcher = setInterval(() => {
+    let alive = true;
+    try {
+      process.kill(parentPid, 0);
+    } catch {
+      alive = false;
+    }
+    if (!alive) {
+      console.error(`[dev-guard] parent process ${parentPid} is gone — reaping the dev tree.`);
+      clearInterval(watcher);
+      reapTree();
+      process.exit(1);
+    }
+  }, 4000);
+  watcher.unref?.();
+}
 
 // ---- optional storm circuit breaker -------------------------------------
 // Counts node processes via Get-Process / pgrep — deliberately NOT `tasklist`,

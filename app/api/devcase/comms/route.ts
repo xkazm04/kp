@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { listOutbox } from "@/app/_lib/db";
+import { listOutbox } from "@/app/_lib/db/devcase";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 
 

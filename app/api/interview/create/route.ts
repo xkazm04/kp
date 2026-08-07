@@ -1,15 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { meterGate, maxBillableInterviewMin } from "@/app/_lib/billing/enforce";
-import {
-  createInterviewSession,
-  getPipelineEntry,
-  isInterviewSessionLive,
-  liveInterviewByEntry,
-  revokeOpenInterviewSessions,
-} from "@/app/_lib/db";
+import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { createInterviewSession, isInterviewSessionLive, liveInterviewByEntry, revokeOpenInterviewSessions } from "@/app/_lib/db/interviews";
+import { getPipelineEntry } from "@/app/_lib/db/pipeline";
 import { buildGroundedInterview } from "@/app/_lib/interview-run";
 import { dispatchInterviewInvite } from "@/app/_lib/comms-dispatch";
-import { deliveryClaim, isRelayConfigured, type DeliveryClaim } from "@/app/_lib/comms-truth";
+import { deliveryClaim, type DeliveryClaim } from "@/app/_lib/comms-truth";
+import { isRelayConfigured } from "@/app/_lib/comms-relay";
 import { safeJsonError } from "@/app/_lib/api-response";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import { coerceLanguage, pickDefaultProvider, voiceAvailability, type VoiceProviderId } from "@/app/_lib/voice";
@@ -28,7 +25,9 @@ export async function POST(request: NextRequest) {
     // gating on the WORST CASE /complete can debit (bookedMin*2) — runs once `grounded`
     // is built, before we revoke any existing link. (Minutes debit at /complete; top-up
     // packs reopen this.)
-    const quota = meterGate("interview_minutes", { minUnits: GROUNDED_DEFAULT_MIN });
+    // Org attribution (org-plan Phase 3): both gates read the caller's tenant.
+    const workspace = await currentWorkspace();
+    const quota = meterGate("interview_minutes", { minUnits: GROUNDED_DEFAULT_MIN, workspace });
     if (quota) return NextResponse.json(quota, { status: 402 });
     // Validate at the trust boundary instead of casting request.json() to a
     // typed shape (idea-c7df6b55): entryId must be a plausibly-sized string and
@@ -72,7 +71,7 @@ export async function POST(request: NextRequest) {
     // reserved the 20-min default, so a session booked for 30 min (up to 60 billed) could
     // pass with 20 minutes left and drive the priciest meter negative. Reserving the true
     // ceiling closes that under-reservation.
-    const reserve = meterGate("interview_minutes", { minUnits: maxBillableInterviewMin(grounded.durationMin) });
+    const reserve = meterGate("interview_minutes", { minUnits: maxBillableInterviewMin(grounded.durationMin), workspace });
     if (reserve) return NextResponse.json(reserve, { status: 402 });
 
     // W6-4 (VOX1) — reissue semantics: a fresh link kills the prior ones.

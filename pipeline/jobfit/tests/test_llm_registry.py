@@ -14,7 +14,9 @@ from pipeline.jobfit.llm.adapters import (
     AnthropicProvider,
     AzureOpenAIProvider,
     GeminiProvider,
+    OllamaProvider,
     OpenAIProvider,
+    QwenProvider,
 )
 from pipeline.jobfit.llm.config import ENV_VAR, load_config
 
@@ -94,7 +96,7 @@ class RoutingTest(unittest.TestCase):
         with llm_config(cfg):
             provider = resolve_provider("match_reasoning")
         self.assertIsInstance(provider, GeminiProvider)
-        self.assertEqual(provider.model, "gemini-3-flash-preview")
+        self.assertEqual(provider.model, "gemini-3.6-flash")
 
     def test_params_and_keys_flow_into_adapter(self) -> None:
         cfg = {
@@ -110,6 +112,46 @@ class RoutingTest(unittest.TestCase):
             provider = resolve_provider("match_reasoning", timeout=120)
         self.assertEqual(provider.max_tokens, 4096)
         self.assertEqual(provider.timeout, 60)
+        self.assertEqual(provider.api_key, "sk-test")
+
+    def test_ollama_requires_explicit_model(self) -> None:
+        # Ollama models are addressed by local tag — no built-in default.
+        with llm_config({"useCases": {"match_reasoning": {"provider": "ollama"}}}):
+            with self.assertRaises(LLMError):
+                resolve_provider("match_reasoning")
+
+    def test_ollama_routes_with_tag_and_base_url(self) -> None:
+        cfg = {
+            "useCases": {"match_reasoning": {"provider": "ollama", "model": "lfm2.5:8b"}},
+            "keys": {"ollama": {"baseUrl": "http://gpu-box:11434/v1"}},
+        }
+        with llm_config(cfg):
+            provider = resolve_provider("match_reasoning")
+        self.assertIsInstance(provider, OllamaProvider)
+        self.assertEqual(provider.model, "lfm2.5:8b")
+        self.assertEqual(provider._resolved_base_url(), "http://gpu-box:11434/v1")
+
+    def test_ollama_defaults_to_local_server(self) -> None:
+        with llm_config({"useCases": {"match_reasoning": {"provider": "ollama", "model": "lfm2.5:8b"}}}):
+            provider = resolve_provider("match_reasoning")
+        with mock.patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("OLLAMA_BASE_URL", None)
+            with mock.patch.object(OllamaProvider, "_load_env", lambda self: None):
+                self.assertEqual(provider._resolved_base_url(), "http://localhost:11434/v1")
+
+    def test_qwen_requires_explicit_model_and_routes_by_slug(self) -> None:
+        # Qwen Cloud models are addressed by slug — no built-in default.
+        with llm_config({"useCases": {"match_reasoning": {"provider": "qwen"}}}):
+            with self.assertRaises(LLMError):
+                resolve_provider("match_reasoning")
+        cfg = {
+            "useCases": {"match_reasoning": {"provider": "qwen", "model": "glm-5.2"}},
+            "keys": {"qwen": {"apiKey": "sk-test"}},
+        }
+        with llm_config(cfg):
+            provider = resolve_provider("match_reasoning")
+        self.assertIsInstance(provider, QwenProvider)
+        self.assertEqual(provider.model, "glm-5.2")
         self.assertEqual(provider.api_key, "sk-test")
 
     def test_azure_requires_explicit_model(self) -> None:
@@ -136,6 +178,43 @@ class RoutingTest(unittest.TestCase):
         self.assertEqual(provider.api_version, "2024-10-21")
 
 
+class ProductionDefaultTest(unittest.TestCase):
+    """Non-dev (NODE_ENV=production) prefers the Gemini Flash tier when no
+    use-case config exists AND Gemini can actually serve — a cloud box rarely
+    has the Claude CLI. Keyless deployments keep the unchanged CLI default."""
+
+    def test_production_defaults_to_gemini_when_available(self) -> None:
+        with llm_config(None):
+            with mock.patch.dict(os.environ, {"NODE_ENV": "production"}):
+                with mock.patch.object(GeminiProvider, "available", lambda self: True):
+                    provider = resolve_provider("match_reasoning")
+        self.assertIsInstance(provider, GeminiProvider)
+        self.assertEqual(provider.model, "gemini-3.6-flash")
+
+    def test_production_keyless_keeps_claude_cli(self) -> None:
+        with llm_config(None):
+            with mock.patch.dict(os.environ, {"NODE_ENV": "production"}):
+                with mock.patch.object(GeminiProvider, "available", lambda self: False):
+                    provider = resolve_provider("match_reasoning")
+        self.assertIsInstance(provider, ClaudeCliProvider)
+
+    def test_production_explicit_claude_cli_row_wins(self) -> None:
+        cfg = {"useCases": {"match_reasoning": {"provider": "claude_cli"}}}
+        with llm_config(cfg):
+            with mock.patch.dict(os.environ, {"NODE_ENV": "production"}):
+                with mock.patch.object(GeminiProvider, "available", lambda self: True):
+                    provider = resolve_provider("match_reasoning")
+        self.assertIsInstance(provider, ClaudeCliProvider)
+
+    def test_dev_never_consults_gemini(self) -> None:
+        with llm_config(None):
+            with mock.patch.dict(os.environ, {}, clear=False):
+                os.environ.pop("NODE_ENV", None)
+                with mock.patch.object(GeminiProvider, "available", lambda self: True):
+                    provider = resolve_provider("match_reasoning")
+        self.assertIsInstance(provider, ClaudeCliProvider)
+
+
 class ValidationTest(unittest.TestCase):
     def test_invalid_json_raises(self) -> None:
         with llm_config("{not json"):
@@ -158,6 +237,18 @@ class ValidationTest(unittest.TestCase):
         with llm_config({"useCases": {"cv_analysis": {"provider": "claude_cli"}}}):
             with self.assertRaises(LLMError):
                 resolve_provider("cv_analysis")
+
+    def test_cv_analysis_raises_for_text_only_adapters(self) -> None:
+        # llm-provider-layer #1: openai/anthropic/gemini adapters in this layer are
+        # text-only (the real multimodal path lives in gemini.py), so routing the
+        # file-input cv_analysis case to them must fail loud, not silently drop the CV
+        # and analyze an empty prompt. Previously they advertised file_input and were
+        # waved through.
+        for provider in ("openai", "anthropic", "gemini", "azure_openai"):
+            with self.subTest(provider=provider):
+                with llm_config({"useCases": {"cv_analysis": {"provider": provider}}}):
+                    with self.assertRaises(LLMError):
+                        resolve_provider("cv_analysis")
 
     def test_wildcard_cannot_silently_degrade_multimodal(self) -> None:
         with llm_config({"useCases": {"*": {"provider": "claude_cli"}}}):

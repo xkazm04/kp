@@ -22,7 +22,7 @@ import sys
 from pathlib import Path
 
 from .archetype import ARCHETYPES, detect_archetype
-from .profile import CandidateProfileV2, normalize_profile
+from .profile import CandidateProfileV2, completeness_gaps, normalize_profile
 
 # --- Honest error taxonomy (mirrors automation_cli.py / devcase_cli.py) ------
 #   400 / invalid_input — a malformed intake draft (pydantic ValidationError) or
@@ -88,6 +88,12 @@ def main(argv: list[str] | None = None) -> int:
                 "reasons": reasons,
                 "completeness": score,
                 "missing": missing,
+                # Machine-readable twin of `missing`, same biggest-gap-first order:
+                # each unmet checklist item as {check, label}. ADDITIVE — `missing`
+                # (raw registry labels) stays for back-compat; the frontend joins on
+                # the stable `check` id to localize the label AND route the clickable
+                # "Add next" gap, so an unmatched EN label is no longer dead text.
+                "missingGaps": completeness_gaps(profile),
             },
             ensure_ascii=False,
         )

@@ -11,6 +11,9 @@ type DataView = {
   appliedAt: string | null;
   consentExpiresAt: string | null;
   anonymized: boolean;
+  // #5 — the categories we actually hold, projected server-side; falls back to the
+  // full known set for defensiveness if an older API omits it.
+  held?: string[];
 };
 
 // Public, token-gated GDPR self-service page (right to erasure). The candidate
@@ -24,7 +27,11 @@ export function DataClient() {
   const tCommon = useTranslations("common");
   const locale = useLocale();
   const [view, setView] = useState<DataView | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  // #4 — load failure and erase-action failure are DISTINCT states. A load error is
+  // terminal (nothing to show); an erase error is a dismissible inline alert beside the
+  // (re-enabled) button so the candidate can retry without losing the whole page.
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [eraseError, setEraseError] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   const [erased, setErased] = useState(false);
@@ -37,25 +44,27 @@ export function DataClient() {
         if (p.error) throw new Error(p.error);
         setView(p as DataView);
       })
-      .catch(() => setError(t("loadFailed")));
+      .catch(() => setLoadError(t("loadFailed")));
   }, [token, t]);
 
   const erase = async () => {
     if (!token) return;
     setBusy(true);
+    setEraseError(null); // clear a prior failure so a retry starts clean
     try {
       const res = await fetch(`/api/data/${token}`, { method: "POST" });
       const p = await res.json();
       if (p.error) throw new Error(p.error);
       setErased(true);
     } catch {
-      setError(t("eraseFailed"));
+      // #4 — surface the failure inline; DON'T collapse the page, so the erase button
+      // stays available for an in-place retry.
+      setEraseError(t("eraseFailed"));
     } finally {
       setBusy(false);
     }
   };
 
-  const held = ["cv", "contact", "answers", "interview", "scores"] as const;
   const heldLabel: Record<string, string> = {
     cv: t("held.cv"),
     contact: t("held.contact"),
@@ -63,6 +72,9 @@ export function DataClient() {
     interview: t("held.interview"),
     scores: t("held.scores"),
   };
+  // #5 — render only the categories the API says we actually hold; defensively fall
+  // back to the full known set if the field is absent, and drop any unknown key.
+  const held = (view?.held ?? Object.keys(heldLabel)).filter((h) => h in heldLabel);
 
   return (
     <main className="mx-auto max-w-xl px-4 py-12">
@@ -70,9 +82,17 @@ export function DataClient() {
         <ShieldCheck size={14} /> {t("eyebrow")}
       </p>
 
-      {error ? (
+      {/* #5 — a STABLE page heading rendered in every state (loading, load-error,
+          erased, active), so a screen-reader user never lands on a headingless page.
+          The role-specific title lives here at the root rather than only inside the
+          active branch. */}
+      <h1 className="mt-1 font-serif text-display text-ink">
+        {view?.jobTitle ? t("forRole", { role: view.jobTitle }) : t("forRoleGeneric")}
+      </h1>
+
+      {loadError ? (
         <p role="alert" className="mt-4 rounded-lg border border-stone-200 bg-paper p-4 text-body text-steel">
-          {error}
+          {loadError}
         </p>
       ) : !view ? (
         <p className="mt-4 text-base text-steel">{tCommon("loading")}</p>
@@ -85,9 +105,6 @@ export function DataClient() {
         </div>
       ) : (
         <>
-          <h1 className="mt-1 font-serif text-display text-ink">
-            {view.jobTitle ? t("forRole", { role: view.jobTitle }) : t("forRoleGeneric")}
-          </h1>
           {view.company ? <p className="mt-1 text-body text-steel">{view.company}</p> : null}
 
           <div className="mt-6 rounded-lg border border-stone-200 bg-paper p-5">
@@ -140,6 +157,13 @@ export function DataClient() {
                 <Trash2 size={15} /> {t("eraseCta")}
               </button>
             )}
+            {/* #4 — erase failure is an inline, dismissible alert beside the still-
+                available button (page intact), so the candidate can retry in place. */}
+            {eraseError ? (
+              <p role="alert" className="mt-3 text-body text-red-700">
+                {eraseError}
+              </p>
+            ) : null}
           </div>
         </>
       )}

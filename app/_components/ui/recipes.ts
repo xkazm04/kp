@@ -1,6 +1,6 @@
 /*
  * Shared surface recipes — the "write once, apply multiple times" seam
- * (docs/DESIGN.md). These are the canonical class strings for the recurring
+ * (docs/design/README.md). These are the canonical class strings for the recurring
  * visual patterns found across the workspace (panel ~94 call sites, meta
  * label ~101, secondary pill ~64, section header ~55 at extraction time).
  * Restyling a recipe here re-skins every consumer — in BOTH themes, because
@@ -28,12 +28,6 @@ export const PANEL = "rounded-lg border border-stone-200 bg-white shadow-panel";
  *  stone fill (not the near-invisible paper/40 tint) so it reads as genuinely
  *  recessed against a white PANEL. */
 export const PANEL_SUNKEN = "rounded-lg border border-stone-200 bg-stone-50 dark:rounded-2xl";
-
-/** Accent / chrome surface — verdict banners, callouts, stat clusters, CTAs.
- *  Carries more confidence than PANEL: a drawn 2px border + the offset "pop"
- *  shadow. Reserve for CHROME, never data-dense surfaces — those stay on PANEL
- *  so the board/table register keeps its calm (the Studio Light contract). */
-export const PANEL_ACCENT = "rounded-xl border-2 border-stone-300 bg-white shadow-pop";
 
 /* ── Composition (Option C) — the studio rhythm. One spacing scale, one card
  *    padding default, one ruled header, so sections read as a deliberate
@@ -122,8 +116,8 @@ export const BTN_SECONDARY =
 export const FIELD =
   "rounded-md border border-stone-200 bg-white px-3 py-1.5 text-base text-ink placeholder:text-steel caret-coral";
 
-/** Segmented aria-pressed toggle group wrapper (ThemeToggle / LanguageSwitcher
- *  sidebar footer toggles). The bordered pill rail; pair with role="group". Note
+/** Segmented aria-pressed toggle group wrapper (`LanguageSwitcher` on the public
+ *  pages, the org language picker). The bordered pill rail; pair with role="group". Note
  *  these use button-group (aria-pressed) semantics — distinct from the shared
  *  SegmentedControl's radiogroup/roving-tabindex contract — so only the class
  *  strings are shared, not the component. */
@@ -133,6 +127,15 @@ export const TOGGLE_GROUP = "inline-flex items-center gap-0.5 rounded-md border 
  *  bg-ink active pill. Sizing/padding stays at the call site. */
 export const toggleBtn = (isActive: boolean): string =>
   isActive ? "bg-ink text-white" : "text-steel hover:bg-stone-100";
+
+/** First-level (sidebar rail) icon-only control — the appearance/language popup
+ *  triggers and Sign out. Square hit area on the 4.75rem rail, quiet by default,
+ *  coral wash when open/active, matching the rail's section buttons. Always pair
+ *  with an aria-label/sr-only name: there is no visible text. */
+export const railIconBtn = (isActive: boolean): string =>
+  `focus-ring relative flex h-9 w-9 items-center justify-center rounded-lg transition-colors ${
+    isActive ? "bg-coral/10 text-coral" : "text-steel hover:bg-stone-100 hover:text-ink"
+  }`;
 
 /** Keycap chip (`<kbd>`) — command palette + keyboard-shortcuts overlay.
  *  Pair with a type size at the call site (`${KBD} text-sm` / `text-[11px]`). */

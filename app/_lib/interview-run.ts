@@ -1,16 +1,24 @@
-import { getDevCase, getJob, getPipelineEntry, getSubmission, type PipelineEntry, type VoiceTurn } from "./db";
+// Slices, not the `./db` barrel — see the note in app/_lib/llm-config.ts. This
+// module is imported by /api/schedule for ONE duration helper, so the barrel made
+// that route's first-hit compile the entire data layer on top of its own graph.
+import { getDevCase, getSubmission } from "./db/devcase";
+import { getJob } from "./db/jobs";
+import { getPipelineEntry } from "./db/pipeline";
+import type { PipelineEntry } from "./db/core";
+import type { VoiceTurn } from "./voice/types";
 import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 import { runAutomationTask } from "./automation-run";
 import { defaultInterviewerInstructions } from "./voice";
 import { getInterviewPrep } from "./interview-prep";
 import { runInterviewPrep, type ChronologyBlock } from "./interview-prep-run";
-import { buildScorecardNotes, transcriptToNotes } from "./interview-transcript";
+import { buildScorecardNotes, coverageFromNotes, transcriptToNotes } from "./interview-transcript";
 import { GROUNDED_DEFAULT_MIN, QUICK_SCREEN_MIN } from "./interview-duration.mjs";
 import { isEarlyCareer } from "./archetypes";
 import { isLocale, type Locale } from "@/i18n/locales";
 import {
   caseGroundedInterviewerInstructions,
   devCaseIdFromJobId,
+  PERSONA_CRAFT_RULES,
   PERSONA_GENDER_GRAMMAR,
   PERSONA_LANGUAGE_DETECT,
   PERSONA_ONE_QUESTION,
@@ -23,6 +31,13 @@ import {
   type CaseInterviewScenario,
 } from "./student-interview";
 import { extractTelemetry } from "./interview-telemetry";
+import {
+  composeCandidateBrief,
+  sanitizeChronologyBlock,
+  sanitizeFollowupQuestion,
+  sanitizeScenarioPhase,
+  type CandidateSafeBlock,
+} from "./voice/candidate-brief";
 
 // Re-exported for back-compat: the transcript→notes flattener now lives with the
 // rest of the documented truncation policy in ./interview-transcript.
@@ -40,7 +55,62 @@ type PrepPayload = {
   durationMin?: number;
   focusAreas?: string[];
   chronology?: ChronologyBlock[];
+  // Interview-kit questions imported into the pack (written by /api/interview-prep
+  // POST, rendered in the prep modal). Aloud-material the recruiter wants asked —
+  // now carried into the voice brief alongside the generated chronology.
+  importedQuestions?: string[];
 };
+
+/** Cap on imported interview-kit questions carried into a grounded brief, so a
+ *  40-question import (the /api/interview-prep import cap) can't overwhelm the
+ *  brief's length discipline. What is dropped is stated in the brief prose. */
+export const MAX_BRIEF_IMPORTED_QUESTIONS = 8;
+
+/** The imported interview-kit questions (prep payload `importedQuestions`) that
+ *  should ride a grounded brief: trimmed, de-duplicated, and — the coordination
+ *  guard with the sibling "weave into chronology" work — dropped when their exact
+ *  text is already asked in a chronology block, so a woven question never
+ *  double-renders. Pure/exported for the brief-construction unit tests. */
+export function importedQuestionsForBrief(importedQuestions: unknown, alreadyAsked: Iterable<string>): string[] {
+  const seen = new Set<string>();
+  for (const q of alreadyAsked) if (typeof q === "string") seen.add(q.trim());
+  const out: string[] = [];
+  if (Array.isArray(importedQuestions)) {
+    for (const raw of importedQuestions) {
+      // Entries are legacy plain strings OR { question, blockRef? } objects (the
+      // round-8 weave shape). Both must reach the brief — a woven question keeps
+      // its single home in importedQuestions, so skipping objects would silently
+      // drop exactly the questions the recruiter planned most deliberately.
+      const text =
+        typeof raw === "string"
+          ? raw
+          : raw && typeof raw === "object" && typeof (raw as { question?: unknown }).question === "string"
+            ? (raw as { question: string }).question
+            : null;
+      if (text === null) continue;
+      const q = text.trim();
+      if (!q || seen.has(q)) continue;
+      seen.add(q);
+      out.push(q);
+    }
+  }
+  return out;
+}
+
+/** The run-of-show tail for imported interview-kit questions: a single appended
+ *  block, capped to MAX_BRIEF_IMPORTED_QUESTIONS with the cap stated in prose.
+ *  Empty string when there is nothing to add, so an import-free brief is
+ *  byte-identical to before this feature. */
+function composeImportedRunOfShowLine(imported: string[]): string {
+  if (imported.length === 0) return "";
+  const shown = imported.slice(0, MAX_BRIEF_IMPORTED_QUESTIONS);
+  const cap =
+    imported.length > shown.length
+      ? ` (the first ${shown.length} of ${imported.length} — ask the rest only if time allows)`
+      : "";
+  const qs = shown.map((q) => `“${q}”`).join(" ");
+  return `  Also weave in these recruiter-added questions wherever they fit best${cap}: ${qs}.`;
+}
 
 // App §2 / P1 root cause: when the candidate EXPLICITLY chose a language at apply (entry.locale is
 // a real locale, not the workspace-default guess), tell the agent to OPEN in it instead of the
@@ -52,7 +122,7 @@ function withOpeningLanguage(instructions: string, preferred: Locale | null): st
   return `${instructions} The candidate chose to apply in ${name}, so open the interview in ${name} (you may still follow them if they switch language later).`;
 }
 
-function composeBrief(
+export function composeBrief(
   company: string,
   title: string,
   roleLine: string,
@@ -68,35 +138,38 @@ function composeBrief(
       return `${i + 1}. ${b.topic} (${b.fromMin}–${b.toMin} min) — ${b.goal}${qs ? ` Ask: ${qs}.` : ""}${fu}`;
     })
     .join("  ");
+  // Imported interview-kit questions ride the run-of-show as a capped appended
+  // block, skipping any whose exact text a chronology block already asks (the
+  // sibling weave-into-chronology guard, so nothing double-renders).
+  const askedInChronology = chron.flatMap((b) => (b.questions ?? []).filter(Boolean));
+  const imported = importedQuestionsForBrief(prep?.importedQuestions, askedInChronology);
+  const importedLine = composeImportedRunOfShowLine(imported);
   return [
     `You are a warm, professional first-round screening interviewer at ${company} for the ${roleLine} role.`,
+    PERSONA_ONE_QUESTION,
+    ...PERSONA_CRAFT_RULES,
+    // Gender-grammar + language lock stay ADJACENT and LAST (see student-interview.ts).
     PERSONA_GENDER_GRAMMAR,
     PERSONA_LANGUAGE_DETECT,
-    PERSONA_ONE_QUESTION,
     `Begin by briefly introducing yourself as an AI assistant, ${company}, and the ${title} position in two or three sentences, and mention that the call is transcribed for a human recruiter.`,
     `Then lead the conversation through this run of show (about ${durationMin} minutes total), keeping each topic roughly time-boxed. Ask the listed questions naturally, one at a time, with short follow-ups, and adapt to the candidate's answers:`,
-    runOfShow,
+    runOfShow + importedLine,
     "Do not give feedback, scores, or any hiring decision, and never praise or judge the quality of an answer or tell the candidate their thinking, instinct, or approach is right (avoid “great”, “impressive”, “exactly right”, “the right instinct”, “on the right track”) — stay warm by showing interest and inviting them to continue (“thank you”, “understood”, “tell me more”), not by approving. When the agenda is covered, invite the candidate's questions, thank them, and say a human recruiter will review the conversation.",
   ].join(" ");
 }
 
-type SubmissionFollowup = { id?: string; decision?: string; question?: string; listenFor?: string; redFlag?: string };
-
-/** Debrief length: ~3 min per minted question on top of the open walkthrough;
- *  capped to stay a screen. Single source for the brief AND the schedule estimate. */
-function debriefDurationMin(followupCount: number): number {
-  return Math.min(25, 8 + 3 * followupCount);
-}
-
-/** The minted authorship questions on an entry's evaluated submission (empty when
- *  the entry isn't a promoted dev-case submission or nothing was minted). */
-function submissionFollowups(entry: PipelineEntry): SubmissionFollowup[] {
-  const submissionId = submissionIdFromCandidateId(entry.candidateId);
-  const submission = submissionId ? getSubmission(submissionId) : null;
-  return ((submission?.evaluation as { followups?: { questions?: SubmissionFollowup[] } } | null)?.followups?.questions ?? []).filter(
-    (f) => typeof f?.question === "string" && f.question.trim() !== ""
-  );
-}
+// The duration estimate and its two helpers live in the LEAF module
+// ./interview-planned-minutes so the scheduling routes can import them without
+// pulling this file's graph (voice, prep generation, transcripts, automation).
+// Re-exported here so every existing `from "./interview-run"` import keeps working
+// against a single definition.
+import {
+  debriefDurationMin,
+  plannedInterviewMinutes,
+  submissionFollowups,
+  type SubmissionFollowup,
+} from "./interview-planned-minutes";
+export { debriefDurationMin, plannedInterviewMinutes, submissionFollowups, type SubmissionFollowup };
 
 // Candidate-facing agenda for the submission debrief — deliberately generic: the
 // followups' decision/red-flag notes are interviewer-internal and must never leak
@@ -125,9 +198,11 @@ function composeDebriefBrief(
     .join("  ");
   return [
     `You are a warm, professional interviewer at ${company} for the ${roleLine} role.${name}`,
+    PERSONA_ONE_QUESTION,
+    ...PERSONA_CRAFT_RULES,
+    // Gender-grammar + language lock stay ADJACENT and LAST (see student-interview.ts).
     PERSONA_GENDER_GRAMMAR,
     PERSONA_LANGUAGE_DETECT,
-    PERSONA_ONE_QUESTION,
     "Begin by briefly introducing yourself as an AI assistant in two sentences, mention the call is transcribed for a human recruiter, and say this conversation is about the take-home assignment they submitted — you'd like to understand how they approached it.",
     "Using AI tools to build the submission is expected and NEVER penalised — what matters is whether they own the decisions in it. Never imply suspicion or that authorship is being verified; every question is genuine curiosity about their reasoning.",
     `Open by letting them walk you through their approach in their own words for a couple of minutes, then work through these questions (about ${durationMin} minutes total), one at a time, adapting natural follow-ups to their answers — push gently for the WHY, the alternative they rejected, and what would make them decide differently:`,
@@ -250,27 +325,90 @@ export async function buildGroundedInterview(entryId: string): Promise<{
   };
 }
 
-/** Read-only estimate of how long the entry's interview will run — the same
- *  branch order as buildGroundedInterview (debrief > case-grounded student >
- *  generic student > grounded prep > quick screen) WITHOUT its side effects: it
- *  never generates missing prep, so it is safe to call when minting a scheduling
- *  link. An entry whose prep doesn't exist yet reports the quick screen — the
- *  truthful floor — rather than a promise the brief may not keep. */
-export function plannedInterviewMinutes(entry: PipelineEntry): number {
+/** Candidate-safe GROUNDED brief for an entry — the ElevenLabs candidate-session
+ *  counterpart of buildGroundedInterview. EL's signed-url flow has no server-side
+ *  prompt config: the prompt override is client-sent (VoiceInterview.tsx), so it
+ *  transits the candidate's BROWSER and must contain nothing the candidate may
+ *  not read. Every block passes through the ALLOW-LIST sanitizers in
+ *  voice/candidate-brief.ts (the unit-tested security boundary): topics,
+ *  aloud-questions and time-boxes survive; goals, listenFor, redFlag and
+ *  coachability stage directions do not. Read-only like plannedInterviewMinutes
+ *  (never generates missing prep); returns null when there is nothing grounded
+ *  to say, so the caller falls back to the generic candidate-safe prompt. */
+export function buildCandidateSafeBrief(entryId: string): string | null {
+  const entry = getPipelineEntry(entryId);
+  if (!entry) return null;
+
+  const job = entry.jobId ? getJob(entry.jobId) : null;
+  const company = job?.company || "Česká spořitelna";
+  const title = entry.jobTitle || job?.title || "the role";
+  const ctx = [job?.seniority, job?.location, job?.workMode].filter(Boolean).join(" · ");
+  const roleLine = ctx ? `${title} (${ctx})` : title;
+  const preferredLang: Locale | null = isLocale(entry.locale) ? entry.locale : null;
+  const candidateLabel = entry.candidateLabel ?? null;
+
+  // Same branch order as buildGroundedInterview: debrief > case-grounded student >
+  // generic student > grounded prep > null (generic fallback).
   const followups = submissionFollowups(entry);
-  if (followups.length > 0) return debriefDurationMin(followups.length);
+  if (followups.length > 0) {
+    const questions = followups.map(sanitizeFollowupQuestion).filter((q): q is string => q !== null);
+    if (questions.length === 0) return null;
+    const blocks: CandidateSafeBlock[] = [
+      { topic: "Your take-home — how you approached it", questions: [] },
+      { topic: "Decisions deep-dive", questions },
+      { topic: "Your questions", questions: [] },
+    ];
+    return withOpeningLanguage(
+      composeCandidateBrief({ company, roleLine, candidateLabel, durationMin: debriefDurationMin(followups.length), blocks }),
+      preferredLang
+    );
+  }
+
   if (isEarlyCareer(entry.archetype)) {
     const caseId = devCaseIdFromJobId(entry.jobId);
     const scenario = caseId ? ((getDevCase(caseId)?.scenario as CaseInterviewScenario | null) ?? null) : null;
-    if (scenario && Array.isArray(scenario.phases) && scenario.phases.length > 0) {
-      return scenario.durationMin || STUDENT_SCRIPT_MIN;
-    }
-    return STUDENT_SCRIPT_MIN;
+    const phases = scenario && Array.isArray(scenario.phases) && scenario.phases.length > 0 ? scenario.phases : STUDENT_SCRIPT;
+    const blocks = phases.map(sanitizeScenarioPhase).filter((b): b is CandidateSafeBlock => b !== null);
+    if (blocks.length === 0) return null;
+    return withOpeningLanguage(
+      composeCandidateBrief({
+        company,
+        roleLine,
+        candidateLabel,
+        durationMin: scenario?.durationMin || STUDENT_SCRIPT_MIN,
+        blocks,
+        // The case intro is narrated ALOUD to the candidate by design — safe to ground on.
+        intro: scenario?.caseIntro ?? null,
+      }),
+      preferredLang
+    );
   }
-  const prep = (getInterviewPrep(entry.id)?.payload as PrepPayload | undefined) ?? undefined;
-  const grounded = (prep?.chronology?.length ?? 0) > 0;
-  return grounded ? prep?.durationMin ?? GROUNDED_DEFAULT_MIN : QUICK_SCREEN_MIN;
+
+  const prep = (getInterviewPrep(entryId)?.payload as PrepPayload | undefined) ?? undefined;
+  const chron = prep?.chronology ?? [];
+  if (chron.length === 0) return null;
+  const blocks = chron.map(sanitizeChronologyBlock).filter((b): b is CandidateSafeBlock => b !== null);
+  if (blocks.length === 0) return null;
+  // Imported interview-kit questions are aloud-material (the questions the recruiter
+  // wants asked), so they reach the candidate-safe brief through the SAME allow-list
+  // sanitizer as chronology questions — de-duped against questions already asked in
+  // the plan (the sibling weave-into-chronology guard) and capped for length.
+  const askedAloud = blocks.flatMap((b) => b.questions);
+  const imported = importedQuestionsForBrief(prep?.importedQuestions, askedAloud).slice(0, MAX_BRIEF_IMPORTED_QUESTIONS);
+  if (imported.length > 0) {
+    const extra = sanitizeChronologyBlock({ topic: "Recruiter-added questions", questions: imported });
+    if (extra) blocks.push(extra);
+  }
+  return withOpeningLanguage(
+    composeCandidateBrief({ company, roleLine, candidateLabel, durationMin: prep?.durationMin ?? GROUNDED_DEFAULT_MIN, blocks }),
+    preferredLang
+  );
 }
+
+/* plannedInterviewMinutes moved to ./interview-planned-minutes (re-exported at the
+   top of this file) — see the note there. It shares buildGroundedInterview's branch
+   order (debrief > case-grounded student > generic student > grounded prep > quick
+   screen); keep the two in step. */
 
 /** Synthesize a scorecard from the call transcript (Task 5). Also sets the
  *  scorecard_review approval on the entry, so it lands in the Decisions queue. */
@@ -279,8 +417,8 @@ export async function runInterviewScorecard(
   transcript: VoiceTurn[],
   workspaceId: string = DEFAULT_WORKSPACE_ID
 ): Promise<Record<string, unknown> | null> {
-  const { notes, truncated, droppedTurns, droppedChars, keptTurns, totalTurns } =
-    buildScorecardNotes(transcript);
+  const scNotes = buildScorecardNotes(transcript);
+  const { notes, truncated, droppedTurns, droppedChars, keptTurns, totalTurns } = scNotes;
   if (!notes) return null;
   // Make the silent-truncation cliff visible: only logs when sampling actually
   // discarded turns from the middle of the transcript (see ./interview-transcript).
@@ -311,6 +449,14 @@ export async function runInterviewScorecard(
   } catch {
     /* telemetry is enrichment — a failure must not lose the scorecard */
   }
+  // Make the scoring-truncation cliff HONEST, not just logged: when head+tail
+  // sampling meant the scorer read less than the full stored transcript, persist
+  // structured coverage on the scorecard so the transcript modal can show a
+  // truthful caveat. Attached only when truncated (coverageFromNotes returns
+  // null otherwise), so a full-coverage score carries no coverage object and the
+  // UI shows nothing — zero behavior change on the complete-transcript path.
+  const coverage = coverageFromNotes(scNotes);
+  if (coverage) (result as Record<string, unknown>).coverage = coverage;
   // Case-grounded interviews can mint observed evidence (step 4 of the case-first
   // design): when the conversation worked the role's shared case AND cleared the
   // honest gates, the candidate's profile gains observed-provenance skills — their

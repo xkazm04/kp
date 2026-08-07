@@ -18,7 +18,7 @@ Honesty contract (stricter than the marketing genre it imitates):
 
 Mirrors the automation.py task pattern: ClaudeCliProvider when available, a
 deterministic builder otherwise, coerce() validating the LLM result at the
-trust boundary. See docs/ERIKA_GAP_BACKLOG.md (E1).
+trust boundary. See docs/features/jobs/README.md (E1).
 """
 
 from __future__ import annotations
@@ -28,6 +28,7 @@ from typing import Any
 
 from .i18n import language_directive, normalize_lang
 from .jobs import Job
+from .market_config import ACTIVE_MARKET, MarketConfig, currency_unit
 
 CAMPAIGN_PROMPT_VERSION = "campaign-pack-v1"
 
@@ -44,11 +45,18 @@ WARN_NO_SALARY = "no_salary"
 WARN_NO_LOCATION = "no_location"
 WARN_NO_SKILLS = "no_skills"
 
-_SYSTEM = (
-    "You are a recruitment-marketing copywriter for the Czech tech market. Be concrete, plain, and "
-    "honest: use ONLY the supplied job facts — never invent pay, benefits, testimonials, or team "
-    "details. Write in the requested language. Output strict JSON only."
-)
+def _system_prompt(market: MarketConfig = ACTIVE_MARKET) -> str:
+    """The copywriter system prompt, with the target market named from config
+    instead of a hardcoded "Czech". For the Czech default (descriptor "Czech")
+    this is byte-identical to the literal it replaced, so the pilot never regresses;
+    a re-homed market tells the model the RIGHT market on every generation."""
+    market_phrase = market.market_descriptor or ACTIVE_MARKET.market_descriptor
+    return (
+        f"You are a recruitment-marketing copywriter for the {market_phrase} tech market. "
+        "Be concrete, plain, and "
+        "honest: use ONLY the supplied job facts — never invent pay, benefits, testimonials, or team "
+        "details. Write in the requested language. Output strict JSON only."
+    )
 
 # Deterministic-fallback template strings. Candidate-facing, so they ship in
 # both supported candidate languages; campaign copy is generated PER language
@@ -70,25 +78,47 @@ _T: dict[str, dict[str, str]] = {
         "offer": "{role}.",
         "hiringIn": "Hledáme v {place}.",
     },
+    # Formal register (Sie), matching messages/de.json.
+    "de": {
+        "ctaUrl": "Jetzt bewerben — dauert nur etwa 30 Sekunden: {url}",
+        "cta": "Jetzt bewerben — dauert nur etwa 30 Sekunden.",
+        "problemHook": "Suchen Sie Ihre nächste Position als {role}?",
+        "offerPay": "{role} — {salary}.",
+        "offer": "{role}.",
+        "hiringIn": "Wir suchen in {place}.",
+    },
+    # Formal register (vous); French typography uses a narrow no-break space
+    # (U+202F) before ':' and '?', matching messages/fr.json.
+    "fr": {
+        "ctaUrl": "Postulez maintenant — cela prend environ 30 secondes : {url}",
+        "cta": "Postulez maintenant — cela prend environ 30 secondes.",
+        "problemHook": "Vous cherchez votre prochain poste de {role} ?",
+        "offerPay": "{role} — {salary}.",
+        "offer": "{role}.",
+        "hiringIn": "Nous recrutons à {place}.",
+    },
 }
 
 
-def _salary_label(job: Job, lang: str) -> str | None:
+def _salary_label(job: Job, lang: str, market: MarketConfig = ACTIVE_MARKET) -> str | None:
     """Human salary-band label from the job's band, or None when absent.
     Statedness is _job_facts's call — it drops the label for an anchored band.
 
-    Czech-convention thousands separator (space) in both languages — the figures
-    are CZK monthly bands either way."""
+    The currency+period unit comes from the active market's config
+    (:func:`currency_unit`), so a non-CZK market renders its OWN unit instead of a
+    hardcoded "Kč/CZK"; for the Czech default this is byte-identical ("Kč/měsíc"
+    for cs, "CZK/month" otherwise). The thousands separator stays a space (Czech
+    convention) — number-formatting parity across markets is a stated non-goal."""
     band = job.salary_band or []
     if len(band) < 2 or not band[0] or not band[1]:
         return None
     lo, hi = int(band[0]), int(band[1])
     fmt = lambda n: f"{n:,}".replace(",", " ")  # noqa: E731 — tiny local formatter
-    unit = "Kč/měsíc" if lang == "cs" else "CZK/month"
+    unit = currency_unit(lang, market=market)
     return f"{fmt(lo)}–{fmt(hi)} {unit}"
 
 
-def _job_facts(job: Job, lang: str) -> dict[str, Any]:
+def _job_facts(job: Job, lang: str, market: MarketConfig = ACTIVE_MARKET) -> dict[str, Any]:
     """The ONLY facts the copy may use. A DEFAULT_POLICY phantom (recorded in
     ``defaulted_fields``) or a blank string is absent — never advertised."""
     defaulted = set(job.defaulted_fields or [])
@@ -108,7 +138,7 @@ def _job_facts(job: Job, lang: str) -> dict[str, Any]:
         "languages": job.languages,
         # Same stated-only rule as the fields above: an anchor band normalize_job
         # stamped ("salary_band" phantom) is absent, so WARN_NO_SALARY fires.
-        "salary": None if "salary_band" in defaulted else _salary_label(job, lang),
+        "salary": None if "salary_band" in defaulted else _salary_label(job, lang, market),
         "topSkills": skills,
         "descriptionExcerpt": (job.description or "")[:600],
     }
@@ -166,6 +196,7 @@ def draft_campaign_pack(
     lang: str = "en",
     apply_url: str = "",
     provider: Any | None = None,
+    market: MarketConfig = ACTIVE_MARKET,
 ) -> tuple[dict[str, Any], str]:
     """Draft the campaign pack for one job. Returns (pack, source).
 
@@ -177,7 +208,7 @@ def draft_campaign_pack(
     lang = normalize_lang(lang)
     if lang not in _T:
         lang = "en"
-    facts = _job_facts(job, lang)
+    facts = _job_facts(job, lang, market)
     t = _T[lang]
     cta = t["ctaUrl"].format(url=apply_url) if apply_url else t["cta"]
 
@@ -235,7 +266,7 @@ def draft_campaign_pack(
         result, source = deterministic(), "deterministic"
     else:
         try:
-            result, source = coerce(provider.complete_json(_prompt(facts, lang, apply_url), system=_SYSTEM)), "llm"
+            result, source = coerce(provider.complete_json(_prompt(facts, lang, apply_url), system=_system_prompt(market))), "llm"
         except Exception:
             result, source = deterministic(), "deterministic"
 

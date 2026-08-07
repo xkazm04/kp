@@ -38,7 +38,7 @@ Empty states are where a feature-showcase feel is born: a new user opens six tab
 
 ## Recommended Skills
 
-Use Claude Code skills as appropriate for implementation guidance. Check `.claude/skills/` directory for available skills. Verify both themes (Studio Light / Spark Dark) per docs/DESIGN.md before finishing.
+Use Claude Code skills as appropriate for implementation guidance. Check `.claude/skills/` directory for available skills. Verify both themes (Studio Light / Spark Dark) per docs/design/README.md before finishing.
 
 ## Notes
 

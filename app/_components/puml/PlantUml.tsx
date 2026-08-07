@@ -2,10 +2,13 @@
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Maximize2, ZoomIn, ZoomOut } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { Modal } from "@/app/_components/Modal";
+import { CORAL, DIAL_AMBER, DIAL_STONE, INK, MOSS, PAPER, STEEL, WHITE } from "@/app/_lib/brand";
 import { parsePuml } from "./parse";
 import { isDiagramTooLarge, layoutDiagram, type Box, type PositionedDiagram, type PositionedEdge } from "./layout";
 import { DIAGRAM_PAD, DIAGRAM_STATUS_TOKENS, FONT_FAMILY, LINE_H } from "./constants";
+import { clickableNodeAria, diagramSvgRole } from "./a11y";
 
 // SVG renderer for our PlantUML component-diagram subset. Layout coordinates
 // come from ELK; every shape, colour, and stroke here is ours, drawn from the
@@ -19,17 +22,21 @@ import { DIAGRAM_PAD, DIAGRAM_STATUS_TOKENS, FONT_FAMILY, LINE_H } from "./const
 // hex literals scattered through the shape renderers (idea-a1c39c26), so retuning
 // a shape meant hunting for a stray hex. One map = one edit to re-tone a diagram.
 // (The component status trichotomy in componentStyle is unified separately.)
+// The brand half is IMPORTED, not re-typed: this block claimed to mirror the
+// @theme tokens while holding `paper: "#f7f5ef"`, the pre-Option-C cream the app
+// canvas had already left behind — the same drift that had gone unnoticed in
+// brand.ts. Reading the mirror puts these under `npm run design:check`.
 const C = {
-  ink: "#17202a",
-  paper: "#f7f5ef",
-  moss: "#526b4f",
-  coral: "#d65a4a",
-  steel: "#42606f",
+  ink: INK,
+  paper: PAPER,
+  moss: MOSS,
+  coral: CORAL,
+  steel: STEEL,
   stone: "#d6d3d1",
   stoneSoft: "#e7e5e4",
-  dialStone: "#8c8779",
-  dialAmber: "#caa54c",
-  white: "#ffffff",
+  dialStone: DIAL_STONE,
+  dialAmber: DIAL_AMBER,
+  white: WHITE,
 
   // Database cylinder (body + lid).
   dbFill: "#eef2f3",
@@ -169,6 +176,8 @@ function renderNode(box: Box, onNodeClick?: NodeClick, activeNodeId?: string) {
     className?: string;
     role?: string;
     tabIndex?: number;
+    "aria-label"?: string;
+    "aria-pressed"?: boolean;
     onClick?: () => void;
     onKeyDown?: (e: { key: string; preventDefault: () => void }) => void;
   } = {
@@ -177,6 +186,10 @@ function renderNode(box: Box, onNodeClick?: NodeClick, activeNodeId?: string) {
       ? {
           role: "button",
           tabIndex: 0,
+          // bug-ui-scan-2026-07-09 (architecture-diagrams #4): name each clickable
+          // node and expose its open/active state so SR users get a labeled button
+          // with a programmatic equivalent of the coral "active" border.
+          ...clickableNodeAria(box.label, active),
           onClick: () => onNodeClick!({ id: box.id, label: box.label }),
           onKeyDown: (e) => {
             if (e.key === "Enter" || e.key === " ") {
@@ -354,6 +367,7 @@ export function PlantUml({
   // class diagrams that legitimately render from edge endpoints alone.
   strict?: boolean;
 }) {
+  const tDiagram = useTranslations("diagrams.controls");
   const [expanded, setExpanded] = useState(false);
   const diagram = useMemo(() => {
     try {
@@ -461,8 +475,8 @@ export function PlantUml({
           <button
             type="button"
             onClick={() => setExpanded(true)}
-            aria-label="Expand diagram to full screen"
-            title="Expand"
+            aria-label={tDiagram("expandToFullScreen")}
+            title={tDiagram("expand")}
             className="focus-ring absolute right-2 top-2 z-10 rounded-md border border-stone-200 bg-white/90 p-1.5 text-steel shadow-sm backdrop-blur transition-colors hover:bg-stone-100 hover:text-ink"
           >
             <Maximize2 size={15} />
@@ -490,6 +504,7 @@ const ZOOM_STEP = 1.2;
 // for adjustments. The diagram scrolls within the viewport when it's larger than
 // the modal; "Fit" scales the whole thing to the available space.
 function ExpandedDiagram({ layout, onClose }: { layout: PositionedDiagram; onClose: () => void }) {
+  const t = useTranslations("diagrams.controls");
   const [zoom, setZoom] = useState(1);
   const viewportRef = useRef<HTMLDivElement | null>(null);
 
@@ -510,11 +525,11 @@ function ExpandedDiagram({ layout, onClose }: { layout: PositionedDiagram; onClo
 
   const controls = (
     <div className="flex items-center gap-1.5">
-      <button type="button" onClick={() => setZoom((z) => clamp(z / ZOOM_STEP))} disabled={zoom <= MIN_ZOOM} aria-label="Zoom out" className={btn}>
+      <button type="button" onClick={() => setZoom((z) => clamp(z / ZOOM_STEP))} disabled={zoom <= MIN_ZOOM} aria-label={t("zoomOut")} className={btn}>
         <ZoomOut size={16} />
       </button>
       <span className="w-12 text-center text-sm tabular-nums text-steel">{Math.round(zoom * 100)}%</span>
-      <button type="button" onClick={() => setZoom((z) => clamp(z * ZOOM_STEP))} disabled={zoom >= MAX_ZOOM} aria-label="Zoom in" className={btn}>
+      <button type="button" onClick={() => setZoom((z) => clamp(z * ZOOM_STEP))} disabled={zoom >= MAX_ZOOM} aria-label={t("zoomIn")} className={btn}>
         <ZoomIn size={16} />
       </button>
       <span className="mx-1 h-5 w-px bg-stone-200" />
@@ -572,7 +587,10 @@ function DiagramSvg({
   return (
     <svg
       viewBox={`0 0 ${W} ${H}`}
-      role="img"
+      // bug-ui-scan-2026-07-09 (architecture-diagrams #4): an interactive funnel
+      // must be a `group`, not `img` — role="img" collapses descendants to one
+      // opaque image in many AT, hiding its clickable step buttons.
+      role={diagramSvgRole(Boolean(onNodeClick))}
       aria-label={layout.title ? `Diagram: ${layout.title}` : "Component diagram"}
       preserveAspectRatio="xMidYMid meet"
       className={zoomed ? "m-auto block shrink-0" : "mx-auto block h-auto"}

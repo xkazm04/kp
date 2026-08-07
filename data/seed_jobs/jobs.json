@@ -5450,5 +5450,1121 @@
     ],
     "id": "job-099",
     "source": "synthetic"
+  },
+  {
+    "title": "Credit Risk Analyst / Rizikový analytik – retailové úvěry (medior)",
+    "company": "Česká spořitelna",
+    "location": "Remote (CZ)",
+    "work_mode": "remote",
+    "employment_type": "full-time (HPP)",
+    "seniority": "medior",
+    "role_family": "finance_accounting",
+    "languages": [
+      "Czech",
+      "English"
+    ],
+    "min_years_experience": 3,
+    "min_education": "master",
+    "description": "Posílíte tým retailového kreditního rizika České spořitelny, který modeluje a monitoruje portfolia spotřebitelských úvěrů a hypoték pro největší retailovou banku v ČR (skupina Erste). Běžný den zahrnuje analýzu vývoje portfolia, kalibraci scoringových modelů, výpočty opravných položek podle IFRS 9 a diskuse nad underwritingovými pravidly s kolegy z risku i byznysu. Tým sedí formálně v Praze-Michli, ale funguje plně remote v rámci ČR; výstupy prezentujete risk managementu a reportujete i do Erste Group.",
+    "requirements": [
+      {
+        "skill": "credit analysis",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "credit scoring",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "IFRS 9",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "financial analysis",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "underwriting",
+        "kind": "must_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "portfolio reporting",
+        "kind": "nice_to_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "controlling",
+        "kind": "nice_to_have",
+        "hardness": "learnable"
+      }
+    ],
+    "id": "job-100",
+    "source": "synthetic"
+  },
+  {
+    "title": "Účetní specialista / Accountant (Finance, GL)",
+    "company": "Česká spořitelna",
+    "location": "Remote (CZ)",
+    "work_mode": "remote",
+    "employment_type": "full-time (HPP)",
+    "seniority": "medior",
+    "role_family": "finance_accounting",
+    "languages": [
+      "Czech",
+      "English"
+    ],
+    "min_years_experience": 3,
+    "min_education": "bachelor",
+    "description": "V týmu Finance České spořitelny budete pečovat o hlavní knihu a aktivně se podílet na měsíční závěrce — od kontroly zaúčtování a odsouhlasení bankovních účtů po přípravu podkladů pro reporting v rámci Erste Group. Běžný den zahrnuje zpracování dodavatelských faktur, rekonciliace, přiznání k DPH a spolupráci s controllingem i auditory. Jsme tým osmi účetních s HQ v Praze-Michli, pracujeme plně vzdáleně s občasným setkáním v Praze.",
+    "requirements": [
+      {
+        "skill": "účetnictví",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "general ledger",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "bank reconciliation",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "accounts payable",
+        "kind": "must_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "VAT",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "financial reporting",
+        "kind": "nice_to_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "IFRS",
+        "kind": "nice_to_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "SAP",
+        "kind": "nice_to_have",
+        "hardness": "learnable"
+      }
+    ],
+    "id": "job-101",
+    "source": "synthetic"
+  },
+  {
+    "title": "Senior Finanční Controller – Controlling & Planning (Retail Banking)",
+    "company": "Česká spořitelna",
+    "location": "Brno",
+    "work_mode": "hybrid",
+    "employment_type": "full_time",
+    "seniority": "senior",
+    "role_family": "finance_accounting",
+    "languages": [
+      "Czech",
+      "English"
+    ],
+    "min_years_experience": 5,
+    "min_education": "master",
+    "description": "Do našeho controllingového týmu v Brně hledáme zkušeného finančního controllera, který převezme plánování a controlling pro retailovou obchodní linii České spořitelny. Běžný den zahrnuje přípravu měsíčního manažerského reportingu, analýzu odchylek proti budgetu a forecastu, a diskuse s business partnery nad výsledky a opatřeními. Budete součástí týmu 8 controllerů podporujících vedení divize a úzce spolupracovat s pražskou centrálou v Michli i s Erste Group. Nabízíme hybridní režim (2–3 dny v kanceláři) a reálný vliv na finanční řízení největší české retailové banky.",
+    "requirements": [
+      {
+        "skill": "controlling",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "budgeting",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "financial forecasting",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "management reporting",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "financial modeling",
+        "kind": "must_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "variance analysis",
+        "kind": "nice_to_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "business partnering",
+        "kind": "nice_to_have",
+        "hardness": "learnable"
+      }
+    ],
+    "id": "job-102",
+    "source": "synthetic"
+  },
+  {
+    "title": "AML / Compliance Analyst – Financial Crime Prevention",
+    "company": "Česká spořitelna",
+    "location": "Praha – Michle",
+    "work_mode": "hybrid",
+    "employment_type": "full-time",
+    "seniority": "medior",
+    "role_family": "finance_accounting",
+    "languages": [
+      "Czech",
+      "English"
+    ],
+    "min_years_experience": 3,
+    "min_education": "bachelor",
+    "description": "Posílíme tým prevence finanční kriminality (AML unit) v centrále České spořitelny v Praze-Michli. Budete analyzovat alerty z transakčního monitoringu, prošetřovat podezřelé obchody, zpracovávat hlášení pro FAÚ a provádět prohloubenou kontrolu klientů (EDD) včetně sanction screeningu. Pracujeme v hybridním režimu a úzce spolupracujeme s pobočkovou sítí, právním oddělením a kolegy z Erste Group; denní chleba je kombinace case managementu, dat a zdravého úsudku.",
+    "requirements": [
+      {
+        "skill": "AML",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "KYC",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "transaction monitoring",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "customer due diligence",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "sanctions screening",
+        "kind": "must_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "regulatory reporting",
+        "kind": "nice_to_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "MS Excel",
+        "kind": "nice_to_have",
+        "hardness": "learnable"
+      }
+    ],
+    "id": "job-103",
+    "source": "synthetic"
+  },
+  {
+    "title": "Junior specialista vymáhání pohledávek (Early Collections)",
+    "company": "Česká spořitelna",
+    "location": "Remote (CZ)",
+    "work_mode": "remote",
+    "employment_type": "full_time",
+    "seniority": "junior",
+    "role_family": "finance_accounting",
+    "languages": [
+      "Czech"
+    ],
+    "min_years_experience": 0,
+    "min_education": "none",
+    "description": "Připoj se k týmu Early Collections České spořitelny, který pomáhá klientům zvládnout první dny po splatnosti — telefonicky a přes digitální kanály domlouváš splátkové kalendáře a hledáš řešení dřív, než se z drobného skluzu stane problém. Běžný den znamená kontakt s klienty, zápis dohod do systému a krátký reporting výsledků týmu. Pracujeme plně vzdáleně po celé ČR, nováčkům dáváme několikatýdenní zaškolení s mentorem, takže je role ideální i pro absolventy a studenty posledních ročníků.",
+    "requirements": [
+      {
+        "skill": "collections",
+        "kind": "must_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "negotiation",
+        "kind": "must_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "komunikace s klienty",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "reporting",
+        "kind": "must_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "credit analysis",
+        "kind": "nice_to_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "customer due diligence",
+        "kind": "nice_to_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "MS Excel",
+        "kind": "nice_to_have",
+        "hardness": "learnable"
+      }
+    ],
+    "id": "job-104",
+    "source": "synthetic"
+  },
+  {
+    "title": "Junior specialista back-office plateb",
+    "company": "Česká spořitelna",
+    "location": "Brno",
+    "work_mode": "hybrid",
+    "employment_type": "full-time",
+    "seniority": "junior",
+    "role_family": "operations_logistics",
+    "languages": [
+      "Czech",
+      "English"
+    ],
+    "min_years_experience": 0,
+    "min_education": "none",
+    "description": "Přidej se do týmu zpracování plateb v brněnském back-office České spořitelny, kde denně řešíme výjimky ve vypořádání tuzemských i zahraničních plateb — nedoručené platby, chybné údaje příjemce a vratky. Běžný den zahrnuje zpracování platebních příkazů podle interních postupů, kontrolu dokumentace a komunikaci s kolegy z poboček i partnerských bank v rámci Erste Group. Jsme parta cca 15 lidí, nováčkům dáváme zkušeného mentora a kompletní zaškolení — vhodné i pro absolventy a studenty posledních ročníků.",
+    "requirements": [
+      {
+        "skill": "order processing",
+        "kind": "must_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "data entry",
+        "kind": "must_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "standard operating procedures",
+        "kind": "must_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "document management",
+        "kind": "must_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "attention to detail",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "MS Excel",
+        "kind": "nice_to_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "process documentation",
+        "kind": "nice_to_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "SWIFT payments",
+        "kind": "nice_to_have",
+        "hardness": "learnable"
+      }
+    ],
+    "id": "job-105",
+    "source": "synthetic"
+  },
+  {
+    "title": "Specialista úvěrové administrativy",
+    "company": "Česká spořitelna",
+    "location": "Remote (CZ)",
+    "work_mode": "remote",
+    "employment_type": "full_time",
+    "seniority": "medior",
+    "role_family": "operations_logistics",
+    "languages": [
+      "Czech"
+    ],
+    "min_years_experience": 3,
+    "min_education": "bachelor",
+    "description": "Do týmu úvěrové administrativy v rámci provozu České spořitelny hledáme kolegu/kolegyni na plně vzdálenou pozici. Budete zajišťovat kompletní administraci úvěrových obchodů — kontrolu úvěrové dokumentace, zaevidování smluv do systémů banky a kontrolu splnění podmínek před čerpáním úvěru. Běžný den zahrnuje zpracování požadavků na čerpání, komunikaci s bankéři a firemními klienty ohledně chybějících podkladů a hlídání termínů dle interních postupů. Tým sedí formálně v Praze-Michli, funguje ale plně remote a spolupracuje napříč celou bankou.",
+    "requirements": [
+      {
+        "skill": "document management",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "data entry",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "standard operating procedures",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "records management",
+        "kind": "must_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "úvěrová dokumentace",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "process improvement",
+        "kind": "nice_to_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "MS Excel",
+        "kind": "nice_to_have",
+        "hardness": "learnable"
+      }
+    ],
+    "id": "job-106",
+    "source": "synthetic"
+  },
+  {
+    "title": "Card Operations Specialist – vydávání karet a ATM",
+    "company": "Česká spořitelna",
+    "location": "Praha – Michle",
+    "work_mode": "hybrid",
+    "employment_type": "full-time",
+    "seniority": "medior",
+    "role_family": "operations_logistics",
+    "languages": [
+      "Czech",
+      "English"
+    ],
+    "min_years_experience": 3,
+    "min_education": "bachelor",
+    "description": "Posílíte tým Card Operations v pražské centrále v Michli, který zajišťuje kompletní životní cyklus platebních karet klientů České spořitelny – od zpracování objednávek přes personalizaci a expedici až po blokace a výměny. Běžný den zahrnuje zpracování požadavků na vydání a obnovu karet, koordinaci doplňování a servisních oken bankomatů s externími dodavateli a kontrolu kvality zpracovaných transakcí. Spolupracovat budete s pobočkovou sítí, kartovým procesorem i týmem provozu ATM; tým má 12 lidí a funguje v hybridním režimu.",
+    "requirements": [
+      {
+        "skill": "order processing",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "quality control",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "records management",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "process documentation",
+        "kind": "must_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "scheduling",
+        "kind": "must_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "reklamace",
+        "kind": "nice_to_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "card issuing operations",
+        "kind": "nice_to_have",
+        "hardness": "learnable"
+      }
+    ],
+    "id": "job-107",
+    "source": "synthetic"
+  },
+  {
+    "title": "Senior specialista provozní excelence (Operational Excellence)",
+    "company": "Česká spořitelna",
+    "location": "Praha – Krč",
+    "work_mode": "hybrid",
+    "employment_type": "full_time",
+    "seniority": "senior",
+    "role_family": "operations_logistics",
+    "languages": [
+      "Czech"
+    ],
+    "min_years_experience": 5,
+    "min_education": "university",
+    "description": "Do týmu provozní excelence v centrále České spořitelny hledáme zkušeného kolegu či kolegyni, který povede optimalizaci back-office procesů — od zpracování plateb a reklamací až po servisní operace pro pobočkovou síť a klienty George. Běžný den zahrnuje mapování end-to-end procesů přímo s provozními týmy, facilitaci kaizen workshopů, vyhodnocování dopadů zlepšení na kapacitu a chybovost a prezentaci výsledků vedení provozu. Jsme tým osmi specialistů, spolupracujeme napříč celou bankou a měříme se na reálných úsporách a zkrácení průběžných dob.",
+    "requirements": [
+      {
+        "skill": "process improvement",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "lean management",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "six sigma",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "standard operating procedures",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "kaizen",
+        "kind": "nice_to_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "process mining",
+        "kind": "nice_to_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "stakeholder management",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      }
+    ],
+    "id": "job-108",
+    "source": "synthetic"
+  },
+  {
+    "title": "Procurement Specialist / Nákupčí – nepřímý nákup",
+    "company": "Česká spořitelna",
+    "location": "Praha – Krč",
+    "work_mode": "hybrid",
+    "employment_type": "full_time",
+    "seniority": "medior",
+    "role_family": "operations_logistics",
+    "languages": [
+      "Czech",
+      "English"
+    ],
+    "min_years_experience": 3,
+    "min_education": "bachelor",
+    "description": "Do týmu centrálního nákupu České spořitelny hledáme nákupčího se zaměřením na nepřímý nákup (facility, marketing, HR služby, poradenství). Budete řídit výběrová řízení od poptávky přes vyhodnocení nabídek až po podpis smlouvy, vyjednávat s dodavateli ceny a smluvní podmínky a spravovat vztahy s klíčovými dodavateli banky. Spolupracovat budete s interními zadavateli, právním oddělením a controllingem; tým sedí v kampusu v Praze-Krči a funguje v hybridním režimu.",
+    "requirements": [
+      {
+        "skill": "procurement",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "contract negotiation",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "supplier management",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "purchasing",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "invoicing",
+        "kind": "nice_to_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "controlling",
+        "kind": "nice_to_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "MS Excel",
+        "kind": "must_have",
+        "hardness": "learnable"
+      }
+    ],
+    "id": "job-109",
+    "source": "synthetic"
+  },
+  {
+    "title": "Senior Firemní bankéř – Corporate & SME (Remote)",
+    "company": "Česká spořitelna",
+    "location": "Remote (CZ)",
+    "work_mode": "remote",
+    "employment_type": "full_time",
+    "seniority": "senior",
+    "role_family": "sales_marketing",
+    "languages": [
+      "Czech",
+      "English"
+    ],
+    "min_years_experience": 6,
+    "min_education": "university",
+    "description": "Do týmu korporátního a SME bankovnictví České spořitelny hledáme zkušeného firemního bankéře, který převezme vlastní portfolio firemních klientů s obratem do 500 mil. Kč a bude ho dál rozvíjet. Běžný den znamená online i osobní jednání s majiteli a CFO firem, přípravu financování ve spolupráci s úvěrovými analytiky a produktovými specialisty a aktivní akvizici nových klientů v regionu. Pracujete převážně vzdáleně s pravidelnými výjezdy za klienty a občasnými týmovými dny v Praze-Michli; opíráte se o stabilní zázemí největší české banky ve skupině Erste.",
+    "requirements": [
+      {
+        "skill": "account management",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "relationship building",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "B2B sales",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "negotiation",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "cross-selling",
+        "kind": "must_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "credit analysis",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "financial statement analysis",
+        "kind": "nice_to_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "KYC",
+        "kind": "nice_to_have",
+        "hardness": "learnable"
+      }
+    ],
+    "id": "job-110",
+    "source": "synthetic"
+  },
+  {
+    "title": "Osobní bankéř – vzdálené poradenství (Remote Personal Banker)",
+    "company": "Česká spořitelna",
+    "location": "Remote (CZ)",
+    "work_mode": "remote",
+    "employment_type": "full-time",
+    "seniority": "medior",
+    "role_family": "sales_marketing",
+    "languages": [
+      "Czech",
+      "English",
+      "German"
+    ],
+    "min_years_experience": 3,
+    "min_education": "bachelor",
+    "description": "Jako osobní bankéř v týmu vzdáleného poradenství budete péčovat o vlastní portfolio retailových klientů České spořitelny — po telefonu a videohovoru řešíte jejich každodenní finance a aktivně jim nabízíte produkty v aplikaci George, od spoření a investic po úvěry. Běžný den kombinuje domluvené konzultace, follow-up nabídky a akvizici nových klientů z doporučení. Budete součástí desetičlenného remote týmu napojeného na vlajkovou pobočku v Praze-Michli, s pravidelnými online poradami a měsíčním setkáním v centrále.",
+    "requirements": [
+      {
+        "skill": "sales",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "relationship building",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "customer acquisition",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "upselling",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "account management",
+        "kind": "must_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "KYC",
+        "kind": "nice_to_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "investiční poradenství",
+        "kind": "nice_to_have",
+        "hardness": "learnable"
+      }
+    ],
+    "id": "job-111",
+    "source": "synthetic"
+  },
+  {
+    "title": "Digital Marketing Specialist – George (Acquisition)",
+    "company": "Česká spořitelna",
+    "location": "Praha – Michle",
+    "work_mode": "hybrid",
+    "employment_type": "full-time (HPP)",
+    "seniority": "medior",
+    "role_family": "sales_marketing",
+    "languages": [
+      "Czech"
+    ],
+    "min_years_experience": 3,
+    "min_education": "bachelor",
+    "description": "Posílíš náš akviziční marketingový tým v pražském Michli, který přivádí nové klienty do digitálního bankovnictví George. Běžný den u nás vypadá takhle: ráno projdeš výkon kampaní v PPC a na sociálních sítích, dopoledne laděním landing pages a SEO s obsahovým týmem, odpoledne plánuješ další vlnu akvizičních kampaní s agenturou a interním CRM týmem. Jsme parta osmi marketérů, spolupracujeme napřímo s produktovými týmy George a výsledky měříme na počty nově otevřených účtů, ne na dojmy.",
+    "requirements": [
+      {
+        "skill": "digital marketing",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "PPC",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "SEO",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "social media marketing",
+        "kind": "must_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "content marketing",
+        "kind": "nice_to_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "web analytics",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "campaign performance reporting",
+        "kind": "nice_to_have",
+        "hardness": "learnable"
+      }
+    ],
+    "id": "job-112",
+    "source": "synthetic"
+  },
+  {
+    "title": "Product Marketing Specialist – retailové produkty",
+    "company": "Česká spořitelna",
+    "location": "Praha – Michle",
+    "work_mode": "hybrid",
+    "employment_type": "full-time (HPP, permanent contract)",
+    "seniority": "medior",
+    "role_family": "sales_marketing",
+    "languages": [
+      "Czech"
+    ],
+    "min_years_experience": 3,
+    "min_education": "bachelor",
+    "description": "Do týmu produktového marketingu v centrále v Praze-Michli hledáme kolegyni/kolegu, který pomůže dostat naše retailové produkty – běžné účty, spotřebitelské úvěry a investiční produkty v George – k správným klientům. Budete připravovat go-to-market plány nových produktových kampaní, ladit messaging s produktovými manažery a pobočkovou sítí a vyhodnocovat výkon kampaní napříč kanály. Běžný den je mix práce s daty (reporting prodejů a kampaní), tvorby obsahu s interním studiem a koordinace s digitálním týmem George. Tým má 8 lidí, funguje hybridně (2–3 dny v kanceláři) a reportuje do útvaru Retail Marketing.",
+    "requirements": [
+      {
+        "skill": "marketing",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "campaign management",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "market research",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "sales reporting",
+        "kind": "must_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "content marketing",
+        "kind": "nice_to_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "stakeholder management",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "retail banking products",
+        "kind": "nice_to_have",
+        "hardness": "learnable"
+      }
+    ],
+    "id": "job-113",
+    "source": "synthetic"
+  },
+  {
+    "title": "Senior Business Development Manager – Partnerships",
+    "company": "Česká spořitelna",
+    "location": "Ostrava",
+    "work_mode": "hybrid",
+    "employment_type": "full-time",
+    "seniority": "senior",
+    "role_family": "sales_marketing",
+    "languages": [
+      "Czech",
+      "English"
+    ],
+    "min_years_experience": 6,
+    "min_education": "university",
+    "description": "Do našeho ostravského týmu rozvoje partnerství hledáme zkušeného Business Development Managera, který bude vyhledávat a uzavírat nová strategická partnerství pro ekosystém České spořitelny – od realitních a energetických služeb až po benefitové programy navázané na platformu George. Běžný den zahrnuje mapování trhu na severní Moravě, schůzky s potenciálními partnery, přípravu obchodních případů pro interní schvalování a péči o vlastní pipeline od prvního kontaktu po podpis smlouvy. Budete součástí sedmičlenného celorepublikového týmu s dvěma dny home office týdně a reportingem do Prahy.",
+    "requirements": [
+      {
+        "skill": "business development",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "partnership development",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "deal closing",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "pipeline management",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "lead generation",
+        "kind": "must_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "stakeholder management",
+        "kind": "nice_to_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "financial services market knowledge",
+        "kind": "nice_to_have",
+        "hardness": "learnable"
+      }
+    ],
+    "id": "job-114",
+    "source": "synthetic"
+  },
+  {
+    "title": "Junior specialista klientského centra (Contact Center)",
+    "company": "Česká spořitelna",
+    "location": "Remote (CZ)",
+    "work_mode": "remote",
+    "employment_type": "full-time",
+    "seniority": "junior",
+    "role_family": "customer_support",
+    "languages": [
+      "Czech",
+      "English"
+    ],
+    "min_years_experience": 0,
+    "min_education": "none",
+    "description": "Staňte se hlasem České spořitelny v našem klientském centru — na dálku, odkudkoli z ČR. Budete vyřizovat příchozí hovory a písemné požadavky klientů George a retailového bankovnictví: od dotazů k platbám a kartám přes reklamace až po pomoc s digitálním bankovnictvím. Čeká vás plně placené vstupní školení, zkušený tým s buddym po ruce a jasná cesta k seniornějším rolím. Vhodné i pro absolventy a studenty posledních ročníků — bankovní znalosti vás naučíme.",
+    "requirements": [
+      {
+        "skill": "customer service",
+        "kind": "must_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "inbound calls",
+        "kind": "must_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "call handling",
+        "kind": "must_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "ticketing",
+        "kind": "must_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "complaint resolution",
+        "kind": "nice_to_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "Czech (native level)",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "PC literacy",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "banking products",
+        "kind": "nice_to_have",
+        "hardness": "learnable"
+      }
+    ],
+    "id": "job-115",
+    "source": "synthetic"
+  },
+  {
+    "title": "Specialista reklamací a stížností",
+    "company": "Česká spořitelna",
+    "location": "Ostrava",
+    "work_mode": "hybrid",
+    "employment_type": "full-time",
+    "seniority": "medior",
+    "role_family": "customer_support",
+    "languages": [
+      "Czech",
+      "English"
+    ],
+    "min_years_experience": 3,
+    "min_education": "none",
+    "description": "Posílíme tým reklamací a sporů v našem ostravském centru služeb, kde řešíme reklamace klientů České spořitelny — od plateb a karet přes poplatky až po digitální bankovnictví George. Během běžného dne posuzujete přijaté reklamace, komunikujete s klienty i interními útvary (pobočky, karetní operace, compliance) a hlídáte, aby každý případ byl vyřešen v termínu dle SLA a v souladu s regulatorními lhůtami. Čeká vás tým zhruba patnácti kolegů, zkušený team leader a hybridní režim práce.",
+    "requirements": [
+      {
+        "skill": "reklamace",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "complaint resolution",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "conflict resolution",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "SLA management",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "escalation management",
+        "kind": "must_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "bankovní produkty",
+        "kind": "nice_to_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "ombudsman a regulatorní stížnosti",
+        "kind": "nice_to_have",
+        "hardness": "learnable"
+      }
+    ],
+    "id": "job-116",
+    "source": "synthetic"
+  },
+  {
+    "title": "Specialista klientského servisu – George a retailové bankovnictví",
+    "company": "Česká spořitelna",
+    "location": "Brno",
+    "work_mode": "hybrid",
+    "employment_type": "full-time",
+    "seniority": "medior",
+    "role_family": "customer_support",
+    "languages": [
+      "Czech",
+      "English"
+    ],
+    "min_years_experience": 2,
+    "min_education": "none",
+    "description": "Do našeho brněnského servisního centra hledáme zkušeného specialistu klientského servisu, který se postará o retailové klienty České spořitelny napříč kanály – e-mail, chat v aplikaci George i interní požadavky z poboček. Běžný den zahrnuje správu účtů a produktových požadavků, dokončování onboardingu nových klientů a řešení eskalací ve spolupráci s back office týmem v Praze-Michli. Jsme tým cca 15 lidí, pracujeme hybridně (3 dny v kanceláři u Vlněny) a průběžně spolu udržujeme interní znowledge base, aby první linie odpovídala rychle a konzistentně.",
+    "requirements": [
+      {
+        "skill": "account servicing",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "customer onboarding",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "email support",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "back office support",
+        "kind": "must_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "knowledge base",
+        "kind": "nice_to_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "reklamace",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "KYC",
+        "kind": "nice_to_have",
+        "hardness": "learnable"
+      }
+    ],
+    "id": "job-117",
+    "source": "synthetic"
+  },
+  {
+    "title": "Senior specialista retence klientů – George",
+    "company": "Česká spořitelna",
+    "location": "Brno",
+    "work_mode": "hybrid",
+    "employment_type": "full-time",
+    "seniority": "senior",
+    "role_family": "customer_support",
+    "languages": [
+      "Czech",
+      "English"
+    ],
+    "min_years_experience": 5,
+    "min_education": "bachelor",
+    "description": "Do retenčního týmu České spořitelny v Brně hledáme zkušeného specialistu, který pomůže snižovat odchodovost klientů na platformě George. Běžný den zahrnuje analýzu signálů odchodu z NPS a CSAT dat, návrh retenčních kampaní a nabídek pro ohrožené segmenty a zpětnou vazbu produktovým týmům George. Budete pracovat v šestičlenném týmu pod vedením manažera Customer Experience a úzce spolupracovat s pobočkovou sítí i klientským centrem. Očekáváme samostatnost, mentoring juniorních kolegů a schopnost obhájit retenční iniciativy před stakeholdery.",
+    "requirements": [
+      {
+        "skill": "customer retention",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "customer success",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "NPS",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "CSAT",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "customer feedback",
+        "kind": "must_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "churn analysis",
+        "kind": "nice_to_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "CRM (Salesforce)",
+        "kind": "nice_to_have",
+        "hardness": "learnable"
+      }
+    ],
+    "id": "job-118",
+    "source": "synthetic"
+  },
+  {
+    "title": "Digital Support Specialist – George (Medior)",
+    "company": "Česká spořitelna",
+    "location": "Praha – Michle",
+    "work_mode": "hybrid",
+    "employment_type": "full-time",
+    "seniority": "medior",
+    "role_family": "customer_support",
+    "languages": [
+      "Czech",
+      "English"
+    ],
+    "min_years_experience": 2,
+    "min_education": "none",
+    "description": "Staňte se součástí týmu digitální podpory pro George – internetové a mobilní bankovnictví České spořitelny, které denně používají miliony klientů. Váš běžný den se točí kolem live chatu přímo v aplikaci: pomáháte klientům s přihlášením, platbami a nastavením, diagnostikujete technické potíže a složitější případy předáváte specialistům druhé úrovně. Sedíme v moderní centrále v Praze-Michli, pracujeme hybridně a s produktovými týmy George sdílíme zpětnou vazbu, která reálně mění aplikaci.",
+    "requirements": [
+      {
+        "skill": "live chat",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "product support",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "troubleshooting",
+        "kind": "must_have",
+        "hardness": "prerequisite"
+      },
+      {
+        "skill": "omnichannel support",
+        "kind": "must_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "knowledge base",
+        "kind": "nice_to_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "reklamace",
+        "kind": "nice_to_have",
+        "hardness": "learnable"
+      },
+      {
+        "skill": "digital banking products",
+        "kind": "must_have",
+        "hardness": "learnable"
+      }
+    ],
+    "id": "job-119",
+    "source": "synthetic"
   }
 ]

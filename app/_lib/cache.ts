@@ -1,4 +1,4 @@
-import { lookupPromptCache, storePromptCache } from "./db";
+import { lookupPromptCache, storePromptCache } from "./db/analyses";
 import { positiveNumericEnv } from "./env";
 import { PROMPT_VERSION } from "./cache-key";
 

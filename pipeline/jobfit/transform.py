@@ -16,19 +16,16 @@ from __future__ import annotations
 from . import registry
 from .matching import MatchCandidate
 from .profile import CandidateProfileV2
-from .taxonomy import PROVENANCE_WEIGHTS
+from .taxonomy import FAMILY_DEGREE_TERMS, PROVENANCE_WEIGHTS
 from .transferable import DISTANCE_ADJACENT, DISTANCE_FAR, domain_distance, map_transferable
 
 # Sourced from the shared registry (archetypes.json) so "which archetypes get the
 # potential/readiness path instead of years-of-experience" has one definition.
 _EARLY_CAREER = registry.early_career_archetypes()
 
-# Surface tokens hinting a degree is relevant to the target field.
-_FAMILY_DEGREE_TERMS = {
-    "software_engineering": ("comput", "software", "informat", "programm", "fel", "fit", "kybernet"),
-    "data_ai": ("data", "machine learning", "ai", "statist", "math", "analyt"),
-    "product_project": ("manage", "business", "econom", "product", "marketing"),
-}
+# Surface tokens hinting a degree is relevant to the target field now live in
+# data/taxonomy.json (taxonomy.FAMILY_DEGREE_TERMS), covering all 16 role families
+# instead of only the original 3 tech ones — see _doc_family_heuristics there.
 
 
 def compute_potential(profile: CandidateProfileV2) -> tuple[float, list[str]]:
@@ -59,7 +56,7 @@ def compute_potential(profile: CandidateProfileV2) -> tuple[float, list[str]]:
         profile.education_level, 0.0
     )
     detail = profile.education_detail.casefold()
-    if any(term in detail for term in _FAMILY_DEGREE_TERMS.get(profile.role_family, ())):
+    if any(term in detail for term in FAMILY_DEGREE_TERMS.get(profile.role_family, ())):
         foundation = min(1.0, foundation + 0.1)
         signals.append("degree relevant to the target field")
 
@@ -182,7 +179,14 @@ def build_match_candidate(profile: CandidateProfileV2) -> MatchCandidate:
         languages=profile.languages,
         years_experience=profile.years_experience or 0.0,
         archetype=profile.archetype,
-        provenance_default="self_declared" if is_early else "professional",
+        # Was `"self_declared" if is_early else "professional"` — the discount for an
+        # uncorroborated claim fell ONLY on juniors, while an experienced candidate's
+        # bare skill list was credited at full professional weight. That is backwards:
+        # the same unevidenced claim was penalised for the person least able to
+        # evidence it and waived for the person the market already advantages
+        # (UAT 2026-07-20 cs-jana-02 / LUC-GEF-L1-05). One honest default for
+        # everyone; recorded provenance still overrides it per skill.
+        provenance_default="self_declared",
         potential_score=potential,
         learning_signals=signals,
         aspirations=profile.aspirations,

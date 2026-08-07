@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { meterGate, recordMeterUsage } from "@/app/_lib/billing";
-import { getLifecycle, updateLifecycle } from "@/app/_lib/db";
+import { getLifecycle, updateLifecycle } from "@/app/_lib/db/devcase";
 import { runDesignArtifacts } from "@/app/_lib/devcase-run";
 import { isAtReviewGate } from "@/app/_lib/devcase-orchestrator";
 import { recordAudit } from "@/app/_lib/dev-control";
+import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import type { DevNeed } from "@/app/_lib/devcase-run";
 
 // One LLM design pass — same budget the github deep-dive route runs under.
@@ -33,9 +34,11 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       return NextResponse.json({ error: "lifecycle is missing its need/analysis artifacts." }, { status: 409 });
     }
     // Billing: a redesign is a fresh design generation — gate + debit like one.
-    const quota = meterGate("case_designs");
+    // Org attribution (org-plan Phase 3): gate + debit read the caller's tenant.
+    const workspace = await currentWorkspace();
+    const quota = meterGate("case_designs", { workspace });
     if (quota) return NextResponse.json(quota, { status: 402 });
-    recordMeterUsage("case_designs");
+    recordMeterUsage("case_designs", 1, new Date(), workspace);
 
     // DEVP5 — a redesign keeps the lifecycle's candidate-facing language.
     const designed = await runDesignArtifacts(lc.need as DevNeed, lc.analysis, undefined, feedback, lc.lang);

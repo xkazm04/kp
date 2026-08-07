@@ -1,17 +1,17 @@
-# KP self-host Helm values. See docs/SELF_HOSTING.md.
+# KP self-host Helm values. See docs/architecture/self-hosting.md.
 
 nameOverride: ""
 fullnameOverride: ""
 
 image:
-  repository: kp            # push the built image (docs/SELF_HOSTING.md §9) to your registry and set this
+  repository: kp            # push the built image (docs/architecture/self-hosting.md §9) to your registry and set this
   tag: ""                  # defaults to Chart.appVersion
   pullPolicy: IfNotPresent
 imagePullSecrets: []        # e.g. [{ name: my-regcred }]
 
 # HARD single replica. State is a single SQLite file on a ReadWriteOnce volume, so
 # two pods cannot serve one database — a second replica would contend/corrupt it
-# (docs/POSTGRES_BACKEND.md). The Deployment pins replicas: 1 and strategy: Recreate;
+# (docs/architecture/postgres-backend.md). The Deployment pins replicas: 1 and strategy: Recreate;
 # this value exists only for visibility. Multi-replica HA needs the Postgres backend.
 replicaCount: 1
 
@@ -33,7 +33,7 @@ providerKeys: {}
 env:
   NEXT_PUBLIC_APP_BASE_URL: ""   # your public origin — candidate links resolve to it
   NEXT_PUBLIC_SITE_URL: ""       # OG/metadata origin
-  # KP_OFFLINE: "1"              # hard no-egress mode (docs/SELF_HOSTING.md §7)
+  # KP_OFFLINE: "1"              # hard no-egress mode (docs/architecture/self-hosting.md §7)
   # OPENAI_BASE_URL: "http://ollama.default.svc.cluster.local:11434/v1"  # self-hosted model
 extraEnv: {}                     # any additional non-secret env, merged in
 

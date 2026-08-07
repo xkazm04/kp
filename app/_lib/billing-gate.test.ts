@@ -6,10 +6,8 @@
 //
 // Runner: Node's built-in test runner with type stripping (no extra deps).
 //   npm run test:unit
-import { test } from "node:test";
+import { test, after } from "node:test";
 import assert from "node:assert/strict";
-import os from "node:os";
-import path from "node:path";
 import fs from "node:fs";
 import { registerHooks } from "node:module";
 import { fileURLToPath } from "node:url";
@@ -43,10 +41,19 @@ registerHooks({
   },
 });
 
-// Throwaway DB BEFORE importing (db-path reads KP_DB_PATH at module load;
-// node --test isolates each file in its own process, so this can't leak).
-const TMP = path.join(os.tmpdir(), `kp-billing-gate-test-${process.pid}.sqlite`);
-process.env.KP_DB_PATH = TMP;
+// Throwaway DB BEFORE importing anything that touches db-path (DB_PATH is frozen
+// from KP_DB_PATH at module-eval time), so this MUST stay the first project import.
+//
+// It used to be a hand-rolled `os.tmpdir()/kp-billing-gate-test-${process.pid}.sqlite`
+// that was never deleted. `--test-isolation=process` gives each FILE a fresh process,
+// but the OS RECYCLES pids: a later run drawing a pid this file had used before
+// re-opened that run's leftover database and inherited its committed billing state
+// (used allowance, granted/refunded packs, ingested webhook ids) — so the stateful
+// end-to-end assertions failed intermittently. unit-db.ts is the repo-wide fix for
+// exactly this: a mkdtemp'd run directory (unique by construction, never pid-derived),
+// a liveness-gated sweep of abandoned dirs, and cleanupUnitDb() to remove our own.
+const { cleanupUnitDb } = await import("./testing/unit-db.ts");
+after(cleanupUnitDb);
 
 const { getBillingState, upsertBillingState, creditBalance, billingUsageFor, recordBillingAlert, listBillingAlerts } = await import("./db.ts");
 const { billingOverview, entitledPlan, hasActiveSubscription, meterAllowance, recordMeterUsage } = await import(

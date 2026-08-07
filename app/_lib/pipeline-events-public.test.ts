@@ -47,3 +47,45 @@ test("the public event shape drops entryId and archetype, keeps the operational 
   assert.ok(!json.includes("Kovová"));
   assert.ok(!json.includes("archetype"));
 });
+
+test("rematch details are nulled — the counterpart entry id never leaks in the public feed", () => {
+  // The detail these two kinds carry embeds an internal pipeline entry id (the IDOR
+  // handle this projection strips everywhere else), so the public shape must drop it.
+  for (const [kind, detail] of [
+    ["rematched", "jd-backend -> jd-frontend (pe_target_secret)"],
+    ["rematched_from", "pe_prior_secret (jd-old)"],
+  ] as const) {
+    const pub = toPublicPipelineEvent({
+      id: 11,
+      entryId: "pe_source_internal",
+      candidateLabel: "Marie Kovová",
+      jobTitle: "Backend Engineer",
+      archetype: "BAU",
+      kind,
+      fromStage: "Screened",
+      toStage: "Screened",
+      detail,
+      createdAt: "2026-07-15T10:00:00.000Z",
+    });
+    assert.equal(pub.detail, null);
+    const json = JSON.stringify(pub);
+    assert.ok(!json.includes("pe_target_secret"));
+    assert.ok(!json.includes("pe_prior_secret"));
+  }
+});
+
+test("a normal event keeps its detail (redaction is scoped to the rematch kinds)", () => {
+  const pub = toPublicPipelineEvent({
+    id: 12,
+    entryId: "pe_x",
+    candidateLabel: "Jan Novák",
+    jobTitle: "Analyst",
+    archetype: null,
+    kind: "scored",
+    fromStage: null,
+    toStage: null,
+    detail: "auto-scored 63",
+    createdAt: "2026-07-15T10:00:00.000Z",
+  });
+  assert.equal(pub.detail, "auto-scored 63");
+});

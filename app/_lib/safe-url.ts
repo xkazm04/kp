@@ -64,7 +64,15 @@ export function safeHttpLinks(raws: readonly string[]): SafeLink[] {
  *  RFC-1918 LAN in one rule). */
 function isIpLiteralHost(host: string): boolean {
   if (host.includes(":")) return true; // IPv6 literal (bracketed) — never a DNS name
-  return /^\d{1,3}(\.\d{1,3}){3}$/.test(host);
+  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(host)) return true; // dotted-quad IPv4
+  // Numeric IP encodings the OS resolver expands back to an IPv4 but that carry
+  // no DNS letters: 32-bit integer (2130706433 → 127.0.0.1), hex (0x7f000001),
+  // and class-collapsed short forms (127.1, 127.0.1). A real DNS host always has
+  // a TLD letter, so any host made only of digits+dots (or a 0x hex literal) is
+  // an IP in disguise and must be rejected here too.
+  if (/^0x[0-9a-f]+$/i.test(host)) return true; // hex form
+  if (/^[0-9.]+$/.test(host)) return true; // bare integer or all-numeric dotted (incl. short forms)
+  return false;
 }
 
 /**

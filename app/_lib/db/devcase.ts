@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { coerceOutboxStatus, type OutboxStatus } from "../comms-status";
 import { randomId } from "../random-id";
 import type { DevNeed } from "../devcase-run";
@@ -67,6 +68,36 @@ export function saveDevCaseScenario(id: string, scenario: unknown): void {
 export function saveDevCaseSeed(id: string, seed: unknown): void {
   const db = ensureDb();
   db.prepare(`UPDATE dev_cases SET seed_json = ? WHERE id = ?`).run(JSON.stringify(seed ?? null), id);
+}
+
+// FREEZE-AT-PUBLISH (bug-ui-scan-2026-07-09 #1). The seed + interview scenario are
+// the candidate-facing assignment; once a posting's token is live, two candidates on
+// the SAME case must be handed the IDENTICAL materials (comparability + audit trail).
+// These compare-and-set writes fill the column ONLY WHEN IT IS STILL ABSENT
+// (`WHERE ... IS NULL`) — SQLite serializes the UPDATE, so the FIRST materialization
+// wins and every later attempt (a lifecycle resume re-running the `approved` handler)
+// is a no-op that leaves the live seed untouched, instead of the old unconditional
+// UPDATE that overwrote it in place with a fresh (non-deterministic LLM) render.
+// Returns whether THIS call performed the write (false ⇒ already frozen).
+
+/** Freeze the interview scenario: set it only if the case has none yet. */
+export function saveDevCaseScenarioIfAbsent(id: string, scenario: unknown): boolean {
+  const db = ensureDb();
+  return (
+    db
+      .prepare(`UPDATE dev_cases SET scenario_json = ? WHERE id = ? AND scenario_json IS NULL`)
+      .run(JSON.stringify(scenario ?? null), id).changes > 0
+  );
+}
+
+/** Freeze the materialized seed: set it only if the case has none yet. */
+export function saveDevCaseSeedIfAbsent(id: string, seed: unknown): boolean {
+  const db = ensureDb();
+  return (
+    db
+      .prepare(`UPDATE dev_cases SET seed_json = ? WHERE id = ? AND seed_json IS NULL`)
+      .run(JSON.stringify(seed ?? null), id).changes > 0
+  );
 }
 
 export function saveDevCase(
@@ -145,6 +176,12 @@ export type LifecycleRecord = {
   lang: string | null;
   createdAt: string;
   updatedAt: string | null;
+  // D5 — the owning tenant. getLifecycle is a by-id point read (globally-unique id, so
+  // exempt from WHERE-scoping), but callers that then enumerate the lifecycle's CHILDREN
+  // must scope those reads to THIS workspace rather than the session's or the default —
+  // see the close route, which re-derived its postings from the default workspace and
+  // silently found none for any other team.
+  workspaceId: string;
 };
 
 function rowToLifecycle(r: Record<string, unknown>): LifecycleRecord {
@@ -163,6 +200,7 @@ function rowToLifecycle(r: Record<string, unknown>): LifecycleRecord {
     lang: (r.lang as string) ?? null,
     createdAt: r.created_at as string,
     updatedAt: (r.updated_at as string) ?? null,
+    workspaceId: (r.workspace_id as string) ?? DEFAULT_WORKSPACE_ID,
   };
 }
 
@@ -335,7 +373,53 @@ export type OutboxEntry = {
   status: OutboxStatus;
   ref: string | null;
   createdAt: string;
+  /** WHY a `failed` row dead-lettered, verbatim from the relay attempt ("http 503",
+   *  "getaddrinfo ENOTFOUND relay.example", a timeout message). NULL on every
+   *  non-failed row AND on legacy failures written before the column existed — the
+   *  UI must render its absence as "no reason recorded", never invent one. */
+  failureDetail: string | null;
 };
+
+// Tenant (P1): derive the outbox tenant from the referenced pipeline entry (ref =
+// entry id — comms.ts resolves it via getPipelineEntry) so no comms call site threads
+// a workspace. Shared by the write (recordOutbox) and the relay-callback's orphan
+// probe, so a receipt is looked up in exactly the tenant its send was recorded in.
+//
+// comms-tenancy-pair — the ENTRY-DERIVED tenant always wins (unchanged), but an
+// ENTRY-LESS comm no longer falls straight to the default workspace: a dispatch may
+// now carry an explicit `workspaceId` and that is used instead. The motivating case is
+// dispatchKnockoutDecline, which is entry-less BY DESIGN (a channel lead is declined
+// before any pipeline entry exists) yet its caller holds the webhook's owning team — so
+// a non-default team's KO-decline used to surface in the DEFAULT team's Comms Center and
+// nowhere in its own. The explicit tenant is the LAST resort before the default, never a
+// way to re-file a ref'd comm away from its entry's team.
+function outboxWorkspaceForRef(ref: string | null | undefined, explicitWorkspaceId?: string | null): string {
+  if (ref) {
+    const db = ensureDb();
+    const wsRow = db.prepare(`SELECT workspace_id FROM pipeline_entries WHERE id = ?`).get(ref) as
+      | { workspace_id?: string }
+      | undefined;
+    if (wsRow?.workspace_id) return wsRow.workspace_id;
+  }
+  return explicitWorkspaceId?.trim() || DEFAULT_WORKSPACE_ID;
+}
+
+/** Does any real SEND exist for this (ref, kind)? — the relay callback's orphan probe.
+ *
+ *  A delivery receipt is keyed only by (ref, kind); one naming a pair kp never sent is
+ *  an integrator vocabulary mismatch (wrong ref scheme, a kind we don't emit), not a
+ *  bounce. The callback answers such a receipt `recorded:false, reason:"no_matching_send"`
+ *  so the mismatch surfaces on the FIRST call instead of accumulating rows that fold
+ *  onto nothing. `bounced` rows are receipts, not sends, so they never count as a match. */
+export function hasOutboxSendFor(ref: string, kind: string): boolean {
+  const db = ensureDb();
+  const r = db
+    .prepare(
+      `SELECT 1 FROM dev_outbox WHERE workspace_id = ? AND ref = ? AND kind = ? AND status <> 'bounced' LIMIT 1`
+    )
+    .get(outboxWorkspaceForRef(ref), ref, kind);
+  return Boolean(r);
+}
 
 export function recordOutbox(input: {
   recipient: string;
@@ -345,22 +429,28 @@ export function recordOutbox(input: {
   channel: string;
   status: OutboxStatus;
   ref?: string | null;
+  /** The dead-letter reason for a `failed` row (comms.ts computes it per attempt). */
+  failureDetail?: string | null;
+  /** The dispatch's own tenant — used ONLY when `ref` names no pipeline entry (an
+   *  entry-less comm such as a KO decline). A ref'd comm always files into its
+   *  entry's team, whatever this says. */
+  workspaceId?: string | null;
 }): OutboxEntry {
   const db = ensureDb();
   const now = new Date().toISOString();
   const id = randomId("out");
-  // Tenant (P1): derive from the referenced pipeline entry (ref = entry id — comms.ts
-  // resolves it via getPipelineEntry) so no comms call site threads a workspace; an
-  // entry-less / system message falls back to the default workspace.
-  const wsRow = input.ref
-    ? (db.prepare(`SELECT workspace_id FROM pipeline_entries WHERE id = ?`).get(input.ref) as { workspace_id?: string } | undefined)
-    : undefined;
-  const workspaceId = wsRow?.workspace_id ?? "workspace";
+  // The tenant column is NOT part of the returned message shape (OutboxEntry) — strip it
+  // off the payload so it can't leak into an API response through the spread below.
+  const { workspaceId: explicitWorkspaceId, ...message } = input;
+  const workspaceId = outboxWorkspaceForRef(input.ref, explicitWorkspaceId);
+  // A reason belongs to a FAILURE. Storing one on a sent/queued row would put a stale
+  // "http 503" (the last retry before the one that worked) next to a green badge.
+  const failureDetail = input.status === "failed" ? input.failureDetail?.trim() || null : null;
   db.prepare(
-    `INSERT INTO dev_outbox (id, recipient, subject, body, kind, channel, status, ref, created_at, workspace_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-  ).run(id, input.recipient, input.subject, input.body, input.kind, input.channel, input.status, input.ref ?? null, now, workspaceId);
-  return { id, ...input, ref: input.ref ?? null, createdAt: now };
+    `INSERT INTO dev_outbox (id, recipient, subject, body, kind, channel, status, ref, created_at, workspace_id, failure_detail)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(id, input.recipient, input.subject, input.body, input.kind, input.channel, input.status, input.ref ?? null, now, workspaceId, failureDetail);
+  return { id, ...message, ref: input.ref ?? null, createdAt: now, failureDetail };
 }
 
 function rowToOutboxEntry(r: Record<string, unknown>): OutboxEntry {
@@ -376,6 +466,7 @@ function rowToOutboxEntry(r: Record<string, unknown>): OutboxEntry {
     status: coerceOutboxStatus(r.status as string | null),
     ref: (r.ref as string) ?? null,
     createdAt: r.created_at as string,
+    failureDetail: (r.failure_detail as string) ?? null,
   };
 }
 
@@ -429,6 +520,20 @@ export function listOutboxFiltered(
   return rows.map(rowToOutboxEntry);
 }
 
+/** Map a dev_postings row to the Posting shape (shared by the by-id/by-token/dedup reads). */
+function rowToPosting(r: Record<string, unknown>): Posting {
+  return {
+    id: r.id as string,
+    caseId: (r.case_id as string) ?? null,
+    channel: r.channel as string,
+    token: (r.token as string) ?? null,
+    roleTitle: (r.role_title as string) ?? null,
+    caseTitle: (r.case_title as string) ?? null,
+    status: r.status as string,
+    createdAt: r.created_at as string,
+  };
+}
+
 export function createPosting(input: {
   caseId: string;
   channel: string;
@@ -437,16 +542,36 @@ export function createPosting(input: {
   caseTitle: string | null;
 }): Posting {
   const db = ensureDb();
-  const now = new Date().toISOString();
-  const id = randomId("pst");
   // Tenant (P1): a posting inherits its case's workspace (by-id read of the team's case).
   const wsRow = db.prepare(`SELECT workspace_id FROM dev_cases WHERE id = ?`).get(input.caseId) as { workspace_id?: string } | undefined;
   const workspaceId = wsRow?.workspace_id ?? DEFAULT_WORKSPACE_ID;
+  // PUBLISH DEDUP (bug-ui-scan-2026-07-09 (dev-case-authoring-publishing #4)). Publish
+  // must be idempotent per (workspace, case, channel) while a posting stays OPEN —
+  // otherwise a concurrent / multi-tab / reload-mid-request re-publish mints a SECOND
+  // live apply token for one case and its submissions split across two tokens,
+  // fragmenting the case-wide shortlist so the "true #1" ranking is wrong. Two layers,
+  // mirroring createSubmission: (1) reuse the case+channel's existing OPEN posting if one
+  // is already present — read-then-insert is atomic here because better-sqlite3 is
+  // synchronous and Node is single-threaded, so no other in-process request interleaves
+  // mid-function; (2) the partial UNIQUE index (core.ts) + targetless ON CONFLICT DO
+  // NOTHING makes even a cross-connection double-insert impossible. Either way the SAME
+  // existing token is returned, never a duplicate. A CLOSED posting is excluded, so a
+  // deliberate re-publish after closing still mints a fresh posting.
+  const selectOpen = `SELECT * FROM dev_postings WHERE workspace_id = ? AND case_id = ? AND channel = ? AND status = 'open' ORDER BY created_at ASC LIMIT 1`;
+  const existing = db.prepare(selectOpen).get(workspaceId, input.caseId, input.channel) as Record<string, unknown> | undefined;
+  if (existing) return rowToPosting(existing);
+
+  const now = new Date().toISOString();
+  const id = randomId("pst");
   db.prepare(
     `INSERT INTO dev_postings (id, case_id, channel, token, role_title, case_title, status, created_at, workspace_id)
-     VALUES (?, ?, ?, ?, ?, ?, 'open', ?, ?)`
+     VALUES (?, ?, ?, ?, ?, ?, 'open', ?, ?)
+     ON CONFLICT DO NOTHING`
   ).run(id, input.caseId, input.channel, input.token, input.roleTitle, input.caseTitle, now, workspaceId);
-  return { id, caseId: input.caseId, channel: input.channel, token: input.token, roleTitle: input.roleTitle, caseTitle: input.caseTitle, status: "open", createdAt: now };
+  // Re-select the canonical open row: ours if the insert won, or the row a concurrent
+  // connection inserted first (the unique index rejected ours via ON CONFLICT DO NOTHING).
+  const row = db.prepare(selectOpen).get(workspaceId, input.caseId, input.channel) as Record<string, unknown>;
+  return rowToPosting(row);
 }
 
 export function listPostings(workspaceId: string = DEFAULT_WORKSPACE_ID): Posting[] {
@@ -473,17 +598,7 @@ export function listPostings(workspaceId: string = DEFAULT_WORKSPACE_ID): Postin
 export function getPostingByToken(token: string): Posting | null {
   const db = ensureDb();
   const r = db.prepare(`SELECT * FROM dev_postings WHERE token = ?`).get(token) as Record<string, unknown> | undefined;
-  if (!r) return null;
-  return {
-    id: r.id as string,
-    caseId: (r.case_id as string) ?? null,
-    channel: r.channel as string,
-    token: (r.token as string) ?? null,
-    roleTitle: (r.role_title as string) ?? null,
-    caseTitle: (r.case_title as string) ?? null,
-    status: r.status as string,
-    createdAt: r.created_at as string,
-  };
+  return r ? rowToPosting(r) : null;
 }
 
 // Atomic, idempotent on (posting, candidate, repo): the UNIQUE index +
@@ -594,6 +709,41 @@ export function getDevSession(id: string): DevSession | null {
   return r ? rowToSession(r) : null;
 }
 
+// The flush/chat hot-path read (case-sim round 3, verifier's find): those routes
+// only branch on status/token/createdAt, but getDevSession parses the FULL
+// files_json blob (up to 50×256KB) on every ~8s flush per active candidate just
+// to check a status column. Status-only projection, no JSON parse.
+export type DevSessionMeta = { id: string; token: string | null; status: string; createdAt: string };
+
+export function getDevSessionMeta(id: string): DevSessionMeta | null {
+  const db = ensureDb();
+  const r = db.prepare(`SELECT id, token, status, created_at FROM dev_sessions WHERE id = ?`).get(id) as
+    | { id: string; token: string | null; status: string; created_at: string }
+    | undefined;
+  return r ? { id: r.id, token: r.token ?? null, status: r.status, createdAt: r.created_at } : null;
+}
+
+// bug-ui-scan-2026-07-09 (dev-submissions-live-work-surface #2): a per-token session
+// throttle. Apply tokens are deliberately shareable PUBLIC links, so an unauthenticated
+// holder is the trust boundary — session POST otherwise minted unlimited sessions per
+// token, a cheap storage-exhaustion vector (each session then flushes events). Counting
+// sessions created since a window boundary lets the route enforce a per-token/day cap.
+export function countRecentDevSessionsForToken(token: string, sinceIso: string): number {
+  const db = ensureDb();
+  const r = db
+    .prepare(`SELECT COUNT(*) AS n FROM dev_sessions WHERE token = ? AND created_at >= ?`)
+    .get(token, sinceIso) as { n: number };
+  return Number(r.n);
+}
+
+// bug-ui-scan-2026-07-09 (dev-submissions-live-work-surface #2): the absolute ceiling on
+// stored events per session. The flush route caps per-FLUSH (MAX_EVENTS) but not the
+// number of flushes, so one session could accumulate unbounded rows. Genuine sessions
+// emit coarse (debounced) events — hundreds, not tens of thousands — so this bounds
+// abuse while never touching a real candidate's run. Enforced atomically in
+// appendDevSessionEvents below.
+export const MAX_SESSION_EVENTS = 20000;
+
 export function getDevSessionEvents(id: string): DevSessionEvent[] {
   const db = ensureDb();
   const rows = db
@@ -615,9 +765,56 @@ export function saveDevSessionFiles(id: string, files: DevSessionFile[]): boolea
   );
 }
 
+// ---- Tamper-evident event log (LLM-era controls #1) ------------------------
+// Each stored event carries a SERVER-computed SHA-256 chain link over the previous
+// link + the event's canonical form + the server receive time. The client never
+// supplies or sees a hash — it is derived at INSERT, inside the same transaction
+// that assigns `seq` — so backward manipulation (editing, deleting, reordering, or
+// re-timing an already-persisted event) breaks every later link and is detectable
+// by recomputation. The chain seeds from `genesis:<sessionId>`, binding it to ONE
+// session: replaying another session's rows breaks at the first link.
+
+function chainLink(prev: string, sessionId: string, seq: number, e: DevSessionEvent, receivedAt: string): string {
+  const canonical = `${prev}|${sessionId}|${seq}|${e.t ?? ""}|${e.kind}|${e.path ?? ""}|${e.size ?? ""}|${receivedAt}`;
+  return createHash("sha256").update(canonical, "utf8").digest("hex");
+}
+
+export type ChainVerdict = {
+  // true = every hashed link recomputes; false = a link failed (log was altered
+  // after the fact). null = unverifiable (no events, or legacy NULL-hash rows).
+  valid: boolean | null;
+  events: number;
+  brokenAtSeq: number | null;
+};
+
+/** Recompute the whole chain from stored rows. O(n), cheap at MAX_SESSION_EVENTS. */
+export function verifyDevSessionChain(id: string): ChainVerdict {
+  const db = ensureDb();
+  const rows = db
+    .prepare(`SELECT seq, t, kind, path, size, created_at, hash FROM dev_session_events WHERE session_id = ? ORDER BY seq ASC`)
+    .all(id) as Array<{ seq: number; t: number | null; kind: string; path: string | null; size: number | null; created_at: string; hash: string | null }>;
+  if (rows.length === 0) return { valid: null, events: 0, brokenAtSeq: null };
+  let prev = `genesis:${id}`;
+  let sawHash = false;
+  for (const r of rows) {
+    if (r.hash == null) {
+      // Legacy prefix (pre-chain rows): can't verify. A NULL AFTER hashed rows,
+      // however, is a hole punched in a live chain — that IS a break.
+      if (sawHash) return { valid: false, events: rows.length, brokenAtSeq: r.seq };
+      continue;
+    }
+    sawHash = true;
+    const expect = chainLink(prev, id, r.seq, { t: r.t ?? 0, kind: r.kind, path: r.path, size: r.size }, r.created_at);
+    if (expect !== r.hash) return { valid: false, events: rows.length, brokenAtSeq: r.seq };
+    prev = r.hash;
+  }
+  return { valid: sawHash ? true : null, events: rows.length, brokenAtSeq: null };
+}
+
 /** Append observed events to the session's append-only log. One transaction so
- *  the per-session seq can't collide under concurrent flushes. Returns the new
- *  high-water seq. No-op once submitted. */
+ *  the per-session seq can't collide under concurrent flushes — and so each row's
+ *  chain hash links the true predecessor. Returns the new high-water seq. No-op
+ *  once submitted. */
 export function appendDevSessionEvents(id: string, events: DevSessionEvent[]): number {
   const db = ensureDb();
   if (!events?.length) return 0;
@@ -631,17 +828,166 @@ export function appendDevSessionEvents(id: string, events: DevSessionEvent[]): n
     const workspaceId = active.workspace_id ?? DEFAULT_WORKSPACE_ID;
     const max = db.prepare(`SELECT COALESCE(MAX(seq), 0) AS m FROM dev_session_events WHERE session_id = ?`).get(id) as { m: number };
     let seq = Number(max.m);
-    const stmt = db.prepare(`INSERT INTO dev_session_events (session_id, seq, t, kind, path, size, created_at, workspace_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`);
-    for (const e of events) {
+    // bug-ui-scan-2026-07-09 (dev-submissions-live-work-surface #2): the per-session
+    // event ceiling. `seq` is the current row count (contiguous, no deletes), so only
+    // accept up to MAX_SESSION_EVENTS total — a leaked token can no longer amplify one
+    // session into unbounded rows. At the cap this is a no-op that returns the high-water
+    // seq unchanged; excess events in an over-cap flush are dropped.
+    const room = MAX_SESSION_EVENTS - seq;
+    if (room <= 0) return seq;
+    const accepted = events.length > room ? events.slice(0, room) : events;
+    // Chain seed: the last stored link, or the session-bound genesis for row 1.
+    const last = db
+      .prepare(`SELECT hash FROM dev_session_events WHERE session_id = ? AND seq = ?`)
+      .get(id, seq) as { hash: string | null } | undefined;
+    let prev = last?.hash ?? `genesis:${id}`;
+    const stmt = db.prepare(
+      `INSERT INTO dev_session_events (session_id, seq, t, kind, path, size, created_at, workspace_id, hash) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    );
+    for (const e of accepted) {
       seq += 1;
       // `size` = paste magnitude (char count) for "paste" events; null otherwise.
       const size = typeof e.size === "number" && Number.isFinite(e.size) ? e.size : null;
-      stmt.run(id, seq, Number.isFinite(e.t) ? e.t : null, String(e.kind), e.path ?? null, size, now, workspaceId);
+      const row: DevSessionEvent = { t: Number.isFinite(e.t) ? e.t : 0, kind: String(e.kind), path: e.path ?? null, size };
+      const hash = chainLink(prev, id, seq, row, now);
+      stmt.run(id, seq, row.t, row.kind, row.path, row.size, now, workspaceId, hash);
+      prev = hash;
     }
     db.prepare(`UPDATE dev_sessions SET updated_at = ? WHERE id = ?`).run(now, id);
     return seq;
   });
   return tx();
+}
+
+// Client timestamps are candidate-controlled; the server receive time is not. An
+// event whose claimed `t` sits outside [session start - skew, receive + skew] was
+// backdated or future-dated — the exact manipulation that would fake read-before-write
+// ordering. The skew absorbs honest clock drift + the 8s client flush buffer.
+const INTEGRITY_CLOCK_SKEW_MS = 2 * 60 * 1000;
+
+export type SessionIntegrity = {
+  chain: ChainVerdict;
+  // Events whose client timestamp contradicts the server receive window.
+  backdatedEvents: number;
+  // Worst observed client-vs-server disagreement (ms) among flagged events.
+  maxClockDriftMs: number;
+  // Per-session watermark verdict (LLM-era controls #4): `foreign` markers are the
+  // circulation tell — another session's watermark inside THIS session's files means
+  // a shared/relayed solution. A merely-missing own marker is a mild note (the
+  // candidate may have deleted the line), never decisive alone.
+  watermark: { expected: string; present: boolean; foreign: string[] };
+};
+
+// LLM-era controls #4 — the per-session seed watermark. Deterministically derived
+// from the session id (never stored), injected into the served DECISIONS log as an
+// innocuous session reference, and scanned for at evaluation. Task substance is
+// untouched, so per-case comparability (freeze-at-publish) is preserved — only the
+// marker differs per session.
+const WATERMARK_RE = /wm-[0-9a-f]{10}/g;
+
+export function devSessionWatermark(sessionId: string): string {
+  return `wm-${createHash("sha256").update(`kp-devcase-wm|${sessionId}`, "utf8").digest("hex").slice(0, 10)}`;
+}
+
+/** One integrity verdict per session: recompute the hash chain + check every
+ *  client timestamp against its server receive time. Read at evaluation and
+ *  persisted with the bundle so the verdict survives beside the scores. */
+export function getDevSessionIntegrity(id: string): SessionIntegrity {
+  const db = ensureDb();
+  const chain = verifyDevSessionChain(id);
+  const session = getDevSession(id);
+  const startMs = session ? Date.parse(session.createdAt) : NaN;
+  const rows = db
+    .prepare(`SELECT t, created_at FROM dev_session_events WHERE session_id = ? AND t IS NOT NULL AND t > 0`)
+    .all(id) as Array<{ t: number; created_at: string }>;
+  let backdated = 0;
+  let maxDrift = 0;
+  for (const r of rows) {
+    const received = Date.parse(r.created_at);
+    if (!Number.isFinite(received)) continue;
+    const future = r.t - received - INTEGRITY_CLOCK_SKEW_MS; // claimed after it was received
+    const preSession = Number.isFinite(startMs) ? startMs - INTEGRITY_CLOCK_SKEW_MS - r.t : -1; // claimed before the session existed
+    if (future > 0 || preSession > 0) {
+      backdated += 1;
+      maxDrift = Math.max(maxDrift, future > 0 ? future : preSession);
+    }
+  }
+  // Watermark scan over the submitted tree: our marker present? any FOREIGN one?
+  const expected = devSessionWatermark(id);
+  const body = (session?.files ?? []).map((f) => f.contents).join("\n");
+  const found = new Set(body.match(WATERMARK_RE) ?? []);
+  const foreign = [...found].filter((m) => m !== expected);
+  return {
+    chain,
+    backdatedEvents: backdated,
+    maxClockDriftMs: maxDrift,
+    watermark: { expected, present: found.has(expected), foreign },
+  };
+}
+
+// ---- Captured prompt channel (LLM-era controls #2) -------------------------
+// The assistant / stakeholder dialogue is evidence, not chrome: it flows through
+// the platform and is stored per session, append-only, in exchange order.
+
+export type DevChatMessage = { seq: number; channel: string; role: "user" | "model"; text: string; createdAt: string };
+
+const MAX_CHAT_MESSAGES = 400; // per session — generous vs. a real 2h timebox
+const MAX_CHAT_TEXT = 8_000;
+
+/** Append one chat message. Returns the stored seq, or 0 when refused (session
+ *  not active / at cap). Same transaction discipline as the event log. */
+export function appendDevSessionChat(id: string, channel: string, role: "user" | "model", text: string): number {
+  const db = ensureDb();
+  const now = new Date().toISOString();
+  const tx = db.transaction((): number => {
+    const active = db.prepare(`SELECT status, workspace_id FROM dev_sessions WHERE id = ?`).get(id) as
+      | { status: string; workspace_id?: string }
+      | undefined;
+    if (!active || active.status !== "active") return 0;
+    const max = db.prepare(`SELECT COALESCE(MAX(seq), 0) AS m FROM dev_session_chat WHERE session_id = ?`).get(id) as { m: number };
+    const seq = Number(max.m) + 1;
+    if (seq > MAX_CHAT_MESSAGES) return 0;
+    db.prepare(
+      `INSERT INTO dev_session_chat (session_id, seq, channel, role, text, created_at, workspace_id) VALUES (?, ?, ?, ?, ?, ?, ?)`
+    ).run(id, seq, channel, role, String(text).slice(0, MAX_CHAT_TEXT), now, active.workspace_id ?? DEFAULT_WORKSPACE_ID);
+    return seq;
+  });
+  return tx();
+}
+
+export function getDevSessionChat(id: string, channel?: string): DevChatMessage[] {
+  const db = ensureDb();
+  const rows = (
+    channel
+      ? db.prepare(`SELECT seq, channel, role, text, created_at FROM dev_session_chat WHERE session_id = ? AND channel = ? ORDER BY seq ASC`).all(id, channel)
+      : db.prepare(`SELECT seq, channel, role, text, created_at FROM dev_session_chat WHERE session_id = ? ORDER BY seq ASC`).all(id)
+  ) as Array<Record<string, unknown>>;
+  return rows.map((r) => ({
+    seq: Number(r.seq),
+    channel: String(r.channel),
+    role: r.role === "model" ? "model" : "user",
+    text: String(r.text),
+    createdAt: String(r.created_at),
+  }));
+}
+
+// ---- Naive-LLM baselines (LLM-era controls #6) -----------------------------
+
+/** Freeze the case's one-shot baseline solutions: set only if absent, mirroring
+ *  the seed/scenario freeze contract (identical comparison target per candidate). */
+export function saveDevCaseBaselineIfAbsent(id: string, baseline: unknown): boolean {
+  const db = ensureDb();
+  return (
+    db
+      .prepare(`UPDATE dev_cases SET baseline_json = ? WHERE id = ? AND baseline_json IS NULL`)
+      .run(JSON.stringify(baseline ?? null), id).changes > 0
+  );
+}
+
+export function getDevCaseBaseline(id: string): unknown {
+  const db = ensureDb();
+  const r = db.prepare(`SELECT baseline_json FROM dev_cases WHERE id = ?`).get(id) as { baseline_json?: string | null } | undefined;
+  return r?.baseline_json ? safeRowParse(r.baseline_json, "devCase.baseline", id) : null;
 }
 
 /** Finalize a session: mark it submitted and create a linked dev_submissions row
@@ -692,17 +1038,7 @@ export function setPostingStatus(id: string, status: string): boolean {
 export function getPosting(id: string): Posting | null {
   const db = ensureDb();
   const r = db.prepare(`SELECT * FROM dev_postings WHERE id = ?`).get(id) as Record<string, unknown> | undefined;
-  if (!r) return null;
-  return {
-    id: r.id as string,
-    caseId: (r.case_id as string) ?? null,
-    channel: r.channel as string,
-    token: (r.token as string) ?? null,
-    roleTitle: (r.role_title as string) ?? null,
-    caseTitle: (r.case_title as string) ?? null,
-    status: r.status as string,
-    createdAt: r.created_at as string,
-  };
+  return r ? rowToPosting(r) : null;
 }
 
 export function saveSubmissionEvaluation(id: string, evaluation: unknown, transferScore: number): void {

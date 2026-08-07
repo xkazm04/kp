@@ -1,4 +1,4 @@
-// Route-boundary enforcement (docs/BILLING.md → Entitlement semantics).
+// Route-boundary enforcement (docs/features/billing/README.md → Entitlement semantics).
 //
 // Pure decision helpers — routes turn a non-null verdict into a 402 JSON
 // response. Two enforcement shapes, by what the action costs us:
@@ -16,8 +16,8 @@
 // branch key for the UI (i18n happens client-side), error is the English
 // operator-readable fallback.
 
-import { getBillingState } from "../db";
-import { entitledPlan, meterAllowance, meterOverview } from "./entitlements";
+import { getBillingState } from "../db/billing";
+import { billingOrgForWorkspace, entitledPlan, meterAllowance, meterOverview } from "./entitlements";
 import type { Meter } from "./plans";
 
 export const QUOTA_CODE = "quota_exceeded" as const;
@@ -52,19 +52,26 @@ const METER_LABELS: Record<Meter, string> = {
  *  and collectively overrun a hard cap. Callers count the in-flight reservations and
  *  MUST leave no `await` between that count and the reservation's creation (the task-row
  *  insert), so under better-sqlite3's synchronous writes no request interleaves in the
- *  gap. A null (unlimited) allowance always proceeds. */
+ *  gap. A null (unlimited) allowance always proceeds.
+ *
+ *  `workspace` scopes the meter read to the requesting tenant's ORG (org-plan Phase 3:
+ *  a subscription is per customer company, shared across its teams — billingOrgForWorkspace).
+ *  Omitted (or the default workspace) reads exactly the rows it read before — byte-identical
+ *  for the single-tenant path. */
 export function meterGate(
   meter: Meter,
-  opts: { now?: Date; minUnits?: number; inFlight?: number } = {}
+  opts: { now?: Date; minUnits?: number; inFlight?: number; workspace?: string } = {}
 ): QuotaVerdict | null {
   const now = opts.now ?? new Date();
   const minUnits = Math.max(1, Math.floor(opts.minUnits ?? 1));
   const inFlight = Math.max(0, Math.floor(opts.inFlight ?? 0));
   // Resolve the entitled plan ONCE: the allowance check and the verdict's plan
   // label both read it, and a single billing_state read also can't observe two
-  // different rows under a concurrent webhook write.
-  const plan = entitledPlan(getBillingState(), now);
-  const remaining = meterOverview(meter, plan, now).remaining;
+  // different rows under a concurrent webhook write. Scoped to the requesting
+  // workspace's org (defaulting to the single tenant when unset).
+  const orgId = billingOrgForWorkspace(opts.workspace);
+  const plan = entitledPlan(getBillingState(orgId), now);
+  const remaining = meterOverview(meter, plan, now, orgId).remaining;
   if (remaining === null || remaining - inFlight >= minUnits) return null;
   return {
     error: `This month's ${METER_LABELS[meter]} on the ${plan.name} plan won't cover this action — upgrade or top up in Billing.`,
@@ -86,15 +93,23 @@ export function maxBillableInterviewMin(bookedMin: number): number {
 }
 
 /** True when the meter still allows spending — the degrade switch for LLM
- *  garnish call sites (append --no-llm instead of blocking). */
-export function meterAllows(meter: Meter, now: Date = new Date()): boolean {
-  return meterAllowance(meter, now).allowed;
+ *  garnish call sites (append --no-llm instead of blocking).
+ *
+ *  Takes the SAME `{ now, workspace }` options shape as meterGate above, for the
+ *  same reason: the degrade decision must read the ASKING tenant's billing state.
+ *  Before the workspace axis existed, every tenant's automation degrade was decided
+ *  by the default workspace's plan — a second team ran on the first team's quota.
+ *  Omitted, it reads exactly the row it read before (single-tenant path unchanged). */
+export function meterAllows(meter: Meter, opts: { now?: Date; workspace?: string } = {}): boolean {
+  return meterAllowance(meter, opts.now ?? new Date(), opts.workspace).allowed;
 }
 
 /** Active-job cap (free plan: 1). `publishedCount` = authored jobs currently
- *  'published'; seeded corpus jobs (NULL status) don't count. */
-export function activeJobsGate(publishedCount: number, now: Date = new Date()): QuotaVerdict | null {
-  const plan = entitledPlan(getBillingState(), now);
+ *  'published'; seeded corpus jobs (NULL status) don't count. `workspace` scopes
+ *  the plan read to the caller's org like meterGate (the count itself is the
+ *  caller's job — pass a workspace-filtered count alongside). */
+export function activeJobsGate(publishedCount: number, now: Date = new Date(), workspace?: string): QuotaVerdict | null {
+  const plan = entitledPlan(getBillingState(billingOrgForWorkspace(workspace)), now);
   if (plan.activeJobs === null || publishedCount < plan.activeJobs) return null;
   return {
     error: `The ${plan.name} plan allows ${plan.activeJobs} active job${plan.activeJobs === 1 ? "" : "s"} — close one or upgrade in Billing.`,

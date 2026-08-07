@@ -67,6 +67,29 @@ export function setWorkspaceDefaultLocale(locale: Locale, id: string = DEFAULT_W
   db.prepare(`UPDATE workspaces SET default_locale = ? WHERE id = ?`).run(locale, id);
 }
 
+// First-run onboarding, workspace-level fallback: the authority when the session
+// carries NO user claim (open dev mode / operator password — current-user.ts
+// resolves userId to null there), so the wizard still fires exactly once per
+// tenant. Same per-workspace-scalar shape as default_locale above.
+export type WorkspaceOnboardingState = "completed" | "skipped" | null;
+
+export function getWorkspaceOnboardingState(id: string = DEFAULT_WORKSPACE_ID): WorkspaceOnboardingState {
+  const db = ensureDb();
+  const row = db.prepare(`SELECT onboarding_state FROM workspaces WHERE id = ?`).get(id) as
+    | { onboarding_state?: string | null }
+    | undefined;
+  const value = row?.onboarding_state;
+  return value === "completed" || value === "skipped" ? value : null;
+}
+
+/** Validated at the write boundary like setWorkspaceDefaultLocale — the column
+ *  can only ever hold a known state. "completed" wins over a later "skipped". */
+export function setWorkspaceOnboardingState(state: "completed" | "skipped", id: string = DEFAULT_WORKSPACE_ID): void {
+  const db = ensureDb();
+  if (state === "skipped" && getWorkspaceOnboardingState(id) === "completed") return;
+  db.prepare(`UPDATE workspaces SET onboarding_state = ? WHERE id = ?`).run(state, id);
+}
+
 export function createWorkspace(name: string, orgId: string = DEFAULT_ORG_ID): Workspace {
   const db = ensureDb();
   const id = randomId("ws");

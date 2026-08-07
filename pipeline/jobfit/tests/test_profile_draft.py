@@ -6,8 +6,14 @@ enum-sanitization, and deterministic routing are all testable here.
 
 from __future__ import annotations
 
+import contextlib
+import io
+import json
+import tempfile
 import unittest
+from pathlib import Path
 
+from pipeline.jobfit import profile_draft_cli
 from pipeline.jobfit.profile_draft_cli import build_draft
 
 
@@ -78,6 +84,40 @@ class BuildDraftTest(unittest.TestCase):
         # JSON true must not slip through as years_experience=1.
         draft = build_draft({"years_experience": True})
         self.assertNotIn("yearsExperience", draft["profile"])
+
+
+class DraftCliErrorTaxonomyTest(unittest.TestCase):
+    """bug-ui-scan-2026-07-09 (pipeline-clis-script-bridges #5): user-correctable bad
+    input must surface as 400/invalid_input (exit 2), not a scary 500 engine_error —
+    mirroring profile_cli. Neither path reaches the Gemini call (both fail earlier), so
+    the test needs no network/key."""
+
+    def _run(self, raw_text: str) -> tuple[int, dict]:
+        with tempfile.TemporaryDirectory() as d:
+            inp = Path(d) / "in.json"
+            inp.write_text(raw_text, encoding="utf-8")
+            out_buf, err_buf = io.StringIO(), io.StringIO()
+            # Redirect BOTH streams to StringIO (no .reconfigure) so main() skips its
+            # stdio reconfigure guard — it checks sys.stdout but reconfigures stderr too.
+            with contextlib.redirect_stdout(out_buf), contextlib.redirect_stderr(err_buf):
+                rc = profile_draft_cli.main(["--input-json", str(inp)])
+            return rc, json.loads(err_buf.getvalue().strip().splitlines()[-1])
+
+    def test_malformed_input_json_is_400_invalid_input_not_500(self) -> None:
+        # json.JSONDecodeError is a ValueError → the new except-ValueError branch.
+        # Pre-fix: the blanket `except Exception` stamped status 500, no `code`, exit 1.
+        rc, env = self._run("{ this is not valid json")
+        self.assertEqual(rc, 2)
+        self.assertEqual(env["status"], 400)
+        self.assertEqual(env["code"], "invalid_input")
+
+    def test_empty_notes_is_400_with_exit_2_and_code(self) -> None:
+        # Pre-fix: empty notes returned exit 1 with status 400 (an exit/status mismatch)
+        # and no `code`; parseStderrError read exit 1 as a 500.
+        rc, env = self._run(json.dumps({"text": "   "}))
+        self.assertEqual(rc, 2)
+        self.assertEqual(env["status"], 400)
+        self.assertEqual(env["code"], "invalid_input")
 
 
 if __name__ == "__main__":

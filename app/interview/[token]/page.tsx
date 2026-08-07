@@ -1,7 +1,9 @@
 import { notFound } from "next/navigation";
-import { Clock, ShieldCheck, Sparkles } from "lucide-react";
+import Link from "next/link";
+import { ArrowRight, Clock, ShieldCheck, Sparkles } from "lucide-react";
 import { getTranslations } from "next-intl/server";
-import { getInterviewSessionByToken, isInterviewLinkExpired } from "@/app/_lib/db";
+import { getInterviewSessionByToken, isInterviewLinkExpired } from "@/app/_lib/db/interviews";
+import { getOrCreateStatusLink } from "@/app/_lib/application-status-store";
 import { GROUNDED_DEFAULT_MIN } from "@/app/_lib/interview-duration.mjs";
 import { AiDisclosure } from "@/app/_components/AiDisclosure";
 import { VoiceInterviewClient } from "@/app/_components/voice/VoiceInterviewClient";
@@ -27,10 +29,31 @@ export default async function InterviewPortalPage({ params }: { params: Promise<
   const durationMin = session.durationMin ?? GROUNDED_DEFAULT_MIN;
 
   if (session.status === "completed") {
+    // Not a cul-de-sac: hand the candidate the same durable /status link the
+    // apply flows issue (idempotent mint keyed on the pipeline entry, so email
+    // and this card share ONE token). The interview token they hold already
+    // proves this entry is theirs. Best-effort — older sessions without an
+    // entry link just keep the plain card.
+    let statusHref: string | null = null;
+    if (session.entryId) {
+      try {
+        statusHref = `/status/${getOrCreateStatusLink(session.entryId)}`;
+      } catch {
+        statusHref = null;
+      }
+    }
     return (
       <main className="mx-auto max-w-2xl px-4 py-16 text-center">
         <h1 className="font-serif text-h2 text-ink">{t("completedTitle")}</h1>
         <p className="mt-2 text-body text-steel">{t("completedBody")}</p>
+        {statusHref ? (
+          <Link
+            href={statusHref}
+            className="focus-ring mt-4 inline-flex items-center gap-1 text-sm font-semibold text-coral hover:underline"
+          >
+            {t("completedStatusCta")} <ArrowRight size={13} aria-hidden />
+          </Link>
+        ) : null}
       </main>
     );
   }

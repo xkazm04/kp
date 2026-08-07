@@ -16,22 +16,25 @@ export type FileInputProps = Omit<React.InputHTMLAttributes<HTMLInputElement>, "
   icon?: LucideIcon | null;
   /** Classes for the visible trigger button. */
   buttonClassName?: string;
+  /** Flip the trigger border to the error tone — the family-wide `invalid` prop. */
+  invalid?: boolean;
 };
 
 export const FileInput = forwardRef<HTMLInputElement, FileInputProps>(function FileInput(
-  { buttonLabel = "Choose file", icon = Upload, buttonClassName = "", className = "", disabled, ...rest },
+  { buttonLabel = "Choose file", icon = Upload, buttonClassName = "", className = "", disabled, invalid = false, ...rest },
   ref
 ) {
   const Icon = icon;
+  const border = invalid ? "border-red-400" : "border-stone-200 hover:border-coral/40";
   return (
     <label
-      className={`inline-flex items-center gap-2 rounded-md border border-stone-200 bg-white px-3 py-2 text-sm font-semibold text-ink transition-colors hover:border-coral/40 focus-within:outline-none focus-within:[box-shadow:0_0_0_2px_var(--color-paper),0_0_0_4px_var(--color-coral)] ${
+      className={`inline-flex items-center gap-2 rounded-md border ${border} bg-white px-3 py-2 text-sm font-semibold text-ink transition-colors focus-within:outline-none focus-within:[box-shadow:0_0_0_2px_var(--color-paper),0_0_0_4px_var(--color-coral)] ${
         disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer"
       } ${buttonClassName}`}
     >
       {Icon ? <Icon size={15} aria-hidden /> : null}
       {buttonLabel}
-      <input ref={ref} type="file" disabled={disabled} className={`sr-only ${className}`} {...rest} />
+      <input ref={ref} type="file" disabled={disabled} aria-invalid={invalid || undefined} className={`sr-only ${className}`} {...rest} />
     </label>
   );
 });

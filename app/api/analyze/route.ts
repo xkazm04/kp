@@ -2,9 +2,9 @@ import { NextResponse } from "next/server";
 import { getServerLocale } from "@/i18n/server";
 import { isLocale } from "@/i18n/locales";
 import { meterGate } from "@/app/_lib/billing";
-import { listRecentTasks } from "@/app/_lib/db";
+import { listRecentTasks } from "@/app/_lib/db/tasks";
 import type { AnalyzeParams } from "@/app/_lib/analyze-run";
-import { dedupeCvVariants } from "@/app/_lib/cv-variant";
+import { cvVariantHash, dedupeCvVariants } from "@/app/_lib/cv-variant";
 import { newRequestId } from "@/app/_lib/logger";
 import { createWorkdir, persistFile } from "@/app/_lib/python-runner";
 import { startTask } from "@/app/_lib/tasks";
@@ -35,6 +35,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
   }
 
+  // Tenant (P2): resolve the requesting workspace up front (a cheap cookie read) so
+  // EVERY meter/gate read below scopes to this tenant — the pre-check, the in-flight
+  // reservation count, and the authoritative reservation. Captured here (request
+  // scope) and also stamped on the task so the detached background job targets the
+  // same tenant. Single-tenant path resolves to the default workspace (byte-identical).
+  const workspace = await currentWorkspace();
+
   // Billing hard GATE only: a CV analysis is the unit behind the "AI candidates"
   // meter (one person fully worked — variants of the same person count once). The
   // unit is DEBITED later, inside runAnalyze, only when a non-cached analysis is
@@ -42,7 +49,7 @@ export async function POST(request: Request) {
   // for work that wasn't done. This is a CHEAP PRE-CHECK (refuse a fully-empty meter
   // before the multi-MB formData parse); the AUTHORITATIVE, in-flight-aware reservation
   // that closes the concurrent-burst window runs just before startTask below.
-  const quota = meterGate("ai_candidates");
+  const quota = meterGate("ai_candidates", { workspace });
   if (quota) return NextResponse.json(quota, { status: 402 });
 
   const form = await request.formData();
@@ -77,10 +84,14 @@ export async function POST(request: Request) {
 
   // Persist everything to a stable dir; the task (not this request) cleans it up.
   const baseDir = await createWorkdir();
-  const variants: { label: string; cvPath: string }[] = [];
+  const variants: { label: string; cvPath: string; cvHash: string }[] = [];
   for (let i = 0; i < cvFiles.length; i += 1) {
     const cvPath = await persistFile(baseDir, cvFiles[i].file, `cv-${i}`);
-    variants.push({ label: cvFiles[i].label, cvPath });
+    // Content-addressed identity: stamp the CV's content hash so the saved analysis
+    // is keyed to the CV bytes, not the filename. Reuses cvVariantHash — the SAME
+    // digest collectCvFiles already computed to dedupe (see below) — so the identity
+    // and the "same variant" question stay one answer.
+    variants.push({ label: cvFiles[i].label, cvPath, cvHash: cvFiles[i].cvHash });
   }
   const jobDescriptionPath = jobDescFile ? await persistFile(baseDir, jobDescFile, "job-description") : null;
   const companyPath = compFile ? await persistFile(baseDir, compFile, "company") : null;
@@ -118,9 +129,9 @@ export async function POST(request: Request) {
   // Blind screening (idea-b8d711c4): redact identity from the CV before scoring.
   const blind = form.get("blind") === "true";
 
-  // Tenant (P2): capture the workspace HERE (request scope) so the background task
-  // stamps the saved analysis with it — the task can't read the cookie itself.
-  const workspace = await currentWorkspace();
+  // `workspace` was resolved at the top of the handler (all gate reads share it) and
+  // rides on the params so the background task stamps the saved analysis with it —
+  // the detached task can't read the cookie itself.
   const params: AnalyzeParams = {
     baseDir,
     grounding,
@@ -145,16 +156,17 @@ export async function POST(request: Request) {
   // of them. Race-safe because better-sqlite3 writes are synchronous and there is NO
   // await between this count and startTask's row insert below — two concurrent requests
   // can't both read the same count; each sees every earlier reservation and atomically
-  // adds its own. Rows are created under the default workspace (createTask's default),
-  // matching the single global meter this gate reads.
-  const inFlightAnalyze = listRecentTasks(new Date().toISOString(), 200).filter(
+  // adds its own. TENANCY (P2): both the in-flight count and the meter read are scoped
+  // to THIS workspace, and startTask stamps the row with it — so one tenant's burst
+  // reserves against its OWN quota only and can't block or drain another tenant's runs.
+  const inFlightAnalyze = listRecentTasks(new Date().toISOString(), 200, workspace).filter(
     (t) => t.kind === "analyze" && (t.status === "queued" || t.status === "running")
   ).length;
-  const reserve = meterGate("ai_candidates", { inFlight: inFlightAnalyze });
+  const reserve = meterGate("ai_candidates", { inFlight: inFlightAnalyze, workspace });
   if (reserve) return NextResponse.json(reserve, { status: 402 });
 
   // No debit here — runAnalyze charges the unit only on a delivered, non-cached result.
-  const task = startTask("analyze", params as unknown as Record<string, unknown>);
+  const task = startTask("analyze", params as unknown as Record<string, unknown>, workspace);
   return NextResponse.json({ task });
 }
 
@@ -164,7 +176,7 @@ export async function POST(request: Request) {
 // twice no longer runs twice, hits the same analyze cache key, and ranks an
 // identical clone against itself. The (n) suffix still disambiguates genuinely
 // different files that happen to share a display name.
-async function collectCvFiles(form: FormData): Promise<Array<{ file: File; label: string }>> {
+async function collectCvFiles(form: FormData): Promise<Array<{ file: File; label: string; cvHash: string }>> {
   const uploaded: File[] = [];
   for (const value of form.getAll("cvs")) {
     if (value instanceof File && value.size > 0) uploaded.push(value);
@@ -176,13 +188,15 @@ async function collectCvFiles(form: FormData): Promise<Array<{ file: File; label
 
   const unique = await dedupeCvVariants(uploaded);
 
-  const out: Array<{ file: File; label: string }> = [];
+  const out: Array<{ file: File; label: string; cvHash: string }> = [];
   const seenLabels = new Set<string>();
   for (const file of unique) {
     let label = file.name || `CV ${out.length + 1}`;
     if (seenLabels.has(label)) label = `${label} (${out.length + 1})`;
     seenLabels.add(label);
-    out.push({ file, label });
+    // Content hash = the content-addressed candidate identity persisted with the
+    // saved analysis. Same helper dedupeCvVariants used above, so it's cheap here.
+    out.push({ file, label, cvHash: await cvVariantHash(file) });
   }
   return out;
 }

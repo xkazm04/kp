@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getJob } from "@/app/_lib/db";
+import { getJob } from "@/app/_lib/db/jobs";
 import { getJobStatus, isJobOpenForApplications } from "@/app/_lib/job-ingest";
 import { jsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";

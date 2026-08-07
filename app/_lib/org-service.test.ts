@@ -2,6 +2,7 @@ import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { cleanupUnitDb } from "./testing/unit-db.ts";
 import { DEFAULT_ORG_ID } from "./db/organizations.ts";
+import { createWorkspace } from "./db/workspaces.ts";
 import { verifyCredentials, getUserByEmail } from "./db/users.ts";
 import {
   listOrgMembers,
@@ -84,4 +85,26 @@ test("a stale invite cannot reset an ACTIVE member's password", () => {
   const member = listOrgMembers().find((m) => m.user.email === "stale.target@csas.cz")!;
   assert.equal(member.user.name, "Stale Target");
   assert.equal(member.teams[0].role, "recruiter", "role not downgraded by the stale invite");
+});
+
+// MEDIUM (2026-07-09 scan, organizations-members-invites #3): the invite route signed
+// the session from listMembershipsForUser(...)[0] — the OLDEST membership. A re-invited
+// member (already on an older team) landed on that OLD team with the OLD role instead of
+// the team/role the invite just granted. acceptInvite now RETURNS the accepted
+// workspaceId + role so the route signs the correct claims.
+test("accept returns the invite's team/role, not the member's oldest membership", () => {
+  // David is seeded disabled with an existing membership on the default team as viewer
+  // (the OLDEST membership). Re-invite him to a NEW team as admin.
+  assert.equal(getUserByEmail("david.benes@csas.cz")!.status, "disabled");
+  const teamB = createWorkspace("Team B");
+  const invite = inviteMember({ email: "david.benes@csas.cz", role: "admin", workspaceId: teamB.id });
+
+  const result = acceptInvite({ token: invite.token, password: "david-pw-123" });
+  assert.ok(result.ok);
+  // The session must be signed for the ACCEPTED team/role…
+  assert.equal(result.workspaceId, teamB.id);
+  assert.equal(result.role, "admin");
+  // …even though the older default-team viewer membership still exists (what [0] returned).
+  const teams = listOrgMembers().find((m) => m.user.email === "david.benes@csas.cz")!.teams;
+  assert.ok(teams.some((t) => t.workspaceId === "workspace" && t.role === "viewer"), "old membership still present");
 });

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-import { insertAnalyzingJd, setJdAnalysisTask } from "@/app/_lib/db";
+import { insertAnalyzingJd, setJdAnalysisTask } from "@/app/_lib/db/jobs";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { startTask } from "@/app/_lib/tasks";
 import { getTemplate } from "@/app/_lib/templates-store";
 import { validateJdBuildInput } from "@/app/_lib/jd-limits";
@@ -24,6 +25,12 @@ function readOptions(raw: unknown): { description: boolean; marketResearch: bool
 }
 
 export async function POST(request: Request) {
+  // A Generate spawns a 1–2 minute PAID AI build the moment it's accepted, so the
+  // gate must run before any body read or DB write — a demo/non-operator session
+  // the proxy waved through can't burn tokens here. Open mode (no
+  // KP_OPERATOR_PASSWORD) is a no-op, so dev/sim are unaffected.
+  const denied = await requireOperator();
+  if (denied) return denied;
   let body: unknown;
   try {
     body = await request.json();
@@ -54,15 +61,39 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "A role title is required." }, { status: 400 });
   }
 
-  // Resolve the chosen company template server-side so the build renders through it
-  // (an unknown/empty id ⇒ the AI-default format). Loaded here, not in the task, so
-  // the handler stays storage-agnostic.
+  // Resolve the chosen company template server-side so the build renders through it.
+  // Loaded here, not in the task, so the handler stays storage-agnostic. Scope the
+  // lookup to the caller's workspace (tenancy): getTemplate has a defaulted
+  // workspaceId, so an unscoped call read the DEFAULT team's templates — silently
+  // discarding a non-default team's private choice AND letting any team read a
+  // default-team private template by id. A non-empty id that no longer resolves is
+  // an explicit-choice-gone-missing, so 400 rather than silently using AI-default.
+  const ws = await currentWorkspace();
   const templateId = typeof record.templateId === "string" ? record.templateId : "";
-  const templateBody = templateId ? getTemplate(templateId)?.body : undefined;
+  let templateBody: string | undefined = undefined;
+  if (templateId) {
+    const template = getTemplate(templateId, ws);
+    if (!template) return NextResponse.json({ error: "That template is no longer available." }, { status: 400 });
+    templateBody = template.body;
+  }
+
+  // The recruiter's original intent, persisted on the JD row so Duplicate re-seeds
+  // the PROMPT (not the rendered markdown) and Retry can replay even after the task
+  // row is pruned. templateId (stable) is stored, not the resolved templateBody.
+  const buildInput = {
+    needText,
+    company: typeof record.company === "string" ? record.company : undefined,
+    seniority: typeof record.seniority === "string" ? record.seniority : undefined,
+    roleFamily: typeof record.roleFamily === "string" ? record.roleFamily : undefined,
+    repoUrl: typeof record.repoUrl === "string" ? record.repoUrl : undefined,
+    lang: typeof record.lang === "string" ? record.lang : undefined,
+    templateId,
+    options,
+  };
 
   try {
     // 1. Placeholder JD (appears in the Ledger as "Analyzing" right away).
-    const { slug } = insertAnalyzingJd({ title: cleanTitle, options }, await currentWorkspace());
+    const { slug } = insertAnalyzingJd({ title: cleanTitle, options, buildInput }, ws);
     // 2. Detached build that fills it in (survives navigation). jdSlug makes the
     //    task's dedupe identity the JD itself, so each Generate is its own run.
     const task = startTask("jd_build", {

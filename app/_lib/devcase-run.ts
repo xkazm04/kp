@@ -1,27 +1,13 @@
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
-import {
-  createPipelineEntry,
-  getDevCase,
-  getPipelineEntry,
-  getDevSessionEvents,
-  getPosting,
-  getProfileRecord,
-  getSubmission,
-  lifecycleByPosting,
-  listMatrixProfiles,
-  listProfileRecords,
-  recordAutomationEvent,
-  saveSubmissionEvaluation,
-  setApproval,
-  updateProfile,
-  type DevSubmission,
-} from "./db";
+import { getDevCase, getDevCaseBaseline, getDevSession, getDevSessionChat, getDevSessionEvents, getDevSessionIntegrity, getPosting, getSubmission, lifecycleByPosting, saveSubmissionEvaluation, type DevSubmission, type SessionIntegrity } from "./db/devcase";
+import { createPipelineEntry, getPipelineEntry, recordAutomationEvent, setApproval } from "./db/pipeline";
+import { getProfileRecord, listMatrixProfiles, listProfileRecords, updateProfile } from "./db/profiles";
 import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 import { inferProfileLocale } from "./comms-locale";
 import { MAX_CODEBASES } from "./devcase-constraints";
 import { scoreAuthenticity, PASTE_BULK_CHARS, type Authenticity } from "./devcase-authenticity";
-import { seedDiffEvidence, type SeedDiff } from "./devcase-seed-diff";
+import { changedPathsFromFiles, seedDiffEvidence, type SeedDiff } from "./devcase-seed-diff";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, PipelineError, spawnPython } from "./python-runner";
 import { buildLlmConfigEnv } from "./llm-config";
 import { buildRepoSnapshot, fetchRepoSignals, type RepoSnapshot } from "./repo-snapshot";
@@ -239,6 +225,81 @@ export async function runMaterializeSeed(
   return { seed: payload.result.seed, source: payload.source, perStepSources: payload.perStepSources ?? {}, fallbackReason: payload.fallbackReason ?? {} };
 }
 
+export type SessionChatResult = {
+  reply: string;
+  source: string;
+};
+
+/** One in-session assistant/stakeholder reply (LLM-era controls #2/#5). The
+ *  transcript + message flow through the platform so the candidate's prompts are
+ *  captured evidence; the reply persona lives in devcase/chat.py. */
+export async function runSessionChat(
+  channel: "assistant" | "stakeholder",
+  kase: Record<string, unknown>,
+  role: Record<string, unknown>,
+  transcript: { channel: string; role: string; text: string }[],
+  message: string,
+  currentFile?: { path: string; contents: string } | null,
+  lang?: string | null,
+  signal?: AbortSignal
+): Promise<SessionChatResult> {
+  const payload = await runDevcaseCli<{ result: { reply?: { reply?: string } }; source: string }>(
+    async (workdir) => {
+      const write = async (name: string, data: unknown) => {
+        const fp = path.join(workdir, name);
+        await writeFile(fp, JSON.stringify(data), "utf-8");
+        return fp;
+      };
+      const args = [
+        "session-chat",
+        "--case-json",
+        await write("case.json", kase),
+        "--role-json",
+        await write("role.json", role),
+        "--channel",
+        channel,
+        "--message",
+        message,
+        "--lang",
+        lang || "en",
+      ];
+      if (transcript.length > 0) args.push("--chat-json", await write("chat.json", transcript));
+      if (currentFile) args.push("--current-file-json", await write("current.json", currentFile));
+      return args;
+    },
+    signal,
+  );
+  return { reply: String(payload.result.reply?.reply ?? ""), source: payload.source };
+}
+
+export type BaselineSolveResult = {
+  baseline: Record<string, unknown>; // {solutions: [{files, note}], promptVersion}
+  source: string;
+};
+
+/** One-shot naive-LLM baseline solve (LLM-era controls #6) — run at freeze time
+ *  beside the seed, persisted per case as the comparison target for every
+ *  submission's "what did the human add beyond the bare model?". */
+export async function runBaselineSolve(
+  kase: Record<string, unknown>,
+  role: Record<string, unknown>,
+  seed: Record<string, unknown> | null
+): Promise<BaselineSolveResult> {
+  const payload = await runDevcaseCli<{ result: { baseline: Record<string, unknown> }; source: string }>(
+    async (workdir) => {
+      const write = async (name: string, data: unknown) => {
+        const fp = path.join(workdir, name);
+        await writeFile(fp, JSON.stringify(data), "utf-8");
+        return fp;
+      };
+      const args = ["baseline-solve", "--case-json", await write("case.json", kase), "--role-json", await write("role.json", role)];
+      if (seed) args.push("--seed-json", await write("seed.json", seed));
+      return args;
+    },
+  );
+  return { baseline: payload.result.baseline, source: payload.source };
+}
+
 export type ObservedMintResult = { credited: string[]; applied: boolean };
 
 /** After a CASE-GROUNDED interview completes, run the deterministic observed gate
@@ -401,6 +462,12 @@ export type SubmissionEvaluation = {
   // engagement evidence). null when the case has no materialized seed or the repo
   // gave no changed paths.
   seedDiff: SeedDiff | null;
+  // LLM-era controls #1 — tamper-evidence verdict on the observed event log (hash
+  // chain + client-clock consistency + watermark). null for repo submissions.
+  integrity: SessionIntegrity | null;
+  // LLM-era controls #2/#3/#6 — the mechanical observed-check verdicts persisted
+  // beside the LLM interpretation ({} when the submission had no observed inputs).
+  observedChecks?: Record<string, unknown>;
   source: string;
   perStepSources: Record<string, string>; // {reflect, tooling, evaluate, transfer, followups}
   fallbackReason: Record<string, string>; // {step: "<ExceptionType>: <message>"} for steps whose LLM call raised
@@ -425,11 +492,26 @@ export async function runEvaluateSubmission(submissionId: string, signal?: Abort
   // existing fetch-and-infer path unchanged.
   let signals: Awaited<ReturnType<typeof fetchRepoSignals>> = null;
   let events: { t: number; kind: string; path?: string | null; size?: number | null }[] | null = null;
+  // LLM-era controls #1 — tamper-evidence verdict on the observed log itself,
+  // computed server-side (hash chain + client-clock consistency + watermark scan)
+  // before anything downstream trusts the events.
+  let integrity: SessionIntegrity | null = null;
+  // LLM-era controls #2/#3/#6 — observed-evidence inputs available only for live
+  // sessions: the submitted file tree, the captured chat transcript, and the frozen
+  // internal seed (canaries) + one-shot baseline to check them against.
+  let sessionFiles: { path: string; contents: string }[] | null = null;
+  let chatTranscript: { channel: string; role: string; text: string }[] | null = null;
   if (sub.repoRef.startsWith("session:")) {
-    events = getDevSessionEvents(sub.repoRef.slice("session:".length));
+    const sessionId = sub.repoRef.slice("session:".length);
+    events = getDevSessionEvents(sessionId);
+    integrity = getDevSessionIntegrity(sessionId);
+    sessionFiles = getDevSession(sessionId)?.files ?? null;
+    const chat = getDevSessionChat(sessionId);
+    chatTranscript = chat.length > 0 ? chat.map((m) => ({ channel: m.channel, role: m.role, text: m.text })) : null;
   } else {
     signals = await fetchRepoSignals(sub.repoRef);
   }
+  const caseBaseline = devCase ? getDevCaseBaseline(devCase.id) : null;
   const commits = signals?.commits ?? [];
   const repo = signals ? { cadence: signals.cadence, topLevel: signals.topLevel } : null;
 
@@ -440,6 +522,9 @@ export async function runEvaluateSubmission(submissionId: string, signal?: Abort
       evaluation: Record<string, unknown>;
       transfer: Record<string, unknown>;
       followups?: Record<string, unknown>;
+      // Mechanical observed-check verdicts (canaries, prompt signals, baseline
+      // distance) — {} when no observed inputs were available.
+      observedChecks?: Record<string, unknown>;
     };
     source: string;
     perStepSources?: Record<string, string>;
@@ -469,6 +554,12 @@ export async function runEvaluateSubmission(submissionId: string, signal?: Abort
       ];
       if (repo) args.push("--repo-json", await write("repo.json", repo));
       if (events) args.push("--events-json", await write("events.json", events));
+      // Observed-evidence inputs (LLM-era controls): each optional and independent —
+      // the Python side quietly no-ops on whatever is absent.
+      if (chatTranscript) args.push("--chat-json", await write("chat.json", chatTranscript));
+      if (sessionFiles && sessionFiles.length > 0) args.push("--files-json", await write("files.json", sessionFiles));
+      if (devCase?.seed) args.push("--seed-json", await write("seed.json", devCase.seed));
+      if (caseBaseline) args.push("--baseline-json", await write("baseline.json", caseBaseline));
       return args;
     },
     signal,
@@ -498,6 +589,15 @@ export async function runEvaluateSubmission(submissionId: string, signal?: Abort
   // threshold landed in the watched editor (the live surface waives commit penalties,
   // so without this a pasted solution scored "authentic").
   const observedBulkPaste = observed && events!.some((e) => e.kind === "paste" && (e.size ?? 0) >= PASTE_BULK_CHARS);
+  // Integrity is compromised when the hash chain provably broke (valid === false —
+  // null means "legacy/unverifiable", which is not evidence of tampering), any
+  // client timestamp contradicted its server receive window, or a FOREIGN session's
+  // watermark surfaced in the submitted tree (a circulated/relayed solution). A
+  // merely-missing own watermark is deliberately NOT here — deleting a line is not
+  // proof of anything.
+  const integrityCompromised =
+    integrity != null &&
+    (integrity.chain.valid === false || integrity.backdatedEvents > 0 || integrity.watermark.foreign.length > 0);
   const authenticity = scoreAuthenticity({
     commitCount: processTrace.commitCount,
     bursty: processTrace.cadence?.bursty ?? null,
@@ -507,21 +607,32 @@ export async function runEvaluateSubmission(submissionId: string, signal?: Abort
     iterationPattern: reflection.iterationPattern ?? null,
     observed,
     observedBulkPaste,
+    integrityCompromised,
   });
   // c364a44d — anchor the evaluation into the shared seed: which planted seam
   // files did the submission actually touch? Grounded, mechanically comparable
   // engagement evidence beside the LLM's probe read.
-  const seedFiles = ((devCase?.seed as { files?: { path?: string }[] } | null)?.files) ?? [];
-  const seedDiff =
-    seedFiles.length > 0 && (signals?.changedPaths?.length ?? 0) > 0
-      ? seedDiffEvidence(seedFiles, signals!.changedPaths)
-      : null;
+  const seedFiles = ((devCase?.seed as { files?: { path?: string; contents?: string }[] } | null)?.files) ?? [];
+  // Both submission paths now produce seed engagement, from the change set each one
+  // actually has: the repo path from the commits API's changed paths, the Live Work
+  // Surface from a CONTENT diff of the submitted tree against the seed. Previously
+  // only `signals.changedPaths` was consulted, and `signals` is null for a session —
+  // so the strip never rendered for the path with the strongest evidence, and an
+  // absent strip reads as "they engaged nothing".
+  const changedPaths =
+    signals?.changedPaths?.length
+      ? signals.changedPaths
+      : sessionFiles && sessionFiles.length > 0
+        ? changedPathsFromFiles(seedFiles, sessionFiles)
+        : [];
+  const seedDiff = seedFiles.length > 0 && changedPaths.length > 0 ? seedDiffEvidence(seedFiles, changedPaths) : null;
   const out = {
     ...payload.result,
     followups: payload.result.followups ?? {},
     processTrace,
     authenticity,
     seedDiff,
+    integrity,
     source: payload.source,
     perStepSources: payload.perStepSources ?? {},
     fallbackReason: payload.fallbackReason ?? {},
@@ -612,10 +723,32 @@ export function seedPipelineFromMatches(
   return { added };
 }
 
+// The evidence-confidence floor for auto-advance advice — mirrors the Python
+// confidence scale's LOW_CONFIDENCE (pipeline/jobfit/devcase/models.py): at or
+// below this the evaluation rests on thin/deterministic-fallback evidence.
+const LOW_EVAL_CONFIDENCE = 0.4;
+
+export type PromoteResult = {
+  entryId: string;
+  // The SAME advance/hold verdict written onto the screening_review card, surfaced
+  // to every caller so nothing downstream (a candidate-facing comm, an audit row)
+  // re-derives a threshold in a second place and drifts from this one. "hold"
+  // means a human must verify before this reads as an advance to ANYONE, including
+  // the candidate — the orchestrator's ranked stage gates its comm on it.
+  recommendation: "advance" | "hold";
+  // Explainability (case-sim round 2 / compliance): the concrete reasons behind
+  // the verdict, persisted on the automation trail so a reviewer can answer
+  // "why did this advance / hold?" later.
+  reasons: string[];
+};
+
 // Bridge an evaluated submission into the pipeline + a Decisions screening_review card.
-// Shared by /api/devcase/promote and the lifecycle orchestrator. Returns the entry id, or
-// null if the submission isn't evaluated yet.
-export function promoteSubmission(submissionId: string): string | null {
+// Shared by /api/devcase/promote and the lifecycle orchestrator; BOTH must pass the
+// calibrated floor (activePromoteFloor()) so advice and behavior share one threshold —
+// the old hardcoded `score >= 70` here diverged from the calibration-adjustable floor
+// the orchestrator actually promoted on (case-sim round 2 canary c1). Returns null if
+// the submission isn't evaluated yet.
+export function promoteSubmission(submissionId: string, floor: number): PromoteResult | null {
   const sub = getSubmission(submissionId);
   if (!sub || !sub.evaluation) return null;
   const bundle = sub.evaluation as {
@@ -637,6 +770,15 @@ export function promoteSubmission(submissionId: string): string | null {
   // that verifies ownership of the decisions (the minted followups), with the
   // authenticity concern surfaced to the reviewer.
   const suspectAuth = bundle.authenticity?.band === "suspect";
+  // Case-sim round 2 canary c2: the evaluation's PROPAGATED evidence-confidence
+  // (min of its upstream signals — see models.py's confidence scale) was silently
+  // dropped here, so a deterministic-fallback evaluation advised "advance" as
+  // confidently as a fully-grounded one. Low evidence never auto-advances.
+  const evalConfidence =
+    typeof (evaluation as { confidence?: unknown }).confidence === "number"
+      ? ((evaluation as { confidence: number }).confidence)
+      : null;
+  const lowConfidence = evalConfidence != null && evalConfidence <= LOW_EVAL_CONFIDENCE;
 
   const { entry } = createPipelineEntry({
     candidateId: `ds-${sub.id}`,
@@ -652,13 +794,22 @@ export function promoteSubmission(submissionId: string): string | null {
     // d95fed6d — origin marker: the drawer says "via dev case" and links back.
     sourceChannel: "devcase",
   });
-  // Suspect authenticity overrides a strong score down to "hold" — verify
-  // authorship live before advancing.
-  const recommendation = score >= 70 && !suspectAuth ? "advance" : "hold";
+  const recommendation: PromoteResult["recommendation"] =
+    score >= floor && !suspectAuth && !lowConfidence ? "advance" : "hold";
+  const reasons = [
+    `transfer score ${score} vs calibrated floor ${floor}`,
+    ...(suspectAuth ? [`process authenticity is suspect (${bundle.authenticity?.score ?? 0}/100)`] : []),
+    ...(lowConfidence ? [`evaluation evidence-confidence is low (${evalConfidence})`] : []),
+  ];
   const redFlags = [...((evaluation.concerns as string[]) ?? [])];
   if (suspectAuth) {
     redFlags.unshift(
       `Process-authenticity is suspect (${bundle.authenticity?.score ?? 0}/100) — verify the candidate authored this before advancing.`
+    );
+  }
+  if (lowConfidence) {
+    redFlags.unshift(
+      `Evaluation evidence-confidence is low (${evalConfidence}) — the scores rest on thin/fallback evidence; verify live before advancing.`
     );
   }
   setApproval(
@@ -666,12 +817,15 @@ export function promoteSubmission(submissionId: string): string | null {
     "screening_review",
     JSON.stringify({
       recommendation,
+      // NOTE: this field carries the transfer SCORE (the card UI's existing
+      // contract), not the 0..1 evidence-confidence — which now gates the
+      // recommendation above instead of being silently dropped.
       confidence: score,
       rationale: `${String(evaluation.summary ?? "")} ${String(transfer.roleFitRationale ?? "")}`.trim() || "Dev-case evaluation.",
       strengths: (evaluation.strengths as string[]) ?? [],
       redFlags,
     })
   );
-  recordAutomationEvent(entry.id, "screening_hold", "promoted from dev case");
-  return entry.id;
+  recordAutomationEvent(entry.id, "screening_hold", `promoted from dev case — ${recommendation}: ${reasons.join("; ")}`);
+  return { entryId: entry.id, recommendation, reasons };
 }

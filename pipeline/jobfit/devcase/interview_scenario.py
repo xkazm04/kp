@@ -213,4 +213,6 @@ def scenario_from_case(
         lambda: deterministic_scenario(case, role).model_dump(by_alias=True),
         lambda payload: _coerce(payload, case, role).model_dump(by_alias=True),
         _LOG,
+        # Pin the answer by shape so a trailing injected object can't win the parse (#3).
+        expected_keys=("caseIntro", "phases"),
     )

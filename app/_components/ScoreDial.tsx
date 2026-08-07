@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useState, type CSSProperties } from "react";
+import { useTranslations } from "next-intl";
 import { useReducedMotion } from "@/app/_lib/useReducedMotion";
 import { clampPercent, scoreTone, scoreToneColor } from "@/app/_lib/format";
+import { SCORE_BANDS, scoreBandIndex } from "./scoreDial.logic";
 
 type ScoreDialProps = {
   score: number;
@@ -17,28 +19,6 @@ const ARC_SPAN = 240;
 const START_ANGLE = -120;
 const TOTAL_MS = 700;
 const GAP_DEG = 4;
-
-type Band = {
-  from: number;
-  to: number;
-  label: string;
-};
-
-const BANDS: Band[] = [
-  { from: 0, to: 40, label: "Early" },
-  { from: 40, to: 55, label: "Developing" },
-  { from: 55, to: 70, label: "Solid" },
-  { from: 70, to: 85, label: "Strong" },
-  { from: 85, to: 100, label: "Excellent" }
-];
-
-function bandIndex(score: number): number {
-  if (score <= 40) return 0;
-  if (score <= 55) return 1;
-  if (score <= 70) return 2;
-  if (score <= 85) return 3;
-  return 4;
-}
 
 // Score-meaningful band colors (poor -> weak, fair -> mid, good -> strong),
 // drawn from the shared --color-score-* scale (via scoreToneColor) so the dial's
@@ -72,6 +52,9 @@ function useCountUp(target: number, durationMs: number) {
 }
 
 export function ScoreDial({ score }: ScoreDialProps) {
+  // bug-ui-scan-2026-07-09 (analysis-result-panels #3): the band word and the
+  // aria-label were hardcoded English on a bilingual report — localize both.
+  const t = useTranslations("report");
   // clampPercent deliberately passes NaN through (callers guard separately). A
   // non-finite score (a garbled pipeline total, a parseFloat of an absent field, a
   // divide-by-zero average) otherwise fell through bandIndex to "Excellent" AND
@@ -80,8 +63,9 @@ export function ScoreDial({ score }: ScoreDialProps) {
   // consistent with scoreTone's null tier) so a bad payload reads as a floor score.
   const clamped = Number.isFinite(score) ? clampPercent(score) : 0;
   const displayed = useCountUp(clamped, TOTAL_MS);
-  const activeIndex = bandIndex(clamped);
-  const activeBand = BANDS[activeIndex];
+  const activeIndex = scoreBandIndex(clamped);
+  const activeBand = SCORE_BANDS[activeIndex];
+  const bandLabel = t(activeBand.key);
   // Color the central number + label from the app-wide scoreTone (cutoffs 50/75) so the
   // most prominent score reads the SAME tone as ScoreBadge / Meter / FactorChart for a given
   // number. The arc keeps its five aesthetic bands (bandColor); only the readout was crossing
@@ -93,14 +77,14 @@ export function ScoreDial({ score }: ScoreDialProps) {
     <div
       className="relative grid aspect-square w-44 place-items-center rounded-full bg-white shadow-panel"
       role="img"
-      aria-label={`Score ${clamped} out of 100, ${activeBand.label}`}
+      aria-label={t("scoreAria", { score: clamped, band: bandLabel })}
     >
       <svg
         viewBox={`0 0 ${SIZE} ${SIZE}`}
         className="aspect-square w-full"
         aria-hidden="true"
       >
-        {BANDS.map((band, i) => {
+        {SCORE_BANDS.map((band, i) => {
           const segSweep = ((band.to - band.from) / 100) * ARC_SPAN - GAP_DEG;
           const segStart = START_ANGLE + (band.from / 100) * ARC_SPAN + GAP_DEG / 2;
           const arcLen = (segSweep / 360) * CIRCUMFERENCE;
@@ -116,12 +100,12 @@ export function ScoreDial({ score }: ScoreDialProps) {
           };
           return (
             <circle
-              key={band.label}
+              key={band.key}
               cx={CENTER}
               cy={CENTER}
               r={RADIUS}
               fill="none"
-              stroke={isFilled ? bandColor(i) : "#e7e5e4"}
+              stroke={isFilled ? bandColor(i) : "var(--color-stone-200)"}
               strokeWidth={STROKE}
               strokeLinecap="round"
               strokeDasharray={`${arcLen.toFixed(2)} ${CIRCUMFERENCE.toFixed(2)}`}
@@ -144,7 +128,7 @@ export function ScoreDial({ score }: ScoreDialProps) {
           className="mt-2 text-sm font-semibold uppercase tracking-[0.18em]"
           style={{ color: readoutColor }}
         >
-          {activeBand.label}
+          {bandLabel}
         </div>
       </div>
     </div>

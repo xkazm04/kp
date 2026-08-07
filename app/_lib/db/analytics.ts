@@ -1,9 +1,10 @@
 import { pickBottleneck, type Bottleneck } from "../analytics-bottleneck";
 import { MOMENTUM_EVENT_KINDS, MOMENTUM_WEEKS, weeklyMomentum, type MomentumWeek } from "../analytics-momentum";
 import { summarizeAutomationImpact, type AutomationImpact } from "../decision-attribution";
+import { offerConversion, type OfferConversion } from "../analytics-offer";
 import { automationRoi, type AutomationRoi } from "../automation-roi";
 import { FUNNEL_STAGES, hasAdvancedPastScreening, type FunnelStage } from "../pipeline-stages";
-import { SIM_TITLE_LIKE } from "@/app/features/simulation/constants";
+import { SIM_TITLE_LIKE } from "@/app/features/shell/simulation/constants";
 import { ensureDb } from "./core";
 import { DEFAULT_WORKSPACE_ID } from "./workspaces";
 import { listChannelSpend } from "./channels";
@@ -43,10 +44,35 @@ export type PipelineAnalytics = {
   declined: number;
   funnel: { stage: string; reached: number; current: number; conversionPct: number | null }[];
   avgTimeToHireDays: number | null;
+  // The MEDIAN of the same time-to-hire samples (avgTimeToHireDays is the mean). The
+  // ROI ledger tile is labeled "median" and reads this, so an audit-grade leadership
+  // readout states the statistic it claims (analytics-calibration-dashboards #1).
+  medianTimeToHireDays: number | null;
   // UAT M7 — blended overall cost per hire (Σ recruiter-entered channel spend ÷
   // hires), all-time only (windowed = null, mirroring the per-channel rule); the
   // single cost figure for the leadership readout.
   costPerHireCzk: number | null;
+  // compute-cost-per-hire — the LLM compute that produced these hires, read from the
+  // existing usage ledger (the llm_usage table insertLlmUsage writes). READ-ONLY: no
+  // new metering, no writes. HONEST SCOPE LIMITS surfaced by the UI: (1) llm_usage has
+  // NO workspace_id, so this is an ACCOUNT-WIDE total, not workspace-scoped; (2) the
+  // ledger prices in USD (cost_usd), NOT the app currency (CZK), so the tile is
+  // labelled in USD, never fake-converted; (3) `unpricedCalls` are NULL-cost rows
+  // (Azure/unknown model) that sum to 0 — surfaced so "$0" ≠ "nothing spent".
+  // costPerHireUsd divides the WINDOWED cost by the WINDOWED hire count. TENANT-SCOPE
+  // CAVEAT: the numerator is ACCOUNT-WIDE (llm_usage has no workspace_id) while the
+  // denominator is THIS workspace's hires — so the ratio is only an honest per-hire
+  // figure in a single-workspace account. `workspaceCount` reports how many workspaces
+  // share the workspace-blind ledger; when >1 the UI suppresses the per-hire figure
+  // (it would inflate ~by the number of active workspaces). Null when there's no hire
+  // to divide by. Null overall when the window holds no metered calls.
+  computeCost: {
+    costUsd: number;
+    calls: number;
+    unpricedCalls: number;
+    costPerHireUsd: number | null;
+    workspaceCount: number;
+  } | null;
   avgAgeDays: number | null;
   bottleneck: Bottleneck | null;
   // Per-stage average dwell time across ALL active stages (Sloneek "time spent in
@@ -72,6 +98,10 @@ export type PipelineAnalytics = {
   // ANA3 — automation-vs-human rollup over the same window, folded through the
   // shared decision-attribution map the DecisionLog badges use.
   automation: AutomationImpact;
+  // Direction 1 — the offer leg (interview → offer → accepted): extended /
+  // accepted / declined / expired rates folded from the SAME windowed kindCounts,
+  // honesty-gated on the min-offers floor. Feeds the forecast's acceptance input.
+  offers: OfferConversion;
   // b39992b1 — counterfactual ROI: the recruiter-hours + CZK the automated event
   // trail saved over the window, at the org's (or default) hourly rate.
   automationRoi: AutomationRoi;
@@ -117,6 +147,17 @@ export type ChannelEconomics = {
   costPerApplicantCzk: number | null;
   costPerHireCzk: number | null;
 };
+
+// Rounded median of a numeric sample (empty → null). The average of the two
+// middle values on an even-length sample, matching the OrgBenchmarkPanel's
+// median contract so the two "median time-to-hire" surfaces agree.
+function medianRounded(values: number[]): number | null {
+  if (values.length === 0) return null;
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  const median = sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
+  return Math.round(median);
+}
 
 // ANA2 — `windowDays` scopes the snapshot metrics to the COHORT of entries
 // created in the last N days (entries with no created_at drop out of a windowed
@@ -202,6 +243,7 @@ export function pipelineAnalytics(
     .map((r) => (Date.parse(r.stage_changed_at as string) - Date.parse(r.created_at as string)) / 86_400_000)
     .filter((d) => d >= 0);
   const avgTimeToHireDays = tth.length ? Math.round(tth.reduce((a, b) => a + b, 0) / tth.length) : null;
+  const medianTimeToHireDays = medianRounded(tth);
 
   const ages = rows
     .filter((r) => r.status === "active" && r.created_at)
@@ -340,10 +382,25 @@ export function pipelineAnalytics(
     resolved: holdRow.resolved ?? 0,
   });
 
+  // Direction 1 — the offer leg, from the same windowed/sim-excluded/workspace-
+  // scoped kindCounts (no new query). offer_sent = extended; the three terminal
+  // kinds are the resolutions. Pure fold + honesty gate lives in analytics-offer.
+  const offers = offerConversion({
+    extended: kindCounts["offer_sent"] ?? 0,
+    accepted: kindCounts["offer_accepted"] ?? 0,
+    declined: kindCounts["offer_declined"] ?? 0,
+    expired: kindCounts["offer_expired"] ?? 0,
+  });
+
   // Source effectiveness (ANA4): each entry's FIRST event names how it entered
   // the pipeline (MIN(id) — insertion order — as the earliest-event proxy).
   // Same cohort window as the rest of the page. Entries with no events (legacy)
   // simply don't join — they have no derivable origin.
+  // The earliest-event subquery is scoped to THIS workspace (and sim-filtered, like
+  // the outer query): without it, `SELECT MIN(id) ... GROUP BY entry_id` scanned the
+  // entire cross-workspace events table on every request just to find first-events
+  // that the outer p.workspace_id join then discards. Scoping keeps the result
+  // identical (an entry's events share its workspace) while bounding the scan.
   const sourceRows = (
     cutoffIso
       ? db
@@ -351,21 +408,23 @@ export function pipelineAnalytics(
             `SELECT p.stage AS stage, fe.kind AS kind
                FROM pipeline_entries p
                JOIN (SELECT entry_id, kind FROM pipeline_events
-                      WHERE id IN (SELECT MIN(id) FROM pipeline_events WHERE entry_id IS NOT NULL GROUP BY entry_id)
+                      WHERE id IN (SELECT MIN(id) FROM pipeline_events
+                                    WHERE entry_id IS NOT NULL AND ${notSim()} AND workspace_id = ? GROUP BY entry_id)
                     ) fe ON fe.entry_id = p.id
               WHERE p.created_at >= ? AND ${notSim("p.job_title")} AND p.workspace_id = ?`
           )
-          .all(cutoffIso, SIM_TITLE_LIKE, workspaceId)
+          .all(SIM_TITLE_LIKE, workspaceId, cutoffIso, SIM_TITLE_LIKE, workspaceId)
       : db
           .prepare(
             `SELECT p.stage AS stage, fe.kind AS kind
                FROM pipeline_entries p
                JOIN (SELECT entry_id, kind FROM pipeline_events
-                      WHERE id IN (SELECT MIN(id) FROM pipeline_events WHERE entry_id IS NOT NULL GROUP BY entry_id)
+                      WHERE id IN (SELECT MIN(id) FROM pipeline_events
+                                    WHERE entry_id IS NOT NULL AND ${notSim()} AND workspace_id = ? GROUP BY entry_id)
                     ) fe ON fe.entry_id = p.id
               WHERE ${notSim("p.job_title")} AND p.workspace_id = ?`
           )
-          .all(SIM_TITLE_LIKE, workspaceId)
+          .all(SIM_TITLE_LIKE, workspaceId, SIM_TITLE_LIKE, workspaceId)
   ) as { stage: string; kind: string }[];
   const originOf = (kind: string): string =>
     kind === "applied" ? "applied" : kind === "matched" ? "matched" : kind === "added" || kind === "intake_degraded" ? "added" : "other";
@@ -485,6 +544,21 @@ export function pipelineAnalytics(
   const totalSpendCzk = [...spendByChannel.values()].reduce((sum, v) => sum + (v ?? 0), 0);
   const costPerHireCzk = !cutoffIso && totalSpendCzk > 0 && hired > 0 ? Math.round(totalSpendCzk / hired) : null;
 
+  // compute-cost-per-hire — surface the (read-only) LLM usage ledger alongside the
+  // recruiter-entered channel spend. Windowed to match the cohort; per-hire divides
+  // the windowed cost by the windowed hire count (both same-window → honest, unlike
+  // the lifetime channel spend). Null when the window holds no metered calls.
+  const compute = computeCostWindow(windowDays, opts?.endMs);
+  // Tenant-scope honesty: the compute numerator is account-wide (llm_usage is
+  // workspace-blind) while `hired` is scoped to THIS workspace, so a per-hire ratio is
+  // only honest in a single-workspace account. Count the workspaces sharing the ledger
+  // (1 today) so the UI can suppress the figure when it would mix scopes.
+  const workspaceCount = Number((db.prepare(`SELECT COUNT(*) AS n FROM workspaces`).get() as { n: number }).n) || 1;
+  const computeCost =
+    compute.calls > 0
+      ? { ...compute, costPerHireUsd: hired > 0 ? Math.round((compute.costUsd / hired) * 100) / 100 : null, workspaceCount }
+      : null;
+
   return {
     total,
     active,
@@ -493,6 +567,7 @@ export function pipelineAnalytics(
     declined,
     funnel,
     avgTimeToHireDays,
+    medianTimeToHireDays,
     avgAgeDays,
     bottleneck,
     stageDwell,
@@ -503,17 +578,192 @@ export function pipelineAnalytics(
     windowDays: windowDays ?? null,
     momentum,
     automation,
+    offers,
     bySource,
     byChannel,
     byVariant,
     byVariantTotal: variantStats.length,
     variantRecommendations,
-    targets: analyticsTargets(),
+    targets: analyticsTargets(workspaceId),
     costPerHireCzk,
+    computeCost,
     // b39992b1 — value of the automation over this window, at the stored (or
     // default) recruiter hourly rate, from the same kindCounts the rollup uses.
     // `hired` anchors the per-hire baseline framing (UAT M7).
-    automationRoi: automationRoi(kindCounts, listAnalyticsTargets().get(RECRUITER_HOURLY_TARGET_KEY), hired),
+    automationRoi: automationRoi(kindCounts, listAnalyticsTargets(workspaceId).get(RECRUITER_HOURLY_TARGET_KEY), hired),
+  };
+}
+
+// channel-story-complete — the period-over-period comparison (periodDeltas) reads
+// ONLY these scalars off the prior window: total, hired, avgTimeToHireDays, the
+// funnel conversion per stage, and per-source / per-channel volume + hire-rate (+ a
+// per-channel CPA that is null in any windowed view). Everything else the full
+// pipelineAnalytics battery computes for the prior window — momentum, automation,
+// holds, the decision-time median, KO counts, spend, targets, variants — is thrown
+// away by the route. Running that whole ~9-query battery twice per windowed load was
+// pure waste; this computes the SAME compared scalars with just the two queries they
+// need (the cohort SELECT + the first-event origin JOIN). Pinned byte-identical to
+// the full battery's fields by analytics-prior-slice.test.ts.
+export type PriorWindowSlice = {
+  total: number;
+  hired: number;
+  avgTimeToHireDays: number | null;
+  funnel: { stage: string; conversionPct: number | null }[];
+  bySource: { source: string; total: number; hireRatePct: number }[];
+  byChannel: { channel: string; total: number; hireRatePct: number; costPerApplicantCzk: number | null }[];
+};
+
+/**
+ * The slim prior-window aggregation: exactly the fields periodDeltas() diffs, no
+ * more. The route only ever calls this for the PRIOR window of a windowed load, so
+ * `endMs` (the window's upper bound) and `windowDays` are always set — mirror the
+ * full battery's prior call `pipelineAnalytics(windowDays, { endMs }, ws)`.
+ *
+ * Byte-identity notes (each choice matches the full battery's exact semantics):
+ *  - The cohort SELECT is upper-AND-lower-bounded (`created_at >= cutoff AND < end`),
+ *    exactly the full main query for a prior window (analytics.ts main SELECT).
+ *  - bySource comes from the first-event origin JOIN with the LOWER bound ONLY — the
+ *    full battery's sourceRows query applies `p.created_at >= cutoff` and no upper
+ *    bound, so this replicates that (a bounded version would diverge from the value
+ *    the route currently produces).
+ *  - Per-channel CPA is null: spend is a lifetime total, so a windowed cohort has no
+ *    honest per-period CPA (the full battery returns null in windowed views), which
+ *    is why no channel_spend read is needed here at all.
+ */
+export function pipelineAnalyticsPrior(
+  windowDays: number,
+  endMs: number,
+  workspaceId: string = DEFAULT_WORKSPACE_ID
+): PriorWindowSlice {
+  const db = ensureDb();
+  const cutoffIso = new Date(endMs - windowDays * 86_400_000).toISOString();
+  const upperIso = new Date(endMs).toISOString();
+  const idxOf = (s: string) => FUNNEL_STAGES.indexOf(s as FunnelStage);
+
+  const rows = db
+    .prepare(
+      `SELECT stage, status, created_at, stage_changed_at, source_channel
+         FROM pipeline_entries
+        WHERE created_at >= ? AND created_at < ? AND ${notSim()} AND workspace_id = ?`
+    )
+    .all(cutoffIso, upperIso, SIM_TITLE_LIKE, workspaceId) as {
+    stage: string;
+    status: string;
+    created_at: string | null;
+    stage_changed_at: string | null;
+    source_channel: string | null;
+  }[];
+
+  const total = rows.length;
+  const hired = rows.filter((r) => r.stage === "Hired").length;
+
+  const reached = FUNNEL_STAGES.map(() => 0);
+  for (const r of rows) {
+    const i = idxOf(r.stage);
+    if (i < 0) continue;
+    for (let k = 0; k <= i; k += 1) reached[k] += 1;
+  }
+  const funnel = FUNNEL_STAGES.map((stage, i) => ({
+    stage,
+    conversionPct: i === 0 ? null : reached[i - 1] > 0 ? Math.round((reached[i] / reached[i - 1]) * 100) : null,
+  }));
+
+  const tth = rows
+    .filter((r) => r.stage === "Hired" && r.created_at && r.stage_changed_at)
+    .map((r) => (Date.parse(r.stage_changed_at as string) - Date.parse(r.created_at as string)) / 86_400_000)
+    .filter((d) => d >= 0);
+  const avgTimeToHireDays = tth.length ? Math.round(tth.reduce((a, b) => a + b, 0) / tth.length) : null;
+
+  // bySource — earliest-event origin, the SAME JOIN + lower-bound-only window the
+  // full battery's sourceRows query uses (see byte-identity note above).
+  const sourceRows = db
+    .prepare(
+      `SELECT p.stage AS stage, fe.kind AS kind
+         FROM pipeline_entries p
+         JOIN (SELECT entry_id, kind FROM pipeline_events
+                WHERE id IN (SELECT MIN(id) FROM pipeline_events
+                              WHERE entry_id IS NOT NULL AND ${notSim()} AND workspace_id = ? GROUP BY entry_id)
+              ) fe ON fe.entry_id = p.id
+        WHERE p.created_at >= ? AND ${notSim("p.job_title")} AND p.workspace_id = ?`
+    )
+    .all(SIM_TITLE_LIKE, workspaceId, cutoffIso, SIM_TITLE_LIKE, workspaceId) as { stage: string; kind: string }[];
+  const originOf = (kind: string): string =>
+    kind === "applied" ? "applied" : kind === "matched" ? "matched" : kind === "added" || kind === "intake_degraded" ? "added" : "other";
+  const sourceMap = new Map<string, { total: number; hired: number }>();
+  for (const r of sourceRows) {
+    const key = originOf(r.kind);
+    const m = sourceMap.get(key) ?? { total: 0, hired: 0 };
+    m.total += 1;
+    if (r.stage === "Hired") m.hired += 1;
+    sourceMap.set(key, m);
+  }
+  const bySource = [...sourceMap.entries()]
+    .map(([source, m]) => ({ source, total: m.total, hireRatePct: m.total ? Math.round((m.hired / m.total) * 100) : 0 }))
+    .sort((a, b) => b.total - a.total);
+
+  // byChannel — the stored source_channel grouping off the same bounded cohort;
+  // CPA is null in any windowed view (see byte-identity note above).
+  const channelMap = new Map<string, { total: number; hired: number }>();
+  for (const r of rows) {
+    if (!r.source_channel) continue;
+    const m = channelMap.get(r.source_channel) ?? { total: 0, hired: 0 };
+    m.total += 1;
+    if (r.stage === "Hired") m.hired += 1;
+    channelMap.set(r.source_channel, m);
+  }
+  const byChannel = [...channelMap.entries()]
+    .map(([channel, m]) => ({
+      channel,
+      total: m.total,
+      hireRatePct: m.total ? Math.round((m.hired / m.total) * 100) : 0,
+      costPerApplicantCzk: null,
+    }))
+    .sort((a, b) => b.total - a.total);
+
+  return { total, hired, avgTimeToHireDays, funnel, bySource, byChannel };
+}
+
+// compute-cost-per-hire — read-only windowed aggregate of the LLM usage ledger (the
+// llm_usage table insertLlmUsage writes; NOT a new meter and NOT a write). Scope
+// caveats the callers/UI surface honestly: the table has NO workspace_id (so this is
+// an ACCOUNT-WIDE total), and cost_usd is priced in USD, not the app currency. Sums
+// cost over PRICED rows only; `unpricedCalls` counts the NULL-cost rows (Azure /
+// unknown model) that would otherwise sum to a misleading $0. Windowed by `ts` (which
+// is indexed) to match the cohort window; `endMs` upper-bounds it for parity with a
+// prior-window cohort. A null/absent window sums all time.
+export function computeCostWindow(
+  windowDays?: number | null,
+  endMs?: number
+): { costUsd: number; calls: number; unpricedCalls: number } {
+  const db = ensureDb();
+  const end = endMs ?? Date.now();
+  const cutoffIso = windowDays ? new Date(end - windowDays * 86_400_000).toISOString() : null;
+  const upperIso = endMs != null && windowDays ? new Date(end).toISOString() : null;
+  const clauses: string[] = [];
+  const args: string[] = [];
+  if (cutoffIso) {
+    clauses.push("ts >= ?");
+    args.push(cutoffIso);
+  }
+  if (upperIso) {
+    clauses.push("ts < ?");
+    args.push(upperIso);
+  }
+  const where = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
+  const row = db
+    .prepare(
+      `SELECT COUNT(*) AS calls,
+              COALESCE(SUM(cost_usd), 0) AS cost_usd,
+              SUM(CASE WHEN cost_usd IS NULL THEN 1 ELSE 0 END) AS unpriced
+         FROM llm_usage ${where}`
+    )
+    .get(...args) as { calls: number; cost_usd: number; unpriced: number | null };
+  return {
+    // Cents precision — the ledger prices sub-dollar per call; integer rounding would
+    // collapse a real spend to "$0".
+    costUsd: Math.round((row.cost_usd ?? 0) * 100) / 100,
+    calls: Number(row.calls ?? 0),
+    unpricedCalls: Number(row.unpriced ?? 0),
   };
 }
 
@@ -522,22 +772,25 @@ export function pipelineAnalytics(
 // reserved TIME_TO_HIRE_TARGET_KEY; every other row is a funnel stage name →
 // conversion %% goal.
 
-/** Set (positive value) or clear (null / non-positive) one analytics goal. */
-export function setAnalyticsTarget(metric: string, value: number | null): void {
+/** Set (positive value) or clear (null / non-positive) one analytics goal. P1 — the
+ *  goal belongs to the caller's workspace (the PK is (metric, workspace_id)). */
+export function setAnalyticsTarget(metric: string, value: number | null, workspaceId: string = DEFAULT_WORKSPACE_ID): void {
   const db = ensureDb();
   if (value == null || !(value > 0)) {
-    db.prepare(`DELETE FROM analytics_targets WHERE metric = ?`).run(metric);
+    db.prepare(`DELETE FROM analytics_targets WHERE metric = ? AND workspace_id = ?`).run(metric, workspaceId);
     return;
   }
   db.prepare(
-    `INSERT INTO analytics_targets (metric, target_value, updated_at) VALUES (?, ?, ?)
-     ON CONFLICT(metric) DO UPDATE SET target_value = excluded.target_value, updated_at = excluded.updated_at`
-  ).run(metric, value, new Date().toISOString());
+    `INSERT INTO analytics_targets (metric, target_value, updated_at, workspace_id) VALUES (?, ?, ?, ?)
+     ON CONFLICT(metric, workspace_id) DO UPDATE SET target_value = excluded.target_value, updated_at = excluded.updated_at`
+  ).run(metric, value, new Date().toISOString(), workspaceId);
 }
 
-/** All set goals as a metric → value map (stage names + the TTH key). */
-export function listAnalyticsTargets(): Map<string, number> {
-  const rows = ensureDb().prepare(`SELECT metric, target_value FROM analytics_targets`).all() as {
+/** All set goals as a metric → value map (stage names + the TTH key), for one workspace. */
+export function listAnalyticsTargets(workspaceId: string = DEFAULT_WORKSPACE_ID): Map<string, number> {
+  const rows = ensureDb()
+    .prepare(`SELECT metric, target_value FROM analytics_targets WHERE workspace_id = ?`)
+    .all(workspaceId) as {
     metric: string;
     target_value: number;
   }[];
@@ -546,8 +799,8 @@ export function listAnalyticsTargets(): Map<string, number> {
 
 /** Split the flat goal map into the funnel-conversion targets and the lone
  *  time-to-hire target the analytics payload exposes. */
-function analyticsTargets(): { conversion: Record<string, number>; timeToHireDays: number | null } {
-  const all = listAnalyticsTargets();
+function analyticsTargets(workspaceId: string = DEFAULT_WORKSPACE_ID): { conversion: Record<string, number>; timeToHireDays: number | null } {
+  const all = listAnalyticsTargets(workspaceId);
   const timeToHireDays = all.get(TIME_TO_HIRE_TARGET_KEY) ?? null;
   const conversion: Record<string, number> = {};
   for (const [metric, value] of all) {

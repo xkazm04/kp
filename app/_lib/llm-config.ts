@@ -1,4 +1,4 @@
-// Multi-provider LLM layer — TS half (docs/LLM_PROVIDER_LAYER.md).
+// Multi-provider LLM layer — TS half (docs/architecture/llm-provider-layer.md).
 //
 // This module owns: the provider/use-case catalogs (kept in sync with
 // pipeline/jobfit/llm/capabilities.py) and assembly of the KP_LLM_CONFIG env
@@ -9,15 +9,21 @@
 //   llm_config row → adapter; no row → Claude CLI (local default, unchanged).
 //   key: UI-entered 'byom' row → 'platform' row → provider env var.
 
-import { listLlmConfig, listProviderKeys, upsertProviderKey, type LlmConfigRow } from "./db";
+// The SLICE, not the `./db` barrel — this module is the single biggest compile hub
+// in the app. It is pulled in by job-ingest, the analyze/jd/interview paths and the
+// Python bridge, so through the barrel it dragged all 17 store modules into routes
+// that touch neither LLM config nor most of the DB (e.g. /api/attention, which only
+// counts badges). Cutting it here took /api/attention's graph from 68 modules /
+// 863 KB to 43 / 560 KB. See "Dev compile cost" in docs/architecture/app-structure.md.
+import { listLlmConfig, listProviderKeys, upsertProviderKey, type LlmConfigRow } from "./db/llm";
 import { decryptProviderSecret, encryptProviderSecret } from "./llm-secret";
 import { resolveProviderApiKey } from "./provider-key-precedence";
-import { assertPublicHttpsEndpoint } from "./safe-url";
+import { assertPublicHttpsEndpointResolved } from "./ats-egress-guard.ts";
 
 // Keep in sync with PROVIDER_CAPABILITIES / USE_CASE_REQUIREMENTS in
 // pipeline/jobfit/llm/capabilities.py — Python is authoritative; these lists
 // only gate what the admin API will accept.
-export const LLM_PROVIDERS = ["anthropic", "openai", "azure_openai", "gemini", "openrouter", "claude_cli"] as const;
+export const LLM_PROVIDERS = ["anthropic", "openai", "azure_openai", "gemini", "openrouter", "qwen", "ollama", "claude_cli"] as const;
 export type LlmProvider = (typeof LLM_PROVIDERS)[number];
 
 export const LLM_USE_CASES = [
@@ -40,6 +46,7 @@ export const LLM_USE_CASES = [
   "devcase_seed",
   "weight_proposal",
   "interview_scorecard",
+  "agent_fit",
   "github_analysis",
   "cv_analysis",
   "profile_extract",
@@ -50,14 +57,16 @@ export function isLlmProvider(value: unknown): value is LlmProvider {
   return typeof value === "string" && (LLM_PROVIDERS as readonly string[]).includes(value);
 }
 
-// Providers that take a stored key. claude_cli runs keyless (local default), so
-// it is never offered in the keys form and the PUT rejects it. Single source for
+// Providers that take a stored key. claude_cli runs keyless (local default) and
+// ollama authenticates nothing on a stock server (endpoint set via OLLAMA_BASE_URL),
+// so neither is offered in the keys form and the PUT rejects them. Single source for
 // that "keyable provider" rule — the route and the admin UI both derive from here
-// instead of hand-coding `!== "claude_cli"`.
-export const KEYABLE_PROVIDERS = LLM_PROVIDERS.filter((p) => p !== "claude_cli");
+// instead of hand-coding the exclusions.
+const KEYLESS_PROVIDERS: readonly LlmProvider[] = ["claude_cli", "ollama"];
+export const KEYABLE_PROVIDERS = LLM_PROVIDERS.filter((p) => !KEYLESS_PROVIDERS.includes(p));
 
 export function isKeyableProvider(value: unknown): value is LlmProvider {
-  return isLlmProvider(value) && value !== "claude_cli";
+  return isLlmProvider(value) && !KEYLESS_PROVIDERS.includes(value);
 }
 
 export function isLlmUseCase(value: unknown): value is LlmUseCase {
@@ -88,25 +97,35 @@ function endpointHostAllowlist(): string[] {
     .filter(Boolean);
 }
 
-export function saveProviderKey(input: ProviderKeyInput): void {
+export async function saveProviderKey(input: ProviderKeyInput): Promise<void> {
   const meta: Record<string, unknown> = {};
-  if (input.endpoint) {
+  // bug-ui-scan-2026-07-09 (model-api-key-management #2): endpoint/apiVersion are
+  // Azure-only metadata (only the azure_openai adapter consumes them). DROP them
+  // for any other provider so a stale client-side Azure endpoint — the field keeps
+  // its state when the provider Select flips away from azure_openai — can never be
+  // persisted onto, or later forwarded with, a non-Azure key. The client also omits
+  // them from the request body; this is the server-side backstop.
+  const endpoint = input.provider === "azure_openai" ? input.endpoint : undefined;
+  const apiVersion = input.provider === "azure_openai" ? input.apiVersion : undefined;
+  if (endpoint) {
     // SSRF guard: this endpoint is later handed to the provider SDK *with the
     // decrypted key*, so validate the host before it ever reaches the DB — reject
     // non-https, bare IPs (169.254.169.254 metadata, loopback, LAN) and internal
-    // hosts. For Azure, additionally constrain to *.openai.azure.com (or the
-    // configured allowlist) so a key can't be redirected to an attacker host.
-    assertPublicHttpsEndpoint(input.endpoint, `${input.provider} endpoint`);
-    if (input.provider === "azure_openai") {
-      const host = new URL(input.endpoint).hostname.toLowerCase();
-      const allowed = host.endsWith(AZURE_ENDPOINT_SUFFIX) || endpointHostAllowlist().includes(host);
-      if (!allowed) {
-        throw new Error(`Azure endpoint must be a *.openai.azure.com resource (got ${host}).`);
-      }
+    // hosts. The string-level `assertPublicHttpsEndpoint` (in safe-url.ts) is the
+    // FIRST gate here; `assertPublicHttpsEndpointResolved` runs it and then RESOLVES
+    // the host, rejecting if any A/AAAA record is private/loopback/link-local/
+    // metadata — closing the DNS-rebinding pivot where a public-looking name
+    // (`https://rebind.attacker.com`) answers 169.254.169.254 at fetch time and the
+    // bearer key is exfiltrated. Same server-only guard the ATS webhook boundary uses.
+    await assertPublicHttpsEndpointResolved(endpoint, `${input.provider} endpoint`);
+    const host = new URL(endpoint).hostname.toLowerCase();
+    const allowed = host.endsWith(AZURE_ENDPOINT_SUFFIX) || endpointHostAllowlist().includes(host);
+    if (!allowed) {
+      throw new Error(`Azure endpoint must be a *.openai.azure.com resource (got ${host}).`);
     }
-    meta.endpoint = input.endpoint;
+    meta.endpoint = endpoint;
   }
-  if (input.apiVersion) meta.apiVersion = input.apiVersion;
+  if (apiVersion) meta.apiVersion = apiVersion;
   upsertProviderKey({
     provider: input.provider,
     scope: input.scope ?? "byom",
@@ -155,6 +174,20 @@ export function resolveProviderKey(provider: LlmProvider, envVars: readonly stri
     env: process.env,
     envVars,
   });
+}
+
+/**
+ * Configured model for a use case, honored only when its row (specific, then the
+ * "*" wildcard) routes to `provider`. For the TS-direct call sites that speak ONE
+ * vendor SDK (github-analysis → Gemini): they cannot honor a provider swap, but
+ * they must honor a model re-pin on their own provider instead of hardcoding it
+ * (tiger #7 — the last structural bypass). Returns undefined when nothing matches.
+ */
+export function configuredModelFor(useCase: LlmUseCase, provider: LlmProvider): string | undefined {
+  const rows = listLlmConfig();
+  const row = rows.find((r) => r.useCase === useCase) ?? rows.find((r) => r.useCase === "*");
+  if (!row || row.provider !== provider || !row.model) return undefined;
+  return row.model;
 }
 
 // ---- KP_LLM_CONFIG assembly --------------------------------------------------

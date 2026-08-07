@@ -1,7 +1,7 @@
 /** Measured LLM quality scores — the output of the Python bench matrix
  *  (`pipeline/jobfit/llm/bench`), judged by the Claude CLI, baked by
  *  `bake_quality.py`. GENERATED — re-bake, don't hand-edit. See
- *  docs/LLM_MODEL_MATRIX.md.
+ *  docs/architecture/llm-model-matrix.md.
  *  Baked from a run at 2026-07-07T11:35:59.000Z. */
 import type { QualityScores } from "./llm-quality";
 

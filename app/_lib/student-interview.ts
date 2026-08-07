@@ -58,6 +58,27 @@ function phaseMinutes(p: StudentScriptPhase): number {
   return Number.isFinite(n) && n > 0 ? n : 3;
 }
 
+// F5 — the localizable half of the early-career plan. It used to be `const cs =
+// lang === "cs"` branches inline, so a German or French recruiter silently got
+// the English copy; it now lives in the `scheduleTab.prep.studentPlan` catalog
+// namespace (all four locales) and arrives as a PARAMETER, keeping this module
+// pure and free of a catalog loader — which matters here because it is
+// CLIENT-BUNDLED (AboutStudentsInterviewScript, InterviewStartPanel import
+// STUDENT_SCRIPT / DEMO_CASE_SCENARIO from it). `studentPrepStrings(locale)` in
+// interview-prep-strings.ts builds one from the catalog. Same document-reader
+// rationale as RosStrings: the pack carries its own stamped language.
+export type StudentPrepStrings = {
+  /** Prefix joining a phase's goal to its listen-for line ("Listen for:"). */
+  listenFor: string;
+  signalHint: string;
+  signalQuotes: string;
+  signalHypotheses: string;
+  /** "for" in "…screen for Alex (Junior Backend)". */
+  forCandidate: string;
+  focusFallback: string;
+  scenario: (durationMin: number, who: string, focus: string) => string;
+};
+
 /** The early-career twin of buildRunOfShow: the recruiter's interview-prep plan
  *  SHAPED AS THE SIX-PHASE SCRIPT rather than a CV chronology. The CV-derived
  *  question hypotheses (the "prep" automation's output) are mapped round-robin
@@ -72,12 +93,11 @@ export function studentPrepRunOfShow(
   rawFocusAreas: string[],
   candidateLabel: string | null,
   jobTitle: string | null,
-  lang: string = "en"
+  s: StudentPrepStrings
 ): RunOfShow {
   // PREP2 — the cross-cutting signals + scenario wrapper localize; the six-phase
   // STUDENT_SCRIPT prose stays English (it is the fixed pedagogical script the
   // voice agent — which already detects cs/en — delivers, not free prose).
-  const cs = lang === "cs";
   const focusAreas = (rawFocusAreas ?? []).slice(0, 5);
   const personalPhases = STUDENT_SCRIPT.filter((p) => !p.caseGrounded);
   const capacity = personalPhases.length * PREP_QUESTIONS_PER_PERSONAL_PHASE;
@@ -97,7 +117,7 @@ export function studentPrepRunOfShow(
       fromMin: cursor,
       toMin: cursor + mins,
       topic: p.phase,
-      goal: `${p.goal} ${cs ? "Sledujte:" : "Listen for:"} ${p.listenFor}`,
+      goal: `${p.goal} ${s.listenFor} ${p.listenFor}`,
       questions: [p.probe, ...(byPhase.get(p.phase) ?? [])],
     });
     cursor += mins;
@@ -109,25 +129,11 @@ export function studentPrepRunOfShow(
     cursor = STUDENT_SCRIPT_MIN;
   }
 
-  const signals: string[] = cs
-    ? [
-        ...focusAreas,
-        "Nápověda nabídnuta ve fázi koučovatelnosti — sledováno přijetí",
-        "Doslovné citace zachyceny pro každý prvek rubriky",
-        "Hypotézy z CV prozkoumány v osobních fázích (kotva / zaseknutí / kalibrace)",
-      ]
-    : [
-        ...focusAreas,
-        "Hint offered in the coachability phase — uptake observed",
-        "Verbatim quotes captured for every rubric construct",
-        "CV hypotheses probed on the personal phases (anchor / stuck / calibration)",
-      ];
+  const signals: string[] = [...focusAreas, s.signalHint, s.signalQuotes, s.signalHypotheses];
 
-  const who = candidateLabel ? ` ${cs ? "pro" : "for"} ${candidateLabel}${jobTitle ? ` (${jobTitle})` : ""}` : jobTitle ? ` (${jobTitle})` : "";
-  const focus = focusAreas.slice(0, 3).join(", ") || (cs ? "nejsilnější projekt kandidáta" : "the candidate's strongest project");
-  const scenario = cs
-    ? `Šestifázový screening pro začínající talenty na ${cursor} minut${who}. Vede agent; fáze založené na případové studii zůstávají u sdíleného materiálu role kvůli porovnatelnosti a probe z CV jedou v osobních fázích. Ověřte ${focus} podle rubriky živě.`
-    : `A ${cursor}-minute six-phase early-career screen${who}. The agent leads; case-grounded phases stay on the role's shared material for comparability, and the CV-derived probes ride the personal phases. Validate ${focus} against the rubric live.`;
+  const who = candidateLabel ? ` ${s.forCandidate} ${candidateLabel}${jobTitle ? ` (${jobTitle})` : ""}` : jobTitle ? ` (${jobTitle})` : "";
+  const focus = focusAreas.slice(0, 3).join(", ") || s.focusFallback;
+  const scenario = s.scenario(cursor, who, focus);
 
   return { scenario, durationMin: cursor, focusAreas, chronology, signals };
 }
@@ -145,18 +151,51 @@ export function studentPrepRunOfShow(
 export const PERSONA_GENDER_GRAMMAR =
   "You are male — when you speak Czech, use masculine grammatical forms for yourself (e.g. „rád bych“, „zeptal bych se“, „řekl jsem“).";
 export const PERSONA_LANGUAGE_DETECT =
-  "Do not assume the candidate's language: open by greeting briefly in both Czech and English, then LOCK onto the one language the candidate replies in and use ONLY that language for every remaining turn — greetings, acknowledgements, and closing included. Do not mix the two languages after your opening, and never switch to the other language unless the candidate does first (then follow them).";
+  "Do not assume the candidate's language: open by greeting briefly in both Czech and English, then LOCK onto the one language the candidate replies in and use ONLY that language for every remaining turn — greetings, acknowledgements, and closing included. Do not mix the two languages after your opening, and never switch to the other language unless the candidate does first (then follow them). Before EVERY turn you produce, check which language the candidate's last message was in and answer in that language — this rule outranks every other instruction in this brief.";
 // One-question-at-a-time (P3): the model tends to bundle two asks per turn, worst for nervous/
 // terse candidates. Shared across every builder like the two lines above.
 export const PERSONA_ONE_QUESTION =
   "Ask exactly ONE question per turn and wait for the answer before asking the next — never bundle a second question or a follow-up into the same turn. This matters most with nervous, terse, or quiet candidates: keep each prompt short and single, and give them room to answer.";
 
+// The interviewer-craft rules (P4–P6 + the ASR read-back from
+// docs/_archive/interview-improvement-inputs.md §1/§2/§5), SHIPPED AS ONE CONDENSED PARAGRAPH.
+// Harness-validated form (2026-07-13, runs/perfect-p4p7 + targeted re-runs): the initial
+// one-constant-per-rule form made hostile English candidates drift the agent into Czech on the
+// acknowledge-and-redirect turns the rules themselves create (language-consistency is a hard
+// reliability gate; the pre-rules baseline passes 4/4). The form that held (hostile 4/4) was
+// (a) condensing to one paragraph and (b) requiring the P4 follow-up to be asked PLAINLY, with no
+// acknowledgement or preamble — the Czech-politeness attractor („Rozumím, …“) has no landing token
+// when the turn must start with the question. The read-back clause makes the candidate the
+// authority on the tech nouns ASR routinely corrupts (React→Rust, PostgreSQL→"později SQL");
+// the scorecard synthesis prefers that confirmation turn over earlier transcript mentions.
+export const PERSONA_CRAFT_CONDENSED =
+  "Interviewing craft: when an answer is one line or dismissive, ask one concrete follow-up, and when re-asking, narrow to a smaller concrete sub-question — never repeat the question verbatim — and ask that follow-up plainly and directly, with no acknowledgement or preamble before it. When a candidate makes a strong or quantitative claim, ask how they achieved or verified it. Let coverage — not a fixed question count — decide length, and never announce how many questions remain. With a rambling candidate, set a concrete expectation up front and politely cut in at natural pauses every time it recurs; close off an off-topic question in one line, then return to yours. Just before closing, if the candidate mentioned specific technologies or tools, read back the key ones in one short turn and let them confirm or correct you; if none came up, skip that.";
+// P7 — acknowledge hostility briefly and neutrally, then redirect; never over-apologise or negotiate.
+// ⚠ NOT SHIPPED (not in PERSONA_CRAFT_RULES): harness ablation (2026-07-13) showed any
+// hostility-specific rule — five wording variants, including this one with explicit bilingual
+// examples — makes the agent drift to Czech on a hostile ENGLISH candidate most runs, breaking the
+// language-consistency reliability gate (baseline without the rule passes consistently). Kept
+// defined + Python-synced so a future wording can be re-tested without re-deriving the history.
+export const PERSONA_HOSTILITY =
+  "When a candidate is hostile or challenges the premise of the interview: one brief, neutral acknowledgement, then redirect to your question — an English message gets an English acknowledgement (“Understood — let's use your time well.”), a Czech one gets a Czech one („Rozumím — pojďme na to.“). Do not over-apologise, and do not negotiate the premise of the interview.";
+
+/** The shipped interviewer-craft rules (currently the single condensed paragraph; P7 is
+ *  deliberately excluded — see its warning above) — appended to every brief builder so a wording
+ *  change lands once. Kept as an array so each builder joins it into its own surrounding prose
+ *  with the same single-space separator. */
+export const PERSONA_CRAFT_RULES: string[] = [PERSONA_CRAFT_CONDENSED];
+
+// NOTE ON ORDER: gender-grammar (which carries Czech example tokens) and the language lock stay
+// ADJACENT and LAST in the shared persona block of every builder — the harness showed language
+// drift precisely on the turns the craft rules create when prose separated the lock from the end
+// of the block.
 function personaLines(company: string, role: string, name: string): string[] {
   return [
     `You are a warm, professional first-round interviewer at ${company} for ${role}, speaking with an EARLY-CAREER candidate — a student with little or no formal work history.${name}`,
+    PERSONA_ONE_QUESTION,
+    ...PERSONA_CRAFT_RULES,
     PERSONA_GENDER_GRAMMAR,
     PERSONA_LANGUAGE_DETECT,
-    PERSONA_ONE_QUESTION,
     "Begin by briefly introducing yourself as an AI assistant and the purpose of the conversation in two sentences, and mention that the call is transcribed for a human recruiter.",
   ];
 }

@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getPipelineEntry, recordAutomationEvent, setApproval } from "@/app/_lib/db";
+import { getPipelineEntry, recordAutomationEvent, setApproval } from "@/app/_lib/db/pipeline";
 import { saveHumanScorecard } from "@/app/_lib/interview-prep";
 import { sealDecisionSafe } from "@/app/_lib/decision-record-store";
 import { coerceInterviewRecommendation, isInterviewRecommendation } from "@/app/_lib/interview-recommendation";
+import { flagOffRubricRatings, rubricCoverage, rubricForArchetype, rubricVersionHash } from "@/app/_lib/interview-rubric";
 import { RATING_MAX } from "@/app/_lib/format";
 import { MAX_ENTRY_ID_LEN } from "@/app/_lib/entries-param";
 import { safeJsonError } from "@/app/_lib/api-response";
@@ -33,10 +34,14 @@ export async function POST(request: NextRequest) {
       recommendation?: unknown;
     };
 
-    const ratings: ScorecardRating[] = [];
+    // Resolve the entry once: its archetype + role-family fix the CURRENT rubric
+    // (below) and it drives the gating decision at the end.
+    const pipelineEntry = getPipelineEntry(entry);
+
+    const parsed: ScorecardRating[] = [];
     if (Array.isArray(body.ratings)) {
       for (const raw of body.ratings) {
-        if (ratings.length >= MAX_RATINGS) break;
+        if (parsed.length >= MAX_RATINGS) break;
         if (!raw || typeof raw !== "object") continue;
         const r = raw as Record<string, unknown>;
         const competency = typeof r.competency === "string" ? r.competency.slice(0, MAX_COMPETENCY).trim() : "";
@@ -45,11 +50,36 @@ export async function POST(request: NextRequest) {
         if (!Number.isFinite(n)) continue; // an unrated competency is simply omitted
         const rating = Math.min(RATING_MAX, Math.max(1, Math.round(n)));
         const evidence = typeof r.evidence === "string" ? r.evidence.slice(0, MAX_EVIDENCE).trim() : "";
-        ratings.push(evidence ? { competency, rating, evidence } : { competency, rating });
+        parsed.push(evidence ? { competency, rating, evidence } : { competency, rating });
       }
     }
 
+    // Validate competencies against the entry's own rubric (archetype + role-family).
+    // The client sends whatever competency strings it rendered; a value that isn't in
+    // the current rubric is KEPT but flagged off-rubric — the same concept
+    // CompareInterviews surfaces — rather than rejected, since a record must outlive
+    // rubric revisions. Without a resolvable entry there's no rubric to judge against,
+    // so the ratings pass through unflagged.
+    // Resolve the entry's CURRENT rubric ONCE: it both flags off-rubric ratings at
+    // write time AND is the snapshot we stamp so this record can be re-evaluated
+    // against the exact scale later, after the rubric revises (Direction 2).
+    const rubric = pipelineEntry ? rubricForArchetype(pipelineEntry.archetype, pipelineEntry.roleFamily) : null;
+    const coverage = pipelineEntry ? rubricCoverage(pipelineEntry.roleFamily) : null;
+    const ratings: ScorecardRating[] = rubric ? flagOffRubricRatings(parsed, rubric) : parsed;
+
     const scorecard: Scorecard = { ratings, source: "human" };
+    // Stamp the rubric version + its competency keys (Direction 2). Without a
+    // resolvable entry there's no rubric to stamp — a legacy-shaped record that
+    // consumers re-evaluate against the current rubric, exactly as before.
+    if (rubric) {
+      scorecard.rubricVersion = rubricVersionHash(rubric);
+      scorecard.rubricKeys = rubric.map((c) => c.competency);
+      // …and WHAT it covered. The recruiter saw the coverage note in the form; the
+      // stored record must say the same thing, or a later reader re-opening this
+      // scorecard sees five generic axes with nothing marking the industry axes as
+      // never-applied. Same pure resolver the form renders from.
+      if (coverage) scorecard.rubricCoverage = coverage;
+    }
     if (typeof body.summary === "string" && body.summary.trim()) {
       scorecard.summary = body.summary.slice(0, MAX_SUMMARY).trim();
     }
@@ -89,7 +119,6 @@ export async function POST(request: NextRequest) {
     // is left alone: the human verdict shows beside it via getHumanScorecard.
     let gated = false;
     if (scorecard.recommendation) {
-      const pipelineEntry = getPipelineEntry(entry);
       if (
         pipelineEntry &&
         pipelineEntry.status === "active" &&

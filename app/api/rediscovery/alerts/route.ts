@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { candidateOutcomes } from "@/app/_lib/db";
+import { candidateOutcomes } from "@/app/_lib/db/pipeline";
 import { listJobStatuses } from "@/app/_lib/job-ingest";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { safeJsonError } from "@/app/_lib/api-response";
@@ -27,9 +27,14 @@ export const maxDuration = 180;
 // silver medalist even though its row persists (dismissed state is sticky).
 function relevantAlerts(workspaceId: string) {
   const statuses = listJobStatuses(workspaceId);
-  const outcomes = candidateOutcomes();
+  // Scope BOTH reads to the session workspace: an unscoped candidateOutcomes/
+  // listRediscoveryAlerts defaults to the single tenant, so in any other team the
+  // feed would read the default tenant's alerts + pipeline history regardless of who
+  // is signed in. The alert store persists per-workspace (recordRediscoveryAlerts),
+  // so listRediscoveryAlerts(workspaceId) returns only this team's standing alerts.
+  const outcomes = candidateOutcomes(workspaceId);
   return filterRelevantAlerts(
-    listRediscoveryAlerts(),
+    listRediscoveryAlerts(workspaceId),
     (jobId) => statuses[jobId] === "published",
     (jobId, candidateId) =>
       (outcomes.get(candidateId) ?? []).some((o) => o.jobId === jobId && o.status === "active")
@@ -59,8 +64,12 @@ export async function PATCH(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const { jobsSwept, newAlerts, truncated } = await sweepRediscoveryAlerts({ signal: request.signal });
-    const alerts = relevantAlerts(await currentWorkspace());
+    // Sweep the CALLER's catalog, not the default tenant's (rediscovery-alerts #1):
+    // this POST is the feed's Refresh, fired from one team's session, so the roles
+    // swept and the alerts raised must match the feed the same request returns below.
+    const ws = await currentWorkspace();
+    const { jobsSwept, newAlerts, truncated } = await sweepRediscoveryAlerts({ signal: request.signal, workspaceId: ws });
+    const alerts = relevantAlerts(ws);
     return NextResponse.json({ alerts, count: alerts.length, jobsSwept, newAlerts, truncated });
   } catch (error) {
     return safeJsonError(error, "api:rediscovery-alerts", "REDISCOVERY_ALERTS_FAILED");

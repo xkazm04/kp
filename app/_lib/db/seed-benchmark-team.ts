@@ -2,6 +2,22 @@ import type Database from "better-sqlite3";
 
 const BENCH_TEAM = "ws-benchmark-north";
 
+type EnvLike = Record<string, string | undefined>;
+
+/** Whether the DEMO/reference benchmark team should be seeded. bug-ui-scan-2026-07-09
+ *  (data-store-persistence #2): these 24 entries are fabricated fixture data living under
+ *  the REAL deployed org (org-default), and orgHiringBenchmark is the ONE reader that
+ *  crosses the workspace boundary (org_id-join) — so in production they blended ~50/50 into
+ *  a real tenant's org-wide interview/hire rates and satisfied the k-anon floor with a
+ *  phantom team. Gate the seed to non-production builds (or an explicit KP_SEED_DEMO opt-in)
+ *  so a real production org's benchmark is never contaminated and a genuinely single-team
+ *  org honestly reads "unavailable". */
+export function benchmarkDemoSeedEnabled(env: EnvLike = process.env): boolean {
+  const v = (env.KP_SEED_DEMO ?? "").trim().toLowerCase();
+  if (v === "1" || v === "true" || v === "yes" || v === "on") return true;
+  return env.NODE_ENV !== "production";
+}
+
 // A 2nd team in the default org (org-default) so the Phase-2 ORG BENCHMARK (org_id-join,
 // k-anon) has cross-team data to aggregate + compare against. INERT in single-tenant —
 // every recruiter read scopes to 'workspace' — so this team never appears on the board,
@@ -12,7 +28,10 @@ const BENCH_TEAM = "ws-benchmark-north";
 // INSIDE ensureDb's init, before __kpDb is memoized, so calling ensureDb() again would
 // re-enter the whole initializer. The benchmark reads pipeline_entries only, so no
 // pipeline_event is needed for these rows.
-export function seedBenchmarkTeam(db: Database.Database): void {
+export function seedBenchmarkTeam(db: Database.Database, env: EnvLike = process.env): void {
+  // bug-ui-scan-2026-07-09 (data-store-persistence #2): demo fixture only — skip in
+  // production so the real org's cross-team benchmark is never blended with fake entries.
+  if (!benchmarkDemoSeedEnabled(env)) return;
   db.prepare(
     `INSERT OR IGNORE INTO workspaces (id, name, org_id, type, created_at) VALUES (?, ?, 'org-default', 'team', ?)`
   ).run(BENCH_TEAM, "Talent Acquisition — North", "2026-01-01T00:00:00.000Z");

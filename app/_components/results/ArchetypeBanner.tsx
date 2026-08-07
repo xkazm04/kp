@@ -1,12 +1,15 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { ArrowRight, Check, Sparkles, UserPlus } from "lucide-react";
 import { ARCHETYPE_LABEL } from "@/app/_lib/archetypes";
-import { GAP_FIELDS, mergeGapAnswers, type CompletenessGap } from "@/app/_lib/completeness-followup";
+import { gapFieldCopy, GAP_FIELDS, mergeGapAnswers, type CompletenessGap } from "@/app/_lib/completeness-followup";
 import { TextInput } from "@/app/_components/TextInput";
 import { TextArea } from "@/app/_components/TextArea";
+import { formatOptionalFraction } from "./archetypeBannerView";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
 
 // Reads the archetype-relevant fields off the analysis's best-effort v2Profile
 // (a normalized CandidateProfileV2 dump, by_alias camelCase). The pipeline
@@ -30,7 +33,25 @@ type SaveState =
   | { kind: "saved"; id: string }
   | { kind: "error"; message: string };
 
-export function ArchetypeBanner({ v2Profile }: { v2Profile: Record<string, unknown> }) {
+export function ArchetypeBanner({
+  v2Profile,
+  sourceAnalysisSlug,
+}: {
+  v2Profile: Record<string, unknown>;
+  // Lineage: the saved analysis this banner's profile came from. When present,
+  // "Save as profile" stamps source lineage server-side (/api/profile resolves the
+  // authoritative cv_hash from the slug — never client-supplied), enabling
+  // staleness detection. Absent (unsaved run) → lineage-less save, old behavior.
+  sourceAnalysisSlug?: string;
+}) {
+  const t = useTranslations("report");
+  // Resolve API failures from the machine `code`, never from the server's
+  // English `error` — see app/_lib/use-error-message.ts.
+  const errMsg = useErrorMessage();
+  // The gap prompts are SHARED with the candidate-facing post-apply follow-up
+  // (they used to be hardcoded English in completeness-followup.ts), so they live
+  // in one catalog namespace both surfaces read.
+  const tGap = useTranslations("apply.gapFields");
   const v2 = v2Profile as V2;
   const [save, setSave] = useState<SaveState>({ kind: "idle" });
   // Answers to the completeness follow-up, keyed by check id. Optional: saving
@@ -40,8 +61,11 @@ export function ArchetypeBanner({ v2Profile }: { v2Profile: Record<string, unkno
   if (!v2.archetype) return null;
 
   const label = ARCHETYPE_LABEL[v2.archetype] ?? v2.archetype;
-  const confidence = Math.round((v2.archetypeConfidence ?? 0) * 100);
-  const completeness = Math.round((v2.completeness ?? 0) * 100);
+  // bug-ui-scan-2026-07-09 (analysis-result-panels #2): absent confidence/completeness
+  // must read as "unknown" (chip omitted), not a definite "0%". formatOptionalFraction
+  // returns null for absent/non-finite and a range-guarded "NN%" otherwise.
+  const confidence = formatOptionalFraction(v2.archetypeConfidence, "archetypeConfidence");
+  const completeness = formatOptionalFraction(v2.completeness, "completeness");
   const reasons = v2.archetypeReasons ?? [];
   // Only gaps the form knows how to collect for (an unknown/new check id has no
   // field and must not render as a label with no input).
@@ -57,13 +81,18 @@ export function ArchetypeBanner({ v2Profile }: { v2Profile: Record<string, unkno
       const r = await fetch("/api/profile", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ profile, signals: { selfDeclared: v2.archetype }, persist: true }),
+        body: JSON.stringify({
+          profile,
+          signals: { selfDeclared: v2.archetype },
+          persist: true,
+          ...(sourceAnalysisSlug ? { sourceAnalysisSlug } : {}),
+        }),
       });
       const payload = await r.json();
-      if (!r.ok) throw new Error(payload.error ?? `Save failed (${r.status}).`);
+      if (!r.ok) throw new Error(errMsg(payload, t("archetype.saveFailedStatus", { status: r.status })));
       setSave({ kind: "saved", id: (payload.saved as { id?: string } | null)?.id ?? "" });
     } catch (caught) {
-      setSave({ kind: "error", message: caught instanceof Error ? caught.message : "Save failed." });
+      setSave({ kind: "error", message: caught instanceof Error ? caught.message : t("archetype.saveFailed") });
     }
   };
 
@@ -71,10 +100,17 @@ export function ArchetypeBanner({ v2Profile }: { v2Profile: Record<string, unkno
     <div className="rounded-lg border border-coral/30 bg-coral/5 p-4 shadow-panel">
       <div className="flex flex-wrap items-center gap-2">
         <Sparkles size={16} className="text-coral" aria-hidden />
-        <span className="text-meta uppercase tracking-wide text-coral">Detected archetype</span>
+        <span className="text-meta uppercase tracking-wide text-coral">{t("archetype.detected")}</span>
         <span className="rounded-full bg-ink px-2.5 py-0.5 text-sm font-semibold text-white">{label}</span>
-        <span className="text-sm text-steel">confidence {confidence}%</span>
-        <span className="text-sm text-steel">· completeness {completeness}%</span>
+        {confidence != null ? (
+          <span className="text-sm text-steel">{t("archetype.confidence", { value: confidence })}</span>
+        ) : null}
+        {completeness != null ? (
+          <span className="text-sm text-steel">
+            {confidence != null ? "· " : ""}
+            {t("archetype.completeness", { value: completeness })}
+          </span>
+        ) : null}
 
         <span className="ml-auto">
           {save.kind === "saved" ? (
@@ -82,7 +118,7 @@ export function ArchetypeBanner({ v2Profile }: { v2Profile: Record<string, unkno
               href="/?tab=profile"
               className="focus-ring inline-flex items-center gap-1.5 rounded-md bg-moss/10 px-3 py-1.5 text-sm font-semibold text-moss hover:bg-moss/20"
             >
-              <Check size={14} /> Saved · open in Profile <ArrowRight size={13} />
+              <Check size={14} /> {t("archetype.saved")} <ArrowRight size={13} />
             </Link>
           ) : (
             <button
@@ -91,19 +127,16 @@ export function ArchetypeBanner({ v2Profile }: { v2Profile: Record<string, unkno
               disabled={save.kind === "saving"}
               className="focus-ring inline-flex items-center gap-1.5 rounded-md bg-ink px-3 py-1.5 text-sm font-semibold text-white hover:bg-steel disabled:opacity-40"
             >
-              <UserPlus size={14} /> {save.kind === "saving" ? "Saving…" : "Save as profile"}
+              <UserPlus size={14} /> {save.kind === "saving" ? t("archetype.saving") : t("archetype.save")}
             </button>
           )}
         </span>
       </div>
 
       {reasons.length ? (
-        <p className="mt-1.5 text-sm text-steel">Routing: {reasons.join("; ")}</p>
+        <p className="mt-1.5 text-sm text-steel">{t("archetype.routing", { reasons: reasons.join("; ") })}</p>
       ) : null}
-      <p className="mt-1 text-sm text-steel">
-        Early-career CVs are routed so potential replaces years of experience — saving promotes this candidate into the
-        pool Match, Jobs, and the pipeline rank.
-      </p>
+      <p className="mt-1 text-sm text-steel">{t("archetype.explainer")}</p>
 
       {gaps.length > 0 && save.kind !== "saved" ? (
         // The completeness-driven follow-up: one targeted field per unmet
@@ -111,11 +144,12 @@ export function ArchetypeBanner({ v2Profile }: { v2Profile: Record<string, unkno
         // Optional — saving with blanks is fine; answers merge into the profile.
         <div className="mt-3 border-t border-coral/20 pt-3">
           <p className="text-meta uppercase tracking-wide text-coral">
-            Fill the gaps the CV left ({gaps.length}) — optional, raises completeness
+            {t("archetype.fillGaps", { count: gaps.length })}
           </p>
           <div className="mt-2 grid gap-2 sm:grid-cols-2">
             {gaps.map((gap) => {
-              const field = GAP_FIELDS[gap.check];
+              // Non-null: `gaps` is already filtered to checks GAP_FIELDS knows.
+              const field = gapFieldCopy(gap.check, tGap)!;
               const shared = {
                 value: gapAnswers[gap.check] ?? "",
                 onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>

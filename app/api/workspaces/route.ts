@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createWorkspace, listWorkspaces } from "@/app/_lib/db";
+import { createWorkspace, listWorkspaces } from "@/app/_lib/db/workspaces";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { multiWorkspaceEnabled } from "@/app/_lib/workspace-lock";
 import { jsonError } from "@/app/_lib/api-response";

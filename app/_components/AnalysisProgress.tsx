@@ -1,73 +1,56 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Check, Loader2 } from "lucide-react";
+import { PANEL, BTN_SECONDARY } from "./ui/recipes";
+import {
+  STAGE_ORDER,
+  deriveProgressDisplay,
+  headlineStageOf,
+  type StageId,
+  type StageStatus,
+  type StageState,
+} from "./analysis-progress-logic";
 
-export type StageId =
-  | "extract"
-  | "gemini"
-  | "profile"
-  | "scoring"
-  | "salary"
-  | "insights";
-
-export type StageStatus = "pending" | "active" | "done";
-
-export type StageState = Record<StageId, StageStatus>;
-
-export const STAGE_ORDER: StageId[] = [
-  "extract",
-  "gemini",
-  "profile",
-  "scoring",
-  "salary",
-  "insights"
-];
+// Re-export the pure stage logic so existing `@/app/_components/AnalysisProgress`
+// imports (useAnalyzeForm, runAnalysis, AnalyzeApi, AnalyzeTypes) keep resolving
+// after it moved into the testable sibling module.
+export {
+  STAGE_ORDER,
+  initialStageState,
+  applyStageEvent,
+  deriveProgressDisplay,
+  headlineStageOf,
+} from "./analysis-progress-logic";
+export type { StageId, StageStatus, StageState, ProgressDisplay } from "./analysis-progress-logic";
 
 // Literal-key maps (next-intl rejects template-literal keys, so we can't build
-// `stages.${id}Title` inline) → the catalog lives under analyze.stages.*.
+// `stages.${id}Title` inline) → the catalog lives under analyze.stages.*. Direction
+// 3 — three HONEST, observable phases replace the six cosmetic Python-internal ones.
 const STAGE_TITLE_KEY = {
-  extract: "stages.extractTitle",
-  gemini: "stages.geminiTitle",
-  profile: "stages.profileTitle",
-  scoring: "stages.scoringTitle",
-  salary: "stages.salaryTitle",
-  insights: "stages.insightsTitle",
+  reading: "stages.readingTitle",
+  analyzing: "stages.analyzingTitle",
+  saving: "stages.savingTitle",
 } as const;
 const STAGE_SUB_KEY = {
-  extract: "stages.extractSub",
-  gemini: "stages.geminiSub",
-  profile: "stages.profileSub",
-  scoring: "stages.scoringSub",
-  salary: "stages.salarySub",
-  insights: "stages.insightsSub",
+  reading: "stages.readingSub",
+  analyzing: "stages.analyzingSub",
+  saving: "stages.savingSub",
 } as const;
 
-export function initialStageState(): StageState {
-  return {
-    extract: "pending",
-    gemini: "pending",
-    profile: "pending",
-    scoring: "pending",
-    salary: "pending",
-    insights: "pending"
-  };
-}
-
-export function applyStageEvent(state: StageState, stage: StageId, status: StageStatus): StageState {
-  if (status === "done" && state[stage] === "done") return state;
-  if (status === "active" && state[stage] === "active") return state;
-  const next: StageState = { ...state, [stage]: status };
-  if (status === "active") {
-    const idx = STAGE_ORDER.indexOf(stage);
-    for (let i = 0; i < idx; i += 1) {
-      const earlier = STAGE_ORDER[i];
-      if (next[earlier] === "pending") {
-        next[earlier] = "done";
-      }
-    }
-  }
-  return next;
+// A once-per-second elapsed clock for the run (mounts with the panel, i.e. at the
+// run's start; the panel unmounts when the run ends). Shown beside the indeterminate
+// engine span so a slow/stalled model call reads as genuinely in-progress — the
+// number keeps climbing while the stage honestly stays "analyzing".
+function useElapsedSeconds(): number {
+  const [elapsed, setElapsed] = useState(0);
+  useEffect(() => {
+    const startedAt = Date.now();
+    const id = window.setInterval(() => setElapsed(Math.floor((Date.now() - startedAt) / 1000)), 1000);
+    return () => window.clearInterval(id);
+  }, []);
+  return elapsed;
 }
 
 export function AnalysisProgress({
@@ -75,34 +58,51 @@ export function AnalysisProgress({
   complete,
   fileName,
   variantCount,
+  variantsDone,
+  variantsTotal,
   onCancel
 }: {
   stages: StageState;
   complete: boolean;
   fileName?: string;
   variantCount?: number;
+  // bug-ui-scan-2026-07-09 (cv-analysis-workspace #5): the REAL per-variant
+  // completion the server persists (task.progressDone/progressTotal). When a
+  // multi-variant run reports these, the bar reflects them instead of the faked
+  // stage timeline.
+  variantsDone?: number;
+  variantsTotal?: number;
   onCancel?: () => void;
 }) {
   const t = useTranslations("analyze");
-  const completedCount = STAGE_ORDER.filter((id) => stages[id] === "done").length;
-  const totalCount = STAGE_ORDER.length;
-  const percent = complete
-    ? 100
-    : Math.round((completedCount / totalCount) * 100);
-
-  const headlineStage = complete
-    ? null
-    : STAGE_ORDER.find((id) => stages[id] === "active") ?? null;
+  // #5 — honest bar: real per-variant progress when available, else the stage
+  // strip but indeterminate (not a frozen percent) while the engine span runs.
+  const { percent, indeterminate } = deriveProgressDisplay({ stages, complete, variantsDone, variantsTotal });
+  const headlineStage = headlineStageOf(stages, complete);
+  // Show the genuine "X / N variants" count the server reports for a comparison.
+  const showVariantCount = !complete && Boolean(variantsTotal && variantsTotal > 1);
+  // Direction 3 — a ticking elapsed clock for the run, shown while the bar is
+  // indeterminate so a slow/stalled engine call visibly keeps counting rather than
+  // sitting on a lie. The number below (progress readout) reads it out verbally.
+  const elapsedSeconds = useElapsedSeconds();
 
   return (
+    // `aria-label` needs a role to survive: on a bare <div> (an implicit
+    // `generic`) the accessible name is DROPPED by the AAM, so the panel was
+    // effectively unnamed. `role="group"` exposes it without claiming a
+    // landmark this transient card doesn't deserve.
     <div
+      role="group"
       aria-label={t("progressAria")}
-      role="status"
-      aria-live="polite"
-      className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel"
+      className={`${PANEL} p-5`}
     >
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-        <div>
+        {/* bug-ui-scan-2026-07-09 (cv-analysis-workspace #4): scope the live
+            region to just the headline + percent text so a screen reader
+            re-announces only the current phase, not the whole card (incl. the
+            stage rows) on every poll — and so the interactive Cancel button no
+            longer sits inside a passive status container. */}
+        <div role="status" aria-live="polite">
           <p className="text-meta uppercase text-coral">
             {complete ? t("compilingResult") : t("livePipeline")}
           </p>
@@ -120,17 +120,37 @@ export function AnalysisProgress({
                 ? t("workingOnFile", { fileName })
                 : t("workingOnProfile")}
           </p>
+          {showVariantCount ? (
+            <p className="mt-1 text-sm font-medium text-steel">
+              {t("variantsDone", { done: Math.min(variantsDone ?? 0, variantsTotal!), total: variantsTotal! })}
+            </p>
+          ) : null}
         </div>
         <div className="flex flex-col items-start gap-2 sm:items-end">
-          <div className="flex flex-col items-start sm:items-end">
+          <div className="flex flex-col items-start sm:items-end" role="status" aria-live="polite">
             <span className="text-meta uppercase tracking-wide text-steel">{t("progressLabel")}</span>
-            <span className="font-serif text-h2 text-ink">{percent}%</span>
+            {/* When indeterminate we have no honest number to read out, so show a
+                verbal state rather than a fabricated percentage. */}
+            <span className="font-serif text-h2 text-ink">{indeterminate ? t("progressWorking") : `${percent}%`}</span>
+            {/* Elapsed keeps ticking through the un-instrumented engine span so a
+                stall reads as "still working, N s", never a frozen bar. */}
+            {!complete ? (
+              // aria-hidden: the per-second tick must not spam a screen reader —
+              // the verbal "Working" / percent above is the announced state.
+              <span aria-hidden className="text-sm tabular-nums text-steel">
+                {t("elapsedSeconds", { seconds: elapsedSeconds })}
+              </span>
+            ) : null}
           </div>
           {onCancel && !complete && (
+            // BTN_SECONDARY carries the shared .focus-ring and the Spark Dark
+            // press-down this button hand-rolled away; h-8 also lifts the target
+            // from ~30px to 32px — this is the only way to abort a long run on a
+            // phone.
             <button
               type="button"
               onClick={onCancel}
-              className="rounded-md border border-stone-300 px-2.5 py-1 text-sm font-medium text-steel transition-colors hover:border-coral hover:text-coral focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral"
+              className={`${BTN_SECONDARY} h-8 px-2.5 text-sm text-steel hover:text-coral`}
             >
               {t("cancelScan")}
             </button>
@@ -138,11 +158,33 @@ export function AnalysisProgress({
         </div>
       </div>
 
-      <div className="mt-4 h-1.5 w-full overflow-hidden rounded-full bg-stone-200">
-        <div
-          className="h-full rounded-full bg-coral transition-[width] duration-500 ease-out motion-reduce:transition-none"
-          style={{ width: `${percent}%` }}
-        />
+      {/* #5 — indeterminate: an animated sweep (no fabricated width) while a long,
+          un-instrumented step runs; determinate: the honest fill otherwise. */}
+      {/* A progressbar MUST carry its own accessible name — the card's label does
+          not descend to it. Indeterminate deliberately omits aria-valuenow (that IS
+          the ARIA signal for "unknown"), so it also needs aria-valuetext, or a
+          screen reader announces a named bar with no value at all. */}
+      <div
+        className="mt-4 h-1.5 w-full overflow-hidden rounded-full bg-stone-200"
+        role="progressbar"
+        aria-label={t("progressLabel")}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        {...(indeterminate
+          ? { "aria-valuetext": t("progressWorking") }
+          : { "aria-valuenow": percent })}
+      >
+        {indeterminate ? (
+          // Reuse the existing pulse utility (same idiom as GithubAnalysisPanel's
+          // loading bar) so no custom keyframe is added; motion-reduce falls back
+          // to a static two-thirds fill rather than a jump to a fake 100%.
+          <div className="h-full w-2/3 animate-pulse rounded-full bg-coral motion-reduce:animate-none" />
+        ) : (
+          <div
+            className="h-full rounded-full bg-coral transition-[width] duration-500 ease-out motion-reduce:transition-none"
+            style={{ width: `${percent}%` }}
+          />
+        )}
       </div>
 
       <ol className="mt-5 grid gap-2 sm:grid-cols-2">

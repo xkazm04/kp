@@ -1,10 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { SESSION_COOKIE, SESSION_TTL_MS, signSession } from "@/app/_lib/auth/session";
-import { DEFAULT_WORKSPACE_ID } from "@/app/_lib/db/workspaces";
 import { getRedeemableInvite } from "@/app/_lib/db/invites";
 import { getOrganization } from "@/app/_lib/db/organizations";
 import { getUserByEmail } from "@/app/_lib/db/users";
-import { listMembershipsForUser } from "@/app/_lib/db/memberships";
 import { acceptInvite, MIN_PASSWORD_LENGTH } from "@/app/_lib/org-service";
 
 // PUBLIC (proxy allow-listed): the invited-member accept flow. GET previews a
@@ -45,11 +43,14 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
   // created; the client just lands on / (or /login) to sign in manually. Never let
   // a signing failure 500 after the invite is already consumed.
   try {
-    const primary = listMembershipsForUser(result.user.id)[0];
-    const session = signSession(primary?.workspaceId ?? DEFAULT_WORKSPACE_ID, Date.now(), {
+    // bug-ui-scan-2026-07-09 (organizations-members-invites #3): sign the session
+    // for the team/role the invite just granted (result.workspaceId/role), not the
+    // oldest membership from listMembershipsForUser(...)[0] — a re-invited member was
+    // landing on their previous team with their previous role.
+    const session = signSession(result.workspaceId, Date.now(), {
       sub: result.user.id,
       org: result.user.orgId,
-      role: primary?.role,
+      role: result.role,
     });
     res.cookies.set(SESSION_COOKIE, session, {
       httpOnly: true,

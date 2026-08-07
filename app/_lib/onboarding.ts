@@ -4,6 +4,42 @@
 // questionnaire populates the hire record, and documents are signed through a
 // provider SEAM (markSigned) — a real eIDAS provider (Signicat/DocuSign) wires in
 // there; the in-app flow is an audit-stamped record, NOT itself eIDAS-compliant.
+//
+// ─────────────────────────────────────────────────────────────────────────────
+// F16 — WHOSE LANGUAGE ARE THE PRESETS IN? A LANGUAGE-NEUTRAL KEY, RENDERED AT
+// READ TIME. Not the creating recruiter's language, not the new hire's.
+//
+// The strings below are COPIED INTO A DB ROW at template-creation time
+// (onboarding-store.createTemplate → tasks_json / questionnaire_json), and that row
+// then has three different readers, none of whom shares a locale by construction:
+//   · the recruiter who made it            (OnboardingRunChecklist, run detail)
+//   · any colleague in the same workspace  (templates are workspace-scoped —
+//     listTemplates(workspaceId), not per-user)
+//   · the NEW HIRE, on a public token page (app/onboarding/[token]) whose locale is
+//     their own browser's, months later
+// Materializing the preset in whichever language happened to be active when someone
+// pressed "Save template" would pin all three to that one language forever. This is
+// the third case in docs/architecture/localization.md — a string composed on the
+// server ahead of its readers — and the settled answer there is "store a reference,
+// not a sentence".
+//
+// The reference is the `id` / `key` these presets already carry. Every shipped task
+// id and field key has a catalog entry (`onboarding.task.<id>`,
+// `onboarding.field.<key>`, and `candidateOnboarding.field<Key>` on the hire-facing
+// page); the render sites resolve it and FALL BACK to the stored label. That is not
+// a new mechanism — the questionnaire read path already worked exactly this way
+// ("Known default keys stay i18n-localized at the render site; custom keys render
+// their authored label", below), and this only extends it to the tasks and to the
+// preset-specific fields.
+//
+// So the `label` values below are ENGLISH FALLBACKS, not the copy of record. They
+// still matter: they are what a row shows when its id was slugified away (a
+// recruiter edited the row's text before saving, so the canonical id was
+// deliberately dropped — see OnboardingTemplateManager) and what already sits in
+// every template row written before this change. NOTHING PERSISTED IS REWRITTEN:
+// existing rows keep their stored text and simply start resolving when their id is
+// canonical, so no migration and no history rewrite is involved.
+// ─────────────────────────────────────────────────────────────────────────────
 
 export type OnboardingTask = { id: string; label: string };
 export type OnboardingTaskState = { taskId: string; done: boolean; doneAt: string | null };
@@ -126,9 +162,19 @@ export function onboardingProgress(tasks: OnboardingTask[], states: OnboardingTa
 // work-authorization for frontline) instead of a generic-office default. These are
 // STARTERS, not compliance guarantees: every task/field is editable after creation,
 // and the e-sign seam is still audit-stamped, not eIDAS (see top of file).
+//
+// F16 — the ids below are the LOCALIZATION KEYS as well as the row ids, so an id is
+// shared across presets only where the label is genuinely the same sentence
+// ("contract" in four of them). Where a preset says something different it gets its
+// own id (`equipment-badge` vs `equipment-tools` vs `equipment`) — otherwise one
+// catalog entry would have to serve "Order laptop and equipment" and "Issue badge,
+// equipment and system access" at once. `name` / `industry` are the dropdown's copy
+// and are UI, not row data: they read from `onboarding.preset.*` at render time.
 export type OnboardingPreset = {
   id: string;
+  /** English fallback — the dropdown renders `onboarding.preset.<id>.name`. */
   name: string;
+  /** English fallback — the dropdown renders `onboarding.preset.<id>.industry`. */
   industry: string;
   tasks: OnboardingTask[];
   questionnaire: QuestionnaireField[];
@@ -153,8 +199,8 @@ export const ONBOARDING_PRESETS: OnboardingPreset[] = [
       { id: "immunization", label: "Collect immunization / health records" },
       { id: "compliance-training", label: "HIPAA / patient-safety compliance training" },
       { id: "contract", label: "Send & sign the employment contract" },
-      { id: "equipment", label: "Issue badge, equipment and system access" },
-      { id: "firstday", label: "Share the first-day plan and unit orientation" },
+      { id: "equipment-badge", label: "Issue badge, equipment and system access" },
+      { id: "firstday-unit", label: "Share the first-day plan and unit orientation" },
     ],
     questionnaire: [
       { key: "preferredName", label: "Preferred name" },
@@ -174,7 +220,7 @@ export const ONBOARDING_PRESETS: OnboardingPreset[] = [
       { id: "ppe", label: "Issue PPE and safety equipment" },
       { id: "drug-screen", label: "Pre-employment drug screen" },
       { id: "cert-verify", label: "Verify trade certifications / licenses" },
-      { id: "equipment", label: "Issue tools and equipment" },
+      { id: "equipment-tools", label: "Issue tools and equipment" },
       { id: "site-assignment", label: "Site / shift assignment" },
       { id: "contract", label: "Send & sign the employment contract" },
     ],
@@ -191,10 +237,10 @@ export const ONBOARDING_PRESETS: OnboardingPreset[] = [
     name: "Startup / tech onboarding",
     industry: "Tech & startups",
     tasks: [
-      { id: "contract", label: "Send & sign the offer & employment contract" },
+      { id: "contract-offer", label: "Send & sign the offer & employment contract" },
       { id: "ip-nda", label: "Sign IP assignment, NDA & equity / option docs" },
       { id: "equipment", label: "Order laptop and equipment" },
-      { id: "accounts", label: "Create accounts and repo / tool access" },
+      { id: "accounts-repo", label: "Create accounts and repo / tool access" },
       { id: "buddy", label: "Assign an onboarding buddy" },
       { id: "firstweek", label: "Share the first-week plan and goals" },
     ],
@@ -227,3 +273,23 @@ export const ONBOARDING_PRESETS: OnboardingPreset[] = [
     ],
   },
 ];
+
+// F16 — the reference side of the read-time contract. Derived from the data above
+// rather than hand-listed, so adding a preset task automatically demands its catalog
+// entry (onboarding.test.ts asserts every id/key here resolves in all four locales)
+// instead of silently shipping an English row into a new hire's browser.
+//
+// The render sites do NOT gate on these sets — they ask the catalog directly
+// (`t.has("task." + id)`), which is the same has-fallback idiom the questionnaire
+// already used and keeps a custom row from ever hitting a key path. The sets exist
+// to make the coverage testable in one place.
+
+/** Every task id the shipped default checklist + the industry presets use. */
+export const CANONICAL_TASK_IDS: readonly string[] = Array.from(
+  new Set([...DEFAULT_ONBOARDING_TASKS, ...ONBOARDING_PRESETS.flatMap((p) => p.tasks)].map((t) => t.id))
+);
+
+/** Every questionnaire field key the shipped default + the industry presets use. */
+export const CANONICAL_FIELD_KEYS: readonly string[] = Array.from(
+  new Set([...DEFAULT_QUESTIONNAIRE, ...ONBOARDING_PRESETS.flatMap((p) => p.questionnaire)].map((f) => f.key))
+);

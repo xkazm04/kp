@@ -95,3 +95,23 @@ test("advance top N with no Offer-stage targets reports no holds", async () => {
   assert.equal(body.heldAtOffer, undefined, "no holds → the field is omitted");
   assert.equal(getPipelineEntry(fresh.id)!.stage, "Screened");
 });
+
+test("reject below N rejects the FULL matched cohort, not just the 50 rendered preview rows (pipeline-board-candidate-drawer #2)", async () => {
+  ensureDb().prepare(`DELETE FROM pipeline_entries`).run();
+  // 60 Screened candidates below the line — more than the 50-row preview cap.
+  const ids: string[] = [];
+  for (let i = 0; i < 60; i += 1) ids.push(entryFixture({ stage: "Screened", matchScore: 40 }).id);
+
+  // Preview: rows capped at 50, but total AND matchedIds cover all 60.
+  const preview = await (await post({ text: "reject below 60%" })).json();
+  assert.equal(preview.total, 60, "the preview counts every match");
+  assert.equal(preview.preview.length, 50, "only the rendered rows are capped");
+  assert.equal(preview.matchedIds.length, 60, "matchedIds is the FULL previewed set, not the render cap");
+
+  // Confirm binding to matchedIds rejects all 60 (pre-fix, binding to the 50 rows
+  // left 10 active with a "50 rejected" success message).
+  const done = await (await post({ text: "reject below 60%", confirm: true, confirmIds: preview.matchedIds })).json();
+  assert.equal(done.count, 60, "every matched candidate is rejected, not just the previewed 50");
+  const stillActive = ids.filter((id) => getPipelineEntry(id)!.status === "active").length;
+  assert.equal(stillActive, 0, "no matched candidate is silently left active");
+});

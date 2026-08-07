@@ -10,16 +10,28 @@ import {
 } from "@/app/_lib/scheduler-store";
 import { tickScheduler } from "@/app/_lib/scheduler";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
+import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 
 
 // AUTO6 — both registered jobs ride one payload: the policy pass (schedule/runs,
 // the historical shape) plus the reminders job and its recent send/failure runs.
-function schedulePayload() {
+//
+// TENANCY (phase 1): the CLOCK is global on purpose (one sweep, one schedule row —
+// see the header of scheduler-store.ts), and the operator gate above is what makes
+// that blast radius legitimate. The run log's DECISION ROWS are not: they carry the
+// candidate labels and rejection reasons of every team the sweep touched, so they are
+// filtered to the caller's own workspace here. `scheduleScope` says out loud that the
+// toggle the UI renders is installation-wide; `decisionsWorkspace` (per run) says
+// which tenant the rows were narrowed to, next to a summary that stays global.
+async function schedulePayload() {
+  const workspace = await currentWorkspace();
   return {
     schedule: getSchedule(),
-    runs: listRuns(10),
+    runs: listRuns(10, POLICY_JOB, { workspace }),
     reminders: ensureReminderJob(),
-    reminderRuns: listRuns(5, REMINDERS_JOB),
+    reminderRuns: listRuns(5, REMINDERS_JOB, { workspace }),
+    scheduleScope: "global" as const,
+    decisionsWorkspace: workspace,
   };
 }
 
@@ -29,7 +41,7 @@ export async function GET() {
   // Operator-only: exposes the automation clock state + recent run history.
   const denied = await requireOperator();
   if (denied) return denied;
-  return NextResponse.json(schedulePayload());
+  return NextResponse.json(await schedulePayload());
 }
 
 export async function POST(request: NextRequest) {
@@ -54,7 +66,7 @@ export async function POST(request: NextRequest) {
       setEnabled(REMINDERS_JOB, body.remindersEnabled);
     }
     const tick = body.tick ? await tickScheduler({ force: true, trigger: "manual" }) : undefined;
-    return NextResponse.json({ ...schedulePayload(), tick });
+    return NextResponse.json({ ...(await schedulePayload()), tick });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to update schedule.";
     return NextResponse.json({ error: message }, { status: 500 });

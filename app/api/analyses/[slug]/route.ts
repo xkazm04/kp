@@ -1,11 +1,7 @@
 import { NextResponse } from "next/server";
-import {
-  loadAnalysis,
-  parseStoredGithubAnalysis,
-  recordAnalysisDispositionEvents,
-  setAnalysisDisposition,
-  setAnalysisGithub,
-} from "@/app/_lib/db";
+import { loadAnalysis, parseStoredGithubAnalysis, setAnalysisDisposition, setAnalysisGithub } from "@/app/_lib/db/analyses";
+import { candidateLabelWithholdsPii, recordAnalysisDispositionEvents } from "@/app/_lib/db/pipeline";
+import { maskCandidateName, scrubPiiFromPayload } from "@/app/_lib/consent";
 import { githubAnalysisSchema } from "@/app/_lib/schemas";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 
@@ -17,13 +13,21 @@ const MAX_GITHUB_JSON_BYTES = 256 * 1024;
 export async function GET(_request: Request, context: { params: Promise<{ slug: string }> }) {
   const { slug } = await context.params;
   try {
-    const found = loadAnalysis(slug, await currentWorkspace());
+    const ws = await currentWorkspace();
+    const found = loadAnalysis(slug, ws);
     if (!found) {
       return NextResponse.json({ error: "Analysis not found." }, { status: 404 });
     }
+    // Read-time consent gate (bug-ui-scan-2026-07-09 privacy-consent-provenance #3): if the
+    // linked candidate's consent has EXPIRED (or they've been anonymized), scrub the full CV
+    // payload + GitHub dossier and mask the label SYNCHRONOUSLY here — don't keep serving the
+    // whole CV in the drawer/History until the deferred anonymize sweep runs. Uses the same
+    // de-identified projection anonymizeEntry would persist, so the read stays lawful even if
+    // the sweep is stalled.
+    const withhold = candidateLabelWithholdsPii(found.row.candidate_label, ws);
     return NextResponse.json({
       slug: found.row.slug,
-      candidateLabel: found.row.candidate_label,
+      candidateLabel: withhold ? maskCandidateName(found.row.candidate_label) : found.row.candidate_label,
       jdSlug: found.row.jd_slug,
       score: found.row.score,
       roleFamily: found.row.role_family,
@@ -31,10 +35,11 @@ export async function GET(_request: Request, context: { params: Promise<{ slug: 
       createdAt: found.row.created_at,
       disposition: found.row.disposition ?? null,
       decisionNote: found.row.decision_note ?? null,
-      analysis: found.payload,
+      analysis: withhold ? scrubPiiFromPayload(found.payload) : found.payload,
       // GH1 — the attached GitHub deep-dive, when one was persisted. Parsed
-      // defensively: a corrupt column yields null, never a 500.
-      githubAnalysis: parseStoredGithubAnalysis(found.row.github_json, slug),
+      // defensively: a corrupt column yields null, never a 500. Withheld under the
+      // consent gate (it embeds the candidate's real GitHub identity + repos).
+      githubAnalysis: withhold ? null : parseStoredGithubAnalysis(found.row.github_json, slug),
     });
   } catch (error) {
     // Log the full error server-side; return a generic, stable message so the

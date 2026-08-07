@@ -11,6 +11,9 @@
   --color-coral: #d65a4a;
   --color-steel: #42606f;
   --color-limewash: #dce7d0;
+  /* Coral's pale tint — the counterpart to limewash (moss's), for the "other
+     side" of a paired illustration (e.g. the compare icon's two panels). */
+  --color-coralwash: #f7d4ce;
   --color-dial-stone: #8c8779;
   --color-dial-amber: #caa54c;
 
@@ -18,6 +21,13 @@
      they sit with the cream canvas and read as drawn lines, kept near stock
      lightness so contrast/density don't change. Text greys (stone-400+) stay
      stock; the [data-theme="dark"] block owns the dark ramp. */
+  /* Declared explicitly (identical to Tailwind's stock white) so the raised-card
+     surface has a light counterpart to the dark block's --color-white override.
+     Nothing renders differently; it makes the token pair symmetric, which is
+     what lets scripts/design/check-design-tokens.mjs check both halves of the
+     app/_lib/brand.ts mirror with one rule instead of a special case. */
+  --color-white: #ffffff;
+
   --color-stone-50: #f7f2e9;
   --color-stone-100: #f1ebdd;
   --color-stone-200: #e6ddcc;
@@ -36,21 +46,42 @@
   --color-score-weak: var(--color-coral);
   --color-score-null: var(--color-steel);
 
-  /* Two-layer soft elevation — a tight contact shadow plus a closer ambient, so
-     Studio Light panels read crafted and grounded instead of floating in a 50px
-     blur. (The dark block overrides this to the hard Spark offset.) */
-  --shadow-panel: 0 1px 2px rgba(23, 32, 42, 0.05), 0 10px 28px -10px rgba(23, 32, 42, 0.13);
+  /*
+   * The shadow tokens point at a SECOND variable instead of holding their value
+   * directly, and that indirection is load-bearing.
+   *
+   * Tailwind v4 INLINES an `@theme --shadow-*` value into the `.shadow-*`
+   * utility it generates (`.shadow-panel{--tw-shadow:0 1px 2px …}`) rather than
+   * emitting `var(--shadow-panel)` — unlike the COLOR utilities, which do emit
+   * `var(--color-*)` and are why the palette re-skins at all. So re-declaring
+   * `--shadow-panel` under `[data-theme="dark"]` set a custom property that
+   * nothing on the page ever read: the entire Spark Dark hard-offset shadow
+   * register was inert, silently, while the dark block looked correct.
+   *
+   * Pointing the token at `var(--*-shadow)` moves resolution to runtime, where
+   * the dark override actually wins. Light values are unchanged — they just
+   * live in the `:root` block below now.
+   */
+  --shadow-panel: var(--panel-shadow);
+  --shadow-sticker-sm: var(--sticker-sm-shadow);
+  --shadow-sticker-xs: var(--sticker-xs-shadow);
+  --shadow-pop: var(--pop-shadow);
 
-  /* Sticker shadows — the Spark register's small hard offsets (buttons, marks,
-     chips). Subtle in light; the dark block overrides them to full strength. */
-  --shadow-sticker-sm: 3px 3px 0 rgba(23, 32, 42, 0.14);
-  --shadow-sticker-xs: 2px 2px 0 rgba(23, 32, 42, 0.14);
+  /* Floating chrome — modals and drawers, the layer that sits OVER the app.
+     Its own token because neither of the two above can carry it: --shadow-panel
+     is the calm card lift (too weak to separate a dialog from the page) and
+     --shadow-pop is already a hard offset in LIGHT, which is the Spark register,
+     not Studio Light's. The light value below is byte-identical to the stock
+     `shadow-2xl` these surfaces used before, so Studio Light is unchanged; the
+     dark block overrides it to the Spark offset, which is the whole point —
+     `shadow-2xl` is a literal rgb() and could never follow the theme. */
+  --shadow-overlay: var(--overlay-shadow);
 
-  /* "Pop" — a confident offset for ACCENT / chrome surfaces only (PANEL_ACCENT,
-     stat cards, verdict banners). Editorial-restrained in light (low opacity);
-     the dark block lifts it to the full Spark offset. Data panels stay on the
-     calm --shadow-panel above so the board/table register keeps its composure. */
-  --shadow-pop: 4px 4px 0 rgba(23, 32, 42, 0.13);
+  /* Scrim — the wash that dims the app behind a takeover (the guided
+     simulation's spotlight paints it as a 9999px box-shadow ring). A token
+     rather than an inline rgba() because the light wash is a warm near-black
+     that would sit invisibly on the dark canvas; the dark block deepens it. */
+  --color-scrim: rgba(28, 25, 23, 0.28);
 
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-serif: var(--font-fraunces), ui-serif, Georgia, "Times New Roman", serif;
@@ -92,6 +123,27 @@
 
 :root {
   color-scheme: light;
+
+  /*
+   * Studio Light elevation values, read through the @theme indirection above.
+   *
+   * --panel-shadow: two-layer soft elevation — a tight contact shadow plus a
+   *   closer ambient, so panels read crafted and grounded instead of floating
+   *   in a 50px blur.
+   * --sticker-*-shadow: the Spark register's small hard offsets (buttons,
+   *   marks, chips), subtle here and lifted to full strength in dark.
+   * --pop-shadow: a confident offset for ACCENT / chrome surfaces only
+   *   (PANEL_ACCENT, stat cards, verdict banners) — editorial-restrained in
+   *   light. Data panels stay on --panel-shadow so the board/table register
+   *   keeps its composure.
+   * --overlay-shadow: floating chrome (Modal, drawers). Byte-identical to the
+   *   stock `shadow-2xl` these surfaces carried before.
+   */
+  --panel-shadow: 0 1px 2px rgba(23, 32, 42, 0.05), 0 10px 28px -10px rgba(23, 32, 42, 0.13);
+  --sticker-sm-shadow: 3px 3px 0 rgba(23, 32, 42, 0.14);
+  --sticker-xs-shadow: 2px 2px 0 rgba(23, 32, 42, 0.14);
+  --pop-shadow: 4px 4px 0 rgba(23, 32, 42, 0.13);
+  --overlay-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.25);
 }
 
 * {
@@ -105,7 +157,7 @@ body {
 }
 
 /*
- * Theme override seam — "Spark Dark" (see docs/DESIGN.md).
+ * Theme override seam — "Spark Dark" (see docs/design/README.md).
  * The default (light) palette is defined in @theme above, which Tailwind
  * emits onto :root. Every color utility compiles to var(--color-*) —
  * including stock `white`/`stone-*`/status shades — so re-declaring those
@@ -129,6 +181,7 @@ body {
   --color-coral: #ff7e68;
   --color-steel: #9db5c3;
   --color-limewash: #2a382b;
+  --color-coralwash: #46262b;
   --color-dial-stone: #6e7787;
   --color-dial-amber: #e5bd62;
 
@@ -141,6 +194,20 @@ body {
   --color-stone-300: #475665;
   --color-stone-400: #647585;
 
+  /* Inverted controls. `bg-stone-900 text-white` is the app's high-contrast
+     inverted control (primary submit, active file tab, own chat bubble). Left
+     unmapped it was the worst dark-mode bug in the palette: the surface stayed
+     stock near-black (#1c1917) WHILE `--color-white` remaps to #1d2630 — dark
+     text on a dark background. The flip inverts the pair instead, so the
+     control keeps reading as "the opposite of the canvas" in both registers.
+     800 is the hover step: in light it moves 900 -> lighter, so here it moves
+     900 -> darker, and the state change survives the flip.
+     NOTE the ramp is intentionally non-monotone across 400/800: stone-500..700
+     are the muted TEXT greys and stay stock in both themes (see the light
+     block above) — only the surface shades are remapped. */
+  --color-stone-800: #d8d2c6;
+  --color-stone-900: #efe9dd;
+
   /* Status scales, luminance-flipped: *-50 tint backgrounds go deep,
      *-600/700+ foregrounds go light. Only the shades the app uses are
      mapped — add the dark value here before introducing a new shade. */
@@ -148,8 +215,19 @@ body {
   --color-red-100: #47272c;
   --color-red-200: #5c3036;
   --color-red-300: #7b3f42;
+  /* 400/500 are the INVALID-state cue on every shared form primitive
+     (TextInput/TextArea/Select/FileInput `border-red-400`, Checkbox/Radio
+     `accent-red-500`). They are lifted deliberately clear of the 300 tint
+     rather than interpolated onto it: a non-text UI indicator needs >=3:1
+     against the field surface (WCAG 1.4.11), and #cf7264 lands ~3.7:1 on the
+     raised card (#1d2630) where an interpolated ~#a85a55 would sit under 3.
+     Legibility of the invalid affordance outranks ramp smoothness here. */
+  --color-red-400: #cf7264;
+  --color-red-500: #e2826f;
   --color-red-600: #f2907f;
   --color-red-700: #ffa692;
+  /* Foreground text on the deep red-50 tint (verification/bounce notices). */
+  --color-red-800: #ffbdab;
 
   --color-amber-50: #3a2f1b;
   --color-amber-100: #463a23;
@@ -172,11 +250,20 @@ body {
   --color-blue-200: #2f4b68;
   --color-blue-700: #8fbaea;
 
-  /* The Spark signature: depth is drawn, not diffused. */
-  --shadow-panel: 5px 5px 0 rgba(9, 13, 19, 0.85);
-  --shadow-sticker-sm: 3px 3px 0 rgba(9, 13, 19, 0.85);
-  --shadow-sticker-xs: 2px 2px 0 rgba(9, 13, 19, 0.85);
-  --shadow-pop: 5px 5px 0 rgba(9, 13, 19, 0.85);
+  /* The Spark signature: depth is drawn, not diffused. These override the
+     `--*-shadow` values, NOT the `--shadow-*` tokens — see the note in @theme.
+     Tailwind inlines the token into the .shadow-* utility, so overriding the
+     token here (as this block used to) set a property no rule ever read, and
+     the whole hard-offset register never actually rendered in dark. */
+  --panel-shadow: 5px 5px 0 rgba(9, 13, 19, 0.85);
+  --sticker-sm-shadow: 3px 3px 0 rgba(9, 13, 19, 0.85);
+  --sticker-xs-shadow: 2px 2px 0 rgba(9, 13, 19, 0.85);
+  --pop-shadow: 5px 5px 0 rgba(9, 13, 19, 0.85);
+  /* Overlays ride a touch deeper than panels — they are further off the page. */
+  --overlay-shadow: 7px 7px 0 rgba(9, 13, 19, 0.9);
+
+  /* Deeper on the ink canvas — the light wash would barely register. */
+  --color-scrim: rgba(6, 9, 14, 0.66);
 
   /* Display face flips with the register: Fraunces' serif calm belongs to
      Studio Light; Spark Dark titles get Bricolage's grotesque punch (the
@@ -187,7 +274,7 @@ body {
 
 /*
  * Spark Dark structural register — the parts of the landing's sticker-sheet
- * language a color token cannot carry (docs/DESIGN.md). These ride existing
+ * language a color token cannot carry (docs/design/README.md). These ride existing
  * class seams so ALL surfaces pick them up before the recipe sweep finishes:
  *
  * 1. Panels become stickers: every `.shadow-panel` surface (the workspace's
@@ -216,7 +303,7 @@ body {
 }
 
 /*
- * Spark Dark data-surface rides (tables, matrices, lists — docs/DESIGN.md
+ * Spark Dark data-surface rides (tables, matrices, lists — docs/design/README.md
  * "Data visuals"). Same blanket-seam idea as the .shadow-panel sticker ride:
  *
  * - Table headers pick up the display face (--font-serif resolves to
@@ -269,6 +356,11 @@ body {
   --z-sim-bar: 55;
   --z-sim-frame: 48;
   --sim-bar-h: 60px;
+  /* First-run onboarding wizard (app/features/setup): a full takeover above the
+     Modal (50) and the sim bar (55) — nothing in the workspace should compete
+     with the first-run moment — but under the toast stack, so its own save
+     confirmations stay visible. */
+  --z-onboarding: 60;
   /* Toast stack (app/_components/Toast.tsx): transient feedback must clear
      everything — the Modal (50) and the sim bar (55) included — because a
      mutation fired from inside a dialog still needs its confirmation visible. */
@@ -294,6 +386,72 @@ textarea {
 .nums {
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum" 1;
+}
+
+/*
+ * Spark type scale — the marketing pages read one notch larger than the app.
+ *
+ * The workspace is a dense tool used for hours; the landing and /about are read
+ * once, at arm's length, often on a big screen, and every size below the display
+ * headings was landing too small there. Rather than re-typing a bigger class on
+ * ~180 elements (and hoping the next person adding a card matches them), the
+ * marketing subtree redefines the scale itself: Tailwind v4 compiles
+ * `text-sm` to `font-size: var(--text-sm)`, so overriding the token on an
+ * ancestor shifts every utility inside it. One place, and new Spark markup
+ * inherits the scale for free.
+ *
+ * Each step moves up ~2px — which for xs…lg is exactly the next rung of
+ * Tailwind's own scale, so the hierarchy between sizes is untouched, only its
+ * baseline. Only the font size is overridden: the stock `--text-*--line-height`
+ * values are unitless ratios, so leading follows automatically.
+ *
+ * Deliberately NOT shifted: `text-2xl` and up. Those are the display headings
+ * (section h2s at 4xl/5xl, the hero at 5xl/7xl, price numerals at 3xl) — they
+ * were never the problem, and growing them too would have kept the page
+ * exactly as unbalanced as it started.
+ *
+ * Applied at the page root by SparkHome and AboutHome (see TYPE_SCALE in
+ * app/landing/spark/tokens.ts). /market opts in separately when its dense
+ * tables and map legend have been checked at the larger size.
+ */
+.spark-type {
+  --text-xs: 0.875rem; /* 12 → 14 */
+  --text-sm: 1rem; /* 14 → 16 */
+  --text-base: 1.125rem; /* 16 → 18 */
+  --text-lg: 1.25rem; /* 18 → 20 */
+  --text-xl: 1.375rem; /* 20 → 22 */
+  --text-meta: 16px; /* 14 → 16 */
+}
+
+/*
+ * …and one more notch inside the illustrated cards.
+ *
+ * The /about step art and the /market data cards are miniatures of real product
+ * UI, so they were built at the sizes that UI uses — which left them reading a
+ * full step SMALLER than the prose sitting beside them, once the page scale
+ * above moved. A mockup that the copy dwarfs stops looking like evidence and
+ * starts looking like a footnote.
+ *
+ * Nests inside `.spark-type` and re-states absolute values (custom properties
+ * resolve from the nearest ancestor that sets them, so the two never compound
+ * by accident). Every step is +2px again: xs…xl relative to `.spark-type`,
+ * 2xl…4xl relative to stock Tailwind, because the page scale leaves the display
+ * sizes alone — inside a card a "display" size is a score dial or a salary
+ * figure, not a section heading, so here it moves with everything else.
+ *
+ * Opt in per card container via ART_TYPE_SCALE (app/landing/spark/tokens.ts):
+ * `StepRow`'s art column on /about, the parts.tsx vocabulary on /market.
+ */
+.spark-type-art {
+  --text-xs: 1rem; /* 14 → 16 */
+  --text-sm: 1.125rem; /* 16 → 18 */
+  --text-base: 1.25rem; /* 18 → 20 */
+  --text-lg: 1.375rem; /* 20 → 22 */
+  --text-xl: 1.5rem; /* 22 → 24 */
+  --text-2xl: 1.625rem; /* 24 → 26 */
+  --text-3xl: 2rem; /* 30 → 32 */
+  --text-4xl: 2.375rem; /* 36 → 38 */
+  --text-meta: 18px; /* 16 → 18 */
 }
 
 /*
@@ -381,11 +539,74 @@ textarea {
 .stagger-children > *:nth-child(5) { animation-delay: 240ms; }
 .stagger-children > *:nth-child(n + 6) { animation-delay: 280ms; }
 
+/* Content that ARRIVES after its container is already on screen (a fetch
+   resolving, a deferred section committing): a plain opacity fade, no rise, so
+   it settles into the space the layout already holds instead of sliding.
+   Loading choreography tier 2 — see docs/design/loading-choreography.md. */
+.animate-arrive-in {
+  animation: arrive-in 200ms ease-out both;
+}
+
+@keyframes arrive-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/* Gap-filler that is INVISIBLE for its first 150ms and only then fades up.
+   `both` fills backwards through the delay, so a chunk or fetch that resolves
+   inside the window never paints a single pixel of it — the anti-flash costs
+   zero timers and zero JS. Use on placeholders ONLY (a reserved-height box, a
+   quiet frame); never on real content, which must never be held back. */
+.reveal-quiet {
+  animation: arrive-in 200ms ease-out both;
+  animation-delay: 150ms;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-tab-in,
   .animate-fade-in,
+  .animate-arrive-in,
   .stagger-children > * {
     animation: none;
+  }
+  /* The placeholder keeps its delay — that is anti-flash, not decoration — but
+     lands at full opacity with no fade. */
+  .reveal-quiet {
+    animation-name: hold-hidden;
+    animation-duration: 1ms;
+  }
+
+  /* Tailwind's own animation utilities carry NO reduced-motion behaviour:
+     `animate-spin` and `animate-pulse` run against the OS preference unless every
+     call site remembers `motion-reduce:animate-none`. It did not scale — 41 spins
+     and 9 pulses were ungated. One rule here covers them all, and any future one.
+
+     The two are treated differently on purpose. A shimmer carries no information,
+     so it stops outright (the same outcome Skeleton's explicit gate already
+     produced). A spinner does carry information — "work is in flight" — and a
+     frozen spinner reads as a hung app, so it keeps turning at 3s instead of
+     stopping: slow enough to be well clear of a vestibular trigger, alive enough
+     to stay honest. Reduced motion means less motion, not no feedback.
+
+     Unlayered on purpose: Tailwind's utilities live in `@layer utilities`, and an
+     unlayered rule beats a layered one in the cascade, so this wins without
+     `!important`. A call site that still wants a full stop keeps
+     `motion-reduce:animate-none` — same layer, later source order. */
+  .animate-spin {
+    animation-duration: 3s;
+    animation-timing-function: linear;
+  }
+  .animate-pulse {
+    animation: none;
+  }
+}
+
+/* Reduced-motion partner for .reveal-quiet: no fade, just "absent until the
+   delay elapses". */
+@keyframes hold-hidden {
+  from {
+    opacity: 0;
   }
 }
 

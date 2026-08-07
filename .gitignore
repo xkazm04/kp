@@ -1,5 +1,6 @@
 # Build outputs
 .next
+.next-empty
 node_modules
 tsconfig.tsbuildinfo
 
@@ -44,3 +45,6 @@ data/dumps/
 # mangled tmp\kp_*.json etc. written to the repo root
 tmpkp_*
 data/piper/
+
+# Personas app local state (outbox + registered-context list)
+.personas/

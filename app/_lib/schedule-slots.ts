@@ -24,6 +24,37 @@
  *  sorted so the proposal order is stable and a slot's identity is one canonical instant.
  *  NOTE: collision is still global (host-blind) — per-interviewer/per-job availability
  *  and real-calendar conflict avoidance are the deferred Phase 2. */
+// --- Invite link lifecycle: TTL / expiry (Direction 1) -------------------------
+//
+// A self-scheduling link used to be immortal: a pending invite that was never
+// booked sat live forever, unlike a voice-interview link (INTERVIEW_LINK_TTL_DAYS,
+// db/interviews.ts). Mirror that pattern here so a stale, never-booked link has an
+// honest terminal fate ("expired") instead of accepting a booking weeks later.
+//
+// Expiry is DERIVED, not a stored status — like isInterviewLinkExpired — so it needs
+// no migration and no write on existing rows: only a still-'pending' invite older
+// than the TTL is expired. A confirmed booking is live; declined/no_show are already
+// terminal. Kept here (pure, no DB) so the token route, the store, and the recruiter
+// lifecycle panel share ONE derivation and can't drift.
+
+/** How long a minted-but-never-booked self-scheduling link stays valid. Mirrors the
+ *  voice-interview link TTL (INTERVIEW_LINK_TTL_DAYS = 7) so the two capability links
+ *  age out on the same clock. */
+export const INVITE_LINK_TTL_DAYS = 7;
+
+const INVITE_LINK_TTL_MS = INVITE_LINK_TTL_DAYS * 86_400_000;
+
+/** True when a self-scheduling invite is a dead capability: still 'pending' (never
+ *  booked) and minted more than INVITE_LINK_TTL_DAYS ago. Derived — a confirmed
+ *  booking never expires this way, and the explicit terminal states (declined /
+ *  no_show) are already closed. `nowMs` is injectable for tests. */
+export function isScheduleInviteExpired(invite: { status: string; createdAt: string }, nowMs: number = Date.now()): boolean {
+  if (invite.status !== "pending") return false;
+  const created = Date.parse(invite.createdAt);
+  if (Number.isNaN(created)) return false;
+  return created < nowMs - INVITE_LINK_TTL_MS;
+}
+
 export function parseInterviewTimes(raw: string | undefined): readonly string[] {
   const DEFAULT = ["10:00", "14:00"];
   if (!raw) return DEFAULT;
@@ -161,4 +192,288 @@ export function offeredSlotFor(slotAtIso: unknown, nowMs: number = Date.now(), t
   // refused — the slot's identity is the instant, not just the displayed hour.
   if (ms !== zonedInstant(p.year, p.month, p.day, hh, mm, tz)) return null;
   return { value: new Date(ms).toISOString(), label: slotLabel(ms, time, tz) };
+}
+
+// --- Candidate "propose your own times" escalation ------------------------------
+//
+// Two dead-ends used to strand a candidate: after MAX_RESCHEDULES they were told to
+// "reply to your confirmation email", and when the whole horizon was booked the
+// needs_more_slots flag sat on the invite with no flow behind it. The escalation lets
+// a STUCK candidate name 1–MAX_PROPOSALS concrete times the recruiter can accept.
+//
+// This is still a candidate trust boundary (idea-e05aedfb's invariant): a proposed
+// time is only persisted as a slot the SERVER would consider sane — future, within the
+// horizon, a weekday, inside business hours in the interview zone, to the exact minute
+// — and its label is SERVER-authored, never candidate text. It is DELIBERATELY wider
+// than offeredSlotFor (any working hour, not just the two fixed offered times): the
+// candidate reaches this path precisely because the offered grid is exhausted. The
+// recruiter (trusted) then books an accepted proposal through the same collision-
+// checked transactions confirmScheduleInvite/rescheduleScheduleInvite already enforce.
+
+/** The business-hour window (interview zone) a candidate-PROPOSED time must fall in:
+ *  [startHour, endHour). Wider than the fixed offered times but still fenced to sane
+ *  weekday working hours so the trust boundary holds. */
+export const PROPOSAL_HOURS = { startHour: 8, endHour: 18 } as const;
+
+/** How many alternative times a stuck candidate may propose in one escalation. */
+export const MAX_PROPOSALS = 3;
+
+function pad2(n: number): string {
+  return String(n).padStart(2, "0");
+}
+
+/** Validate a single candidate-PROPOSED time and mint its canonical, server-authored
+ *  label — or null when it isn't a sane interview time: unparsable, past, beyond the
+ *  horizon, on a weekend, or outside business hours, all reckoned in the INTERVIEW
+ *  ZONE to the exact minute (stray seconds or a non-canonical offset are refused, like
+ *  offeredSlotFor). Unlike offeredSlotFor it accepts ANY business-day working hour, not
+ *  only the two fixed offered times. `nowMs` is injectable for tests. */
+export function proposedSlotFor(slotAtIso: unknown, nowMs: number = Date.now(), tz: string = INTERVIEW_TZ): { value: string; label: string } | null {
+  if (typeof slotAtIso !== "string" || slotAtIso.length === 0 || slotAtIso.length > 40) return null;
+  const ms = Date.parse(slotAtIso);
+  if (Number.isNaN(ms)) return null;
+  if (ms <= nowMs || ms > nowMs + MAX_SLOT_AHEAD_MS) return null;
+  const p = zonedParts(ms, tz);
+  if (p.weekday === 0 || p.weekday === 6) return null; // weekend in the interview zone
+  if (p.hour < PROPOSAL_HOURS.startHour || p.hour >= PROPOSAL_HOURS.endHour) return null; // outside business hours
+  // Demand the EXACT canonical instant for that wall time in the zone (reject stray
+  // seconds/ms or a non-offered UTC offset) — a slot's identity is the instant.
+  if (ms !== zonedInstant(p.year, p.month, p.day, p.hour, p.minute, tz)) return null;
+  const time = `${pad2(p.hour)}:${pad2(p.minute)}`;
+  return { value: new Date(ms).toISOString(), label: slotLabel(ms, time, tz) };
+}
+
+/** Validate a WHOLE candidate proposal batch (1–MAX_PROPOSALS times). Returns the
+ *  server-authored, de-duplicated slots (input order preserved) or null when the batch
+ *  is the wrong size or ANY instant fails proposedSlotFor — the route maps null to one
+ *  honest "suggest 1–3 future weekday working-hour times" message. */
+export function validateProposedSlots(raw: unknown, nowMs: number = Date.now(), tz: string = INTERVIEW_TZ): { value: string; label: string }[] | null {
+  if (!Array.isArray(raw) || raw.length === 0 || raw.length > MAX_PROPOSALS) return null;
+  const out: { value: string; label: string }[] = [];
+  const seen = new Set<string>();
+  for (const item of raw) {
+    const v = proposedSlotFor(item, nowMs, tz);
+    if (!v) return null;
+    if (seen.has(v.value)) continue; // drop an exact duplicate instant
+    seen.add(v.value);
+    out.push(v);
+  }
+  return out.length > 0 ? out : null;
+}
+
+// --- One scheduling engine: grid ⇄ canonical instant (Direction 3) --------------
+//
+// The manual week grid (ScheduleCalendar) speaks in timezone-less wall-clock strings
+// ("Tue 14:00"). These pure helpers bridge that abstraction to the invite engine's
+// canonical ISO instants so a grid confirm produces the SAME collision-checked,
+// reminder-eligible schedule_invites row a candidate self-booking does — one engine,
+// not two stores. Reckoned in the interview zone (never the server clock).
+
+const WD_INDEX: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+
+/** Resolve a recruiter grid pick ("Tue 14:00" — weekday + HH:MM in the interview
+ *  zone) to the next FUTURE canonical instant matching that weekday and time, with a
+ *  server-authored dated label. Unlike offeredSlotFor (the candidate trust boundary),
+ *  this accepts ANY business-day hour — the recruiter is trusted and the grid offers a
+ *  full working day. Returns null for a malformed pick or a weekend. Searches within
+ *  the scheduling horizon so the resolved instant always sits inside the offer window. */
+export function gridSlotToIso(gridSlot: string, nowMs: number = Date.now(), tz: string = INTERVIEW_TZ): { value: string; label: string } | null {
+  const m = /^([A-Za-z]{3})\s+([01]\d|2[0-3]):([0-5]\d)$/.exec(gridSlot.trim());
+  if (!m) return null;
+  const wd = WD_INDEX[m[1]];
+  if (wd === undefined || wd === 0 || wd === 6) return null; // unknown day or weekend
+  const hh = Number(m[2]);
+  const mm = Number(m[3]);
+  const time = `${m[2]}:${m[3]}`;
+  const today = zonedParts(nowMs, tz);
+  // Scan forward day-by-day; the first date whose interview-zone weekday matches AND
+  // whose instant is still in the future is the booking. A weekday recurs within 7
+  // days, so the loop always resolves for a valid weekday.
+  for (let day = 0; day <= SLOT_HORIZON_DAYS; day += 1) {
+    const d = new Date(Date.UTC(today.year, today.month - 1, today.day));
+    d.setUTCDate(d.getUTCDate() + day);
+    if (d.getUTCDay() !== wd) continue;
+    const ms = zonedInstant(d.getUTCFullYear(), d.getUTCMonth() + 1, d.getUTCDate(), hh, mm, tz);
+    if (ms <= nowMs) continue; // matched today but the time already passed → next week
+    return { value: new Date(ms).toISOString(), label: slotLabel(ms, time, tz) };
+  }
+  return null;
+}
+
+/** The absolute day+hour "bucket" of a canonical instant in the interview zone, e.g.
+ *  "2026-07-15T14" — the identity the recruiter WEEK GRID actually speaks in (its rows
+ *  are whole hours). Two bookings in the same interview-zone hour share a bucket even
+ *  when their minutes differ (a 14:00 grid pick and an accepted 14:30 proposal), so the
+ *  grid can treat the hour as occupied and the book handler can refuse to double-book it
+ *  — the store's collision authority is the exact INSTANT, which wouldn't catch this.
+ *  Absolute (dated), not weekday-based, so two different actual Wednesdays never
+ *  false-collide. Returns null for an unparsable instant. */
+export function hourBucketKey(iso: string | null | undefined, tz: string = INTERVIEW_TZ): string | null {
+  if (!iso) return null;
+  const ms = Date.parse(iso);
+  if (Number.isNaN(ms)) return null;
+  const p = zonedParts(ms, tz);
+  return `${p.year}-${pad2(p.month)}-${pad2(p.day)}T${pad2(p.hour)}`;
+}
+
+/** Place a canonical ISO instant back onto the week grid as its cell ("Tue 14:00"),
+ *  in the interview zone — so invite bookings (recruiter- or candidate-made) render on
+ *  the same grid. Off-hour bookings keep their true minutes ("Tue 14:30"); the grid
+ *  buckets them into the hour cell for display (see ScheduleCalendar). Returns null for
+ *  an unparsable instant or a weekend. */
+export function isoToGridSlot(iso: string | null | undefined, tz: string = INTERVIEW_TZ): string | null {
+  if (!iso) return null;
+  const ms = Date.parse(iso);
+  if (Number.isNaN(ms)) return null;
+  const p = zonedParts(ms, tz);
+  if (p.weekday === 0 || p.weekday === 6) return null;
+  const hh = String(p.hour).padStart(2, "0");
+  const mm = String(p.minute).padStart(2, "0");
+  return `${DOW[p.weekday]} ${hh}:${mm}`;
+}
+
+// --- Dated grid: a CONCRETE week, not a weekday column (Direction "grid gets real dates") ---
+//
+// gridSlotToIso resolves a weekday-relative pick ("Tue 14:00") to the NEXT future
+// Tuesday, so two different real Tuesdays collapse into one visual column and "book the
+// 22nd specifically" is inexpressible. These helpers anchor the grid to a DATED slot —
+// "YYYY-MM-DD HH:MM" in the interview zone — so a pick, a booked marker, and the
+// collision instant all name one true calendar day. gridSlotToIso/isoToGridSlot stay for
+// back-compat (the candidate flow + the route's legacy body.gridSlot branch + tests).
+
+/** Resolve a dated grid pick (interview-zone calendar date + wall time) to its canonical
+ *  ISO instant with a server-authored label — the DATED sibling of gridSlotToIso. The
+ *  recruiter is trusted, so any business-day hour is accepted; a weekend, a past instant,
+ *  or one beyond the scheduling horizon is refused (mirrors gridSlotToIso's future-only,
+ *  in-horizon guarantee). `nowMs`/`tz` injectable for tests. */
+export function dateSlotToIso(
+  date: string,
+  time: string,
+  nowMs: number = Date.now(),
+  tz: string = INTERVIEW_TZ
+): { value: string; label: string } | null {
+  const dm = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(date).trim());
+  const tm = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(String(time).trim());
+  if (!dm || !tm) return null;
+  const y = +dm[1];
+  const mo = +dm[2];
+  const dd = +dm[3];
+  if (mo < 1 || mo > 12 || dd < 1 || dd > 31) return null;
+  const hh = +tm[1];
+  const mm = +tm[2];
+  const ms = zonedInstant(y, mo, dd, hh, mm, tz);
+  if (Number.isNaN(ms)) return null;
+  if (ms <= nowMs || ms > nowMs + MAX_SLOT_AHEAD_MS) return null;
+  const p = zonedParts(ms, tz);
+  if (p.weekday === 0 || p.weekday === 6) return null; // weekend in the interview zone
+  return { value: new Date(ms).toISOString(), label: slotLabel(ms, `${tm[1]}:${tm[2]}`, tz) };
+}
+
+/** Place a canonical instant onto the DATED grid as "YYYY-MM-DD HH:MM" in the interview
+ *  zone — so a booking (recruiter- or candidate-made) seeds the exact calendar cell it
+ *  occupies, in its true week. Off-hour bookings keep their true minutes; the grid buckets
+ *  them into the hour row for display. Returns null for an unparsable instant or a weekend. */
+export function isoToDateSlot(iso: string | null | undefined, tz: string = INTERVIEW_TZ): string | null {
+  if (!iso) return null;
+  const ms = Date.parse(iso);
+  if (Number.isNaN(ms)) return null;
+  const p = zonedParts(ms, tz);
+  if (p.weekday === 0 || p.weekday === 6) return null;
+  return `${p.year}-${pad2(p.month)}-${pad2(p.day)} ${pad2(p.hour)}:${pad2(p.minute)}`;
+}
+
+/** One concrete weekday of the dated grid. `iso` is its interview-zone calendar date
+ *  ("YYYY-MM-DD"); `past` marks a day before today (rendered disabled). */
+export type GridDate = { iso: string; year: number; month: number; day: number; weekday: number; past: boolean };
+
+/** The concrete weeks (each Mon–Fri) the manual grid pages through: from the week
+ *  containing today to the week containing today + SLOT_HORIZON_DAYS, in the interview
+ *  zone — so the pager spans exactly the offer horizon and every booking falls in a
+ *  reachable week. Pure + zone-correct so the client grid and the server horizon agree.
+ *  `nowMs`/`tz` injectable for tests. */
+export function scheduleGridWeeks(nowMs: number = Date.now(), tz: string = INTERVIEW_TZ): GridDate[][] {
+  const today = zonedParts(nowMs, tz);
+  const todayNum = today.year * 10000 + today.month * 100 + today.day;
+  // Monday of today's week (UTC Y/M/D arithmetic — a calendar date's weekday is zone-stable).
+  const base = new Date(Date.UTC(today.year, today.month - 1, today.day));
+  const dow = base.getUTCDay(); // 0=Sun..6=Sat
+  const mondayOffset = dow === 0 ? -6 : 1 - dow;
+  const monday = new Date(base);
+  monday.setUTCDate(base.getUTCDate() + mondayOffset);
+  const horizonEnd = new Date(base);
+  horizonEnd.setUTCDate(base.getUTCDate() + SLOT_HORIZON_DAYS);
+  const weeks: GridDate[][] = [];
+  const cursor = new Date(monday);
+  while (cursor.getTime() <= horizonEnd.getTime()) {
+    const week: GridDate[] = [];
+    for (let i = 0; i < 5; i += 1) {
+      // Mon..Fri
+      const d = new Date(cursor);
+      d.setUTCDate(cursor.getUTCDate() + i);
+      const y = d.getUTCFullYear();
+      const mo = d.getUTCMonth() + 1;
+      const dd = d.getUTCDate();
+      week.push({
+        iso: `${y}-${pad2(mo)}-${pad2(dd)}`,
+        year: y,
+        month: mo,
+        day: dd,
+        weekday: d.getUTCDay(),
+        past: y * 10000 + mo * 100 + dd < todayNum,
+      });
+    }
+    weeks.push(week);
+    cursor.setUTCDate(cursor.getUTCDate() + 7);
+  }
+  return weeks;
+}
+
+/** The hour rows the manual week grid renders — derived from the configured interview
+ *  hours (KP_INTERVIEW_TIMES via parseInterviewTimes) UNIONED with the candidate-proposal
+ *  business-hour window, PLUS any hour a real booking already occupies (`extraHours`, e.g.
+ *  from the grid's own markers/picks). Read from process.env at CALL time so an env change
+ *  is honored. This closes the off-hour-vanish bug re-openable by config: the old grid
+ *  hardcoded 08:00–17:00, so a booking at a KP_INTERVIEW_TIMES hour OUTSIDE that band
+ *  matched no row and silently disappeared. Deduped, sorted, clamped to [00,23]. */
+export function interviewGridRows(extraHours: readonly string[] = []): string[] {
+  const hours = new Set<number>();
+  // The candidate-proposal window [startHour, endHour) — the widest set of sane weekday
+  // working hours a booking can land on (kept so the grid always shows a full working day).
+  for (let h = PROPOSAL_HOURS.startHour; h < PROPOSAL_HOURS.endHour; h += 1) hours.add(h);
+  // The configured offered interview times' hours (may sit OUTSIDE the proposal window).
+  for (const t of parseInterviewTimes(process.env.KP_INTERVIEW_TIMES)) {
+    const h = Number(t.slice(0, 2));
+    if (Number.isInteger(h)) hours.add(h);
+  }
+  // Any hour a real booking already occupies — the data-driven safety net so no
+  // configuration (even one the client can't read from env) yields an invisible booking.
+  for (const t of extraHours) {
+    const h = Number(String(t).slice(0, 2));
+    if (Number.isInteger(h)) hours.add(h);
+  }
+  return [...hours]
+    .filter((h) => h >= 0 && h <= 23)
+    .sort((a, b) => a - b)
+    .map((h) => `${pad2(h)}:00`);
+}
+
+// --- Grid-book integrity: the seal must reflect whether the entry actually advanced ----
+//
+// The interview_scheduled decision used to seal a clean "scheduled" outcome
+// UNCONDITIONALLY after the advance try/catch — so a stage-gate failure produced BOTH a
+// needs_reconcile flag AND a tamper-evident record asserting an outcome the pipeline never
+// reached. This derives the seal's outcome fields from whether the advance actually landed,
+// so the record stays honest (a booking that didn't advance seals a qualified reasonCode).
+
+/** Outcome fields for an interview_scheduled seal, keyed on whether the linked pipeline
+ *  entry advanced. Not-advanced (a stage-gate throw that flags needs_reconcile, or a
+ *  terminal entry whose approve_event no-ops) seals a qualified reasonCode + note instead
+ *  of a clean "scheduled" — the record must not assert a pipeline state that isn't real. */
+export function scheduledSealOutcome(advanced: boolean): { reasonCode: string; note: string } {
+  return advanced
+    ? { reasonCode: "interview_scheduled", note: "" }
+    : {
+        reasonCode: "interview_scheduled_unconfirmed",
+        note: " (Booking stands, but the pipeline stage did not advance — reconcile required.)",
+      };
 }

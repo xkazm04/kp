@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
-import { polarGatewayFromEnv } from "@/app/_lib/billing";
-import { getBillingState } from "@/app/_lib/db";
+import { billingOrgForWorkspace, polarGatewayFromEnv } from "@/app/_lib/billing";
+import { getBillingState } from "@/app/_lib/db/billing";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
+import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 
 
 // Customer portal (manage/cancel the subscription, download MoR invoices):
@@ -19,7 +20,8 @@ export async function POST() {
   if (!gateway) {
     return NextResponse.json({ error: "Billing is not configured." }, { status: 503 });
   }
-  const customerId = getBillingState()?.providerCustomerId;
+  // Org scope (org-plan Phase 3): mint the portal for the CALLER's org's customer.
+  const customerId = getBillingState(billingOrgForWorkspace(await currentWorkspace()))?.providerCustomerId;
   if (!customerId) {
     return NextResponse.json({ error: "No billing customer yet — complete a checkout first." }, { status: 404 });
   }

@@ -41,6 +41,36 @@ class CredentialChecksTest(unittest.TestCase):
         flags = credential_checks(jd, creds, today=TODAY)
         self.assertEqual(flags, [])
 
+    def test_two_year_expiry_uses_later_year_not_issue(self) -> None:
+        # bug-ui-scan-2026-07-09 (#5): a string carrying BOTH an issue and an expiry
+        # year must read the LATER (expiry) year. Pre-fix re.search grabbed 2020
+        # (issue) and false-flagged a still-current 2028 licence as expired.
+        jd = "Broker-dealer role; FINRA Series 7 required."
+        creds = [{"name": "FINRA Series 7", "expiry": "Issued 2020, expires 2028", "kind": "license"}]
+        flags = credential_checks(jd, creds, today=TODAY)
+        self.assertFalse(any("in the past" in f for f in flags))
+        self.assertEqual(flags, [])
+
+    def test_two_year_expiry_both_past_is_flagged(self) -> None:
+        # Both years past → the max (2019) is still < today → genuinely expired.
+        creds = [{"name": "FINRA Series 7", "expiry": "Issued 2013, expired 2019", "kind": "license"}]
+        flags = credential_checks("Broker-dealer role; FINRA Series 7 required.", creds, today=TODAY)
+        self.assertTrue(any("in the past" in f for f in flags))
+
+    def test_same_year_stray_number_is_not_read_as_month(self) -> None:
+        # bug-ui-scan-2026-07-09 (#5): expiry in the current year with no real month;
+        # a stray id ("#3") must not be read as month 3 and false-flag past. Pre-fix
+        # the yearless month scan matched "3" (< today's month 6) and flagged.
+        creds = [{"name": "FINRA Series 7", "expiry": "2026 renewal, cert #3", "kind": "license"}]
+        flags = credential_checks("Broker-dealer role; FINRA Series 7 required.", creds, today=TODAY)
+        self.assertEqual(flags, [])
+
+    def test_same_year_earlier_month_still_flagged(self) -> None:
+        # Guard: a real earlier-this-year month (03 < today's 06) still flags past.
+        creds = [{"name": "FINRA Series 7", "expiry": "2026-03", "kind": "license"}]
+        flags = credential_checks("Broker-dealer role; FINRA Series 7 required.", creds, today=TODAY)
+        self.assertTrue(any("in the past" in f for f in flags))
+
     def test_no_jd_and_no_creds_is_empty(self) -> None:
         self.assertEqual(credential_checks(None, None, today=TODAY), [])
 

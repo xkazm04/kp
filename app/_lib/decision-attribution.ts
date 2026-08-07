@@ -6,6 +6,8 @@
 // comm/ack/reminder sends, manual moves, intake kinds…) and every unmapped kind
 // rendered an UNKNOWN badge and fell out of any attribution math.
 //
+import { parseRematchDetail } from "@/app/features/shared/pipelineRematchLink";
+
 // Attribution semantics: `auto` = the system initiated the action (policy pass,
 // fan-out, dispatched comm, sentinel); `human` = a person did (a recruiter
 // click, a candidate reply). Browser-safe pure module — no DB imports.
@@ -25,6 +27,11 @@ export const DECISION_META: Record<string, DecisionMeta> = {
   rematched: { auto: true, tone: "text-steel" },
   rematched_from: { auto: true, tone: "text-steel" },
   outreach_sent: { auto: true, tone: "text-steel" },
+  // W2.3 — the two ways an outreach does NOT go out. Both are automated refusals, and
+  // both must render in the log: "we chose not to contact this person" is a decision, and
+  // an unmapped kind renders UNKNOWN and drops out of the attribution rollup entirely.
+  outreach_halted: { auto: true, tone: "text-steel" },
+  outreach_suppressed: { auto: true, tone: "text-amber-600" },
   rejection_sent: { auto: true, tone: "text-coral" },
   rejected: { auto: false, tone: "text-coral" },
   applied: { auto: false, tone: "text-steel" },
@@ -78,6 +85,21 @@ export const DECISION_META: Record<string, DecisionMeta> = {
   // withdrew — a HUMAN-initiated, positive restoration. Without a mapping it
   // rendered UNKNOWN in the decision log and fell out of any attribution rollup.
   role_reopened: { auto: false, tone: "text-moss" },
+  // A recruiter reversing an auto-rejection (reconsider queue → reinstate): the
+  // HUMAN counterweight to the machine's `auto_rejected`, and sealed into the same
+  // tamper-evident chain (pipeline/[id] reinstate route). Attributed to the human
+  // who overturned it — NEVER the machine — and tone-positive like the restoration
+  // it is. Without this it rendered UNKNOWN and the reversal vanished from the
+  // audit rollups even though its inverse (auto_rejected) was counted.
+  reinstated: { auto: false, tone: "text-moss" },
+  // The comparative group evaluation itself (group-eval-event-anchor): group-eval seals
+  // a group_eval_lead/advisory RECORD and now also writes a `group_eval` pipeline event
+  // at seal time, keyed on the lead's entry. The eval is SYSTEM-initiated (auto) — a
+  // background task synthesizing a ranking — so it credits the machine, not the recruiter
+  // who opened the modal. Steel (neutral-informational): it informs a decision, it is not
+  // itself an advance/reject. Without a mapping the event rendered UNKNOWN in the log and
+  // fell out of every attribution rollup.
+  group_eval: { auto: true, tone: "text-steel" },
 };
 
 // Policy-pass ALERT kinds — the aging/stale nudges evaluate_entry emits
@@ -172,6 +194,199 @@ export function kindLabel<T extends KindTranslator>(
     return t(`kinds.${kind}` as Parameters<T>[0]);
   }
   return kind.replace(/_/g, " ");
+}
+
+// ---- log-tells-the-whole-story: sealed-record joins for the decision log ----------
+//
+// Three structural blind spots in the decision log are closed by JOINING the log's
+// pipeline_events rows to the sealed decision-record store (per candidateRef), never
+// by adding event columns. These pure helpers hold the join/parse/localize logic so
+// the route stays a thin DB-orchestration shell and the honesty rules are unit-pinned.
+
+// (a) Group-eval cohort provenance. group-eval seals a `group_eval_lead` /
+// `group_eval_advisory` record (candidateRef = the crowned lead's entry id) whose
+// inputs carry cohortSource ("selection" | "top") + cohortSize (the full field) and
+// `candidates` (the compared cohort). A lead crowned over a recruiter-picked four ≠
+// one crowned over the whole fit-ranked field — this makes that provenance visible.
+export type CohortProvenance = { source: "selection" | "top"; compared: number; field: number };
+
+// The sealed record kinds that carry cohort provenance.
+const GROUP_EVAL_RECORD_KINDS: ReadonlySet<string> = new Set(["group_eval_lead", "group_eval_advisory"]);
+
+// The LOG-row kinds a group-eval decision manifests as: the crowned lead being moved
+// forward. Gating to these kinds means an unrelated event for the same candidate can
+// never inherit a provenance it didn't produce (never guess).
+export const GROUP_EVAL_OUTCOME_KINDS: ReadonlySet<string> = new Set(["advanced", "auto_advanced"]);
+
+// group-eval-event-anchor — the DIRECT provenance anchor. group-eval now writes a
+// `group_eval` pipeline event at seal time (group-eval-run.ts, BOTH the recommendation
+// and advisory branches), keyed on the lead's entry. Because that event is written in the
+// same call as the sealed group_eval_lead/advisory record, matchCohortProvenance over the
+// event's OWN createdAt resolves the cohort at a ~0-delta match — a deterministic anchor,
+// not a time-window guess. It also gives provenance a visible log row when the lead is
+// never advanced (an advisory/committee run) or is advanced hours later by someone else —
+// the two blind spots the advance-only window join could not cover.
+//
+// PRECEDENCE (implemented in api/analytics/decisions enrichPage): a group_eval EVENT row
+// is enriched DIRECTLY from its own seal moment. An advance OUTCOME row PREFERS that direct
+// anchor — when its entry has a group_eval event, the advance row does NOT window-join
+// (the group_eval row already carries the chip; a duplicate/possibly-mismatched chip is
+// avoided). It falls back to the 6h nearest-seal window ONLY for pre-existing data: leads
+// advanced before this event kind existed, whose sole provenance signal is the old window.
+export const GROUP_EVAL_EVENT_KIND = "group_eval";
+
+// Proximity window for the group-eval FALLBACK join (pre-existing data with no direct
+// anchor). The crowned lead is advanced in the same review session as the eval; a wider
+// window would risk pairing an unrelated later advance with a stale eval. Nearest sealed
+// record within the window wins.
+export const GROUP_EVAL_JOIN_WINDOW_MS = 6 * 60 * 60 * 1000;
+
+/** Read cohort provenance out of a sealed record's payload_json, or null when the
+ *  shape is absent/invalid (older seals, non-eval kinds) — so a malformed record shows
+ *  nothing rather than a fabricated cohort. */
+export function parseCohortProvenance(payloadJson: string): CohortProvenance | null {
+  let inputs: unknown;
+  try {
+    inputs = (JSON.parse(payloadJson) as { inputs?: unknown }).inputs;
+  } catch {
+    return null;
+  }
+  if (!inputs || typeof inputs !== "object") return null;
+  const o = inputs as Record<string, unknown>;
+  const source = o.cohortSource;
+  if (source !== "selection" && source !== "top") return null;
+  const field = Number(o.cohortSize);
+  const compared = Number(o.candidates);
+  if (!Number.isFinite(field) || field <= 0) return null;
+  if (!Number.isFinite(compared) || compared <= 0) return null;
+  return { source, compared, field };
+}
+
+// (a2) AI Act Art. 12 traceability (W0.3). A sealed group-eval record states the
+// OUTCOME (who led, over what cohort, how separated). Reconstructing the decision also
+// needs the two things that produced it: WHICH prompt version generated the reasoning,
+// and what the model actually SAID about the candidate it crowned. Both are now written
+// into `inputs` at seal time (group-eval-run.ts); this reads them back.
+//
+// Absent on pre-W0.3 seals and on runs where no LLM produced reasoning — the honest
+// answer there is "not recorded", never a reconstruction after the fact, so the parser
+// returns null rather than inventing an empty-but-present block.
+export type SealTraceability = {
+  /** Reasoning prompt version(s) behind the cohort. Plural: a cache straddling a prompt
+   *  bump can legitimately mix two, and collapsing that would misreport the record. */
+  promptVersion: string[];
+  /** The model's own words for the crowned lead, verbatim (clipped at seal time). */
+  leadReasoning: { verdict: string; strengths: string[]; gaps: string[] } | null;
+};
+
+const strList = (v: unknown): string[] =>
+  Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
+
+/** Read Art. 12 traceability out of a sealed record's payload_json, or null when the
+ *  record predates it / carried no model reasoning. */
+export function parseSealTraceability(payloadJson: string): SealTraceability | null {
+  let inputs: unknown;
+  try {
+    inputs = (JSON.parse(payloadJson) as { inputs?: unknown }).inputs;
+  } catch {
+    return null;
+  }
+  if (!inputs || typeof inputs !== "object") return null;
+  const o = inputs as Record<string, unknown>;
+  const promptVersion = strList(o.promptVersion);
+  const lr = o.leadReasoning;
+  const leadReasoning =
+    lr && typeof lr === "object"
+      ? {
+          verdict: typeof (lr as Record<string, unknown>).verdict === "string" ? ((lr as Record<string, unknown>).verdict as string) : "",
+          strengths: strList((lr as Record<string, unknown>).strengths),
+          gaps: strList((lr as Record<string, unknown>).gaps),
+        }
+      : null;
+  // A block with neither a prompt version nor any model text carries no traceability —
+  // report its absence instead of an empty shell that reads as "recorded, but blank".
+  const hasReasoning = !!leadReasoning && (leadReasoning.verdict !== "" || leadReasoning.strengths.length > 0 || leadReasoning.gaps.length > 0);
+  if (promptVersion.length === 0 && !hasReasoning) return null;
+  return { promptVersion, leadReasoning: hasReasoning ? leadReasoning : null };
+}
+
+// The minimal structural shape of a sealed record this module needs — declared
+// locally so this pure module never imports the server-side decision-record-store.
+type SealedRecordLike = { kind: string; reasonCode: string; createdAt: string; payloadJson: string };
+
+/** Nearest group-eval record (by |Δt|) to an event, within `windowMs`, or null. Pure
+ *  over (eventCreatedAt, records) so the join is testable without a DB. */
+export function matchCohortProvenance(
+  eventCreatedAt: string,
+  records: readonly SealedRecordLike[],
+  windowMs: number = GROUP_EVAL_JOIN_WINDOW_MS
+): CohortProvenance | null {
+  const et = Date.parse(eventCreatedAt);
+  if (Number.isNaN(et)) return null;
+  let best: CohortProvenance | null = null;
+  let bestDelta = Infinity;
+  for (const r of records) {
+    if (!GROUP_EVAL_RECORD_KINDS.has(r.kind)) continue;
+    const rt = Date.parse(r.createdAt);
+    if (Number.isNaN(rt)) continue;
+    const delta = Math.abs(rt - et);
+    if (delta > windowMs || delta >= bestDelta) continue;
+    const prov = parseCohortProvenance(r.payloadJson);
+    if (!prov) continue;
+    best = prov;
+    bestDelta = delta;
+  }
+  return best;
+}
+
+// (b) The sealed auto-reject reason. The screen wave seals an `auto_rejected` record
+// carrying reasonCode "reject" + the decisive numbers (reasonParams). The reconsider
+// queue already reads this; the log row saw only the free-text detail.
+export type SealedReason = { reasonCode: string; reasonParams: Record<string, string | number> };
+
+/** The latest sealed reason for `forKind` among a candidate's records (records arrive
+ *  seq-DESC, so the first match is the most recent), or null. Same read the reconsider
+ *  route does — reasonCode + the record's inputs as the interpolation params. */
+export function sealedReasonOf(records: readonly SealedRecordLike[], forKind: string): SealedReason | null {
+  const rec = records.find((r) => r.kind === forKind);
+  if (!rec) return null;
+  let params: Record<string, string | number> = {};
+  try {
+    const inputs = (JSON.parse(rec.payloadJson) as { inputs?: unknown }).inputs;
+    if (inputs && typeof inputs === "object") params = inputs as Record<string, string | number>;
+  } catch {
+    /* unreadable payload — fall back to the bare code with no interpolation */
+  }
+  return { reasonCode: rec.reasonCode, reasonParams: params };
+}
+
+// A next-intl translator scoped to "decisions.wave" (loosely typed so this pure module
+// stays free of a next-intl import — kindLabel uses the same trick).
+type WaveReasonTranslator = { (key: never, params?: never): string; has(key: never): boolean };
+
+/** Localize a sealed screening reason through the decisions.wave.reasons.* catalog —
+ *  the ONE resolver shared by the reconsider queue (DecisionsTab), the decision-records
+ *  panel, and the decision log, so all three read a sealed reason identically. A sealed
+ *  record is always committed, so "reject" uses the "did" phrasing + the tie note; an
+ *  unmapped code returns null so the caller falls back (plain text / English rationale). */
+export function waveReasonText<T extends WaveReasonTranslator>(t: T, reason: SealedReason): string | null {
+  const p = reason.reasonParams;
+  if (reason.reasonCode === "reject") {
+    if (!t.has("reasons.rejectDid" as never)) return null;
+    const base = t("reasons.rejectDid" as never, p as never);
+    const tie = Number(p.tieAdjusted) > 0 ? ` ${t("reasons.tieAdjustedNote" as never, { from: Number(p.tieAdjusted) } as never)}` : "";
+    return base + tie;
+  }
+  const key = `reasons.${reason.reasonCode}`;
+  return t.has(key as never) ? t(key as never, p as never) : null;
+}
+
+// (c) Rematch counterpart. rematched/rematched_from rows carry the counterpart pipeline
+// entry id inside their detail string, but no link. The detail wire format is OWNED by
+// pipeline-rematch-link.ts (the drawer's parser, shipped the same round) — this is a
+// thin adapter over that ONE parser so the two surfaces can never drift on the format.
+export function parseRematchCounterpartId(kind: string, detail: string | null): string | null {
+  return parseRematchDetail(kind, detail)?.entryId ?? null;
 }
 
 export type AutomationImpact = {

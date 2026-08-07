@@ -1,7 +1,5 @@
 import { test, beforeEach, after } from "node:test";
 import assert from "node:assert/strict";
-import os from "node:os";
-import path from "node:path";
 import fs from "node:fs";
 import { registerHooks } from "node:module";
 import { fileURLToPath } from "node:url";
@@ -34,9 +32,17 @@ registerHooks({
 
 // Point the store at a throwaway DB BEFORE importing it: db-path reads KP_DB_PATH at module
 // load, and the store opens its connection lazily, so the override is in force by first use.
-// node --test isolates each test file in its own process, so this env mutation can't leak.
-const TMP = path.join(os.tmpdir(), `kp-dev-outcomes-test-${process.pid}.sqlite`);
-process.env.KP_DB_PATH = TMP;
+// This MUST stay the first project import.
+//
+// It used to be a hand-rolled `os.tmpdir()/kp-dev-outcomes-test-${process.pid}.sqlite`.
+// `--test-isolation=process` gives each FILE a fresh process, but the OS RECYCLES pids: a
+// later run drawing a pid this file had used before re-opened that run's leftover database
+// and inherited its committed rows (the after() unlink is best-effort and silently loses to
+// the store's still-open handle on Windows). unit-db.ts is the repo-wide fix: a mkdtemp'd run
+// directory (unique by construction, never pid-derived), a liveness-gated sweep of abandoned
+// dirs, and cleanupUnitDb() to remove our own.
+const { cleanupUnitDb, UNIT_DB_PATH: TMP } = await import("./testing/unit-db.ts");
+after(cleanupUnitDb);
 
 const { recordOutcome, recordPipelineOutcome, latestOutcomeByRefs, listOutcomes, calibrate } = await import("./dev-outcomes.ts");
 
@@ -72,19 +78,6 @@ beforeEach(() => {
   const d = new Database(TMP);
   d.prepare(`DELETE FROM dev_outcomes`).run();
   d.close();
-});
-
-after(() => {
-  // Best-effort: the store's connection is still open (no close hook); on Windows an
-  // open SQLite file can't be unlinked, so swallow the error — the temp file is
-  // disposable and the process exits next.
-  for (const f of [TMP, `${TMP}-wal`, `${TMP}-shm`]) {
-    try {
-      fs.rmSync(f, { force: true });
-    } catch {
-      /* file locked / absent — fine */
-    }
-  }
 });
 
 test("a first outcome inserts a fresh row", () => {
@@ -135,6 +128,37 @@ test("a refless entry with a DIFFERENT outcome is a fresh row, not a correction"
   const verdict = recordOutcome({ candidateRef: "alice", outcome: "rejected" });
   assert.equal(verdict, "inserted"); // same name, different outcome — e.g. another posting
   assert.equal(rows().length, 2);
+});
+
+// bug-ui-scan-2026-07-09 (dev-lifecycle-cohort-outcomes #3): the refless key
+// (candidateRef, outcome) is not a stable identity — two DIFFERENT real people who share a
+// common name and outcome must not collapse into one row. A refless entry asserting its own,
+// DIFFERENT predicted score is a distinct outcome and must insert, not overwrite the first's
+// score (which silently biases calibration). Pre-fix this UPDATEd in place — one row, the
+// second score clobbering the first — so these assertions (2 rows, both scores preserved)
+// FAIL against the old blind-update.
+test("a refless entry with a DIFFERENT predicted score does not merge into a same-name row", () => {
+  const a = recordOutcome({ candidateRef: "J. Smith", outcome: "hired", predictedScore: 90 });
+  assert.equal(a, "inserted");
+  const b = recordOutcome({ candidateRef: "J. Smith", outcome: "hired", predictedScore: 60 });
+  assert.equal(b, "inserted"); // a distinct person/posting — NOT a correction of the first
+  const all = rows();
+  assert.equal(all.length, 2);
+  const scores = all.map((r) => r.predicted_score).sort((x, y) => (x ?? 0) - (y ?? 0));
+  assert.deepEqual(scores, [60, 90]); // the first row's 90 survived — nothing was overwritten
+});
+
+// The legitimate completion path is preserved: a refless entry with NO score (or the SAME
+// score) still updates the matched row in place, so the "add a perf score to the alice hire"
+// dedup keeps working and never mints a second decided row.
+test("a refless completion with no / matching predicted score still updates in place", () => {
+  recordOutcome({ candidateRef: "alice", outcome: "hired", predictedScore: 80 });
+  assert.equal(recordOutcome({ candidateRef: "alice", outcome: "hired", performance: 4 }), "updated"); // no score → completes
+  assert.equal(recordOutcome({ candidateRef: "alice", outcome: "hired", predictedScore: 80, performance: 5 }), "updated"); // same score → completes
+  const all = rows();
+  assert.equal(all.length, 1);
+  assert.equal(all[0].performance, 5);
+  assert.equal(all[0].predicted_score, 80);
 });
 
 test("recordPipelineOutcome stays idempotent per (ref, outcome) and a re-transition updates the one row", () => {

@@ -15,7 +15,9 @@ from pipeline.jobfit.eval import interview_eval as ie
 from pipeline.jobfit.eval.interview_eval import (
     CLOSING,
     NON_NEGOTIABLES,
+    PERSONA_CRAFT_CONDENSED,
     PERSONA_GENDER_GRAMMAR,
+    PERSONA_HOSTILITY,
     PERSONA_LANGUAGE_DETECT,
     PERSONA_ONE_QUESTION,
     Row,
@@ -584,6 +586,10 @@ class TestBriefDriftGuard(unittest.TestCase):
             ("PERSONA_GENDER_GRAMMAR", PERSONA_GENDER_GRAMMAR),
             ("PERSONA_LANGUAGE_DETECT", PERSONA_LANGUAGE_DETECT),
             ("PERSONA_ONE_QUESTION", PERSONA_ONE_QUESTION),
+            ("PERSONA_CRAFT_CONDENSED", PERSONA_CRAFT_CONDENSED),
+            # P7 is not shipped (language-drift regression), but the constant stays synced so a
+            # future retry starts from the last-tested wording.
+            ("PERSONA_HOSTILITY", PERSONA_HOSTILITY),
             ("NON_NEGOTIABLES", NON_NEGOTIABLES),
             ("CLOSING", CLOSING),
         ]:
@@ -594,6 +600,32 @@ class TestBriefDriftGuard(unittest.TestCase):
         for brief in (default_brief("a role"), student_brief("a role")):
             self.assertIn("Do not give feedback, scores", brief)
             self.assertIn(PERSONA_LANGUAGE_DETECT, brief)
+
+
+class TestLanguageLockParity(unittest.TestCase):
+    """The runtime TS language-lock verdict (app/_lib/voice/language-lock.ts) is a port
+    of this file's offline _check_language_consistency. Both read the SAME shared fixtures
+    (pipeline/jobfit/eval/language_lock_fixtures.json); the port keeps the trichotomy
+    (locked/drifted/indeterminate) while the offline check is binary (flag or pass). Parity:
+    the offline check must flag (return non-None) EXACTLY the cases the TS side marks 'drifted'.
+    If either side's word lists drift, one of these suites goes red."""
+
+    @classmethod
+    def setUpClass(cls):
+        import json
+
+        path = Path(__file__).resolve().parents[1] / "eval" / "language_lock_fixtures.json"
+        cls.cases = json.loads(path.read_text(encoding="utf-8"))["cases"]
+
+    def test_offline_check_flags_exactly_the_drifted_cases(self):
+        for case in self.cases:
+            with self.subTest(case=case["name"]):
+                issue = ie._check_language_consistency(case["turns"], ended=True, errored=False)
+                self.assertEqual(
+                    issue is not None,
+                    case["expect"] == "drifted",
+                    f"{case['name']}: offline flag={issue!r} disagrees with expect={case['expect']!r}",
+                )
 
 
 if __name__ == "__main__":

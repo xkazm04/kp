@@ -18,7 +18,7 @@ from typing import Any
 
 from ..claude_cli import ClaudeCliProvider
 from .lifecycle_eval import LEVERS, Row, run
-from .llm_judge import run_judge
+from .llm_judge import judge_independence, run_judge
 from .scenarios import Scenario
 
 
@@ -111,13 +111,30 @@ def role_fit_verdicts(rows: list[Row], provider: ClaudeCliProvider, workers: int
     return verdicts
 
 
-def audit_role_fit(scenarios: list[Scenario], provider: ClaudeCliProvider, workers: int = 4) -> dict[str, Any]:
+def audit_role_fit(
+    scenarios: list[Scenario],
+    provider: ClaudeCliProvider,
+    workers: int = 4,
+    *,
+    judge_provider: Any | None = None,
+) -> dict[str, Any]:
     """On role-vs-context MISMATCH/INCOHERENT scenarios, a BINARY judge asks whether the case's
     tasks match the ROLE's function or drift to the context's domain — far more sensitive than
-    absolute 1-5 scoring (which is swamped by judge variance)."""
+    absolute 1-5 scoring (which is swamped by judge variance).
+
+    ``provider`` GENERATES the cases; ``judge_provider`` grades them. They default to the same
+    object for backwards compatibility, but that is the self-grading case — the returned
+    ``independence`` block reports it so a caller can refuse to certify the number."""
+    judge_provider = judge_provider or provider
     subset = [s for s in scenarios if s.planted.get("mismatch") or s.planted.get("incoherent")]
     rows = run(subset, provider, workers=workers)
-    verdicts = role_fit_verdicts(rows, provider, workers=workers)
+    verdicts = role_fit_verdicts(rows, judge_provider, workers=workers)
     judged = [v for v in verdicts if v["matchesRole"] is not None]
     rate = sum(1 for v in judged if v["matchesRole"]) / len(judged) if judged else None
-    return {"subset": len(subset), "judged": len(judged), "role_fit_rate": round(rate, 3) if rate is not None else None, "verdicts": verdicts}
+    return {
+        "subset": len(subset),
+        "judged": len(judged),
+        "role_fit_rate": round(rate, 3) if rate is not None else None,
+        "independence": judge_independence(provider, judge_provider),
+        "verdicts": verdicts,
+    }

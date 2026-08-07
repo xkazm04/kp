@@ -23,7 +23,10 @@ export type BillingAction =
   // `unmapped` marks an ignore that is NOT benign: a money event (a paying
   // subscription) whose product id isn't in the configured map, so the subscriber
   // is silently never entitled. The apply step logs these loudly (config drift).
-  | { kind: "ignore"; reason: string; unmapped?: boolean };
+  // `providerRef` (unmapped only) is a stable dedupe key so repeated events for the
+  // SAME dark subscription collapse to one open alert instead of piling up N rows.
+  // bug-ui-scan-2026-07-09 (billing-engine-webhooks #5)
+  | { kind: "ignore"; reason: string; unmapped?: boolean; providerRef?: string };
 
 // Provider statuses that mean "the subscription is gone, drop to free".
 const ENDED_STATUSES = new Set(["revoked", "ended", "incomplete_expired", "expired"]);
@@ -113,7 +116,16 @@ export function reduceBillingEvent(event: BillingEvent, products: ProductMap): B
       // A real subscription event whose product id isn't a configured plan — almost
       // always POLAR_PRODUCT_* env drift. Mark it `unmapped` so apply surfaces it
       // loudly instead of treating a paid-but-dark subscription as a benign no-op.
-      return { kind: "ignore", reason: `subscription event for unmapped product ${event.productId ?? "?"}`, unmapped: true };
+      // Carry a stable providerRef (the dark subscription, else its product) so the
+      // apply step's alert dedupes: repeated subscription.updated deliveries for the
+      // same misconfiguration collapse to ONE open alert instead of N duplicates.
+      // bug-ui-scan-2026-07-09 (billing-engine-webhooks #5)
+      return {
+        kind: "ignore",
+        reason: `subscription event for unmapped product ${event.productId ?? "?"}`,
+        unmapped: true,
+        providerRef: `unmapped:${event.subscriptionId ?? event.productId ?? "unknown"}`,
+      };
     }
     const normalized = STATUS_MAP[status];
     if (!normalized) {
@@ -134,15 +146,21 @@ export function reduceBillingEvent(event: BillingEvent, products: ProductMap): B
   if (event.kind === "order") {
     const mapped = event.productId ? products[event.productId] : undefined;
     if (mapped?.kind === "pack") {
+      // Units delivered = fixed pack size × ordered quantity. mapPolarEvent clamps
+      // quantity to a positive integer (default 1), so single-unit orders are
+      // unchanged; a multi-unit checkout (Polar supports quantity on one-time
+      // products) now grants the full N×pack the customer paid for instead of one
+      // pack. bug-ui-scan-2026-07-09 (billing-engine-webhooks #4)
+      const units = mapped.qty * (event.quantity ?? 1);
       // Grant only on the PAID signal: Polar fires order.created before the
       // payment is captured — crediting there would hand out minutes for an
       // order that may never settle. Subscribing to order.paid is part of the
-      // endpoint checklist (docs/BILLING.md).
+      // endpoint checklist (docs/features/billing/README.md).
       if (event.type === "order.paid") {
         return {
           kind: "grant_credits",
           meter: mapped.meter,
-          qty: mapped.qty,
+          qty: units,
           // The order id (not the event id) is the dedupe ref: the same order can
           // arrive on several event types/redeliveries; it must grant once.
           providerRef: event.orderId ?? event.id,
@@ -160,11 +178,15 @@ export function reduceBillingEvent(event: BillingEvent, products: ProductMap): B
         // the minute pack is one indivisible SKU (there are no partial packs), so any
         // refund undoes the whole grant. The displayed balance is clamped to >=0 in
         // meterOverview so a claw-back past already-spent minutes never reads negative.
+        // Reverse the FULL granted total (pack × ordered quantity): the order object
+        // carries the same quantity on the refund event as on order.paid, so the debit
+        // matches the grant for multi-unit orders. bug-ui-scan-2026-07-09
+        // (billing-engine-webhooks #4)
         const ref = event.orderId ? `${event.orderId}:refund` : `${event.id}:refund`;
         return {
           kind: "grant_credits",
           meter: mapped.meter,
-          qty: -mapped.qty,
+          qty: -units,
           providerRef: ref,
           reason: `pack refund (${event.type})`,
         };

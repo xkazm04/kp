@@ -37,11 +37,12 @@ export function interviewedForJob(jobId: string, workspaceId: string = DEFAULT_W
       // Include completed interviews even when the scorecard is missing (empty
       // transcript or a synthesis failure) — they render with blank ratings so a
       // finished interview is visible for manual review rather than silently gone.
-      `SELECT entry_id, candidate_label, scorecard_json, ended_at FROM interview_sessions
+      `SELECT id, entry_id, candidate_label, scorecard_json, ended_at FROM interview_sessions
        WHERE job_id = ? AND status = 'completed' AND workspace_id = ?
        ORDER BY ended_at DESC`
     )
     .all(jobId, workspaceId) as {
+    id: string;
     entry_id: string | null;
     candidate_label: string | null;
     scorecard_json: string | null;
@@ -51,7 +52,12 @@ export function interviewedForJob(jobId: string, workspaceId: string = DEFAULT_W
   const seen = new Set<string>();
   const out: InterviewedCandidate[] = [];
   for (const r of rows) {
-    const key = r.entry_id ?? r.candidate_label ?? String(out.length);
+    // bug-ui-scan-2026-07-09 (interview-simulation-comparison #4) — dedup "latest
+    // interview per candidate" on entry_id; fall back to the globally-unique
+    // session id (NOT candidate_label) when there's no entry. Two entry-less
+    // completed sessions sharing a label are DIFFERENT candidates whose real
+    // second interview used to collapse into the first and vanish from compare.
+    const key = r.entry_id ?? r.id;
     if (seen.has(key)) continue; // latest interview per candidate
     seen.add(key);
     const sc: {
@@ -389,6 +395,21 @@ export function completeInterviewSession(
       id
     );
   return { session: getInterviewSessionById(id), applied: res.changes > 0 };
+}
+
+/** Persist the provider that ACTUALLY served a session — written by /connect when
+ *  it fails over to the alternate provider (the preferred one's connect threw). The
+ *  ledger row (voiceUsageRow) and the completion path both read session.provider, so
+ *  updating it here keeps cost attribution + telemetry pointed at what served, not at
+ *  what was requested. Guarded to a live (non-completed) row so a raced /complete
+ *  can't be perturbed. */
+export function setInterviewSessionProvider(id: string, provider: VoiceProviderId): void {
+  const db = ensureDb();
+  db.prepare(`UPDATE interview_sessions SET provider=?, updated_at=? WHERE id=? AND status != 'completed'`).run(
+    provider,
+    new Date().toISOString(),
+    id
+  );
 }
 
 /** Attach the synthesized scorecard to an already-persisted session. Separate

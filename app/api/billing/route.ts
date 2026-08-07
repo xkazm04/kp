@@ -1,16 +1,21 @@
 import { NextResponse } from "next/server";
 import { billingOverview, PACKS, PLANS, polarGatewayFromEnv } from "@/app/_lib/billing";
+import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 
 
-// Billing overview (docs/BILLING.md): the entitled plan, per-meter allowance
+// Billing overview (docs/features/billing/README.md): the entitled plan, per-meter allowance
 // state (included limit, month's usage, prepaid credits, remaining), and the
 // catalogs the pricing UI renders. `configured` tells the UI whether checkout
 // is wired (Polar env present) or the workspace is running unbilled local-dev.
 
 export async function GET() {
   try {
+    // Org scope (org-plan Phase 3): the overview reads the CALLER's org via their
+    // session workspace (billingOverview → billingOrgForWorkspace). Single-tenant
+    // sessions resolve to the default org — the exact rows this always read.
+    const workspace = await currentWorkspace();
     return NextResponse.json({
-      ...billingOverview(),
+      ...billingOverview(new Date(), workspace),
       configured: polarGatewayFromEnv() !== null,
       catalog: { plans: PLANS, packs: PACKS },
     });

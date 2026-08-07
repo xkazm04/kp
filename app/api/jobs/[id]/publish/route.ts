@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { activeJobsGate } from "@/app/_lib/billing";
-import { createPipelineEntry, ensureDb, getJob, reopenEntriesByJobId } from "@/app/_lib/db";
+import { ensureDb } from "@/app/_lib/db/core";
+import { canWriteJobLifecycle, getJob } from "@/app/_lib/db/jobs";
+import { createPipelineEntry, reopenEntriesByJobId } from "@/app/_lib/db/pipeline";
 import { countPublishedJobs, getJobStatus, setJobStatus } from "@/app/_lib/job-ingest";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { runSourceForRole } from "@/app/_lib/devcase-run";
 import { raiseRediscoveryAlertsForJob } from "@/app/_lib/rediscover";
-import { splitRequirements } from "@/app/features/sub_jobs/JobsTypes";
+import { splitRequirements } from "@/app/features/library/jobs/JobsTypes";
 
 export const maxDuration = 60;
 
@@ -15,13 +17,20 @@ export const maxDuration = 60;
 //
 // User-facing this is "Source into Pipeline" (internal go-live), NOT external
 // "Publish to job boards". The route name and the 'published' DB status are kept
-// as a stable contract. See docs/JD_LIFECYCLE.md.
+// as a stable contract. See docs/features/jobs/README.md.
 export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
   const ws = await currentWorkspace();
   try {
     const job = getJob(id);
     if (!job) return NextResponse.json({ error: "Job not found." }, { status: 404 });
+    // Ownership gate (mirrors /close): setJobStatus is a bare by-id UPDATE, so without
+    // this workspace B could force workspace A's draft live — on B's quota — and the
+    // reopen below would restore A's withdrawn entries into B's scope. Seeded corpus
+    // rows (workspace_id NULL) stay publishable by every tenant: that is how a tenant
+    // adopts a shared corpus role. See canWriteJobLifecycle. 404 (not 403) so the
+    // endpoint doesn't confirm another tenant's job id exists.
+    if (!canWriteJobLifecycle(id, ws)) return NextResponse.json({ error: "Job not found." }, { status: 404 });
 
     // Billing hard gate: the free plan allows 1 concurrently-active authored job.
     // Re-publishing an already-live job is always allowed (idempotent). The count
@@ -34,7 +43,9 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       const prevStatus = getJobStatus(id);
       const wasPublished = prevStatus === "published";
       if (wasPublished) return { already: true, wasClosed: false, quota: null };
-      const quota = activeJobsGate(countPublishedJobs(ws));
+      // Org attribution (org-plan Phase 3): the plan read follows the caller's
+      // tenant; the count is already workspace-filtered.
+      const quota = activeJobsGate(countPublishedJobs(ws), new Date(), ws);
       if (!quota) setJobStatus(id, "published");
       // A reopen is a closed→published transition; remember it so the entries this
       // role's close withdrew are restored explicitly below (not left to sourcing).
@@ -117,7 +128,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // are excluded by rediscoverForJob (they're now active in this role).
     let silverMedalists = 0;
     if (!already) {
-      silverMedalists = await raiseRediscoveryAlertsForJob(id, { signal: request.signal });
+      silverMedalists = await raiseRediscoveryAlertsForJob(id, { signal: request.signal, workspaceId: ws });
     }
 
     // `skipped` = candidates whose payload failed to parse (not low matches), so an empty

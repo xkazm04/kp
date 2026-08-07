@@ -20,25 +20,34 @@ import math
 import re
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, NamedTuple
 
 from pydantic import Field, field_validator
 
 from . import registry
 from .jobs import Job
 from .models import _Base
-from .taxonomy import DEFAULT_PROVENANCE, skill_match_score
+from .taxonomy import (
+    DEFAULT_PROVENANCE,
+    LANGUAGE_ALIASES,
+    _one_side_fallback_score,
+    normalize_text,
+    provenance_weight,
+    resolve_term,
+    skill_match_score,
+    term_match_score,
+    unresolved_pair_score,
+)
 
 _SENIORITY_RANK = {"junior": 1, "medior": 2, "senior": 3, "lead": 4}
 _EDU_RANK = {"none": 0, "university": 1, "bachelor": 2, "master": 3, "phd": 4}
 
-# Language alias buckets so "Czech (native)" satisfies a "Czech" requirement.
-_LANG_ALIASES = {
-    "english": ("english", "angli", "en "),
-    "czech": ("czech", "česk", "cesk", "čeština", "cestina"),
-    "german": ("german", "deutsch", "němč", "nemc"),
-    "slovak": ("slovak", "slovenš", "slovens"),
-}
+# Language alias buckets so "Czech (native)" satisfies a "Czech" requirement. Now
+# data-driven (data/taxonomy.json::language_aliases, loaded + validated in
+# taxonomy.py) so a new required language is config, not a code edit here; when a
+# required language has no bucket, _has_language falls back to raw matching on the
+# requirement string itself.
+_LANG_ALIASES = LANGUAGE_ALIASES
 
 # Archetype scoring weights (must sum to 1.0), display labels per slot, and the
 # early-career set — all sourced from the shared registry (archetypes.json) so a
@@ -132,6 +141,21 @@ class MatchCandidate(_Base):
         return max(0.0, min(1.0, v))
 
 
+class LabelCode(_Base):
+    """A localizable label emitted as a stable CODE plus render params, not prose.
+
+    The Python engine is locale-blind: it names WHICH message to show (``code``)
+    and the values to interpolate (``params``), and the TS side renders the actual
+    language from a next-intl catalog (the localize-python-seam pattern). Every
+    surface that carries a ``LabelCode`` also keeps its legacy English string in a
+    parallel field, so an older cached/stored payload without codes — or a code a
+    catalog hasn't caught up to yet — still renders instead of going blank.
+    """
+
+    code: str
+    params: dict[str, Any] = Field(default_factory=dict)
+
+
 class ScoreDimension(_Base):
     """One row of the weight-aware score breakdown (see build_score_breakdown).
 
@@ -145,11 +169,15 @@ class ScoreDimension(_Base):
       so the highest-weighted, best-scoring dimension reads as visually dominant.
 
     ``key`` is the stable slot id (skills / career / personal); ``label`` is the
-    archetype-aware display name (see DIMENSION_LABELS).
+    archetype-aware English display name (see DIMENSION_LABELS); ``label_code`` is
+    the locale-independent catalog slug (skills/career/personal for BAU,
+    foundation/potential/fit for early-career) the UI localizes via match.dims.*,
+    falling back to ``label`` when absent.
     """
 
     key: str
     label: str
+    label_code: str = ""
     percent: int
     weight: int
     contribution: float
@@ -169,7 +197,12 @@ class Confidence(_Base):
     low: int = 0
     high: int = 0
     level: str = "tight"  # tight | moderate | wide
+    # Legacy English driver strings (back-compat) + their locale-independent codes.
+    # The two arrays are parallel (same order/length by construction), so the UI can
+    # zip them: localize driver_codes[i] via match.drivers.*, falling back to
+    # drivers[i] for a code a catalog hasn't translated (or an older codeless payload).
     drivers: list[str] = Field(default_factory=list)
+    driver_codes: list[LabelCode] = Field(default_factory=list)
 
 
 class MatchResult(_Base):
@@ -199,6 +232,16 @@ class MatchResult(_Base):
     # _MATCH_THRESHOLD). Lets the UI mark "matched" skills exact vs partial.
     matched_skill_strength: dict[str, float] = Field(default_factory=dict)
     missing_skills: list[str] = Field(default_factory=list)
+    # Claimed-but-UNPROVEN skills: required skills the candidate named (or named a
+    # relative of) that scored above 0 but below the match threshold — the honesty
+    # boundary between a near-miss specialist and an unsubstantiated claim. ADDITIVE
+    # and back-compatible: absent means none. ``unproven_skill_strength`` carries the
+    # sub-threshold score; ``unproven_skill_reason`` carries WHY it fell short
+    # ("adjacency" | "provenance" | "both"). These skills are, by construction,
+    # neither in ``matched_skills`` nor ``missing_skills``.
+    unproven_skills: list[str] = Field(default_factory=list)
+    unproven_skill_strength: dict[str, float] = Field(default_factory=dict)
+    unproven_skill_reason: dict[str, str] = Field(default_factory=dict)
     is_entry_eligible: bool = False
     graduate_friendliness: float = 0.0
 
@@ -232,6 +275,16 @@ def _has_language(candidate_langs: list[str], required: str) -> bool:
     req = required.strip().casefold()
     if not req:
         return True
+    # LANGUAGE_ALIASES holds a fixed set of curated buckets (12 today: english,
+    # czech, german, slovak, polish, hungarian, romanian, french, spanish, italian,
+    # dutch, ukrainian). A required language OUTSIDE that set (e.g. "portuguese") has
+    # no bucket, so ``needles`` degrades to the raw requirement string and the gate
+    # passes only on a LITERAL substring match ("portuguese" in the candidate's
+    # language blob) — no cross-lingual alias expansion (no "português", no "pt"). This
+    # is deliberate and honest: an unmodelled language is matched on its bare name
+    # rather than silently mishandled. To model a new language properly, add a bucket
+    # in data/taxonomy.json::language_aliases (config, not code). Pinned by
+    # test_whole_token_classification.UnmodelledLanguageFallsBackToSubstringTest.
     bucket = next((aliases for key, aliases in _LANG_ALIASES.items() if key in req or req in key), None)
     needles = bucket if bucket else (req,)
     blob = " ".join(candidate_langs).casefold()
@@ -301,39 +354,102 @@ def ko_filter(candidate: MatchCandidate, job: Job) -> tuple[bool, list[KoReason]
 # -- Layer B: multi-factor scorer -------------------------------------------
 
 
-def score_skills(candidate: MatchCandidate, job: Job) -> tuple[float, list[str], list[str], dict[str, float]]:
+# Why a claimed-but-unproven skill fell short of the match threshold. ``adjacency``
+# — the candidate offered a RELATED skill (taxonomy specialization / generalization
+# / sibling), so even at full provenance it caps below 1.0: a near-miss specialist.
+# ``provenance`` — the candidate named the EXACT skill, but its evidence source
+# (self-declared / coursework …) discounted it below the bar: an unsubstantiated
+# claim. ``both`` — a related skill AND weak evidence together sank it. The three
+# let a recruiter tell a near-miss specialist from an unsupported claim, which the
+# old single "unproven" limbo could not.
+UnprovenReason = Literal["adjacency", "provenance", "both"]
+
+
+def _classify_unproven(cand_skill: str, req_skill: str, provenance: str | None) -> UnprovenReason:
+    """Diagnose WHY a below-threshold claim fell short: taxonomy distance
+    (adjacency), a provenance discount, or both. Mirrors skill_match_score's own
+    resolve-then-hierarchy / string-equality-fallback so the verdict is consistent
+    with the score that produced it."""
+    ct = resolve_term(cand_skill)
+    rt = resolve_term(req_skill)
+    if ct and rt:
+        base = term_match_score(ct, rt)
+    elif ct or rt:
+        # Exactly one side resolves: mirror skill_match_score's one-side bounded token
+        # fallback so the verdict matches the score. A below-threshold token overlap
+        # (0 < base < 1) reads as "adjacency" — a modelled term vs its unmodelled
+        # variant is a genuine fractional signal, not an exact-but-discounted claim.
+        a = normalize_text(cand_skill or "").strip()
+        b = normalize_text(req_skill or "").strip()
+        if a and a == b:
+            base = 1.0
+        else:
+            resolved_id = ct or rt
+            unresolved_surface = req_skill if ct else cand_skill
+            base = _one_side_fallback_score(resolved_id, unresolved_surface or "")
+    else:
+        # Neither side is modelled: mirror skill_match_score's graded token fallback
+        # so the verdict is consistent with the score that produced it. A below-
+        # threshold token overlap (0 < base < 1) reads as "adjacency" — a genuine
+        # fractional signal exists, just not enough — exactly how the TS side
+        # (MatchTypes.unprovenSkillReason) already renders a near-miss. Reusing the
+        # existing label keeps the wire vocabulary {adjacency, provenance, both}.
+        base = unresolved_pair_score(cand_skill, req_skill)
+    adjacency = base < 1.0  # a related, non-exact skill (base==0 can't reach here)
+    discounted = provenance_weight(provenance) < 1.0
+    if adjacency and discounted:
+        return "both"
+    return "adjacency" if adjacency else "provenance"
+
+
+def score_skills(
+    candidate: MatchCandidate, job: Job
+) -> tuple[float, list[str], list[str], dict[str, float], dict[str, dict[str, Any]]]:
     must_w, nice_w = 1.0, 0.4
     acc = 0.0
     total_w = 0.0
     matched: list[str] = []
     missing: list[str] = []
     strength: dict[str, float] = {}  # matched skill -> its best match score (1.0 exact, lower = partial)
+    # req.skill -> {"score": float, "reason": UnprovenReason} for claims that scored
+    # ABOVE zero but BELOW the match threshold (the honesty-boundary bucket).
+    unproven: dict[str, dict[str, Any]] = {}
     for req in job.requirements:
         weight = must_w if req.kind == "must_have" else nice_w
         best = 0.0
+        best_cs: str | None = None
         for cs in candidate.skills:
             prov = candidate.skill_provenance.get(cs, candidate.provenance_default)
-            best = max(best, skill_match_score(cs, req.skill, prov))
+            s = skill_match_score(cs, req.skill, prov)
+            if s > best:
+                best = s
+                best_cs = cs
         acc += best * weight
         total_w += weight
         if best >= _MATCH_THRESHOLD:
             matched.append(req.skill)
             strength[req.skill] = round(best, 2)
-        elif req.kind == "must_have" and best <= 0.0:
-            # ``missing`` means the candidate makes NO claim to this skill at all
-            # (best == 0.0). A must-have the candidate DID name but which only
-            # scored BELOW the partial-match threshold — e.g. a self-declared EXACT
-            # match discounted to 0.4 (1.0 * 0.4 provenance), or a low-provenance
-            # taxonomy/sibling hit — is "claimed but unproven", not absent. Filing
-            # such a skill as missing conflates two different states and overstates
-            # absence: it wrongly emits "missing must-have: Python" for a student
-            # who listed Python, and (via _confidence's "Misses N must-haves")
-            # widens the score band for the fairness-protected early-career cohort.
-            # The provenance discount already lowers the skills sub-score fairly;
-            # only a true zero — no claim whatsoever — belongs in ``missing``.
+        elif best > 0.0:
+            # Claimed but UNPROVEN: the candidate DID name (or name a relative of)
+            # this skill, but it scored below the partial-match threshold — a
+            # self-declared exact match discounted to 0.4, an adjacent taxonomy /
+            # sibling hit, or both. This is NOT absence, so it never belonged in
+            # ``missing`` (which would overstate the gap and, via _confidence's
+            # "Misses N must-haves", widen the band for the fairness-protected
+            # early-career cohort). Surface it in its own bucket, tagged with WHY it
+            # fell short, so a near-miss specialist reads differently from an
+            # unsubstantiated claim. It already contributed ``best * weight`` to the
+            # sub-score above, so exposing it changes no total.
+            prov = candidate.skill_provenance.get(best_cs, candidate.provenance_default) if best_cs else None
+            unproven[req.skill] = {
+                "score": round(best, 2),
+                "reason": _classify_unproven(best_cs or "", req.skill, prov),
+            }
+        elif req.kind == "must_have":
+            # best == 0.0: no claim whatsoever to a required skill — a true miss.
             missing.append(req.skill)
     score = (acc / total_w) if total_w else 0.0
-    return round(score, 4), matched, missing, strength
+    return round(score, 4), matched, missing, strength, unproven
 
 
 def score_career(candidate: MatchCandidate, job: Job) -> float:
@@ -377,6 +493,38 @@ _OVERLAP_DENOM_FLOOR = 5
 _NEUTRAL_LANGUAGE_COVERAGE = 0.5
 
 
+def _personal_embed_pair(candidate: MatchCandidate, job: Job) -> tuple[str, str]:
+    """The (candidate text, job text) score_personal's semantic term embeds.
+
+    Single-sourced so ``embedding_texts_for`` can pre-warm the exact same strings
+    the scorer will look up — a drifted copy here would silently miss the cache
+    and re-embed one text per candidate."""
+    return " ".join(candidate.traits + candidate.skills), job.description or ""
+
+
+def _motivation_embed_pair(candidate: MatchCandidate, job: Job) -> tuple[str, str] | None:
+    """score_motivation's semantic pair, or None when there is no aspiration text
+    to embed (the scorer skips the bridge entirely in that case)."""
+    asp = " ".join(candidate.aspirations).casefold()
+    if not asp.strip():
+        return None
+    return asp, f"{job.title or ''} {job.description or ''}"
+
+
+def embedding_texts_for(candidate: MatchCandidate, job: Job) -> list[str]:
+    """Every text ``score_job(..., embedder=...)`` would embed for this candidate.
+
+    Lets a caller holding the whole pool (recruiter.rank_candidates_for_job) batch
+    them into ONE provider round-trip via ``embedding_bridge.prewarm`` instead of
+    paying two sequential single-item calls per candidate. Mirrors
+    ``_score_dimensions``' archetype split, so it never warms a text the scorer
+    won't ask for."""
+    if candidate.archetype in _EARLY_CAREER:
+        pair = _motivation_embed_pair(candidate, job)
+        return list(pair) if pair else []
+    return list(_personal_embed_pair(candidate, job))
+
+
 def score_personal(candidate: MatchCandidate, job: Job, *, embedder: Any | None = None) -> float:
     """Keyword heuristic by default; the embedding bridge when opted in.
 
@@ -399,7 +547,7 @@ def score_personal(candidate: MatchCandidate, job: Job, *, embedder: Any | None 
     if embedder is not None:
         from .embedding_bridge import semantic_overlap
 
-        overlap = semantic_overlap(" ".join(candidate.traits + candidate.skills), job.description or "", embedder)
+        overlap = semantic_overlap(*_personal_embed_pair(candidate, job), embedder)
     if overlap is None:
         desc_words = _description_words(job.description or "")
         # Keep every non-empty token: _term_in_words is word-boundary based, so a
@@ -450,10 +598,11 @@ def score_motivation(candidate: MatchCandidate, job: Job, *, embedder: Any | Non
     asp = " ".join(candidate.aspirations).casefold()
     title = (job.title or "").casefold()
     aspiration_hit: float | None = None
-    if embedder is not None and asp.strip():
+    pair = _motivation_embed_pair(candidate, job) if embedder is not None else None
+    if pair is not None:
         from .embedding_bridge import semantic_overlap
 
-        aspiration_hit = semantic_overlap(asp, f"{job.title or ''} {job.description or ''}", embedder)
+        aspiration_hit = semantic_overlap(*pair, embedder)
     if aspiration_hit is None:
         asp_tokens = [t for t in asp.replace("/", " ").split() if len(t) > 3]
         aspiration_hit = 1.0 if asp_tokens and any(t in title for t in asp_tokens) else 0.0
@@ -487,12 +636,24 @@ def build_score_breakdown(
         ScoreDimension(
             key=key,
             label=labels[key],
+            label_code=_dim_label_code(archetype, key),
             percent=round(100 * scores[key]),
             weight=round(100 * w[key]),
             contribution=round(100 * w[key] * scores[key], 1),
         )
         for key in _DIMENSION_KEYS
     ]
+
+
+# Early-career renames the three slots (career -> Potential, personal -> Fit,
+# skills -> Foundation); BAU keeps the slot id. The code is the locale-independent
+# catalog slug the UI localizes via match.dims.*, so the archetype-aware DISPLAY
+# label is chosen language-side, not hard-coded English in the payload.
+_DIM_SLUG_EARLY = {"skills": "foundation", "career": "potential", "personal": "fit"}
+
+
+def _dim_label_code(archetype: str, key: str) -> str:
+    return _DIM_SLUG_EARLY[key] if archetype in _EARLY_CAREER else key
 
 
 # --- Dynamic weighting (bounded; hybrid + fairness-matrix) -----------------
@@ -601,45 +762,64 @@ def _confidence(candidate: MatchCandidate, total: int, missing_musts: list[str])
     """
     spread = 4
     drivers: list[str] = []
+    driver_codes: list[LabelCode] = []
+
+    def add(text: str, code: str, **params: Any) -> None:
+        drivers.append(text)
+        driver_codes.append(LabelCode(code=code, params=params))
+
     has_observed = any(p == "observed" for p in candidate.skill_provenance.values())
     if candidate.archetype in _EARLY_CAREER:
         if has_observed:
             # Directly observed skills (live case / interview) de-risk the thin
             # paper trail — the early-career band stays tighter than a CV-only one.
             spread += 2
-            drivers.append("Early-career, but some skills were directly observed (live case/interview)")
+            add("Early-career, but some skills were directly observed (live case/interview)", "earlyCareerObserved")
         else:
             spread += 6  # thinner, less-verifiable evidence -> wider honest band
-            drivers.append("Early-career: thinner, less-verifiable track record")
+            add("Early-career: thinner, less-verifiable track record", "earlyCareerThin")
     if len(candidate.skills) < 3:
         spread += 6
-        drivers.append("Fewer than 3 skills listed")
+        add("Fewer than 3 skills listed", "fewSkills")
     if candidate.education_level == "unknown":
         spread += 4
-        drivers.append("Education level unknown")
+        add("Education level unknown", "eduUnknown")
     if not candidate.languages:
         spread += 4
-        drivers.append("No languages listed")
+        add("No languages listed", "noLanguages")
     if len(missing_musts) > 2:
         spread += 5
-        drivers.append(f"Misses {len(missing_musts)} must-have skills")
+        add(f"Misses {len(missing_musts)} must-have skills", "missesMusts", count=len(missing_musts))
     level = "wide" if spread >= _BAND_WIDE_AT else "moderate" if spread >= _BAND_MODERATE_AT else "tight"
     return Confidence(
         low=max(0, total - spread),
         high=min(100, total + spread),
         level=level,
         drivers=drivers,
+        driver_codes=driver_codes,
     )
 
 
-def score_job(
-    candidate: MatchCandidate,
-    job: Job,
-    *,
-    weights: dict[str, float] | None = None,
-    embedder: Any | None = None,
-) -> MatchResult:
-    skills, matched, missing, matched_strength = score_skills(candidate, job)
+class _Dimensions(NamedTuple):
+    """The three scheme-INDEPENDENT dimension scores + the skill breakdown lists.
+
+    Extracted so the weight-independent work (score_skills/career/personal — the
+    expensive part) is computed once per (candidate, job) and reused across every
+    weight scheme, instead of being recomputed inside the fairness matrix's O(n^2)
+    cells. See :func:`_weighted_total` for the cheap weight combination step.
+    """
+
+    skills: float
+    career: float
+    personal: float
+    matched: list[str]
+    missing: list[str]
+    matched_strength: dict[str, float]
+    unproven: dict[str, dict[str, Any]]
+
+
+def _score_dimensions(candidate: MatchCandidate, job: Job, *, embedder: Any | None = None) -> _Dimensions:
+    skills, matched, missing, matched_strength, unproven = score_skills(candidate, job)
     if candidate.archetype in _EARLY_CAREER:
         # career slot carries POTENTIAL (readiness); personal carries motivation/domain fit.
         career = candidate.potential_score if candidate.potential_score is not None else score_career(candidate, job)
@@ -652,14 +832,32 @@ def score_job(
     else:
         career = score_career(candidate, job)
         personal = score_personal(candidate, job, embedder=embedder)
-    # `weights` is an optional resolved dynamic vector; default = archetype static
-    # weights, so passing nothing reproduces the prior score exactly.
-    w = weights or weights_for(candidate.archetype)
+    return _Dimensions(skills, career, personal, matched, missing, matched_strength, unproven)
+
+
+def _weighted_total(skills: float, career: float, personal: float, weights: dict[str, float]) -> int:
     # Clamp the headline to the 0-100 contract every downstream surface (score dial,
     # fit-tier banding, matrix coloring) assumes. With dimensions already in [0,1]
     # this is a no-op; it's the belt-and-suspenders guard against a future
     # out-of-range dimension or a misbehaving readiness model.
-    total = max(0, min(100, round(100 * (w["skills"] * skills + w["career"] * career + w["personal"] * personal))))
+    return max(0, min(100, round(100 * (weights["skills"] * skills + weights["career"] * career + weights["personal"] * personal))))
+
+
+def score_job(
+    candidate: MatchCandidate,
+    job: Job,
+    *,
+    weights: dict[str, float] | None = None,
+    embedder: Any | None = None,
+) -> MatchResult:
+    dims = _score_dimensions(candidate, job, embedder=embedder)
+    skills, career, personal = dims.skills, dims.career, dims.personal
+    matched, missing, matched_strength = dims.matched, dims.missing, dims.matched_strength
+    unproven = dims.unproven
+    # `weights` is an optional resolved dynamic vector; default = archetype static
+    # weights, so passing nothing reproduces the prior score exactly.
+    w = weights or weights_for(candidate.archetype)
+    total = _weighted_total(skills, career, personal, w)
     breakdown = build_score_breakdown(candidate.archetype, skills, career, personal, weights=w)
     tier = fit_tier_for(total)
     ep = job.entry_profile
@@ -680,11 +878,28 @@ def score_job(
         score_breakdown=breakdown,
         confidence=_confidence(candidate, total, missing),
         matched_skills=matched,
+        # DISPLAY provenance — deliberately NOT `provenance_default` (UAT RECON-02).
+        # provenance_default is "professional" for every BAU candidate, so falling
+        # back to it here tagged a skill the candidate merely LISTED with the
+        # joint-highest trust tier, which the recruiter surfaces then rendered as a
+        # confident PROFESSIONAL badge: an affirmative claim of verification that was
+        # never performed. The honest fallback is `self_declared` — precisely what
+        # every consumer already assumes for a skill missing from this map
+        # (`prov[s] ?? "self_declared"` in RecruiterCandidates / AnalysisSummaryModal /
+        # ComparisonCells), so Python now agrees with the UI instead of contradicting it.
+        #
+        # SCORING IS UNAFFECTED and must stay that way: score_skills and the dynamic
+        # high-trust weighting read `candidate.skill_provenance` + `provenance_default`
+        # directly, never this field. Whether an unevidenced claim should also be
+        # DISCOUNTED in the score is a separate, score-moving decision.
         matched_skill_provenance={
-            s: candidate.skill_provenance.get(s, candidate.provenance_default) for s in matched
+            s: candidate.skill_provenance.get(s, "self_declared") for s in matched
         },
         matched_skill_strength=matched_strength,
         missing_skills=missing,
+        unproven_skills=list(unproven.keys()),
+        unproven_skill_strength={k: v["score"] for k, v in unproven.items()},
+        unproven_skill_reason={k: v["reason"] for k, v in unproven.items()},
         is_entry_eligible=bool(ep and ep.is_entry_eligible),
         graduate_friendliness=ep.graduate_friendliness if ep else 0.0,
     )
@@ -702,7 +917,17 @@ def fairness_matrix(pairs: list[tuple[MatchCandidate, dict[str, float] | None]],
     resolve_weights, so callers may pass raw proposals."""
     schemes = [resolve_weights(c.archetype, w) for c, w in pairs]
     labels = [c.label for c, _w in pairs]
-    matrix = [[score_job(c, job, weights=scheme).total for scheme in schemes] for c, _w in pairs]
+    # Each candidate's dimension scores are scheme-INDEPENDENT, so compute them once
+    # per candidate (n calls) and combine with every scheme's weights (n^2 cheap
+    # multiply-adds) — instead of the old n^2 full score_job calls that recomputed
+    # the expensive skills/career/personal pass once per (candidate, scheme). The
+    # per-cell value is byte-identical: score_job derives .total via the same
+    # _score_dimensions + _weighted_total helpers.
+    dims = [_score_dimensions(c, job) for c, _w in pairs]
+    matrix = [
+        [_weighted_total(d.skills, d.career, d.personal, scheme) for scheme in schemes]
+        for d in dims
+    ]
     own = [matrix[i][i] for i in range(len(pairs))]
     mean = [round(sum(row) / len(row)) for row in matrix] if pairs else []
     order = sorted(range(len(pairs)), key=lambda i: mean[i], reverse=True)
@@ -716,22 +941,40 @@ def fairness_matrix(pairs: list[tuple[MatchCandidate, dict[str, float] | None]],
     }
 
 
+def _candidate_assumption_pairs(candidate: MatchCandidate) -> list[tuple[str, LabelCode]]:
+    """The single source for candidate assumptions: each is an English string (the
+    legacy/back-compat form) paired with its locale-independent code (match.assumptions.*).
+    candidate_assumptions returns the strings; candidate_assumption_codes returns the
+    codes — same order, so the UI can zip them and fall back string->code cleanly."""
+    out: list[tuple[str, LabelCode]] = []
+
+    def add(text: str, code: str) -> None:
+        out.append((text, LabelCode(code=code)))
+
+    if candidate.education_level == "unknown":
+        add("Education level unknown — not penalized (absence of evidence, not a fail).", "eduUnknown")
+    if not candidate.languages:
+        add("No languages listed — language KO skipped rather than failed.", "noLanguages")
+    if candidate.archetype in _EARLY_CAREER:
+        add("Early-career: potential replaces years of experience; only entry-eligible roles are considered.", "earlyCareer")
+        if "self_declared" in set(candidate.skill_provenance.values()):
+            add("Some skills are self-declared — discounted; validate them in interview.", "selfDeclared")
+    if any(p == "observed" for p in candidate.skill_provenance.values()):
+        add("Some skills were directly observed (live case / interview) — high-confidence, not self-reported.", "observed")
+    if len(candidate.skills) < 3:
+        add("Thin skill profile — scores carry a wide confidence band.", "thinProfile")
+    return out
+
+
 def candidate_assumptions(candidate: MatchCandidate) -> list[str]:
     """Imputations / uncertainties the recruiter should see to judge a score fairly."""
-    out: list[str] = []
-    if candidate.education_level == "unknown":
-        out.append("Education level unknown — not penalized (absence of evidence, not a fail).")
-    if not candidate.languages:
-        out.append("No languages listed — language KO skipped rather than failed.")
-    if candidate.archetype in _EARLY_CAREER:
-        out.append("Early-career: potential replaces years of experience; only entry-eligible roles are considered.")
-        if "self_declared" in set(candidate.skill_provenance.values()):
-            out.append("Some skills are self-declared — discounted; validate them in interview.")
-    if any(p == "observed" for p in candidate.skill_provenance.values()):
-        out.append("Some skills were directly observed (live case / interview) — high-confidence, not self-reported.")
-    if len(candidate.skills) < 3:
-        out.append("Thin skill profile — scores carry a wide confidence band.")
-    return out
+    return [text for text, _ in _candidate_assumption_pairs(candidate)]
+
+
+def candidate_assumption_codes(candidate: MatchCandidate) -> list[LabelCode]:
+    """The assumptions as locale-independent codes (match.assumptions.*), parallel
+    to candidate_assumptions so the UI localizes language-side with a string fallback."""
+    return [code for _, code in _candidate_assumption_pairs(candidate)]
 
 
 # Candidate-facing clause shown after "{n} role(s)" for each KO category. The
@@ -816,6 +1059,10 @@ def match(
             "transferableSkills": candidate.transferable_skills,
             "domainDistance": candidate.domain_distance,
             "assumptions": candidate_assumptions(candidate),
+            # Locale-independent codes parallel to `assumptions` (localize-python-seam):
+            # the UI renders match.assumptions.* in the session locale, falling back to
+            # the English string above for an older payload or an un-translated code.
+            "assumptionCodes": [{"code": c.code, "params": c.params} for c in candidate_assumption_codes(candidate)],
             # MAT1: the weights actually used + the bounds the UI must respect.
             "weights": resolved,
             "weightBounds": {k: list(v) for k, v in weight_bounds(candidate.archetype).items()},

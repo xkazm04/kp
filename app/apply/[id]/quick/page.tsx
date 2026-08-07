@@ -1,10 +1,10 @@
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-import { getJob } from "@/app/_lib/db";
+import { getJob } from "@/app/_lib/db/jobs";
 import { getJobStatus, isJobOpenForApplications } from "@/app/_lib/job-ingest";
 import { applyKoSteps } from "@/app/_lib/apply";
 import { LanguageSwitcher } from "@/app/_components/LanguageSwitcher";
-import { isRelayConfigured } from "@/app/_lib/comms-truth";
+import { isRelayConfigured } from "@/app/_lib/comms-relay";
 import { QuickApplyForm } from "./QuickApplyForm";
 
 

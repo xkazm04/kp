@@ -18,10 +18,15 @@ from __future__ import annotations
 DEFAULT_LANG = "en"
 
 # Canonical locale code -> English name of the language, used in prompt
-# directives. Keep in sync with LOCALES in the frontend's i18n/locales.ts.
+# directives. Kept in sync with LOCALES in the frontend's i18n/locales.ts, which
+# ships en/cs/de/fr — so a --lang de|fr request reaches a prompt as German/French
+# (its language_directive names the right target) instead of silently collapsing
+# to English.
 LANG_NAMES: dict[str, str] = {
     "en": "English",
     "cs": "Czech",
+    "de": "German",
+    "fr": "French",
 }
 
 

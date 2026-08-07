@@ -26,6 +26,7 @@ from typing import Any, Protocol
 
 from pydantic import Field
 
+from .market_config import ACTIVE_MARKET, gross_period_phrase
 from .models import _Base
 from .salary_band import normalize_band
 from .taxonomy import (
@@ -34,6 +35,7 @@ from .taxonomy import (
     classify_role_family,
     resolve_term,
     role_band,
+    role_family_catalog,
 )
 
 WORK_MODES = ("remote", "hybrid", "onsite")
@@ -53,7 +55,9 @@ EDU_LEVELS = ("phd", "master", "bachelor", "university", "none")
 # nowhere else.
 DEFAULT_POLICY: dict[str, str] = {
     "company": "Confidential",  # ad named no employer (blind / agency posting)
-    "location": "Praha",        # no city given — assume the CZ-market hub
+    # No city given — assume the active market's hub (CZ default: "Praha"). Sourced
+    # from MarketConfig so re-homing the market moves this locale phantom too.
+    "location": ACTIVE_MARKET.default_location,
     "work_mode": "onsite",      # missing/off-taxonomy work mode — assume onsite
     "seniority": "medior",      # missing/off-taxonomy seniority — assume mid-level
 }
@@ -244,7 +248,7 @@ def compute_entry_profile(
     The constants below (assumed 3.0y for non-junior ads, the +0.5/+0.2/+0.2/+0.1
     additive weights, the years<=1.0 entry threshold, and the 0.15 non-entry
     ceiling) are justified and pinned by golden-value tests; see
-    docs/GRADUATE_FRIENDLINESS.md and test_jobs.GraduateFriendlinessGoldenTest.
+    docs/features/matching/README.md and test_jobs.GraduateFriendlinessGoldenTest.
     This score orders the opportunities a zero-experience student is shown, so
     changing any constant deliberately must update the doc and the golden tests.
     """
@@ -392,32 +396,59 @@ def _slug_from_title(title: str) -> str:
 # -- LLM ingestion (prose -> structured) ------------------------------------
 
 _EXTRACTION_SYSTEM = (
-    "You are a precise job-ad parser for the Czech tech market. Extract structured "
-    "data from postings; never invent requirements that are not present."
+    "You are a precise job-ad parser. Extract structured data from postings across "
+    "any industry, seniority, and region; never invent requirements that are not present."
 )
 
-_EXTRACTION_PROMPT = """Extract this job posting into JSON with exactly these keys:
-{
+
+def _role_family_enum() -> str:
+    """Pipe-joined role-family ids for the extraction prompt's enum.
+
+    Derived from :func:`taxonomy.role_family_catalog` so the parser is offered
+    EVERY known family, not a hardcoded tech-only subset that silently forced a
+    nurse/legal/trades ad into ``software_engineering|data_ai|product_project``.
+    """
+    return "|".join(fam for fam, _desc in role_family_catalog())
+
+
+def _role_family_reference() -> str:
+    """One ``- family: description`` line per known family for the prompt body,
+    so the model picks an industry-appropriate family from the full catalog."""
+    return "\n".join(f"  - {fam}: {desc}" for fam, desc in role_family_catalog())
+
+
+def _build_extraction_prompt() -> str:
+    return f"""Extract this job posting into JSON with exactly these keys:
+{{
   "title": str, "company": str, "location": str,
   "work_mode": "remote|hybrid|onsite",
   "employment_type": str|null,
   "seniority": "junior|medior|senior|lead",
-  "role_family": "software_engineering|data_ai|product_project",
+  "role_family": "{_role_family_enum()}",
   "languages": [str],
   "min_years_experience": number|null,
   "min_education": "phd|master|bachelor|university|none"|null,
   "salary_min": number|null, "salary_max": number|null,
   "description": str,
-  "requirements": [ { "skill": str, "kind": "must_have|nice_to_have", "hardness": "prerequisite|learnable" } ]
-}
-salary_min/salary_max: the gross monthly pay range in CZK the posting itself states;
-null when the ad states no pay — NEVER estimate one.
+  "requirements": [ {{ "skill": str, "kind": "must_have|nice_to_have", "hardness": "prerequisite|learnable" }} ]
+}}
+role_family: pick the single best-fitting family for this role from the catalog
+below — choose the industry-appropriate family for any field, not a technology
+family by default:
+{_role_family_reference()}
+salary_min/salary_max: the {gross_period_phrase(ACTIVE_MARKET.period)} pay range the posting itself states, in
+whatever currency it uses; null when the ad states no pay — NEVER estimate one.
 For each requirement decide kind (must vs nice) and hardness: "prerequisite" if a
 candidate truly cannot do the job without it, "learnable" if it can reasonably be
 picked up on the job. Output JSON only.
 
 POSTING:
 """
+
+
+# Built once from the live taxonomy catalog so a new role family reaches the parser
+# without a code edit here.
+_EXTRACTION_PROMPT = _build_extraction_prompt()
 
 
 def ingest_raw_ad(text: str, *, provider: LlmProvider, job_id: str | None = None) -> Job:

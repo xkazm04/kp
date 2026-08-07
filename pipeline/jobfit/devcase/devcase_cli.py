@@ -8,6 +8,13 @@
     python -m pipeline.jobfit.devcase.devcase_cli observed-interview  --case-json K --role-json R --scorecard-json S --profile-json P
     python -m pipeline.jobfit.devcase.devcase_cli observed-skills    --case-json K --role-json R --evaluation-json E --transfer-json T --profile-json P
     python -m pipeline.jobfit.devcase.devcase_cli materialize-seed  --case-json K --role-json R [--no-llm]
+    python -m pipeline.jobfit.devcase.devcase_cli session-chat      --case-json K --role-json R --channel assistant|stakeholder --message M [--chat-json T] [--current-file-json F] [--no-llm]
+    python -m pipeline.jobfit.devcase.devcase_cli baseline-solve    --case-json K --role-json R [--seed-json S] [--no-llm]
+
+evaluate-submission also accepts the observed-evidence inputs (LLM-era controls; all
+optional): --chat-json (captured prompt channel), --seed-json (frozen seed incl.
+internal canaries), --files-json (submitted tree), --baseline-json (frozen one-shot
+solutions) — each quietly no-ops when absent.
 
 Output: one JSON object {"result","source","perStepSources"[,"fallbackReason"][,"confidence"]}
 to stdout — a uniform provenance envelope every command shares. `perStepSources` maps each
@@ -55,6 +62,10 @@ _USE_CASE_BY_COMMAND = {
     "evaluate-submission": "devcase_evaluate",
     "interview-scenario": "devcase_interview_scenario",
     "materialize-seed": "devcase_seed",
+    # LLM-era controls: the in-session chat rides the evaluate provider row (cheap,
+    # frequent); the one-shot baseline solve rides the seed row (freeze-time, rare).
+    "session-chat": "devcase_evaluate",
+    "baseline-solve": "devcase_seed",
 }
 
 # Stable, machine-readable error codes the UI branches on. INVALID_INPUT is a
@@ -179,7 +190,7 @@ def main(argv: list[str] | None = None) -> int:
     configure_stdio()
 
     parser = argparse.ArgumentParser(description="Dev-extension tasks (Claude CLI only).")
-    parser.add_argument("command", choices=["analyze-need", "design-artifacts", "reflect-commits", "evaluate-submission", "source", "interview-scenario", "observed-interview", "observed-skills", "materialize-seed"])
+    parser.add_argument("command", choices=["analyze-need", "design-artifacts", "reflect-commits", "evaluate-submission", "source", "interview-scenario", "observed-interview", "observed-skills", "materialize-seed", "session-chat", "baseline-solve"])
     parser.add_argument("--need-json", type=Path)
     parser.add_argument("--snapshot-json", type=Path)
     # Multi-repo grounding: a JSON ARRAY of RepoSnapshot objects (the role can span up
@@ -191,6 +202,15 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--probes-json", type=Path)
     parser.add_argument("--repo-json", type=Path)
     parser.add_argument("--events-json", type=Path)  # observed process events (Live Work Surface)
+    # LLM-era controls — observed-evidence inputs for evaluate-submission (all optional):
+    parser.add_argument("--chat-json", type=Path)  # captured assistant/stakeholder transcript
+    parser.add_argument("--seed-json", type=Path)  # frozen materialized seed (incl. internal canaries)
+    parser.add_argument("--files-json", type=Path)  # the submitted file tree (live sessions)
+    parser.add_argument("--baseline-json", type=Path)  # frozen one-shot naive-LLM solutions
+    # session-chat inputs:
+    parser.add_argument("--channel", type=str, default="assistant")  # assistant | stakeholder
+    parser.add_argument("--message", type=str, default=None)
+    parser.add_argument("--current-file-json", type=Path)  # {path, contents} the candidate is viewing
     parser.add_argument("--case-json", type=Path)
     parser.add_argument("--role-json", type=Path)
     parser.add_argument("--scorecard-json", type=Path)
@@ -297,6 +317,46 @@ def main(argv: list[str] | None = None) -> int:
         if provider is not None and not provider.available():
             provider = None
 
+        # In-session chat (LLM-era controls #2/#5): one assistant/stakeholder reply.
+        if args.command == "session-chat":
+            from . import chat as _chat
+
+            if not args.case_json or not args.role_json or not args.message:
+                raise ValueError("session-chat requires --case-json, --role-json and --message")
+            channel = args.channel if args.channel in ("assistant", "stakeholder") else "assistant"
+            case_obj = _require_object(json.loads(args.case_json.read_text(encoding="utf-8")), "--case-json")
+            role_obj = _require_object(json.loads(args.role_json.read_text(encoding="utf-8")), "--role-json")
+            transcript = (
+                _require_list_of_dicts(json.loads(args.chat_json.read_text(encoding="utf-8")), "--chat-json")
+                if args.chat_json
+                else []
+            )
+            current_file = (
+                _require_object(json.loads(args.current_file_json.read_text(encoding="utf-8")), "--current-file-json")
+                if args.current_file_json
+                else None
+            )
+            reply, src = _chat.chat_reply(
+                channel, case_obj, role_obj, transcript, args.message, current_file=current_file, lang=lang, provider=provider
+            )
+            _emit({"reply": reply}, {"chat": src}, fallback_reasons=_fallback_reasons(chat=reply), use_case=use_case)
+            return 0
+
+        # One-shot naive-LLM baseline solve (LLM-era controls #6): frozen per case at
+        # approval; evaluation diffs every submission against it.
+        if args.command == "baseline-solve":
+            from . import baseline as _baseline
+            from .models import CaseScenario, RoleSpec
+
+            if not args.case_json or not args.role_json:
+                raise ValueError("baseline-solve requires --case-json and --role-json")
+            case = CaseScenario.model_validate(json.loads(args.case_json.read_text(encoding="utf-8")))
+            role = RoleSpec.model_validate(json.loads(args.role_json.read_text(encoding="utf-8")))
+            seed_obj = _require_object(json.loads(args.seed_json.read_text(encoding="utf-8")), "--seed-json") if args.seed_json else None
+            result, src = _baseline.solve_baseline(case, role, seed_obj, provider=provider)
+            _emit({"baseline": result}, {"baseline": src}, fallback_reasons=_fallback_reasons(baseline=result), use_case=use_case)
+            return 0
+
         # Case -> AI-interview scenario (one per role; reused for every candidate).
         if args.command == "interview-scenario":
             from . import interview_scenario as _scenario
@@ -343,8 +403,24 @@ def main(argv: list[str] | None = None) -> int:
             # candidate worked the case in-product. Present → assess_tooling uses the
             # observed path; absent → the existing commit-metadata inference.
             events = _require_list_of_dicts(json.loads(args.events_json.read_text(encoding="utf-8")), "--events-json") if args.events_json else None
+            # Seed loads EARLY so the observed tooling pass can scope read-before-write
+            # to files that existed in the seed (newly created files are exempt).
+            seed_obj = (
+                _require_object(json.loads(args.seed_json.read_text(encoding="utf-8")), "--seed-json")
+                if (args.command == "evaluate-submission" and args.seed_json)
+                else None
+            )
+            seed_paths = [str(f["path"]) for f in ((seed_obj or {}).get("files") or []) if isinstance(f, dict) and f.get("path")]
+            # The submitted tree loads HERE (before the graders) rather than beside the
+            # other LLM-era controls below: W0.2 threads the candidate's contributed
+            # lines into assess_tooling as well as evaluate_submission, so probe verdicts
+            # are read off the work instead of inferred from commit-subject shape.
+            files_list = _require_list_of_dicts(json.loads(args.files_json.read_text(encoding="utf-8")), "--files-json") if args.files_json else None
+            from . import artifact_checks as _checks
+
+            submission_work = _checks.submission_excerpts(seed_obj, files_list)
             reflection, rsrc = _reflect.reflect_commits(commits, repo, provider=provider)
-            tooling, tsrc = _reflect.assess_tooling(reflection, commits, probes, repo, events=events, provider=provider)
+            tooling, tsrc = _reflect.assess_tooling(reflection, commits, probes, repo, events=events, seed_paths=seed_paths or None, submission=submission_work or None, provider=provider)
             if args.command == "reflect-commits":
                 _emit(
                     {"reflection": reflection, "tooling": tooling},
@@ -357,14 +433,38 @@ def main(argv: list[str] | None = None) -> int:
             # evaluate-submission continues the chain — case/role are required (guarded above).
             case = _require_object(json.loads(args.case_json.read_text(encoding="utf-8")), "--case-json")
             role = _require_object(json.loads(args.role_json.read_text(encoding="utf-8")), "--role-json")
-            evaluation, esrc = _evaluate.evaluate_submission(reflection, tooling, case, role, provider=provider)
+            # LLM-era controls — assemble the OBSERVED ground-truth checks (all optional;
+            # each quietly no-ops on absent inputs): the captured prompt channel, the
+            # planted-canary verdicts, and the distance from the one-shot baseline.
+            from . import prompt_signals as _psig
+
+            chat_msgs = _require_list_of_dicts(json.loads(args.chat_json.read_text(encoding="utf-8")), "--chat-json") if args.chat_json else []
+            baseline_obj = _require_object(json.loads(args.baseline_json.read_text(encoding="utf-8")), "--baseline-json") if args.baseline_json else None
+            psig = _psig.derive_prompt_signals(chat_msgs, case) if chat_msgs else None
+            canaries = _checks.canary_outcomes(seed_obj, files_list, chat_msgs) if seed_obj else []
+            basesim = _checks.baseline_similarity(baseline_obj, seed_obj, files_list) if baseline_obj else {"available": False}
+            extras: dict | None = {}
+            if psig and psig.get("observed"):
+                extras["promptSignals"] = psig
+                extras["promptEvidence"] = _psig.prompt_evidence(psig)
+            if canaries:
+                extras["canaryOutcomes"] = canaries
+            if basesim.get("available"):
+                extras["baselineSimilarity"] = basesim
+            if canaries or basesim.get("available"):
+                extras["checkEvidence"] = _checks.check_evidence(canaries, basesim)
+            extras = extras or None
+            evaluation, esrc = _evaluate.evaluate_submission(reflection, tooling, case, role, extras=extras, submission=submission_work or None, provider=provider)
             transfer, xsrc = _evaluate.score_transfer(evaluation, role, provider=provider)
             # The interview hand-off: candidate-specific authorship questions minted from
             # THIS submission's observed decisions — the scores above are hypotheses the
             # live conversation verifies (the artifact alone can be wholly LLM-produced).
-            followups, fsrc = _evaluate.mint_followups(reflection, tooling, evaluation, case, role, provider=provider)
+            followups, fsrc = _evaluate.mint_followups(reflection, tooling, evaluation, case, role, extras=extras, provider=provider)
             _emit(
-                {"reflection": reflection, "tooling": tooling, "evaluation": evaluation, "transfer": transfer, "followups": followups},
+                # observedChecks rides in the result so the TS bundle persists the
+                # mechanical verdicts (canaries, prompt signals, baseline distance)
+                # beside the LLM interpretation that consumed them.
+                {"reflection": reflection, "tooling": tooling, "evaluation": evaluation, "transfer": transfer, "followups": followups, "observedChecks": extras or {}},
                 {"reflect": rsrc, "tooling": tsrc, "evaluate": esrc, "transfer": xsrc, "followups": fsrc},
                 # evaluate/transfer now carry a PROPAGATED confidence (min of upstream), so the
                 # decision artifact is flagged alongside the thin steps it was built from — a

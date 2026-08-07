@@ -1,10 +1,13 @@
-import { getPipelineEntry } from "./db";
+import { getPipelineEntry } from "./db/pipeline";
+import { isLocale, DEFAULT_LOCALE } from "@/i18n/locales";
 import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 import { runAutomationTask } from "./automation-run";
 import { getInterviewPrep, saveInterviewPrep } from "./interview-prep";
 import { isEarlyCareer } from "./archetypes";
 import { studentPrepRunOfShow } from "./student-interview";
-import { buildRunOfShow, type PrepQuestion } from "./run-of-show";
+import { buildRunOfShow, type PrepQuestion, type RunOfShow } from "./run-of-show";
+import { rosStrings, studentPrepStrings } from "./interview-prep-strings";
+import { rubricCoverage, type RubricCoverage } from "./interview-rubric";
 
 // Build the interview-prep artifact: take the AI-generated, CV-derived interview
 // questions (the existing "prep" automation) and design a timed run-of-show
@@ -27,7 +30,11 @@ export async function runInterviewPrep(params: Record<string, unknown>, signal?:
   // can't read the cookie). Localizes the LLM questions (--lang) AND the
   // deterministic run-of-show/student-script scaffolding; persisted in the
   // payload so the modal knows which language the pack is in.
-  const lang = params.lang === "cs" ? "cs" : "en";
+  // F5 — was `params.lang === "cs" ? "cs" : "en"`, which silently rewrote a German
+  // or French recruiter's locale to English before it reached either the prompt
+  // directive or the scaffolding. All four locales now survive the narrowing
+  // (runAutomationTask already re-validates with the same guard).
+  const lang = isLocale(params.lang) ? params.lang : DEFAULT_LOCALE;
 
   // The CV-derived recommended questions (LLM with deterministic fallback). The
   // `source` ("llm" | "deterministic") rides along in the payload so the modal can
@@ -41,21 +48,49 @@ export async function runInterviewPrep(params: Record<string, unknown>, signal?:
 
   const entry = getPipelineEntry(entryId, workspaceId);
   const plan = isEarlyCareer(entry?.archetype)
-    ? studentPrepRunOfShow(questions, focusAreas, candidateLabel, jobTitle, lang)
-    : buildRunOfShow(questions, focusAreas, candidateLabel, jobTitle, lang);
+    ? studentPrepRunOfShow(questions, focusAreas, candidateLabel, jobTitle, await studentPrepStrings(lang))
+    : buildRunOfShow(questions, focusAreas, candidateLabel, jobTitle, await rosStrings(lang));
 
-  const payload: Record<string, unknown> = { ...plan, source: prep.source, lang };
-  // Carry forward human-authored keys across a regeneration. The generated plan is
-  // rebuilt from scratch and saveInterviewPrep is a full-payload upsert, so without
-  // this a Regenerate would silently destroy the recruiter's hand-entered scorecard,
-  // checklist progress, and assigned interviewer (PREP1/PREP2/PREP5 payload seam) —
-  // those live on the same row and survive only if re-merged here.
+  // The keys the generator OWNS — enumerated EXPLICITLY (not spread) so the
+  // regeneration invariant is structural, not a comment: the `RunOfShow &` type
+  // means a new plan field can't ship without being listed here, and only these
+  // keys are overwritten on Regenerate. saveInterviewPrep is a full-payload upsert
+  // and the plan is rebuilt from scratch, so everything else on the row must be
+  // carried forward — see mergeRegeneratedPrep.
+  const generated: RunOfShow & { source: string; lang: string; rubricCoverage: RubricCoverage } = {
+    scenario: plan.scenario,
+    durationMin: plan.durationMin,
+    focusAreas: plan.focusAreas,
+    chronology: plan.chronology,
+    signals: plan.signals,
+    source: prep.source,
+    lang,
+    // What the pack's scorecard rubric covers at build time: whether the industry
+    // axes were appended, and if not, WHY (no role family vs. a family with none
+    // defined). Stamped alongside `source` because it is the same class of fact —
+    // provenance of the artifact — and a pack read outside the modal (the copy-out,
+    // the voice brief, an export) must carry it too, not just the rendered UI.
+    // Never a guessed family; see rubricCoverage.
+    rubricCoverage: rubricCoverage(entry?.roleFamily),
+  };
   const prev = getInterviewPrep(entryId);
-  if (prev) {
-    for (const key of ["humanScorecard", "userProgress", "interviewer"] as const) {
-      if (prev.payload[key] !== undefined) payload[key] = prev.payload[key];
-    }
-  }
+  const payload = mergeRegeneratedPrep(prev?.payload, generated);
   saveInterviewPrep(entryId, candidateLabel, jobTitle, payload);
   return payload;
+}
+
+/** Merge a freshly generated prep plan onto the entry's PREVIOUS payload with an
+ *  INVERTED merge: preserve EVERY previous key by default, overwrite ONLY the keys
+ *  the generator produced (`generated`). This is the integrity fix for the old
+ *  hardcoded 3-key allowlist ("humanScorecard", "userProgress", "interviewer"),
+ *  which silently destroyed any human-authored payload key not on the list — a
+ *  future recruiter-notes field, a re-scoring annotation, anything new. Now the
+ *  default is preservation and the generator's ownership is the explicit exception,
+ *  so an unknown human key survives a Regenerate structurally. Pure + dependency-free
+ *  so the invariant is unit-testable (interview-prep-run.test.ts). */
+export function mergeRegeneratedPrep(
+  prevPayload: Record<string, unknown> | null | undefined,
+  generated: Record<string, unknown>
+): Record<string, unknown> {
+  return { ...(prevPayload ?? {}), ...generated };
 }

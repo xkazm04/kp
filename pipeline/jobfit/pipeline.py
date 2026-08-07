@@ -11,6 +11,7 @@ from .authenticity import authenticity_checks, prompt_injection_checks
 from .credentials import credential_checks
 from .extractors import clean_text, count_letter_spacing, extract_text
 from .gemini import GEMINI_MODEL, analyze_profile_with_gemini
+from .llm.base import price_usd
 from .redact import redact_pii
 from .insights import (
     apply_company_salary_context,
@@ -22,6 +23,7 @@ from .logger import StageTimer, append_pipeline_log, new_request_id
 from .models import (
     AnalysisMetadata,
     AnalysisResult,
+    RunCost,
     CandidateProfile,
     Credential,
     DeterministicEvidence,
@@ -33,6 +35,7 @@ from .models import (
     SalaryEstimate,
     ScoreBreakdown,
 )
+from .market_config import ACTIVE_MARKET, MarketConfig
 from .profiling import build_profile
 from .salary_band import SALARY_PLAUSIBILITY_CEILING, round_salary
 from .taxonomy import (
@@ -125,11 +128,24 @@ def analyze_cv(
             # redaction.text is empty — emitting the redacted note would be a LIE, and
             # the gemini call below now fails closed rather than uploading the original
             # (identity-bearing) file. Surface the honest degraded state instead.
-            if (redaction.text or "").strip():
+            if (redaction.text or "").strip() and redaction.name_detected:
                 note = "Blind screening active — identity redacted before scoring"
                 if redaction.categories:
                     note += f" ({', '.join(redaction.categories)})"
                 repairs.append(note + ".")
+            elif (redaction.text or "").strip():
+                # Text redacted, but NO candidate name was detected (a single-token,
+                # very long, lowercase, non-Latin, or below-the-fold name slips past
+                # _guess_name_line), so the real name is still in the blind_text the
+                # model sees. NEVER claim "identity redacted" here — that is a false
+                # fairness/compliance statement (cv-extraction-pipeline #1). Say so
+                # honestly so the recruiter can verify and doesn't misread the missing
+                # name below as "anonymous candidate" rather than "redaction miss".
+                cats = ", ".join(redaction.categories) if redaction.categories else "none"
+                repairs.append(
+                    "Blind screening PARTIAL — no candidate name detected to redact "
+                    f"(redacted: {cats}); the name may have reached the model. Verify manually."
+                )
             else:
                 repairs.append(
                     "Blind screening could not run: no extractable text to redact "
@@ -174,6 +190,9 @@ def analyze_cv(
         _emit(progress, "scoring", "active")
         with StageTimer(timings, "scoring"):
             score = _score_from_payload(payload.get("score"), repairs)
+            # The LLM's own claimed total, kept ONLY as a divergence signal for the
+            # sanity checks below — the persisted score.total is the component sum.
+            score_reported_total = _reported_score_total(payload.get("score"))
         _emit(progress, "scoring", "done")
 
         _emit(progress, "salary", "active")
@@ -264,7 +283,9 @@ def analyze_cv(
             )
 
             # Built last so helper-degrade notes collected above are included.
-            sanity_checks = _sanity_checks(raw_text, score, salary) + repairs
+            sanity_checks = (
+                _sanity_checks(raw_text, score, salary, score_reported_total) + repairs
+            )
             # CV authenticity screen (idea-cae71d45): fold deterministic
             # fabrication / AI-padding signals into the trust ledger so they count
             # toward review_flags and the UI can derive a trust band. A SCREEN —
@@ -301,6 +322,22 @@ def analyze_cv(
             if market_evidence is not None and market_evidence.summary:
                 parsing_notes.append(f"Grounded market context: {market_evidence.summary[:500]}")
 
+            # Per-run cost estimate from the actual token usage the model reported,
+            # priced through the SAME shared table the usage ledger uses (no UI
+            # re-guess). None when the run reported no usage (e.g. an offline fake).
+            run_cost = None
+            if gemini_usage:
+                cost_in = int(gemini_usage.get("prompt_tokens", 0) or 0)
+                cost_out = int(gemini_usage.get("candidate_tokens", 0) or 0)
+                run_cost = RunCost(
+                    model=GEMINI_MODEL,
+                    input_tokens=cost_in,
+                    output_tokens=cost_out,
+                    cached_tokens=gemini_usage.get("cached_tokens"),
+                    cost_usd=price_usd(GEMINI_MODEL, cost_in, cost_out),
+                    estimated=True,
+                )
+
             metadata = AnalysisMetadata(
                 analysis_engine="gemini",
                 text_extractor="gemini",
@@ -308,6 +345,7 @@ def analyze_cv(
                 parsing_notes=parsing_notes,
                 grounding_sources=sources,
                 deterministic_evidence=evidence,
+                run_cost=run_cost,
             )
 
             # Archetype-routed v2 profile so a CV-uploaded student/switcher is
@@ -327,6 +365,25 @@ def analyze_cv(
             else:
                 v2_profile, archetype_checks, v2_obj = routing
                 sanity_checks.extend(archetype_checks)
+                # Analyze-surface HONESTY cross-check (Direction: analyze-emits-
+                # honesty-fields). The Gemini job_fit lists are flat; re-score the
+                # SAME candidate (the v2 profile just built) against the JD's
+                # detected-skill universe so an LLM-"missing" skill that is really an
+                # adjacency near-miss or a provenance-discounted claim surfaces in its
+                # own bucket. Own _softly umbrella + gated on both a JD and a job_fit:
+                # a bug degrades to None + a skip note, never sinks the paid analysis.
+                if job_fit is not None and job_description_text:
+                    crosscheck = _softly(
+                        "Analyze honesty cross-check",
+                        lambda: _honesty_crosscheck(v2_obj, job_description_text),
+                        sanity_checks,
+                    )
+                    if crosscheck is not None:
+                        (
+                            job_fit.unproven_skills,
+                            job_fit.unproven_skill_strength,
+                            job_fit.unproven_skill_reason,
+                        ) = crosscheck
                 # Antipattern / hidden-strength hypotheses with interview probes
                 # (soft_signals.py — built+tested but previously never called).
                 # Own _softly umbrella: a panel bug degrades to None + a skip
@@ -640,6 +697,15 @@ def _v2_profile_and_routing(
 
 
 def _score_from_payload(raw: Any, repairs: list[str] | None = None) -> ScoreBreakdown:
+    """Parse the five weighted score components and compute the headline total.
+
+    Server-authoritative total (Direction 2): the persisted ``total`` is ALWAYS the
+    deterministic component sum (weights 25/30/23/12/10 cap it at exactly 100), never
+    the model's own ``total``. The LLM's claimed total is downgraded to a sanity
+    SIGNAL — see :func:`_reported_score_total` / :func:`_score_sanity_checks`, which
+    still flag a divergence for observability — so a bad generation can no longer hand
+    back a headline number that contradicts its own breakdown.
+    """
     if not isinstance(raw, dict):
         if repairs is not None:
             repairs.append("Score section missing — defaulted to 0 (manual review)")
@@ -649,12 +715,9 @@ def _score_from_payload(raw: Any, repairs: list[str] | None = None) -> ScoreBrea
     role_seniority = _clamp_int(raw.get("role_seniority"), 0, 23, 0)
     education = _clamp_int(raw.get("education"), 0, 12, 0)
     traits = _clamp_int(raw.get("traits"), 0, 10, 0)
-    total = _clamp_int(
-        raw.get("total"),
-        0,
-        100,
-        min(experience + skills + role_seniority + education + traits, 100),
-    )
+    # Authoritative: the component sum IS the total. The maxima sum to exactly 100 so
+    # the min() is defensive belt-and-suspenders, never actually engaged.
+    total = min(experience + skills + role_seniority + education + traits, 100)
     return ScoreBreakdown(
         total=total,
         experience=experience,
@@ -663,6 +726,112 @@ def _score_from_payload(raw: Any, repairs: list[str] | None = None) -> ScoreBrea
         education=education,
         traits=traits,
     )
+
+
+def _reported_score_total(raw: Any) -> int | None:
+    """The LLM's OWN claimed score total (clamped to 0-100), or ``None`` when the
+    generation omitted one.
+
+    This is the sanity SIGNAL only — :func:`_score_from_payload` no longer trusts it
+    for the persisted total. :func:`_score_sanity_checks` compares it against the
+    authoritative component sum so a model that reports a headline contradicting its
+    own breakdown is still surfaced for review. ``None`` (omitted total) means "no
+    signal to check" — there is nothing to diverge from.
+    """
+    if not isinstance(raw, dict) or raw.get("total") is None:
+        return None
+    return _clamp_int(raw.get("total"), 0, 100, 0)
+
+
+# --- Salary currency/period validation & multi-market plausibility ----------
+# bug-ui-scan-2026-07-09 (cv-extraction-pipeline-services #4): currency/period were
+# trusted as raw strings and the magnitude ceiling only guarded CZK/month, so an
+# absurd or injected non-CZK figure (e.g. USD 5,000,000/yr) — or a garbage code
+# ("BTC"/"fortnight") that sidesteps the CZK gate entirely — was reported as a
+# plausible negotiation anchor with no reviewer warning. We validate against an
+# allow-list and give EVERY market a magnitude bound by annualizing the figure.
+
+# Multiplier that annualizes a figure so one per-currency yearly ceiling bounds every
+# market uniformly (2080 = 40h x 52wk). Defined before the ceiling lookup because the
+# active market's home-currency ceiling is derived by annualizing its MarketConfig
+# ceiling through this map.
+_PERIOD_TO_ANNUAL: dict[str, int] = {"hour": 2080, "month": 12, "year": 1}
+
+# NEUTRAL, market-INDEPENDENT per-currency ANNUAL gross plausibility ceilings
+# (order-of-magnitude sanity bounds, not precise market data). Each sits well above
+# its market's real senior/exec comp, so a genuine offer never trips it but a
+# hallucinated/injected order-of-magnitude error does. Covers the ISO codes the
+# Gemini prompt can emit.
+#
+# These are FIXED literals that do NOT move when ACTIVE_MARKET flips: a Czech salary
+# must stay bounded at 4.2M CZK/yr even when the pipeline is re-homed to a EUR market
+# (and a EUR salary stays bounded under the Czech default). The ACTIVE market's OWN
+# home currency is instead derived live from its MarketConfig ceiling — see
+# ``_annual_ceiling_for`` — so re-homing moves the home bound in lockstep while
+# leaving every foreign currency untouched. CZK's literal here (4,200,000 = the
+# documented 350k CZK/month x12) equals what the derivation yields under the Czech
+# default, so CZK/month behaviour is byte-for-byte unchanged.
+_NEUTRAL_ANNUAL_CEILING_BY_CURRENCY: dict[str, int] = {
+    "CZK": 4_200_000,  # 350k CZK/month x12 — the documented Czech bound as a fixed literal
+    "EUR": 600_000,
+    "USD": 700_000,
+    "GBP": 600_000,
+    "CHF": 700_000,
+    "PLN": 2_500_000,
+    "SEK": 7_000_000,
+    "NOK": 7_000_000,
+    "DKK": 5_000_000,
+    "HUF": 250_000_000,
+    "RON": 3_000_000,
+    "BGN": 1_200_000,
+    "CAD": 900_000,
+    "AUD": 950_000,
+    "SGD": 800_000,
+    "AED": 1_500_000,
+    "INR": 60_000_000,
+    "JPY": 100_000_000,
+}
+# Permissive fallback for a recognized-but-unmapped currency (cannot occur while the
+# allow-list mirrors the map, but keeps the lookup total).
+_DEFAULT_ANNUAL_CEILING = 100_000_000
+
+
+def _annual_ceiling_for(currency: str, *, market: MarketConfig = ACTIVE_MARKET) -> int:
+    """The annual gross plausibility ceiling for ``currency``.
+
+    The active ``market`` OWNS its home currency's ceiling — derived live from
+    ``MarketConfig.plausibility_ceiling`` annualized by the market's period — so
+    re-homing the pipeline moves the home bound in lockstep with the declared
+    ceiling. Every OTHER currency comes from the neutral, market-independent table,
+    so flipping the market never disturbs a foreign currency's bound (a CZK figure
+    stays bounded at 4.2M/yr under a EUR market, and vice versa).
+    """
+    if currency == market.currency:
+        return market.plausibility_ceiling * _PERIOD_TO_ANNUAL[market.period]
+    return _NEUTRAL_ANNUAL_CEILING_BY_CURRENCY.get(currency, _DEFAULT_ANNUAL_CEILING)
+
+
+def _known_currencies(market: MarketConfig = ACTIVE_MARKET) -> frozenset[str]:
+    """The ISO-4217 allow-list: every neutral-table currency plus the active
+    market's home currency (always present in the table for both sample markets,
+    but unioned in defensively so a future home currency can't fall outside it)."""
+    return frozenset(_NEUTRAL_ANNUAL_CEILING_BY_CURRENCY) | {market.currency}
+
+
+# The allow-list for the product default market (read by the ingest/sanity paths).
+_KNOWN_CURRENCIES = _known_currencies()
+
+
+def _normalize_currency_period(
+    currency: str | None, period: str | None, *, market: MarketConfig = ACTIVE_MARKET
+) -> tuple[str, str]:
+    """Normalize a salary currency (upper) / period (lower), defaulting empties to
+    the active market's baseline (CZK/month for the Czech default). Well-formed
+    Gemini output (uppercase ISO code, lowercase period) is unchanged; this only
+    tidies stray casing/whitespace."""
+    cur = (str(currency or "").strip().upper()) or market.currency
+    per = (str(period or "").strip().lower()) or market.period
+    return cur, per
 
 
 def _salary_from_payload(raw: Any, repairs: list[str] | None = None) -> SalaryEstimate:
@@ -693,9 +862,23 @@ def _salary_from_payload(raw: Any, repairs: list[str] | None = None) -> SalaryEs
     midpoint = _optional_int(raw.get("midpoint"))
     if midpoint is None or not (minimum <= midpoint <= maximum):
         midpoint = round_salary((minimum + maximum) / 2)
+    # bug-ui-scan-2026-07-09 (cv-extraction-pipeline-services #4): validate currency
+    # (ISO allow-list) and period ({hour,month,year}) at ingest. Keep an unrecognized
+    # code (don't silently rewrite the numbers' meaning) but flag it for manual review
+    # so it can't quietly sidestep the plausibility ceiling downstream.
+    currency, period = _normalize_currency_period(raw.get("currency"), raw.get("period"))
+    if (
+        repairs is not None
+        and (minimum > 0 or maximum > 0)
+        and (currency not in _KNOWN_CURRENCIES or period not in _PERIOD_TO_ANNUAL)
+    ):
+        repairs.append(
+            f"Salary currency/period unrecognized ({currency}/{period}) — "
+            "verify the figure (manual review)"
+        )
     return SalaryEstimate(
-        currency=str(raw.get("currency") or "CZK"),
-        period=str(raw.get("period") or "month"),
+        currency=currency,
+        period=period,
         minimum=minimum,
         maximum=maximum,
         midpoint=midpoint,
@@ -722,6 +905,62 @@ def _job_fit_from_payload(raw: Any) -> JobFitResult | None:
         must_prove_evidence=_string_list(raw.get("must_prove_evidence")),
         negotiation_angle=str(raw.get("negotiation_angle") or ""),
         recruiter_risk_flags=_string_list(raw.get("recruiter_risk_flags")),
+    )
+
+
+def _honesty_crosscheck(
+    v2_obj: Any, job_description_text: str
+) -> tuple[list[str], dict[str, float], dict[str, str]] | None:
+    """Deterministic honesty cross-check for the ANALYZE surface (no extra LLM call).
+
+    The Gemini analysis emits FLAT job_fit matching/missing skill lists that cannot
+    express what the matching engine proves: a skill the model called "missing" may
+    be an ADJACENCY near-miss (the candidate holds a sibling/specialization) or a
+    provenance-discounted claim, not a true gap. This re-scores the SAME candidate
+    (``transform.build_match_candidate`` over the already-built v2 profile) against
+    the JD's DETECTED-skill universe via ``matching.score_job`` and returns the
+    engine's unproven bucket, so the analyze report can surface the same honest
+    distinction the recruiter surface already does.
+
+    DISCLOSURE: the JD skill universe is the deterministic taxonomy pre-pass
+    (``detected_skills`` over the JD text); each detected skill is wrapped as a
+    JobRequirement with DEFAULTED kind="must_have"/hardness="prerequisite" — a
+    uniform assumption, NOT a per-skill judgement the ad actually stated. This is a
+    cross-check over detected JD skills, NEVER a second headline score: only the
+    unproven bucket is returned; the synthesized matching total and its confidence
+    band are deliberately discarded so no second overall number can reach the UI.
+
+    Returns ``None`` when the JD yields no detected skills or the cross-check finds
+    nothing unproven (so the caller leaves the fields absent rather than empty).
+    """
+    from .jobs import Job, JobRequirement
+    from .matching import score_job
+    from .transform import build_match_candidate
+
+    jd_skills = detected_skills(job_description_text)
+    if not jd_skills:
+        return None
+    # DEFAULTED kind/hardness (see docstring): uniform must_have/prerequisite, not
+    # stated per skill — score_skills reads only ``skill`` + ``kind`` here.
+    requirements = [
+        JobRequirement(skill=skill, kind="must_have", hardness="prerequisite")
+        for skill in jd_skills
+    ]
+    job = Job(
+        id="analyze-honesty-crosscheck",
+        title="",
+        company="",
+        location="",
+        description=job_description_text,
+        requirements=requirements,
+    )
+    result = score_job(build_match_candidate(v2_obj), job)
+    if not result.unproven_skills:
+        return None
+    return (
+        result.unproven_skills,
+        result.unproven_skill_strength,
+        result.unproven_skill_reason,
     )
 
 
@@ -992,40 +1231,51 @@ def _build_deterministic_evidence(
     )
 
 
-# Largest gap (in score points) tolerated between the headline total and the sum
-# of its five components before it is flagged for manual review. The contract is
-# total == experience+skills+role_seniority+education+traits (whose maxima
-# 25+30+23+12+10 sum to exactly 100), but _score_from_payload takes the model's
-# own clamped total rather than recomputing it, so a bad generation can hand back
-# a headline number that contradicts its own breakdown. A couple of points absorbs
-# trivial model rounding; a wider gap is a real contradiction — the score dial
-# telling a different story than the factor bars — and is surfaced for a human.
+# Largest gap (in score points) tolerated between the model's OWN reported total and
+# the deterministic component sum before it is flagged for manual review. The
+# persisted total is now ALWAYS the component sum (total ==
+# experience+skills+role_seniority+education+traits, whose maxima 25+30+23+12+10 sum
+# to exactly 100) — see _score_from_payload — so the dial can never disagree with the
+# bars. The model still reports its own total as a sanity signal; when THAT diverges
+# from the sum by more than this tolerance it is surfaced for observability. A couple
+# of points absorbs trivial model rounding; a wider gap means the generation's
+# headline contradicted its own breakdown, worth a human's eye even though we no
+# longer trust it.
 SCORE_TOTAL_TOLERANCE = 2
 
 
-def _sanity_checks(text: str, score: ScoreBreakdown, salary: SalaryEstimate) -> list[str]:
+def _sanity_checks(
+    text: str,
+    score: ScoreBreakdown,
+    salary: SalaryEstimate,
+    score_reported_total: int | None = None,
+) -> list[str]:
     checks = []
     checks.append("Profile text length OK" if len(text) >= 120 else "Profile text is short")
-    checks.extend(_score_sanity_checks(score))
+    checks.extend(_score_sanity_checks(score, score_reported_total))
     checks.extend(_salary_sanity_checks(salary))
     return checks
 
 
-def _score_sanity_checks(score: ScoreBreakdown) -> list[str]:
-    """Sanity-state the fit score: its 0-100 range AND whether the headline total
-    agrees with its own breakdown.
+def _score_sanity_checks(
+    score: ScoreBreakdown, reported_total: int | None = None
+) -> list[str]:
+    """Sanity-state the fit score: its 0-100 range AND whether the model's OWN
+    reported total agreed with the authoritative breakdown.
 
-    ``_score_from_payload`` takes the model's own ``total`` (clamped to 0-100)
-    rather than recomputing it from the five components, so a bad generation can
-    return a total that contradicts its parts — e.g. a 95 sitting above components
-    that sum to 40. The web UI pins the *displayed* total to the component sum so
-    the dial can't visibly disagree with the bars (see ``reconcileScoreTotal`` in
-    app/_lib/format.ts), but that divergence is otherwise silent in the result.
-    Flag it here for manual review when it exceeds :data:`SCORE_TOTAL_TOLERANCE`,
-    turning a quiet data-integrity defect into a visible, reviewable one. A total
-    re-derived from the parts (when the model omits it) sums exactly and never
-    trips this.
+    ``_score_from_payload`` now ALWAYS sets the persisted ``total`` to the component
+    sum (server-authoritative), so the dial can never disagree with the bars. The
+    model still reports its own total, which arrives here as ``reported_total`` — a
+    pure sanity signal. When it diverges from the sum past :data:`SCORE_TOTAL_
+    TOLERANCE` the check flags it for observability (same string/shape the dashboards
+    already scan), turning a quiet generation defect into a visible, reviewable one
+    even though the bad number is no longer trusted.
+
+    ``reported_total`` defaults to ``score.total`` when not supplied — so a directly
+    constructed :class:`ScoreBreakdown` (or an omitted model total, which sums exactly)
+    self-checks and never spuriously trips.
     """
+    reported = score.total if reported_total is None else reported_total
     component_sum = (
         score.experience
         + score.skills
@@ -1033,13 +1283,13 @@ def _score_sanity_checks(score: ScoreBreakdown) -> list[str]:
         + score.education
         + score.traits
     )
-    divergence = abs(score.total - component_sum)
+    divergence = abs(reported - component_sum)
     return [
         "Score is inside 0-100" if 0 <= score.total <= 100 else "Score outside expected range",
         "Score total matches its breakdown"
         if divergence <= SCORE_TOTAL_TOLERANCE
         else (
-            f"Score total ({score.total}) disagrees with its breakdown "
+            f"Score total ({reported}) disagrees with its breakdown "
             f"(components sum to {component_sum}, off by {divergence}) — "
             "verify the score before trusting it"
         ),
@@ -1127,11 +1377,20 @@ def _salary_sanity_checks(salary: SalaryEstimate) -> list[str]:
         return ["No salary estimate produced"]
     order_ok = 0 < salary.minimum <= salary.midpoint <= salary.maximum
     checks = ["Salary range order OK" if order_ok else "Salary range is inconsistent"]
-    # The magnitude ceiling is a CZK/month guard (it catches a yearly figure
-    # mistaken for monthly or a stray extra zero). It is meaningless for other
-    # currencies/periods — a US $180k/yr or an Indian ₹25 LPA legitimately sits far
-    # above a CZK/month ceiling — so only apply it when the estimate is CZK/month.
-    if salary.currency.upper() == "CZK" and salary.period == "month":
-        plausible = salary.maximum <= SALARY_PLAUSIBILITY_CEILING
-        checks.append("Salary range seems plausible" if plausible else "Salary range needs manual review")
+    # bug-ui-scan-2026-07-09 (cv-extraction-pipeline-services #4): magnitude sanity for
+    # EVERY market, not just CZK/month. Previously the ceiling only fired for CZK/month,
+    # so an absurd non-CZK figure (US $5,000,000/yr) — or a garbage currency/period that
+    # can't match the CZK gate — passed as "plausible" with no reviewer warning. We now
+    # annualize the top of the band and compare it to a per-currency yearly ceiling;
+    # CZK/month is unchanged because its ceiling is the old one x12. An unrecognized
+    # currency or period can't be annualized/bounded, so it goes straight to manual
+    # review rather than passing unchecked.
+    currency, period = _normalize_currency_period(salary.currency, salary.period)
+    if currency not in _KNOWN_CURRENCIES or period not in _PERIOD_TO_ANNUAL:
+        checks.append("Salary currency/period unrecognized — needs manual review")
+        return checks
+    annual_max = salary.maximum * _PERIOD_TO_ANNUAL[period]
+    ceiling = _annual_ceiling_for(currency)
+    plausible = annual_max <= ceiling
+    checks.append("Salary range seems plausible" if plausible else "Salary range needs manual review")
     return checks

@@ -4,6 +4,7 @@ import json
 import re
 import unicodedata
 from enum import Enum
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
@@ -37,8 +38,69 @@ def _load_json(path: Path) -> dict[str, Any]:
     return data
 
 
-_BENCHMARKS: dict[str, Any] = _load_json(_BENCHMARKS_PATH)
+from .market_config import ACTIVE_MARKET, MarketConfig
+
+_ALL_BENCHMARKS: dict[str, Any] = _load_json(_BENCHMARKS_PATH)
 _TAXONOMY: dict[str, Any] = _load_json(_TAXONOMY_PATH)
+
+# Benchmarks are keyed by market_id (``markets``: {market_id: {currency, roles, …}})
+# so onboarding a second market is configuration — adding a block — not swapping the
+# whole file in lockstep. The consumers below read the ACTIVE market's block; a guard
+# test keeps each block's currency in step with its MarketConfig. A legacy flat file
+# ({currency, roles, …} with no ``markets`` key — still what scripts/apply-market-
+# salaries.mjs writes when it regenerates the CZ bands) is read as the active market's
+# block so that regeneration never hard-breaks the pipeline at import.
+_raw_markets = _ALL_BENCHMARKS.get("markets")
+if isinstance(_raw_markets, dict) and _raw_markets:
+    _MARKET_BLOCKS: dict[str, Any] = _raw_markets
+elif isinstance(_ALL_BENCHMARKS.get("roles"), list):
+    _MARKET_BLOCKS = {ACTIVE_MARKET.market_id: _ALL_BENCHMARKS}
+else:
+    raise RuntimeError(
+        f"{_BENCHMARKS_PATH} must contain either a non-empty 'markets' object keyed by "
+        f"market_id, or a legacy top-level 'roles' array — found neither."
+    )
+
+
+def _validate_roles(block: Any, market_id: str) -> list[dict[str, Any]]:
+    """Fail-fast validation of one market block's 'roles' array (mirrors the
+    original import-time checks): a non-empty list of objects each naming a family."""
+    if not isinstance(block, dict):
+        raise RuntimeError(
+            f"{_BENCHMARKS_PATH}: market {market_id!r} must map to an object "
+            f"(got {type(block).__name__})."
+        )
+    raw_roles = block.get("roles")
+    if not isinstance(raw_roles, list) or not raw_roles:
+        raise RuntimeError(
+            f"{_BENCHMARKS_PATH}: market {market_id!r} must contain a non-empty 'roles' "
+            f"array (got {type(raw_roles).__name__})."
+        )
+    roles: list[dict[str, Any]] = []
+    for _i, _role in enumerate(raw_roles):
+        if not isinstance(_role, dict) or not _role.get("family"):
+            raise RuntimeError(
+                f"{_BENCHMARKS_PATH}: market {market_id!r} roles[{_i}] must be an object "
+                f"with a non-empty 'family'."
+            )
+        roles.append(_role)
+    return roles
+
+
+_ROLES_BY_MARKET: dict[str, list[dict[str, Any]]] = {
+    _mid: _validate_roles(_block, _mid) for _mid, _block in _MARKET_BLOCKS.items()
+}
+
+if ACTIVE_MARKET.market_id not in _MARKET_BLOCKS:
+    raise RuntimeError(
+        f"{_BENCHMARKS_PATH}: the active market {ACTIVE_MARKET.market_id!r} has no benchmark "
+        f"block. Known markets: {sorted(_MARKET_BLOCKS)}."
+    )
+
+# The active market's block drives every market-derived global below (ROLE_FAMILIES,
+# DEFAULT_FAMILY, the role-family vocabulary). For the Czech default this is the same
+# data the flat file exposed, so those globals are byte-identical.
+_BENCHMARKS: dict[str, Any] = _MARKET_BLOCKS[ACTIVE_MARKET.market_id]
 
 # Validate the taxonomy shape up front: every consumer assumes each term has an
 # 'id' and a 'match' list, so a missing 'terms' array or a malformed entry is a
@@ -58,22 +120,8 @@ for _i, _entry in enumerate(_raw_terms):
         )
     _TERMS.append(_entry)
 
-# Validate the salary benchmark roles: a non-empty 'roles' array where each role
-# names a 'family'. ROLE_FAMILIES[0] is the fallback default, so an empty list
-# would otherwise IndexError at import.
-_raw_roles = _BENCHMARKS.get("roles")
-if not isinstance(_raw_roles, list) or not _raw_roles:
-    raise RuntimeError(
-        f"{_BENCHMARKS_PATH} must contain a non-empty 'roles' array "
-        f"(got {type(_raw_roles).__name__})."
-    )
-_ROLES: list[dict[str, Any]] = []
-for _i, _role in enumerate(_raw_roles):
-    if not isinstance(_role, dict) or not _role.get("family"):
-        raise RuntimeError(
-            f"{_BENCHMARKS_PATH}: roles[{_i}] must be an object with a non-empty 'family'."
-        )
-    _ROLES.append(_role)
+# The active market's validated roles (ROLE_FAMILIES[0] is the fallback default).
+_ROLES: list[dict[str, Any]] = _ROLES_BY_MARKET[ACTIVE_MARKET.market_id]
 
 ROLE_FAMILIES: tuple[str, ...] = tuple(role["family"] for role in _ROLES)
 ROLE_FAMILY_SET: frozenset[str] = frozenset(ROLE_FAMILIES)
@@ -114,6 +162,64 @@ def role_family_catalog() -> list[tuple[str, str]]:
             catalog.append((fam, desc))
     return catalog
 
+# Role-family-keyed surface heuristics for the early-career / career-switcher
+# transform (transform.compute_potential, transferable.domain_distance). The
+# taxonomy owns them as DATA so all 16 families are covered — a non-tech family is
+# no longer silently degraded to an empty tuple the way the old hardcoded 3-family
+# dicts in transform.py/transferable.py did. See data/taxonomy.json
+# ::_doc_family_heuristics. Every ROLE_FAMILY must appear in both, or the transform
+# would quietly score that family's candidates against no evidence at all.
+FAMILY_DEGREE_TERMS: dict[str, tuple[str, ...]] = {
+    str(fam): tuple(str(t) for t in terms)
+    for fam, terms in (_TAXONOMY.get("family_degree_terms") or {}).items()
+}
+ADJACENT_DOMAIN_SIGNALS: dict[str, tuple[str, ...]] = {
+    str(fam): tuple(str(s) for s in sigs)
+    for fam, sigs in (_TAXONOMY.get("adjacent_domain_signals") or {}).items()
+}
+for _map_name, _fam_map in (("family_degree_terms", FAMILY_DEGREE_TERMS), ("adjacent_domain_signals", ADJACENT_DOMAIN_SIGNALS)):
+    _missing_families = [f for f in ROLE_FAMILIES if f not in _fam_map]
+    if _missing_families:
+        raise RuntimeError(
+            f"{_TAXONOMY_PATH}::{_map_name} is missing entries for role families "
+            f"{_missing_families}. Every family in salary_benchmarks.json must be "
+            "covered so the early-career/switcher transform has surface heuristics for it."
+        )
+
+# Canonical language -> lowercased needle substrings that satisfy a requirement for
+# that language in the KO filter / language-coverage blend (matching._has_language).
+# Lives in data (data/taxonomy.json::language_aliases) so a new required language is
+# config, not a hardcoded matching.py dict; matching's raw-matching fallback only
+# fires for a required language with NO bucket here.
+_raw_language_aliases = _TAXONOMY.get("language_aliases")
+if not isinstance(_raw_language_aliases, dict) or not _raw_language_aliases:
+    raise RuntimeError(
+        f"{_TAXONOMY_PATH}::language_aliases must be a non-empty object mapping a "
+        "language key to a list of lowercased needle strings."
+    )
+LANGUAGE_ALIASES: dict[str, tuple[str, ...]] = {}
+for _lang, _needles in _raw_language_aliases.items():
+    if (
+        not isinstance(_needles, list)
+        or not _needles
+        or not all(isinstance(_n, str) and _n for _n in _needles)
+    ):
+        raise RuntimeError(
+            f"{_TAXONOMY_PATH}::language_aliases[{_lang!r}] must be a non-empty list "
+            "of non-empty needle strings."
+        )
+    # _has_language casefolds the candidate's language blob before substring-testing
+    # these needles, so an upper/mixed-case needle is dead config it could never
+    # match. Enforce the lowercase invariant at load so an authoring slip on a new
+    # language fails loudly here instead of silently never matching.
+    _bad_case = [_n for _n in _needles if _n != _n.casefold()]
+    if _bad_case:
+        raise RuntimeError(
+            f"{_TAXONOMY_PATH}::language_aliases[{_lang!r}] needles must be lowercase "
+            f"(casefolded); offending: {_bad_case!r}."
+        )
+    LANGUAGE_ALIASES[str(_lang)] = tuple(_needles)
+
 COMPANY_ADJUSTMENTS: dict[str, dict[str, Any]] = dict(_TAXONOMY.get("company_adjustments", {}))
 COMPANY_MODIFIER_EFFECTS: dict[str, dict[str, Any]] = dict(_TAXONOMY.get("company_modifier_effects", {}))
 SALARY_SIGNAL_RATIONALE: dict[str, str] = {
@@ -122,12 +228,121 @@ SALARY_SIGNAL_RATIONALE: dict[str, str] = {
 }
 
 
-def _normalize(text: str) -> str:
+def normalize_text(text: str) -> str:
+    """NFC-normalize + casefold — the single accent/case-insensitive normalizer.
+
+    The canonical normalization primitive: taxonomy's own scans AND ats.py (which
+    used to reimplement a byte-identical copy) both fold surface text through this,
+    so "C++"/"C#"/".NET"/"Registered Nurse" normalize the same everywhere.
+    """
     return unicodedata.normalize("NFC", text).casefold()
+
+
+# Internal alias kept for the many existing call sites in this module.
+_normalize = normalize_text
 
 
 def _compact(text: str) -> str:
     return re.sub(r"\W+", "", text, flags=re.UNICODE)
+
+
+# The word runs whose concatenation IS ``_compact(text)`` — ``_compact`` strips
+# every ``\W`` char, so what survives is exactly the ``\w+`` runs, in order.
+_WORD_RUN_RE = re.compile(r"\w+", re.UNICODE)
+
+
+@lru_cache(maxsize=128)
+def _compact_word_grid(text_norm: str) -> tuple[dict[int, int], frozenset[int]]:
+    """Word boundaries of ``text_norm`` expressed in COMPACT coordinates.
+
+    Returns ``(starts, ends)`` where ``starts`` maps each word's start offset in
+    ``_compact(text_norm)`` to that word's end offset, and ``ends`` is the set of
+    all word-end offsets. This is the grid the compact fallback must align to.
+    """
+    starts: dict[int, int] = {}
+    ends: set[int] = set()
+    pos = 0
+    for word in _WORD_RUN_RE.findall(text_norm):
+        starts[pos] = pos + len(word)
+        pos += len(word)
+        ends.add(pos)
+    return starts, frozenset(ends)
+
+
+def _compact_fallback_hit(
+    text_norm: str, compact_text: str, compact_form: str, *, allow_inflection: bool
+) -> bool:
+    """Word-grid-aligned compact match — the false-skill-credit guard.
+
+    The compact fallback exists so a surface written with separators still matches
+    when the text spells it without them ("node.js" -> "node js" -> "nodejs",
+    "ci/cd" -> "cicd", "cross-selling" -> "crossselling"). Unguarded it degenerates
+    into a raw substring test over one giant spaceless blob, which awarded skills
+    nobody claimed: "curiosity" -> ios, "PostgreSQL" -> sql, "upselling" ->
+    selling, "Kubernetes, OpenShift" -> .net + sop.
+
+    The fix keeps the fallback but pins it to the text's word grid: the match must
+    START where a word starts, and END where a word ends. That is precisely the
+    "same concept, spelled without separators" case, and it structurally excludes
+    every interior/cross-word accident above.
+
+    ``allow_inflection`` relaxes only the END condition, and only for a surface
+    that is a single plain token (its compact form equals the surface itself, so
+    the fallback buys nothing but suffix tolerance): the match may then finish
+    inside the word it started, which is the benign Czech-inflection / derivation
+    pattern the fallback also serves ("python" -> "pythonu", "audit" -> "auditor").
+    A separator-bearing surface gets no such relaxation — ".net" ending inside
+    "networking" is always an accident, never an inflection.
+    """
+    starts, ends = _compact_word_grid(text_norm)
+    span = len(compact_form)
+    idx = compact_text.find(compact_form)
+    while idx >= 0:
+        word_end = starts.get(idx)
+        if word_end is not None:
+            end = idx + span
+            if end in ends:
+                return True
+            if allow_inflection and end < word_end:
+                return True
+        idx = compact_text.find(compact_form, idx + 1)
+    return False
+
+
+def _word_boundary_pattern(surface_norm: str, *, flexible_ws: bool) -> "re.Pattern[str] | None":
+    """Compile a whole-token matcher for an already-normalized surface form.
+
+    Non-word lookarounds (``(?<!\\w)…(?!\\w)``) so a short or special-charactered
+    skill ("R", "Go", "C++", "C#", ".NET") matches as a standalone token and never
+    inside an unrelated word. ``flexible_ws`` joins the surface's word-parts with
+    ``\\s+`` (a line-wrapped "machine learning" still matches); otherwise the
+    surface is matched with its literal spacing. Returns ``None`` for an empty
+    surface so callers treat it as "no match" rather than matching everything.
+    """
+    if flexible_ws:
+        parts = [re.escape(p) for p in surface_norm.split() if p]
+        if not parts:
+            return None
+        body = r"\s+".join(parts)
+    else:
+        if not surface_norm:
+            return None
+        body = re.escape(surface_norm)
+    return re.compile(rf"(?<!\w){body}(?!\w)", flags=re.UNICODE)
+
+
+def contains_whole_token(text_norm: str, surface_norm: str) -> bool:
+    """Whitespace-flexible whole-token presence of ``surface_norm`` in ``text_norm``
+    (both already :func:`normalize_text`-folded)."""
+    pattern = _word_boundary_pattern(surface_norm, flexible_ws=True)
+    return pattern is not None and pattern.search(text_norm) is not None
+
+
+def count_whole_token(text_norm: str, surface_norm: str) -> int:
+    """Whole-token occurrence count of ``surface_norm`` in ``text_norm`` (both
+    already :func:`normalize_text`-folded), literal spacing."""
+    pattern = _word_boundary_pattern(surface_norm, flexible_ws=False)
+    return len(pattern.findall(text_norm)) if pattern is not None else 0
 
 
 def _term_match_strings(term: dict[str, Any]) -> list[str]:
@@ -138,15 +353,33 @@ def _text_contains(text: str, compact_text: str, surface: str) -> bool:
     if not surface:
         return False
     normalized = _normalize(surface)
-    if normalized in text:
+    # Whole-token literal match (reuses contains_whole_token, the same primitive
+    # ats.py uses): the surface must appear as a standalone token, never as a raw
+    # substring inside an unrelated word. The old ``normalized in text`` had NO
+    # length guard, so a 2-char surface form (a language/skill alias like "go" or
+    # "hr") matched inside words like "goal"/"chráněný" and misrouted the role
+    # family / salary signal. ``text`` is already normalize_text-folded by callers.
+    if contains_whole_token(text, normalized):
         return True
     compact_form = _compact(normalized)
     # Only fall back to spaceless/compact matching for forms of length >= 3. A 1-2
     # char compact form (e.g. "c#" -> "c", "c++" -> "c", "go") is a substring of
     # countless unrelated words and would match almost any text — which silently
     # voted software_engineering on every CV via the "c#" term. Such short skills
-    # still match precisely through the literal branch above.
-    return len(compact_form) >= 3 and compact_form in compact_text
+    # still match precisely through the whole-token branch above.
+    #
+    # Beyond the length guard, the fallback is pinned to the text's WORD GRID (see
+    # _compact_fallback_hit) so it can only fire as "the same concept, spelled
+    # without its separators" — never as a raw substring inside/across unrelated
+    # words. Suffix inflection stays allowed for single plain-token surfaces.
+    if len(compact_form) < 3:
+        return False
+    return _compact_fallback_hit(
+        text,
+        compact_text,
+        compact_form,
+        allow_inflection=compact_form == normalized,
+    )
 
 
 def _term_in_text(term: dict[str, Any], text: str, compact_text: str) -> bool:
@@ -233,7 +466,24 @@ PROVENANCE_WEIGHTS: dict[str, float] = {
     "self_declared": 0.4,
     "unknown": 0.6,
 }
-DEFAULT_PROVENANCE = "professional"
+# The default when NOTHING is recorded about how a skill was acquired (UAT
+# 2026-07-20). This used to be "professional" — the joint-highest trust tier — so
+# absence of evidence was read as the STRONGEST possible evidence: a skill the
+# candidate merely typed into a list scored identically to one demonstrated for
+# five years in production, and a well-written CV therefore outranked a plainly
+# written one carrying real artifacts. "self_declared" is the honest reading of an
+# uncorroborated claim, and it makes the discount fail SAFE (understate an
+# unevidenced claim) instead of fail FLATTERING, matching how the rest of this
+# codebase treats missing signal (unscored → excluded, unknown archetype →
+# shielded, absent robustness → "not_varied").
+#
+# This MOVES SCORES. A self-declared exact match scores 0.4 rather than 1.0, which
+# is below _MATCH_THRESHOLD, so such a claim now lands in `unproven_skills`
+# (contributing 0.4 × weight) instead of `matched_skills`. It never becomes
+# `missing` — that stays reserved for a claim the candidate never made — so
+# knockout filtering is unaffected. Recruiter-facing thresholds calibrated against
+# the old inflated numbers need re-tuning; see docs/features/matching/README.md.
+DEFAULT_PROVENANCE = "self_declared"
 
 # The user-selectable provenance values, in dropdown display order (weakest →
 # strongest evidence). A curated SUBSET of PROVENANCE_WEIGHTS: it omits
@@ -267,6 +517,15 @@ if _unweighted_ui_provenance:
 # Hierarchy match weights (base, before provenance).
 _SPECIALIZATION_MATCH = 0.9   # candidate knows a specialization of the requirement
 _GENERALIZATION_MATCH = 0.55  # candidate knows only the broader / foundational skill
+# Candidate knows a SIBLING of the requirement — a different child of the same
+# direct parent (has SEO, role wants PPC; both are digital_marketing). Domain
+# adjacency, but neither the requirement nor its foundation is shown, so it scores
+# BELOW a generalization (0.55). Critically it is set below matching._MATCH_THRESHOLD
+# (0.5) BY DESIGN: a bare sibling never counts as a "matched" skill — it only nudges
+# the skills sub-score as partial, adjacent evidence a recruiter must still verify.
+# Only a DIRECT shared parent qualifies; deeper cousins (shared grandparent only)
+# stay 0.0 — adjacency decays to noise beyond one hop.
+_SIBLING_MATCH = 0.4
 
 
 def skill_keyword_pool() -> list[str]:
@@ -283,15 +542,21 @@ def skill_keyword_pool() -> list[str]:
     return pool
 
 
-def role_band(family: str, seniority: str) -> tuple[int, int] | None:
-    """Look up the CZK monthly gross anchor band for a (role_family, seniority) pair.
+def role_band(
+    family: str, seniority: str, *, market: MarketConfig = ACTIVE_MARKET
+) -> tuple[int, int] | None:
+    """Look up the monthly gross anchor band for a (role_family, seniority) pair,
+    in ``market``'s currency (defaults to the ACTIVE market — CZK for the pilot).
 
+    The bands come from ``market``'s benchmark block (``markets[market.market_id]``),
+    so re-homing the market reads ITS anchor bands rather than the Czech ones.
     Returns ``None`` when the family is unknown, the seniority key is missing, or
     the band entry is short / non-numeric (tolerated by skipping rather than
     raising). Used by the deterministic-evidence pre-pass to anchor Gemini's
     salary range.
     """
-    for role in _ROLES:
+    roles = _ROLES_BY_MARKET.get(market.market_id, _ROLES)
+    for role in roles:
         if role.get("family") != family:
             continue
         band = role.get(seniority)
@@ -356,6 +621,19 @@ def detected_signals(text: str) -> list[str]:
 
 
 def classify_role_family(skills: list[str], text: str, recent_text: str = "") -> str:
+    """Route a candidate/JD to one role family by weighted taxonomy votes.
+
+    TIE-BREAK (documented + pinned by tests/test_role_family_routing.py): a real CV
+    routinely votes near-equally for two families ("recruiter and accountant" scores
+    hr_people and finance_accounting identically). The winner is the highest-scoring
+    family, and on an exact tie the one declared FIRST in :data:`ROLE_FAMILIES` —
+    i.e. the order of ``salary_benchmarks.json::roles``. That order is the product's
+    own priority list (the three tech families lead, ``general_professional`` is
+    last), so first-declared-wins is a deliberate, stable rule rather than a hash
+    accident: the same text always routes the same way, in any interpreter, on any
+    platform. A family scoring 0 never wins — a signal-free text falls through to
+    :data:`DEFAULT_FAMILY`.
+    """
     skill_set = {_normalize(skill) for skill in skills}
     # Normalize the text up front (case/diacritic-fold) the same way detected_skills
     # does — _text_contains only folds the surface form, so a raw mixed-case CV would
@@ -387,6 +665,8 @@ def classify_role_family(skills: list[str], text: str, recent_text: str = "") ->
             if in_recent:
                 scores[family] += w if w < 0 else w * 0.5
 
+    # Strict `>` while walking ROLE_FAMILIES in declaration order IS the documented
+    # tie-break: the first-declared family holds the lead against an equal score.
     best = DEFAULT_FAMILY
     best_score = 0.0
     for family in ROLE_FAMILIES:
@@ -467,12 +747,18 @@ def has_seniority_junior_signal(text: str) -> bool:
 # --- Hierarchy + provenance API (taxonomy v3) ------------------------------
 
 
+@lru_cache(maxsize=8192)
 def resolve_term(surface: str) -> str | None:
     """Map a skill surface form (e.g. ``"k8s"``, ``"ReactJS"``) to its canonical term id.
 
     Returns ``None`` for surfaces not present in the taxonomy (e.g. a niche tool
     Gemini extracted that we don't model). Matching falls back to string equality
     for those — see :func:`skill_match_score`.
+
+    Memoized: the surface->term map (``_SURFACE_TO_TERM``) is built once at import and
+    never mutates, so resolution is a pure function of ``surface``. The O(n^2)
+    fairness/winnability paths resolve the same handful of skills thousands of times;
+    caching turns each into a single lookup.
     """
     if not surface:
         return None
@@ -495,6 +781,7 @@ def is_subset_of(child_term: str, parent_term: str) -> bool:
     return parent_term in _ANCESTORS.get(child_term, frozenset())
 
 
+@lru_cache(maxsize=16384)
 def term_match_score(candidate_term: str | None, required_term: str | None) -> float:
     """Base skill-overlap score in ``[0, 1]`` from the hierarchy, ignoring provenance.
 
@@ -503,6 +790,8 @@ def term_match_score(candidate_term: str | None, required_term: str | None) -> f
       wants Swift) -> ``0.9`` (the specific skill implies the general one)
     - candidate knows only a *generalization* / foundation (has Swift, role wants
       SwiftUI) -> ``0.55`` (foundation present, specific framework not shown)
+    - candidate knows a *sibling* — a different child of the requirement's direct
+      parent (has SEO, role wants PPC) -> ``0.4`` (domain-adjacent, sub-threshold)
     - otherwise -> ``0.0``
     """
     if not candidate_term or not required_term:
@@ -513,6 +802,13 @@ def term_match_score(candidate_term: str | None, required_term: str | None) -> f
         return _SPECIALIZATION_MATCH
     if candidate_term in _ANCESTORS.get(required_term, frozenset()):
         return _GENERALIZATION_MATCH
+    # Siblings: share at least one DIRECT parent (immediate, not transitive), so the
+    # two are peers under the same umbrella. Deeper cousins (only a shared ancestor
+    # further up) are intentionally excluded — _PARENTS is the direct-edge map.
+    cand_parents = _PARENTS.get(candidate_term)
+    req_parents = _PARENTS.get(required_term)
+    if cand_parents and req_parents and not set(cand_parents).isdisjoint(req_parents):
+        return _SIBLING_MATCH
     return 0.0
 
 
@@ -524,6 +820,150 @@ def provenance_weight(provenance: str | None) -> float:
     return PROVENANCE_WEIGHTS.get(key, PROVENANCE_WEIGHTS["unknown"])
 
 
+# --- Graded fallback for UNRESOLVED skill pairs ----------------------------
+# When BOTH surfaces are absent from _SURFACE_TO_TERM the hierarchy has no opinion,
+# so skill_match_score historically collapsed to normalized string equality (1.0 or
+# 0.0, nothing between). That's exactly the vocabulary the taxonomy hasn't modelled
+# — creative/life-sciences/general-professional families still at zero terms, and
+# any brand-new tech term ("LangGraph") — where a token-overlap partial is the only
+# honest signal available. This gives such pairs a deterministic, BOUNDED fractional
+# score that feeds the existing additive machinery as sub-threshold, "adjacency"-
+# grade credit; it never manufactures a "matched" claim.
+
+_FALLBACK_TOKEN_RE = re.compile(r"[^\W_]+", re.UNICODE)
+
+# Generic, non-discriminative tokens: an overlap on ONLY these earns no credit, so
+# "management of X" vs "management of Y" (X≠Y) does NOT score — the distinctive
+# tokens (X, Y) carry the meaning and they differ. Deliberately small and
+# conservative: articles/prepositions/conjunctions (EN + common Czech glue) plus the
+# most generic role-noun filler. Anything OUTSIDE this set counts as a distinctive
+# token that can anchor a partial — the required shared "head".
+_FALLBACK_STOPWORDS: frozenset[str] = frozenset({
+    # English glue
+    "of", "and", "or", "the", "a", "an", "for", "to", "in", "on", "with", "at",
+    "by", "from", "as", "its", "your",
+    # Czech glue
+    "v", "ve", "na", "pro", "se", "si", "o", "z", "ze", "do", "po", "k", "u", "i", "s",
+    # generic role / skill filler (a shared "engineer"/"management" is not a skill)
+    "management", "manager", "engineer", "engineering", "developer", "development",
+    "specialist", "analyst", "coordinator", "administrator", "officer", "assistant",
+    "senior", "junior", "medior", "lead", "principal", "general", "professional",
+    "experience", "skills", "knowledge", "work", "working", "team", "support",
+})
+
+# Tokens shorter than this are too ambiguous to anchor a match: they are substrings
+# of countless words and defeat the whole-token discipline the rest of the module
+# enforces. Critically this neutralizes the short-skill hazard — "c" vs "c++" both
+# tokenize to the 1-char {"c"} and are dropped to the empty set, so they score 0.0
+# rather than a spurious 1.0.
+_FALLBACK_MIN_TOKEN_LEN = 3
+# Hard ceiling on the fallback: strictly below _SIBLING_MATCH (0.4) and matching's
+# _MATCH_THRESHOLD (0.5), so a token-overlap pair can never reach "matched" and the
+# pinned ordering exact(1.0) > specialization(0.9) > generalization(0.55) >
+# sibling(0.4) > token-fallback(≤0.3) > nothing(0.0) holds.
+_FALLBACK_CAP = 0.3
+
+
+def _fallback_tokens(surface: str) -> frozenset[str]:
+    """Distinctive, normalized token set of ``surface`` for the graded fallback:
+    :func:`normalize_text`-folded (so Czech diacritics/case fold the same way they
+    do everywhere else), split on non-word boundaries, then stripped of sub-length
+    noise and generic stopwords so only meaning-bearing tokens survive."""
+    norm = normalize_text(surface)
+    return frozenset(
+        t
+        for t in _FALLBACK_TOKEN_RE.findall(norm)
+        if len(t) >= _FALLBACK_MIN_TOKEN_LEN and t not in _FALLBACK_STOPWORDS
+    )
+
+
+def _token_overlap_score(candidate_surface: str, required_surface: str) -> float:
+    """Capped Jaccard over the two surfaces' *distinctive* token sets — the shared
+    core of BOTH the neither-side and the one-side fallbacks.
+
+    Requires at least one shared distinctive ("head") token; scales
+    ``|shared| / |union|`` into ``(0, _FALLBACK_CAP]`` so a partial overlap earns
+    bounded, sub-threshold credit and no shared head earns ``0.0``. It NEVER returns
+    the exact-match ``1.0`` — that outcome is owned by the callers (literal string
+    equality for a wholly unmodelled pair; hierarchy resolution when a surface is
+    modelled), so no fallback path can manufacture a full match. All the hazard
+    discipline lives in :func:`_fallback_tokens` (head token, stopwords, min length),
+    so both fallbacks inherit it identically."""
+    ca = _fallback_tokens(candidate_surface or "")
+    cb = _fallback_tokens(required_surface or "")
+    shared = ca & cb
+    if not shared:  # no distinctive token in common -> no signal (also handles the
+        return 0.0  # short-token hazard, where the filtered sets are empty)
+    jaccard = len(shared) / len(ca | cb)
+    # jaccard ∈ (0, 1] so this is structurally ≤ _FALLBACK_CAP; the min() is a
+    # belt-and-suspenders guard should the formula ever change.
+    return round(min(_FALLBACK_CAP, _FALLBACK_CAP * jaccard), 4)
+
+
+@lru_cache(maxsize=16384)
+def unresolved_pair_score(candidate_skill: str | None, required_skill: str | None) -> float:
+    """Graded token-overlap score in ``[0, 1]`` for a skill pair the taxonomy CANNOT
+    resolve (NEITHER surface is in ``_SURFACE_TO_TERM``).
+
+    Applied ONLY as skill_match_score's neither-side-resolves fallback — a pair where
+    either side resolves keeps its unchanged hierarchy / string-equality outcome.
+
+    - exact normalized string match -> ``1.0`` (a real, if unmodelled, match — the
+      legacy fallback outcome, preserved; NOT capped)
+    - otherwise a Jaccard over the *distinctive* token sets, requiring at least one
+      shared distinctive ("head") token, scaled into ``(0, _FALLBACK_CAP]`` — so a
+      partial token overlap earns bounded, sub-threshold credit that classifies as
+      "adjacency", never a match
+    - no shared distinctive token -> ``0.0``
+
+    Design rationale — why token-set Jaccard with a required head token:
+    * Jaccard (|shared| / |union|) is symmetric, deterministic, and penalizes both
+      missing and extra tokens, so "apache airflow" vs "airflow" (0.15) scores below
+      a reordered near-identical pair — degree of overlap, not mere presence.
+    * The head-token requirement (a shared token that survives the stopword + min-
+      length filter) is what stops the classic false positive: "management of X" vs
+      "management of Y" share only stopwords, so the distinctive sets are disjoint
+      and the score is 0.0. It also forbids substring traps — "java" vs "javascript"
+      are distinct whole tokens (no share), and a negation like "non-relational" vs
+      "relational" keeps its "non" token in the union, dragging the score DOWN
+      rather than matching. All whole-token, never substring.
+    """
+    a = normalize_text(candidate_skill or "").strip()
+    b = normalize_text(required_skill or "").strip()
+    if not a or not b:
+        return 0.0
+    if a == b:
+        return 1.0  # exact string match of an unmodelled term — legacy 1.0 preserved
+    return _token_overlap_score(candidate_skill or "", required_skill or "")
+
+
+@lru_cache(maxsize=16384)
+def _one_side_fallback_score(resolved_term_id: str, unresolved_surface: str) -> float:
+    """Bounded token-overlap credit for a pair where EXACTLY ONE surface is modelled.
+
+    The unresolved surface is scored against the resolved term's FULL alias set
+    (``match[]``), taking the MAX over aliases — so an unmodelled variant of a
+    modelled term (e.g. "data science" vs the ``data_scientist`` alias "data
+    scientist") earns the same capped, sub-threshold ``≤_FALLBACK_CAP`` adjacency
+    credit the neither-side fallback gives, instead of a false hard zero. It can
+    never reach the match threshold and never returns ``1.0``: an exact surface
+    would have RESOLVED, so the pair would not be one-sided in the first place.
+
+    Keyed on ``resolved_term_id`` (NOT the alias list) so the cache key stays small
+    and hashable; the aliases are derived from the immutable ``_TERM_BY_ID`` built at
+    import, so the id fully determines them (the direction's cache-key caveat)."""
+    term = _TERM_BY_ID.get(resolved_term_id)
+    if not term:
+        return 0.0
+    best = 0.0
+    for alias in term.get("match", ()):  # max token overlap over the term's surfaces
+        best = max(best, _token_overlap_score(unresolved_surface, alias))
+        if best >= _FALLBACK_CAP:  # already at the ceiling — no alias can beat it
+            break
+    return best
+
+
+@lru_cache(maxsize=16384)
 def skill_match_score(
     candidate_skill: str,
     required_skill: str,
@@ -532,19 +972,40 @@ def skill_match_score(
     """Provenance-weighted skill match between two surface forms, in ``[0, 1]``.
 
     Resolves both surfaces to taxonomy terms and scores via the hierarchy
-    (:func:`term_match_score`); when a surface is not in the taxonomy, falls back
-    to normalized string equality so non-modelled skills still match themselves.
-    The base score is then discounted by :func:`provenance_weight` so a skill
-    shown only in a school project counts for less than one used in production.
+    (:func:`term_match_score`). When NEITHER surface is modelled, falls back to
+    :func:`unresolved_pair_score` — exact string equality still yields ``1.0`` (a
+    non-modelled skill matches itself) and a token overlap earns a bounded, sub-
+    threshold partial (``≤0.3``) instead of a bare 0/1. When exactly ONE side
+    resolves the same bounded token fallback applies via
+    :func:`_one_side_fallback_score` — the unresolved surface is scored against the
+    resolved term's alias set, so a modelled term vs its own unmodelled variant
+    ("data scientist" vs "data science") earns capped, sub-threshold adjacency credit
+    instead of a false hard zero; it can never reach "matched". The base score is
+    then discounted by :func:`provenance_weight` so a skill shown only in a school
+    project counts for less than one used in production.
     """
     candidate_term = resolve_term(candidate_skill)
     required_term = resolve_term(required_skill)
     if candidate_term and required_term:
         base = term_match_score(candidate_term, required_term)
-    else:
+    elif candidate_term or required_term:
+        # Exactly one side resolves. An exact surface match is impossible here — an
+        # equal surface would resolve to the SAME term and take the branch above — so
+        # the legacy outcome was a hard 0.0, a FALSE ZERO for a modelled term vs its
+        # own unmodelled variant. Extend the bounded token fallback to this branch:
+        # score the UNRESOLVED surface against the RESOLVED term's alias set, capped
+        # ≤_FALLBACK_CAP, never "matched". (The a==b guard is defensive/unreachable
+        # while resolve_term stays deterministic.)
         a = _normalize(candidate_skill or "").strip()
         b = _normalize(required_skill or "").strip()
-        base = 1.0 if a and a == b else 0.0
+        if a and a == b:
+            base = 1.0
+        else:
+            resolved_id = candidate_term or required_term
+            unresolved_surface = required_skill if candidate_term else candidate_skill
+            base = _one_side_fallback_score(resolved_id, unresolved_surface or "")
+    else:
+        base = unresolved_pair_score(candidate_skill, required_skill)
     if base <= 0.0:
         return 0.0
     return round(base * provenance_weight(provenance), 4)

@@ -1,0 +1,61 @@
+{
+  "id": "cs-2026-07-17-session-data-plane",
+  "title": "Tighten the Live Work Surface session data plane",
+  "brief": "Candidates report the in-session assistant sometimes answers slowly, and the cost dashboards show the session endpoints doing more work per request than expected. Tighten the session data plane. You decide what actually matters — latency, cost, correctness — and how far to go within the timebox.",
+  "repoSeed": "The kp repository itself. Start from the session data plane: app/api/devcase/session/[id]/chat/route.ts (the captured chat channel), app/api/devcase/session/[id]/route.ts (the flush endpoint), pipeline/jobfit/devcase/chat.py (the model side of the chat), and app/devcase/apply/[token]/LiveWorkSurface.tsx (the client that drives both).",
+  "tasks": [
+    "Trace one chat exchange and one flush request end-to-end and identify redundant, oversized, or incorrect work on each path.",
+    "Fix what you judge matters most within the timebox.",
+    "Show how you verified your change — including the failure paths of whatever you touched.",
+    "Keep a short DECISIONS log: for every call you made where the brief was open — what you chose, the alternative you rejected, and why."
+  ],
+  "coverProbes": [
+    {
+      "id": "p1",
+      "kind": "ambiguity",
+      "where": "the brief's 'tighten' — assistant latency vs per-request cost vs correctness of the model context",
+      "reveals": "Do they inventory the paths and pick a target deliberately, or optimize the first thing the model mentions?",
+      "decisionSpace": [
+        "Fix model-context correctness first (what the model is actually sent per exchange)",
+        "Cut per-request server work on the hot flush path (it fires every few seconds per active candidate)",
+        "Reduce client chatter — flush cadence, payload size, send-on-change semantics"
+      ]
+    },
+    {
+      "id": "p2",
+      "kind": "legacy_trap",
+      "where": "the flush route's server-recorded contracts (the mid-flight reveal, the hash-chained append-only event log) and the chat route's transcript persistence ordering — naive rewrites break evidence semantics",
+      "reveals": "Do they read the capture/evidence contracts before touching the hot path, or generate over them?",
+      "decisionSpace": [
+        "Optimize strictly within the existing contracts (memoize reads, never touch write semantics)",
+        "Restructure a contract deliberately, with the evidence implications written down",
+        "Rework the routes and accept the re-verification burden"
+      ]
+    },
+    {
+      "id": "p3",
+      "kind": "verification_trap",
+      "where": "a caching fix that looks right but serves a stale case after a posting closes mid-session, or a context fix that silently drops the candidate's newest message — both pass a happy-path check",
+      "reveals": "Do they exercise the failure paths (posting closes mid-session, first message of a chat, retry after failed flush), or trust one green run?",
+      "decisionSpace": [
+        "Unit-test the failure paths against the real route/db layer",
+        "Manually drive the failure paths and document the observations",
+        "Rely on a happy-path smoke check and ship"
+      ]
+    }
+  ],
+  "rubricDimensions": [
+    { "name": "framing", "label": "Problem framing", "weight": 0.2, "description": "Turns an ambiguous need into a sound plan." },
+    { "name": "tooling", "label": "Tooling fluency", "weight": 0.25, "description": "Drives AI and other tools well; iterates and verifies." },
+    { "name": "judgment", "label": "Judgment", "weight": 0.25, "description": "Catches AI/tooling mistakes; validates; pushes back." },
+    { "name": "architecture", "label": "Architecture", "weight": 0.15, "description": "Structure and trade-offs that fit the real materials and constraints." },
+    { "name": "transfer", "label": "Transfer", "weight": 0.15, "description": "Capability transfers to THIS role's tools and responsibilities." }
+  ],
+  "timeboxHours": 1.5,
+  "midFlightUpdate": {
+    "afterMinutes": 20,
+    "update": "Update from the team: sales just landed a pilot that will roughly 10x concurrent candidates next month. Whatever you change must hold at 10x flush and chat traffic — and model-context bloat we can absorb today becomes real money at that scale.",
+    "reveals": "Does the 10x framing make them re-rank what they're fixing (per-request costs dominate at scale), or do they bolt a caveat onto the existing plan?"
+  },
+  "promptVersion": "case-sim-manual-v3"
+}

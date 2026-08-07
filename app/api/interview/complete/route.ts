@@ -1,14 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { recordMeterUsage } from "@/app/_lib/billing";
 import { maxBillableInterviewMin } from "@/app/_lib/billing/enforce";
-import {
-  attachInterviewScorecard,
-  completeInterviewSession,
-  getEntryWorkspace,
-  getInterviewSessionByToken,
-  insertLlmUsage,
-  type VoiceTurn,
-} from "@/app/_lib/db";
+import { attachInterviewScorecard, completeInterviewSession, getInterviewSessionByToken, type VoiceTurn } from "@/app/_lib/db/interviews";
+import { insertLlmUsage } from "@/app/_lib/db/llm";
+import { getEntryWorkspace } from "@/app/_lib/db/pipeline";
 import { voiceUsageRow } from "@/app/_lib/voice/minute-prices";
 import { runInterviewScorecard } from "@/app/_lib/interview-run";
 import { sealDecisionSafe } from "@/app/_lib/decision-record-store";
@@ -104,7 +99,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const status = body.status === "failed" ? "failed" : "completed";
+    // Defense in depth (voice-interview #1): `status` is client-supplied, and the
+    // AI interviewer always opens, so a silent-mic call (hardware fault, OS mute,
+    // VAD never firing) can arrive here as "completed" with a transcript that holds
+    // only interviewer turns. Never score such a call: downgrade to "failed" so
+    // scoring is skipped, minutes stay unbilled, and the candidate keeps access to
+    // their link instead of being locked out of an empty interview.
+    const candidateTurns = transcript.filter((t) => t.role === "candidate").length;
+    const status = body.status === "failed" || candidateTurns === 0 ? "failed" : "completed";
 
     // Never replace a persisted non-empty transcript with an empty one
     // (idea-beb71894): a stray empty/failed finalize after a real one (e.g. a
@@ -136,7 +138,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Billing debit (docs/BILLING.md): interview minutes are metered on the
+    // Billing debit (docs/features/billing/README.md): interview minutes are metered on the
     // completion whose write APPLIED (the row-level guard above also makes the
     // debit idempotent across duplicate POSTs) and only for real "completed"
     // calls — a dropped/failed call doesn't bill. Minutes = wall time from
@@ -151,7 +153,10 @@ export async function POST(request: NextRequest) {
       // RESERVE exactly this amount — gate and debit read one function, never two
       // different numbers (the reserve-vs-debit bug this seam closes).
       const billedMin = Math.min(Math.max(elapsedMin, 1), maxBillableInterviewMin(bookedMin));
-      recordMeterUsage("interview_minutes", billedMin);
+      // Org attribution (org-plan Phase 3): a token-driven flow has no session
+      // cookie, so derive the tenant from the interviewed entry — the same rule
+      // the scorecard scoping below uses. Entry-less sessions land on the default.
+      recordMeterUsage("interview_minutes", billedMin, new Date(), session.entryId ? getEntryWorkspace(session.entryId) : undefined);
       // Cost attribution (tiger F1): the meter above is a quantity-only quota
       // counter, but OpenAI Realtime vs ElevenLabs per-minute costs differ
       // materially — so the SAME billed minutes also land in the llm_usage

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getTask } from "@/app/_lib/db";
+import { getTask } from "@/app/_lib/db/tasks";
 import { cancelTask } from "@/app/_lib/tasks";
 
 

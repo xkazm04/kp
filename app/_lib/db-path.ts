@@ -19,9 +19,47 @@ import Database from "better-sqlite3";
 // robust mechanism is the explicit KP_DB_PATH override: set it to an ABSOLUTE path in
 // every deploy and cron unit. We resolve to absolute here (a relative KP_DB_PATH is
 // itself cwd-relative) and warn once in production when the override is unset.
-export const DB_PATH = process.env.KP_DB_PATH
-  ? path.resolve(process.env.KP_DB_PATH)
-  : path.resolve(process.cwd(), "data", "kp.sqlite");
+/** The default SQLite location when KP_DB_PATH is unset: <cwd>/data/kp.sqlite — a real
+ *  developer's DB. Named so the test-isolation guard (openStore) can recognise when a
+ *  test resolved to it. */
+export const DEFAULT_DB_PATH = path.resolve(process.cwd(), "data", "kp.sqlite");
+
+export const DB_PATH = process.env.KP_DB_PATH ? path.resolve(process.env.KP_DB_PATH) : DEFAULT_DB_PATH;
+
+/** True when this process is a `node --test` run: the isolated child sets
+ *  NODE_TEST_CONTEXT, and the runner/children carry --test* flags in execArgv. Kept as a
+ *  cheap best-effort signal — it only gates the DB-isolation guard below, which is inert
+ *  in production regardless. (bug-ui-scan-2026-07-09 data-store-persistence #3) */
+function inTestRun(env: NodeJS.ProcessEnv = process.env): boolean {
+  return (
+    Boolean(env.NODE_TEST_CONTEXT) ||
+    env.NODE_ENV === "test" ||
+    Boolean(env.VITEST) ||
+    process.execArgv.some((a) => a === "--test" || a.startsWith("--test-"))
+  );
+}
+
+/** bug-ui-scan-2026-07-09 (data-store-persistence #3): test DB isolation used to hinge on
+ *  unenforced import order — a db-touching import evaluated BEFORE testing/unit-db.ts would
+ *  freeze DB_PATH to the real data/kp.sqlite (KP_DB_PATH still unset), and the test then
+ *  silently seeded/`INSERT OR REPLACE`-overwrote the developer's DB. Make it impossible: in
+ *  a test run the connection MUST resolve to an isolated temp KP_DB_PATH that MATCHES the
+ *  frozen DB_PATH. A default path (forgot to import unit-db) OR an env/const mismatch (a
+ *  KP_DB_PATH set AFTER db-path.ts froze — the mis-ordered-import signature) throws loudly
+ *  instead. No-op outside a test run, so production/dev servers are unaffected. */
+function assertTestDbIsolated(): void {
+  if (!inTestRun()) return;
+  const envPath = process.env.KP_DB_PATH ? path.resolve(process.env.KP_DB_PATH) : "";
+  if (!envPath || envPath !== DB_PATH || DB_PATH === DEFAULT_DB_PATH) {
+    throw new Error(
+      `[db] refusing to open the database in a test run without an isolated KP_DB_PATH ` +
+        `(bug-ui-scan-2026-07-09 data-store-persistence #3). Resolved DB_PATH=${DB_PATH}; ` +
+        `KP_DB_PATH=${process.env.KP_DB_PATH ?? "<unset>"}. Import "app/_lib/testing/unit-db.ts" ` +
+        `as the FIRST project import so it sets KP_DB_PATH before db-path.ts freezes DB_PATH — ` +
+        `otherwise the test would read/overwrite the real data/kp.sqlite.`
+    );
+  }
+}
 
 let _warnedDefaultDbPath = false;
 function warnIfDefaultDbPath(): void {
@@ -43,7 +81,7 @@ export type DbBackend = "sqlite";
  * multi-replica HA, not for KP's 1–2-users-per-team concurrency, which SQLite+WAL
  * already handles) is DESIGNED but unbuilt: the blocker is that better-sqlite3 is
  * synchronous while Node's Postgres drivers are async, so the ~500 sync query sites
- * can't just swap drivers. The full plan + options live in docs/POSTGRES_BACKEND.md.
+ * can't just swap drivers. The full plan + options live in docs/architecture/postgres-backend.md.
  *
  * We still parse `KP_DB_BACKEND` / a `postgres://` `DATABASE_URL` and FAIL FAST with
  * a pointer, rather than silently ignoring them — so an operator who configures
@@ -58,14 +96,14 @@ export function resolveDbBackend(env: NodeJS.ProcessEnv = process.env): DbBacken
     throw new Error(
       "Postgres backend is configured (KP_DB_BACKEND / DATABASE_URL) but is NOT yet " +
         "implemented — KP runs on SQLite today. The Postgres migration is designed in " +
-        "docs/POSTGRES_BACKEND.md (blocked on the sync→async DB refactor). Unset those " +
+        "docs/architecture/postgres-backend.md (blocked on the sync→async DB refactor). Unset those " +
         "variables or set KP_DB_BACKEND=sqlite to proceed."
     );
   }
   if (explicit && explicit !== "sqlite") {
     throw new Error(
       `Unknown KP_DB_BACKEND '${explicit}' — the only supported backend is 'sqlite' ` +
-        "(see docs/POSTGRES_BACKEND.md for the Postgres roadmap)."
+        "(see docs/architecture/postgres-backend.md for the Postgres roadmap)."
     );
   }
   return "sqlite";
@@ -99,6 +137,9 @@ export function ensureDbDir(): void {
  *  stores; resolve it once here, beside DB_PATH/ensureDbDir. Callers keep their own
  *  memoization and run their own CREATE/migration DDL on the returned handle. */
 export function openStore(): Database.Database {
+  // Fail LOUD before touching disk if a test run would open the real dev DB
+  // (bug-ui-scan-2026-07-09 data-store-persistence #3). Inert in production.
+  assertTestDbIsolated();
   // Single backend chokepoint: every connection (ensureDb + all ~18 stores) opens
   // here, so a postgres/unknown backend fails fast with a pointer at the roadmap
   // rather than silently opening SQLite.

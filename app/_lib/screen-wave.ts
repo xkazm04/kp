@@ -1,12 +1,18 @@
-import { actOnPipelineEntry, listPipeline, recordAutomationEvent } from "./db";
+import { actOnPipelineEntry, listPipeline, recordAutomationEvent } from "./db/pipeline";
+import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 import { getDecisionConfig, type ScreeningRule } from "./decision-config-store";
-import { sealDecisionSafe } from "./decision-record-store";
-import { DecisionConfigError, screenBottomCount, tieSafeBottomCount, validateScreeningOverride } from "./decision-config-schema";
+import { sealDecisionSafe, SCREEN_WAVE_HOLDOUT_KIND, AUTO_REJECTED_KIND } from "./decision-record-store";
+import { DecisionConfigError, effectiveFloor, effectiveHoldoutPercent, screenBottomCount, tieSafeBottomCount, validateScreeningOverride } from "./decision-config-schema";
 import { dispatchRejection } from "./comms-dispatch";
 import { isFairnessProtected, isKnownArchetype } from "./archetypes";
 import { screenWaveApprovalToken, ScreenWaveApprovalError } from "./screen-wave-approval";
+import { selectHoldout } from "./screen-wave-holdout";
 import { operatorApprover } from "./auth/operator-approver";
 import { isScored } from "./match-score";
+import { withCanonicalScores } from "./match-score-resolve";
+import { jdSlugOfJobId } from "./jd-limits";
+import { jdLastEditedAt } from "./db/jobs";
+import { isScoreStale } from "@/app/features/shared/decisionsTypes";
 
 export { ScreenWaveApprovalError } from "./screen-wave-approval";
 
@@ -44,6 +50,13 @@ export type ScreenDecision = {
    *  candidate is out of the funnel and needs a manual nudge (mirrors the
    *  rejection_comms_failed audit event, but addressable per row in the UI). */
   commsFailed?: boolean;
+  /** Direction 2 (queue-staleness) — set when this candidate's match score was
+   *  computed BEFORE the JD's last content edit, so the row is ranking on a score
+   *  against stale text. Server-derived (same isScoreStale rule as the library /
+   *  prep chips); informs, never blocks. `staleSince` is the JD's last-edit date.
+   *  Absent (fresh score / never-edited JD / unscored) → no stale chrome. */
+  stale?: boolean;
+  staleSince?: string;
 };
 
 // The closed set of rationale shapes. Each maps to a `decisions.wave.reasons.*`
@@ -57,7 +70,9 @@ export type ScreenReasonCode =
   | "atThreshold"
   | "reject"
   | "staleSkipped"
-  | "unscored";
+  | "unscored"
+  // Spared from a would-be auto-reject to form the calibration clean arm.
+  | "holdout";
 
 // The keep rationale for a candidate with NO match score (audit-string register,
 // mirrored by `decisions.wave.reasons.unscored` for localized rendering). Exported
@@ -115,6 +130,17 @@ export function keepReason(
   return "match at/above threshold";
 }
 
+/** Canonical, order-independent serialization of the per-family floor overrides for
+ *  the approval-token policyVersion. Empty / absent → "" (byte-identical to the
+ *  pre-family-floors token), so a wave with no family floors signs exactly as before. */
+function familyFloorSuffix(cfg: ScreeningRule): string {
+  const ff = cfg.familyFloors;
+  if (!ff) return "";
+  const keys = Object.keys(ff).sort();
+  if (keys.length === 0) return "";
+  return `/fam:${keys.map((k) => `${k}=${ff[k]}`).join(",")}`;
+}
+
 export async function runScreenWave(
   jobId: string,
   override?: Partial<ScreeningRule>,
@@ -122,7 +148,13 @@ export async function runScreenWave(
   // approved from the preview, plus who approved it. A commit without it — or with
   // a token that no longer matches the live set — is refused (no solely-automated
   // adverse decision; EU AI Act / GDPR Art. 22). A dry run needs no approval.
-  opts?: { dryRun?: boolean; approval?: { approvedBy: string; token: string } }
+  opts?: { dryRun?: boolean; approval?: { approvedBy: string; token: string } },
+  // Tenant (P1): the team whose Screened cohort this wave ranks, rejects, and seals.
+  // Threaded from the route's currentWorkspace(); an unscoped default here would run
+  // the whole wave (preview, approval token, commits, seals) on the default team's
+  // cohort regardless of who called it. Defaults to the single default workspace so
+  // scripts/tests keep today's behavior.
+  workspaceId: string = DEFAULT_WORKSPACE_ID
 ): Promise<{
   decisions: ScreenDecision[];
   rejected: number;
@@ -152,8 +184,28 @@ export async function runScreenWave(
   // DecisionConfigError, which the route maps to a 400.
   const checked = validateScreeningOverride(override);
   if (!checked.ok) throw new DecisionConfigError(checked.error);
-  const cfg: ScreeningRule = { ...getDecisionConfig<ScreeningRule>("screening"), ...checked.override };
-  const cohort = listPipeline().filter((e) => e.jobId === jobId && e.status === "active" && e.stage === "Screened");
+  // Read the screening rule for THIS team (tenancy): every other read in this
+  // wave threads workspaceId, but this first config read omitted it and fell to
+  // DEFAULT_WORKSPACE_ID — so a non-default team's saved familyFloors (never part
+  // of the modal override) came from the wrong tenant, and the sealed record's
+  // policyVersion attested to a floor the team never set.
+  const cfg: ScreeningRule = { ...getDecisionConfig<ScreeningRule>("screening", workspaceId), ...checked.override };
+  const cohort = listPipeline(workspaceId).filter((e) => e.jobId === jobId && e.status === "active" && e.stage === "Screened");
+  // Direction 2 (queue-staleness) — derive, ONCE per wave, whether each candidate's
+  // score predates the JD's last content edit, using the exact isScoreStale rule the
+  // library roster + prep chips use. jdEditedAt is per-role (a JD-backed job's last
+  // revision, workspace-scoped; null for a corpus job or a never-edited JD). Each
+  // entry's scoredAt is the canonical analysis timestamp (scoreProvenance.at) — a
+  // snapshot-only or unscored entry has none and is never stale. Server-derived so
+  // the preview payload carries the honest flag; the modal only renders it.
+  const jdSlug = jdSlugOfJobId(jobId);
+  const jdEditedAt = jdSlug ? jdLastEditedAt(jdSlug, workspaceId) : null;
+  const scoredAtById = new Map<string, string | null>();
+  for (const e of withCanonicalScores(cohort, workspaceId)) {
+    scoredAtById.set(e.id, e.scoreProvenance?.source === "analysis" ? e.scoreProvenance.at : null);
+  }
+  const staleFields = (id: string): { stale: true; staleSince: string } | Record<string, never> =>
+    jdEditedAt && isScoreStale(scoredAtById.get(id) ?? null, jdEditedAt) ? { stale: true, staleSince: jdEditedAt } : {};
   // NULL-SCORE POLICY — fail closed (SD-L1-002 / REC-03): a candidate with NO
   // match score has not been measured. The old `?? 0` coercion on matchScore made
   // them a genuine-looking 0 that ranked worst, passed `0 < maxMatchToReject`,
@@ -188,18 +240,41 @@ export async function runScreenWave(
   // below) and sign it. A dry run returns the token for the recruiter to review;
   // a commit MUST carry that token and it must still match — otherwise the adverse
   // decision would be solely automated, or would apply to a set the human never saw.
-  const policyVersion = `screen-wave/bottom${cfg.rejectBottomPercent}/maxMatch${cfg.maxMatchToReject}`;
+  // family-floors: the auto-reject floor is resolved PER CANDIDATE — a family
+  // override when this role family carries one, else the global maxMatchToReject.
+  // The approval-token policyVersion carries a canonical serialization of the family
+  // floors so that changing a family floor (even one that leaves the reject SET
+  // unchanged) forces a fresh preview+approval, never a stale rubber-stamp. Absent
+  // familyFloors → empty suffix → byte-identical to the pre-family-floors token.
+  // holdout rides the policyVersion so the sealed record attests to the rate in
+  // force, and changing that rate forces a fresh preview+approval rather than a
+  // stale rubber-stamp (same contract as the family floors). Omitted when 0, so a
+  // holdout-disabled wave signs a byte-identical token to the pre-holdout build.
+  const holdoutPct = effectiveHoldoutPercent(cfg);
+  const policyVersion = `screen-wave/bottom${cfg.rejectBottomPercent}/maxMatch${cfg.maxMatchToReject}${familyFloorSuffix(cfg)}${holdoutPct ? `/holdout${holdoutPct}` : ""}`;
   const wouldReject = new Set<string>();
   for (let rank = 0; rank < sorted.length; rank++) {
     const e = sorted[rank];
     const inBottom = rank < effectiveBottomCount;
     // `sorted` holds only scored entries, so this threshold always compares a real
-    // measurement — an unscored candidate can never be auto-reject-eligible.
-    const belowThreshold = e.matchScore < cfg.maxMatchToReject;
+    // measurement — an unscored candidate can never be auto-reject-eligible. The
+    // floor is the candidate's EFFECTIVE floor (family override or global).
+    const belowThreshold = e.matchScore < effectiveFloor(cfg, e.roleFamily);
     if (cfg.autoRejectEnabled && inBottom && belowThreshold && !isFairnessProtected(e.archetype)) {
       wouldReject.add(e.id);
     }
   }
+  // CALIBRATION HOLDOUT (UAT KAT-L1-001/002) — spare a small, stable sample of the
+  // would-be rejects so their outcomes are uncontaminated by the score that would
+  // have rejected them. Without this arm, calibration pairs the score against a
+  // label the score itself produced and can never falsify its own selection quality.
+  //
+  // Applied HERE, before the approval token is signed, so the token covers the set
+  // the recruiter actually sees and a commit re-derives byte-identically. Membership
+  // is a pure function of (jobId, entryId) — see screen-wave-holdout.ts for why it
+  // must not depend on the threshold or on Math.random.
+  const heldOut = new Set(selectHoldout(jobId, [...wouldReject], holdoutPct).spared);
+  for (const id of heldOut) wouldReject.delete(id);
   const approvalToken = screenWaveApprovalToken(jobId, policyVersion, [...wouldReject]);
   if (!dryRun) {
     if (!opts?.approval) {
@@ -232,22 +307,61 @@ export async function runScreenWave(
     // A preview writes nothing — the unknown-archetype audit marker only fires on a
     // committed run, so a recruiter re-previewing doesn't spam the audit trail.
     if (!knownArchetype && !dryRun) {
-      recordAutomationEvent(e.id, "fairness_gate_unknown_archetype", `Unknown archetype "${e.archetype ?? "(null)"}" — shielded from auto-rejection (fail-closed).`);
+      recordAutomationEvent(e.id, "fairness_gate_unknown_archetype", `Unknown archetype "${e.archetype ?? "(null)"}" — shielded from auto-rejection (fail-closed).`, workspaceId);
     }
     const inBottom = rank < effectiveBottomCount;
     // Inside the raw bottom-% but above the tie-safe cutoff → kept only because the
     // tie-break refused to split an equal score (idea-50062f77).
     const tieSpared = rank >= effectiveBottomCount && rank < bottomCount;
 
+    // Calibration clean arm: this candidate cleared every auto-reject test and was
+    // then SPARED at random so their outcome can be observed without the score
+    // acting on it. Reported explicitly — a silent exemption would look like a bug
+    // to the recruiter and would be invisible in the audit trail. Sealed on commit
+    // below so the clean arm is identifiable when calibration reads it back.
+    if (heldOut.has(e.id)) {
+      const holdoutRationale = `Kept — calibration holdout (${holdoutPct}% of would-be auto-rejects are spared so their outcomes can measure whether the score was right). Match ${score} was below the ${effectiveFloor(cfg, e.roleFamily)} threshold.`;
+      if (!dryRun) {
+        recordAutomationEvent(e.id, "screen_wave_holdout", holdoutRationale, workspaceId);
+        sealDecisionSafe({
+          kind: SCREEN_WAVE_HOLDOUT_KIND,
+          actor: "auto:screen-wave",
+          policyVersion,
+          candidateRef: e.id,
+          rationale: `${holdoutRationale} · approved by ${approvedBy}`,
+          reasonCode: "holdout",
+          inputs: { score, threshold: effectiveFloor(cfg, e.roleFamily), rank: rank + 1, holdoutPercent: holdoutPct, approvedBy },
+        });
+      }
+      decisions.push({
+        entryId: e.id,
+        label: e.candidateLabel,
+        archetype: e.archetype,
+        matchScore: score,
+        action: "keep",
+        rationale: holdoutRationale,
+        reasonCode: "holdout",
+        reasonParams: { score, threshold: effectiveFloor(cfg, e.roleFamily), pct: holdoutPct },
+        ...staleFields(e.id),
+      });
+      continue;
+    }
+
     // The reject gate is the SAME predicate already used to build `wouldReject`
     // (and to sign the approval token) — read from that set so the committed set
     // can never diverge from the set the recruiter reviewed and approved.
     if (wouldReject.has(e.id)) {
+      // The floor ACTUALLY applied to this candidate — a family override when this
+      // role family carries one, else the global value. The rationale, the structured
+      // reasonParams, and the sealed policyVersion below all report THIS number, so
+      // the audit trail can never claim a floor the wave didn't use. With no family
+      // override it equals cfg.maxMatchToReject → byte-identical to before.
+      const floor = effectiveFloor(cfg, e.roleFamily);
       // Report the EFFECTIVE (tie-safe) cutoff actually applied, noting when it was
       // shrunk from the raw bottom-% so the auto-reject boundary stays reproducible.
       const tieNote = effectiveBottomCount < bottomCount ? ` (tie-adjusted from ${bottomCount} so no equal score is split)` : "";
       const verb = dryRun ? "Would auto-reject" : "Auto-rejected";
-      const rationale = `${verb} · bottom ${cfg.rejectBottomPercent}% of ${n} → ${effectiveBottomCount}${tieNote} (rank ${rank + 1}) and match ${score} < ${cfg.maxMatchToReject} threshold.`;
+      const rationale = `${verb} · bottom ${cfg.rejectBottomPercent}% of ${n} → ${effectiveBottomCount}${tieNote} (rank ${rank + 1}) and match ${score} < ${floor} threshold.`;
       // On commit the audit string names the human who approved the reviewed set,
       // so the record reads as human-approved automated screening — not a solely
       // automated adverse decision (EU AI Act / GDPR Art. 22).
@@ -260,14 +374,14 @@ export async function runScreenWave(
         count: effectiveBottomCount,
         rank: rank + 1,
         score,
-        threshold: cfg.maxMatchToReject,
+        threshold: floor,
         tieAdjusted: effectiveBottomCount < bottomCount ? bottomCount : 0,
       };
       // DEC2 preview: compute the verdict + rationale but commit NOTHING — no CAS
       // write, no audit event, no rejection email. The recruiter reviews this set,
       // then re-runs with dryRun:false to apply it.
       if (dryRun) {
-        decisions.push({ entryId: e.id, label: e.candidateLabel, archetype: e.archetype, matchScore: score, action: "reject", rationale, reasonCode: "reject", reasonParams });
+        decisions.push({ entryId: e.id, label: e.candidateLabel, archetype: e.archetype, matchScore: score, action: "reject", rationale, reasonCode: "reject", reasonParams, ...staleFields(e.id) });
         rejected += 1;
         continue;
       }
@@ -281,7 +395,7 @@ export async function runScreenWave(
       // the event detail). The old shape — a `rejected` event from the act PLUS a
       // separate recordAutomationEvent("auto_rejected") — counted every wave
       // reject once as HUMAN and once as AUTO, and twice in momentum's bars.
-      const updated = actOnPipelineEntry(e.id, "reject", committedRationale, { expectedStage: e.stage, actor: "system" });
+      const updated = actOnPipelineEntry(e.id, "reject", committedRationale, { expectedStage: e.stage, actor: "system" }, workspaceId);
       if (!updated) {
         const skipped = `Skipped — stage changed mid-wave (was ${e.stage}); left untouched.`;
         decisions.push({ entryId: e.id, label: e.candidateLabel, archetype: e.archetype, matchScore: score, action: "keep", rationale: skipped, reasonCode: "staleSkipped", reasonParams: { wasStage: e.stage } });
@@ -293,9 +407,11 @@ export async function runScreenWave(
       // already wrote (actor:"system"). Best-effort (sealDecisionSafe never throws):
       // a seal failure must NEVER abort the wave.
       sealDecisionSafe({
-        kind: "auto_rejected",
+        kind: AUTO_REJECTED_KIND,
         actor: "auto:screen-wave",
-        policyVersion: `screen-wave/bottom${cfg.rejectBottomPercent}/maxMatch${cfg.maxMatchToReject}`,
+        // Per-record policyVersion carries the EFFECTIVE floor this candidate was
+        // judged against (family override or global) — byte-identical when none.
+        policyVersion: `screen-wave/bottom${cfg.rejectBottomPercent}/maxMatch${floor}`,
         candidateRef: e.id,
         rationale: committedRationale,
         reasonCode: "reject",
@@ -316,16 +432,16 @@ export async function runScreenWave(
         commsFailures += 1;
         const msg = commsError instanceof Error ? commsError.message : String(commsError);
         console.warn(`[screen-wave] rejection comms failed for ${e.candidateLabel} (${e.id}): ${msg}`);
-        recordAutomationEvent(e.id, "rejection_comms_failed", `Auto-rejected, but the notification failed to queue — nudge manually. (${msg})`);
+        recordAutomationEvent(e.id, "rejection_comms_failed", `Auto-rejected, but the notification failed to queue — nudge manually. (${msg})`, workspaceId);
       }
       // commsFailed rides the decision row so the committed view can badge WHO
       // needs a manual nudge — the bare commsFailures count names nobody.
-      decisions.push({ entryId: e.id, label: e.candidateLabel, archetype: e.archetype, matchScore: score, action: "reject", rationale: committedRationale, reasonCode: "reject", reasonParams, ...(commsFailed ? { commsFailed } : {}) });
+      decisions.push({ entryId: e.id, label: e.candidateLabel, archetype: e.archetype, matchScore: score, action: "reject", rationale: committedRationale, reasonCode: "reject", reasonParams, ...(commsFailed ? { commsFailed } : {}), ...staleFields(e.id) });
       rejected += 1;
     } else {
       const reason = keepReason(cfg, protectedFromAutoReject, knownArchetype, inBottom, tieSpared);
       const structured = keepReasonStructured(cfg, protectedFromAutoReject, knownArchetype, inBottom, tieSpared);
-      decisions.push({ entryId: e.id, label: e.candidateLabel, archetype: e.archetype, matchScore: score, action: "keep", rationale: reason, ...structured });
+      decisions.push({ entryId: e.id, label: e.candidateLabel, archetype: e.archetype, matchScore: score, action: "keep", rationale: reason, ...structured, ...staleFields(e.id) });
     }
   }
   // Unscored candidates (null-score policy above): each gets an EXPLICIT keep

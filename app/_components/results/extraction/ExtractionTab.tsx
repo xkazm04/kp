@@ -1,14 +1,15 @@
 "use client";
 
-import { AlertTriangle, BadgeCheck, BrainCircuit } from "lucide-react";
+import { AlertTriangle, BadgeCheck, BrainCircuit, GraduationCap, Lightbulb, Sparkles } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { FactorChart } from "@/app/_components/FactorChart";
 import { ScoreDial } from "@/app/_components/ScoreDial";
 import { labelize, reconcileScoreTotal } from "@/app/_lib/format";
 import type { Analysis } from "@/app/_lib/schemas";
-import { dedupeBy } from "@/app/_lib/dedupe";
+import { dedupe, dedupeBy } from "@/app/_lib/dedupe";
 import { safeHttpLinks } from "@/app/_lib/safe-url";
-import { EnginePanel, InlineList, ListBlock, Metric } from "../shared";
+import { CHIP, CHIP_QUIET } from "@/app/_components/ui/recipes";
+import { EnginePanel, InlineList, LazyDetails, ListBlock, Metric } from "../shared";
 
 export function ExtractionTab({ analysis }: { analysis: Analysis }) {
   const t = useTranslations("report");
@@ -20,6 +21,16 @@ export function ExtractionTab({ analysis }: { analysis: Analysis }) {
   const publications = candidate.publications ?? [];
   const candidateLinks = dedupeBy(safeHttpLinks(candidate.links ?? []), (link) => link.href);
   const hasCredEvidence = credentials.length > 0 || publications.length > 0 || candidateLinks.length > 0;
+  // The engine already extracts these three (schema: candidate.skills / .languages /
+  // .educationLevel) but the tab only ever rendered credentials — so the skill list a
+  // recruiter most wants to scan was dead payload. Not identity data, so no blind-mode
+  // gate applies (the CLI redacts identity BEFORE scoring; these ride the payload as-is,
+  // same as credentials). Absent → no chrome (each block, and the whole panel, is guarded).
+  const skills = dedupe(candidate.skills ?? []);
+  const languages = dedupe(candidate.languages ?? []);
+  const educationLevel = (candidate.educationLevel ?? "").trim();
+  const hasProfileFacts = skills.length > 0 || languages.length > 0 || educationLevel.length > 0;
+  const recommendations = analysis.recommendations ?? [];
   return (
     <div className="grid gap-5 xl:grid-cols-[380px_1fr]">
       <div className="space-y-5">
@@ -36,6 +47,48 @@ export function ExtractionTab({ analysis }: { analysis: Analysis }) {
             <ScoreDial score={reconcileScoreTotal(analysis.score)} />
           </div>
         </div>
+
+        {hasProfileFacts ? (
+          <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-coral" aria-hidden />
+              <h3 className="font-serif text-h3 text-ink">{t("panel.skillsProfile")}</h3>
+            </div>
+            {skills.length > 0 ? (
+              <div className="mt-4">
+                <p className="text-meta uppercase tracking-wide text-steel">{t("panel.skills")}</p>
+                <ul className="mt-2 flex flex-wrap gap-1.5">
+                  {skills.map((skill, i) => (
+                    <li key={`${skill}-${i}`} className={CHIP}>
+                      {skill}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+            {languages.length > 0 ? (
+              <div className="mt-4">
+                <p className="text-meta uppercase tracking-wide text-steel">{t("panel.languages")}</p>
+                <ul className="mt-2 flex flex-wrap gap-1.5">
+                  {languages.map((language, i) => (
+                    <li key={`${language}-${i}`} className={CHIP_QUIET}>
+                      {language}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+            {educationLevel ? (
+              <div className="mt-4">
+                <p className="text-meta uppercase tracking-wide text-steel">{t("panel.educationLevel")}</p>
+                <p className="mt-1 flex items-center gap-2 text-base leading-6 text-ink">
+                  <GraduationCap className="h-4 w-4 shrink-0 text-steel" aria-hidden />
+                  {labelize(educationLevel)}
+                </p>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
 
         {hasCredEvidence ? (
           <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
@@ -118,14 +171,19 @@ export function ExtractionTab({ analysis }: { analysis: Analysis }) {
         {analysis.extractionComparison ? (
           <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
             <h3 className="font-serif text-h3 text-ink">{t("panel.extractorComparison")}</h3>
-            {/* The two raw extracted-text dumps are a diagnostic — collapsed by default. */}
-            <details className="mt-3">
-              <summary className="focus-ring cursor-pointer text-sm font-medium text-steel">{t("panel.showExtractedText")}</summary>
+            {/* The two raw extracted-text dumps are a diagnostic — collapsed by default,
+                and (via LazyDetails) not mounted into the DOM until the first expand so
+                two large <pre> blocks don't ride every report render unopened. */}
+            <LazyDetails
+              className="mt-3"
+              summaryClassName="focus-ring cursor-pointer text-sm font-medium text-steel"
+              summary={t("panel.showExtractedText")}
+            >
               <div className="mt-4 grid gap-4 lg:grid-cols-2">
                 <TextPreview title={t("panel.parserFast")} text={analysis.extractionComparison.pypdfText} />
                 <TextPreview title={t("panel.parserAi")} text={analysis.extractionComparison.geminiText} />
               </div>
-            </details>
+            </LazyDetails>
           </div>
         ) : null}
 
@@ -153,6 +211,17 @@ export function ExtractionTab({ analysis }: { analysis: Analysis }) {
             emptyHint={t("panel.gapsHint")}
           />
         </div>
+
+        {/* analysis.recommendations was fully dead payload. Action-shaped, so it
+            renders through the same copyable ListBlock idiom as the other advice
+            lists; guarded so an empty list adds no chrome. */}
+        {recommendations.length > 0 ? (
+          <ListBlock
+            icon={<Lightbulb className="h-5 w-5 text-coral" />}
+            title={t("panel.recommendations")}
+            items={recommendations}
+          />
+        ) : null}
 
         {analysis.evidenceTrace ? (
           <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">

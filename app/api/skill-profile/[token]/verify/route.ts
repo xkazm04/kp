@@ -1,14 +1,25 @@
 import { NextResponse } from "next/server";
-import { verifySkillProfileToken } from "@/app/_lib/db";
+import { verifySkillProfileToken } from "@/app/_lib/db/skill-profiles";
 import { jsonError } from "@/app/_lib/api-response";
+import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
 
 
 // Durable Skill Profile (moonshot A) — the public verification lookup. A third
 // party (or a candidate's embedded badge) confirms a presented token is a genuine,
 // non-revoked, untampered kp-issued credential and reads its headline summary.
 // This is the "FICO lookup" trust model: kp vouches via this endpoint.
-export async function GET(_request: Request, { params }: { params: Promise<{ token: string }> }) {
+export async function GET(request: Request, { params }: { params: Promise<{ token: string }> }) {
   try {
+    // bug-ui-scan-2026-07-09 (skill-matrix-coverage #2): this endpoint is a public,
+    // unauthenticated existence-and-data oracle — a hit dumps the full summary, a miss
+    // 404s. Throttle per client IP so the token space can't be walked to enumerate
+    // valid credentials / harvest scores in bulk. Tokens are 192-bit CSPRNG (sibling
+    // #1 fix) so brute force is already infeasible; this is the defense-in-depth cap
+    // that makes guessing uneconomical regardless. Same shared limiter / 429 refusal
+    // envelope as the other public token surfaces (offer, schedule, interview-connect).
+    if (!rateLimit(`skill-verify:${clientIpFrom(request.headers)}`, { limit: 30, windowMs: 10 * 60_000 })) {
+      return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+    }
     const { token } = await params;
     const v = verifySkillProfileToken(token);
     // Uniform response for BOTH a miss AND a found-but-invalid (tampered / revoked)

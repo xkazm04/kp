@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { searchEntities } from "@/app/_lib/db";
+import { searchEntities } from "@/app/_lib/db/analytics";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { safeJsonError } from "@/app/_lib/api-response";
 

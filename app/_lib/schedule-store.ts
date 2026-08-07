@@ -4,6 +4,7 @@ import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 import { randomId, randomToken } from "./random-id";
 import { isReminderDue, reminderRetryDelayMs, REMINDER_LEAD_MS, REMINDER_MAX_ATTEMPTS } from "./interview-reminder-policy";
 import { isEntryReminderEligible } from "./pipeline-status";
+import { isScheduleInviteExpired } from "./schedule-slots";
 
 // Self-scheduling: a candidate picks an interview slot from proposed times
 // (replacing the hardcoded "Tue 14:00"). Isolated-connection store (same
@@ -75,6 +76,28 @@ function db(): Database.Database {
       -- becomes the calendar event's location + a "Join" link on both the recruiter
       -- agenda and the candidate's booked card. NULL until set.
       meeting_url TEXT,
+      -- Candidate "propose your own times" escalation: when a candidate is stranded
+      -- (horizon fully booked, or past the self-reschedule cap) they suggest 1-3
+      -- concrete times. proposals holds the SERVER-authored value/label JSON (the
+      -- label is minted by proposedSlotFor, never candidate text); proposal_status is
+      -- NULL, 'pending' (awaiting the recruiter), or 'declined' (recruiter couldn't
+      -- accommodate - the candidate page reads this honest state). Cleared when a booking
+      -- supersedes it (confirm/reschedule). Additive columns; existing rows read NULL.
+      proposals TEXT,
+      proposals_at TEXT,
+      proposal_status TEXT,
+      -- Write-back to the team's connected calendar. calendar_event_id is the provider's
+      -- event id — the handle that makes the lifecycle IDEMPOTENT: a reschedule PATCHes
+      -- this event instead of creating a second one, and a cancel/no-show deletes exactly
+      -- it. calendar_event_link is the provider's htmlLink (recruiter-facing only).
+      -- calendar_event_state is one of CALENDAR_EVENT_STATES (free-busy.ts) and is the
+      -- HONEST record of what happened: a booking whose event could not be written says
+      -- 'failed' rather than looking identical to one that was never attempted. NULL on
+      -- every invite that predates a booking. Additive columns; existing rows read NULL.
+      calendar_event_id TEXT,
+      calendar_event_link TEXT,
+      calendar_event_state TEXT,
+      calendar_event_at TEXT,
       created_at TEXT NOT NULL,
       confirmed_at TEXT
     );
@@ -97,6 +120,13 @@ function db(): Database.Database {
     "attendance_at TEXT",
     "meeting_url TEXT",
     "workspace_id TEXT",
+    "proposals TEXT",
+    "proposals_at TEXT",
+    "proposal_status TEXT",
+    "calendar_event_id TEXT",
+    "calendar_event_link TEXT",
+    "calendar_event_state TEXT",
+    "calendar_event_at TEXT",
   ]) {
     try {
       d.exec(`ALTER TABLE schedule_invites ADD COLUMN ${col}`);
@@ -130,13 +160,33 @@ function db(): Database.Database {
   return d;
 }
 
+// The invite state machine (Direction 1). Every interview now has an honest terminal
+// fate instead of a stale link living forever:
+//   pending    — link minted, not yet booked. Expires (derived) past the TTL — see
+//                isScheduleInviteExpired (schedule-slots.ts); an expired pending
+//                invite is a dead capability the token route refuses.
+//   confirmed  — a slot is booked. The only reminder-eligible state.
+//   declined   — the candidate withdrew from the interview (terminal). Frees the slot.
+//   no_show    — the candidate didn't attend a confirmed interview; the recruiter
+//                marked it (terminal). Keeps slot_at as the record of the missed time.
+// declined/no_show are stored statuses; expired is derived from a pending row's age so
+// existing rows need no migration and the pending/confirmed behavior is unchanged.
+export const SCHEDULE_INVITE_STATUSES = ["pending", "confirmed", "declined", "no_show"] as const;
+export const TERMINAL_SCHEDULE_INVITE_STATUSES = ["declined", "no_show"] as const;
+
+/** Whether a stored status is a closed-out terminal state (declined / no_show). Note
+ *  `expired` is NOT here — it's derived from a pending row's age, not a stored value. */
+export function isTerminalScheduleInviteStatus(status: string): boolean {
+  return status === "declined" || status === "no_show";
+}
+
 export type ScheduleInvite = {
   id: string;
   token: string;
   entryId: string | null;
   candidateLabel: string | null;
   jobTitle: string | null;
-  status: string; // pending | confirmed
+  status: string; // pending | confirmed | declined | no_show
   slot: string | null; // human label, e.g. "Mon 1 Jun · 10:00"
   slotAt: string | null; // ISO datetime of the chosen slot
   reminderSentAt: string | null; // set only on successful delivery (terminal)
@@ -152,11 +202,40 @@ export type ScheduleInvite = {
   attendanceStatus: string | null; // idea-87af39c5 — RSVP on the booking: 'confirmed' | 'cancelled' | null
   attendanceAt: string | null; // ISO time the RSVP was recorded
   meetingUrl: string | null; // optional interview join link (Meet/Teams/Zoom…); null until the recruiter sets it
+  proposals: { value: string; label: string }[] | null; // candidate-proposed alternative times (server-authored labels); null when none pending
+  proposalsAt: string | null; // ISO time the candidate submitted their proposed times
+  proposalStatus: string | null; // null | 'pending' (awaiting recruiter) | 'declined' (recruiter couldn't accommodate)
+  calendarEventId: string | null; // provider event id for the written interview; the idempotency handle (update/delete target)
+  calendarEventLink: string | null; // provider htmlLink for that event — RECRUITER-facing (never on the candidate token wire)
+  calendarEventState: string | null; // CALENDAR_EVENT_STATES: written | not_connected | failed | removed | orphaned; null before any booking
+  calendarEventAt: string | null; // ISO time of the most recent write-back attempt's outcome
   locale: string | null; // SIM3 — the linked entry's applicant locale, when joined (dueReminders); null otherwise
+  // The linked pipeline entry's status/stage, surfaced by the recruiter agenda read
+  // (listScheduleInvites' LEFT JOIN) so a surface can gate on the entry's fate — e.g.
+  // the Closed-bucket re-invite is withheld for a terminal (rejected/hired) entry. Null
+  // on every other read (no join) and for an orphan invite with no matching entry.
+  entryStatus: string | null;
+  entryStage: string | null;
   workspaceId: string; // P1 — the owning team (the linked entry's workspace)
   createdAt: string;
   confirmedAt: string | null;
 };
+
+/** Parse the stored proposals JSON back into typed slots, tolerating a null/empty or
+ *  malformed column (an old row, or a hand-edited value) by degrading to null. */
+function parseProposals(raw: string | null | undefined): { value: string; label: string }[] | null {
+  if (!raw) return null;
+  try {
+    const arr = JSON.parse(raw);
+    if (!Array.isArray(arr)) return null;
+    const out = arr
+      .filter((x): x is { value: string; label: string } => !!x && typeof x.value === "string" && typeof x.label === "string")
+      .map((x) => ({ value: x.value, label: x.label }));
+    return out.length > 0 ? out : null;
+  } catch {
+    return null;
+  }
+}
 
 function rowTo(r: Record<string, unknown>): ScheduleInvite {
   return {
@@ -181,8 +260,19 @@ function rowTo(r: Record<string, unknown>): ScheduleInvite {
     attendanceStatus: (r.attendance_status as string) ?? null,
     attendanceAt: (r.attendance_at as string) ?? null,
     meetingUrl: (r.meeting_url as string) ?? null,
+    proposals: parseProposals(r.proposals as string | null | undefined),
+    proposalsAt: (r.proposals_at as string) ?? null,
+    proposalStatus: (r.proposal_status as string) ?? null,
+    calendarEventId: (r.calendar_event_id as string) ?? null,
+    calendarEventLink: (r.calendar_event_link as string) ?? null,
+    calendarEventState: (r.calendar_event_state as string) ?? null,
+    calendarEventAt: (r.calendar_event_at as string) ?? null,
     // Only the dueReminders join selects entry_locale; every other read leaves it null.
     locale: (r.entry_locale as string) ?? null,
+    // Only the recruiter-agenda join (listScheduleInvites) and dueReminders select
+    // these; other reads leave them null (no join / orphan invite).
+    entryStatus: (r.entry_status as string) ?? null,
+    entryStage: (r.entry_stage as string) ?? null,
     workspaceId: (r.workspace_id as string) ?? "workspace",
     createdAt: r.created_at as string,
     confirmedAt: (r.confirmed_at as string) ?? null,
@@ -196,12 +286,26 @@ export function createScheduleInvite(input: {
   durationMin?: number | null;
 }): ScheduleInvite {
   const d = db();
-  const now = new Date().toISOString();
-  const id = randomId("sch");
-  const token = randomToken("st");
+  // bug-ui-scan-2026-07-09 (interview-scheduling-prep-rubric #2) — one active
+  // invite per entry. Without this, re-inviting an entry (a bulk cohort that
+  // overlaps an already-invited candidate, or a second single/bulk call) minted a
+  // SECOND live token for the same entry_id — two independently confirmable links,
+  // so one candidate could book two slots in the scarce global pool, the confirm
+  // path ran actOnPipelineEntry twice, the reminder sweep double-sent, and the
+  // lifecycle agenda showed two rows for one person. coerceBulkEntryIds only dedupes
+  // WITHIN one request, so it didn't cover overlap across requests. Reconcile
+  // against any existing non-terminal (pending|confirmed) invite for this entry and
+  // return it instead of inserting a duplicate — making "invite this entry/cohort"
+  // idempotent regardless of overlap. A cancelled attendance returns the invite to
+  // 'pending' (still matched here), so a re-invite reuses that link rather than
+  // stacking a new one.
   // Tenant (P1): derive the owning team from the linked entry (a by-id lookup on the
   // shared file) so callers don't thread it. Degrades to the default workspace for an
   // orphan entry OR an isolated connection with no pipeline_entries table (test harness).
+  // Derived BEFORE the reconcile below so the idempotency lookup is itself
+  // workspace-scoped: an entry_id belongs to exactly one team, but every recruiter-facing
+  // schedule_invites query must filter workspace_id (schedule-tenancy.test.ts) and a new
+  // invite must never reconcile against a DIFFERENT tenant's row.
   let workspaceId = "workspace";
   try {
     const wsRow = d.prepare(`SELECT workspace_id FROM pipeline_entries WHERE id = ?`).get(input.entryId) as
@@ -211,6 +315,20 @@ export function createScheduleInvite(input: {
   } catch {
     /* no pipeline_entries on this connection — default workspace */
   }
+  const existing = d
+    .prepare(
+      `SELECT * FROM schedule_invites WHERE entry_id = ? AND workspace_id = ? AND status IN ('pending','confirmed')
+        ORDER BY created_at DESC LIMIT 1`
+    )
+    .get(input.entryId, workspaceId) as Record<string, unknown> | undefined;
+  // Reuse a live invite (idempotent re-invite), but NOT an EXPIRED pending one:
+  // a link aged past the TTL is a dead capability the token route refuses, so
+  // re-inviting must mint a fresh token rather than hand back the stale one
+  // (Direction 1). A confirmed invite (or a still-fresh pending one) is reused.
+  if (existing && !isScheduleInviteExpired(rowTo(existing))) return rowTo(existing);
+  const now = new Date().toISOString();
+  const id = randomId("sch");
+  const token = randomToken("st");
   // RETURNING * hands the freshly-inserted row back in the same statement, so we
   // don't issue a second SELECT to read what we just wrote.
   const row = d
@@ -237,14 +355,41 @@ export function getScheduleInviteByToken(token: string): ScheduleInvite | null {
  *  (needs_more_slots, needs_reconcile) had zero readers. Confirmed bookings
  *  first by slot time, then pending newest-first. */
 export function listScheduleInvites(limit = 200, workspaceId: string = DEFAULT_WORKSPACE_ID): ScheduleInvite[] {
+  // LEFT JOIN the linked entry so the agenda can gate on the entry's fate — the
+  // Closed-bucket re-invite (Direction: re-invite from the Closed bucket) is withheld
+  // when the entry is terminal (rejected/hired). Same-file, separate connection: the
+  // join resolves against db.ts's pipeline_entries (as dueReminders does). Recruiter-
+  // facing, so still workspace-scoped on the invite side.
   const rows = db()
     .prepare(
-      `SELECT * FROM schedule_invites
-       WHERE workspace_id = ?
-       ORDER BY (slot_at IS NULL) ASC, slot_at ASC, created_at DESC
-       LIMIT ?`
+      `SELECT s.*, p.status AS entry_status, p.stage AS entry_stage
+         FROM schedule_invites s
+         LEFT JOIN pipeline_entries p ON p.id = s.entry_id
+        WHERE s.workspace_id = ?
+        ORDER BY (s.slot_at IS NULL) ASC, s.slot_at ASC, s.created_at DESC
+        LIMIT ?`
     )
     .all(workspaceId, Math.min(Math.max(limit, 1), 500)) as Record<string, unknown>[];
+  return rows.map(rowTo);
+}
+
+/** The invites for ONE entry (drawer-open-diet). The candidate drawer used to pull up
+ *  to 500 workspace invites via listScheduleInvites and JS-filter to the single entry —
+ *  a full workspace scan on every drawer open (and every in-place stage-move refresh).
+ *  schedule_invites has an entry_id column (indexed: idx_sched_entry), so scope the read
+ *  in SQL instead. Byte-identical to `listScheduleInvites(...).filter(i => i.entryId ===
+ *  entryId)`: same LEFT JOIN (entry_status/entry_stage), same workspace scope, same
+ *  ORDER BY — only the WHERE narrows to this entry (pinned by schedule-store.test.ts). */
+export function listScheduleInvitesForEntry(entryId: string, workspaceId: string = DEFAULT_WORKSPACE_ID): ScheduleInvite[] {
+  const rows = db()
+    .prepare(
+      `SELECT s.*, p.status AS entry_status, p.stage AS entry_stage
+         FROM schedule_invites s
+         LEFT JOIN pipeline_entries p ON p.id = s.entry_id
+        WHERE s.workspace_id = ? AND s.entry_id = ?
+        ORDER BY (s.slot_at IS NULL) ASC, s.slot_at ASC, s.created_at DESC`
+    )
+    .all(workspaceId, entryId) as Record<string, unknown>[];
   return rows.map(rowTo);
 }
 
@@ -282,7 +427,8 @@ export function confirmScheduleInvite(token: string, slot: string, slotAt?: stri
         `UPDATE schedule_invites
             SET status = 'confirmed', slot = ?, slot_at = ?, confirmed_at = ?, candidate_tz = COALESCE(?, candidate_tz),
                 attendance_status = NULL, attendance_at = NULL,
-                needs_more_slots = 0, more_slots_flagged_at = NULL
+                needs_more_slots = 0, more_slots_flagged_at = NULL,
+                proposals = NULL, proposals_at = NULL, proposal_status = NULL
           WHERE token = ? RETURNING *`
       )
       .get(slot, slotAt ?? null, new Date().toISOString(), candidateTz ?? null, token) as Record<string, unknown>;
@@ -300,6 +446,34 @@ export function setScheduleInviteMeetingUrl(token: string, url: string | null): 
     .prepare(`UPDATE schedule_invites SET meeting_url = ? WHERE token = ? RETURNING *`)
     .get(clean, token) as Record<string, unknown> | undefined;
   return updated ? rowTo(updated) : null;
+}
+
+/** Record the outcome of a calendar write-back on the invite (calendar/event-sync.ts is
+ *  the only caller). `eventId`/`eventLink` are kept on a state that still has an event
+ *  and CLEARED on one that does not ('removed'), so the id column always answers "is
+ *  there an event out there for this interview?" — which is what makes the lifecycle
+ *  idempotent. 'orphaned' deliberately KEEPS the id: the event is still on someone's
+ *  calendar and a later retry needs the handle. Never throws on an unknown token (the
+ *  invite may have moved on); the booking is the source of truth, this is bookkeeping. */
+export function recordCalendarEvent(
+  token: string,
+  outcome: { state: string; eventId?: string | null; eventLink?: string | null }
+): void {
+  const keepHandle = outcome.state !== "removed";
+  db()
+    .prepare(
+      `UPDATE schedule_invites
+          SET calendar_event_state = ?,
+              calendar_event_at = ?,
+              calendar_event_id = ${keepHandle ? "COALESCE(?, calendar_event_id)" : "NULL"},
+              calendar_event_link = ${keepHandle ? "COALESCE(?, calendar_event_link)" : "NULL"}
+        WHERE token = ?`
+    )
+    .run(
+      ...(keepHandle
+        ? [outcome.state, new Date().toISOString(), outcome.eventId ?? null, outcome.eventLink ?? null, token]
+        : [outcome.state, new Date().toISOString(), token])
+    );
 }
 
 /** Cap on candidate self-reschedules of a confirmed booking. Small on purpose:
@@ -320,14 +494,27 @@ export type RescheduleResult =
  *  now and RESETS the reminder cycle (reminder_sent_at / attempts cleared) so the
  *  reminder fires for the NEW time, not the abandoned one. Bounded by MAX_RESCHEDULES.
  *  Only a confirmed invite is reschedulable — a pending one books via confirm. */
-export function rescheduleScheduleInvite(token: string, slot: string, slotAt: string, candidateTz?: string | null): RescheduleResult {
+export function rescheduleScheduleInvite(
+  token: string,
+  slot: string,
+  slotAt: string,
+  candidateTz?: string | null,
+  // Direction 2 — a RECRUITER-initiated move (recruiter-side invite control). The
+  // MAX_RESCHEDULES cap exists to stop a CANDIDATE churning the calendar; a recruiter
+  // repairing a booking is trusted, so `recruiter:true` bypasses the cap AND does not
+  // consume the candidate's reschedule budget. The collision authority and the
+  // reminder-cycle reset are identical — the recruiter path layers on this same
+  // transaction rather than forking a parallel one.
+  opts?: { recruiter?: boolean }
+): RescheduleResult {
+  const recruiter = opts?.recruiter === true;
   const d = db();
   const tx = d.transaction((): RescheduleResult => {
     const current = d.prepare(`SELECT * FROM schedule_invites WHERE token = ?`).get(token) as Record<string, unknown> | undefined;
     if (!current) return { ok: false, reason: "not_found", invite: null };
     const inv = rowTo(current);
     if (inv.status !== "confirmed") return { ok: false, reason: "not_confirmed", invite: inv };
-    if (inv.rescheduleCount >= MAX_RESCHEDULES) return { ok: false, reason: "limit", invite: inv };
+    if (!recruiter && inv.rescheduleCount >= MAX_RESCHEDULES) return { ok: false, reason: "limit", invite: inv };
     // Re-picking the same time is a no-op (the reschedule count is precious) —
     // don't burn a reschedule or churn the reminder cycle for an unchanged slot.
     if (inv.slotAt === slotAt) return { ok: true, invite: inv };
@@ -337,14 +524,17 @@ export function rescheduleScheduleInvite(token: string, slot: string, slotAt: st
       .prepare(`SELECT 1 FROM schedule_invites WHERE status = 'confirmed' AND slot_at = ? AND token != ? AND workspace_id = ? LIMIT 1`)
       .get(slotAt, token, inv.workspaceId);
     if (clash) return { ok: false, reason: "taken", invite: inv };
+    // A recruiter move doesn't spend the candidate's reschedule budget.
+    const countClause = recruiter ? "" : "reschedule_count = reschedule_count + 1,";
     const updated = d
       .prepare(
         `UPDATE schedule_invites
-            SET slot = ?, slot_at = ?, confirmed_at = ?, reschedule_count = reschedule_count + 1,
+            SET slot = ?, slot_at = ?, confirmed_at = ?, ${countClause}
                 candidate_tz = COALESCE(?, candidate_tz),
                 attendance_status = NULL, attendance_at = NULL,
                 reminder_sent_at = NULL, reminder_attempts = 0, reminder_last_attempt_at = NULL,
-                needs_more_slots = 0, more_slots_flagged_at = NULL
+                needs_more_slots = 0, more_slots_flagged_at = NULL,
+                proposals = NULL, proposals_at = NULL, proposal_status = NULL
           WHERE token = ? RETURNING *`
       )
       .get(slot, slotAt, new Date().toISOString(), candidateTz ?? null, token) as Record<string, unknown>;
@@ -387,12 +577,70 @@ export function cancelAttendance(token: string): ScheduleInvite | null {
   return updated ? rowTo(updated) : null;
 }
 
+/** Terminal DECLINE (Direction 1): the candidate withdrew from the interview
+ *  entirely — distinct from cancelAttendance, which frees the slot but returns the
+ *  invite to 'pending' for re-booking. A decline is a closed fate: the slot is freed
+ *  (slot_at cleared → drops out of bookedSlots), the reminder cycle is reset (no
+ *  reminder for an interview that won't happen), and the status goes terminal so the
+ *  link can never book again. Reachable from a pending OR a confirmed invite (a
+ *  candidate can withdraw before or after booking). Transactional like the other
+ *  transitions. Returns the updated row, or null when the token doesn't exist or is
+ *  already terminal. The linked pipeline entry is intentionally left at its stage —
+ *  a withdrawal is surfaced, not silently regressed (the recruiter decides). */
+export function declineScheduleInvite(token: string): ScheduleInvite | null {
+  const d = db();
+  const tx = d.transaction((): ScheduleInvite | null => {
+    const updated = d
+      .prepare(
+        `UPDATE schedule_invites
+            SET status = 'declined', slot = NULL, slot_at = NULL, confirmed_at = NULL,
+                reminder_sent_at = NULL, reminder_attempts = 0, reminder_last_attempt_at = NULL
+          WHERE token = ? AND status IN ('pending','confirmed') RETURNING *`
+      )
+      .get(token) as Record<string, unknown> | undefined;
+    return updated ? rowTo(updated) : null;
+  });
+  return tx();
+}
+
+/** Terminal NO-SHOW (Direction 1): the recruiter marks a CONFIRMED interview whose
+ *  slot has passed as not-attended. Before this a real no-show just fell out of the
+ *  "today" bucket after the grace window and vanished with no record. Keeps slot_at
+ *  (the record of the missed time) but resets the reminder cycle and closes the
+ *  status so the link can't re-book. Only a confirmed invite can no-show; returns the
+ *  updated row or null. Transactional. The linked pipeline entry is left at its stage
+ *  — surfacing the fate, not regressing it. */
+export function markScheduleInviteNoShow(token: string): ScheduleInvite | null {
+  const d = db();
+  const tx = d.transaction((): ScheduleInvite | null => {
+    const updated = d
+      .prepare(
+        `UPDATE schedule_invites
+            SET status = 'no_show', reminder_sent_at = NULL, reminder_attempts = 0, reminder_last_attempt_at = NULL
+          WHERE token = ? AND status = 'confirmed' RETURNING *`
+      )
+      .get(token) as Record<string, unknown> | undefined;
+    return updated ? rowTo(updated) : null;
+  });
+  return tx();
+}
+
 /** Flag an invite as needing manual reconciliation: the candidate's slot was
  *  confirmed (they see "booked") but advancing the linked pipeline entry failed,
  *  so the recruiter board still shows them waiting. Persisting the drift — instead
  *  of swallowing the error — lets an operator find and repair the divergence. */
 export function markScheduleInviteNeedsReconcile(token: string, reason: string): void {
   db().prepare(`UPDATE schedule_invites SET needs_reconcile = 1, reconcile_reason = ? WHERE token = ?`).run(reason, token);
+}
+
+/** Clear the needs-reconcile flag once a recruiter has repaired the drift (Direction
+ *  2 — recruiter-side invite control). Idempotent: returns true only when a flag was
+ *  actually set (1→0), so the caller can tell a real resolve from a no-op double-tap. */
+export function resolveScheduleInviteReconcile(token: string): boolean {
+  const res = db()
+    .prepare(`UPDATE schedule_invites SET needs_reconcile = 0, reconcile_reason = NULL WHERE token = ? AND needs_reconcile = 1`)
+    .run(token);
+  return res.changes > 0;
 }
 
 /** Flag an invite whose entire proposal horizon was already booked when the
@@ -408,6 +656,40 @@ export function flagScheduleInviteNeedsMoreSlots(token: string): boolean {
     )
     .run(new Date().toISOString(), token);
   return res.changes > 0;
+}
+
+/** Candidate "propose your own times" escalation: persist 1–MAX_PROPOSALS server-
+ *  authored proposed slots on a STUCK (pending or confirmed) invite and mark it
+ *  'pending' so the recruiter lifecycle panel surfaces it as attention-worthy. The
+ *  caller validates/mints the slots (validateProposedSlots) — this only persists the
+ *  server-authored [{value,label}] shape. Refuses a terminal invite via the status
+ *  guard (the token route's 410 gate already blocks expired/declined/no_show upstream).
+ *  Returns the updated row, or null when the token doesn't exist or is terminal. */
+export function setScheduleInviteProposals(token: string, proposals: { value: string; label: string }[]): ScheduleInvite | null {
+  const json = JSON.stringify(proposals.map((p) => ({ value: p.value, label: p.label })));
+  const updated = db()
+    .prepare(
+      `UPDATE schedule_invites
+          SET proposals = ?, proposals_at = ?, proposal_status = 'pending'
+        WHERE token = ? AND status IN ('pending','confirmed') RETURNING *`
+    )
+    .get(json, new Date().toISOString(), token) as Record<string, unknown> | undefined;
+  return updated ? rowTo(updated) : null;
+}
+
+/** Recruiter declined all of a candidate's proposed times: clear them and record the
+ *  honest 'declined' state the candidate page reads ("couldn't accommodate — the
+ *  recruiter will reach out"). Only a currently-'pending' proposal declines (so a
+ *  double-tap or a stale request is a no-op). Returns the updated row, or null. */
+export function declineScheduleInviteProposals(token: string): ScheduleInvite | null {
+  const updated = db()
+    .prepare(
+      `UPDATE schedule_invites
+          SET proposals = NULL, proposals_at = NULL, proposal_status = 'declined'
+        WHERE token = ? AND proposal_status = 'pending' RETURNING *`
+    )
+    .get(token) as Record<string, unknown> | undefined;
+  return updated ? rowTo(updated) : null;
 }
 
 /** ISO datetimes already taken by confirmed invites — so two candidates don't

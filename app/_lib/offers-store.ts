@@ -5,7 +5,7 @@ import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 import { TERMINAL_ENTRY_STATUSES, type PipelineEntryStatus } from "./pipeline-status";
 import { PIPELINE_STAGES } from "./pipeline-stages";
 import { isOfferExpired, OFFER_REMINDER_LEAD_MS, offerExpiresAtMs } from "./offer-policy";
-import { recordAutomationEvent } from "./db";
+import { recordAutomationEvent } from "./db/pipeline";
 
 // Direction #4 — offer extension + candidate response capture. Isolated-connection
 // store (same pattern as job-ingest.ts): opens its OWN better-sqlite3 handle on
@@ -95,6 +95,11 @@ export type OfferRow = {
   createdAt: string;
   respondedAt: string | null;
   expiresAt: string | null; // deadline; null = never expires (legacy row)
+  // The offer's tenant (stamped from the entry at createOffer). Load-bearing on
+  // the terminal transitions: respondToOffer must pass it to the workspace-scoped
+  // actOnPipelineEntry/markEntryStatus, or a non-default team's accept/decline
+  // silently no-ops against the default workspace (offers-onboarding #1).
+  workspaceId: string;
 };
 
 function rowToOffer(r: Record<string, unknown>): OfferRow {
@@ -118,6 +123,7 @@ function rowToOffer(r: Record<string, unknown>): OfferRow {
     createdAt: r.created_at as string,
     respondedAt: (r.responded_at as string) ?? null,
     expiresAt: (r.expires_at as string) ?? null,
+    workspaceId: (r.workspace_id as string) ?? DEFAULT_WORKSPACE_ID,
   };
 }
 

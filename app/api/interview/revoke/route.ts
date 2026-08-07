@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { revokeOpenInterviewSessions } from "@/app/_lib/db";
+import { revokeOpenInterviewSessions } from "@/app/_lib/db/interviews";
 import { safeJsonError } from "@/app/_lib/api-response";
 
 

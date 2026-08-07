@@ -1,11 +1,17 @@
-// Headless Polar setup (docs/BILLING.md) — idempotent; safe to re-run.
+// Headless Polar setup (docs/features/billing/README.md) — idempotent; safe to re-run.
 //
-//   node scripts/polar-setup.mjs --tunnel https://<your>.trycloudflare.com
+//   npm run polar:setup -- --tunnel https://<your>.trycloudflare.com
+//
+// (Run via the npm script, NOT `node scripts/polar-setup.mjs` directly — it imports
+// the TS catalog so the displayed prices and the reconciliation below share ONE
+// source of truth, which needs the transform loader the npm script wires in.)
 //
 // Reads POLAR_ACCESS_TOKEN + POLAR_SERVER from .env, then:
 //   1. validates the token (with an environment-mismatch hint on 401),
-//   2. verifies the POLAR_PRODUCT_* ids exist; creates the missing one-time
-//      "100 interview minutes" pack ($34) and writes its id back to .env,
+//   2. verifies the POLAR_PRODUCT_* ids exist AND reconciles each product's live
+//      prices against the catalog (plans-checkout-billing-ui #4), warning loudly on
+//      drift; creates the missing one-time pack (price derived from the catalog) and
+//      writes its id back to .env,
 //   3. ensures ONE webhook endpoint for <tunnel>/api/billing/webhook:
 //      creates it (events: subscription.created/updated, order.paid) and
 //      writes POLAR_WEBHOOK_SECRET to .env — or, when an endpoint for
@@ -16,11 +22,17 @@
 
 import fs from "node:fs";
 import path from "node:path";
+// plans-checkout-billing-ui #4: derive prices + the drift preflight from the catalog
+// so the UI-displayed price and the amount charged can never silently diverge.
+import { PLANS, PACKS } from "@/app/_lib/billing/plans.ts";
+import { reconcileCatalogPrice, readProviderPrices, packUsdCents } from "@/app/_lib/billing/price-reconcile.ts";
 
 const ENV_PATH = path.join(process.cwd(), ".env");
 const WEBHOOK_PATH = "/api/billing/webhook";
 const EVENTS = ["subscription.created", "subscription.updated", "order.paid"];
-const PACK = { name: "100 interview minutes", priceUsdCents: 3400 };
+// Name + USD price DERIVED from the catalog (single source of truth) — no more
+// hardcoded 3400 that could drift from plans.ts (plans-checkout-billing-ui #4).
+const PACK = { name: PACKS.minutes_100.name, priceUsdCents: packUsdCents() };
 
 function parseArgs(argv) {
   const args = {};
@@ -97,34 +109,65 @@ async function listAll(apiPath) {
 const products = await listAll("/v1/products");
 console.log(`✓ token ok — ${server} org has ${products.length} product(s)`);
 
+/** Reconcile a product's live prices against the catalog and print the verdict
+ *  (plans-checkout-billing-ui #4). CZK is the primary displayed price → a mismatch
+ *  is a loud ✗; USD is approximate → a tolerance band; a missing CZK price (e.g. a
+ *  USD-only product while the UI shows a Kč primary) is a ! note. Best-effort: an
+ *  unrecognized price shape yields "no comparable price" rather than a false alarm. */
+function reportPriceDrift(label, catalog, product) {
+  const drift = reconcileCatalogPrice(label, catalog, readProviderPrices(product));
+  if (drift.length === 0) {
+    console.log(`  ✓ ${label} price matches the catalog`);
+    return;
+  }
+  for (const d of drift) {
+    if (d.level === "error") console.error(`  ✗ price drift — ${d.message}`);
+    else console.warn(`  ! price note — ${d.message}`);
+  }
+}
+
 const productKeys = [
-  ["POLAR_PRODUCT_STARTER", "Starter (subscription)"],
-  ["POLAR_PRODUCT_GROWTH", "Growth (subscription)"],
-  ["POLAR_PRODUCT_BYOM", "BYOM (subscription)"],
+  ["POLAR_PRODUCT_STARTER", "Starter (subscription)", "starter"],
+  ["POLAR_PRODUCT_GROWTH", "Growth (subscription)", "growth"],
+  ["POLAR_PRODUCT_BYOM", "BYOM (subscription)", "byom"],
 ];
-for (const [key, label] of productKeys) {
+for (const [key, label, planId] of productKeys) {
   const id = env.get(key);
-  if (!id) console.warn(`! ${key} is empty — create the ${label} product and fill it in`);
-  else if (!products.some((p) => p.id === id)) console.warn(`! ${key}=${id} not found in this ${server} org — wrong id or wrong org?`);
-  else console.log(`✓ ${key} ok`);
+  if (!id) {
+    console.warn(`! ${key} is empty — create the ${label} product and fill it in`);
+    continue;
+  }
+  const product = products.find((p) => p.id === id);
+  if (!product) {
+    console.warn(`! ${key}=${id} not found in this ${server} org — wrong id or wrong org?`);
+    continue;
+  }
+  console.log(`✓ ${key} ok`);
+  reportPriceDrift(label, PLANS[planId], product);
 }
 
 let packId = env.get("POLAR_PRODUCT_MINUTE_PACK");
-if (packId && products.some((p) => p.id === packId)) {
+let packProduct = packId ? products.find((p) => p.id === packId) : null;
+if (packProduct) {
   console.log("✓ POLAR_PRODUCT_MINUTE_PACK ok");
 } else {
   const existing = products.find((p) => !p.is_recurring && p.name === PACK.name && !p.is_archived);
-  const product =
+  packProduct =
     existing ??
     (await polar("POST", "/v1/products", {
       name: PACK.name,
       recurring_interval: null,
+      // USD-only, price derived from the catalog. The catalog's PRIMARY display price is
+      // CZK (790 Kč); provisioning a matching CZK price is deferred (needs Polar
+      // multi-currency verification) — the reconcile note below surfaces the gap loudly
+      // instead of leaving it silent (plans-checkout-billing-ui #4).
       prices: [{ amount_type: "fixed", price_currency: "usd", price_amount: PACK.priceUsdCents }],
     }));
-  packId = product.id;
+  packId = packProduct.id;
   writeEnvKey("POLAR_PRODUCT_MINUTE_PACK", packId);
   console.log(`✓ minute pack ${existing ? "found" : "created"} → POLAR_PRODUCT_MINUTE_PACK=${packId}`);
 }
+if (packProduct) reportPriceDrift("Minute pack", PACKS.minutes_100, packProduct);
 
 // ---- 2. webhook endpoint -------------------------------------------------------
 

@@ -178,5 +178,152 @@ class TransferableDecouplingTest(unittest.TestCase):
         self.assertEqual(build_match_candidate(bau).transferable_skills, [])
 
 
+def _nursing_student() -> CandidateProfileV2:
+    """The non-tech mirror of ``_student()`` — same profile SHAPE (a claim, a
+    coursework claim, a linked thesis and an internship), entirely non-tech
+    vocabulary. Everything below asserts the same contracts as the tech fixtures:
+    the transform is family-agnostic, and this is the test that says so."""
+    return CandidateProfileV2(
+        archetype="student",
+        role_family="healthcare_clinical",
+        education_level="bachelor",
+        education_detail="Všeobecná sestra, 1. LF UK",
+        languages=["Czech", "English"],
+        aspirations=["Junior nurse"],
+        skill_claims=[
+            SkillClaim(skill="patient care", provenance="self_declared"),
+            SkillClaim(skill="triage", provenance="coursework"),
+        ],
+        evidence=[
+            Evidence(kind="thesis", title="Wound-care protocols", skills=["wound care", "patient care"], link="http://uni/x"),
+            Evidence(kind="internship", title="Clinical placement"),
+        ],
+    )
+
+
+class NonTechPotentialTest(unittest.TestCase):
+    def test_potential_positive_with_signals(self) -> None:
+        score, signals = compute_potential(_nursing_student())
+        self.assertGreater(score, 0.4)
+        self.assertTrue(any("link" in s for s in signals))
+        self.assertTrue(any("internship" in s for s in signals))
+
+    def test_thin_profile_low_potential(self) -> None:
+        thin = CandidateProfileV2(
+            archetype="student", role_family="healthcare_clinical", education_level="unknown"
+        )
+        score, _ = compute_potential(thin)
+        self.assertLess(score, 0.3)
+
+
+class NonTechBuildCandidateTest(unittest.TestCase):
+    def test_skills_unioned_and_best_provenance(self) -> None:
+        c = build_match_candidate(_nursing_student())
+        names = {s.casefold() for s in c.skills}
+        self.assertTrue({"patient care", "triage", "wound care"} <= names)
+        self.assertTrue({"teamwork", "communication"} <= names)  # internship meta-skills
+        key = next(s for s in c.skills if s.casefold() == "patient care")
+        self.assertEqual(c.skill_provenance[key], "thesis")  # thesis beats self_declared
+
+    def test_early_career_defaults(self) -> None:
+        c = build_match_candidate(_nursing_student())
+        self.assertEqual(c.archetype, "student")
+        self.assertEqual(c.seniority, "junior")
+        self.assertEqual(c.role_family, "healthcare_clinical")
+        self.assertEqual(c.provenance_default, "self_declared")
+        self.assertIsNotNone(c.potential_score)
+        self.assertTrue(c.learning_signals)
+
+
+class NonTechEarlyCareerMatchTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.candidate = build_match_candidate(_nursing_student())
+        self.entry_job = normalize_job(
+            {
+                "title": "Junior Nurse — General Ward",
+                "seniority": "junior",
+                "role_family": "healthcare_clinical",
+                "languages": ["Czech"],
+                "description": "Graduates welcome; mentoring provided.",
+                "requirements": [
+                    {"skill": "patient care", "kind": "must_have", "hardness": "learnable"},
+                    {"skill": "wound care", "kind": "must_have", "hardness": "learnable"},
+                ],
+            }
+        )
+        self.senior_job = normalize_job(
+            {
+                "title": "Senior ICU Nurse",
+                "seniority": "senior",
+                "role_family": "healthcare_clinical",
+                "languages": ["Czech"],
+                "description": "Own the unit; lead a shift.",
+                "requirements": [
+                    {"skill": "intensive care", "kind": "must_have", "hardness": "prerequisite"}
+                ],
+            }
+        )
+
+    def test_non_entry_role_is_ko_filtered(self) -> None:
+        resp = match(self.candidate, [self.entry_job, self.senior_job], limit=10)
+        ids = [m.job_id for m in resp.matches]
+        self.assertEqual(resp.meta["koFiltered"], 1)
+        self.assertIn(self.entry_job.id, ids)
+        self.assertNotIn(self.senior_job.id, ids)
+
+    def test_provenance_lets_thesis_skill_match(self) -> None:
+        m = score_job(self.candidate, self.entry_job)
+        self.assertIn("patient care", [s.casefold() for s in m.matched_skills])
+
+    def test_career_slot_carries_potential(self) -> None:
+        m = score_job(self.candidate, self.entry_job)
+        self.assertAlmostEqual(m.career_score, self.candidate.potential_score or 0.0)
+
+
+class NonTechDomainDistanceTest(unittest.TestCase):
+    """``domain_distance`` was only ever asserted with ``data_ai`` as the TARGET.
+    The switcher story the product sells is just as often non-tech."""
+
+    def _switcher_to(self, prior_title: str, family: str) -> CandidateProfileV2:
+        return CandidateProfileV2(
+            archetype="career_switcher",
+            role_family=family,
+            years_experience=6,
+            skill_claims=[SkillClaim(skill="communication", provenance="professional")],
+            evidence=[Evidence(kind="job", title=prior_title, text="6 years")],
+        )
+
+    def test_adjacent_prior_field_non_tech(self) -> None:
+        # "Bank branch advisor" carries the 'bank' surface signal that neighbours
+        # finance_accounting (taxonomy.ADJACENT_DOMAIN_SIGNALS).
+        distance, reason = domain_distance(
+            self._switcher_to("Bank branch advisor", "finance_accounting").evidence,
+            "finance_accounting",
+        )
+        self.assertEqual(distance, "adjacent")
+        self.assertTrue(reason)
+
+    def test_moderate_when_meta_skills_map_but_domain_does_not(self) -> None:
+        # A teacher moving into nursing: _TRANSFERABLE_MAP recognizes the
+        # background (mentoring/communication) but nothing neighbours healthcare.
+        distance, _ = domain_distance(
+            self._switcher_to("High school teacher", "healthcare_clinical").evidence,
+            "healthcare_clinical",
+        )
+        self.assertEqual(distance, "moderate")
+
+    def test_far_without_any_prior_role(self) -> None:
+        distance, reason = domain_distance([], "healthcare_clinical")
+        self.assertEqual(distance, "far")
+        self.assertIn("no prior", reason)
+
+    def test_distance_threads_onto_the_match_candidate(self) -> None:
+        near = build_match_candidate(self._switcher_to("Bank branch advisor", "finance_accounting"))
+        far = build_match_candidate(self._switcher_to("Professional violinist", "finance_accounting"))
+        self.assertEqual(near.domain_distance, "adjacent")
+        self.assertEqual(far.domain_distance, "far")
+        self.assertGreater(near.potential_score or 0, far.potential_score or 0)
+
+
 if __name__ == "__main__":
     unittest.main()

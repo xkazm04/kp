@@ -124,6 +124,20 @@ class CoverProbe(_Base):
     decision_space: list[str] = Field(default_factory=list)
 
 
+class MidFlightUpdate(_Base):
+    """A mid-flight requirement change revealed to the candidate DURING the session
+    (LLM-era controls #5). One-shot generation is structurally impossible against a
+    brief that changes at T+N minutes: the reveal lands only after ``after_minutes``
+    of session age (server-decided, recorded as an observed event), and how the
+    candidate ADAPTS — re-plans, revisits earlier decisions, logs the trade-off —
+    becomes gradeable evidence. ``reveals`` is the internal note (what good vs poor
+    adaptation looks like), never disclosed."""
+
+    after_minutes: int = 20
+    update: str = ""  # candidate-facing: the requirement change, in-world voice
+    reveals: str = ""  # internal only — what adaptation quality this measures
+
+
 class RubricDimension(_Base):
     name: str = ""  # framing | tooling | judgment | architecture | transfer
     label: str = ""  # human-readable name for the UI (e.g. "Problem framing")
@@ -180,6 +194,9 @@ class CaseScenario(_Base):
     cover_probes: list[CoverProbe] = Field(default_factory=list)
     rubric_dimensions: list[RubricDimension] = Field(default_factory=list)
     timebox_hours: float = 4.0
+    # LLM-era controls #5 — the requirement change revealed mid-session (None on
+    # cases designed before case-design v6 or when the designer judged it unfit).
+    mid_flight_update: MidFlightUpdate | None = None
     prompt_version: str = ""
 
 

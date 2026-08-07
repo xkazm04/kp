@@ -1,6 +1,6 @@
 """KP_OFFLINE — hard no-egress mode for air-gapped self-host installs.
 
-E-SH-4 (docs/SELF_HOSTING.md §7). When ``KP_OFFLINE`` is truthy, cloud LLM engines
+E-SH-4 (docs/architecture/self-hosting.md §7). When ``KP_OFFLINE`` is truthy, cloud LLM engines
 refuse to run (``available()`` → False → the call site's deterministic fallback),
 so nothing reaches api.openai.com / generativelanguage / api.anthropic.com / the
 Claude CLI's cloud. The ONLY endpoint that stays usable is a genuinely **on-box /

@@ -1,0 +1,20 @@
+QA Automation Engineer
+
+We are looking for a QA Automation Engineer to own end-to-end quality for our
+recruiting platform.
+
+Responsibilities
+- Design and maintain end-to-end test suites (Playwright) for the web app.
+- Build deterministic regression coverage for the candidate scheduling flow.
+- Review accessibility (WCAG 2.1 AA) of candidate-facing surfaces.
+- Work with engineers to keep CI green and flake-free.
+
+Requirements
+- 3+ years of test automation experience (TypeScript preferred).
+- Solid understanding of HTTP APIs, SQL, and browser internals.
+- Experience with axe-core or comparable accessibility tooling.
+- English or Czech, written and spoken.
+
+We offer
+- Hybrid work from Prague, 5 weeks of vacation, education budget.
+- Salary range 70 000 - 110 000 CZK monthly, depending on seniority.

@@ -2,8 +2,22 @@
 // before it reaches the UI, so figures share one typographic rhythm (grouping,
 // symbols, casing) and a locale/currency change is a one-line edit. Components
 // should reach for these helpers instead of formatting values ad-hoc.
+import { DEFAULT_LOCALE, isLocale, type Locale } from "@/i18n/locales";
 
-const LOCALE = "cs-CZ";
+/**
+ * Narrow an arbitrary locale tag ("cs-CZ", "FR", undefined) to one of the app's
+ * supported locales, falling back to English. Matches on the primary subtag like
+ * {@link resolveAcceptLanguage}, so a regional tag from the browser still lands
+ * on the right language instead of silently rendering English.
+ *
+ * THE entry point for every formatter below: the app renders in exactly four
+ * locales, so a formatter is only ever constructed for one of four keys and the
+ * caches stay bounded no matter what tag a caller passes in.
+ */
+function resolveFormatLocale(locale: string | undefined): Locale {
+  const primary = locale?.split("-")[0]?.toLowerCase();
+  return isLocale(primary) ? primary : DEFAULT_LOCALE;
+}
 
 /**
  * The single currency every stored/rendered monetary figure in this app is
@@ -18,18 +32,81 @@ const LOCALE = "cs-CZ";
 export const APP_CURRENCY = "CZK";
 const EN_DASH = "–";
 
-const integerFormat = new Intl.NumberFormat(LOCALE, { maximumFractionDigits: 0 });
+/**
+ * The number-locale contract
+ * --------------------------
+ * Digit grouping is a property of the READER's language, not of the app's home
+ * market: "45 000" is right for a Czech reader, "45,000" for an English one,
+ * "45.000" for a German one. This module used to pin one `cs-CZ` formatter for
+ * every locale — so a German or French user read Czech-grouped money throughout
+ * the app while {@link formatRelativeTime}, three hundred lines down the same
+ * file, correctly threaded the active locale. The two halves now agree.
+ *
+ * Note what does NOT vary: the CURRENCY. `APP_CURRENCY` and the single-currency
+ * Czech-market assumption above are deliberate — this contract governs how a
+ * figure is *typeset*, never what it is denominated in.
+ *
+ * Every formatter takes the active locale as an optional trailing argument,
+ * defaulting to English so a non-UI caller (a test, a log line, a server-side
+ * artifact with no reader) keeps working. Rendered call sites thread it exactly
+ * the way {@link formatRelativeTime} already does: client components through
+ * {@link useNumberFormat} (app/_lib/use-number-format.ts), server ones through
+ * next-intl's `getLocale()`.
+ *
+ * Intl formatters are expensive to construct and these run per row in dense
+ * tables, so keep one per locale — the same cache shape as
+ * `relativeTimeFormatters`.
+ */
+const integerFormatters = new Map<Locale, Intl.NumberFormat>();
 
-/** Grouped integer, no currency symbol (e.g. 45000 -> "45 000"). */
-export function formatCzk(value: number): string {
+function integerFormat(locale: Locale): Intl.NumberFormat {
+  const cached = integerFormatters.get(locale);
+  if (cached) return cached;
+  const created = new Intl.NumberFormat(locale, { maximumFractionDigits: 0 });
+  integerFormatters.set(locale, created);
+  return created;
+}
+
+/**
+ * Grouped integer in the reader's locale, no currency symbol (e.g. 45000 ->
+ * "45 000" in cs, "45,000" in en). Currency-neutral ON PURPOSE — this never
+ * emitted a currency, so a figure rendered with it alone carries no unit and a
+ * EUR/USD value reads as a bare number a viewer assumes is CZK. At a render
+ * boundary that shows a STANDALONE monetary figure, pair it with a currency via
+ * {@link formatMoney} instead.
+ */
+export function formatGrouped(value: number, locale: string = DEFAULT_LOCALE): string {
   const safe = Number.isFinite(value) ? value : 0;
-  return integerFormat.format(safe);
+  return integerFormat(resolveFormatLocale(locale)).format(safe);
+}
+
+/**
+ * @deprecated Misnamed: this is currency-neutral grouping, not a CZK formatter (it
+ * never emitted a "CZK"/"Kč"). Use {@link formatGrouped} for a bare grouped number
+ * or {@link formatMoney} for a number that names its currency. Kept as an alias so
+ * existing callers keep working while they migrate.
+ */
+export const formatCzk = formatGrouped;
+
+/**
+ * A grouped figure that carries its currency label, e.g. `formatMoney(45000, "EUR")`
+ * -> "45 000 EUR". Defaults to {@link APP_CURRENCY}. THE helper for a standalone
+ * monetary figure (a gauge tooltip, an aria readout) that must name its currency,
+ * so a EUR figure is never mistaken for a bare CZK number.
+ */
+export function formatMoney(
+  value: number,
+  currency: string = APP_CURRENCY,
+  locale: string = DEFAULT_LOCALE
+): string {
+  return `${formatGrouped(value, locale)} ${currency}`;
 }
 
 /**
  * A salary band rendered as a single typographic unit, e.g.
- * "45 000–60 000 CZK" — grouped numbers, an en-dash separator, and the
- * currency suffix. Pass `period` to append a cadence ("45 000–60 000 CZK / month").
+ * "45 000–60 000 CZK" — numbers grouped in `options.locale` (see the
+ * number-locale contract above), an en-dash separator, and the currency suffix.
+ * Pass `period` to append a cadence ("45 000–60 000 CZK / month").
  *
  * Presentation guard: the bounds are normalized low-to-high, so an inverted
  * band (60000, 45000) still reads "45 000–60 000 CZK" rather than looking
@@ -39,17 +116,18 @@ export function formatCzk(value: number): string {
 export function formatSalaryRange(
   minimum: number,
   maximum: number,
-  options: { currency?: string; period?: string } = {}
+  options: { currency?: string; period?: string; locale?: string } = {}
 ): string {
   const currency = options.currency ?? APP_CURRENCY;
+  const locale = options.locale ?? DEFAULT_LOCALE;
   const a = Number.isFinite(minimum) ? minimum : 0;
   const b = Number.isFinite(maximum) ? maximum : 0;
   const low = Math.min(a, b);
   const high = Math.max(a, b);
   const range =
     low === high
-      ? `${formatCzk(low)} ${currency}`
-      : `${formatCzk(low)}${EN_DASH}${formatCzk(high)} ${currency}`;
+      ? `${formatGrouped(low, locale)} ${currency}`
+      : `${formatGrouped(low, locale)}${EN_DASH}${formatGrouped(high, locale)} ${currency}`;
   return options.period ? `${range} / ${options.period}` : range;
 }
 
@@ -201,9 +279,14 @@ export function formatYears(value: number): string {
  * formatCount(5, "candidate") -> "5 candidates",
  * formatCount(1200) -> "1 200".
  */
-export function formatCount(value: number, singular?: string, plural?: string): string {
+export function formatCount(
+  value: number,
+  singular?: string,
+  plural?: string,
+  locale: string = DEFAULT_LOCALE
+): string {
   const safe = Number.isFinite(value) ? Math.round(value) : 0;
-  const count = integerFormat.format(safe);
+  const count = integerFormat(resolveFormatLocale(locale)).format(safe);
   if (!singular) return count;
   const noun = safe === 1 ? singular : plural ?? `${singular}s`;
   return `${count} ${noun}`;
@@ -272,13 +355,55 @@ function warnTimestampContract(message: string): void {
 const FUTURE_SKEW_TOLERANCE_S = 120;
 
 /**
- * A coarse "time ago" label from an ISO-8601 **UTC** timestamp — e.g. "5s ago",
- * "12m ago", "3h ago", "2d ago". The single relative-time renderer for the
- * control page, audit log, outbox, tasks, history, etc. (previously a
- * `rel()`/`relTime()` copy hand-rolled in each). Buckets: seconds < 60,
- * minutes < 60, hours < 24, then days. A blank/unparseable input returns "" —
- * callers wanting a placeholder use `formatRelativeTime(x) || "—"`, and callers
- * wanting an absolute date past some age compose this with their own threshold.
+ * Relative-time rendering is delegated wholesale to `Intl.RelativeTimeFormat`
+ * rather than to a hand-written `${n}${unit} ago` template or a pile of ICU
+ * message keys. The unit words are not the hard part — the PLURAL AGREEMENT is:
+ * Czech alone splits one/few/many/other ("před 1 dnem" vs "před 3 dny"), and the
+ * past marker is a prefix there ("před …"), an infix in French ("il y a …"), and
+ * a suffix in English ("… ago"). CLDR already encodes all of that per locale, so
+ * `Intl` gets it right for free in every locale the app ships (and in any locale
+ * added later) with no new message keys to translate or keep in sync.
+ *
+ * The one per-locale choice we make is the STYLE. `narrow` is the compact form
+ * these dense tables/chips were built for and reproduces the app's prior English
+ * output verbatim ("23d ago"). French is the exception: CLDR's French narrow
+ * form is a bare signed number ("-23 j"), meant for numeric timelines, not for
+ * prose — so French uses `short` ("il y a 23 j"), which reads correctly at the
+ * same width.
+ */
+const RELATIVE_TIME_STYLE: Partial<Record<Locale, Intl.RelativeTimeFormatStyle>> = {
+  fr: "short",
+};
+
+// Intl formatters are expensive to construct and these strings re-render every
+// few seconds in the control room, so keep one per locale.
+const relativeTimeFormatters = new Map<Locale, Intl.RelativeTimeFormat>();
+
+function relativeTimeFormatter(locale: Locale): Intl.RelativeTimeFormat {
+  const cached = relativeTimeFormatters.get(locale);
+  if (cached) return cached;
+  const created = new Intl.RelativeTimeFormat(locale, {
+    numeric: "always",
+    style: RELATIVE_TIME_STYLE[locale] ?? "narrow",
+  });
+  relativeTimeFormatters.set(locale, created);
+  return created;
+}
+
+/**
+ * A coarse "time ago" label from an ISO-8601 **UTC** timestamp, rendered in the
+ * ACTIVE LOCALE — "5s ago" / "před 5 s" / "vor 5 s" / "il y a 5 s". The single
+ * relative-time renderer for the control page, audit log, outbox, tasks,
+ * history, etc. (previously a `rel()`/`relTime()` copy hand-rolled in each).
+ * Buckets: seconds < 60, minutes < 60, hours < 24, then days. A blank/
+ * unparseable input returns "" — callers wanting a placeholder use
+ * `formatRelativeTime(x, locale) || "—"`, and callers wanting an absolute date
+ * past some age compose this with their own threshold.
+ *
+ * `locale` defaults to English so a non-UI caller (a test, a log line) keeps
+ * working; every RENDERED call site threads the active locale — client
+ * components via {@link useRelativeTime} (app/_lib/use-relative-time.ts), server
+ * ones via next-intl's `getLocale()`.
  *
  * Asserts the timestamp contract documented above: a naive (zone-less),
  * unparseable, or far-future input is reported via {@link warnTimestampContract}
@@ -286,7 +411,7 @@ const FUTURE_SKEW_TOLERANCE_S = 120;
  * keeps a future timestamp from reading "-12h ago", but the skew that produced
  * it is no longer swallowed in silence.
  */
-export function formatRelativeTime(iso: string): string {
+export function formatRelativeTime(iso: string, locale: string = DEFAULT_LOCALE): string {
   const cls = classifyTimestamp(iso);
   if (cls === "empty") return "";
   if (cls === "unparseable") {
@@ -306,10 +431,14 @@ export function formatRelativeTime(iso: string): string {
       `future timestamp ${JSON.stringify(iso)} (${Math.round(-seconds)}s ahead) — clamped to "0s ago"; this usually means client/server clock or timezone skew`
     );
   }
-  if (seconds < 60) return `${Math.max(0, Math.floor(seconds))}s ago`;
-  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
-  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
-  return `${Math.floor(seconds / 86400)}d ago`;
+  // Same buckets and same rounding as before — only the rendering of the
+  // (value, unit) pair moved into Intl. The negated value is what marks the
+  // duration as PAST; `-0` still formats as a past "0s ago" after the clamp.
+  const format = relativeTimeFormatter(resolveFormatLocale(locale));
+  if (seconds < 60) return format.format(-Math.max(0, Math.floor(seconds)), "second");
+  if (seconds < 3600) return format.format(-Math.floor(seconds / 60), "minute");
+  if (seconds < 86400) return format.format(-Math.floor(seconds / 3600), "hour");
+  return format.format(-Math.floor(seconds / 86400), "day");
 }
 
 /**

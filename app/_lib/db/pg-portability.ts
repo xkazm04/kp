@@ -1,4 +1,4 @@
-// SQL-portability audit for the Postgres migration (E-SH-3, docs/POSTGRES_BACKEND.md).
+// SQL-portability audit for the Postgres migration (E-SH-3, docs/architecture/postgres-backend.md).
 //
 // Scans the data layer for the SQLite-specific constructs that need a dialect tweak
 // when porting to Postgres. This is NOT run in the request path — it's a living
@@ -7,7 +7,7 @@
 //
 // IMPORTANT framing: the audit below confirms the DIALECT surface is small. The real
 // blocker for Postgres is the sync→async DB API (better-sqlite3 is synchronous;
-// node-postgres is not), NOT the SQL. See docs/POSTGRES_BACKEND.md.
+// node-postgres is not), NOT the SQL. See docs/architecture/postgres-backend.md.
 
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
@@ -58,6 +58,38 @@ const RULES: { key: string; title: string; fix: string; pattern: RegExp }[] = [
     fix: "better-sqlite3's sync transaction wrapper → async BEGIN/COMMIT. This IS the sync→async blocker.",
     pattern: /\.transaction\s*\(/,
   },
+  // bug-ui-scan-2026-07-09 (data-store-persistence #4): the audit under-reported — these
+  // SQLite-isms exist in the data layer but had no rule, so the checklist declared a clean
+  // surface it didn't have (e.g. prunePromptCache's `WHERE rowid IN (…)` has no Postgres
+  // equivalent). Add rules so a missed construct fails the pg-portability test instead of
+  // being discovered at migration time.
+  {
+    key: "rowid",
+    title: "rowid (implicit SQLite row key)",
+    fix: "Postgres has NO implicit rowid. `WHERE rowid IN (SELECT rowid …)` (prunePromptCache) must use an explicit surrogate PK; ctid exists but is NOT stable across VACUUM.",
+    pattern: /\browid\b/i,
+  },
+  {
+    key: "json_fn",
+    title: "SQLite JSON functions (json_*)",
+    fix: "json_extract / json_group_array / json_object / json_each → Postgres jsonb operators (->, ->>, jsonb_agg, jsonb_build_object) + a jsonb column type.",
+    pattern: /\bjson_[a-z]+\s*\(/i,
+  },
+  {
+    key: "datetime_fn",
+    title: "SQLite date/time functions (strftime / datetime / julianday)",
+    fix: "strftime / datetime / julianday / unixepoch → Postgres to_char / date_trunc / EXTRACT / to_timestamp (different names + format codes).",
+    pattern: /\b(strftime|julianday|unixepoch)\s*\(|\bdatetime\s*\(/i,
+  },
+  {
+    key: "without_rowid",
+    title: "WITHOUT ROWID table",
+    fix: "A SQLite storage tweak with no Postgres equivalent — drop the clause (Postgres always has a heap + PK index).",
+    pattern: /WITHOUT\s+ROWID/i,
+  },
+  // NOTE: INTEGER-as-boolean columns (0/1 stored in an INTEGER) also need a Postgres
+  // BOOLEAN tweak, but there is no reliable text pattern (INTEGER is ubiquitous and
+  // legitimate) — audit those by hand from the schema, not via this checklist.
 ];
 
 function walkTsFiles(dir: string, acc: string[] = []): string[] {

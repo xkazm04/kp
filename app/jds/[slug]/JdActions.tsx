@@ -1,12 +1,17 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Archive, ArchiveRestore, Check, History, Pencil, RotateCcw, X } from "lucide-react";
+import { Archive, ArchiveRestore, Check, History, Pencil, X } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { TextInput } from "@/app/_components/TextInput";
 import { TextArea } from "@/app/_components/TextArea";
-
-type JdRevision = { id: number; title: string; body: string; created_at: string };
+import { builderLintFindings } from "@/app/features/library/jds/jdsLibrary";
+import { JdLintPanel } from "@/app/features/library/jds/JdsLintPanel";
+import { JdRevisionList } from "@/app/features/library/jds/JdsRevisionList";
+import { useJdEditor } from "@/app/features/library/jds/useJdEditor";
+import { classifyJdWriteResponse } from "@/app/features/library/jds/jdsEditClient";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
 
 // W8-4 (JDL1) — edit + archive for a saved JD, on the page that displays it.
 // The library was fully append-only: every revision forked a permanent
@@ -15,79 +20,92 @@ type JdRevision = { id: number; title: string; body: string; created_at: string 
 // route re-syncs the linked job best-effort — and archive retires the JD
 // from lists/pickers while this public page keeps rendering (with the banner
 // the server component shows), so existing analysis links never 404.
-// English-only like the rest of this report-adjacent surface (RES2's wave).
-export function JdActions({ slug, title, body, archived }: { slug: string; title: string; body: string; archived: boolean }) {
+//
+// The edit / revision / revert half now runs on the SAME `useJdEditor` client as
+// the ledger's in-modal editor (JdModalEditor), so the two can't drift again:
+// this surface previously lacked the live lint panel and the honest 401 gate the
+// ledger grew — both are now shared. `marketResearch` feeds the lint's
+// salary-suppression seam exactly as the ledger does (derived server-side from
+// the JD's stored build artifacts).
+//
+// Renders through next-intl (`jdPublic` namespace) so the recruiter controls on
+// the public JD page read in the viewer's locale — the page chrome half of
+// Direction 2 ("the public JD page speaks the candidate's language").
+export function JdActions({
+  slug,
+  title,
+  body,
+  archived,
+  marketResearch,
+}: {
+  slug: string;
+  title: string;
+  body: string;
+  archived: boolean;
+  marketResearch: boolean;
+}) {
+  const t = useTranslations("jdPublic");
+  // Resolve API failures from the machine `code`, never from the server's
+  // English `error` — see app/_lib/use-error-message.ts.
+  const errMsg = useErrorMessage();
   const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [draftTitle, setDraftTitle] = useState(title);
   const [draftBody, setDraftBody] = useState(body);
-  const [busy, setBusy] = useState<"save" | "archive" | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  // idea-6a18e0fc — JD edit history: the pre-edit snapshots, with view + revert.
-  const [historyOpen, setHistoryOpen] = useState(false);
-  const [revisions, setRevisions] = useState<JdRevision[] | null>(null);
-  const [revLoading, setRevLoading] = useState(false);
-  const [reverting, setReverting] = useState<number | null>(null);
-  const [expanded, setExpanded] = useState<number | null>(null);
+  // Archive is a public-page-only sibling of the edit client; it keeps its own
+  // busy flag but shares the editor's error/gate surface below.
+  const [archiving, setArchiving] = useState(false);
 
-  const loadRevisions = useCallback(async () => {
-    setRevLoading(true);
-    try {
-      const p = (await fetch(`/api/jds/${encodeURIComponent(slug)}/revisions`).then((r) => r.json())) as {
-        revisions?: JdRevision[];
-      };
-      setRevisions(p.revisions ?? []);
-    } catch {
-      setRevisions([]);
-    } finally {
-      setRevLoading(false);
-    }
-  }, [slug]);
-
-  const toggleHistory = () => {
-    const next = !historyOpen;
-    setHistoryOpen(next);
-    if (next && revisions === null && !revLoading) void loadRevisions();
-  };
-
-  const revert = async (id: number) => {
-    setReverting(id);
-    setError(null);
-    try {
-      const r = await fetch(`/api/jds/${encodeURIComponent(slug)}/revisions`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        // Send the body the page loaded so a revert can't bury an edit made meanwhile.
-        body: JSON.stringify({ revisionId: id, baseBody: body }),
-      });
-      const p = (await r.json().catch(() => null)) as { error?: string } | null;
-      if (!r.ok) throw new Error(p?.error ?? "Revert failed.");
-      await loadRevisions(); // a revert adds a snapshot of the just-replaced version
+  // The ONE shared edit client — fetch / baseBody CAS / 401 gate latch / 409
+  // conflict / revisions / revert. A successful save leaves edit mode; a revert
+  // stays in place, reloads the list (a revert appends a snapshot) and refreshes
+  // the rendered body.
+  const editor = useJdEditor({
+    slug,
+    baseBody: body,
+    copy: {
+      gateReason: t("editGateReason"),
+      conflict: t("editConflict"),
+      saveError: t("saveFailed"),
+      revertError: t("revertFailed"),
+    },
+    onSaved: () => {
+      setEditing(false);
       router.refresh();
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Revert failed.");
-    } finally {
-      setReverting(null);
-    }
-  };
+    },
+    onReverted: () => {
+      void editor.loadRevisions();
+      router.refresh();
+    },
+  });
 
-  const patch = async (payload: Record<string, unknown>, kind: "save" | "archive") => {
-    setBusy(kind);
-    setError(null);
+  // Live advisory lint over the edited body — the SAME engine + seam as the
+  // ledger editor (the public page holds the JD's stored artifacts, so the
+  // salary-suppression input is honest, not a guess).
+  const lintFindings = builderLintFindings(draftBody, { marketResearch });
+
+  const archive = async () => {
+    setArchiving(true);
+    editor.setError(null);
     try {
       const r = await fetch(`/api/jds/${encodeURIComponent(slug)}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ archived: !archived }),
       });
-      const p = (await r.json().catch(() => null)) as { error?: string } | null;
-      if (!r.ok) throw new Error(p?.error ?? "Save failed.");
-      setEditing(false);
+      const p = (await r.json().catch(() => null)) as { error?: string; code?: string } | null;
+      // Archive shares the editor's honest 401 gate — a refused write latches the
+      // controls rather than showing a generic failure.
+      if (classifyJdWriteResponse(r.status, p) === "gate") {
+        editor.setError(t("editGateReason"));
+        return;
+      }
+      if (!r.ok) throw new Error(errMsg(p, t("saveFailed")));
       router.refresh();
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Save failed.");
+      editor.setError(caught instanceof Error ? caught.message : t("saveFailed"));
     } finally {
-      setBusy(null);
+      setArchiving(false);
     }
   };
 
@@ -100,71 +118,48 @@ export function JdActions({ slug, title, body, archived }: { slug: string; title
             onClick={() => setEditing(true)}
             className="focus-ring inline-flex items-center gap-1.5 rounded-md border border-stone-200 px-3 py-1.5 text-sm font-semibold text-steel hover:text-ink"
           >
-            <Pencil size={13} aria-hidden /> Edit JD
+            <Pencil size={13} aria-hidden /> {t("editJd")}
           </button>
         ) : null}
         <button
           type="button"
-          onClick={() => patch({ archived: !archived }, "archive")}
-          disabled={busy !== null}
-          title={
-            archived
-              ? "Bring this JD back into the library and the Analyze picker"
-              : "Retire this JD from the library and pickers — this page stays up so analysis links keep working"
-          }
+          onClick={archive}
+          disabled={archiving}
+          title={archived ? t("unarchiveTitle") : t("archiveTitle")}
           className="focus-ring inline-flex items-center gap-1.5 rounded-md border border-stone-200 px-3 py-1.5 text-sm font-semibold text-steel hover:text-ink disabled:opacity-50"
         >
           {archived ? <ArchiveRestore size={13} aria-hidden /> : <Archive size={13} aria-hidden />}
-          {busy === "archive" ? "Working…" : archived ? "Unarchive" : "Archive"}
+          {archiving ? t("working") : archived ? t("unarchive") : t("archive")}
         </button>
         <button
           type="button"
-          onClick={toggleHistory}
-          aria-expanded={historyOpen}
-          title="View prior versions of this JD and revert to one"
+          onClick={editor.toggleHistory}
+          aria-expanded={editor.historyOpen}
+          title={t("historyTitle")}
           className="focus-ring inline-flex items-center gap-1.5 rounded-md border border-stone-200 px-3 py-1.5 text-sm font-semibold text-steel hover:text-ink"
         >
-          <History size={13} aria-hidden /> {historyOpen ? "Hide history" : "History"}
+          <History size={13} aria-hidden /> {editor.historyOpen ? t("hideHistory") : t("history")}
         </button>
       </div>
 
-      {historyOpen ? (
+      {editor.historyOpen ? (
         <div className="mt-3 rounded-lg border border-stone-200 bg-paper/40 p-4">
-          {revLoading && revisions === null ? (
-            <p className="text-sm text-steel">Loading history…</p>
-          ) : !revisions || revisions.length === 0 ? (
-            <p className="text-sm text-steel">No prior versions yet — edits and reverts will appear here.</p>
+          {editor.revLoading && editor.revisions === null ? (
+            <p className="text-sm text-steel">{t("historyLoading")}</p>
+          ) : !editor.revisions || editor.revisions.length === 0 ? (
+            <p className="text-sm text-steel">{t("historyEmpty")}</p>
           ) : (
-            <ul className="space-y-2">
-              {revisions.map((rev) => (
-                <li key={rev.id} className="rounded-md border border-stone-100 bg-white px-3 py-2 text-sm">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-semibold text-ink">{rev.title}</span>
-                    <span className="text-steel">· {new Date(rev.created_at).toLocaleString()}</span>
-                    <button
-                      type="button"
-                      onClick={() => setExpanded(expanded === rev.id ? null : rev.id)}
-                      className="focus-ring font-semibold text-coral hover:underline"
-                    >
-                      {expanded === rev.id ? "Hide" : "View"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => revert(rev.id)}
-                      disabled={reverting !== null}
-                      className="focus-ring ml-auto inline-flex items-center gap-1 rounded-md border border-coral/40 bg-white px-2 py-0.5 font-semibold text-coral hover:bg-coral/5 disabled:opacity-50"
-                    >
-                      <RotateCcw size={12} aria-hidden /> {reverting === rev.id ? "Reverting…" : "Revert to this"}
-                    </button>
-                  </div>
-                  {expanded === rev.id ? (
-                    <pre className="mt-2 max-h-60 overflow-auto whitespace-pre-wrap rounded bg-stone-50 p-2 font-mono text-xs text-ink">
-                      {rev.body}
-                    </pre>
-                  ) : null}
-                </li>
-              ))}
-            </ul>
+            <JdRevisionList
+              revisions={editor.revisions}
+              reverting={editor.reverting}
+              gateBlocked={editor.gateBlocked}
+              onRevert={editor.revert}
+              gateReason={t("editGateReason")}
+              viewLabel={t("view")}
+              hideLabel={t("hide")}
+              revertLabel={t("revert")}
+              revertingLabel={t("reverting")}
+            />
           )}
         </div>
       ) : null}
@@ -172,27 +167,38 @@ export function JdActions({ slug, title, body, archived }: { slug: string; title
       {editing ? (
         <div className="mt-3 space-y-2 rounded-lg border border-stone-200 bg-paper/40 p-4">
           <label className="block text-sm font-semibold text-steel">
-            Title
-            <TextInput value={draftTitle} onChange={(e) => setDraftTitle(e.target.value)} className="mt-1" />
+            {t("titleLabel")}
+            <TextInput
+              value={draftTitle}
+              onChange={(e) => setDraftTitle(e.target.value)}
+              disabled={editor.gateBlocked}
+              className="mt-1"
+            />
           </label>
           <label className="block text-sm font-semibold text-steel">
-            Body (Markdown)
+            {t("bodyLabel")}
             <TextArea
               value={draftBody}
               onChange={(e) => setDraftBody(e.target.value)}
+              disabled={editor.gateBlocked}
               rows={14}
               sizeVariant="sm"
               className="mt-1 font-mono"
             />
           </label>
+
+          {/* The wired lint panel — the same advisory seam the ledger editor uses. */}
+          {lintFindings.length > 0 ? <JdLintPanel findings={lintFindings} /> : null}
+
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => patch({ title: draftTitle, body: draftBody, baseBody: body }, "save")}
-              disabled={busy !== null}
+              onClick={() => editor.save(draftTitle, draftBody)}
+              disabled={editor.busy || editor.gateBlocked}
+              title={editor.gateBlocked ? t("editGateReason") : undefined}
               className="focus-ring inline-flex items-center gap-1.5 rounded-md bg-ink px-3 py-1.5 text-sm font-semibold text-white hover:bg-steel disabled:opacity-50"
             >
-              <Check size={13} aria-hidden /> {busy === "save" ? "Saving…" : "Save changes"}
+              <Check size={13} aria-hidden /> {editor.busy ? t("saving") : t("save")}
             </button>
             <button
               type="button"
@@ -200,19 +206,36 @@ export function JdActions({ slug, title, body, archived }: { slug: string; title
                 setEditing(false);
                 setDraftTitle(title);
                 setDraftBody(body);
-                setError(null);
+                editor.setError(null);
               }}
               className="focus-ring inline-flex items-center gap-1.5 rounded-md border border-stone-200 px-3 py-1.5 text-sm font-semibold text-steel hover:text-ink"
             >
-              <X size={13} aria-hidden /> Cancel
+              <X size={13} aria-hidden /> {t("cancel")}
             </button>
-            <span className="text-sm text-steel">Edits update the linked role too (its live/draft status is preserved).</span>
+            <span className="text-sm text-steel">{t("linkedNote")}</span>
           </div>
         </div>
       ) : null}
-      {error ? (
+      {editor.error ? (
         <p role="alert" className="mt-2 text-sm text-red-700">
-          {error}
+          {editor.error}
+          {editor.conflict ? (
+            <>
+              {" "}
+              <button
+                type="button"
+                onClick={() => {
+                  setDraftTitle(title);
+                  setDraftBody(body);
+                  editor.setError(null);
+                  router.refresh();
+                }}
+                className="focus-ring font-semibold text-coral hover:underline"
+              >
+                {t("editReload")}
+              </button>
+            </>
+          ) : null}
         </p>
       ) : null}
     </div>

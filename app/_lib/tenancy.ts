@@ -39,6 +39,13 @@ export const TENANCY_SCOPED_TABLES: ReadonlySet<string> = new Set([
   // job_ingests dedup PK is (content_hash, workspace_id) — dedup never crosses teams.
   "jobs",
   "job_ingests",
+  // D5 — the dev-studio outcome/calibration corpus (dev-outcomes.ts). Reclassified from
+  // EXEMPT: it holds per-team hiring ground truth (who a team hired/rejected and how they
+  // performed), and the promote-floor recommendation a recruiter acts on is computed from
+  // it — pooling teams meant one team's floor advice came from another team's hires. Every
+  // read/write filters workspace_id; the pipeline auto-record derives the tenant from the
+  // submission the ref names (dev-outcomes-tenancy.test.ts).
+  "dev_outcomes",
   // Phase 1 — a team's Decisions "group evaluations", keyed by role. Reads filter by
   // workspace_id; the upsert is workspace-guarded so a shared role_key can't clobber
   // another team's row (group-eval-tenancy.test.ts).
@@ -57,6 +64,41 @@ export const TENANCY_SCOPED_TABLES: ReadonlySet<string> = new Set([
   // needs no per-call-site threading (pipeline-events-tenancy.test.ts).
   "pipeline_events",
   "consent_events",
+  // W0.6b — candidate NPS captured on the public status page. Scoped because it feeds a
+  // team's metric pack: pooling it would let one team's candidate-experience number be
+  // computed from another team's rejections. Every read/write in candidate-nps-store.ts
+  // filters workspace_id, and the recruiter-side summary reads the caller's workspace.
+  // NOTE — same known limitation as the inbound channel receiver above: the PUBLIC write
+  // (/api/status/[token]/nps) still records on the DEFAULT workspace, because
+  // PipelineEntry carries no workspaceId to derive from. Thread the entry's tenant
+  // through before KP_MULTI_WORKSPACE is enabled, or a second team's candidate feedback
+  // lands in the default team's pack.
+  "candidate_nps",
+  // Recruiter feedback door (feedback-store.ts): in-product "Send feedback"
+  // submissions. Scoped because a message can name a team's candidates/roles and
+  // feeds that team's operator view on /control: every read/write in
+  // feedback-store.ts filters/stamps workspace_id (feedback-tenancy.test.ts).
+  "feedback",
+  // W2.3 — per-entry outreach memory (sends / replied / manually halted). Scoped because
+  // it decides whether a real message goes to a real person: a cross-tenant read would
+  // either re-mail someone who already replied to another team, or silence a sequence
+  // that team never ran. Every read/write in outreach-state-store.ts filters
+  // workspace_id, and the inbound receiver passes the webhook's own workspace — this one
+  // is NOT subject to the default-workspace caveat above.
+  "outreach_state",
+  // W1.1 — the ATS external-id link table. Scoped because it decides WHICH kp entry a
+  // vendor application maps to: a cross-tenant read would either attach another team's
+  // candidate to this team's pipeline, or fail to recognise an import and duplicate it.
+  // The PK carries workspace_id so two tenants can connect the same ATS account without
+  // colliding on the vendor's ids.
+  "ats_links",
+  // W1.4 — the connected Google calendar per team (calendar-connections). Scoped because
+  // it holds a refresh token to a real person's calendar and decides which calendar's
+  // free/busy filters a team's offered interview slots: pooling it would leak one team's
+  // availability into another's booking page. PK is (workspace_id, provider) and every
+  // read/write in calendar/token-store.ts filters workspace_id. Lazy-store table (own
+  // connection), hence also listed in TENANCY_LAZY_TABLES.
+  "calendar_connections",
   // Phase 1 — the Channels surface. channel_webhooks (inbound lead bindings) +
   // channel_spend (per-team spend; PK widened to (channel, workspace_id)) filter on
   // workspace_id; dev_outbox (the comms outbox) auto-derives each message's tenant
@@ -67,6 +109,11 @@ export const TENANCY_SCOPED_TABLES: ReadonlySet<string> = new Set([
   "channel_webhooks",
   "channel_spend",
   "dev_outbox",
+  // Phase 1 — recruiter-set analytics goals (analytics.ts: setAnalyticsTarget/
+  // listAnalyticsTargets). PK widened to (metric, workspace_id) so each team keeps its
+  // own funnel-conversion goals, time-to-hire goal, and recruiter_hourly_czk ROI rate;
+  // every read/write filters workspace_id (analytics-targets-tenancy.test.ts).
+  "analytics_targets",
   // Phase 1 — the Schedule surface (self-scheduling invites). The recruiter agenda +
   // invite creation + per-team slot-collision checks filter workspace_id (derived from
   // the linked entry). The candidate token flow, the reminder heartbeat's by-id ops,
@@ -85,6 +132,10 @@ export const TENANCY_SCOPED_TABLES: ReadonlySet<string> = new Set([
   "dev_submissions",
   "dev_sessions",
   "dev_session_events",
+  // Captured prompt channel (LLM-era controls #2): chat rows inherit their
+  // session's workspace at INSERT (appendDevSessionChat); by-session reads are
+  // exempt like the sibling event log.
+  "dev_session_chat",
   // Phase 1 — the onboarding hand-off (onboarding-store.ts): listTemplates/listRuns +
   // the intake-submitted set + every INSERT filter/stamp workspace_id. Templates are
   // per-team; a run derives its tenant from the Hired candidate's entry; child rows
@@ -108,6 +159,12 @@ export const TENANCY_SCOPED_TABLES: ReadonlySet<string> = new Set([
   // derived from the linked entity so a future recruiter enumeration is scopable.
   "offers", // offer letters (offers-tenancy.test.ts)
   "application_status_links", // public status link (application-status-tenancy.test.ts)
+  // The apply funnel's start rows (apply-session-store.ts). Minted from the public
+  // apply surface, so workspace_id is derived from the OPENING (getJobWorkspace) —
+  // the same rule the submit routes file the resulting entry under. The rate read
+  // filters workspace_id; the back-link write is by the session's own
+  // client-generated PK, which carries no tenant meaning and grants nothing.
+  "apply_sessions",
   "skill_profiles", // durable skill credentials (skill-profiles-tenancy.test.ts)
   // Phase 1 — interview_sessions (voice AI interviews): the by-job enumeration
   // (interviewedForJob) filters workspace_id + create stamps it (derived from the entry);
@@ -132,6 +189,16 @@ export const TENANCY_SCOPED_TABLES: ReadonlySet<string> = new Set([
   // never sees or edits another team's private template; the org-wide default lives only
   // on org rows. No by-id exemptions (templates-tenancy.test.ts).
   "jd_templates",
+  // Agent-candidate bridge (db/agents.ts): the per-team job→AgentFitSpec artifacts,
+  // the hired-agent roster (spec + budget + the report capability token) and the
+  // inbound cost/activity ledger. Every recruiter-facing read/write filters
+  // workspace_id; the PUBLIC report route's by-report-token lookup is the one
+  // exemption (the CSPRNG token is the capability — channel_webhooks doctrine),
+  // and the resolved row supplies the workspace all its writes scope to
+  // (agents-tenancy.test.ts).
+  "agent_fit_specs",
+  "hired_agents",
+  "agent_activity",
   // Phase 2 — the dual-tier hiring policy (decision-config-store.ts, a lazy store). ORG-DEFAULT
   // rows (workspace_id NULL — the company baseline every team inherits: screening rules +
   // compliance jurisdiction) + TEAM OVERRIDE rows (workspace_id = team). Reads CASCADE (the
@@ -159,11 +226,18 @@ export const TENANCY_EXEMPT_TABLES: ReadonlySet<string> = new Set([
   "llm_config", // deployment-level model/provider config
   "provider_keys", // deployment-level LLM provider keys, keyed by (provider, scope) —
   // the sibling of llm_config; per-org BYOM keys are a KP_MULTI_ORG concern (not per-team).
-  // Billing is per-DEPLOYMENT/org, NOT per-team-workspace: one subscription + ledger for
-  // the whole account (billing.ts: a single billing_state row id='workspace'), correctly
-  // SHARED across an org's teams. Isolated by org (like memberships), so exempt from the
-  // per-team workspace_id invariant. Multi-ORG-on-one-deployment isolation (org_id
-  // filtering in these stores) is a KP_MULTI_ORG concern beyond KP_MULTI_WORKSPACE.
+  // Billing is per-ORG, NOT per-team-workspace: one subscription + ledger per customer
+  // company, correctly SHARED across an org's teams — so these stay EXEMPT from the
+  // per-team workspace_id invariant this manifest governs. Since org-plan Phase 3
+  // (data layer) the org isolation is REAL, not just doctrine: every table carries
+  // org_id, billing.ts keys every read/write on it (billingOrgForWorkspace maps a
+  // team seam to its org; the webhook attributes via checkout metadata → stored
+  // subscription/customer → default org), and billing-tenancy.test.ts pins the
+  // org_id filters + cross-org isolation the way *-tenancy tests pin workspace_id.
+  // Two documented deployment-global exceptions, asserted in that same test:
+  // billing_events dedupes on the provider's GLOBAL event id (org_id is
+  // attribution only) and listBillingAlerts is the operator's cross-customer
+  // worklist (each row still carries its orgId).
   "billing_state",
   "billing_events",
   "billing_credits",
@@ -175,20 +249,35 @@ export const TENANCY_EXEMPT_TABLES: ReadonlySet<string> = new Set([
   // a KP_MULTI_ORG / multi-tenant enhancement, not a KP_MULTI_WORKSPACE prerequisite.
   "brand_settings", // the org's candidate-facing brand (name/accent/logo)
   "ats_config", // the org's outbound ATS webhook integration (one endpoint)
-  "analytics_targets", // the org's hiring targets — "the org's recruiter hourly rate", time-to-hire goal
+  "ats_delivery", // the ATS webhook delivery ledger (sibling of ats_config; deployment/org-level, not per-tenant)
+  // W1.1 — the INBOUND sibling of ats_config: per-provider base URL, encrypted API token
+  // and field map. Org-level for the same reason as its egress twin — an ATS account is
+  // connected once for the company, not per hiring team. It holds no candidate data; the
+  // per-candidate rows it produces land in ats_links, which IS workspace-scoped.
+  "ats_connections",
+  "comms_relay_config", // the org's outbound comms delivery relay (one endpoint; sibling of ats_config)
+  // Agent-candidate bridge config (agent-hire/bridge-store.ts): the Personas desktop
+  // app's base URL + encrypted pk_ API key + paired flag — deployment-level
+  // integration config exactly like ats_connections (connected once for the
+  // company, holds no candidate data; the per-tenant rows it produces land in
+  // hired_agents/agent_activity, which ARE workspace-scoped).
+  "personas_bridge",
+  "login_attempts", // brute-force throttle counters keyed by email/IP — deployment-global, no tenant dimension
   "llm_usage", // deployment-level LLM metering ledger (sibling of billing_usage; written off-request from Python)
-  "scheduler", // global background-job scheduler state
+  "scheduler", // global background-job scheduler state (ONE clock; its toggle's blast radius is the whole installation — operator-gated, see scheduler-store.ts)
+  // One row per global sweep. Exempt as a ROW, not as a payload: its decisions_json
+  // holds per-entry rows across every team, each stamped with the entry's workspaceId
+  // and filtered to the caller's tenant on read (scheduler-store.decisionsForWorkspace).
   "scheduler_runs",
   "scheduler_heartbeat", // one row per deployment: the clock's liveness stamp, not tenant data
-  // The autonomous dev-case pipeline's CONTROL PLANE + CALIBRATION (Directions D/E,
-  // dev-control.ts / dev-outcomes.ts) — deliberately "independent of the main schema".
-  // The dev-case CANDIDATE data (dev_cases/lifecycle/postings/submissions/sessions/
-  // session_events) is per-team and scoped above; these three are global orchestrator
-  // state: ONE kill-switch + promote-floor, ONE decision log, ONE outcome-calibration
-  // corpus — the sibling of `scheduler`, not per-tenant customer data.
+  // The autonomous dev-case pipeline's CONTROL PLANE (Direction D, dev-control.ts) —
+  // deliberately "independent of the main schema". The dev-case CANDIDATE data
+  // (dev_cases/lifecycle/postings/submissions/sessions/session_events) is per-team and
+  // scoped above, as is dev_outcomes since D5; these two remain global orchestrator
+  // state: ONE kill-switch + promote-floor and ONE decision log — the sibling of
+  // `scheduler`, not per-tenant customer data.
   "dev_control", // autonomy kill-switch + promote-floor (key/value, deployment control)
   "dev_audit", // the orchestrator's immutable auto/human decision log
-  "dev_outcomes", // predicted-vs-actual outcomes that calibrate the global promote-floor
   "schema_migrations",
   "_migrations",
   "sqlite_sequence", // sqlite internal
@@ -204,8 +293,13 @@ export const TENANCY_EXEMPT_TABLES: ReadonlySet<string> = new Set([
  *  class — each still appears in exactly one of SCOPED / EXEMPT above. */
 export const TENANCY_LAZY_TABLES: ReadonlySet<string> = new Set([
   "application_status_links",
+  "apply_sessions",
   "ats_config",
+  "ats_connections",
+  "ats_delivery",
   "brand_settings",
+  "calendar_connections",
+  "comms_relay_config",
   "decision_config",
   "decision_records",
   "dev_audit",
@@ -215,12 +309,14 @@ export const TENANCY_LAZY_TABLES: ReadonlySet<string> = new Set([
   "interview_preps",
   "jd_templates",
   "job_ingests",
+  "login_attempts",
   "offers",
   "onboarding_intake",
   "onboarding_runs",
   "onboarding_signatures",
   "onboarding_task_states",
   "onboarding_templates",
+  "personas_bridge",
   "rediscovery_alerts",
   "schedule_invites",
   "scheduler",

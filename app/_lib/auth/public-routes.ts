@@ -14,6 +14,17 @@ export const PUBLIC_PAGES = [
   "/about",
   "/market",
   "/landing",
+  // Legal pages (2026-08-05): a privacy policy and terms MUST be reachable by an
+  // anonymous visitor — a candidate deciding whether to consent, or a buyer's legal
+  // reviewer — so gating them in password mode would defeat their purpose. Both are
+  // static, four-locale server components with no per-workspace data.
+  "/privacy",
+  "/terms",
+  // The trust posture board, public since 2026-08-05 (was noindexed/internal): it is
+  // the evidence page behind the landing's verified-hiring claims and is linked from
+  // the public footer, so it must survive the fail-closed gate in password mode.
+  // Static claims only (trust-posture.ts), no candidate or workspace data.
+  "/trust",
   "/apply/",
   "/offer/",
   "/schedule/",
@@ -26,6 +37,11 @@ export const PUBLIC_PAGES = [
   // that reads the DB directly and gates its recruiter controls on isOperator(), so the
   // page is public while `/api/jds/*` stays gated.
   "/jds/",
+  // Self-serve registration (the /login sibling): an anonymous visitor must reach the
+  // form to create an account. The page itself (and POST /api/auth/register, already
+  // public under the /api/auth/ prefix) additionally 404s unless KP_SIGNUP_ENABLED is
+  // set (workspace-lock.signupEnabled) — public-by-design here, feature-gated in-route.
+  "/signup",
 ];
 
 export const PUBLIC_API_PREFIXES = [
@@ -40,6 +56,13 @@ export const PUBLIC_API_PREFIXES = [
   // subtree, which served that console to anonymous callers.
   "/api/channels/inbound",
   "/api/invite/",
+  // Agent-bridge inbound report (token-authed): a hired Personas agent POSTs
+  // cost/activity/lifecycle here — a MACHINE with a report token, never a browser
+  // with a session cookie, so the proxy gate would 401 it before the route's own
+  // token auth ran (the documented public-routes trap). Trailing slash = strict
+  // descendants only: the rest of /api/agents (roster, pair, dispatch, refresh)
+  // is the RECRUITER console and stays gated.
+  "/api/agents/report/",
 ];
 
 export const PUBLIC_API_EXACT: ReadonlySet<string> = new Set([
@@ -50,6 +73,15 @@ export const PUBLIC_API_EXACT: ReadonlySet<string> = new Set([
   "/api/devcase/inbound", // candidate apply webhook; the rest of /api/devcase is recruiter
   "/api/interview/connect", // candidate voice runtime; create/by-entry/compare/revoke are recruiter
   "/api/interview/complete",
+  // The relay's asynchronous delivery-receipt callback (bounce/complaint/drop), same
+  // rationale as /api/billing/webhook and /api/devcase/inbound: a MACHINE posts here,
+  // never a browser with a session cookie, so the operator gate would 401 it before its
+  // own auth ran — leaving the whole bounce subsystem inert in any password-protected
+  // deployment. It is NOT unauthenticated: the route is 503 unless COMMS_CALLBACK_SECRET
+  // is set, then requires a constant-time `x-comms-secret` match, a ±5-minute
+  // `x-comms-timestamp`, and a nonce replay guard. The rest of /api/comms (the recruiter
+  // read + resend) stays gated.
+  "/api/comms/callback",
 ]);
 
 // Candidate schedule links are `/api/schedule/<token>` — exactly ONE segment below the

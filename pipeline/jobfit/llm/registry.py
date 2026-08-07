@@ -16,13 +16,38 @@ serving a different engine than configured is worse than failing the request.
 
 from __future__ import annotations
 
+import os
 from typing import Any
 
 from .adapters import ADAPTERS
 from .base import DEFAULT_TIMEOUT_S, LLMError
 from .capabilities import PROVIDER_CAPABILITIES, default_model, unsupported_caps
-from .config import load_config
+from .config import LLMConfig, load_config
 from .monitor import MonitoredClaudeCli
+
+
+def _production_gemini_default(use_case: str, cfg: LLMConfig | None, timeout: int | None) -> Any | None:
+    """Cloud/non-dev default when NO use-case config exists: prefer the Gemini
+    Flash tier over the Claude CLI (which rarely exists on a cloud box) — but
+    only when Gemini can actually serve (key + SDK resolve; ``available()`` also
+    honors KP_OFFLINE). A keyless self-hosted ``next start`` therefore keeps the
+    unchanged CLI default. Dev (no NODE_ENV=production) is never affected.
+    Explicit routing — a config row, including ``claude_cli`` — always wins
+    before this is consulted."""
+    if os.getenv("NODE_ENV") != "production":
+        return None
+    # Never hand a text-only adapter a use case it can't serve (cv_analysis /
+    # profile_extract need file_input — those keep their dedicated gemini.py path).
+    if unsupported_caps(use_case, "gemini"):
+        return None
+    keys = cfg.keys.get("gemini") if cfg else None
+    provider = ADAPTERS["gemini"](
+        model=default_model(use_case, "gemini"),
+        api_key=keys.api_key if keys else None,
+        timeout=timeout or DEFAULT_TIMEOUT_S,
+        use_case=use_case,
+    )
+    return provider if provider.available() else None
 
 
 def resolve_provider(use_case: str, *, timeout: int | None = None) -> Any:
@@ -45,6 +70,10 @@ def resolve_provider(use_case: str, *, timeout: int | None = None) -> Any:
             )
 
     if entry is None or entry.provider == "claude_cli":
+        if entry is None:
+            gemini = _production_gemini_default(use_case, cfg, timeout)
+            if gemini is not None:
+                return gemini
         cli_timeout = (entry.timeout_s if entry else None) or timeout or DEFAULT_TIMEOUT_S
         cli_model = entry.model if entry else None
         # MonitoredClaudeCli IS-A ClaudeCliProvider — identical behavior plus
@@ -72,9 +101,10 @@ def resolve_provider(use_case: str, *, timeout: int | None = None) -> Any:
     if provider_name == "azure_openai":
         kwargs["endpoint"] = keys.endpoint if keys else None
         kwargs["api_version"] = keys.api_version if keys else None
-    elif provider_name == "openai":
-        # Optional OpenAI-compatible self-hosted endpoint (E-SH-5). None here lets
-        # the adapter fall back to the OPENAI_BASE_URL env (the DB-less self-host path).
+    elif provider_name in ("openai", "ollama", "qwen"):
+        # Optional OpenAI-compatible endpoint override (E-SH-5). None here lets the
+        # adapter fall back to its env var (OPENAI_BASE_URL / OLLAMA_BASE_URL) — for
+        # ollama the adapter then defaults to the stock local server on :11434.
         kwargs["base_url"] = keys.base_url if keys else None
 
     return ADAPTERS[provider_name](**kwargs)

@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createPipelineEntry, getJob } from "@/app/_lib/db";
+import { getJob } from "@/app/_lib/db/jobs";
+import { createPipelineEntry } from "@/app/_lib/db/pipeline";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { AutomationError, runAutomationTask } from "@/app/_lib/automation-run";
 import { inferProfileLocale } from "@/app/_lib/comms-locale";
 import { candidateOutreachSuppression } from "@/app/_lib/rediscovery-alert-store";
+import { linkTerminalPriorsToTarget } from "@/app/_lib/rediscovery-prior-link";
 import { safeJsonError } from "@/app/_lib/api-response";
 
 // The outreach draft spawns the Claude CLI (automation_cli) — comfortably exceed
@@ -35,10 +37,18 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       archetype?: string | null;
       matchScore?: number | null;
       roleFamily?: string | null;
+      source?: unknown;
     };
     if (!body.candidateId) {
       return NextResponse.json({ error: "candidateId is required." }, { status: 400 });
     }
+
+    // d95fed6d — the sourcing channel this reach-out was filed from ("sourcing" for
+    // the recruiter/rediscovery surfaces). Bounded + shape-checked at the boundary
+    // (a slug-like token, mirroring /api/pipeline); an out-of-shape value is dropped,
+    // not 400'd — provenance is an annotation, never worth failing the outreach over.
+    const sourceChannel =
+      typeof body.source === "string" && /^[a-z0-9_-]{1,40}$/.test(body.source) ? body.source : null;
 
     // GDPR gate BEFORE we mint anything (bug-ui-scan #1): consult the candidate's
     // EXISTING consent across all their entries. A rediscovery re-contact for a
@@ -72,12 +82,33 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       jobTitle: job.title,
       matchScore: body.matchScore ?? null,
       stage: "Screened",
+      // Honest channel attribution (E3): a reach-out-sourced candidate is no longer
+      // persisted with a null source_channel — it round-trips to the drawer's "via"
+      // line + the board's source facet. Only set on a NEW entry; a re-add returns
+      // the existing row untouched (createPipelineEntry never relabels), so a second
+      // click can't rewrite an earlier attribution.
+      sourceChannel,
       // Sourced candidates gave no explicit language choice — infer from the CV
       // languages on their saved profile so the outreach below (and every later
       // comm) speaks their language; NULL falls to the workspace default.
       locale: inferProfileLocale(body.candidateId),
       workspaceId: ws,
     });
+
+    // Close-the-prior (direction 3): a reach-out re-engages a silver medalist under a
+    // NEW role — link their terminal priors (rejected/role_closed/declined elsewhere)
+    // to this fresh entry via the SAME rematchSourceEntry machinery the automation
+    // rematch uses, so one person is never left active in the new role with orphaned
+    // history. Gated on `created` — the reach-out idempotency contract — so a repeat
+    // click (created:false) never re-links. Best-effort: a linking hiccup must never
+    // fail the outreach the recruiter actually asked for.
+    if (created) {
+      try {
+        linkTerminalPriorsToTarget(body.candidateId, entry.id, job.id, ws);
+      } catch (linkErr) {
+        console.error("[outreach] prior-link failed (non-fatal):", linkErr);
+      }
+    }
 
     const result = await runAutomationTask(entry.id, "outreach", "", undefined, undefined, ws);
     return NextResponse.json({ entryId: entry.id, created, applied: result.applied });

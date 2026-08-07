@@ -149,9 +149,13 @@ class RunMatrixTest(unittest.TestCase):
         self.assertEqual(rows[0]["validRate"], 1.0)
         self.assertEqual(rows[0]["llmRate"], 1.0)
         self.assertEqual(rows[0]["totalCostUsd"], 0.002)
+        # The three axes travel separately: economics per task + interaction mode.
+        self.assertEqual(rows[0]["costPerTaskUsd"], 0.001)
+        self.assertEqual(rows[0]["mode"], "online")  # match_reasoning: a person waits
 
         markdown = to_markdown(rows)
         self.assertIn("anthropic:stub-model", markdown)
+        self.assertIn("$/task", markdown)
 
     def test_unavailable_provider_yields_skip_record(self) -> None:
         records = run_matrix(
@@ -178,6 +182,33 @@ class RunMatrixTest(unittest.TestCase):
             self.assertEqual(len(lines), 1)
             row = json.loads(lines[0])
             self.assertEqual(row["use_case"], "match_reasoning")
+
+
+class JudgeScopeTest(unittest.TestCase):
+    """Judged quality and measured reliability are separate axes: the judge must
+    never score a deterministic fallback (it is the same template for every
+    model — a reliability failure already counted by llmRate, not a quality
+    signal for the model)."""
+
+    def test_judge_skips_deterministic_fallback_records(self) -> None:
+        from pipeline.jobfit.llm.bench.judge import judge_records
+        from pipeline.jobfit.llm.bench.runner import BenchRecord
+
+        judge_json = json.dumps(
+            {"score": 8, "relevance": 8, "correctness": 8, "adherence": 8, "verdict": "ok", "issues": []}
+        )
+        llm_row = BenchRecord(
+            scenario_id="s1", use_case="match_reasoning", provider="ollama", model="m",
+            source="llm", payload={"verdict": "fit"},
+        )
+        fallback_row = BenchRecord(
+            scenario_id="s2", use_case="match_reasoning", provider="ollama", model="m",
+            source="deterministic", payload={"verdict": "template"},
+        )
+        scored = judge_records([llm_row, fallback_row], StubText(text=judge_json), workers=1)
+        self.assertEqual(scored, 1)
+        self.assertEqual(llm_row.judge_score, 8.0)
+        self.assertIsNone(fallback_row.judge_score)
 
 
 class BenchTargetTest(unittest.TestCase):

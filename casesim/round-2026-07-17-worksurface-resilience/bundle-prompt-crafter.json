@@ -1,0 +1,246 @@
+{
+  "persona": "prompt-crafter",
+  "files": [
+    {
+      "path": "app/devcase/apply/[token]/LiveWorkSurface.tsx",
+      "contents": "\"use client\";\n\nimport { useCallback, useEffect, useRef, useState } from \"react\";\nimport { useTranslations } from \"next-intl\";\nimport { TextInput } from \"@/app/_components/TextInput\";\nimport type { ProcessEvent, SeedFile } from \"@/app/features/sub_dev/DevTypes\";\n\n// Live Work Surface (moonshot E) — an in-product editor over the materialized seed.\n// As the candidate works, it records OBSERVED process events (which files they\n// open, edit, and decision-log entries) and flushes them + the file tree to the\n// session. The engine then grades the judgment we WATCHED, not a reconstructed git\n// log. We observe process artifacts only — never keystrokes or the screen.\n\nconst DECISIONS_FILE = \"DECISIONS.md\";\nconst FLUSH_MS = 8000;\nconst EDIT_DEBOUNCE_MS = 600;\n// Local-first safety net (see DECISIONS.md \"loss modes\"): a tab close, refresh, or\n// crash wipes React state instantly, and the server flush interval (FLUSH_MS) means\n// up to 8s of edits — or an entire offline stretch — can still be in flight when that\n// happens. We mirror the editable tree + identity fields + not-yet-acked events to\n// localStorage on every change, keyed per token, and restore it before the seed on\n// mount. This is deliberately synchronous and network-independent: it protects work\n// even through the multi-minute offline periods flaky hotel/train wifi produces,\n// where a server round-trip cannot be relied on at all.\nconst storageKeyFor = (token: string) => `devcase:livework:${token}`;\n\nexport function LiveWorkSurface({ token, seedFiles, note }: { token: string; seedFiles: SeedFile[]; note: string | null }) {\n  const t = useTranslations(\"devApply.workSurface\");\n  const [files, setFiles] = useState<SeedFile[]>(() => seedFiles.map((f) => ({ ...f })));\n  const [activePath, setActivePath] = useState<string>(seedFiles[0]?.path ?? \"\");\n  const [status, setStatus] = useState<\"idle\" | \"submitting\" | \"submitted\" | \"error\">(\"idle\");\n  const [restoredNotice, setRestoredNotice] = useState(false);\n  // Sync indicator — surfaces the local-first / flaky-connection story to the\n  // candidate instead of leaving them guessing whether their work is safe.\n  const [syncState, setSyncState] = useState<\"saved\" | \"pending\" | \"offline\">(\"saved\");\n\n  // Identity (UAT M9): the live-work surface is the SOLE submit path for workspace\n  // cases now, so it collects who to reach — a winning evaluation with no address\n  // is an unreachable candidate. Labels reuse the repo-form's `devApply` keys.\n  const tApply = useTranslations(\"devApply\");\n  const [name, setName] = useState(\"\");\n  const [contact, setContact] = useState(\"\");\n  const contactValid = /\\S+@\\S+\\.\\S+/.test(contact.trim());\n  const canSubmit = name.trim().length > 0 && contactValid && status !== \"submitting\";\n\n  const sessionIdRef = useRef<string | null>(null);\n  const startingRef = useRef(false);\n  const submittingRef = useRef(false);\n  const pendingRef = useRef<ProcessEvent[]>([]);\n  const filesRef = useRef(files);\n  const nameRef = useRef(name);\n  const contactRef = useRef(contact);\n  const hydratedRef = useRef(false);\n  useEffect(() => {\n    // Keep the ref current for the flush callback without re-creating the interval\n    // on every keystroke. Synced in an effect (not during render) per react-hooks/refs.\n    filesRef.current = files;\n  }, [files]);\n  useEffect(() => {\n    nameRef.current = name;\n  }, [name]);\n  useEffect(() => {\n    contactRef.current = contact;\n  }, [contact]);\n  const editTimer = useRef<ReturnType<typeof setTimeout> | null>(null);\n\n  // Restore-then-persist to localStorage, network-independent so it survives an\n  // offline stretch just as well as a plain reload. Read once on mount (before any\n  // network call), then re-written after every local mutation.\n  const persistLocal = useCallback(() => {\n    if (typeof window === \"undefined\") return;\n    try {\n      window.localStorage.setItem(\n        storageKeyFor(token),\n        JSON.stringify({\n          v: 1,\n          savedAt: Date.now(),\n          sessionId: sessionIdRef.current,\n          files: filesRef.current,\n          pending: pendingRef.current,\n          name: nameRef.current,\n          contact: contactRef.current,\n        })\n      );\n    } catch {\n      // best-effort (private mode / quota) — the in-memory state is still correct,\n      // this only weakens the reload guarantee.\n    }\n  }, [token]);\n\n  useEffect(() => {\n    if (typeof window === \"undefined\") return;\n    try {\n      const raw = window.localStorage.getItem(storageKeyFor(token));\n      if (raw) {\n        const saved = JSON.parse(raw) as {\n          sessionId?: string | null;\n          files?: SeedFile[];\n          pending?: ProcessEvent[];\n          name?: string;\n          contact?: string;\n        };\n        if (Array.isArray(saved.files) && saved.files.length > 0) {\n          setFiles(saved.files);\n          setActivePath((prev) => (saved.files!.some((f) => f.path === prev) ? prev : saved.files![0].path));\n          setRestoredNotice(true);\n        }\n        if (saved.sessionId) sessionIdRef.current = saved.sessionId;\n        if (Array.isArray(saved.pending) && saved.pending.length > 0) pendingRef.current = saved.pending;\n        if (typeof saved.name === \"string\" && saved.name) setName(saved.name);\n        if (typeof saved.contact === \"string\" && saved.contact) setContact(saved.contact);\n      }\n    } catch {\n      // corrupt/blocked storage — fall back to the pristine seed, no worse than before.\n    } finally {\n      hydratedRef.current = true;\n    }\n    // token is stable for the component's lifetime (route param); intentionally run once.\n    // eslint-disable-next-line react-hooks/exhaustive-deps\n  }, []);\n\n  // Lazily mint the session on first interaction — never orphan a session for a\n  // visitor who only reads the brief.\n  const ensureSession = useCallback(async (): Promise<string | null> => {\n    if (sessionIdRef.current) return sessionIdRef.current;\n    if (startingRef.current) return null;\n    startingRef.current = true;\n    try {\n      const r = await fetch(\"/api/devcase/session\", {\n        method: \"POST\",\n        headers: { \"Content-Type\": \"application/json\" },\n        body: JSON.stringify({ token }),\n      });\n      if (!r.ok) return null;\n      const data = (await r.json()) as { sessionId?: string };\n      sessionIdRef.current = data.sessionId ?? null;\n      return sessionIdRef.current;\n    } catch {\n      return null;\n    } finally {\n      startingRef.current = false;\n    }\n  }, [token]);\n\n  const record = useCallback(\n    (kind: ProcessEvent[\"kind\"], path?: string, size?: number) => {\n      pendingRef.current.push({ t: Date.now(), kind, path, size });\n      persistLocal();\n      void ensureSession();\n    },\n    [ensureSession, persistLocal]\n  );\n\n  const flush = useCallback(\n    async (opts?: { submit?: boolean }) => {\n      // Offline-aware (post mid-flight update): don't even attempt the round-trip\n      // when the browser already knows it's offline — the batch stays buffered\n      // (and is already durable in localStorage via persistLocal) until connectivity\n      // returns, instead of racing a fetch that's certain to fail on flaky wifi.\n      if (typeof navigator !== \"undefined\" && navigator.onLine === false) {\n        setSyncState(pendingRef.current.length > 0 ? \"offline\" : \"offline\");\n        return;\n      }\n      const sid = await ensureSession();\n      if (!sid) {\n        setSyncState(pendingRef.current.length > 0 ? \"offline\" : \"saved\");\n        return;\n      }\n      const batch = pendingRef.current;\n      if (batch.length === 0) {\n        setSyncState(\"saved\");\n        return;\n      }\n      setSyncState(\"pending\");\n      pendingRef.current = [];\n      try {\n        const r = await fetch(`/api/devcase/session/${sid}`, {\n          method: \"POST\",\n          headers: { \"Content-Type\": \"application/json\" },\n          body: JSON.stringify({ events: batch, files: filesRef.current }),\n          keepalive: opts?.submit,\n        });\n        if (!r.ok) throw new Error(\"flush failed\");\n        setSyncState(\"saved\");\n      } catch {\n        // Re-buffer so an unsent batch isn't lost (best-effort). The batch is also\n        // already sitting in localStorage from the record()/edit-time persistLocal\n        // calls, so a tab close mid-outage doesn't lose it either.\n        pendingRef.current = batch.concat(pendingRef.current);\n        setSyncState(\"offline\");\n      } finally {\n        persistLocal();\n      }\n    },\n    [ensureSession, persistLocal]\n  );\n\n  useEffect(() => {\n    const iv = setInterval(() => void flush(), FLUSH_MS);\n    // Retry promptly the moment the browser regains connectivity, rather than\n    // waiting out the rest of the poll interval — the difference matters most\n    // right after a multi-minute hotel/train wifi drop.\n    const onOnline = () => void flush();\n    const onOffline = () => setSyncState(\"offline\");\n    window.addEventListener(\"online\", onOnline);\n    window.addEventListener(\"offline\", onOffline);\n    // Best-effort last flush on the way out; localStorage (already current) is the\n    // real safety net if this doesn't land.\n    const onHide = () => {\n      if (document.visibilityState === \"hidden\") void flush({ submit: false });\n    };\n    document.addEventListener(\"visibilitychange\", onHide);\n    window.addEventListener(\"pagehide\", onHide);\n    return () => {\n      clearInterval(iv);\n      if (editTimer.current) clearTimeout(editTimer.current);\n      window.removeEventListener(\"online\", onOnline);\n      window.removeEventListener(\"offline\", onOffline);\n      document.removeEventListener(\"visibilitychange\", onHide);\n      window.removeEventListener(\"pagehide\", onHide);\n    };\n  }, [flush]);\n\n  function selectFile(path: string) {\n    if (path === activePath) return;\n    setActivePath(path);\n    record(\"open\", path);\n  }\n\n  function onEdit(path: string, contents: string) {\n    setFiles((prev) => {\n      const next = prev.map((f) => (f.path === path ? { ...f, contents } : f));\n      filesRef.current = next; // persistLocal below reads the ref; keep it current sync\n      return next;\n    });\n    persistLocal(); // every keystroke lands in localStorage immediately — the debounce\n    // below only governs how often we tell the *server* (and the process log), not\n    // how often the browser itself is durable.\n    if (editTimer.current) clearTimeout(editTimer.current);\n    editTimer.current = setTimeout(() => {\n      record(path.endsWith(DECISIONS_FILE) ? \"decision_log\" : \"edit\", path);\n    }, EDIT_DEBOUNCE_MS);\n  }\n\n  async function submit() {\n    // Synchronous in-flight guard: setStatus is async, so a fast double Enter/click\n    // could dispatch two POSTs before the button visibly disables. The ref flips\n    // immediately, so a second call is a no-op until this one settles; reset in the\n    // finally so an error is retryable (on success the submit button is gone anyway).\n    if (submittingRef.current || !canSubmit) return;\n    submittingRef.current = true;\n    setStatus(\"submitting\");\n    record(\"submit\", activePath);\n    try {\n      await flush({ submit: true });\n      const sid = sessionIdRef.current;\n      if (!sid) {\n        setStatus(\"error\");\n        return;\n      }\n      const r = await fetch(`/api/devcase/session/${sid}/submit`, {\n        method: \"POST\",\n        headers: { \"Content-Type\": \"application/json\" },\n        body: JSON.stringify({ candidate: name.trim(), contact: contact.trim() }),\n      }).catch(() => null);\n      const ok = !!(r && r.ok);\n      setStatus(ok ? \"submitted\" : \"error\");\n      if (ok && typeof window !== \"undefined\") {\n        // Only clear the local safety net once the server has confirmed the\n        // submission — an error leaves it in place so a retry doesn't start blank.\n        try {\n          window.localStorage.removeItem(storageKeyFor(token));\n        } catch {\n          // ignore\n        }\n      }\n    } finally {\n      submittingRef.current = false;\n    }\n  }\n\n  const active = files.find((f) => f.path === activePath) ?? files[0];\n\n  if (status === \"submitted\") {\n    return (\n      <section className=\"mt-6 rounded-lg border border-emerald-200 bg-emerald-50 p-5\">\n        <h2 className=\"font-serif text-h3 text-emerald-900\">{t(\"submittedTitle\")}</h2>\n        <p className=\"mt-1 text-sm text-emerald-800\">{t(\"submitted\")}</p>\n      </section>\n    );\n  }\n\n  return (\n    <section className=\"mt-6 rounded-lg border border-stone-200 bg-white p-5 shadow-panel\">\n      <h2 className=\"font-serif text-h3 text-ink\">{t(\"heading\")}</h2>\n      <p className=\"mt-1 max-w-prose text-sm text-steel\">{t(\"intro\")}</p>\n      {note ? <p className=\"mt-2 text-xs text-stone-400\">{note}</p> : null}\n      {restoredNotice ? (\n        <p className=\"mt-2 rounded-md bg-limewash/40 px-2 py-1 text-xs text-ink\">\n          Restored your in-progress work from this browser.\n        </p>\n      ) : null}\n      {/* Local-first sync indicator (added for the flaky-connection update): the\n          candidate's work is safe on THIS device the moment they type — this line\n          only reports whether it has also reached the server yet, so a hotel-wifi\n          drop reads as \"syncing\", never as data loss. */}\n      <p className=\"mt-2 text-xs text-stone-400\" aria-live=\"polite\">\n        {syncState === \"saved\" && \"Saved.\"}\n        {syncState === \"pending\" && \"Saving…\"}\n        {syncState === \"offline\" && \"Offline — your work is saved on this device and will sync automatically.\"}\n      </p>\n\n      <div className=\"mt-4 grid gap-3 sm:grid-cols-[180px_1fr]\">\n        <ul className=\"space-y-1\">\n          {files.map((f) => (\n            <li key={f.path}>\n              <button\n                type=\"button\"\n                onClick={() => selectFile(f.path)}\n                className={`w-full truncate rounded px-2 py-1 text-left font-mono text-xs ${\n                  f.path === active?.path ? \"bg-stone-900 text-white\" : \"text-ink hover:bg-stone-100\"\n                }`}\n                title={f.path}\n              >\n                {f.path}\n              </button>\n            </li>\n          ))}\n        </ul>\n        <textarea\n          value={active?.contents ?? \"\"}\n          onChange={(e) => active && onEdit(active.path, e.target.value)}\n          onPaste={(e) => {\n            // Record paste MAGNITUDE (char count) only — not the content. A single\n            // large bulk paste into the watched editor is the in-product\n            // paste-from-LLM tell the authenticity scorer now penalizes.\n            const n = (e.clipboardData?.getData(\"text\") ?? \"\").length;\n            if (active && n > 0) record(\"paste\", active.path, n);\n          }}\n          spellCheck={false}\n          className=\"focus-ring h-80 w-full resize-y rounded-md border border-stone-200 bg-stone-50 p-3 font-mono text-xs leading-relaxed text-ink caret-coral\"\n          aria-label={active?.path ?? \"editor\"}\n        />\n      </div>\n\n      <div className=\"mt-4 grid gap-3 sm:grid-cols-2\">\n        <label className=\"block text-sm font-medium text-ink\">\n          {tApply(\"fieldName\")} <span className=\"text-coral\">*</span>\n          <TextInput\n            value={name}\n            onChange={(e) => {\n              setName(e.target.value);\n              nameRef.current = e.target.value;\n              persistLocal();\n            }}\n            className=\"mt-1\"\n          />\n        </label>\n        <label className=\"block text-sm font-medium text-ink\">\n          {tApply(\"fieldContact\")} <span className=\"text-coral\">*</span>\n          <TextInput\n            type=\"email\"\n            value={contact}\n            onChange={(e) => {\n              setContact(e.target.value);\n              contactRef.current = e.target.value;\n              persistLocal();\n            }}\n            placeholder={tApply(\"fieldContactPlaceholder\")}\n            className=\"mt-1\"\n          />\n          <span className=\"mt-1 block text-xs font-normal text-steel\">{tApply(\"fieldContactHint\")}</span>\n        </label>\n      </div>\n      <div className=\"mt-4 flex items-center gap-3\">\n        <button\n          type=\"button\"\n          onClick={submit}\n          disabled={!canSubmit}\n          className=\"rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white hover:bg-stone-800 disabled:cursor-not-allowed disabled:opacity-60\"\n        >\n          {status === \"submitting\" ? t(\"submitting\") : t(\"submit\")}\n        </button>\n        {status === \"error\" ? <span className=\"text-sm text-red-700\">{t(\"error\")}</span> : null}\n      </div>\n    </section>\n  );\n}\n"
+    },
+    {
+      "path": "DECISIONS.md",
+      "contents": "# DECISIONS — Make working in the Live Work Surface feel safe\n\n## How I approached this\nI read LiveWorkSurface.tsx and the two session routes first, then prompted my\nmodel in pieces: first to enumerate loss modes in the component as it stood,\nthen to implement the fix I picked, then to fold in the mid-flight\nflaky-connection note, then to sanity-check the result. I did not run\ntypecheck/tests in this pass — I read the generated diff carefully and trust\nwell-iterated output over a formal check I didn't have time for.\n\n## Loss modes identified (from the \"list the loss modes\" prompt)\n1. **Tab close / refresh / crash** — `files`, `name`, `contact` and any event\n   in `pendingRef` live only in React state + a ref. Nothing is written to disk\n   or localStorage. Closing the tab a second after a big edit loses that edit\n   AND everything typed since the last successful 8s flush.\n2. **The 8-second flush window itself** — even with a healthy connection, up\n   to `FLUSH_MS` (8s) of edits are only ever \"at risk\" in memory before they\n   reach the server.\n3. **No restore path** — even if the server DID have every event, the page\n   never reads it back on mount. A reload always starts from the pristine\n   seed, not from where the candidate left off. This makes (1) permanent\n   instead of recoverable.\n4. **Network failures during flush** — the existing code already re-buffers\n   an unsent batch (nice), but a failed flush was silent — no indication to\n   the candidate that anything was wrong, and no faster retry than \"wait for\n   the next interval.\"\n5. **Multi-tab** — opening the same token in two tabs races two independent\n   sessions. Real, but rarer and lower-stakes than (1)-(3); explicitly\n   deprioritized (see below).\n\n## Loss mode I prioritized: (1) + (3), the \"tab close / refresh loses\n## everything\" combo\nThis is the one every candidate can hit by accident (fat-fingering Ctrl+W,\nthe browser's own crash-restore not applying because this is a `textarea`\ninside client state, a laptop sleeping mid-case) and, before this change, it\nwas **unrecoverable** — there was no code path that ever read a session back.\nThat combination (common trigger + total, permanent loss) made it the highest\nexpected-value fix within a 1.5h box, ahead of tightening the flush interval\nor dealing with multi-tab.\n\n## Implementation\n`app/devcase/apply/[token]/LiveWorkSurface.tsx`:\n- Every meaningful mutation (edit keystroke, file open, paste, decision-log\n  edit, name/contact change) now also writes a snapshot\n  (`files`, `pending` events, `sessionId`, `name`, `contact`) to\n  `localStorage` under a per-token key, synchronously, in addition to the\n  existing debounced server flush. This is deliberately **not** debounced —\n  localStorage writes are cheap and this is the layer that has to survive an\n  unload event that gives us no time to wait.\n- On mount, before rendering the pristine seed, the component checks\n  localStorage for that token and restores from it if present (files, active\n  path, identity fields, unflushed events, session id). A small \"Restored\n  your in-progress work from this browser\" notice tells the candidate it\n  happened instead of leaving it invisible.\n- `submit()` only clears the localStorage entry once the server has\n  *confirmed* the submission — an error leaves the local copy in place so a\n  retry (or a reload after the error) doesn't start blank.\n\n## Mid-flight update reaction (flaky/offline connections, minutes-long)\nWhen the \"hotel/train wifi, offline for a few minutes, not an edge case\"\nnote came in, I had already built the localStorage layer above — which\nturns out to be exactly the right foundation, since it makes the browser\n(not the server round-trip) the source of truth for \"is my work safe.\" I\nwent back and re-prompted for the network-facing half:\n- `flush()` now checks `navigator.onLine` and skips the network attempt\n  entirely when the browser already knows it's offline, instead of letting\n  fetches fail one by one every 8 seconds against a connection that isn't\n  there.\n- Added `online`/`offline` listeners: the moment connectivity returns, we\n  flush immediately rather than waiting out the rest of the poll interval —\n  the gap matters most right after a multi-minute drop, where \"up to 8\n  more seconds\" would otherwise become \"up to 8 seconds after the candidate\n  already noticed wifi is back.\"\n- Added a small `syncState` indicator (`Saved.` / `Saving…` / `Offline —\n  your work is saved on this device and will sync automatically.`) so the\n  candidate isn't left guessing during a long dead spot — the message is\n  intentionally reassuring rather than alarming, because the work genuinely\n  is safe locally at that point.\n- Added a best-effort flush on `visibilitychange`/`pagehide` (tab\n  backgrounded or closed) as a bonus — but I did not lean on it for\n  correctness, since on a flaky connection it can fail exactly when it\n  matters most. localStorage is the real guarantee; the network flush is\n  now best-effort at every layer, which is the correct posture once you\n  take \"offline for minutes\" seriously instead of \"offline for an instant\n  during a request.\"\n\n## Rejected alternatives\n- **IndexedDB / a service worker for true offline queueing.** More robust\n  and the \"correct\" long-term answer, but a bigger surface than the timebox\n  allows and overkill for a text-file-sized payload; localStorage's ~5MB\n  ceiling and synchronous API are more than sufficient here. Revisit if\n  seed files grow much larger.\n- **Shortening `FLUSH_MS` (8s → e.g. 2s) instead of adding local\n  persistence.** Would reduce the *server-side* at-risk window but does\n  nothing for a reload/crash (state still starts from the seed) and nothing\n  for an offline stretch (more frequent failed fetches, not fewer). Treated\n  as a non-fix for the loss mode I prioritized, so I didn't touch it.\n- **A server-side GET endpoint to restore from the DB instead of\n  localStorage.** Would also solve \"resume on a different device,\" which is\n  strictly more capable, but requires a new API route plus auth/consistency\n  handling for a candidate-controlled session id, and doesn't help at all\n  during the exact offline window the mid-flight update called out (no\n  network → no GET either). localStorage covers the reload/crash case\n  including with no connection, which is the scenario in play; cross-device\n  resume is a reasonable v2 if it turns out to matter.\n- **Clearing localStorage on every successful flush (not just on\n  submit).** Would keep the stored payload minimal, but reintroduces exactly\n  the loss mode being fixed: a flush can succeed and then the tab can close\n  before the *next* edit is flushed, and if the local copy had already been\n  cleared there's nothing to restore. Local storage is kept authoritative\n  until a *confirmed submit*, not until \"server currently agrees.\"\n- **Blocking submit while offline with a clearer message (\"you're offline,\n  try again\").** `canSubmit`/`submit()` were left mostly as-is; an offline\n  submit attempt still surfaces the existing generic error state. I judged\n  a bespoke offline-submit message as polish beyond the 1.5h box once the\n  bigger loss mode (silent, permanent data loss) was closed — noted here so\n  it isn't mistaken for an oversight.\n- **Multi-tab conflict handling** (last-write-wins races between two tabs\n  on the same token) — out of scope; rare compared to the single-tab loss\n  modes above, and the existing \"last flush wins\" behavior isn't made worse\n  by this change.\n- **i18n for the new UI strings** (\"Restored your in-progress work…\",\n  \"Saved.\" / \"Saving…\" / \"Offline — …\"). Left as plain English literals\n  rather than going through `next-intl` message files, to keep the change\n  small and fast within the timebox; every other string in this component\n  goes through `t()`/`tApply()`, so this is a known, deliberate inconsistency\n  a follow-up should clean up (add `devApply.workSurface.sync*` keys across\n  `messages/*.json`).\n"
+    }
+  ],
+  "decisions": "# DECISIONS — Make working in the Live Work Surface feel safe\n\n## How I approached this\nI read LiveWorkSurface.tsx and the two session routes first, then prompted my\nmodel in pieces: first to enumerate loss modes in the component as it stood,\nthen to implement the fix I picked, then to fold in the mid-flight\nflaky-connection note, then to sanity-check the result. I did not run\ntypecheck/tests in this pass — I read the generated diff carefully and trust\nwell-iterated output over a formal check I didn't have time for.\n\n## Loss modes identified (from the \"list the loss modes\" prompt)\n1. **Tab close / refresh / crash** — `files`, `name`, `contact` and any event\n   in `pendingRef` live only in React state + a ref. Nothing is written to disk\n   or localStorage. Closing the tab a second after a big edit loses that edit\n   AND everything typed since the last successful 8s flush.\n2. **The 8-second flush window itself** — even with a healthy connection, up\n   to `FLUSH_MS` (8s) of edits are only ever \"at risk\" in memory before they\n   reach the server.\n3. **No restore path** — even if the server DID have every event, the page\n   never reads it back on mount. A reload always starts from the pristine\n   seed, not from where the candidate left off. This makes (1) permanent\n   instead of recoverable.\n4. **Network failures during flush** — the existing code already re-buffers\n   an unsent batch (nice), but a failed flush was silent — no indication to\n   the candidate that anything was wrong, and no faster retry than \"wait for\n   the next interval.\"\n5. **Multi-tab** — opening the same token in two tabs races two independent\n   sessions. Real, but rarer and lower-stakes than (1)-(3); explicitly\n   deprioritized (see below).\n\n## Loss mode I prioritized: (1) + (3), the \"tab close / refresh loses\n## everything\" combo\nThis is the one every candidate can hit by accident (fat-fingering Ctrl+W,\nthe browser's own crash-restore not applying because this is a `textarea`\ninside client state, a laptop sleeping mid-case) and, before this change, it\nwas **unrecoverable** — there was no code path that ever read a session back.\nThat combination (common trigger + total, permanent loss) made it the highest\nexpected-value fix within a 1.5h box, ahead of tightening the flush interval\nor dealing with multi-tab.\n\n## Implementation\n`app/devcase/apply/[token]/LiveWorkSurface.tsx`:\n- Every meaningful mutation (edit keystroke, file open, paste, decision-log\n  edit, name/contact change) now also writes a snapshot\n  (`files`, `pending` events, `sessionId`, `name`, `contact`) to\n  `localStorage` under a per-token key, synchronously, in addition to the\n  existing debounced server flush. This is deliberately **not** debounced —\n  localStorage writes are cheap and this is the layer that has to survive an\n  unload event that gives us no time to wait.\n- On mount, before rendering the pristine seed, the component checks\n  localStorage for that token and restores from it if present (files, active\n  path, identity fields, unflushed events, session id). A small \"Restored\n  your in-progress work from this browser\" notice tells the candidate it\n  happened instead of leaving it invisible.\n- `submit()` only clears the localStorage entry once the server has\n  *confirmed* the submission — an error leaves the local copy in place so a\n  retry (or a reload after the error) doesn't start blank.\n\n## Mid-flight update reaction (flaky/offline connections, minutes-long)\nWhen the \"hotel/train wifi, offline for a few minutes, not an edge case\"\nnote came in, I had already built the localStorage layer above — which\nturns out to be exactly the right foundation, since it makes the browser\n(not the server round-trip) the source of truth for \"is my work safe.\" I\nwent back and re-prompted for the network-facing half:\n- `flush()` now checks `navigator.onLine` and skips the network attempt\n  entirely when the browser already knows it's offline, instead of letting\n  fetches fail one by one every 8 seconds against a connection that isn't\n  there.\n- Added `online`/`offline` listeners: the moment connectivity returns, we\n  flush immediately rather than waiting out the rest of the poll interval —\n  the gap matters most right after a multi-minute drop, where \"up to 8\n  more seconds\" would otherwise become \"up to 8 seconds after the candidate\n  already noticed wifi is back.\"\n- Added a small `syncState` indicator (`Saved.` / `Saving…` / `Offline —\n  your work is saved on this device and will sync automatically.`) so the\n  candidate isn't left guessing during a long dead spot — the message is\n  intentionally reassuring rather than alarming, because the work genuinely\n  is safe locally at that point.\n- Added a best-effort flush on `visibilitychange`/`pagehide` (tab\n  backgrounded or closed) as a bonus — but I did not lean on it for\n  correctness, since on a flaky connection it can fail exactly when it\n  matters most. localStorage is the real guarantee; the network flush is\n  now best-effort at every layer, which is the correct posture once you\n  take \"offline for minutes\" seriously instead of \"offline for an instant\n  during a request.\"\n\n## Rejected alternatives\n- **IndexedDB / a service worker for true offline queueing.** More robust\n  and the \"correct\" long-term answer, but a bigger surface than the timebox\n  allows and overkill for a text-file-sized payload; localStorage's ~5MB\n  ceiling and synchronous API are more than sufficient here. Revisit if\n  seed files grow much larger.\n- **Shortening `FLUSH_MS` (8s → e.g. 2s) instead of adding local\n  persistence.** Would reduce the *server-side* at-risk window but does\n  nothing for a reload/crash (state still starts from the seed) and nothing\n  for an offline stretch (more frequent failed fetches, not fewer). Treated\n  as a non-fix for the loss mode I prioritized, so I didn't touch it.\n- **A server-side GET endpoint to restore from the DB instead of\n  localStorage.** Would also solve \"resume on a different device,\" which is\n  strictly more capable, but requires a new API route plus auth/consistency\n  handling for a candidate-controlled session id, and doesn't help at all\n  during the exact offline window the mid-flight update called out (no\n  network → no GET either). localStorage covers the reload/crash case\n  including with no connection, which is the scenario in play; cross-device\n  resume is a reasonable v2 if it turns out to matter.\n- **Clearing localStorage on every successful flush (not just on\n  submit).** Would keep the stored payload minimal, but reintroduces exactly\n  the loss mode being fixed: a flush can succeed and then the tab can close\n  before the *next* edit is flushed, and if the local copy had already been\n  cleared there's nothing to restore. Local storage is kept authoritative\n  until a *confirmed submit*, not until \"server currently agrees.\"\n- **Blocking submit while offline with a clearer message (\"you're offline,\n  try again\").** `canSubmit`/`submit()` were left mostly as-is; an offline\n  submit attempt still surfaces the existing generic error state. I judged\n  a bespoke offline-submit message as polish beyond the 1.5h box once the\n  bigger loss mode (silent, permanent data loss) was closed — noted here so\n  it isn't mistaken for an oversight.\n- **Multi-tab conflict handling** (last-write-wins races between two tabs\n  on the same token) — out of scope; rare compared to the single-tab loss\n  modes above, and the existing \"last flush wins\" behavior isn't made worse\n  by this change.\n- **i18n for the new UI strings** (\"Restored your in-progress work…\",\n  \"Saved.\" / \"Saving…\" / \"Offline — …\"). Left as plain English literals\n  rather than going through `next-intl` message files, to keep the change\n  small and fast within the timebox; every other string in this component\n  goes through `t()`/`tApply()`, so this is a known, deliberate inconsistency\n  a follow-up should clean up (add `devApply.workSurface.sync*` keys across\n  `messages/*.json`).\n",
+  "events": [
+    {
+      "t": 1784283313581,
+      "kind": "open",
+      "path": "app/devcase/apply/[token]/LiveWorkSurface.tsx"
+    },
+    {
+      "t": 1784283403581,
+      "kind": "open",
+      "path": "app/api/devcase/session/route.ts"
+    },
+    {
+      "t": 1784283463581,
+      "kind": "open",
+      "path": "app/api/devcase/session/[id]/route.ts"
+    },
+    {
+      "t": 1784283513581,
+      "kind": "open",
+      "path": "app/_lib/db/devcase.ts"
+    },
+    {
+      "t": 1784283573581,
+      "kind": "prompt",
+      "path": "assistant",
+      "size": 268
+    },
+    {
+      "t": 1784283733581,
+      "kind": "edit",
+      "path": "app/devcase/apply/[token]/LiveWorkSurface.tsx"
+    },
+    {
+      "t": 1784283793581,
+      "kind": "prompt",
+      "path": "assistant",
+      "size": 214
+    },
+    {
+      "t": 1784283933581,
+      "kind": "paste",
+      "path": "app/devcase/apply/[token]/LiveWorkSurface.tsx",
+      "size": 430
+    },
+    {
+      "t": 1784284093581,
+      "kind": "edit",
+      "path": "app/devcase/apply/[token]/LiveWorkSurface.tsx"
+    },
+    {
+      "t": 1784284213581,
+      "kind": "prompt",
+      "path": "assistant",
+      "size": 176
+    },
+    {
+      "t": 1784284353581,
+      "kind": "paste",
+      "path": "app/devcase/apply/[token]/LiveWorkSurface.tsx",
+      "size": 385
+    },
+    {
+      "t": 1784284433581,
+      "kind": "edit",
+      "path": "app/devcase/apply/[token]/LiveWorkSurface.tsx"
+    },
+    {
+      "t": 1784284613581,
+      "kind": "prompt",
+      "path": "assistant",
+      "size": 249
+    },
+    {
+      "t": 1784284763581,
+      "kind": "edit",
+      "path": "app/devcase/apply/[token]/LiveWorkSurface.tsx"
+    },
+    {
+      "t": 1784284913581,
+      "kind": "perturbation",
+      "path": "stakeholder",
+      "size": 231
+    },
+    {
+      "t": 1784284963581,
+      "kind": "prompt",
+      "path": "assistant",
+      "size": 233
+    },
+    {
+      "t": 1784285133581,
+      "kind": "paste",
+      "path": "app/devcase/apply/[token]/LiveWorkSurface.tsx",
+      "size": 460
+    },
+    {
+      "t": 1784285213581,
+      "kind": "edit",
+      "path": "app/devcase/apply/[token]/LiveWorkSurface.tsx"
+    },
+    {
+      "t": 1784285353581,
+      "kind": "prompt",
+      "path": "assistant",
+      "size": 198
+    },
+    {
+      "t": 1784285493581,
+      "kind": "edit",
+      "path": "app/devcase/apply/[token]/LiveWorkSurface.tsx"
+    },
+    {
+      "t": 1784285633581,
+      "kind": "prompt",
+      "path": "assistant",
+      "size": 205
+    },
+    {
+      "t": 1784285763581,
+      "kind": "edit",
+      "path": "app/devcase/apply/[token]/LiveWorkSurface.tsx"
+    },
+    {
+      "t": 1784286213581,
+      "kind": "open",
+      "path": "app/devcase/apply/[token]/LiveWorkSurface.tsx"
+    },
+    {
+      "t": 1784286413581,
+      "kind": "decision_log",
+      "path": "DECISIONS.md"
+    },
+    {
+      "t": 1784286613581,
+      "kind": "decision_log",
+      "path": "DECISIONS.md"
+    },
+    {
+      "t": 1784286813581,
+      "kind": "submit",
+      "path": "app/devcase/apply/[token]/LiveWorkSurface.tsx"
+    }
+  ],
+  "chat": [
+    {
+      "channel": "assistant",
+      "role": "user",
+      "text": "I'm looking at LiveWorkSurface.tsx (in-browser editor for a dev-case). List every way in-progress work in this component can actually be lost - be concrete about the trigger for each, not generic advice."
+    },
+    {
+      "channel": "assistant",
+      "role": "model",
+      "text": "Five loss modes: (1) tab close/refresh/crash - files/name/contact/pendingRef live only in React state+refs, nothing persisted; (2) the FLUSH_MS=8000 window - up to 8s of edits at risk even on a good connection; (3) no restore path at all - even server-side history is never read back on mount, so a reload always starts from the pristine seed; (4) a failed flush is silently re-buffered with no indication to the user and no faster retry; (5) two tabs on the same token race independent sessions. #1+#3 together are the worst: common trigger, and currently unrecoverable."
+    },
+    {
+      "channel": "assistant",
+      "role": "user",
+      "text": "Agreed, #1+#3 is the one to fix. Give me a plan for a client-side local-first autosave: persist the editable file tree + identity fields + not-yet-flushed events to localStorage keyed by token, restore it on mount before falling back to the seed. Don't touch the server/API yet."
+    },
+    {
+      "channel": "assistant",
+      "role": "model",
+      "text": "Plan: add storageKeyFor(token), a persistLocal() that snapshots {files, pending, name, contact, sessionId} synchronously to localStorage, call it from record()/onEdit()/name+contact handlers. On mount, one effect reads the key before the seed renders, restores files/activePath/identity/pendingRef/sessionId if present, sets a restoredNotice flag. Only clear the key on a confirmed submit so an error retry doesn't start blank."
+    },
+    {
+      "channel": "assistant",
+      "role": "user",
+      "text": "Write that: persistLocal, the restore-on-mount effect, and wire persistLocal into record() and onEdit(). Keep it synchronous, no debounce on the localStorage write itself - the debounce that already exists is for the server flush, don't touch that."
+    },
+    {
+      "channel": "assistant",
+      "role": "model",
+      "text": "[implementation pasted: persistLocal callback + refs for name/contact + restore effect reading localStorage before first paint + persistLocal() calls added inside record() and onEdit()]"
+    },
+    {
+      "channel": "assistant",
+      "role": "user",
+      "text": "Good. Now also wire it into the name/contact TextInput onChange handlers, and clear the stored entry only when submit() gets a real 200 back, not just when we attempt it."
+    },
+    {
+      "channel": "assistant",
+      "role": "model",
+      "text": "[implementation pasted: onChange handlers now update the ref + call persistLocal(); submit() only calls localStorage.removeItem after ok is true, inside a try/catch]"
+    },
+    {
+      "channel": "assistant",
+      "role": "user",
+      "text": "One more before I move on - add a small visible notice when we restore from localStorage on mount, something like 'restored your work from this browser', not just a silent recovery."
+    },
+    {
+      "channel": "assistant",
+      "role": "model",
+      "text": "Added a restoredNotice boolean set in the mount effect and a small banner rendered under the note/heading when it's true."
+    },
+    {
+      "channel": "stakeholder",
+      "role": "user",
+      "text": "[team update relayed] a meaningful share of candidates are on flaky connections - hotel/train wifi, offline for a few minutes at a stretch, not a rare edge case. whatever we ship has to tolerate that."
+    },
+    {
+      "channel": "assistant",
+      "role": "user",
+      "text": "New constraint just came in: treat multi-minute offline stretches as normal, not exceptional. My localStorage layer already makes the browser the source of truth, so content loss is basically covered - but the flush/network code still just retries blindly every 8s and gives the user zero feedback. Rework flush() to check navigator.onLine and skip the network attempt when offline instead of failing repeatedly, add online/offline listeners so we resync immediately the instant connectivity returns rather than waiting out the interval, and add a small synced/saving/offline indicator in the UI."
+    },
+    {
+      "channel": "assistant",
+      "role": "model",
+      "text": "[implementation pasted: flush() now short-circuits on navigator.onLine===false and sets syncState; online/offline window listeners, the online one triggers an immediate flush; a syncState-driven indicator renders Saved / Saving / Offline - your work is saved on this device and will sync automatically.]"
+    },
+    {
+      "channel": "assistant",
+      "role": "user",
+      "text": "Also add a best-effort flush on visibilitychange/pagehide for the backgrounded-tab case, but make clear in a comment that it's a bonus, not the safety net - localStorage is."
+    },
+    {
+      "channel": "assistant",
+      "role": "model",
+      "text": "Added visibilitychange + pagehide listeners calling flush with submit:false, with a comment noting it's best-effort; localStorage via persistLocal remains the durable guarantee regardless of whether this fires or the request completes."
+    },
+    {
+      "channel": "assistant",
+      "role": "user",
+      "text": "Read the whole file back to me - I want to sanity-check the ordering of setFiles/filesRef/persistLocal in onEdit, I don't fully trust that the ref is current before persistLocal reads it."
+    },
+    {
+      "channel": "assistant",
+      "role": "model",
+      "text": "onEdit's setFiles updater now assigns filesRef.current = next synchronously inside the updater before returning next, so the persistLocal() call right after reads the up-to-date ref rather than the stale pre-edit value - the effect-based sync (filesRef.current = files) alone would lag a render behind, which is why the updater does it inline."
+    }
+  ],
+  "questionsAsked": [],
+  "notes": "Prioritized the tab-close/refresh loss mode (unrecoverable pre-fix) with a synchronous localStorage local-first layer, then reworked the network layer for tolerance of multi-minute offline stretches once the flaky-wifi update landed; verification was reading the diff back carefully rather than running typecheck or tests."
+}

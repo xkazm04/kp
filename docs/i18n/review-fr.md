@@ -22,3 +22,52 @@ Strings the `/i18n-translate review fr` pass left for a **native speaker** to co
 | `aboutPage.steps.hired.body` | 'check-list' here vs 'checklist' used throughout the onboarding namespace. Trivial spelling unification — both valid French; pick one house form. |
 
 _16 items._
+
+## Queued by the 2026-08-04 `aboutPage` (/about) review
+
+Namespace-scoped pass over `aboutPage` only. Framing verdict: **product**, not
+company. Fixed: missing U+202F before ";" in `steps.screen.body`; "relais
+d'intégration" → "passage à l'intégration" (*relais* is the comms delivery relay
+per the glossary); « recruté » → « Recruté » to match `enums.stage.Hired`;
+"check-list" → "checklist" (resolves the item above); and the stacked
+appositives in `steps.interview.body`. Left for a native:
+
+| key | note |
+|-----|------|
+| `aboutPage.steps.screen.body` | "un exercice pratique … — un exercice qui présuppose" repeats *exercice* inside one sentence. The resumptive is grammatical; a copywriter might elide it. |
+| `aboutPage.steps.interview.title` | "Puis il parle aux gens" — *il* has no antecedent (en's "it" = the system). Same issue in de. |
+| `aboutPage.*` apostrophes | Kept the straight `'` used by ~87 % of the fr catalog (1466 straight vs 216 typographic). A catalog-wide switch to U+2019 is a separate sweep. |
+
+_3 items._
+
+## Queued by the 2026-08-04 landing-page review (namespace `landing` only)
+
+9 keys fixed in `messages/fr.json`; these were deliberately left alone.
+
+| key(s) | severity | note |
+|--------|----------|------|
+| **AI vs IA, catalog-wide** | major | `landing` was unified on **AI** this pass (nav.trust, features.cases.body, previews.cases.note) — the same page already said AI in ~10 places, and the section rail put "IA responsable" beside "Une AI puissante". But the split is app-wide: 93 AI vs 25 IA across `messages/fr.json`. A native French product would almost certainly prefer **IA** everywhere; the glossary Do-Not-Translate list says AI. One house decision, then one sweep. |
+| `landing.nav.about` | minor | "À propos de l'app" is a mild anglicism; "À propos de l'application" is the correct professional register. Left as-is only because `jobMarket.nav.about` carries the identical value and that namespace is owned elsewhere — change both together. |
+| `landing.pricing.enterprise.blurb`/`capabilities[1]` | minor | "cloisonnée par **locataire**" for multi-tenant scoping reads as an apartment renter. French SaaS usually keeps "par tenant" or says "par organisation". de solves it with "mandantenbezogen". |
+| `landing.pricing.tiers.*.features` ("cas dev conçu(s)") | minor | Renders the metered unit "dev case **design**" as a past participle ("designed"), shifting the meaning. "1 / 5 / 20 conception(s) de cas dev" is accurate but heavier in a bullet. |
+| `landing.hero.ctaPrimary` | minor | "Présélection gratuite" is a noun phrase where en is an imperative; the fr style guide asks for vous-form imperatives. French CTAs tolerate noun phrases ("Essai gratuit"), so left. |
+| `landing.pile.jana.role` | minor | "Développeuse React" is feminized to the named candidate while de keeps the generic masculine — the same gender-form policy question already queued for `match.tab.candidate`. |
+| `landing.cta.body` | minor | "Laissez KandiDate l'en sortir" is grammatical but literary; "aller la chercher" is warmer for a closing CTA. |
+## Queued by the 2026-08 `jobMarket` (/market) review
+
+| key(s) | severity | note |
+|--------|----------|------|
+| `jobMarket.map.median` | major (fixed) | Was "Revenu médian" — *revenu* is income in general (household, capital), while the figure is an ISPV employment wage. Changed to "Salaire médian"; `salary.subtitle` and `orgTypes.subtitle` moved off "Revenus/Revenu" for the same reason. Confirm "salaire" over "rémunération" as the house term for this page (the tile label is very tight, which is why "rémunération médiane" was not used). |
+| `jobMarket.demand.share`, `demand.shareTiny`, `orgTypes.subtitle`, `footer.coverage` | minor (fixed) | Missing U+202F before `%` and `:` — the same gap logged for the `decisions` namespace. Now aligned with `hero.updated`/`map.range`. |
+| `jobMarket.map.range` | minor | "Les 50 % du milieu" → "Les 50 % centraux". A statistician may prefer "La moitié centrale gagne entre {lo} et {hi}", which reads better but restructures the sentence. |
+| `jobMarket.families.frontline_service`, `.sales_marketing` | minor | Shortened for the JD filter chip and aligned to `enums.family` ("Service de terrain", "Vente et marketing"). `education_academic` ("Éducation et milieu universitaire") is still ~50 % longer than its English source in the same chip row — left alone for want of a shorter faithful form. |
+| `jobMarket.salary.medior` | minor | Still the open item above: "Medior" verbatim here vs "Confirmé" in `enums.seniority`. |
+
+## Queued by the 2026-08 `simulation` (public guided demo) migration
+
+| key(s) | severity | note |
+|--------|----------|------|
+| `simulation.criteria.skills.name` | minor | "Correspondance des compétences" is about twice the width of en's "Skills match" in a three-column table. Faithful, but if the column wraps, "Compétences" alone would do — the header already says "Critère". |
+| `simulation.status.done` | minor | "Terminé — poste pourvu 🎉" reframes en's "candidate hired" from the role's side (and avoids the gender agreement of *recruté(e)*), matching the cs/de call. `pipeline.controlCenter.hired` still says "Recruté 🎉". |
+| `simulation.log.*` past participles | minor | "bloqué", "rejetés", "avancés", "matchés" take the generic masculine for candidates of unknown gender — the same policy question already queued for `match.tab.candidate`. |
+| `simulation.diagram.*` | minor | Narrow-NBSP typography is applied to diagram TITLES ("Sourcing : publier…") but not to node labels, which carry no two-part punctuation. Nothing to fix; noted so a later pass does not "correct" it. |

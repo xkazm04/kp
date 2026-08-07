@@ -34,16 +34,68 @@ export function rateLimit(key: string, opts: { limit: number; windowMs: number }
   return true;
 }
 
-/** Best-effort client key for per-IP limiting. Behind a proxy the first
- *  x-forwarded-for hop is the caller; locally everything shares "local", which
- *  still bounds total throughput on the public routes. */
-export function clientIpFrom(headers: Headers): string {
-  const xff = headers.get("x-forwarded-for");
-  if (xff) {
-    const first = xff.split(",")[0]?.trim();
-    if (first) return first;
+// The single shared bucket every request collapses to when no TRUSTWORTHY client
+// IP is available — i.e. kp isn't behind a declared proxy, so the forwarding
+// headers are attacker-supplied and must not mint a fresh bucket each.
+const SHARED_CLIENT_KEY = "local";
+
+/**
+ * Pure client-key resolution given how many reverse-proxy hops kp sits behind —
+ * the security-relevant decision, extracted so it can be unit-tested without
+ * process.env (see rate-limit.test.ts). `clientIpFrom` below is the thin
+ * env-reading wrapper.
+ *
+ * TRUST MODEL. `X-Forwarded-For` is a CLIENT-appended list: the left-most entry
+ * is whatever the external caller pre-seeded, so trusting it (the old behavior)
+ * let a script send a fresh `X-Forwarded-For: <random>` per request and get a
+ * fresh limiter bucket every time — defeating the throttle entirely. The only
+ * trustworthy hops are the ones YOUR OWN proxy appended, counted from the RIGHT.
+ *
+ *   - `trustedHops === 0` (kp directly exposed / no proxy declared): the whole
+ *     header is forgeable, so it's IGNORED and every request shares
+ *     {@link SHARED_CLIENT_KEY}. The throttle becomes a coarse global cap a
+ *     spoofed header can't evade — the safe failure for an abuse-containment
+ *     control (over-throttle, never under-throttle).
+ *   - `trustedHops === N ≥ 1` (kp behind N proxies that each APPEND the address
+ *     they saw): the real client is the entry `N` from the right. Clamped to the
+ *     left-most hop when the chain is shorter than declared.
+ *
+ * Falls back to a proxy-set single-value `X-Real-IP` only when trusted and XFF is
+ * absent. A Next.js App Router handler exposes no socket peer address, so when
+ * untrusted there is no per-client granularity to recover — hence the shared
+ * bucket (documented residual: set `KP_TRUSTED_PROXY` in production to restore it).
+ */
+export function resolveClientIp(xff: string | null, realIp: string | null, trustedHops: number): string {
+  if (trustedHops > 0) {
+    if (xff) {
+      const hops = xff.split(",").map((h) => h.trim()).filter(Boolean);
+      if (hops.length > 0) return hops[Math.max(0, hops.length - trustedHops)];
+    }
+    const real = realIp?.trim();
+    if (real) return real;
   }
-  return headers.get("x-real-ip") ?? "local";
+  return SHARED_CLIENT_KEY;
+}
+
+/**
+ * How many trusted reverse-proxy hops sit in front of kp, from `KP_TRUSTED_PROXY`:
+ *   - unset / "0" / junk ⇒ 0 (no proxy trusted; forwarding headers ignored);
+ *   - a non-negative integer ("1", "2", …) ⇒ that hop count;
+ *   - a truthy word ("true"/"yes"/"on") ⇒ 1 (the common single-proxy deploy).
+ */
+function trustedProxyHops(): number {
+  const raw = process.env.KP_TRUSTED_PROXY?.trim();
+  if (!raw) return 0;
+  const n = Number(raw);
+  if (Number.isInteger(n) && n >= 0) return n;
+  return /^(true|yes|on)$/i.test(raw) ? 1 : 0;
+}
+
+/** Client key for per-IP limiting, read from the forwarding headers under the
+ *  `KP_TRUSTED_PROXY` trust model (see {@link resolveClientIp}). Untrusted by
+ *  default, so a spoofed `X-Forwarded-For` can no longer buy a fresh bucket. */
+export function clientIpFrom(headers: Headers): string {
+  return resolveClientIp(headers.get("x-forwarded-for"), headers.get("x-real-ip"), trustedProxyHops());
 }
 
 /** User-facing 429 message, shared by every limited route. */

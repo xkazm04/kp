@@ -1,7 +1,7 @@
 """repoSeed prose -> a MATERIALIZED seed: real starter files for the take-home.
 
-The honest LLM-test verdict on the dev case (docs/DEV_D3_HARDENING_FINDINGS.md,
-STUDENT_SCORING_CONCEPT.md): with ``repoSeed`` as PROSE the take-home is
+The honest LLM-test verdict on the dev case (docs/_archive/dev-d3-hardening-findings.md,
+docs/_archive/STUDENT_SCORING_CONCEPT.md): with ``repoSeed`` as PROSE the take-home is
 essay-grading a model can ace — there is nothing concrete the tasks, the cover
 probes, or the evaluation can point INTO. Materializing the seed turns the case
 into work on concrete starting materials: a small file tree (code for software
@@ -26,7 +26,17 @@ from .provenance import generate_with_fallback
 
 _LOG = logging.getLogger(__name__)
 
-SEED_PROMPT_VERSION = "seed-materializer-v1"
+SEED_PROMPT_VERSION = "seed-materializer-v2"  # v2: canaries — known-ground-truth planted flaws (LLM-era controls #3)
+
+# Canaries (LLM-era controls #3): 2-3 subtle, KNOWN-ground-truth flaws planted in the
+# seed contents (a wrong constant, a doc contradicting the data, a misleading comment).
+# A naive one-shot LLM pass PROPAGATES them; a candidate who reads and verifies catches
+# them. Unlike coverProbes (open decision spaces), a canary has one checkable truth, so
+# evaluation can mechanically ask "caught, flagged, or propagated?" per canary. The
+# `canaries` list is INTERNAL — persisted with the seed but stripped from everything the
+# candidate sees (the apply page serves `files` only).
+MAX_CANARIES = 3
+CANARY_KINDS = ("wrong_constant", "stale_doc", "misleading_comment", "subtle_bug")
 
 # Bounds keep the seed a STARTING point, not a project: small enough to read in
 # minutes, big enough that the tasks have something real to act on.
@@ -105,6 +115,9 @@ def deterministic_seed(case: CaseScenario, role: RoleSpec) -> dict:
             {"path": DECISIONS_FILE, "contents": _decisions_template(case)},
         ],
         "note": "deterministic skeleton — starting materials remain prose; the LLM path materializes concrete files",
+        # No fabricated canaries deterministically — a template flaw with no real ground
+        # truth would grade candidates against noise. Empty = "canary check not run".
+        "canaries": [],
     }
 
 
@@ -138,8 +151,16 @@ def build_prompt(case: CaseScenario, role: RoleSpec) -> str:
         f"- Always include README.md (brief + tasks + timebox) and {DECISIONS_FILE} (a decision-log template "
         "with one section per task: decision / rejected alternative / why).\n"
         "- Repo-relative forward-slash paths only. No solutions anywhere.\n"
+        f"- CANARIES: plant 2-{MAX_CANARIES} SUBTLE flaws with a single checkable ground truth — a wrong "
+        "constant/value, a doc line that contradicts the data, a misleading comment, or a small deliberate bug. "
+        "Each must be something a careful reader plausibly catches but a naive one-shot generation pass "
+        "propagates. Never hint at them in the files. Record each in 'canaries' (INTERNAL — the candidate never "
+        "sees this list): where it is, exactly what is wrong, and what catching vs propagating it reveals.\n"
         'Return JSON: { "files": [ { "path": str, "contents": str } ], "note": str (one line on what the seed '
-        "contains) }. JSON only."
+        'contains), "canaries": [ { "id": str, "kind": "wrong_constant|stale_doc|misleading_comment|subtle_bug", '
+        '"path": str (a file in "files"), "flaw": str (exactly what is wrong, quoting the flawed fragment), '
+        '"groundTruth": str (what correct looks like), "reveals": str (what catching vs propagating implies) } ] }. '
+        "JSON only."
     )
 
 
@@ -169,11 +190,39 @@ def _coerce(payload: Any, case: CaseScenario, role: RoleSpec) -> dict:
             files = files[: MAX_SEED_FILES - 1]
         files.append({"path": DECISIONS_FILE, "contents": _decisions_template(case)})
     note = str(payload.get("note") or "").strip()
+    # Canaries must point INTO the emitted tree — one whose path didn't survive the
+    # per-file clamps above is unverifiable, so it is dropped rather than kept as a
+    # phantom the evaluator would grade against.
+    emitted = {f["path"].casefold() for f in files}
+    canaries: list[dict[str, str]] = []
+    for c in payload.get("canaries") or []:
+        if not isinstance(c, dict):
+            continue
+        cpath = _safe_path(str(c.get("path") or ""))
+        flaw = str(c.get("flaw") or "").strip()
+        if not cpath or cpath.casefold() not in emitted or not flaw:
+            continue
+        kind = str(c.get("kind") or "").strip() or "subtle_bug"
+        if kind not in CANARY_KINDS:
+            kind = "subtle_bug"
+        canaries.append(
+            {
+                "id": str(c.get("id") or f"c{len(canaries) + 1}"),
+                "kind": kind,
+                "path": cpath,
+                "flaw": flaw,
+                "groundTruth": str(c.get("groundTruth") or "").strip(),
+                "reveals": str(c.get("reveals") or "").strip() or "Do they read and verify, or propagate the flaw?",
+            }
+        )
+        if len(canaries) >= MAX_CANARIES:
+            break
     return {
         "caseId": case.id,
         "promptVersion": SEED_PROMPT_VERSION,
         "files": files,
         "note": note or "materialized starting files",
+        "canaries": canaries,
     }
 
 
@@ -200,4 +249,7 @@ def materialize_seed(
         lambda: deterministic_seed(case, role),
         lambda payload: _coerce(payload, case, role),
         _LOG,
+        # Pin the answer by shape so a trailing injected object can't win the parse (#3).
+        # `canaries` stays OUT of the pin: a legacy/partial answer without it must still parse.
+        expected_keys=("files", "note"),
     )

@@ -8,10 +8,12 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   SCREENING_DEFAULT,
+  effectiveFloor,
   screenBottomCount,
   tieSafeBottomCount,
   validateDecisionConfig,
   validateScreeningOverride,
+  type ScreeningRule,
 } from "./decision-config-schema.ts";
 
 // A fresh, fully-valid screening rule per call so a test can mutate one field.
@@ -31,6 +33,56 @@ test("the shipped default validates (the validator is idempotent on good input)"
   const result = validateDecisionConfig("screening", { ...SCREENING_DEFAULT });
   assert.ok(result.ok);
   assert.deepEqual(result.config, SCREENING_DEFAULT);
+});
+
+// --- per-family floor overrides (family-floors): an optional map role_family →
+// maxMatchToReject override, each bounded exactly like the global value; ABSENT =
+// global floor applies, and the default stays byte-identical. ---
+
+test("a rule with NO familyFloors stays byte-identical (no phantom key)", () => {
+  const result = validateDecisionConfig("screening", validRule());
+  assert.ok(result.ok);
+  assert.equal("familyFloors" in result.config, false, "an absent map must not appear in the persisted config");
+});
+
+test("accepts familyFloors with known role families and clamps values to 0–100", () => {
+  const result = validateDecisionConfig("screening", {
+    ...validRule(),
+    familyFloors: { software_engineering: 70, data_ai: 250, finance_accounting: -5 },
+  });
+  assert.ok(result.ok && result.phase === "screening");
+  assert.deepEqual(result.config.familyFloors, { software_engineering: 70, data_ai: 100, finance_accounting: 0 });
+});
+
+test("rejects an unknown role family key in familyFloors (the map stays bounded)", () => {
+  const result = validateDecisionConfig("screening", { ...validRule(), familyFloors: { atlantis_diving: 50 } });
+  assert.equal(result.ok, false);
+  assert.ok(result.ok === false && /atlantis_diving/.test(result.error));
+});
+
+test("rejects a non-object / non-finite familyFloors", () => {
+  for (const bad of [[], "x", 3, true]) {
+    const r = validateDecisionConfig("screening", { ...validRule(), familyFloors: bad });
+    assert.equal(r.ok, false, `${JSON.stringify(bad)} familyFloors should be rejected`);
+  }
+  const nan = validateDecisionConfig("screening", { ...validRule(), familyFloors: { software_engineering: NaN } });
+  assert.equal(nan.ok, false);
+});
+
+test("a screening override may carry familyFloors (validated + clamped)", () => {
+  const result = validateScreeningOverride({ familyFloors: { software_engineering: 9999 } });
+  assert.ok(result.ok);
+  assert.deepEqual(result.override.familyFloors, { software_engineering: 100 });
+});
+
+test("effectiveFloor: family override wins; unknown/null family and no map fall back to global", () => {
+  const base: ScreeningRule = { autoRejectEnabled: true, rejectBottomPercent: 20, maxMatchToReject: 45 };
+  assert.equal(effectiveFloor(base, "software_engineering"), 45, "no map → global");
+  assert.equal(effectiveFloor(base, null), 45, "null family → global");
+  const withFloors: ScreeningRule = { ...base, familyFloors: { software_engineering: 70 } };
+  assert.equal(effectiveFloor(withFloors, "software_engineering"), 70, "override applies");
+  assert.equal(effectiveFloor(withFloors, "data_ai"), 45, "a family without an override → global");
+  assert.equal(effectiveFloor(withFloors, null), 45, "null family → global even with a map present");
 });
 
 test("compliance phase: accepts a known jurisdiction, rejects unknown / stray", () => {

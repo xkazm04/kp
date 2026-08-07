@@ -21,7 +21,7 @@ from .provenance import generate_with_fallback, str_list as _str_list
 _LOG = logging.getLogger(__name__)
 
 ROLE_DESIGN_PROMPT_VERSION = "role-design-v3"  # v3: JD-first intake — full JD body anchors the role
-CASE_DESIGN_PROMPT_VERSION = "case-design-v5"  # v5: timebox is a HARD cap — seniority raises depth/ambiguity, not deliverable count (anti over-scoping, real-JD calibration)
+CASE_DESIGN_PROMPT_VERSION = "case-design-v6"  # v6: midFlightUpdate — a requirement change revealed mid-session, so one-shot generation is structurally impossible (LLM-era controls #5)
 
 # Hard cap on case length (UAT M8). The case's instrument is AMBIGUITY + a visible
 # decision log, NOT volume — the candidate's code is assumed 100% LLM-generated — so
@@ -94,10 +94,16 @@ _PROBE_REVEALS_DEFAULT: dict[str, str] = {
 }
 
 
-def _generate(provider: Any | None, prompt: str, deterministic, coerce) -> tuple[dict, str]:
+def _generate(provider: Any | None, prompt: str, deterministic, coerce, expected_keys=None) -> tuple[dict, str]:
     # Shared LLM-or-deterministic runner: on an LLM failure it logs the cause at WARNING
     # and stashes a one-line fallbackReason on the artifact (see provenance.generate_with_fallback).
-    return generate_with_fallback(provider, prompt, _SYSTEM, deterministic, coerce, _LOG)
+    # expected_keys pins the answer by shape so a trailing injected object can't win the parse (#3).
+    return generate_with_fallback(provider, prompt, _SYSTEM, deterministic, coerce, _LOG, expected_keys=expected_keys)
+
+
+# Known top-level schema keys per design step (bug-hunter #3).
+_ROLE_KEYS = ("title", "seniority", "roleFamily", "mustHaves", "niceToHaves", "responsibilities", "languages")
+_CASE_KEYS = ("title", "brief", "repoSeed", "tasks", "coverProbes", "timeboxHours", "midFlightUpdate")
 
 
 def _human(role_family: str) -> str:
@@ -178,7 +184,7 @@ def design_role(need: DevNeed, analysis: NeedAnalysis, *, provider: Any | None =
             "languages": _str_list(payload.get("languages")) or det["languages"],
         }
 
-    result, source = _generate(provider, prompt, deterministic, coerce)
+    result, source = _generate(provider, prompt, deterministic, coerce, expected_keys=_ROLE_KEYS)
     result["promptVersion"] = ROLE_DESIGN_PROMPT_VERSION
     return result, source
 
@@ -257,6 +263,13 @@ def design_case(
         "REQUIRE a visible decision trail: one task must ask the candidate to keep a short DECISIONS log — for "
         "every call they made where the brief was open: what they chose, the alternative they rejected, and "
         "what they would have asked the team. Frame it as normal engineering practice, never as a test.\n"
+        "MID-FLIGHT UPDATE — design ONE requirement change ('midFlightUpdate') that the platform reveals to the "
+        "candidate PARTWAY through the session (they are not told in advance). It must plausibly come from the "
+        "stakeholder ('the team just learned that …'), genuinely affect work already likely underway (so earlier "
+        "decisions deserve revisiting — not just an extra task), and stay answerable within the timebox. "
+        "'afterMinutes' is when it fires (roughly a third of the timebox in); 'reveals' is the INTERNAL note on "
+        "what good vs poor adaptation looks like. This makes one-shot generation structurally impossible: the "
+        "brief the candidate started from is no longer the brief they must finish against.\n"
         + (
             "TARGETED CONFIRMATION — the candidate's CV raised these hypotheses; bake AT LEAST one cover-probe "
             "that specifically tests each (the candidate must NEVER see this):\n"
@@ -281,7 +294,10 @@ def design_case(
         '"coverProbes": [ { "id": str, "kind": "ambiguity|legacy_trap|verification_trap|underspecified", '
         '"where": str, "reveals": str (REQUIRED, non-empty — what a good vs naive response implies), '
         '"decisionSpace": [str] (the 2-3 defensible options this ambiguity admits, each a different trade-off) } ], '
-        '"timeboxHours": number }. The "reveals" and "decisionSpace" notes are INTERNAL. JSON only.'
+        '"timeboxHours": number, '
+        '"midFlightUpdate": { "afterMinutes": int, "update": str (candidate-facing, in the stakeholder\'s voice), '
+        '"reveals": str (INTERNAL — what good vs poor adaptation looks like) } }. '
+        'The "reveals" and "decisionSpace" notes are INTERNAL. JSON only.'
     )
     # DEVP5 — the candidate reads the title/brief/tasks, so render that narrative
     # in the requested language (code/enum values + proper nouns stay verbatim
@@ -356,6 +372,16 @@ def design_case(
             ],
             "coverProbes": det_probes,
             "timeboxHours": timebox,
+            # Generic but real: a scope-affecting constraint change a third of the way in.
+            "midFlightUpdate": {
+                "afterMinutes": max(10, int(timebox * 60 / 3)),
+                "update": (
+                    "Quick update from the team: one assumption in the brief has changed — a constraint you were "
+                    "given is stricter than stated. Note in your DECISIONS log which of your calls this affects "
+                    "and adjust the one that matters most."
+                ),
+                "reveals": "Do they re-plan and revisit earlier decisions, or bolt the change on without reconciling it?",
+            },
         }
 
     def coerce(payload: Any) -> dict:
@@ -394,6 +420,24 @@ def design_case(
         # routinely echoes a longer take-home back, and this number is shown to the
         # candidate. Floor at 0.5h so a degenerate 0 can't render "~0h".
         tb = min(max(tb, 0.5), _MAX_TIMEBOX_HOURS)
+        # Mid-flight update (v6): keep only a well-formed one — a non-empty candidate-facing
+        # `update` with a sane fire time (clamped inside the timebox so it can actually land).
+        mfu_raw = payload.get("midFlightUpdate")
+        mfu = None
+        if isinstance(mfu_raw, dict) and str(mfu_raw.get("update") or "").strip():
+            try:
+                after = int(float(mfu_raw.get("afterMinutes")))
+            except (TypeError, ValueError):
+                after = max(10, int(tb * 60 / 3))
+            after = min(max(after, 5), max(5, int(tb * 60) - 15))
+            mfu = {
+                "afterMinutes": after,
+                "update": str(mfu_raw["update"]).strip(),
+                "reveals": str(mfu_raw.get("reveals") or "").strip()
+                or "Do they re-plan and revisit earlier decisions, or bolt the change on?",
+            }
+        if mfu is None:
+            mfu = det["midFlightUpdate"]
         return {
             "title": str(payload.get("title") or det["title"]),
             "brief": str(payload.get("brief") or det["brief"]),
@@ -404,9 +448,10 @@ def design_case(
             "tasks": _str_list(payload.get("tasks")) or det["tasks"],
             "coverProbes": probes or det["coverProbes"],
             "timeboxHours": tb,
+            "midFlightUpdate": mfu,
         }
 
-    result, source = _generate(provider, prompt, deterministic, coerce)
+    result, source = _generate(provider, prompt, deterministic, coerce, expected_keys=_CASE_KEYS)
     result["rubricDimensions"] = _RUBRIC
     result["promptVersion"] = CASE_DESIGN_PROMPT_VERSION
     return result, source

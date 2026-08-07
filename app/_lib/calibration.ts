@@ -97,3 +97,305 @@ export function computeCalibration(
     minOutcomes,
   };
 }
+
+// ─── Drift over time (Direction 1) ────────────────────────────────────────────
+// One all-time aggregate hides a bad quarter inside a good year. Both pair
+// producers already stamp a timestamp on every pair; bucketing by calendar
+// quarter turns the single curve into a trend, EACH cohort honesty-gated the
+// same way the headline is: no Brier / no rate on a quarter with fewer than
+// `minOutcomes` decided candidates — it renders "not enough outcomes yet".
+
+/** A (score, outcome) pair carrying the ISO timestamp of the decision it records
+ *  (pipeline_entries.created_at / analyses.created_at). */
+export type ScoreOutcomeAt = ScoreOutcome & { at: string };
+
+export type CalibrationCohort = {
+  key: string; // "2026-Q2" — stable sort key + display label
+  year: number;
+  quarter: number; // 1..4
+  n: number;
+  positives: number;
+  brier: number | null; // null when the cohort is below the gate (never a curve on noise)
+  calibrated: boolean; // n >= minOutcomes — gate each cohort independently
+  minOutcomes: number;
+};
+
+/** Calendar-quarter bucket of an ISO timestamp, in UTC so the cohort a decision
+ *  falls into is stable across client timezones. Returns null for a malformed /
+ *  absent date — such a pair is excluded from the time view (it still counts in
+ *  the all-time curve), never silently bucketed into the wrong quarter. */
+function quarterOf(iso: string): { key: string; year: number; quarter: number } | null {
+  if (typeof iso !== "string" || iso.length === 0) return null;
+  const d = new Date(iso);
+  const ms = d.getTime();
+  if (!Number.isFinite(ms)) return null;
+  const year = d.getUTCFullYear();
+  const quarter = Math.floor(d.getUTCMonth() / 3) + 1;
+  return { key: `${year}-Q${quarter}`, year, quarter };
+}
+
+/** Bucket timestamped pairs into calendar quarters (ascending) and compute a
+ *  gated CalibrationResult per quarter — the Brier/rate trend. Deterministic and
+ *  side-effect free; reuses computeCalibration so a cohort's gate is identical to
+ *  the headline's. */
+export function computeCalibrationCohorts(
+  pairs: ScoreOutcomeAt[],
+  minOutcomes: number = MIN_CALIBRATION_OUTCOMES
+): CalibrationCohort[] {
+  const groups = new Map<string, { year: number; quarter: number; pairs: ScoreOutcome[] }>();
+  for (const p of pairs) {
+    const q = quarterOf(p.at);
+    if (!q) continue;
+    const g = groups.get(q.key) ?? { year: q.year, quarter: q.quarter, pairs: [] };
+    g.pairs.push({ score: p.score, outcome: p.outcome });
+    groups.set(q.key, g);
+  }
+  return [...groups.values()]
+    .sort((a, b) => a.year - b.year || a.quarter - b.quarter)
+    .map((g) => {
+      const r = computeCalibration(g.pairs, minOutcomes);
+      return {
+        key: `${g.year}-Q${g.quarter}`,
+        year: g.year,
+        quarter: g.quarter,
+        n: r.n,
+        positives: r.positives,
+        // Honest per cohort: below the gate we surface NO number (the UI shows
+        // "not enough outcomes yet"), never a Brier drawn on a handful of points.
+        brier: r.calibrated ? r.brier : null,
+        calibrated: r.calibrated,
+        minOutcomes,
+      };
+    });
+}
+
+// ─── Threshold recommendation (Direction 3) ───────────────────────────────────
+// Calibration used to only MEASURE. This closes the loop DETERMINISTICALLY (no
+// LLM): given the measured advance rates and the live screening auto-reject floor
+// (`maxMatchToReject` — candidates scoring BELOW it are auto-reject-eligible), it
+// derives a display-only suggestion to move that floor, or returns null when
+// there is nothing defensible to say. Applied only by an explicit human click.
+
+/** A cohort this small can't defend a threshold move — a band needs at least this
+ *  many decided candidates before its advance rate is signal, not noise. */
+export const MIN_CALIBRATION_BAND_OUTCOMES = 8;
+
+export type ThresholdRecommendation = {
+  // "lower" — candidates just BELOW the floor mostly advanced, so the floor is
+  //   auto-rejecting people who work out; move it down (candidate-protective).
+  // "raise" — candidates just ABOVE the floor mostly did NOT advance, so the
+  //   floor keeps people who get rejected downstream anyway; move it up.
+  direction: "lower" | "raise";
+  currentThreshold: number; // live maxMatchToReject (0..100)
+  suggestedThreshold: number; // proposed maxMatchToReject (0..100)
+  band: { lo: number; hi: number }; // the score band examined (0..100), the audit basis
+  n: number; // decided candidates in that band
+  advanceRatePct: number; // their observed advance-past-screening rate (0..100)
+  totalOutcomes: number; // overall n — the top-level honesty basis
+};
+
+/**
+ * Derive a threshold suggestion from the calibration pairs, honesty-gated on BOTH
+ * the overall count (n >= minOutcomes) AND a per-band minimum (no advice on a
+ * handful of points). Pure + deterministic. Returns null whenever nothing is
+ * defensible — the caller renders no UI on null.
+ *
+ * The score is the SAME 0-100 match score the screen gate thresholds; the outcome
+ * is 1 = advanced past screening, 0 = rejected there. We look one band-width below
+ * the floor (currently reject-eligible) and one above (currently kept):
+ *   • below advanced at a HIGH rate → the floor is too high → suggest lowering.
+ *   • above advanced at a LOW rate → the floor is too low → suggest raising.
+ * When both qualify, the better-supported band wins; a tie goes to the
+ * candidate-protective "lower".
+ */
+export function recommendScreeningThreshold(
+  pairs: ScoreOutcome[],
+  currentThreshold: number,
+  opts?: { minOutcomes?: number; minBandOutcomes?: number; bandWidth?: number; highRate?: number; lowRate?: number }
+): ThresholdRecommendation | null {
+  const minOutcomes = opts?.minOutcomes ?? MIN_CALIBRATION_OUTCOMES;
+  const minBand = opts?.minBandOutcomes ?? MIN_CALIBRATION_BAND_OUTCOMES;
+  const bandWidth = opts?.bandWidth ?? 10;
+  const highRate = opts?.highRate ?? 0.6;
+  const lowRate = opts?.lowRate ?? 0.4;
+
+  const total = pairs.length;
+  if (total < minOutcomes) return null;
+  // A floor at either extreme has no band to move toward — nothing to say.
+  if (!Number.isFinite(currentThreshold) || currentThreshold <= 0 || currentThreshold >= 100) return null;
+  const T = currentThreshold;
+
+  const positiveRate = (arr: ScoreOutcome[]): number =>
+    arr.reduce((s, p) => s + (p.outcome >= 0.5 ? 1 : 0), 0) / arr.length;
+
+  const lowerLo = Math.max(0, T - bandWidth);
+  const below = pairs.filter((p) => p.score >= lowerLo && p.score < T);
+  const upperHi = Math.min(100, T + bandWidth);
+  const above = pairs.filter((p) => p.score >= T && p.score < upperHi);
+
+  const found: ThresholdRecommendation[] = [];
+  if (below.length >= minBand) {
+    const r = positiveRate(below);
+    if (r >= highRate) {
+      found.push({
+        direction: "lower",
+        currentThreshold: T,
+        suggestedThreshold: lowerLo,
+        band: { lo: lowerLo, hi: T },
+        n: below.length,
+        advanceRatePct: Math.round(r * 100),
+        totalOutcomes: total,
+      });
+    }
+  }
+  if (above.length >= minBand) {
+    const r = positiveRate(above);
+    if (r <= lowRate) {
+      found.push({
+        direction: "raise",
+        currentThreshold: T,
+        suggestedThreshold: upperHi,
+        band: { lo: T, hi: upperHi },
+        n: above.length,
+        advanceRatePct: Math.round(r * 100),
+        totalOutcomes: total,
+      });
+    }
+  }
+  if (found.length === 0) return null;
+  found.sort((a, b) => b.n - a.n || (a.direction === "lower" ? -1 : 1));
+  return found[0];
+}
+
+// ─── Threshold-change effect (threshold-story) ────────────────────────────────
+// A recommendation is recommend→apply→HOPE unless the change is MEASURED. For the
+// band the last apply targeted, split that band's decisions by the apply timestamp
+// and compare the advance/reject mix BEFORE against AFTER — so an operator can see
+// whether moving the floor actually changed who advances. Honesty-gated on the
+// number of decisions that have ACCRUED SINCE the change: a tiny "after" sample
+// reads as "too few to measure yet", never a confident tiny-n percentage. Pure +
+// deterministic; the ISO timestamps already ride on every ScoreOutcomeAt pair.
+
+/** Decisions since a threshold change can't be judged until at least this many have
+ *  accrued in the affected band — below it the "after" rate is noise. Reuses the
+ *  same per-band floor the recommendation itself is gated on, so the "measure it"
+ *  bar is exactly the "recommend it" bar. */
+export const MIN_THRESHOLD_EFFECT_OUTCOMES = MIN_CALIBRATION_BAND_OUTCOMES;
+
+export type ThresholdEffectSide = {
+  n: number;
+  advanced: number;
+  advanceRatePct: number; // 0..100; 0 when n === 0 — always read ALONGSIDE n, never alone
+};
+
+export type ThresholdEffect = {
+  band: { lo: number; hi: number }; // the score band the last apply examined (0..100)
+  appliedAt: string; // ISO timestamp of the apply the effect is measured against
+  before: ThresholdEffectSide | null; // null when no in-band decision predates the apply
+  after: ThresholdEffectSide | null; // null when no in-band decision postdates it
+  // after != null && after.n >= minOutcomes — the ONLY state in which a percentage
+  // is defensible. Below it the caller shows "too few decisions since the change".
+  measurable: boolean;
+  minOutcomes: number;
+};
+
+function effectSide(pairs: ScoreOutcome[]): ThresholdEffectSide | null {
+  if (pairs.length === 0) return null;
+  const advanced = pairs.reduce((s, p) => s + (p.outcome >= 0.5 ? 1 : 0), 0);
+  return { n: pairs.length, advanced, advanceRatePct: Math.round((advanced / pairs.length) * 100) };
+}
+
+/**
+ * Measure a threshold change's effect on the band it targeted: the in-band advance
+ * rate BEFORE the apply vs AFTER it. Band membership mirrors the recommendation's
+ * own `score >= lo && score < hi`. A pair whose timestamp can't be parsed is dropped
+ * (it can't be placed either side of the apply), never misattributed. Returns null
+ * only when the apply timestamp itself is unparseable; otherwise returns both sides
+ * (null per side when that side is empty) and a `measurable` flag gated on the
+ * decisions accrued SINCE the change.
+ */
+export function computeThresholdEffect(
+  pairs: ScoreOutcomeAt[],
+  band: { lo: number; hi: number },
+  appliedAt: string,
+  minOutcomes: number = MIN_THRESHOLD_EFFECT_OUTCOMES
+): ThresholdEffect | null {
+  const applied = new Date(appliedAt).getTime();
+  if (!Number.isFinite(applied)) return null;
+  const before: ScoreOutcome[] = [];
+  const after: ScoreOutcome[] = [];
+  for (const p of pairs) {
+    if (!Number.isFinite(p.score) || p.score < band.lo || p.score >= band.hi) continue;
+    const t = new Date(p.at).getTime();
+    if (!Number.isFinite(t)) continue; // a malformed timestamp can't be placed either side
+    (t < applied ? before : after).push({ score: p.score, outcome: p.outcome });
+  }
+  const afterSide = effectSide(after);
+  return {
+    band,
+    appliedAt,
+    before: effectSide(before),
+    after: afterSide,
+    measurable: afterSide != null && afterSide.n >= minOutcomes,
+    minOutcomes,
+  };
+}
+
+// ─── Label-leakage honesty (UAT 2026-07-20, KAT-L1-001) ───────────────────────
+// The single most important thing a reader of a calibration curve must know is
+// WHERE the outcome label came from — because if the score PRODUCED the label, the
+// curve validates the score against its own decisions and a perfectly biased
+// screener draws a perfect reliability diagram. The finding was not that the
+// product displays a false accuracy number (it honestly labels the axis "advance
+// rate"); it was that the CAUSAL COUPLING between predictor and label is
+// undisclosed. This descriptor makes it explicit, per source, so the panel and any
+// re-run of the UAT can tell a contaminated curve from the clean arm.
+
+export type CalibrationSource = "pipeline" | "analysis" | "holdout";
+
+export type LeakageLevel = "high" | "medium" | "low";
+
+export type CalibrationLeakage = {
+  /** How badly the label is coupled to the score that predicts it. */
+  level: LeakageLevel;
+  /** Stable code the UI keys its localized copy off. */
+  code: "score-caused-label" | "reviewer-saw-score" | "no-automated-leakage";
+  /** One-line plain statement of the coupling. */
+  note: string;
+  /** The honest limit that REMAINS even for the least-leaked source — named so
+   *  "clean arm" never overstates. Empty when there is nothing left to caveat. */
+  ceiling: string;
+};
+
+/** The leakage descriptor for a calibration source. Pure — no data, just the
+ *  causal story of how that source's outcome label is produced. */
+export function calibrationLeakage(source: CalibrationSource): CalibrationLeakage {
+  switch (source) {
+    case "pipeline":
+      return {
+        level: "high",
+        code: "score-caused-label",
+        note:
+          "The reject label is produced by the score: the screening wave auto-rejects on match_score, so this curve largely validates the score against its own decisions. The Brier score is biased optimistic by an amount nothing here estimates.",
+        ceiling:
+          "Only the calibration holdout (source=holdout) breaks this coupling; until it accrues enough outcomes, treat this curve as internal consistency, not accuracy.",
+      };
+    case "analysis":
+      return {
+        level: "medium",
+        code: "reviewer-saw-score",
+        note:
+          "The label is a human advance/pass disposition, so the score did not mechanically produce it — but the recruiter saw the score while deciding, so the two are still correlated by anchoring, not independent.",
+        ceiling: "Not a score-blind trial: the reviewer's decision was informed by the number being validated.",
+      };
+    case "holdout":
+      return {
+        level: "low",
+        code: "no-automated-leakage",
+        note:
+          "These candidates scored below the auto-reject floor but were spared, so the score did NOT mechanically produce their outcome — this is the clean arm the calibration can actually be falsified against.",
+        ceiling:
+          "The human reviewer still saw the score, so this is not a fully score-blind trial; and the arm only covers the below-floor range, so it measures 'when we said reject, were we right?' — not the whole curve.",
+      };
+  }
+}

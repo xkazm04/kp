@@ -118,6 +118,29 @@ REGISTRY_USE_CASE = {
     "campaign_pack": "campaign_pack",
 }
 
+# Interaction mode per bench op — which measured axis matters when picking a
+# model. "online" = a person is waiting on the result in the UI (latency is the
+# binding constraint); "background" = produced by an automation pass / build
+# pipeline where nobody waits (cost per task is the binding constraint).
+# Quality is judged the same either way; this only frames the economics columns.
+OP_MODES: dict[str, str] = {
+    "match_reasoning": "online",
+    "jd_ingest": "online",
+    "interview_prep": "online",
+    "interview_scorecard": "online",
+    "group_compare": "online",
+    "weight_proposal": "online",
+    "automation_screen": "background",
+    "automation_outreach": "background",
+    "automation_rejection": "background",
+    "automation_offer": "background",
+    "campaign_pack": "background",
+    "devcase_analyze": "background",
+    "devcase_role_design": "background",
+    "devcase_case_design": "background",
+    "devcase_interview_scenario": "background",
+}
+
 
 @dataclass(frozen=True)
 class Scenario:

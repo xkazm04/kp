@@ -3,9 +3,15 @@
 All network-free — exercises the pure transforms on fixture rows (fetch_rows, the
 only network code, is not touched)."""
 
+import json
+import shutil
+import tempfile
 import unittest
+from pathlib import Path
 
+from pipeline.jobfit.devcase import real_corpus
 from pipeline.jobfit.devcase.real_corpus import (
+    CorpusFrozenError,
     build_jobs,
     classify_family,
     classify_rows,
@@ -116,6 +122,130 @@ class TestBuildAndAdapt(unittest.TestCase):
         self.assertEqual(scn.need.jd_text, jobs[0]["jd_text"])
         self.assertEqual(scn.need.role_family, jobs[0]["role_family"])
         self.assertEqual(scn.need.seniority_target, jobs[0]["seniority"])
+
+
+def _fake_jobs(n):
+    return [
+        {"id": f"cal-{i:03d}", "title": f"Role {i}", "company": "Co", "jd_text": "jd",
+         "role_family": "operations", "seniority": "medior", "source": "test"}
+        for i in range(n)
+    ]
+
+
+class TestFrozenCorpusProtection(unittest.TestCase):
+    """#1 — jobs.json is the canonical Part-2 fixture once --freeze wrote FROZEN.json. A SMALLER
+    build (e.g. a --count 12 pilot) must not silently truncate it. _persist_jobs refuses the shrink
+    unless forced; a same/larger build, or a build with no freeze marker, writes normally."""
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        d = Path(self.tmp)
+        self._orig = (real_corpus.OUT_DIR, real_corpus.JOBS_PATH, real_corpus.FROZEN_PATH)
+        real_corpus.OUT_DIR = d
+        real_corpus.JOBS_PATH = d / "jobs.json"
+        real_corpus.FROZEN_PATH = d / "FROZEN.json"
+
+    def tearDown(self):
+        real_corpus.OUT_DIR, real_corpus.JOBS_PATH, real_corpus.FROZEN_PATH = self._orig
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def _freeze_100(self):
+        real_corpus.JOBS_PATH.write_text(json.dumps(_fake_jobs(100)), encoding="utf-8")
+        real_corpus.FROZEN_PATH.write_text(json.dumps({"count": 100}), encoding="utf-8")
+
+    def test_refuses_to_shrink_a_frozen_corpus(self):
+        self._freeze_100()
+        with self.assertRaises(CorpusFrozenError):
+            real_corpus._persist_jobs(_fake_jobs(12))  # a 12-JD pilot must not truncate the frozen 100
+        self.assertEqual(len(json.loads(real_corpus.JOBS_PATH.read_text())), 100)  # intact on disk
+
+    def test_force_allows_the_deliberate_shrink(self):
+        self._freeze_100()
+        real_corpus._persist_jobs(_fake_jobs(12), force=True)
+        self.assertEqual(len(json.loads(real_corpus.JOBS_PATH.read_text())), 12)
+
+    def test_not_frozen_writes_freely(self):
+        real_corpus.JOBS_PATH.write_text(json.dumps(_fake_jobs(100)), encoding="utf-8")
+        real_corpus._persist_jobs(_fake_jobs(12))  # no FROZEN.json -> nothing blessed to protect
+        self.assertEqual(len(json.loads(real_corpus.JOBS_PATH.read_text())), 12)
+
+    def test_same_size_rebuild_allowed_even_when_frozen(self):
+        self._freeze_100()
+        real_corpus._persist_jobs(_fake_jobs(100))  # a same-size regenerate does not shrink
+        self.assertEqual(len(json.loads(real_corpus.JOBS_PATH.read_text())), 100)
+
+
+class TestFetchRowsCacheExtent(unittest.TestCase):
+    """#4 — a narrow ``--fetch-limit`` cache must NOT silently satisfy a later BROADER request.
+    Reusing a tiny slice for an unlimited build rebuilds the whole corpus narrow (the industry-lock
+    the harness exists to break) while every report reads green. The cache stamps its extent in a
+    sibling meta file; a request the cache can't cover re-fetches. (Network is faked — no HTTP.)"""
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        d = Path(self.tmp)
+        self._orig = (real_corpus.OUT_DIR, real_corpus.RAW_CACHE, real_corpus._fetch_page)
+        real_corpus.OUT_DIR = d
+        real_corpus.RAW_CACHE = d / "_raw_rows.json"
+        # Fake dataset: 250 distinct rows, served in <=100-row pages, counting every network hit.
+        self.dataset = [
+            {"position_title": f"Role {i}", "company_name": "Co", "job_description": "jd"}
+            for i in range(250)
+        ]
+        self.calls: list[tuple[int, int]] = []
+
+        def fake_fetch_page(offset, length):
+            self.calls.append((offset, length))
+            page = self.dataset[offset : offset + length]
+            return {"num_rows_total": len(self.dataset), "rows": [{"row": r} for r in page]}
+
+        real_corpus._fetch_page = fake_fetch_page
+
+    def tearDown(self):
+        real_corpus.OUT_DIR, real_corpus.RAW_CACHE, real_corpus._fetch_page = self._orig
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_narrow_cache_does_not_satisfy_a_broader_request(self):
+        narrow = real_corpus.fetch_rows(limit=50)  # a quick debug pull
+        self.assertEqual(len(narrow), 50)
+        after_narrow = len(self.calls)
+        self.assertGreater(after_narrow, 0)
+        # A later FULL build (limit=None) must RE-FETCH, not reuse the narrow slice.
+        full = real_corpus.fetch_rows(limit=None)
+        self.assertEqual(len(full), 250)  # pre-fix: returned the cached slice, not 250
+        self.assertGreater(len(self.calls), after_narrow)  # network was hit again
+        # …and now the cache is full, so a subsequent request is served offline.
+        before = len(self.calls)
+        self.assertEqual(len(real_corpus.fetch_rows(limit=100)), 100)
+        self.assertEqual(len(self.calls), before)
+
+    def test_full_cache_serves_any_request_offline(self):
+        self.assertEqual(len(real_corpus.fetch_rows(limit=None)), 250)
+        before = len(self.calls)
+        # A full pull covers both a broad and a narrow later request with no new fetch.
+        self.assertEqual(len(real_corpus.fetch_rows(limit=None)), 250)
+        self.assertEqual(len(real_corpus.fetch_rows(limit=30)), 30)
+        self.assertEqual(len(self.calls), before)
+
+    def test_narrow_cache_serves_a_smaller_or_equal_request_offline(self):
+        real_corpus.fetch_rows(limit=80)
+        before = len(self.calls)
+        # A later request for <= the cached extent is covered without a re-fetch (no over-correction).
+        self.assertEqual(len(real_corpus.fetch_rows(limit=50)), 50)
+        self.assertEqual(len(self.calls), before)
+
+    def test_legacy_meta_less_cache_is_refetched_for_a_full_request(self):
+        # A cache from before the extent-stamp fix (no meta file) is treated as truncated: an
+        # unlimited request re-fetches rather than certify a broad corpus from an unknown slice.
+        real_corpus.OUT_DIR.mkdir(parents=True, exist_ok=True)
+        real_corpus.RAW_CACHE.write_text(
+            json.dumps([{"position_title": "Old", "company_name": "C", "job_description": "jd"}]),
+            encoding="utf-8",
+        )  # no sibling meta file
+        before = len(self.calls)
+        full = real_corpus.fetch_rows(limit=None)
+        self.assertEqual(len(full), 250)  # pre-fix: returned the 1-row legacy slice
+        self.assertGreater(len(self.calls), before)
 
 
 if __name__ == "__main__":

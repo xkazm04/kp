@@ -51,11 +51,24 @@ const MAX_FOCUS_AREAS = 5;
 const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n));
 
 // PREP2 — the deterministic block topics/goals + signals + scenario are
-// interviewer-facing prose, so localize them from a small self-contained
-// bilingual table (the prep pack is a recruiter artifact; the LLM questions
-// localize via the prompt directive, these are the scaffolding). `lang`
-// defaults to "en", so the pure unit tests (no lang) are unchanged.
-type RosStrings = {
+// interviewer-facing prose, so they localize (the prep pack is a recruiter
+// artifact; the LLM questions localize via the prompt directive, these are the
+// scaffolding).
+//
+// F5 — that copy used to be a self-contained `Record<"en" | "cs", …>` table right
+// here, so a German or French recruiter silently got the English plan. It now
+// lives in the `scheduleTab.prep.plan` catalog namespace (all four locales) and
+// arrives as a PARAMETER: this module stays pure and dependency-free, so the
+// timing contract is still unit-testable in isolation and no catalog loader is
+// pulled into whatever imports it. `rosStrings(locale)` in
+// interview-prep-strings.ts is the loader that builds this from the catalog.
+//
+// DOCUMENT-READER side: the pack's language is stamped on the artifact
+// (interview-prep-run's `lang`, persisted in the payload) rather than read from
+// the request, because the generating task is detached and the pack is re-read
+// later — so the strings come from the locale-pinned translator, not
+// `useTranslations()`.
+export type RosStrings = {
   topicFallback: (n: number) => string;
   introTopic: string;
   introGoal: string;
@@ -67,39 +80,13 @@ type RosStrings = {
   signalDepth: string;
   signalMustHaves: string;
   signalQuestions: string;
+  /** The preposition binding the candidate's name into the scenario sentence
+   *  ("for Alex" / "pro Alexe"), kept a bare word because the surrounding
+   *  parenthesised job title is assembled positionally below. */
+  forCandidate: string;
+  /** Stands in for the focus-area list when the prep produced none. */
+  focusFallback: string;
   scenario: (durationMin: number, who: string, focus: string) => string;
-};
-const ROS_STRINGS: Record<"en" | "cs", RosStrings> = {
-  en: {
-    topicFallback: (n) => `Topic ${n}`,
-    introTopic: "Intro & rapport",
-    introGoal: "Set the candidate at ease, confirm the role context and the plan for the session.",
-    defaultGoal: "Probe depth and concrete examples; listen for ownership and trade-offs.",
-    openTopic: "Open discussion & deep dive",
-    openGoal: "Use the remaining time to probe the strongest and weakest answers in more depth, or explore a must-have not yet covered.",
-    wrapTopic: "Candidate questions & wrap-up",
-    wrapGoal: "Leave space for the candidate's questions; explain next steps and timeline.",
-    signalDepth: "Probed the depth behind self-declared / project skills",
-    signalMustHaves: "Covered the missing must-haves",
-    signalQuestions: "Gave the candidate space to ask questions",
-    scenario: (durationMin, who, focus) =>
-      `A ${durationMin}-minute structured interview${who}. Validate strengths and probe ${focus}. Keep each topic timeboxed and use the checklist to track coverage live.`,
-  },
-  cs: {
-    topicFallback: (n) => `Téma ${n}`,
-    introTopic: "Úvod a navázání kontaktu",
-    introGoal: "Uvolněte kandidáta, potvrďte kontext role a plán schůzky.",
-    defaultGoal: "Zjišťujte hloubku a konkrétní příklady; sledujte vlastnictví a kompromisy.",
-    openTopic: "Otevřená diskuse a hlubší ponor",
-    openGoal: "Využijte zbývající čas k hlubšímu prozkoumání nejsilnějších a nejslabších odpovědí, nebo prozkoumejte dosud nepokrytý požadavek.",
-    wrapTopic: "Dotazy kandidáta a závěr",
-    wrapGoal: "Nechte prostor na dotazy kandidáta; vysvětlete další kroky a časový plán.",
-    signalDepth: "Ověřena hloubka za samodeklarovanými / projektovými dovednostmi",
-    signalMustHaves: "Pokryty chybějící povinné požadavky",
-    signalQuestions: "Dán kandidátovi prostor na dotazy",
-    scenario: (durationMin, who, focus) =>
-      `Strukturovaný pohovor na ${durationMin} minut${who}. Ověřte silné stránky a prozkoumejte ${focus}. Držte každé téma v časovém limitu a sledujte pokrytí pomocí seznamu.`,
-  },
 };
 
 /** Build the timed run-of-show + checklist from the CV-derived questions/focus
@@ -110,9 +97,8 @@ export function buildRunOfShow(
   rawFocusAreas: string[],
   candidateLabel: string | null,
   jobTitle: string | null,
-  lang: string = "en"
+  s: RosStrings
 ): RunOfShow {
-  const s = ROS_STRINGS[lang === "cs" ? "cs" : "en"];
   const questions = (rawQuestions ?? []).slice(0, MAX_QUESTIONS);
   const focusAreas = (rawFocusAreas ?? []).slice(0, MAX_FOCUS_AREAS);
   const qMinutes = questions.length > RELAXED_QUESTION_LIMIT ? Q_MINUTES_TIGHT : Q_MINUTES_RELAXED;
@@ -157,8 +143,8 @@ export function buildRunOfShow(
   // modal), so these are only the cross-cutting signals the interviewer confirms.
   const signals: string[] = [...focusAreas, s.signalDepth, s.signalMustHaves, s.signalQuestions];
 
-  const who = candidateLabel ? ` ${lang === "cs" ? "pro" : "for"} ${candidateLabel}${jobTitle ? ` (${jobTitle})` : ""}` : jobTitle ? ` (${jobTitle})` : "";
-  const focus = focusAreas.slice(0, 3).join(", ") || (lang === "cs" ? "klíčové mezery" : "the key gaps");
+  const who = candidateLabel ? ` ${s.forCandidate} ${candidateLabel}${jobTitle ? ` (${jobTitle})` : ""}` : jobTitle ? ` (${jobTitle})` : "";
+  const focus = focusAreas.slice(0, 3).join(", ") || s.focusFallback;
   const scenario = s.scenario(durationMin, who, focus);
 
   return { scenario, durationMin, focusAreas, chronology, signals };

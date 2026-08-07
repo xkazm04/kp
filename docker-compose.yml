@@ -4,7 +4,7 @@
 #   cp .env.example .env      # then set KP_OPERATOR_PASSWORD + KP_SECRET (required)
 #   docker compose up -d --build
 #
-# Full guide, egress inventory and air-gap notes: docs/SELF_HOSTING.md.
+# Full guide, egress inventory and air-gap notes: docs/architecture/self-hosting.md.
 services:
   kp:
     build:

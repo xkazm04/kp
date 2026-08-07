@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getInterviewSessionByToken, recordSimTranscriptAttached } from "@/app/_lib/db";
+import { getInterviewSessionByToken } from "@/app/_lib/db/interviews";
+import { recordSimTranscriptAttached } from "@/app/_lib/db/pipeline";
 import { safeJsonError } from "@/app/_lib/api-response";
+import { isAttachableSimSession } from "./sim-session";
 
 
 // d95fed6d — attach a practice (simulator) interview to a candidate's record.
@@ -23,9 +25,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "token and entryId are required." }, { status: 400 });
     }
     const session = getInterviewSessionByToken(token);
-    // Accept a practice run (no linked entry); reject a real, entry-linked candidate
-    // session — it's already on a candidate's record and isn't a sim to annotate.
-    if (!session || session.entryId) {
+    // bug-ui-scan-2026-07-09 (interview-simulation-comparison #3) — accept ONLY a
+    // completed, entry-less, candidate-mode practice run (isAttachableSimSession).
+    // The old `session.entryId`-only guard also accepted lab mode:"test" sessions
+    // and never-run `created` sessions, stamping a sim_attached event for an
+    // interview that was never conducted.
+    if (!session || !isAttachableSimSession(session)) {
       return NextResponse.json({ error: "Simulation session not found." }, { status: 404 });
     }
     const detail = [session.jobTitle, session.endedAt ? "completed" : session.status].filter(Boolean).join(" · ") || null;

@@ -8,11 +8,26 @@ provider: Google Gemini  model: gemini-3-flash-preview (gemini.py:25)
 schema: yes — inline JSON contract (suggestedMin/Max/currency/confidence/summary :111-114); expected_keys (:120); _coerce validate+repair (:49-75)
 grounding: 3/4 sources
 quality_score: 3  code_score: 3
-recommended_model: "—"
-status: assessed
-last_scanned: 2026-06-20
+recommended_model: keep Gemini (web grounding is the whole point; Claude has no web access)
+status: benchmarked
+last_scanned: 2026-07-16
 characters: ["[[petra-recruiter]]", "[[katerina-ta-analytics]]"]
 ---
+
+> **2026-07-16 Lens-3 benchmark → [[models/grounded-salary]]** (Claude-only). No ranking —
+> the benchmark surfaced a **live prompt bug**: with `region="Munich, Germany"`, ALL 3 Claude
+> tiers (incl. opus) obeyed the **hardcoded CZK** prompt and emitted a nonsensical "CZK/month
+> for a Munich job" via EUR→CZK conversion. This is **finding #20 (currency lock) proven live
+> AND model-independent** — no model escapes a hardwired-currency prompt. **KEEP Gemini** (Claude
+> has no web grounding → degrades to parametric low-confidence). **Action: promote #20** — derive
+> currency/period from region, reusing [[cv-analysis]]'s working inference.
+>
+> **✅ RESOLVED 2026-07-16 (#20 / B1):** `market_salary_cli.py:114-148` now branches on region —
+> the active market keeps the byte-identical CZK prompt; any other region is told to price in
+> that region's own ISO currency and NOT convert to CZK (`_coerce` already passed the model
+> currency through). Verified EUR survives for a foreign region; CZK preserved for the default;
+> 31 market tests pass. Ceiling: the deterministic FALLBACK still returns the CZK taxonomy band
+> (no foreign benchmark data held). → [[2026-07-16-backlog]] B1.
 ## What it does
 Grounded market-salary estimate for a role, used by the JD builder via a TS bridge. Uses Gemini Google-Search grounding for a current monthly-gross CZK band with cited sources, falling back to the deterministic taxonomy band (role_family × seniority) when no key / grounding fails (:36-46,:98-101,:123).
 

@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
-import { getCampaignPack, getJob, saveCampaignPack } from "@/app/_lib/db";
+import { getCampaignPack, saveCampaignPack } from "@/app/_lib/db/campaign";
+import { getJob } from "@/app/_lib/db/jobs";
+import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "@/app/_lib/python-runner";
+import { buildLlmConfigEnv } from "@/app/_lib/llm-config";
 import { DEFAULT_LOCALE, isLocale, type Locale } from "@/i18n/locales";
 
 
@@ -24,7 +27,10 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
   const job = getJob(id);
   if (!job) return NextResponse.json({ error: "Job not found." }, { status: 404 });
   const lang = resolveLang(new URL(request.url).searchParams.get("lang"));
-  return NextResponse.json({ pack: getCampaignPack(job.id, lang) });
+  // Scope the pack read to the session team: campaign_packs is workspace-stamped, so
+  // an unscoped read (defaulting to the single tenant) would serve/overwrite the
+  // wrong team's pack for a job in any other workspace.
+  return NextResponse.json({ pack: getCampaignPack(job.id, lang, await currentWorkspace()) });
 }
 
 export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
@@ -47,9 +53,12 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
 
     // Thread the request's AbortSignal so closing the modal mid-generation
     // kills the CLI child instead of leaking it to the timeout backstop.
+    // Pass buildLlmConfigEnv() so the campaign_pack use-case resolves the BYOM
+    // key + any UI model re-route (KP_LLM_CONFIG) — without it, resolve_provider
+    // sees no config and the sonnet override / customer keys are silently dead.
     const { result } = spawnPython(
       ["-m", "pipeline.jobfit.campaign_cli", "--job-json", jobPath, "--lang", lang, "--apply-url", applyUrl],
-      { signal: request.signal }
+      { signal: request.signal, env: buildLlmConfigEnv() }
     );
     const { stdout, stderr, exitCode } = await result;
     if (exitCode !== 0) {
@@ -57,7 +66,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       return NextResponse.json({ error: err.message }, { status: err.status });
     }
     const payload = parsePythonJson<{ result: unknown; source?: string }>(stdout, stderr);
-    const pack = saveCampaignPack(job.id, lang, payload.result, String(payload.source ?? "deterministic"));
+    const pack = saveCampaignPack(job.id, lang, payload.result, String(payload.source ?? "deterministic"), await currentWorkspace());
     return NextResponse.json({ pack });
   } catch (error) {
     return NextResponse.json(

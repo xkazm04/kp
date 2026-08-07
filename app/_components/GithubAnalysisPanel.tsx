@@ -1,17 +1,25 @@
 "use client";
 
 import { GitBranch, GitPullRequest, Loader2, Star } from "lucide-react";
+import { useFormatter, useTranslations } from "next-intl";
 import type { GithubAnalysis } from "@/app/_lib/schemas";
-import { EVIDENCE_INCOMPLETE_NOTE } from "@/app/_lib/github-evidence";
+import { hasEvidenceIncomplete, type GithubNote } from "@/app/_lib/github-evidence";
 import { dedupe } from "@/app/_lib/dedupe";
 import { CodeReviewStatusBadge } from "./Badge";
 import { Meter } from "./Meter";
 
-// Guard an untrusted/optional ISO date so a blank or malformed `updatedAt` renders an
-// em-dash instead of the literal "Invalid Date" in a candidate card.
-function safeDate(value: string): string {
-  const d = new Date(value);
-  return Number.isNaN(d.getTime()) ? "—" : d.toLocaleDateString();
+// Analysis findings arrive as `{ kind, params }` (app/_lib/github-evidence.ts):
+// the server decides WHAT was observed, this panel decides how it reads, in the
+// reader's language. A payload stored before findings existed carries the frozen
+// English sentence that run produced — render it verbatim rather than losing it.
+function useFindingText(): (note: GithubNote) => string {
+  const t = useTranslations("results.github.finding");
+  type FindingKey = Parameters<typeof t>[0];
+  return (note) => {
+    if (typeof note === "string") return note;
+    const key = note.kind as FindingKey;
+    return t.has(key) ? t(key, note.params) : "";
+  };
 }
 
 type GithubAnalysisPanelProps = {
@@ -27,6 +35,7 @@ type GithubAnalysisPanelProps = {
 };
 
 export function GithubAnalysisPanel({ status, analysis, error, warning, onRetry }: GithubAnalysisPanelProps) {
+  const t = useTranslations("results.github");
   if (status === "idle") return null;
 
   return (
@@ -35,16 +44,14 @@ export function GithubAnalysisPanel({ status, analysis, error, warning, onRetry 
         <div>
           <div className="flex items-center gap-2">
             <GitBranch className="h-5 w-5 text-coral" aria-hidden />
-            <h2 className="font-serif text-h2 text-ink">GitHub Analysis</h2>
+            <h2 className="font-serif text-h2 text-ink">{t("title")}</h2>
           </div>
-          <p className="mt-2 max-w-3xl text-base leading-6 text-steel">
-            Runs separately from the CV analysis so public repository evidence can be reviewed without blocking the main result.
-          </p>
+          <p className="mt-2 max-w-3xl text-base leading-6 text-steel">{t("intro")}</p>
         </div>
         {status === "loading" ? (
           <div className="inline-flex items-center gap-2 rounded-md bg-paper px-3 py-2 text-base font-medium text-steel">
             <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-            In process
+            {t("inProcess")}
           </div>
         ) : null}
       </div>
@@ -64,7 +71,7 @@ export function GithubAnalysisPanel({ status, analysis, error, warning, onRetry 
               onClick={onRetry}
               className="focus-ring mt-2 inline-flex items-center gap-1.5 rounded-md border border-red-200 bg-white px-3 py-1.5 text-sm font-semibold text-red-700 hover:bg-red-100"
             >
-              <GitBranch size={13} aria-hidden /> Retry GitHub analysis
+              <GitBranch size={13} aria-hidden /> {t("retry")}
             </button>
           ) : null}
         </div>
@@ -82,23 +89,34 @@ export function GithubAnalysisPanel({ status, analysis, error, warning, onRetry 
 }
 
 function GithubAnalysisBody({ analysis }: { analysis: GithubAnalysis }) {
+  const t = useTranslations("results.github");
+  const format = useFormatter();
+  const findingText = useFindingText();
+  // Guard an untrusted/optional ISO date so a blank or malformed `updatedAt` renders an
+  // em-dash instead of the literal "Invalid Date" in a candidate card. Formatted for the
+  // reader's locale, not the OS's (a bare toLocaleDateString() reads the latter).
+  const safeDate = (value: string): string => {
+    const d = new Date(value);
+    return Number.isNaN(d.getTime()) ? "—" : format.dateTime(d, { dateStyle: "medium" });
+  };
   // Disambiguate "no JD supplied" from "JD analyzed, zero overlap" (idea-2dd27822): the same
   // empty matchingSkills list means opposite things to a recruiter, so the empty-state copy
   // must spell out which one happened instead of always reading as a damning skills gap.
   const { jobDescriptionProvided } = analysis.jobFitSignals;
-  // FINDING #2: the route drops this note into `limitations` when some public GitHub
+  // FINDING #2: the route drops this finding into `limitations` when some public GitHub
   // data was throttled away this run. When present, absence of a skill is "could not
   // determine", not a real gap (the route has already suppressed the unreliable
   // gaps), so the panel must say so instead of the falsely-reassuring "no gaps".
-  const evidenceIncomplete = analysis.limitations.includes(EVIDENCE_INCOMPLETE_NOTE);
-  const matchesEmpty = jobDescriptionProvided
-    ? "Job description analyzed — no overlapping skills found in public GitHub metadata."
-    : "No job description supplied — add one to compare it against this candidate's public work.";
+  const evidenceIncomplete = hasEvidenceIncomplete(analysis.limitations);
+  const matchesEmpty = jobDescriptionProvided ? t("matchesEmptyAnalyzed") : t("matchesEmptyNoJd");
   const gapsEmpty = !jobDescriptionProvided
-    ? "No job description supplied — gaps are only measured against a job description."
+    ? t("gapsEmptyNoJd")
     : evidenceIncomplete
-      ? "Couldn't fully check gaps — some public GitHub data couldn't be fetched this run (likely rate limiting). Retry for a complete read."
-      : "No job-mentioned gaps detected from public GitHub metadata.";
+      ? t("gapsEmptyIncomplete")
+      : t("gapsEmptyNone");
+  // The headline reads from the finding when the payload carries one; a stored
+  // analysis from before findings keeps its own English sentence.
+  const summary = analysis.summaryFinding ? findingText(analysis.summaryFinding) : analysis.summary;
   return (
     <div className="mt-5 grid gap-5 xl:grid-cols-[380px_1fr]">
       <div className="space-y-5">
@@ -106,55 +124,58 @@ function GithubAnalysisBody({ analysis }: { analysis: GithubAnalysis }) {
           <a href={analysis.profileUrl} target="_blank" rel="noreferrer" className="text-base font-semibold text-ink underline">
             @{analysis.username}
           </a>
-          <p className="mt-3 text-base leading-6 text-ink">{analysis.summary}</p>
+          <p className="mt-3 text-base leading-6 text-ink">{summary}</p>
           <div className="mt-4 grid grid-cols-2 gap-3 text-base">
-            <Metric label="Repos" value={analysis.metrics.ownedReposAnalyzed} />
-            <Metric label="Active" value={analysis.metrics.activeRepos} />
-            <Metric label="Stars" value={analysis.metrics.totalStars} />
-            <Metric label="Forks" value={analysis.metrics.totalForks} />
+            <Metric label={t("metricRepos")} value={analysis.metrics.ownedReposAnalyzed} />
+            <Metric label={t("metricActive")} value={analysis.metrics.activeRepos} />
+            <Metric label={t("metricStars")} value={analysis.metrics.totalStars} />
+            <Metric label={t("metricForks")} value={analysis.metrics.totalForks} />
           </div>
         </div>
 
         <div className="rounded-lg border border-stone-200 bg-white p-4">
-          <h3 className="font-serif text-h3 text-ink">Language Mix</h3>
+          <h3 className="font-serif text-h3 text-ink">{t("languageMix")}</h3>
           <div className="mt-3 space-y-3">
             {analysis.languages.length ? analysis.languages.slice(0, 6).map((language) => (
               <div key={language.name}>
                 <div className="flex justify-between gap-3 text-base">
                   <span className="font-medium text-ink">{language.name}</span>
-                  <span className="text-steel">{language.percent}%</span>
+                  <span className="text-steel">{t("percent", { percent: language.percent })}</span>
                 </div>
-                <Meter value={Math.max(2, language.percent)} tone="strong" className="mt-1" aria-label={`${language.name} ${language.percent}%`} />
+                <Meter
+                  value={Math.max(2, language.percent)}
+                  tone="strong"
+                  className="mt-1"
+                  aria-label={t("languageShare", { name: language.name, percent: language.percent })}
+                />
               </div>
-            )) : <p className="text-base text-steel">No language data returned by GitHub.</p>}
+            )) : <p className="text-base text-steel">{t("noLanguages")}</p>}
           </div>
         </div>
 
-        <TopRepositoriesBlock repositories={analysis.topRepositories.slice(0, 3)} />
+        <TopRepositoriesBlock repositories={analysis.topRepositories.slice(0, 3)} safeDate={safeDate} />
       </div>
 
       <div className="space-y-5">
-        <TitledList title="Contribution Signals" items={analysis.contributionSignals} />
+        <TitledList title={t("contributionSignals")} items={analysis.contributionSignals.map(findingText)} />
         <div className="grid gap-5 lg:grid-cols-2">
-          <TitledList title="Job Skill Matches" items={analysis.jobFitSignals.matchingSkills} empty={matchesEmpty} />
-          <TitledList title="Potential Gaps" items={analysis.jobFitSignals.potentialGaps} empty={gapsEmpty} />
+          <TitledList title={t("jobSkillMatches")} items={analysis.jobFitSignals.matchingSkills} empty={matchesEmpty} />
+          <TitledList title={t("potentialGaps")} items={analysis.jobFitSignals.potentialGaps} empty={gapsEmpty} />
         </div>
         {jobDescriptionProvided && analysis.jobFitSignals.trackedSkillCount ? (
           <p className="text-sm text-steel">
-            Compared against {analysis.jobFitSignals.trackedSkillCount} tracked skills — &ldquo;no gaps&rdquo; means none among these, not an exhaustive check.
+            {t("trackedNote", { count: analysis.jobFitSignals.trackedSkillCount })}
             {/* FINDING #2: extend (don't duplicate) the honest-coverage caveat when
                 this run was partially throttled, so gaps are never read as complete. */}
-            {evidenceIncomplete
-              ? " Some GitHub data couldn't be fetched this run, so gaps may be incomplete — retry for a complete read."
-              : null}
+            {evidenceIncomplete ? ` ${t("trackedIncomplete")}` : null}
           </p>
         ) : null}
         <div className="rounded-lg border border-stone-200 bg-white p-4">
-          <h3 className="font-serif text-h3 text-ink">Complexity Assessment</h3>
-          <p className="mt-3 text-base leading-6 text-ink">{analysis.jobFitSignals.complexityAssessment}</p>
+          <h3 className="font-serif text-h3 text-ink">{t("complexityTitle")}</h3>
+          <p className="mt-3 text-base leading-6 text-ink">{findingText(analysis.jobFitSignals.complexityAssessment)}</p>
         </div>
         {analysis.codeReview ? <CodeReviewBlock review={analysis.codeReview} /> : null}
-        <TitledList title="Limitations" items={analysis.limitations} />
+        <TitledList title={t("limitations")} items={analysis.limitations.map(findingText)} />
       </div>
     </div>
   );
@@ -162,13 +183,16 @@ function GithubAnalysisBody({ analysis }: { analysis: GithubAnalysis }) {
 
 function TopRepositoriesBlock({
   repositories,
+  safeDate,
 }: {
   repositories: GithubAnalysis["topRepositories"];
+  safeDate: (value: string) => string;
 }) {
+  const t = useTranslations("results.github");
   if (repositories.length === 0) return null;
   return (
     <div className="rounded-lg border border-stone-200 bg-white p-4">
-      <h3 className="font-serif text-h3 text-ink">Top Repositories</h3>
+      <h3 className="font-serif text-h3 text-ink">{t("topRepositories")}</h3>
       <div className="mt-3 grid gap-3">
         {repositories.map((repo) => (
           <a
@@ -197,7 +221,7 @@ function TopRepositoriesBlock({
               <p className="mt-2 line-clamp-2 text-sm leading-5 text-ink">{repo.description}</p>
             ) : null}
             <p className="mt-2 text-sm text-steel">
-              {repo.primaryLanguage ?? "Mixed"} · {safeDate(repo.updatedAt)}
+              {repo.primaryLanguage ?? t("mixedLanguage")} · {safeDate(repo.updatedAt)}
             </p>
           </a>
         ))}
@@ -211,47 +235,53 @@ function CodeReviewBlock({
 }: {
   review: NonNullable<GithubAnalysis["codeReview"]>;
 }) {
+  const t = useTranslations("results.github");
+  const tReview = useTranslations("results.github.review");
+  const findingText = useFindingText();
+  // `summary` is canonical English on every non-ok branch (a disabled key, an empty
+  // repo list, a throttled read) — machine copy written for the log and for the
+  // frozen pipeline evidence record. `reason` names which branch it was, and THAT is
+  // what a reader sees. Only the `ok` branch's summary is the model's own prose.
+  type ReasonKey = Parameters<typeof tReview>[0];
+  const reasonKey = review.reason as ReasonKey | null | undefined;
+  const summary = reasonKey && tReview.has(reasonKey) ? tReview(reasonKey) : review.status === "ok" ? review.summary : "";
   return (
     <div className="rounded-lg border border-stone-200 bg-white p-4">
       <div className="flex items-center justify-between gap-3">
-        <h3 className="font-serif text-h3 text-ink">Repo-Signal Review</h3>
+        <h3 className="font-serif text-h3 text-ink">{t("reviewTitle")}</h3>
         <CodeReviewStatusBadge status={review.status} />
       </div>
       {/* The model never reads source code — only lightweight public signals — so
           this panel is named for the evidence it actually uses, not "code-aware".
           Spelling out the scope here keeps "Evidenced Skills" below from being
           mistaken for a confirmation that the code itself was inspected. */}
-      <p className="mt-2 text-sm leading-5 text-steel">
-        Skills inferred from public repository signals — READMEs, commit subjects, root-level
-        file names, language, and topics — not from reading the source code.
-      </p>
-      {review.summary ? (
-        <p className="mt-3 text-base leading-6 text-ink">{review.summary}</p>
+      <p className="mt-2 text-sm leading-5 text-steel">{t("reviewScope")}</p>
+      {summary ? <p className="mt-3 text-base leading-6 text-ink">{summary}</p> : null}
+      {review.partial ? (
+        <p className="mt-2 text-sm leading-5 text-amber-800">{tReview("partial")}</p>
       ) : null}
       {review.error ? (
         <p className="mt-2 rounded-md bg-red-50 p-2 text-sm text-red-700">{review.error}</p>
       ) : null}
       {review.reposReviewed.length ? (
-        <p className="mt-2 text-sm text-steel">
-          Repos reviewed: {review.reposReviewed.join(", ")}
-        </p>
+        <p className="mt-2 text-sm text-steel">{t("reposReviewed", { repos: review.reposReviewed.join(", ") })}</p>
       ) : null}
       {review.evidenceBasis.length ? (
         <details className="mt-3 rounded-md bg-paper p-3">
           <summary className="cursor-pointer text-sm font-semibold uppercase tracking-wide text-steel">
-            Evidence basis
+            {t("evidenceBasis")}
           </summary>
           <ul className="mt-2 space-y-1 text-sm leading-5 text-ink">
-            {review.evidenceBasis.map((item, i) => (
+            {review.evidenceBasis.map(findingText).filter(Boolean).map((item, i) => (
               <li key={`${item}-${i}`}>• {item}</li>
             ))}
           </ul>
         </details>
       ) : null}
       <div className="mt-4 grid gap-3 lg:grid-cols-3">
-        <TitledList title="Evidenced Skills" items={review.confirmedSkills} accent="bg-moss/15" empty="None detected." />
-        <TitledList title="Unverified Claims" items={review.unverifiedClaims} accent="bg-coral/10" empty="None detected." />
-        <TitledList title="Hidden Strengths" items={review.hiddenStrengths} accent="bg-limewash" empty="None detected." />
+        <TitledList title={t("evidencedSkills")} items={review.confirmedSkills} accent="bg-moss/15" empty={t("noneDetected")} />
+        <TitledList title={t("unverifiedClaims")} items={review.unverifiedClaims} accent="bg-coral/10" empty={t("noneDetected")} />
+        <TitledList title={t("hiddenStrengths")} items={review.hiddenStrengths} accent="bg-limewash" empty={t("noneDetected")} />
       </div>
     </div>
   );
@@ -272,19 +302,21 @@ function Metric({ label, value }: { label: string; value: number }) {
 // Strengths). `accent` switches to the compact review look (tinted card,
 // uppercase label, "•" bullets); without it the panel look renders (white
 // bordered card, serif heading). Either way the dedupe call and the
-// key={item-index} strategy live here in exactly one place.
+// key={item-index} strategy live here in exactly one place. Copy arrives resolved
+// (title, empty state, and findings already rendered) so this stays presentational.
 function TitledList({
   title,
   items,
   accent,
-  empty = "No items detected.",
+  empty,
 }: {
   title: string;
   items: string[];
   accent?: string;
   empty?: string;
 }) {
-  const rows = dedupe(items);
+  const t = useTranslations("results.github");
+  const rows = dedupe(items.filter(Boolean));
   return (
     <div className={accent ? `rounded-md ${accent} p-3` : "rounded-lg border border-stone-200 bg-white p-4"}>
       {accent ? (
@@ -301,7 +333,7 @@ function TitledList({
           ))}
         </ul>
       ) : (
-        <p className={accent ? "mt-2 text-sm text-steel" : "mt-3 text-base leading-6 text-ink"}>{empty}</p>
+        <p className={accent ? "mt-2 text-sm text-steel" : "mt-3 text-base leading-6 text-ink"}>{empty ?? t("noItems")}</p>
       )}
     </div>
   );

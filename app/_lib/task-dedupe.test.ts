@@ -8,6 +8,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { buildDedupeKey, stableKey } from "./task-dedupe.ts";
+import { groupEvalDedupeKey } from "./group-eval-dedupe.ts";
 
 test("stableKey joins present, non-empty parts with the prefix", () => {
   assert.equal(stableKey("analyze", "abc"), "analyze:abc");
@@ -33,7 +34,11 @@ test("analyze: a missing baseDir does NOT collapse to a constant", () => {
 });
 
 test("group_eval / lifecycle / interview_prep / evaluate_submission reject missing identity", () => {
-  assert.equal(buildDedupeKey("group_eval", { roleKey: "backend" }), "group_eval:backend");
+  // bug-ui-scan-2026-07-09 #3: the group_eval key now folds governance mode +
+  // candidate-set fingerprint (see group-eval-dedupe.test.ts), so buildDedupeKey must
+  // route through groupEvalDedupeKey rather than the old role-only `group_eval:backend`.
+  assert.equal(buildDedupeKey("group_eval", { roleKey: "backend" }), groupEvalDedupeKey({ roleKey: "backend" }));
+  assert.match(buildDedupeKey("group_eval", { roleKey: "backend" }) ?? "", /^group_eval:backend:recommendation:/);
   assert.equal(buildDedupeKey("group_eval", {}), null);
   assert.equal(buildDedupeKey("lifecycle", { lifecycleId: "lc1" }), "lifecycle:lc1");
   assert.equal(buildDedupeKey("lifecycle", {}), null);
@@ -84,6 +89,24 @@ test("need_analysis / design_artifacts require a present need object", () => {
 
 test("batch_screen is an intentional singleton constant", () => {
   assert.equal(buildDedupeKey("batch_screen", {}), "batch_screen");
+});
+
+test("batch_outreach keys by the sorted cohort, deduping a re-fire of the same selection", () => {
+  // Order-independent: the same set of ids in any order produces one key, so a
+  // double-click on the same cohort dedupes onto the in-flight draft run.
+  assert.equal(
+    buildDedupeKey("batch_outreach", { entryIds: ["b", "a", "c"] }),
+    buildDedupeKey("batch_outreach", { entryIds: ["a", "b", "c"] })
+  );
+  assert.equal(buildDedupeKey("batch_outreach", { entryIds: ["a", "b"] }), "batch_outreach:a,b");
+  // A different cohort is a different run.
+  assert.notEqual(
+    buildDedupeKey("batch_outreach", { entryIds: ["a", "b"] }),
+    buildDedupeKey("batch_outreach", { entryIds: ["a", "c"] })
+  );
+  // No selection → no stable identity (a unique key, never a merge).
+  assert.equal(buildDedupeKey("batch_outreach", { entryIds: [] }), null);
+  assert.equal(buildDedupeKey("batch_outreach", {}), null);
 });
 
 test("jd_build keys by jdSlug in the backgrounded flow, by input otherwise", () => {

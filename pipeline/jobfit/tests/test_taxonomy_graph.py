@@ -18,7 +18,8 @@ class SurfaceResolutionTest(unittest.TestCase):
         self.assertEqual(tax.resolve_term("nextjs"), "next_js")
 
     def test_unknown_surface_returns_none(self) -> None:
-        self.assertIsNone(tax.resolve_term("Figma"))
+        # A surface the taxonomy genuinely does not model (Figma is now modelled).
+        self.assertIsNone(tax.resolve_term("Blorptech9000"))
         self.assertIsNone(tax.resolve_term(""))
 
     def test_detected_skills_regression(self) -> None:
@@ -72,8 +73,12 @@ class MatchScoreTest(unittest.TestCase):
 
     def test_unknown_skill_matches_itself_by_string(self) -> None:
         # Not in the taxonomy, but identical strings should still match.
-        self.assertEqual(tax.skill_match_score("Figma", "figma"), 1.0)
-        self.assertEqual(tax.skill_match_score("Figma", "Sketch"), 0.0)
+        # Provenance is explicit here (and below) because DEFAULT_PROVENANCE is now
+        # `self_declared`, which applies an evidence discount. This test is about
+        # taxonomy/string resolution earning full credit, not about that discount,
+        # so it pins the professional tier rather than riding the default.
+        self.assertEqual(tax.skill_match_score("Figma", "figma", provenance="professional"), 1.0)
+        self.assertEqual(tax.skill_match_score("Figma", "Sketch", provenance="professional"), 0.0)
 
     def test_provenance_discounts_score(self) -> None:
         professional = tax.skill_match_score("React", "React", provenance="professional")

@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
-import { getJob } from "@/app/_lib/db";
+import { getJob } from "@/app/_lib/db/jobs";
 import { buildCandidatePool } from "@/app/_lib/candidate-pool";
+import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import {
   cleanupWorkdir,
   createWorkdir,
@@ -26,8 +27,8 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     }
 
     // Same population the candidates tab ranks, so the coach and the ranking
-    // never diverge on who's in the pool.
-    const entries = buildCandidatePool();
+    // never diverge on who's in the pool. Workspace-scoped like the ranking.
+    const { entries } = buildCandidatePool(await currentWorkspace());
     if (entries.length === 0) {
       return NextResponse.json({ poolSize: 0, note: "No saved candidates yet." });
     }

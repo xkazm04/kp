@@ -27,7 +27,7 @@ Columns: **en** · **cs** · **de** · **fr** · note. Add a column per new loca
 | sourcing | sourcing | Sourcing | sourcing | loanword kept |
 | automation pass | (automatický) průchod | Automatiklauf / Durchlauf | passe d'automatisation | "Run pass" = Spustit… / Automatiklauf starten / Lancer la passe |
 | advance (candidate) | postoupit | weiterleiten | faire avancer | stat line uses count-invariant form (see style guides) |
-| reject | zamítnout | ablehnen | rejeter | |
+| reject | zamítnout | ablehnen | rejeter | cs: reserve **odmítnout** for the *candidate* declining (an offer/a role) — the recruiter/system side is always "zamítnout" |
 | hold | pozdržet | zurückhalten | mettre en attente | |
 | flag / alert | označit / upozornění | markieren / Hinweis | signaler / alerte | |
 | consent | souhlas | Einwilligung | consentement | GDPR |
@@ -38,6 +38,35 @@ Columns: **en** · **cs** · **de** · **fr** · note. Add a column per new loca
 | control center | řídicí centrum | Kontrollzentrum | centre de contrôle | pipeline.controlCenter dock |
 | guided tour / demo | řízená prohlídka / ukázka | geführte Tour / Demo | visite guidée / démo | the simulation |
 | operations | provoz | Betrieb | opérations | ops-deck subtitle |
+| board (pipeline board) | nástěnka | Board | tableau | cs: never "tabule" — unified 2026-08 |
+| evidence (proof) | důkaz | Nachweis | preuve | cs **false friend**: "evidence" = record-keeping, not proof. `profile.evidence.*` still uses it — queued |
+| tamper-evident | odolný proti manipulaci | manipulationssicher | inviolable | never "nezfalšovatelný" (overclaims) or "neměnný" (= immutable) |
+| relay (delivery) | relé | Relay | relais | the comms delivery relay; not left in English |
+| lead (group-eval top candidate) | favorit | Spitzenkandidat/in | favori | cs: "vedoucí" reads as *manager*; "lídr" was a third variant — unified 2026-08 |
+| per hire | na jedno přijetí | pro Einstellung | par recrutement | cs: not "na nábor" (= per recruitment drive); cf. hire → přijmout/přijat |
+| Google Calendar | Google Calendar | Google Calendar | Google Calendar | product proper noun, kept verbatim (not "Google Kalendář") |
+| screening wave | vlna screeningu | Screening-Welle | vague de présélection | the first automated decision pass (`simulation.wave.*`, `decisions.wave.*`) |
+| decision criteria | kritéria rozhodování | Entscheidungskriterien | critères de décision | the explainer drawer's table (`simulation.explainer.criteriaTitle`) |
+| intake | příjem | Eingang | réception | the pipeline's front door — candidates arriving from all channels; distinct from *sourcing* (proactive only) |
+| organization | organizace | Organisation | organisation | the customer company; the tenancy root above *team*/*workspace* |
+| member (of the org) | člen | Mitglied | membre | a seat on the roster, not a candidate |
+| owner (role) | vlastník | Inhaber | propriétaire | the `owner` role slug — the only one carrying `org:manage` |
+| admin (role) | administrátor | Administrator | administrateur | the `admin` role slug |
+| hiring manager (role) | hiring manažer | Hiring Manager | hiring manager | half-loanword in all three; matches `setup.steps.team.blurb` |
+| viewer (role) | čtenář | Betrachter | lecteur | read-only seat; cs deliberately *čtenář*, not *prohlížející* |
+| invite (noun/verb) | pozvánka / pozvat | Einladung / einladen | invitation / inviter | |
+| revoke (an invite) | odvolat | zurückziehen | révoquer | cs: **odvolat**, never *zrušit* — *zrušit* is the Cancel button beside it |
+| permission | oprávnění | Berechtigung | autorisation | the per-user overrides in the Organization console |
+| capability | oprávnění | Berechtigung | autorisation | the `Capability` slug; folded into *permission* in the UI — the split is internal only |
+| kill switch | nouzová brzda | Not-Aus | coupe-circuit | the control room's pause; matches `landing.features.gates.body` |
+| reconcile (lifecycles) | synchronizovat | abgleichen | synchroniser | cs follows `tasks.system.reconcileFailures` ("synchronizace"), NOT "srovnat" |
+| floor / threshold (a score cut-off) | práh | Schwelle | seuil | promote floor, screening floor, match floor — one word everywhere |
+| score band | pásmo skóre | Score-Band | tranche de score | the calibration table's rows; matches `analytics.calibration.bandsTitle` |
+| hire rate | míra přijetí | Einstellungsquote | taux de recrutement | share of a band that converted to a hire |
+| outcome (recorded) | výsledek | Ergebnis | résultat | what actually happened to a promoted candidate; the `control.outcomes.value.*` triple is neuter/impersonal in cs (*přijato · zamítnuto · staženo*) |
+| salary radar (feature) | mzdový radar | Gehalts-Radar | radar des salaires | cs: **mzdový**, never *platový* — *plat* is public-sector pay; the card body and Market Pulse both say *mzda*. Unified 2026-08 |
+| applicant (public apply portal) | uchazeč | Bewerber/in | candidat(e) | cs: *uchazeč* is reserved for the PORTAL name (`Portál pro uchazeče`); the person inside the pipeline is always **kandidát** |
+| control room | řídicí centrum | Kontrollzentrum | centre de contrôle | `/control`; deliberately the same term as *control center* — one dock, one room, one word |
 
 ## Do-Not-Translate
 
@@ -49,10 +78,31 @@ keyword (`plural`, `select`, `#`).
 
 ## Notes on inconsistency in the source
 
+## House decisions (2026-08) — settled, do not re-litigate
+
+| Decision | Ruling |
+|---|---|
+| **AI is universal** | `AI` in every locale. German `KI` (24 sites) and French `IA` (24 sites) are retired — the catalog already ran 112 / 111 the other way, and both were logged as MAJOR open items. |
+| **cs role → pozice** | Swept, 138 strings. **Scoped**: an RBAC role (owner/admin/viewer/hiring manager) is a different concept and keeps *role* — 9 strings deliberately untouched. Sweeping those would be the `CS-HOMONYM` error. |
+| **cs moci → moct** | **Rejected.** *moci / mohou* stands. See `constructions-cs.md` → CS-FORMAL. |
+
+Still open, needing one decision then one clean sweep (a half-sweep is worse
+than none — the first full run proved it): fr `Impossible de…` vs
+`Nous n'avons pas pu…` (189 sites, currently split), fr semicolons (95 sites,
+MS bans them outright), fr `JD → offre` vs `fiche`, cs/de *scorecard* and
+*workspace*.
+
 - The **Pipeline** tab is localized (cs "Nábor") while inline "pipeline" stays a
   loanword — intentional: the tab names the product area, the inline word names
   the technical funnel. Keep both in every locale.
 - "screen" splits verb vs noun (screening) — mirror the source; don't force one.
+- **Two rows below are contested by the catalog itself** and are queued for a
+  native/house decision in `review-cs.md`, not silently applied: **workspace**
+  (glossary says *pracovní plocha*, the catalog overwhelmingly says *pracovní
+  prostor*) and **scorecard** (glossary keeps the loanword, the product UI says
+  *hodnoticí karta* in ~30 keys and only `landing`/`aboutPage` marketing copy
+  keeps "scorecard"). Do not unify either until it is settled — a half-sweep is
+  worse than the split.
 - Per-language voice/typography/plural rules live in `style-<locale>.md`
   (de capitalizes ALL nouns; fr needs narrow-NBSP before `; : ! ?` and guillemets
   `« … »`; cs/de use `„…"`).

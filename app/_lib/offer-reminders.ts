@@ -1,5 +1,5 @@
 import { dispatchOfferReminder } from "./comms-dispatch";
-import { getPipelineEntry } from "./db";
+import { getPipelineEntry } from "./db/pipeline";
 import { dueOfferReminders, markOfferReminded } from "./offers-store";
 import { publicBaseUrl } from "./public-base-url";
 

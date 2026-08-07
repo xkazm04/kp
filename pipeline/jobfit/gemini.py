@@ -18,11 +18,12 @@ except ImportError:  # pragma: no cover
 from google import genai
 from google.genai import types
 
+from .extractors import _reject_oversized
 from .i18n import language_name
 from .taxonomy import ROLE_FAMILIES, role_family_catalog
 
 
-GEMINI_MODEL = "gemini-3-flash-preview"
+GEMINI_MODEL = "gemini-3.6-flash"
 
 
 ANALYSIS_RESPONSE_SCHEMA = {
@@ -416,6 +417,10 @@ def extract_profile_text_with_gemini(
         "structured_profile should contain name, headline, recent_roles, skills, education, languages, leadership_evidence, measurable_achievements. "
         f"Document source hint: {source_hint}."
     )
+    # Enforce the 25 MB input cap BEFORE read_bytes()/upload: this path always
+    # ships the file bytes to Gemini, so guard here — do not rely on the pipeline
+    # pre-pass, which DEGRADES the oversize rejection to a note and proceeds.
+    _reject_oversized(path)
     answer = grounded_answer(
         prompt=prompt,
         parts=[types.Part.from_bytes(data=path.read_bytes(), mime_type=_mime_type(path))],
@@ -596,6 +601,13 @@ def analyze_profile_with_gemini(
 
     if request_id:
         write_prompt_artifact(request_id, "prompt.txt", prompt)
+    # Enforce the 25 MB input cap BEFORE read_bytes()/upload on the file path.
+    # extract_text's pre-pass DEGRADES the oversize rejection to a note and lets
+    # the analysis continue, so without this guard a 200 MB "CV" would be read
+    # whole into memory here and shipped to the API past the documented limit.
+    # Blind mode reads no file bytes (redacted text only), so it is exempt.
+    if not blind:
+        _reject_oversized(path)
     # Blind mode sends the redacted text only (no file bytes) so the model can't see
     # the original name/photo; otherwise upload the document for full fidelity.
     answer = grounded_answer(

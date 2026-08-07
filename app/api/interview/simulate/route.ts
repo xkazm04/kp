@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createInterviewSession } from "@/app/_lib/db";
+import { createInterviewSession } from "@/app/_lib/db/interviews";
 import { meterGate } from "@/app/_lib/billing";
 import { jsonError } from "@/app/_lib/api-response";
-import { defaultInterviewerInstructions, pickDefaultProvider, voiceAvailability, type VoiceProviderId } from "@/app/_lib/voice";
+import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { defaultInterviewerInstructions, isSelfHostedProvider, pickDefaultProvider, voiceAvailability, type VoiceProviderId } from "@/app/_lib/voice";
 import { QUICK_SCREEN_MIN } from "@/app/_lib/interview-duration.mjs";
 import {
   caseGroundedInterviewerInstructions,
@@ -60,8 +61,15 @@ export async function POST(request: NextRequest) {
     // a REAL voice session and /complete debits its minutes just like /create, so an
     // ungated sim let a near-empty meter burn paid voice on kp's dime. Gate on the
     // booked length for this mode so the whole demo call fits the allowance.
-    const quota = meterGate("interview_minutes", { minUnits: durationMin });
-    if (quota) return NextResponse.json(quota, { status: 402 });
+    // ...unless the voice is served from a machine we run (ELEVENLABS_BASE_URL →
+    // a loopback/private service), where the call spends no allowance to gate.
+    // Metering a free simulation would make a self-hosted install run out of a
+    // budget it is not consuming — which is the whole reason to self-host.
+    if (!isSelfHostedProvider(provider)) {
+      // Org attribution (org-plan Phase 3): the gate reads the caller's tenant.
+      const quota = meterGate("interview_minutes", { minUnits: durationMin, workspace: await currentWorkspace() });
+      if (quota) return NextResponse.json(quota, { status: 402 });
+    }
 
     const session = createInterviewSession({
       provider,

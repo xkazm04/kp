@@ -118,3 +118,18 @@ test("tickScheduler on a disabled policy job neither runs the pass nor logs a ru
   assert.deepEqual(result, { ran: false });
   assert.equal(listRuns(10, POLICY_JOB).length, 0, "no scheduler_runs row for a tick that never claimed");
 });
+
+test("a FORCED tick on a disabled job is refused — 'off' means off (bug-ui-scan hiring-automation #2)", async () => {
+  // The kill-switch scenario: an operator toggles automation OFF, then hits the
+  // "Run now" affordance (POST /api/automation/schedule {tick:true} → force:true).
+  // force bypasses the DUE-gate but must NOT bypass the ENABLED gate: a forced
+  // pass on a disabled clock previously ran a full APPLYING pass, mutating the
+  // whole board despite "off". Now it refuses with an explicit reason and never
+  // starts the pass or logs a run.
+  setEnabled(POLICY_JOB, false); // tickScheduler acts only on POLICY_JOB
+  assert.equal(getSchedule(POLICY_JOB).enabled, false);
+  const before = listRuns(10, POLICY_JOB).length;
+  const result = await tickScheduler({ force: true, trigger: "manual" });
+  assert.deepEqual(result, { ran: false, reason: "disabled" });
+  assert.equal(listRuns(10, POLICY_JOB).length, before, "a refused forced tick logs no scheduler_runs row");
+});

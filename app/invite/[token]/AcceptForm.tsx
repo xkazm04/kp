@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { BTN_PRIMARY } from "@/app/_components/ui/recipes";
 import { TextInput } from "@/app/_components/TextInput";
-import { roleLabel } from "@/app/features/sub_organization/member-ui";
+import { roleLabel } from "@/app/features/shared/memberUi";
 import type { MemberRole } from "@/app/_lib/auth/roles";
 
 type Preview =
@@ -11,6 +12,9 @@ type Preview =
   | { valid: false };
 
 export function AcceptForm({ token }: { token: string }) {
+  const t = useTranslations("invite");
+  // The role the invitee is joining as — same labels the Organization console uses.
+  const tRole = useTranslations("workspaceAdmin.members");
   const [preview, setPreview] = useState<Preview | null>(null);
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
@@ -31,7 +35,7 @@ export function AcceptForm({ token }: { token: string }) {
   if (preview === null) {
     return (
       <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center px-4">
-        <p className="text-body text-steel">Loading your invitation…</p>
+        <p className="text-body text-steel">{t("loading")}</p>
       </main>
     );
   }
@@ -39,10 +43,10 @@ export function AcceptForm({ token }: { token: string }) {
   if (!preview.valid) {
     return (
       <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center px-4 text-center">
-        <h1 className="font-serif text-display text-ink">Invitation unavailable</h1>
-        <p className="mt-2 text-body text-steel">This link is invalid, already used, or expired. Ask an admin to send a new one.</p>
+        <h1 className="font-serif text-display text-ink">{t("unavailableTitle")}</h1>
+        <p className="mt-2 text-body text-steel">{t("unavailableBody")}</p>
         <a href="/login" className="mt-6 text-sm font-semibold text-coral underline">
-          Go to sign in
+          {t("goToSignIn")}
         </a>
       </main>
     );
@@ -54,7 +58,7 @@ export function AcceptForm({ token }: { token: string }) {
     e.preventDefault();
     setError(null);
     if (password.length < minPasswordLength) {
-      setError(`Choose a password of at least ${minPasswordLength} characters.`);
+      setError(t("weakPassword", { minLength: minPasswordLength }));
       return;
     }
     setSubmitting(true);
@@ -71,32 +75,35 @@ export function AcceptForm({ token }: { token: string }) {
     const err = r ? ((await r.json().catch(() => ({}))) as { error?: string }).error : null;
     setError(
       err === "weak_password"
-        ? `Choose a password of at least ${minPasswordLength} characters.`
+        ? t("weakPassword", { minLength: minPasswordLength })
         : err === "email_taken"
-          ? "This email already belongs to another organization."
+          ? t("emailTaken")
           : err === "already_active"
-            ? "This account is already active — sign in instead."
-            : "Couldn't accept the invite — the link may have just expired.",
+            ? t("alreadyActive")
+            : t("genericError"),
     );
   }
 
   return (
     <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center px-4">
-      <p className="text-meta uppercase text-coral">Join {orgName}</p>
-      <h1 className="mt-1 font-serif text-display text-ink">Set your password</h1>
+      <p className="text-meta uppercase text-coral">{t("eyebrow", { orgName })}</p>
+      <h1 className="mt-1 font-serif text-display text-ink">{t("title")}</h1>
       <p className="mt-2 text-body text-steel">
-        You’ve been invited as {roleLabel(role as MemberRole)}. Choose a password to finish setting up{" "}
-        <span className="font-medium text-ink">{email}</span>.
+        {t.rich("subtitle", {
+          role: roleLabel(role as MemberRole, tRole),
+          email,
+          em: (chunks) => <span className="font-medium text-ink">{chunks}</span>,
+        })}
       </p>
       <form onSubmit={submit} className="mt-6 space-y-3">
         {needsName ? (
           <label className="block text-sm text-ink">
-            Your name
+            {t("nameLabel")}
             <TextInput value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" className="mt-1" />
           </label>
         ) : null}
         <label className="block text-sm text-ink">
-          Password
+          {t("passwordLabel")}
           <TextInput
             type="password"
             autoFocus
@@ -116,7 +123,7 @@ export function AcceptForm({ token }: { token: string }) {
           </p>
         ) : null}
         <button type="submit" disabled={submitting || !password} className={`${BTN_PRIMARY} h-10 w-full justify-center`}>
-          {submitting ? "Setting up…" : "Accept invitation"}
+          {submitting ? t("submitting") : t("submit")}
         </button>
       </form>
     </main>

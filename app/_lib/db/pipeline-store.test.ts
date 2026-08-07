@@ -250,3 +250,28 @@ test("listPipeline hides terminal entries from the active board", () => {
   assert.ok(ids.has(live.id), "active entry is on the board");
   assert.ok(!ids.has(closed.id), "rejected entry must not leak back onto the board");
 });
+
+test("a requested 'decision' gate (shortlist-to-group-eval) resolves through the normal decide actions — never a stuck pending row", () => {
+  // The Match-tab add is the only path that requests approvalKind at creation.
+  // Verified lifecycle: the SAME clearing the seeded decision rows get —
+  // accept advances one stage and clears the gate; reject closes out and clears
+  // the gate. Both run through actOnPipelineEntry (the DecisionsTab act() path),
+  // so a Match-filed key decision can always leave the Decisions queue.
+  const gated = addEntry({ approvalKind: "decision" });
+  assert.equal(gated.approvalKind, "decision", "the requested gate is stamped at creation");
+  assert.equal(gated.stage, "Screened");
+  assert.equal(gated.status, "active");
+
+  const advanced = actOnPipelineEntry(gated.id, "accept");
+  assert.equal(advanced!.stage, "Interview", "accept advances exactly one stage");
+  assert.equal(advanced!.approvalKind, null, "accept clears the decision gate");
+
+  const second = addEntry({ approvalKind: "decision" });
+  const rejected = actOnPipelineEntry(second.id, "reject");
+  assert.equal(rejected!.status, "rejected", "reject closes the entry out");
+  assert.equal(rejected!.approvalKind, null, "reject clears the decision gate");
+
+  // Omitting the field keeps every other add path byte-identical: no gate.
+  const plain = addEntry();
+  assert.equal(plain.approvalKind, null);
+});

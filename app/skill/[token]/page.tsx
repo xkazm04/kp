@@ -2,7 +2,8 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ShieldCheck, ShieldAlert, ShieldX } from "lucide-react";
 import { getTranslations } from "next-intl/server";
-import { verifySkillProfileToken } from "@/app/_lib/db";
+import { verifySkillProfileToken } from "@/app/_lib/db/skill-profiles";
+import { skillProfileFreshnessNow, resolveSkillProfileCardState, skillProfileShowsScoreCard } from "@/app/_lib/skill-profile";
 
 
 // Durable Skill Profile (moonshot A) — the public, candidate-owned, shareable
@@ -27,22 +28,40 @@ export default async function SkillProfilePage({ params }: { params: Promise<{ t
   // A validly-signed but SUBSTANTIVELY EMPTY credential (no axes, transfer score 0) is
   // NOT a confident "verified" verdict — it's an "incomplete" attestation, shown muted
   // so a third party never reads a green shield over a 0.
-  const state: "verified" | "revoked" | "tampered" | "incomplete" = verdict.revoked
-    ? "revoked"
-    : !verdict.valid
-      ? "tampered"
-      : !verdict.substantive
-        ? "incomplete"
-        : "verified";
+  //
+  // "unverifiable" comes BEFORE "tampered": when kp cannot check the signature because the
+  // credential key is unset/misconfigured server-side (verdict.verifiable === false), that
+  // is OUR configuration problem, not evidence the bearer forged anything. It renders a
+  // NEUTRAL "cannot verify" badge — never the red fraud accusation — so a KP_SECRET rotation
+  // or a missing KP_SKILL_PROFILE_KEY can't defame a genuine, non-revoked credential.
+  //
+  // "stale" is the LAST downgrade (bug-ui-scan-2026-07-09 (skill-matrix-coverage #3)): a
+  // genuine, non-revoked, untampered, substantive credential that is nonetheless OLD (issued
+  // past the validity window) or signed under a superseded methodology. The green shield
+  // over-asserts freshness — a third party reads "Verified" as "current" — so a stale
+  // credential drops to a muted amber "issued a while ago" verdict with the numbers still
+  // shown, never a confident green. Integrity is unaffected; only currency is flagged.
+  const freshness = skillProfileFreshnessNow(p);
+  const state = resolveSkillProfileCardState({
+    revoked: verdict.revoked,
+    verifiable: verdict.verifiable,
+    valid: verdict.valid,
+    substantive: verdict.substantive,
+    stale: freshness.stale,
+  });
 
   const badge =
     state === "verified"
-      ? { Icon: ShieldCheck, cls: "border-emerald-200 bg-emerald-50 text-emerald-800", label: t("verified") }
+      ? { Icon: ShieldCheck, cls: "border-green-200 bg-green-50 text-green-800", label: t("verified") }
       : state === "revoked"
         ? { Icon: ShieldX, cls: "border-stone-300 bg-stone-100 text-steel", label: t("revoked") }
         : state === "incomplete"
           ? { Icon: ShieldAlert, cls: "border-stone-300 bg-stone-100 text-steel", label: t("incomplete") }
-          : { Icon: ShieldAlert, cls: "border-red-200 bg-red-50 text-red-800", label: t("tampered") };
+          : state === "unverifiable"
+            ? { Icon: ShieldAlert, cls: "border-stone-300 bg-stone-100 text-steel", label: t("unverifiable") }
+            : state === "stale"
+              ? { Icon: ShieldAlert, cls: "border-amber-200 bg-amber-50 text-amber-800", label: t("stale") }
+              : { Icon: ShieldAlert, cls: "border-red-200 bg-red-50 text-red-800", label: t("tampered") };
 
   return (
     <main className="mx-auto max-w-xl px-4 py-12">
@@ -55,7 +74,23 @@ export default async function SkillProfilePage({ params }: { params: Promise<{ t
         {badge.label}
       </div>
 
-      {verdict.substantive ? (
+      {/* A stale credential stays genuine — say so plainly and name why (old / superseded
+          methodology) so an employer reads "still real, just not current", not "fake". */}
+      {state === "stale" ? (
+        <p className="mt-2 max-w-xl text-sm text-amber-700">
+          {freshness.reason === "methodology"
+            ? t("staleMethodology", { issued, version: p.version })
+            : t("staleAge", { issued, version: p.version })}
+        </p>
+      ) : null}
+
+      {/* bug-ui-scan-2026-07-09 (dev-lifecycle-cohort-outcomes #2): gate the numeric score
+          card on the full TRUST state (verified/stale = genuine, attested), NOT on
+          `substantive` alone. A tampered/revoked/unverifiable credential can still be
+          "substantive" (has numbers), so the old gate rendered attacker-/stale-controlled
+          scores as the visual focus directly under a red "do not trust" badge. Untrusted or
+          unattested states now fall through to the muted "summary unavailable" block. */}
+      {skillProfileShowsScoreCard(state) ? (
       <section className="mt-6 rounded-lg border border-stone-200 bg-white p-6 shadow-panel">
         <div className="flex items-end justify-between gap-4">
           <div>
@@ -76,17 +111,37 @@ export default async function SkillProfilePage({ params }: { params: Promise<{ t
           <div className="mt-6">
             <h2 className="text-meta uppercase text-steel">{t("axesLabel")}</h2>
             <ul className="mt-2 space-y-2">
-              {axes.map(([name, score]) => (
+              {axes.map(([name, score]) => {
+                const pct = Math.max(0, Math.min(100, score));
+                return (
                 <li key={name}>
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-ink">{name}</span>
                     <span className="font-mono text-stone-500">{Math.round(score)}</span>
                   </div>
-                  <div className="mt-1 h-1.5 w-full rounded-full bg-stone-100">
-                    <div className="h-full rounded-full bg-ink" style={{ width: `${Math.max(0, Math.min(100, score))}%` }} />
+                  {/* bug-ui-scan-2026-07-09 (dev-lifecycle-cohort-outcomes #5): the axis meter
+                      was a purely presentational div — no role/value, so assistive tech got the
+                      number with no notion of scale, and a 0-score axis rendered a visually
+                      empty track indistinguishable from "no data". Expose it as a labelled
+                      meter, and draw a faint baseline tick at score 0 so an empty bar reads as
+                      "low", not "missing". */}
+                  <div
+                    role="meter"
+                    aria-valuenow={Math.round(pct)}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-label={t("axisMeterLabel", { axis: name, score: Math.round(score) })}
+                    className="mt-1 h-1.5 w-full rounded-full bg-stone-100"
+                  >
+                    {pct > 0 ? (
+                      <div className="h-full rounded-full bg-ink" style={{ width: `${pct}%` }} />
+                    ) : (
+                      <div className="h-full w-1 rounded-full bg-stone-300" aria-hidden />
+                    )}
                   </div>
                 </li>
-              ))}
+                );
+              })}
             </ul>
           </div>
         ) : null}

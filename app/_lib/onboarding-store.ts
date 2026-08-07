@@ -2,6 +2,8 @@ import Database from "better-sqlite3";
 import { openStore } from "./db-path";
 import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 import { randomId } from "./random-id";
+import { PIPELINE_STAGES } from "./pipeline-stages";
+import { isTerminalEntryStatus } from "./pipeline-status";
 import {
   coerceQuestionnaire,
   coerceTasks,
@@ -234,12 +236,44 @@ export function startRun(input: {
     /* pipeline_entries absent on this connection — keep the default workspace */
   }
   const templateId = input.templateId || ensureDefaultTemplate(workspaceId);
+  // Atomic get-or-create (bug-ui-scan-2026-07-09 candidate-onboarding-hand-off #3):
+  // the SELECT-miss above and this INSERT are not one atomic step, so a concurrent
+  // recruiter Start + candidate link-open can BOTH miss and both INSERT — the loser
+  // then violates UNIQUE(entry_id) and surfaces as a spurious 500 ONBOARDING_FAILED on
+  // the common near-simultaneous path, even though the run in fact exists. ON CONFLICT
+  // DO NOTHING makes the loser a no-op; we then re-read by entry_id (NOT by our own id,
+  // which may have lost) so both callers return the single surviving winner row.
   d.prepare(
     `INSERT INTO onboarding_runs (id, entry_id, template_id, candidate_label, job_title, status, started_at, workspace_id)
-     VALUES (?, ?, ?, ?, ?, 'active', ?, ?)`
+     VALUES (?, ?, ?, ?, ?, 'active', ?, ?)
+     ON CONFLICT(entry_id) DO NOTHING`
   ).run(id, input.entryId, templateId, input.candidateLabel ?? null, input.jobTitle ?? null, new Date().toISOString(), workspaceId);
-  const row = d.prepare(`SELECT * FROM onboarding_runs WHERE id = ?`).get(id) as Record<string, unknown>;
+  const row = d.prepare(`SELECT * FROM onboarding_runs WHERE entry_id = ?`).get(input.entryId) as Record<string, unknown>;
   return rowToRun(row);
+}
+
+/** Revoke an onboarding run (bug-ui §candidate-onboarding #2). Tombstones it
+ *  `cancelled` — so the candidate token bridge stops resolving it AND startRun's
+ *  get-or-create can never silently re-provision a fresh one for the same entry — and
+ *  PURGES the candidate PII it accreted (pre-boarding intake answers, checklist task
+ *  states, e-signatures). This is the operator's revoke/erase for a withdrawn or
+ *  un-hired candidate whose onboarding link and stored emergency-contact / dietary /
+ *  equipment data would otherwise outlive the hire decision with no cancel path.
+ *  One synchronous transaction; idempotent — returns false only when no such run
+ *  exists. The run row itself is kept as a `cancelled` tombstone (its label/title are
+ *  already on the still-present pipeline entry) purely to block re-provisioning. */
+export function cancelRun(runId: string): boolean {
+  const d = db();
+  const tx = d.transaction((): boolean => {
+    const run = d.prepare(`SELECT id FROM onboarding_runs WHERE id = ?`).get(runId) as { id: string } | undefined;
+    if (!run) return false;
+    d.prepare(`DELETE FROM onboarding_intake WHERE run_id = ?`).run(runId);
+    d.prepare(`DELETE FROM onboarding_task_states WHERE run_id = ?`).run(runId);
+    d.prepare(`DELETE FROM onboarding_signatures WHERE run_id = ?`).run(runId);
+    d.prepare(`UPDATE onboarding_runs SET status = 'cancelled', completed_at = ? WHERE id = ?`).run(new Date().toISOString(), runId);
+    return true;
+  });
+  return tx();
 }
 
 export function runForEntry(entryId: string): OnboardingRun | null {
@@ -247,6 +281,39 @@ export function runForEntry(entryId: string): OnboardingRun | null {
     | Record<string, unknown>
     | undefined;
   return row ? rowToRun(row) : null;
+}
+
+// The terminal pipeline STAGE ("Hired") — the ONE stage at which onboarding may exist.
+const HIRED_STAGE = PIPELINE_STAGES[PIPELINE_STAGES.length - 1];
+
+/** THE shared onboarding gate (bug-ui §candidate-onboarding #1). An onboarding run
+ *  may be provisioned ONLY for a candidate whose LIVE pipeline entry is currently
+ *  Hired — i.e. stage === "Hired" AND not closed out. Both matter: a hire that is
+ *  later rejected keeps stage 'Hired' but flips `status` terminal, and an un-hire
+ *  (moved back / withdrawn) moves stage off 'Hired'; either must fail the gate. This
+ *  mirrors EXACTLY the recruiter "hired roster" (listPipeline → stage==='Hired',
+ *  which already excludes terminal statuses).
+ *
+ *  Both hand-off entry points call THIS one predicate so the gate can't drift: the
+ *  recruiter POST (/api/onboarding) and the candidate token bridge (runForToken).
+ *  Before this, the recruiter route enforced `stage==='Hired'` while the token bridge
+ *  gated only on the FROZEN accepted-offer status and never read the live stage — so
+ *  an offer accepted-then-withdrawn still provisioned an employee-record run.
+ *
+ *  Reads the shared `pipeline_entries` row on this isolated connection (the same by-id
+ *  derivation startRun already uses). Fails CLOSED — an unknown entry, or a connection
+ *  without pipeline_entries, provisions nothing. */
+export function isEntryHired(entryId: string): boolean {
+  try {
+    const row = db().prepare(`SELECT stage, status FROM pipeline_entries WHERE id = ?`).get(entryId) as
+      | { stage?: string; status?: string }
+      | undefined;
+    if (!row) return false;
+    return row.stage === HIRED_STAGE && !isTerminalEntryStatus(row.status);
+  } catch {
+    // pipeline_entries absent on this connection — no live stage to trust, so refuse.
+    return false;
+  }
 }
 
 function taskStates(runId: string): OnboardingTaskState[] {
@@ -355,12 +422,28 @@ export function getRunDetail(runId: string): OnboardingRunDetail | null {
 
 /** Toggle a checklist task; auto-completes the run when the last one is checked
  *  (and re-opens it if a task is later unchecked). Returns the fresh detail. */
+/** The run's workspace for a mutation, or null when the run is missing OR
+ *  CANCELLED. cancelRun is a revoke/erase tombstone (candidate-onboarding-hand-off
+ *  #2): once cancelled, startRun can't re-provision and the candidate token bridge
+ *  refuses to resolve. But the mutators below keyed only on run EXISTENCE, and
+ *  setTaskDone rewrites status back to active/complete from progress — so one
+ *  accidental checkbox click on a cancelled run (which renders like an active one)
+ *  overwrote the tombstone and let the purged PII re-accrete. Routing every mutator
+ *  through this guard makes `cancelled` terminal. */
+function mutableRunWorkspace(runId: string): string | null {
+  const run = db().prepare(`SELECT workspace_id, status FROM onboarding_runs WHERE id = ?`).get(runId) as
+    | { workspace_id?: string; status?: string }
+    | undefined;
+  if (!run || run.status === "cancelled") return null;
+  return run.workspace_id ?? DEFAULT_WORKSPACE_ID;
+}
+
 export function setTaskDone(runId: string, taskId: string, done: boolean): OnboardingRunDetail | null {
   const d = db();
-  // Tenant (P1): a task state inherits its run's workspace (by-id read of the run).
-  const run = d.prepare(`SELECT workspace_id FROM onboarding_runs WHERE id = ?`).get(runId) as { workspace_id?: string } | undefined;
-  if (!run) return null;
-  const workspaceId = run.workspace_id ?? DEFAULT_WORKSPACE_ID;
+  // Tenant (P1): a task state inherits its run's workspace. null ⇒ missing or a
+  // cancelled tombstone — no-op either way (never flip a tombstone back to active).
+  const workspaceId = mutableRunWorkspace(runId);
+  if (workspaceId === null) return null;
   const now = new Date().toISOString();
   d.prepare(
     `INSERT INTO onboarding_task_states (run_id, task_id, done, done_at, workspace_id) VALUES (?, ?, ?, ?, ?)
@@ -378,22 +461,48 @@ export function setTaskDone(runId: string, taskId: string, done: boolean): Onboa
 
 const INTAKE_VALUE_MAX = 500;
 
-/** Persist the pre-boarding questionnaire (last write wins). Bounds every value;
- *  keys are taken as-is from the validated form. */
+/** Persist the pre-boarding questionnaire by MERGING this request's non-blank
+ *  answers over whatever is already stored. Bounds every value; keys are taken
+ *  as-is from the validated form.
+ *
+ *  Merge (not replace) is load-bearing (candidate-onboarding-hand-off #1): the
+ *  recruiter form initializes its answers to `{}` at mount, and its blur handler
+ *  fires an "intake" PATCH with that stale snapshot — a wholesale replace then
+ *  silently destroyed the candidate's already-submitted intake (emergency
+ *  contact, licence, …). Blank values are ignored, never used to delete an
+ *  existing answer. An all-empty result is a no-op: an empty intake row both
+ *  falsely flips `intakeSubmitted` and permanently suppresses the one-shot
+ *  pre-boarding reminder, so we mirror the candidate path's empty-submit no-op. */
 export function saveIntake(runId: string, answers: Record<string, unknown>): OnboardingRunDetail | null {
   const d = db();
-  // Tenant (P1): intake inherits its run's workspace (by-id read of the run).
-  const run = d.prepare(`SELECT workspace_id FROM onboarding_runs WHERE id = ?`).get(runId) as { workspace_id?: string } | undefined;
-  if (!run) return null;
-  const workspaceId = run.workspace_id ?? DEFAULT_WORKSPACE_ID;
-  const clean: Record<string, string> = {};
+  // Tenant (P1): intake inherits its run's workspace. null ⇒ missing or cancelled
+  // tombstone — a cancelled run must not re-accrete purged PII.
+  const workspaceId = mutableRunWorkspace(runId);
+  if (workspaceId === null) return null;
+  const incoming: Record<string, string> = {};
   for (const [k, v] of Object.entries(answers)) {
-    if (typeof v === "string" && v.trim()) clean[k.slice(0, 64)] = v.trim().slice(0, INTAKE_VALUE_MAX);
+    if (typeof v === "string" && v.trim()) incoming[k.slice(0, 64)] = v.trim().slice(0, INTAKE_VALUE_MAX);
   }
+  // Layer this request's non-blank keys over the existing row.
+  const existingRow = d.prepare(`SELECT answers_json FROM onboarding_intake WHERE run_id = ?`).get(runId) as
+    | { answers_json: string }
+    | undefined;
+  let existing: Record<string, string> = {};
+  if (existingRow) {
+    try {
+      const parsed = JSON.parse(existingRow.answers_json);
+      if (parsed && typeof parsed === "object") existing = parsed as Record<string, string>;
+    } catch {
+      /* corrupt row → treat as empty rather than let a parse error block the write */
+    }
+  }
+  const merged = { ...existing, ...incoming };
+  // Nothing to persist (empty request AND no prior row): don't mint an empty row.
+  if (Object.keys(merged).length === 0) return getRunDetail(runId);
   d.prepare(
     `INSERT INTO onboarding_intake (run_id, answers_json, submitted_at, workspace_id) VALUES (?, ?, ?, ?)
      ON CONFLICT(run_id) DO UPDATE SET answers_json = excluded.answers_json, submitted_at = excluded.submitted_at`
-  ).run(runId, JSON.stringify(clean), new Date().toISOString(), workspaceId);
+  ).run(runId, JSON.stringify(merged), new Date().toISOString(), workspaceId);
   return getRunDetail(runId);
 }
 
@@ -402,10 +511,10 @@ export function saveIntake(runId: string, answers: Record<string, unknown>): Onb
  *  it records a 'requested' row that markSigned resolves. */
 export function requestSignature(runId: string, document: string): OnboardingRunDetail | null {
   const d = db();
-  // Tenant (P1): a signature request inherits its run's workspace (by-id read of the run).
-  const run = d.prepare(`SELECT workspace_id FROM onboarding_runs WHERE id = ?`).get(runId) as { workspace_id?: string } | undefined;
-  if (!run) return null;
-  const workspaceId = run.workspace_id ?? DEFAULT_WORKSPACE_ID;
+  // Tenant (P1): a signature request inherits its run's workspace. null ⇒ missing
+  // or cancelled tombstone — no new signature request against a revoked run.
+  const workspaceId = mutableRunWorkspace(runId);
+  if (workspaceId === null) return null;
   d.prepare(
     `INSERT INTO onboarding_signatures (id, run_id, document, status, requested_at, workspace_id) VALUES (?, ?, ?, 'requested', ?, ?)`
   ).run(randomId("obs"), runId, document.trim().slice(0, 200) || "Document", new Date().toISOString(), workspaceId);
@@ -413,17 +522,29 @@ export function requestSignature(runId: string, document: string): OnboardingRun
 }
 
 /** Mark a requested signature as signed (provider seam — a real eIDAS callback
- *  would land here with the verified signer + timestamp). Audit-stamped. */
-export function markSigned(signatureId: string, signer: string): OnboardingRunDetail | null {
+ *  would land here with the verified signer + timestamp). Audit-stamped.
+ *
+ *  Object-level ownership (bug-ui-scan-2026-07-09 candidate-onboarding-hand-off #4):
+ *  the signature is resolved ONLY WITHIN its own run. The `sign` action carries the run
+ *  id in the URL, but this used to look the signature up by its global id alone and
+ *  return THAT signature's run detail — so a mismatched signatureId (one belonging to
+ *  RUN_B) signed RUN_B's document and returned RUN_B's detail, which the client stored
+ *  as RUN_A's, silently swapping the recruiter's on-screen run to another candidate.
+ *  Now BOTH ids must match; a signature that does not belong to `runId` (or does not
+ *  exist) returns null → 404, and the run detail returned is always `runId`'s own. */
+export function markSigned(runId: string, signatureId: string, signer: string): OnboardingRunDetail | null {
   const d = db();
-  const row = d.prepare(`SELECT run_id FROM onboarding_signatures WHERE id = ?`).get(signatureId) as
-    | { run_id: string }
+  // A cancelled run is a tombstone — refuse to sign against it (no PII re-accretion).
+  if (mutableRunWorkspace(runId) === null) return null;
+  const row = d.prepare(`SELECT id FROM onboarding_signatures WHERE id = ? AND run_id = ?`).get(signatureId, runId) as
+    | { id: string }
     | undefined;
   if (!row) return null;
-  d.prepare(`UPDATE onboarding_signatures SET status = 'signed', signer = ?, signed_at = ? WHERE id = ? AND status = 'requested'`).run(
+  d.prepare(`UPDATE onboarding_signatures SET status = 'signed', signer = ?, signed_at = ? WHERE id = ? AND run_id = ? AND status = 'requested'`).run(
     signer.trim().slice(0, 120) || "Signed",
     new Date().toISOString(),
-    signatureId
+    signatureId,
+    runId
   );
-  return getRunDetail(row.run_id);
+  return getRunDetail(runId);
 }

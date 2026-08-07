@@ -12,12 +12,17 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  APP_CURRENCY,
   assertFraction,
   assertScore,
   classifyTimestamp,
   clampFraction,
+  formatCount,
   formatFraction,
+  formatGrouped,
+  formatMoney,
   formatRelativeTime,
+  formatSalaryRange,
   RATING_MAX,
   ratingToPercent,
   ratingTone,
@@ -82,6 +87,58 @@ test("formatRelativeTime clamps a future timestamp to 0s ago (no negative ages)"
 test("formatRelativeTime returns empty string for blank or unparseable input", () => {
   assert.equal(formatRelativeTime(""), "");
   assert.equal(formatRelativeTime("not a date"), "");
+});
+
+// --- locale awareness: the age reads in the surface's own language ----------
+//
+// Every table these strings land in is already localized, so an English "23d
+// ago" under a "Gesendet"/"Odesláno" header was the last untranslated word on
+// the surface. Rendering goes through Intl.RelativeTimeFormat (CLDR) rather
+// than a hand-written table precisely because the grammar — not just the
+// vocabulary — differs per locale: the past marker is a suffix in English
+// ("… ago"), a prefix in Czech ("před …"), an infix in French ("il y a …"),
+// and Czech inflects the unit itself by plural category.
+
+test("formatRelativeTime renders Czech, German, and French, not English", () => {
+  assert.equal(formatRelativeTime(ago(30_000), "cs"), "před 30 s");
+  assert.equal(formatRelativeTime(ago(3 * 3_600_000), "cs"), "před 3 h");
+  assert.equal(formatRelativeTime(ago(30_000), "de"), "vor 30 s");
+  assert.equal(formatRelativeTime(ago(2 * 86_400_000), "de"), "vor 2 Tagen");
+  // French: CLDR's narrow French form is a bare signed number ("-3 j"), so the
+  // formatter drops to `short` for fr — prose, at the same width. The space
+  // before the unit is a non-breaking one (U+00A0), as CLDR emits it.
+  assert.equal(formatRelativeTime(ago(3 * 3_600_000), "fr"), "il y a 3 h");
+  assert.equal(formatRelativeTime(ago(2 * 86_400_000), "fr"), "il y a 2 j");
+});
+
+test("formatRelativeTime applies Czech plural morphology (one vs few vs other)", () => {
+  // The whole reason Intl owns this: Czech declines the unit noun by plural
+  // category, so a hand-rolled "před {n} dny" template would render the
+  // one-case as the ungrammatical "před 1 dny". 2–4 (few) and 5+ (other) share
+  // the instrumental "dny" here — which is exactly the kind of per-locale
+  // detail a hand-written table gets wrong in the other direction.
+  assert.equal(formatRelativeTime(ago(86_400_000), "cs"), "před 1 dnem");
+  assert.equal(formatRelativeTime(ago(3 * 86_400_000), "cs"), "před 3 dny");
+  assert.equal(formatRelativeTime(ago(5 * 86_400_000), "cs"), "před 5 dny");
+  assert.equal(formatRelativeTime(ago(23 * 86_400_000), "cs"), "před 23 dny");
+  // German draws its own line at the same boundary: singular "Tag", plural "Tagen".
+  assert.equal(formatRelativeTime(ago(86_400_000), "de"), "vor 1 Tag");
+  assert.equal(formatRelativeTime(ago(3 * 86_400_000), "de"), "vor 3 Tagen");
+});
+
+test("formatRelativeTime falls back to English for an unsupported or regional tag", () => {
+  // A regional tag narrows to its primary subtag; anything outside the app's
+  // four locales renders English rather than throwing on an unknown tag.
+  assert.equal(formatRelativeTime(ago(2 * 86_400_000), "cs-CZ"), "před 2 dny");
+  assert.equal(formatRelativeTime(ago(2 * 86_400_000), "xx"), "2d ago");
+  assert.equal(formatRelativeTime(ago(2 * 86_400_000)), "2d ago");
+});
+
+test("formatRelativeTime keeps the future clamp and the empty contract per locale", () => {
+  const future = new Date(Date.now() + 60 * 60_000).toISOString();
+  assert.equal(formatRelativeTime(future, "cs"), "před 0 s");
+  assert.equal(formatRelativeTime("", "cs"), "");
+  assert.equal(formatRelativeTime("not a date", "de"), "");
 });
 
 // --- the contract assertion: warns on violations, stays quiet otherwise -----
@@ -400,4 +457,53 @@ test("assertScore collapses a non-finite score to 0 without warning", () => {
     assert.equal(assertScore(NaN, "nanScore"), 0);
   });
   assert.equal(warnings.length, 0);
+});
+
+// --- the number-locale contract ---------------------------------------------
+//
+// The bug these lock: format.ts pinned ONE `cs-CZ` formatter for every locale, so
+// a German or French reader saw Czech digit grouping on every salary, money and
+// count in the app — while formatRelativeTime, in the same file, correctly threaded
+// the active locale. Asserting on the *separator characters* rather than on an exact
+// string keeps these independent of the ICU build's NBSP-vs-narrow-NBSP choice.
+
+// The grouping separator a locale actually uses in this runtime's ICU build.
+const sep = (locale: string) => new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }).format(45000).replace(/[0-9]/g, "");
+
+test("formatGrouped groups in the locale it is given, not a pinned cs-CZ", () => {
+  assert.equal(formatGrouped(45000, "en"), "45,000");
+  assert.equal(formatGrouped(45000, "de"), "45.000");
+  // Czech (and French) group with some flavour of no-break space — whichever one
+  // this ICU build emits, it must NOT be the English comma or the German dot.
+  for (const locale of ["cs", "fr"]) {
+    assert.notEqual(sep(locale), ",");
+    assert.notEqual(sep(locale), ".");
+    assert.equal(formatGrouped(45000, locale), new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }).format(45000));
+  }
+});
+
+test("formatGrouped accepts a regional tag and an unknown one, falling back to English", () => {
+  // Regional tags reach these helpers from browsers and stored preferences.
+  assert.equal(formatGrouped(45000, "cs-CZ"), formatGrouped(45000, "cs"));
+  assert.equal(formatGrouped(45000, "kl-GL"), formatGrouped(45000, "en"));
+  assert.equal(formatGrouped(45000), formatGrouped(45000, "en"));
+});
+
+test("formatMoney and formatSalaryRange localize the digits but never the currency", () => {
+  // The single-currency (CZK) assumption is deliberate: this contract governs how a
+  // figure is typeset, not what it is denominated in.
+  assert.equal(formatMoney(45000, undefined, "en"), `45,000 ${APP_CURRENCY}`);
+  assert.equal(formatMoney(45000, undefined, "de"), `45.000 ${APP_CURRENCY}`);
+  assert.equal(formatMoney(45000, "EUR", "de"), "45.000 EUR");
+  assert.equal(formatSalaryRange(45000, 60000, { locale: "en" }), `45,000–60,000 ${APP_CURRENCY}`);
+  assert.equal(formatSalaryRange(45000, 60000, { locale: "de" }), `45.000–60.000 ${APP_CURRENCY}`);
+  // Period and the degenerate-band collapse are unchanged by the locale threading.
+  assert.equal(formatSalaryRange(60000, 45000, { locale: "en", period: "month" }), `45,000–60,000 ${APP_CURRENCY} / month`);
+  assert.equal(formatSalaryRange(50000, 50000, { locale: "en" }), `50,000 ${APP_CURRENCY}`);
+});
+
+test("formatCount groups its digits in the given locale", () => {
+  assert.equal(formatCount(1200, undefined, undefined, "en"), "1,200");
+  assert.equal(formatCount(1200, undefined, undefined, "de"), "1.200");
+  assert.equal(formatCount(1, "entry", "entries", "en"), "1 entry");
 });

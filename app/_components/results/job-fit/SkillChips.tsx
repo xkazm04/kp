@@ -1,7 +1,7 @@
 "use client";
 
 import { Check } from "lucide-react";
-import { useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { dedupe } from "@/app/_lib/dedupe";
 import { MissingSkillsTiers } from "./MissingSkillsTiers";
@@ -42,6 +42,9 @@ function findEvidence(skill: string, evidence: string[] | undefined): string | n
   return best;
 }
 
+const CHIP_CLASS =
+  "focus-ring inline-flex items-center gap-1.5 rounded-full bg-limewash px-2.5 py-1 text-sm font-medium text-moss";
+
 function MatchingChip({
   label,
   evidenceSnippet,
@@ -52,27 +55,58 @@ function MatchingChip({
   tipId: string;
 }) {
   const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLSpanElement>(null);
   const showTip = Boolean(evidenceSnippet) && open;
 
-  return (
-    <span
-      className="relative inline-flex"
-      onMouseEnter={() => setOpen(true)}
-      onMouseLeave={() => setOpen(false)}
-      onFocus={() => setOpen(true)}
-      onBlur={() => setOpen(false)}
-    >
-      <span
-        tabIndex={evidenceSnippet ? 0 : -1}
-        role={evidenceSnippet ? "button" : undefined}
-        aria-describedby={showTip ? tipId : undefined}
-        className={`focus-ring inline-flex items-center gap-1.5 rounded-full bg-limewash px-2.5 py-1 text-sm font-medium text-moss ${
-          evidenceSnippet ? "cursor-help" : ""
-        }`}
-      >
+  // Dismiss a toggled-open readout when the pointer lands outside the chip. This
+  // is what closes it on TOUCH — a tap elsewhere has no blur — mirroring how the
+  // mouse model closes on leave. Keyboard focus-out is handled by onBlur below.
+  useEffect(() => {
+    if (!showTip) return;
+    const onPointerDown = (event: PointerEvent) => {
+      if (!wrapRef.current?.contains(event.target as Node)) setOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, [showTip]);
+
+  // No evidence → a plain, non-interactive pill (nothing to reveal, so no button
+  // semantics or focus stop that would mislead assistive tech).
+  if (!evidenceSnippet) {
+    return (
+      <span className={CHIP_CLASS}>
         <Check className="h-3 w-3" aria-hidden />
         {label}
       </span>
+    );
+  }
+
+  // Evidence present → a real disclosure button. Hover still reveals for the
+  // mouse (onMouseEnter/Leave); tap and Enter/Space toggle it for touch/keyboard
+  // (a native <button> handles Enter/Space); Escape and outside-pointer close it.
+  // aria-expanded is the honest state for assistive tech, and aria-describedby
+  // wires the revealed snippet to the control while it is open.
+  return (
+    <span
+      ref={wrapRef}
+      className="relative inline-flex"
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+    >
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-describedby={showTip ? tipId : undefined}
+        onClick={() => setOpen((prev) => !prev)}
+        onKeyDown={(event) => {
+          if (event.key === "Escape") setOpen(false);
+        }}
+        onBlur={() => setOpen(false)}
+        className={`${CHIP_CLASS} cursor-help`}
+      >
+        <Check className="h-3 w-3" aria-hidden />
+        {label}
+      </button>
       {showTip ? (
         <span
           id={tipId}

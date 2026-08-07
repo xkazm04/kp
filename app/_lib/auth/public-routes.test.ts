@@ -38,9 +38,24 @@ test("candidate surfaces stay public", () => {
     "/api/billing/webhook",
     "/api/interview/connect",
     "/api/devcase/inbound",
+    "/api/comms/callback",
   ]) {
     assert.equal(isPublicPath(p), true, `${p} must be public`);
   }
+});
+
+test("CRITICAL: the relay delivery callback is reachable, the rest of /api/comms is not", () => {
+  // callback-unblocked — the relay POSTs receipts from a server, with no session cookie.
+  // Absent from the allow-list, the operator gate 401'd it BEFORE the route's own
+  // shared-secret auth ran, so `bounced` receipts never arrived and the whole bounce
+  // subsystem (Bounced badge, supersession, BouncedResend) was inert in production.
+  assert.equal(isPublicPath("/api/comms/callback"), true);
+  // Exact entry, matched by segment: no sibling or child rides along with it.
+  assert.equal(isPublicPath("/api/comms/callbackX"), false);
+  assert.equal(isPublicPath("/api/comms/callback/anything"), false);
+  // The recruiter surfaces of the same subtree stay gated.
+  assert.equal(isPublicPath("/api/comms"), false);
+  assert.equal(isPublicPath("/api/comms/out_123/resend"), false);
 });
 
 test("CRITICAL: the recruiter webhook console is NOT public", () => {
@@ -73,6 +88,15 @@ test("public JD share links reach the page, but the JD API stays gated", () => {
   assert.equal(isPublicPath("/api/jds"), false);
   assert.equal(isPublicPath("/api/jds/senior-engineer"), false);
   assert.equal(isPublicPath("/api/jds/senior-engineer/revisions"), false);
+});
+
+test("signup page + register API pass the proxy gate (feature-gated in-route)", () => {
+  // The proxy must let an anonymous visitor reach them; KP_SIGNUP_ENABLED (checked
+  // by the page/route themselves) decides whether they answer or 404.
+  assert.equal(isPublicPath("/signup"), true);
+  assert.equal(isPublicPath("/api/auth/register"), true); // under the /api/auth/ prefix
+  // Never a longer sibling.
+  assert.equal(isPublicPath("/signup-bonus"), false);
 });
 
 test("recruiter surfaces stay gated", () => {

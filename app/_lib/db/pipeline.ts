@@ -4,7 +4,7 @@ import { isTerminalEntryStatus, TERMINAL_ENTRY_STATUSES } from "../pipeline-stat
 import { normalizeApplicantName, normalizeContact } from "../apply-intake";
 import { chunk, SQL_IN_CHUNK } from "../entries-param";
 import { randomToken } from "../random-id";
-import { CONSENT_TTL_DAYS, consentExpiresAt, maskCandidateName, scrubPiiFromPayload } from "../consent";
+import { CONSENT_TTL_DAYS, consentExpiresAt, consentWithholdsPii, maskCandidateName, scrubPiiFromPayload } from "../consent";
 import { anonymizeProfile } from "./profiles";
 import { coerceGithubEvidenceSummary, type GithubEvidenceSummary } from "../github-summary";
 import { recordPipelineOutcome } from "../dev-outcomes";
@@ -220,6 +220,10 @@ type PipelineRow = {
   // must never ride a list payload into the browser. Read via findEntryByLeadToken.
   lead_token?: string | null;
   lead_passed_ko_json?: string | null;
+  // Recorded unmet-checklist gaps for this entry's profile — read through
+  // findEntryByLeadToken (candidate follow-up) and entryProfileGaps (server-side),
+  // not mapped onto the PipelineEntry client view.
+  profile_gaps_json?: string | null;
   // GDPR consent lifecycle (consent.ts). The 4 dated fields map onto PipelineEntry;
   // erasure_token does NOT (capability token, internal-only, like lead_token).
   consent_given_at?: string | null;
@@ -304,28 +308,103 @@ const TERMINAL_STATUS_SQL_LIST = `(${TERMINAL_ENTRY_STATUSES.map((s) => `'${s}'`
 //     Unscored entries never enter (no fabricated 0 — the REC-03 policy).
 //
 // Tenant scope (P1): the calibration curve is a per-team reliability metric.
-export type PipelineCalibrationPair = { score: number; outcome: 0 | 1; roleFamily: string | null };
+// `at` carries the entry's created_at so the calibration engine can bucket pairs
+// into drift cohorts (Direction 1). `entryId`/`label`/`live` ride the band-drill
+// producer (Direction 2) so a mis-calibrated bin can be opened to the exact
+// candidates behind it — never on the aggregate pair (it would bloat every curve).
+export type PipelineCalibrationPair = { score: number; outcome: 0 | 1; roleFamily: string | null; at: string };
+
+export type CalibrationBandCandidate = {
+  entryId: string;
+  label: string;
+  score: number;
+  outcome: 0 | 1;
+  roleFamily: string | null;
+  // Openable in the board when the entry is still active; a rejected (outcome 0)
+  // entry is terminal, so it's listed but not linked (records outlive the board).
+  live: boolean;
+};
 
 const CALIBRATION_ADVANCED_STAGES = new Set(["Interview", "Offer", "Hired"]);
 
-export function pipelineCalibrationPairs(workspaceId: string = DEFAULT_WORKSPACE_ID): PipelineCalibrationPair[] {
+export function pipelineCalibrationPairs(
+  workspaceId: string = DEFAULT_WORKSPACE_ID,
+  // CALIBRATION HOLDOUT (UAT KAT-L1-001). When present, restrict the pairs to this
+  // set of entry ids — the calibration CLEAN ARM. The screening wave spares a small
+  // random sample of would-be auto-rejects; their eventual advance/reject is a HUMAN
+  // decision, not one the score mechanically produced, so a curve over just these
+  // entries breaks the label leakage that makes the default (all-pairs) curve
+  // circular. The inclusion rule is IDENTICAL to the contaminated curve's — the only
+  // difference is which entries are eligible — so the two are directly comparable.
+  opts?: { onlyEntryIds?: ReadonlySet<string> }
+): PipelineCalibrationPair[] {
   const db = ensureDb();
   const rows = db
     .prepare(
-      `SELECT match_score AS score, stage, status, role_family FROM pipeline_entries
+      `SELECT id, match_score AS score, stage, status, role_family, created_at FROM pipeline_entries
        WHERE match_score IS NOT NULL AND workspace_id = ?`
     )
-    .all(workspaceId) as { score: number; stage: string; status: string; role_family: string | null }[];
+    .all(workspaceId) as { id: string; score: number; stage: string; status: string; role_family: string | null; created_at: string }[];
+  const only = opts?.onlyEntryIds;
   const pairs: PipelineCalibrationPair[] = [];
   for (const r of rows) {
     if (!Number.isFinite(r.score)) continue; // bad migration/manual edit — never NaN into the math
+    if (only && !only.has(r.id)) continue; // clean-arm filter (holdout source only)
     if (CALIBRATION_ADVANCED_STAGES.has(r.stage)) {
-      pairs.push({ score: r.score, outcome: 1, roleFamily: r.role_family });
+      pairs.push({ score: r.score, outcome: 1, roleFamily: r.role_family, at: r.created_at });
     } else if (r.status === "rejected") {
-      pairs.push({ score: r.score, outcome: 0, roleFamily: r.role_family });
+      pairs.push({ score: r.score, outcome: 0, roleFamily: r.role_family, at: r.created_at });
     }
   }
   return pairs;
+}
+
+// Direction 2 — the candidates behind ONE calibration score band, workspace-scoped.
+// Applies the SAME inclusion rule as pipelineCalibrationPairs (advanced past the
+// screen gate = 1, rejected there = 0; pending/unscored/non-merit-terminal
+// excluded) so a bin's drilldown can never show a candidate the curve didn't
+// count. Score band is [loPct, hiPct); the top bin includes 100 (inclusiveHi).
+export function pipelineCalibrationBandCandidates(
+  loPct: number,
+  hiPct: number,
+  inclusiveHi: boolean,
+  roleFamily: string | null,
+  workspaceId: string = DEFAULT_WORKSPACE_ID
+): CalibrationBandCandidate[] {
+  const db = ensureDb();
+  const rows = db
+    .prepare(
+      `SELECT id, candidate_label, match_score AS score, stage, status, role_family FROM pipeline_entries
+       WHERE match_score IS NOT NULL AND workspace_id = ?
+         AND match_score >= ? AND (match_score < ? ${inclusiveHi ? "OR match_score = ?" : ""})
+       ORDER BY match_score DESC, candidate_label ASC`
+    )
+    .all(...(inclusiveHi ? [workspaceId, loPct, hiPct, hiPct] : [workspaceId, loPct, hiPct])) as {
+    id: string;
+    candidate_label: string;
+    score: number;
+    stage: string;
+    status: string;
+    role_family: string | null;
+  }[];
+  const out: CalibrationBandCandidate[] = [];
+  for (const r of rows) {
+    if (!Number.isFinite(r.score)) continue;
+    if (roleFamily && r.role_family !== roleFamily) continue;
+    let outcome: 0 | 1;
+    if (CALIBRATION_ADVANCED_STAGES.has(r.stage)) outcome = 1;
+    else if (r.status === "rejected") outcome = 0;
+    else continue; // pending / non-merit terminal — not part of the calibration set
+    out.push({
+      entryId: r.id,
+      label: r.candidate_label,
+      score: r.score,
+      outcome,
+      roleFamily: r.role_family,
+      live: !isTerminalEntryStatus(r.status),
+    });
+  }
+  return out;
 }
 
 export function listPipeline(workspaceId: string = DEFAULT_WORKSPACE_ID): PipelineEntry[] {
@@ -339,10 +418,15 @@ export function listPipeline(workspaceId: string = DEFAULT_WORKSPACE_ID): Pipeli
       // render attached evidence and offer the on-demand deep-dive for an
       // inbound applicant who shared a handle at apply (both bounded at the
       // rowToEntry read boundary). notes rides it too — the drawer's persistent
-      // scratchpad hydrates from the entry it was opened with.
+      // scratchpad hydrates from the entry it was opened with. source_channel /
+      // source_campaign / source_variant ride it so the drawer's origin line renders
+      // the channel AND its campaign/creative attribution (variant-reaches-the-drawer)
+      // straight from the board-opened entry — the [id] GET already carried them via
+      // SELECT *, so this closes the gap for the primary (board) open path.
       `SELECT id, candidate_id, candidate_label, archetype, role_family, job_id, job_title,
               stage, match_score, status, approval_kind, approval_detail, created_at, stage_changed_at,
-              intake_degraded, intake_degraded_reason, github_json, github_handle, notes
+              intake_degraded, intake_degraded_reason, github_json, github_handle, notes,
+              source_channel, source_campaign, source_variant
        FROM pipeline_entries WHERE status NOT IN ${TERMINAL_STATUS_SQL_LIST} AND workspace_id = ?
        ORDER BY job_title, match_score DESC`
     )
@@ -456,6 +540,33 @@ export function candidateOutcomes(workspaceId: string = DEFAULT_WORKSPACE_ID): M
     m.set(r.candidate_id, arr);
   }
   return m;
+}
+
+/** The candidate's TERMINAL pipeline entries in OTHER roles — the qualifying priors
+ *  a manual rediscovery reach-out links to the freshly-minted target entry (the
+ *  `rematched` re-engagement case). Only merit/timing terminals qualify:
+ *  rejected (company passed), declined (candidate passed), role_closed (role filled
+ *  out from under them) — exactly the silver-medalist statuses pickPrior surfaces.
+ *  DELIBERATELY excludes any ACTIVE entry (a Hired candidate stays status='active',
+ *  so it's excluded here too) — a re-engagement must never close a live application —
+ *  and 'rematched' (already redirected; re-linking would just accrete duplicate
+ *  links). SCOPED to workspaceId (direction 1): priors are read in the same tenant
+ *  the reach-out runs in. Returns id + jobId so the caller can drive rematchSourceEntry. */
+export function terminalPriorEntriesForCandidate(
+  candidateId: string,
+  excludeJobId: string,
+  workspaceId: string = DEFAULT_WORKSPACE_ID
+): { id: string; jobId: string | null }[] {
+  const key = (candidateId ?? "").trim();
+  if (!key) return [];
+  const rows = ensureDb()
+    .prepare(
+      `SELECT id, job_id FROM pipeline_entries
+        WHERE candidate_id = ? AND workspace_id = ? AND (job_id IS NULL OR job_id != ?)
+          AND status IN ('rejected', 'declined', 'role_closed')`
+    )
+    .all(key, workspaceId, excludeJobId) as { id: string; job_id: string | null }[];
+  return rows.map((r) => ({ id: r.id, jobId: r.job_id }));
 }
 
 /** Which of these entries carry an event of `kind` (W8-5 — e.g. the durable
@@ -586,6 +697,12 @@ export type CreatePipelineInput = {
   // E5 — campaign/creative attribution captured at intake (bounded by callers).
   sourceCampaign?: string | null;
   sourceVariant?: string | null;
+  // shortlist-to-group-eval — file the new entry as a pending KEY DECISION
+  // (Decisions tab cohort, same gate the seeded rows carry). "decision" is the
+  // only kind an add may request: the review kinds are minted by automation
+  // after the fact, never at creation. Omitted (the default) leaves the entry
+  // ungated — every non-Match add path is byte-identical to before.
+  approvalKind?: "decision" | null;
   // Applicant's locale from inbound apply (SIM3); drives downstream comm
   // language. Omitted by recruiter/Match adds ⇒ NULL ⇒ "en" at dispatch.
   locale?: string | null;
@@ -668,7 +785,7 @@ export function createPipelineEntry(input: CreatePipelineInput): { entry: Pipeli
         intake_degraded, intake_degraded_reason, contact, locale, github_json, github_handle, source_channel,
         source_campaign, source_variant, workspace_id)
      VALUES (@id, @candidate_id, @candidate_label, @archetype, @role_family, @job_id, @job_title,
-        @stage, @match_score, 'active', NULL, NULL, @now, @now, @now,
+        @stage, @match_score, 'active', @approval_kind, NULL, @now, @now, @now,
         @intake_degraded, @intake_degraded_reason, @contact, @locale, @github_json, @github_handle, @source_channel,
         @source_campaign, @source_variant, @workspace_id)`
   ).run({
@@ -681,6 +798,7 @@ export function createPipelineEntry(input: CreatePipelineInput): { entry: Pipeli
     job_title: input.jobTitle,
     stage,
     match_score: input.matchScore ?? null,
+    approval_kind: input.approvalKind ?? null,
     now,
     intake_degraded: intakeDegraded,
     intake_degraded_reason: intakeDegradedReason,
@@ -732,6 +850,20 @@ export function recordSimTranscriptAttached(entryId: string, detail: string | nu
   const db = ensureDb();
   const row = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ? AND workspace_id = ?`).get(entryId, workspaceId) as PipelineRow | undefined;
   if (!row) return false;
+  // bug-ui-scan-2026-07-09 (interview-simulation-comparison #5) — idempotency: a
+  // retried/duplicated attach (a re-POST, or reopening the flow) must not spam the
+  // drawer with identical "practice interview attached" entries. No-op when a
+  // sim_attached annotation with the SAME detail already exists on this entry —
+  // `detail` (jobTitle · completed) is exactly the drawer line, so two attaches a
+  // recruiter couldn't tell apart collapse to one. (Keyed on detail, not the raw
+  // session token, so an interview-portal credential never leaks into an
+  // audit-event string a recruiter can read.) `detail IS ?` is SQLite's null-safe
+  // equality. Returns true either way — the annotation IS present, so the route
+  // still reports success on a duplicate.
+  const dup = db
+    .prepare(`SELECT 1 FROM pipeline_events WHERE workspace_id = ? AND entry_id = ? AND kind = 'sim_attached' AND detail IS ? LIMIT 1`)
+    .get(workspaceId, row.id, detail);
+  if (dup) return true;
   recordEvent(db, {
     entryId: row.id,
     candidateLabel: row.candidate_label,
@@ -927,7 +1059,79 @@ export type LeadEnrichTarget = {
   /** KO step ids the lead EXPLICITLY answered true at intake — recorded
    *  pass-state, never derived. Empty when nothing was verified. */
   passedKoIds: string[];
+  /** The archetype checklist's still-unmet items for this entry's profile
+   *  (profile_cli `missingGaps`) — what the candidate can still be asked. Empty
+   *  when nothing was recorded, or when every recorded gap has been answered. */
+  profileGaps: EntryProfileGap[];
 };
+
+/** One recorded, still-unmet checklist item. Structurally the pure module's
+ *  CompletenessGap; re-declared here so the DB layer stays import-free of app
+ *  logic (the two are asserted compatible at every call site by the compiler). */
+export type EntryProfileGap = { check: string; label: string };
+
+// Bounds on the recorded gap list, applied at write AND read — it rides a public
+// candidate payload, so a corrupt column can never balloon a response.
+const PROFILE_GAPS_MAX = 12;
+const PROFILE_GAP_CHECK_MAX = 64;
+const PROFILE_GAP_LABEL_MAX = 160;
+
+// Record (REPLACE) the entry's still-unmet checklist gaps. Rewritten wholesale
+// rather than merged: the list is always the authoritative output of the profile
+// build (or of the re-normalization after a gap answer merged), so appending
+// would resurrect gaps the candidate has already closed. An empty list clears the
+// column — "nothing left to ask". Best-effort by contract: the caller's
+// application/merge has already succeeded, so a failure here is logged upstream,
+// never fatal. Returns true when a row was touched.
+export function setEntryProfileGaps(
+  entryId: string,
+  gaps: readonly EntryProfileGap[],
+  workspaceId: string = DEFAULT_WORKSPACE_ID
+): boolean {
+  const db = ensureDb();
+  const bounded = gaps
+    .filter((g) => typeof g?.check === "string" && g.check.length > 0 && g.check.length <= PROFILE_GAP_CHECK_MAX)
+    .slice(0, PROFILE_GAPS_MAX)
+    .map((g) => ({ check: g.check, label: String(g.label ?? "").slice(0, PROFILE_GAP_LABEL_MAX) }));
+  const info = db
+    .prepare(`UPDATE pipeline_entries SET profile_gaps_json = ?, updated_at = ? WHERE id = ? AND workspace_id = ?`)
+    .run(bounded.length ? JSON.stringify(bounded) : null, new Date().toISOString(), entryId, workspaceId);
+  return Number(info.changes) > 0;
+}
+
+// Read the recorded gaps for an entry (server-side; the candidate path reads them
+// through findEntryByLeadToken's capability lookup instead).
+export function entryProfileGaps(entryId: string, workspaceId: string = DEFAULT_WORKSPACE_ID): EntryProfileGap[] {
+  const db = ensureDb();
+  const row = db
+    .prepare(`SELECT profile_gaps_json FROM pipeline_entries WHERE id = ? AND workspace_id = ?`)
+    .get(entryId, workspaceId) as { profile_gaps_json: string | null } | undefined;
+  return row ? parseProfileGaps(row.profile_gaps_json, entryId) : [];
+}
+
+// Revive the recorded gaps at the read boundary, same degrade-to-safe discipline
+// as parseLeadPassedKo: corrupt or mis-shaped JSON yields [] — the candidate is
+// simply asked nothing — never a fabricated question.
+function parseProfileGaps(json: string | null | undefined, entryId: string): EntryProfileGap[] {
+  if (!json) return [];
+  try {
+    const parsed = JSON.parse(json);
+    if (!Array.isArray(parsed)) return [];
+    const out: EntryProfileGap[] = [];
+    for (const item of parsed) {
+      if (out.length >= PROFILE_GAPS_MAX) break;
+      if (!item || typeof item !== "object") continue;
+      const check = (item as { check?: unknown }).check;
+      const label = (item as { label?: unknown }).label;
+      if (typeof check !== "string" || !check || check.length > PROFILE_GAP_CHECK_MAX) continue;
+      out.push({ check, label: typeof label === "string" ? label.slice(0, PROFILE_GAP_LABEL_MAX) : "" });
+    }
+    return out;
+  } catch (error) {
+    console.error(`[db] corrupt profile_gaps_json on pipeline entry "${entryId}"`, error);
+    return [];
+  }
+}
 
 // Resolve a lead-enrichment token back to its entry (+ recorded KO pass-state).
 // The caller-facing contract is deliberately soft: unknown/blank tokens return
@@ -940,7 +1144,11 @@ export function findEntryByLeadToken(token: string): LeadEnrichTarget | null {
   const db = ensureDb();
   const row = db.prepare(`SELECT * FROM pipeline_entries WHERE lead_token = ?`).get(key) as PipelineRow | undefined;
   if (!row) return null;
-  return { entry: rowToEntry(row), passedKoIds: parseLeadPassedKo(row.lead_passed_ko_json, row.id) };
+  return {
+    entry: rowToEntry(row),
+    passedKoIds: parseLeadPassedKo(row.lead_passed_ko_json, row.id),
+    profileGaps: parseProfileGaps(row.profile_gaps_json, row.id),
+  };
 }
 
 // Revive the recorded KO pass-state at the read boundary (same degrade-to-safe
@@ -1014,7 +1222,7 @@ export function setEntryNotes(id: string, notes: string | null, workspaceId: str
 // Capture data-processing consent at apply, sweep it on expiry, and anonymize
 // the candidate while RETAINING the non-identifying scoring artifacts so talent
 // rediscovery can re-surface a re-consenting candidate (Recruitis pattern, see
-// docs/GDPR_AND_HIRING_EXTENSIONS.md — read the DPO note before enabling in prod).
+// docs/_archive/GDPR_AND_HIRING_EXTENSIONS.md — read the DPO note before enabling in prod).
 
 export type ConsentEventKind =
   | "granted"
@@ -1299,6 +1507,36 @@ export function getPipelineEntry(id: string, workspaceId: string = DEFAULT_WORKS
   return row ? rowToEntry(row) : null;
 }
 
+/** Read-time consent gate for a candidate's saved-analysis PII (bug-ui-scan-2026-07-09
+ *  privacy-consent-provenance #3): does the pipeline entry linked to this candidate_label
+ *  currently WITHHOLD PII (consent expired, or already anonymized)? Matched on the
+ *  NORMALIZED label (LOWER(TRIM(...)), workspace-scoped) — the exact canonical linkage
+ *  anonymizeEntry uses to scrub analyses — so /api/analyses/[slug] can scrub the CV
+ *  payload SYNCHRONOUSLY in the window between consent-expiry and the deferred sweep,
+ *  rather than serving the full CV until the sweep happens to run. Withholds if ANY
+ *  linked entry withholds: the same GDPR-safe over-scrub direction finding #2 documents
+ *  for the exact-label same-tenant namesake collision (read-time hiding is non-destructive
+ *  and reversible, unlike an over-scrub write). No linked entry ⇒ false (a recruiter-
+ *  uploaded analysis carries no pipeline consent lifecycle to enforce). */
+export function candidateLabelWithholdsPii(
+  candidateLabel: string | null,
+  workspaceId: string = DEFAULT_WORKSPACE_ID,
+  nowMs: number = Date.now(),
+): boolean {
+  const labelKey = (candidateLabel ?? "").trim().toLowerCase();
+  if (!labelKey) return false;
+  const rows = ensureDb()
+    .prepare(
+      `SELECT consent_given_at, consent_expires_at, anonymized_at
+         FROM pipeline_entries WHERE LOWER(TRIM(candidate_label)) = ? AND workspace_id = ?`
+    )
+    .all(labelKey, workspaceId) as { consent_given_at: string | null; consent_expires_at: string | null; anonymized_at: string | null }[];
+  if (rows.length === 0) return false;
+  return rows.some((r) =>
+    consentWithholdsPii({ givenAt: r.consent_given_at, expiresAt: r.consent_expires_at, anonymizedAt: r.anonymized_at }, nowMs)
+  );
+}
+
 /** The owning team of an entry — a by-id point read on a globally-unique PK. Lets a
  *  token-driven flow with no session workspace (the interview-complete scorecard, resolved
  *  by the session's CSPRNG token) derive the entry's tenant to scope its own writes. */
@@ -1386,12 +1624,21 @@ export function recordAutomationEvent(entryId: string, kind: string, detail?: st
 // and per-channel funnel analytics can count and inspect every discard. The
 // contact address is deliberately NOT recorded — no entry was created, so no
 // deliverable identity should be retained for a declined applicant.
+//
+// Tenant (P1): `workspaceId` is REQUIRED, deliberately un-defaulted. This event is
+// entry-less, so recordEvent's usual "derive the tenant from the linked entry"
+// fallback cannot fire and an omitted tenant would silently land in the DEFAULT
+// workspace — which both zeroes every other team's "turned away at the gate"
+// metric (the analytics read IS workspace-scoped) and bleeds their applicants'
+// names + role titles into the default team's activity feed. Callers hold the
+// opening's workspace already; make them pass it.
 const KO_DECLINE_DETAIL_MAX = 200;
 export function recordKnockoutDecline(input: {
   candidateLabel: string | null;
   jobTitle: string | null;
   channel: string;
   failedKoIds: readonly string[];
+  workspaceId: string;
 }): void {
   const db = ensureDb();
   const detail = `knockout declined via ${input.channel} — failed: ${input.failedKoIds.join(", ")}`;
@@ -1401,6 +1648,7 @@ export function recordKnockoutDecline(input: {
     jobTitle: input.jobTitle,
     kind: "ko_declined",
     detail: detail.length > KO_DECLINE_DETAIL_MAX ? `${detail.slice(0, KO_DECLINE_DETAIL_MAX - 1)}…` : detail,
+    workspaceId: input.workspaceId,
   });
 }
 

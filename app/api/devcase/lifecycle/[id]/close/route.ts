@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { claimLifecycleClose, getLifecycle, listPostings, listSubmissions, setPostingStatus, updateLifecycle } from "@/app/_lib/db";
+import { claimLifecycleClose, getLifecycle, listPostings, listSubmissions, setPostingStatus, updateLifecycle } from "@/app/_lib/db/devcase";
 import { sendComm } from "@/app/_lib/comms";
 import { recordAudit } from "@/app/_lib/dev-control";
 
@@ -32,7 +32,15 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
 
     // Every posting this lifecycle distributed through (directly linked, or any
     // posting of its approved case).
-    const postings = listPostings().filter(
+    //
+    // TENANT SCOPE (D5): enumerate within the LIFECYCLE'S OWN workspace, not the
+    // session's and not the default. `listPostings()` bare read the DEFAULT workspace,
+    // so closing any non-default team's lifecycle matched zero postings: nobody was
+    // notified, no posting was closed, and the route still answered `{ok:true,
+    // notified:0}` — a silent success over a close that did nothing. Deriving the
+    // tenant from the lifecycle (rather than from currentWorkspace()) also keeps the
+    // route correct for a future automated/background caller that has no session.
+    const postings = listPostings(lc.workspaceId).filter(
       (p) => (lc.postingId && p.id === lc.postingId) || (lc.caseId && p.caseId === lc.caseId)
     );
 
@@ -44,7 +52,7 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
     let notifyFailures = 0;
     for (const posting of postings) {
       const role = posting.roleTitle ?? posting.caseTitle ?? "the role";
-      for (const submission of listSubmissions(posting.id)) {
+      for (const submission of listSubmissions(posting.id, lc.workspaceId)) {
         if (submission.status === "promoted") continue;
         const to = submission.contact || submission.candidateRef;
         if (!to || seen.has(to)) continue;
@@ -62,6 +70,11 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
             body: `Hi ${submission.candidateRef ?? "there"},\n\nThank you for the time you put into the assignment for ${role}. The intake for this role has now closed, and we won't be moving forward with your submission. We'd be glad to see you apply for a future role.\n\nBest,\nThe hiring team`,
             kind: "rejection",
             ref: submission.id,
+            // TENANT SCOPE (D5): the outbox's tenant derivation reads pipeline_entries by
+            // ref, and a dev-case submission id is not a pipeline entry — so without this
+            // the wrap-up note filed into the DEFAULT team's Outbox, invisible (and
+            // un-resendable) to the team whose case was actually closed.
+            workspaceId: lc.workspaceId,
           });
           notified += 1;
         } catch (commError) {
@@ -81,14 +94,27 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
     // written per close. (sends no longer throw out of the loop, so this is always
     // reached.)
     const failNote = notifyFailures ? `, ${notifyFailures} note(s) failed (recoverable via Resend)` : "";
-    updateLifecycle(id, { detail: `closed by a human — ${notified} candidate(s) notified${failNote}` });
+    // HONEST REPORTING over erroring (D5). "No postings" is a legitimate state — a
+    // lifecycle can be closed before it ever reached `published` — and the close itself
+    // genuinely happened (the stage flip is committed above), so a 4xx/5xx would tell the
+    // client the lifecycle is still open when it is not. What must NOT happen is the old
+    // bare `{ok:true, notified:0}` that reads identically to a successful close of a case
+    // with nothing to notify. The response therefore says so explicitly (`noPostings`),
+    // and the lifecycle detail + audit row record it in the same words a human reads.
+    const noPostings = postings.length === 0;
+    const detail = noPostings
+      ? "closed by a human — no open postings were found, so no candidate was notified"
+      : `closed by a human — ${notified} candidate(s) notified${failNote}`;
+    updateLifecycle(id, { detail });
     recordAudit({
       lifecycleId: id,
       actor: "human",
       action: "closed",
-      reason: `${postings.length} posting(s) closed; ${notified} non-promoted candidate(s) notified${failNote}`,
+      reason: noPostings
+        ? "no postings found for this lifecycle — nothing was closed and nobody was notified"
+        : `${postings.length} posting(s) closed; ${notified} non-promoted candidate(s) notified${failNote}`,
     });
-    return NextResponse.json({ ok: true, notified, notifyFailures, postingsClosed: postings.length });
+    return NextResponse.json({ ok: true, notified, notifyFailures, postingsClosed: postings.length, noPostings });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Close failed." }, { status: 500 });
   }

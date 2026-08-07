@@ -8,7 +8,7 @@
 //   npm run test:unit
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { htmlToMarkdown, markdownToHtml } from "./markdown-html.ts";
+import { htmlToMarkdown, markdownToHtml, safeLinkHref } from "./markdown-html.ts";
 
 // markdown → HTML → markdown; the second pass must equal the first (idempotent).
 const roundTrip = (md: string) => htmlToMarkdown(markdownToHtml(md));
@@ -75,4 +75,70 @@ test("empty / whitespace input yields empty markdown", () => {
   assert.equal(htmlToMarkdown(""), "");
   assert.equal(markdownToHtml(""), "");
   assert.equal(roundTrip("   \n\n  "), "");
+});
+
+// ── Finding #3: literal markdown metacharacters are escaped, never re-parsed ──
+// A recruiter types plain text into the editor; on read-back a literal `*`/`` ` ``
+// must NOT become emphasis/code on the public JD page. Pre-fix htmlToMarkdown
+// emitted the character verbatim (each assertion below FAILS against pre-fix code).
+
+test("literal inline metacharacters are backslash-escaped on serialize (#3)", () => {
+  assert.equal(htmlToMarkdown("<p>use *args and stuff</p>"), "use \\*args and stuff");
+  assert.equal(htmlToMarkdown("<p>salary * negotiable</p>"), "salary \\* negotiable");
+  assert.equal(htmlToMarkdown("<p>run `cmd` now</p>"), "run \\`cmd\\` now");
+  // A literal <u>…</u> typed as text must not become an underline.
+  assert.equal(htmlToMarkdown("<p>value &lt;u&gt;x&lt;/u&gt; here</p>"), "value \\<u>x\\</u> here");
+});
+
+test("escaped metacharacters render as literals and round-trip losslessly (#3)", () => {
+  // The renderer unescapes: no <em>/<strong>/<code>, just the literal characters.
+  assert.equal(markdownToHtml("2 \\* 3 = 6"), "<p>2 * 3 = 6</p>");
+  assert.equal(markdownToHtml("a \\`b\\` c"), "<p>a `b` c</p>");
+  // markdown → HTML → markdown is stable for escaped text.
+  assert.equal(roundTrip("2 \\* 3 = 6"), "2 \\* 3 = 6");
+  assert.equal(roundTrip("a \\* b"), "a \\* b");
+  assert.equal(roundTrip("back \\\\ slash"), "back \\\\ slash");
+  // Real emphasis is untouched by the new escape (regression guard).
+  assert.equal(roundTrip("**bold** and *italic* and `code`"), "**bold** and *italic* and `code`");
+});
+
+test("a paragraph starting with a block marker is escaped, not turned into a list/heading (#3)", () => {
+  assert.equal(htmlToMarkdown("<p>- not a bullet</p>"), "\\- not a bullet");
+  assert.equal(htmlToMarkdown("<p># not a heading</p>"), "\\# not a heading");
+  assert.equal(htmlToMarkdown("<div>3. not ordered</div>"), "3\\. not ordered");
+  // …and those escaped lines render as plain paragraphs, not structure.
+  assert.equal(markdownToHtml("\\- not a bullet"), "<p>- not a bullet</p>");
+  assert.equal(markdownToHtml("\\# not a heading"), "<p># not a heading</p>");
+  assert.equal(markdownToHtml("3\\. not ordered"), "<p>3. not ordered</p>");
+  // Genuine structure still serializes with its real marker (regression guard).
+  assert.equal(htmlToMarkdown("<ul><li>real bullet</li></ul>"), "- real bullet");
+  assert.equal(htmlToMarkdown("<h2>Real heading</h2>"), "## Real heading");
+});
+
+// ── Finding #5: [text](url) links render, round-trip, and reject unsafe schemes ──
+
+test("safeLinkHref allows only http/https/mailto", () => {
+  assert.equal(safeLinkHref("https://x.com"), "https://x.com");
+  assert.equal(safeLinkHref("  http://x.com "), "http://x.com");
+  assert.equal(safeLinkHref("mailto:a@b.com"), "mailto:a@b.com");
+  assert.equal(safeLinkHref("javascript:alert(1)"), null);
+  assert.equal(safeLinkHref("data:text/html,x"), null);
+  assert.equal(safeLinkHref("/relative/path"), null);
+});
+
+test("[text](url) renders a real <a> and round-trips (#5)", () => {
+  assert.equal(
+    markdownToHtml("[Apply here](https://careers.example.com)"),
+    `<p><a href="https://careers.example.com" target="_blank" rel="noopener noreferrer">Apply here</a></p>`
+  );
+  // href with an ampersand survives the HTML escape and the round-trip.
+  assert.equal(roundTrip("See [Apply](https://x.com/a?b=1&c=2) now"), "See [Apply](https://x.com/a?b=1&c=2) now");
+  // An <a> seeded into the editor serializes back to markdown link syntax.
+  assert.equal(htmlToMarkdown(`<p><a href="mailto:jobs@acme.com">email us</a></p>`), "[email us](mailto:jobs@acme.com)");
+});
+
+test("an unsafe-scheme link is rendered as inert text, never an href (#5)", () => {
+  assert.equal(markdownToHtml("[x](javascript:alert(1))"), "<p>[x](javascript:alert(1))</p>");
+  // A javascript: href stored via an <a> is dropped on serialize (link → plain text).
+  assert.equal(htmlToMarkdown(`<p><a href="javascript:alert(1)">x</a></p>`), "x");
 });

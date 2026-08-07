@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Bricolage_Grotesque, Fraunces, Inter } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages, getTranslations } from "next-intl/server";
@@ -8,6 +8,9 @@ import { BrandStyle } from "./_components/BrandStyle";
 import { BrandProvider } from "./_components/BrandProvider";
 import { getBrand } from "./_lib/brand-store";
 import { DEFAULT_BRAND } from "./_lib/brand-config";
+import { DARK, PAPER } from "./_lib/brand";
+import { siteUrl } from "./_lib/site-url";
+import { PlausibleScript } from "./_lib/analytics/plausible";
 import "./globals.css";
 
 // SHELL5 — `latin-ext` carries the Czech diacritics (ě š č ř ž ů, all over
@@ -36,39 +39,26 @@ const bricolage = Bricolage_Grotesque({
   display: "swap"
 });
 
-const SITE_TITLE = "KP Job Fit & Salary Estimator";
-const SITE_DESCRIPTION = "AI-assisted CV seniority scoring and salary estimation pipeline for the Czech market.";
+// English fallbacks for when the `meta` catalog lacks a key — the catalog is the
+// source of truth (all four locales carry meta.title/description); these only
+// cover a partial catalog.
+const SITE_TITLE = "KandiDate | Verified AI hiring, sealed decisions";
+const SITE_DESCRIPTION =
+  "KandiDate screens CVs, runs AI voice interviews and verifies work samples against AI delegation, with every hiring decision sealed into an auditable trail a human signs.";
+
+// Brand name, not copy — never localized (the Wordmark rule).
+const BRAND = "KandiDate";
 
 // SHELL5 — BCP-47 → OpenGraph locale code (underscored region form og:locale
 // expects). Keep in sync with the LOCALES universe.
 const OG_LOCALE: Record<string, string> = { en: "en_US", cs: "cs_CZ" };
 
-// Anchors relative OG/Twitter image URLs to an absolute origin. Without it Next
-// falls back to http://localhost:3000 and warns at build. Overridable per deploy
-// via NEXT_PUBLIC_SITE_URL (documented in .env.example); defaults to the project's
-// own domain.
-const DEFAULT_SITE_URL = "https://nuda.dev";
-
-// Resolve metadataBase defensively: a malformed NEXT_PUBLIC_SITE_URL fed straight
-// into `new URL()` would THROW at module load and crash the whole app on boot.
-// Parse it, warn, and fall back to the default instead — an un-set or fat-fingered
-// origin must degrade gracefully, not take the site down.
-function resolveSiteUrl(): URL {
-  const raw = process.env.NEXT_PUBLIC_SITE_URL?.trim();
-  if (raw) {
-    try {
-      return new URL(raw);
-    } catch {
-      console.warn(
-        `[layout] Invalid NEXT_PUBLIC_SITE_URL ${JSON.stringify(raw)} — must be an absolute URL; ` +
-          `falling back to ${DEFAULT_SITE_URL}.`
-      );
-    }
-  }
-  return new URL(DEFAULT_SITE_URL);
-}
-
-const SITE_URL = resolveSiteUrl();
+// Anchors metadataBase (and so relative OG/Twitter/canonical URLs) to an
+// absolute origin. Shared with robots.ts/sitemap.ts via app/_lib/site-url.ts so
+// the three can never disagree — the layout used to carry its own copy of the
+// same resolver, which is exactly the kind of duplication that drifts.
+// Overridable per deploy via NEXT_PUBLIC_SITE_URL (documented in .env.example).
+const SITE_URL = siteUrl();
 
 // SHELL5 — locale-aware metadata: `<title>`/description/OG now follow the active
 // locale (resolved per-request, the same path as `<html lang>`) instead of
@@ -85,20 +75,27 @@ export async function generateMetadata(): Promise<Metadata> {
     metadataBase: SITE_URL,
     title,
     description,
-    applicationName: "KP Job Fit & Salary Estimator",
-    authors: [{ name: "Michal Kazdan", url: "https://nuda.dev" }],
+    applicationName: BRAND,
+    authors: [{ name: "Michal Kazdan" }],
     creator: "Michal Kazdan",
     keywords: [
-      "CV scoring",
-      "job fit",
-      "salary estimation",
-      "Czech market",
-      "seniority assessment",
-      "AI hiring tools"
+      "verified work samples",
+      "AI hiring",
+      "anti-AI-cheating",
+      "voice interviews",
+      "auditable hiring decisions",
+      "CV screening",
+      "Czech market"
     ],
+    // Per-route canonical: a relative "./" is resolved against the CURRENT
+    // pathname and then metadataBase (resolveAbsoluteUrlWithPathname in Next's
+    // metadata resolver), so every page canonicalizes to itself on the
+    // configured origin — killing www/query-param duplicates without pinning
+    // every route to the site root.
+    alternates: { canonical: "./" },
     openGraph: {
       type: "website",
-      siteName: SITE_TITLE,
+      siteName: BRAND,
       title,
       description,
       locale: OG_LOCALE[locale] ?? "en_US"
@@ -111,12 +108,31 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-// Pre-hydration theme bootstrap (paired with ThemeToggle + the
+// Mobile viewport contract. `viewportFit: "cover"` is load-bearing: without it
+// iOS pins every env(safe-area-inset-*) to 0px permanently, so the safe-area
+// padding on the fixed chrome (control dock, orb, toasts, mobile drawer) could
+// never take effect. themeColor keeps the mobile browser chrome in the page's
+// register — it can only follow the OS preference (media queries are the only
+// dial the meta supports), which matches the theme bootstrap's default; an
+// explicit in-app override may diverge, which beats the always-light chrome.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: [
+    // <meta name="theme-color"> cannot take a var(), so these read the JS mirror
+    // of the canvas token — pinned to --color-paper (light + dark) by design:check.
+    { media: "(prefers-color-scheme: light)", color: PAPER },
+    { media: "(prefers-color-scheme: dark)", color: DARK.PAPER }
+  ]
+};
+
+// Pre-hydration theme bootstrap (paired with NavRailPreferences + the
 // [data-theme="dark"] seam in globals.css). Runs inline before first paint:
 // an explicit choice in localStorage wins, otherwise prefers-color-scheme
 // decides — so a dark-theme user never sees a light flash. Must stay a plain
 // string evaluated synchronously; a React effect would run after paint.
-// The marketing surfaces are hard-exempt (docs/DESIGN.md): a fixed Spark art
+// The marketing surfaces are hard-exempt (docs/design/README.md): a fixed Spark art
 // direction in literal hexes that must always render in the light register, so
 // the dark attribute is never set there regardless of the visitor's stored choice
 // or OS preference. Those surfaces are the public /about page (always) and the
@@ -150,6 +166,11 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
     <html lang={locale} className={`${inter.variable} ${fraunces.variable} ${bricolage.variable}`} suppressHydrationWarning>
       <body className="font-sans">
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT }} />
+        {/* Plausible (cookieless, env-gated on NEXT_PUBLIC_PLAUSIBLE_DOMAIN —
+            renders nothing when unset). Its default pageview covers the landing
+            view; custom funnel events go through track() in
+            app/_lib/analytics/plausible.tsx. */}
+        <PlausibleScript />
         {/* White-label accent override (E3) — after globals.css so it wins by source order. */}
         <BrandStyle accent={brand.accentColor} />
         <NextIntlClientProvider locale={locale} messages={messages}>

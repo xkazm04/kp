@@ -1,9 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isEarlyCareer } from "@/app/_lib/archetypes";
-import { interviewedForJob, listEntriesForJob } from "@/app/_lib/db";
+import { interviewedForJob, latestInterviewByEntry } from "@/app/_lib/db/interviews";
+import { listEntriesForJob } from "@/app/_lib/db/pipeline";
 import { getHumanScorecard } from "@/app/_lib/interview-prep";
 import { safeJsonError } from "@/app/_lib/api-response";
 import { INTERVIEW_RUBRICS, RATING_ANCHORS } from "@/app/_lib/interview-rubric";
+import type { InterviewTelemetry } from "@/app/_lib/interview-telemetry";
+
+// The engine attaches deterministic call telemetry (talk ratio, response gaps,
+// hint uptake) to the AI scorecard object, but interviewedForJob projects only
+// the rubric fields the grid needs and drops it. Re-read the candidate's latest
+// (transcript-bearing) session and pull the telemetry so the compare grid can
+// show conversational-dynamics signals per candidate. Best-effort + null-safe:
+// an entry-less lab session or an older scorecard simply yields null (no signal),
+// never an error — telemetry is descriptive enrichment, never a gate.
+function telemetryForEntry(entryId: string | null): InterviewTelemetry | null {
+  if (!entryId) return null;
+  const sc = latestInterviewByEntry(entryId)?.scorecard as { telemetry?: InterviewTelemetry } | null;
+  return sc?.telemetry ?? null;
+}
 
 
 // Side-by-side interview comparison for one job. Returns the rubrics keyed by
@@ -22,6 +37,7 @@ export async function GET(request: NextRequest) {
     const voice = interviewedForJob(jobId).map((c) => ({
       ...c,
       humanScorecard: c.entryId ? getHumanScorecard(c.entryId) : null,
+      telemetry: telemetryForEntry(c.entryId),
     }));
 
     // PREP1 (the W10/W14 deferral) — union in candidates whose round was
@@ -48,6 +64,9 @@ export async function GET(request: NextRequest) {
         observedSkills: [],
         humanScorecard: sc,
         humanOnly: true,
+        // A human-led round has no voice session, so no call telemetry — keep the
+        // field present (null) so both branches share one candidate shape.
+        telemetry: null as InterviewTelemetry | null,
       }));
 
     return NextResponse.json({

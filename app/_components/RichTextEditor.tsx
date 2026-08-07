@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { Bold, Heading, Italic, List, ListOrdered, Underline as UnderlineIcon } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { htmlToMarkdown, markdownToHtml } from "./markdown-html";
 
 // A dependency-free WYSIWYG editor: a Word-like toolbar over a contentEditable
@@ -41,6 +42,8 @@ export function RichTextEditor({
   ariaLabel,
   className = "",
   minHeight = "10rem",
+  disabled = false,
+  readOnly = false,
 }: {
   value: string;
   onChange: (markdown: string) => void;
@@ -48,7 +51,14 @@ export function RichTextEditor({
   ariaLabel?: string;
   className?: string;
   minHeight?: string;
+  /** Lock the surface + toolbar (e.g. while a mutation is in flight), matching the
+   *  disabled contract every sibling form control already honors. */
+  disabled?: boolean;
+  /** Read-only alias of `disabled` — same locked behavior, clearer intent. */
+  readOnly?: boolean;
 }) {
+  const locked = disabled || readOnly;
+  const tCommon = useTranslations("common");
   const ref = useRef<HTMLDivElement>(null);
   // The markdown the editor's DOM currently reflects — so a `value` prop change we
   // DIDN'T originate (a Duplicate prefill, a reset) re-seeds, while our own onChange
@@ -123,6 +133,7 @@ export function RichTextEditor({
   }, [refreshMarks]);
 
   const emit = () => {
+    if (locked) return;
     const el = ref.current;
     if (!el) return;
     const md = htmlToMarkdown(el.innerHTML);
@@ -132,6 +143,7 @@ export function RichTextEditor({
   };
 
   const run = (command: string, arg?: string) => {
+    if (locked) return;
     ref.current?.focus();
     try {
       document.execCommand(command, false, arg);
@@ -143,6 +155,7 @@ export function RichTextEditor({
   };
 
   const toggleHeading = () => {
+    if (locked) return;
     ref.current?.focus();
     const cur = String(document.queryCommandValue("formatBlock") || "").toLowerCase();
     run("formatBlock", /h[1-3]/.test(cur) ? "p" : "h2");
@@ -152,24 +165,24 @@ export function RichTextEditor({
     <div
       className={`overflow-hidden rounded-md border border-stone-200 bg-white transition-colors focus-within:border-coral/50 focus-within:ring-2 focus-within:ring-coral/20 ${className}`}
     >
-      <div className="flex flex-wrap items-center gap-0.5 border-b border-stone-200 bg-paper px-1.5 py-1" role="toolbar" aria-label="Formatting">
-        <TB label="Bold" active={marks.bold} onClick={() => run("bold")}>
+      <div className="flex flex-wrap items-center gap-0.5 border-b border-stone-200 bg-paper px-1.5 py-1" role="toolbar" aria-label={tCommon("formatting")} aria-disabled={locked || undefined}>
+        <TB label="Bold" active={marks.bold} disabled={locked} onClick={() => run("bold")}>
           <Bold size={15} aria-hidden />
         </TB>
-        <TB label="Italic" active={marks.italic} onClick={() => run("italic")}>
+        <TB label="Italic" active={marks.italic} disabled={locked} onClick={() => run("italic")}>
           <Italic size={15} aria-hidden />
         </TB>
-        <TB label="Underline" active={marks.underline} onClick={() => run("underline")}>
+        <TB label="Underline" active={marks.underline} disabled={locked} onClick={() => run("underline")}>
           <UnderlineIcon size={15} aria-hidden />
         </TB>
         <span className="mx-1 h-5 w-px bg-stone-200" aria-hidden />
-        <TB label="Heading" active={marks.heading} onClick={toggleHeading}>
+        <TB label="Heading" active={marks.heading} disabled={locked} onClick={toggleHeading}>
           <Heading size={15} aria-hidden />
         </TB>
-        <TB label="Bulleted list" active={marks.ul} onClick={() => run("insertUnorderedList")}>
+        <TB label="Bulleted list" active={marks.ul} disabled={locked} onClick={() => run("insertUnorderedList")}>
           <List size={15} aria-hidden />
         </TB>
-        <TB label="Numbered list" active={marks.ol} onClick={() => run("insertOrderedList")}>
+        <TB label="Numbered list" active={marks.ol} disabled={locked} onClick={() => run("insertOrderedList")}>
           <ListOrdered size={15} aria-hidden />
         </TB>
       </div>
@@ -182,16 +195,20 @@ export function RichTextEditor({
           ref={ref}
           role="textbox"
           aria-multiline="true"
-          aria-label={ariaLabel}
-          contentEditable
+          // Always name the textbox: caller-supplied label, else the placeholder,
+          // else a generic fallback — a role=textbox must never be nameless (a11y).
+          aria-label={ariaLabel || placeholder || "Rich text editor"}
+          aria-disabled={locked || undefined}
+          contentEditable={!locked}
           suppressContentEditableWarning
           spellCheck
           onInput={emit}
           onBlur={emit}
           onKeyUp={refreshMarks}
           onMouseUp={refreshMarks}
+          tabIndex={locked ? -1 : undefined}
           style={{ minHeight }}
-          className={`block w-full overflow-y-auto px-3 py-2.5 text-sm leading-6 text-ink outline-none ${PROSE}`}
+          className={`block w-full overflow-y-auto px-3 py-2.5 text-sm leading-6 text-ink outline-none ${locked ? "cursor-not-allowed opacity-60" : ""} ${PROSE}`}
         />
       </div>
     </div>
@@ -207,17 +224,18 @@ function safeState(command: string): boolean {
   }
 }
 
-function TB({ label, active, onClick, children }: { label: string; active?: boolean; onClick: () => void; children: ReactNode }) {
+function TB({ label, active, disabled, onClick, children }: { label: string; active?: boolean; disabled?: boolean; onClick: () => void; children: ReactNode }) {
   return (
     <button
       type="button"
       aria-label={label}
       aria-pressed={active}
       title={label}
+      disabled={disabled}
       // Keep the editor's selection: a mousedown on the button must not blur it.
       onMouseDown={(e) => e.preventDefault()}
       onClick={onClick}
-      className={`focus-ring inline-grid h-8 w-8 place-items-center rounded transition-colors ${
+      className={`focus-ring inline-grid h-8 w-8 place-items-center rounded transition-colors disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent ${
         active ? "bg-ink text-white" : "text-steel hover:bg-white hover:text-ink"
       }`}
     >

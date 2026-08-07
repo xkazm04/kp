@@ -6,10 +6,8 @@
 //
 //   npm run test:unit   (or: node --import ./scripts/test-alias-loader.mjs \
 //                         --experimental-transform-types --test app/_lib/billing-reserve.test.ts)
-import { test } from "node:test";
+import { test, after } from "node:test";
 import assert from "node:assert/strict";
-import os from "node:os";
-import path from "node:path";
 import fs from "node:fs";
 import { registerHooks } from "node:module";
 import { fileURLToPath } from "node:url";
@@ -39,10 +37,15 @@ registerHooks({
   },
 });
 
-// Throwaway DB BEFORE importing (db-path reads KP_DB_PATH at module load; node --test
-// isolates each file in its own process, so this can't leak).
-const TMP = path.join(os.tmpdir(), `kp-billing-reserve-test-${process.pid}.sqlite`);
-process.env.KP_DB_PATH = TMP;
+// Throwaway DB BEFORE importing anything that touches db-path (DB_PATH is frozen from
+// KP_DB_PATH at module-eval time), so this MUST stay the first project import. Same
+// pid-recycling defect as billing-gate.test.ts: the old
+// `kp-billing-reserve-test-${process.pid}.sqlite` was never deleted, so a run that drew a
+// previously-used pid re-opened that run's leftover DB — spendTo() then saw usage already
+// past the target and its `need >= 0` precondition blew up. unit-db.ts mkdtemps a unique
+// run directory instead (never pid-derived) and sweeps/cleans up after itself.
+const { cleanupUnitDb } = await import("./testing/unit-db.ts");
+after(cleanupUnitDb);
 
 const { upsertBillingState, billingUsageFor } = await import("./db.ts");
 const { recordMeterUsage } = await import("./billing/entitlements.ts");

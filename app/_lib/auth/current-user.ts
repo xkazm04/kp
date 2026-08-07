@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import { NextResponse } from "next/server";
+import { connection, NextResponse } from "next/server";
 import { SESSION_COOKIE } from "./edge-verify";
 import { verifySession, currentWorkspaceId, currentUserId, currentOrgId, isOperatorSession, DEMO_WORKSPACE, type SessionPayload } from "./session";
 import { roleCapabilities, type Capability, type MemberRole } from "./roles";
@@ -17,10 +17,20 @@ const OWNER_CAPS = roleCapabilities("owner");
 const EMPTY_CAPS: ReadonlySet<Capability> = new Set();
 
 /** The verified session for the current request, or null. Never throws — outside a
- *  request (a background task / script) cookies() throws and we return null. */
+ *  request (a background task / script) cookies() throws and we return null.
+ *
+ *  `await connection()` is load-bearing under Cache Components (Next 16.3): expiry
+ *  verification reads the wall clock (`verifySession`'s `Date.now()` default), and
+ *  the clock is an "unstable value" the prerender refuses to bake in
+ *  (blocking-prerender-current-time). Reading `cookies()` no longer opts a route
+ *  into request rendering the way the old model did — it only streams that subtree
+ *  — so the clock read must be marked request-time explicitly, exactly as
+ *  docs/01-app/01-getting-started/08-caching.md prescribes. Without it every
+ *  server render that authenticates logs the error, '/' included. */
 export async function currentSession(): Promise<SessionPayload | null> {
   try {
     const jar = await cookies();
+    await connection();
     return verifySession(jar.get(SESSION_COOKIE)?.value);
   } catch {
     return null;

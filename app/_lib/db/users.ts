@@ -16,6 +16,10 @@ export type User = {
   name: string | null;
   status: UserStatus;
   createdAt: string;
+  /** First-run onboarding: when the wizard was finished / explicitly skipped.
+   *  Both null = never seen (the / gate shows it on next sign-in). */
+  onboardingCompletedAt: string | null;
+  onboardingSkippedAt: string | null;
 };
 
 function rowToUser(r: Record<string, unknown>): User {
@@ -26,6 +30,8 @@ function rowToUser(r: Record<string, unknown>): User {
     name: (r.name as string) ?? null,
     status: (r.status as UserStatus) ?? "active",
     createdAt: r.created_at as string,
+    onboardingCompletedAt: (r.onboarding_completed_at as string) ?? null,
+    onboardingSkippedAt: (r.onboarding_skipped_at as string) ?? null,
   };
 }
 
@@ -69,7 +75,7 @@ export function createUser(input: CreateUserInput): User {
     createdAt,
   );
   if (input.password) setUserPassword(id, input.password);
-  return { id, orgId: input.orgId, email, name, status, createdAt };
+  return { id, orgId: input.orgId, email, name, status, createdAt, onboardingCompletedAt: null, onboardingSkippedAt: null };
 }
 
 export function setUserStatus(id: string, status: UserStatus): boolean {
@@ -82,6 +88,19 @@ export function updateUserName(id: string, name: string | null): boolean {
   const db = ensureDb();
   const clean = name?.trim().slice(0, 120) || null;
   const info = db.prepare(`UPDATE users SET name = ? WHERE id = ?`).run(clean, id);
+  return Number(info.changes) > 0;
+}
+
+/** Stamp the first-run onboarding outcome for a user. "completed" also clears a
+ *  previous skip (finishing the wizard later upgrades the record); "skipped" only
+ *  stamps if not completed — a skip after completion is meaningless. */
+export function markUserOnboarding(id: string, outcome: "completed" | "skipped"): boolean {
+  const db = ensureDb();
+  const now = new Date().toISOString();
+  const info =
+    outcome === "completed"
+      ? db.prepare(`UPDATE users SET onboarding_completed_at = ?, onboarding_skipped_at = NULL WHERE id = ?`).run(now, id)
+      : db.prepare(`UPDATE users SET onboarding_skipped_at = ? WHERE id = ? AND onboarding_completed_at IS NULL`).run(now, id);
   return Number(info.changes) > 0;
 }
 

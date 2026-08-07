@@ -8,7 +8,7 @@ match_reasoning.generate) so the pipeline never blocks when the CLI is absent
 Fairness is enforced in code, not left to the model: early-career candidates
 (student / career_switcher) are never silently advanced or rejected by automation.
 
-See docs/AUTOMATION_SPEC.md for the full design.
+See docs/features/pipeline/README.md for the full design.
 """
 
 from __future__ import annotations
@@ -19,11 +19,17 @@ from typing import Any
 
 from . import registry
 from .jobs import Job
+from .market_config import ACTIVE_MARKET, MarketConfig, gross_period_phrase
 from .matching import MatchCandidate, ko_filter, score_job
 from .match_reasoning import generate as generate_reasoning
 from .match_reasoning import reasoning_context
 
-SCREENING_PROMPT_VERSION = "screening-v1"
+# screening-v2: no prompt-content change — the version marks the CACHE-AXIS
+# correction. The screening rationale is generated in the requested --lang, but the
+# TS cache key ignored the locale, so a locale switch served the previous language's
+# rationale for the full 168h TTL. Bumped in lockstep with AUTOMATION_VERSION.screen
+# (app/_lib/automation-run.ts) so the wrongly-shared v1 entries self-invalidate.
+SCREENING_PROMPT_VERSION = "screening-v2"
 # Letter tasks v2 (backlog #34/#37): explicit --lang (the entry's resolved comms
 # locale) overrides the CV-language guess, and the prompts carry the
 # gender-neutral style directive; the offer prompt additionally forbids inventing
@@ -31,7 +37,14 @@ SCREENING_PROMPT_VERSION = "screening-v1"
 OUTREACH_PROMPT_VERSION = "outreach-v2"
 REJECTION_PROMPT_VERSION = "rejection-v2"
 PREP_PROMPT_VERSION = "interview-prep-v1"
-SCORECARD_PROMPT_VERSION = "scorecard-v3"
+# scorecard-v5: the read-back exchange is now emitted as STRUCTURED `entities`
+# (confirmed / corrected heard→meant / unconfirmed) alongside the prose trust rule,
+# so a recruiter sees that "Rust" in the raw transcript actually meant React — not
+# just buried in the summary. Grounded ONLY in an actual read-back; null otherwise.
+# scorecard-v6: no prompt-content change over v5 — same cache-axis correction as
+# screening-v2 (the summary is generated in the requested --lang, which is now a
+# key axis). Kept in lockstep with AUTOMATION_VERSION.scorecard.
+SCORECARD_PROMPT_VERSION = "scorecard-v6"
 REMATCH_PROMPT_VERSION = "rematch-v1"
 # offer-v3: the result names its pricing basis — the draft-time fresh fit check
 # rides structured as `matchBasis` (rendered under its own label by the approval
@@ -61,7 +74,7 @@ _EARLY_CAREER = registry.early_career_archetypes()
 # ONCE here (previously an inline literal repeated in each prompt + a duplicated
 # coerce tuple) and mirrored on the TS side in
 # app/_lib/interview-recommendation.ts; the cross-language contract + fallback are
-# documented in docs/AUTOMATION_SPEC.md §2.5.
+# documented in docs/features/pipeline/README.md §2.5.
 RECOMMENDATIONS: tuple[str, ...] = ("advance", "hold", "reject")
 # Fallback for an unknown / empty / malformed verdict: the safe middle state.
 # Never silently `advance` (could auto-progress a candidate) or `reject` (the
@@ -77,10 +90,18 @@ RECOMMENDATION_CHOICES = "|".join(RECOMMENDATIONS)
 # Mirrors SCREEN_ROUTES on the TS side.
 SCREEN_ROUTES: tuple[str, ...] = ("advance", "hold")
 
-_SYSTEM = (
-    "You are an HR automation assistant for the Czech tech market. Be concise, specific, fair, and "
-    "grounded only in the supplied facts. Write in the requested language. Output strict JSON only."
-)
+def _system_prompt(market: MarketConfig = ACTIVE_MARKET) -> str:
+    """The HR-automation system persona, with the target market named from config
+    instead of a hardcoded "Czech" — the last automation reasoning persona still
+    biased Czech after campaign.py (round 9) and group_compare.py (round 10) were
+    de-Czech'd. For the Czech default (descriptor "Czech") this is byte-identical to
+    the "_SYSTEM" literal it replaced, so every screening/letter task is unchanged for
+    the pilot; a re-homed market tells the model the RIGHT market on every task."""
+    market_phrase = market.market_descriptor or ACTIVE_MARKET.market_descriptor
+    return (
+        f"You are an HR automation assistant for the {market_phrase} tech market. Be concise, specific, fair, and "
+        "grounded only in the supplied facts. Write in the requested language. Output strict JSON only."
+    )
 
 
 def coerce_recommendation(value: Any, default: str = RECOMMENDATION_FALLBACK) -> str:
@@ -102,7 +123,7 @@ def _generate(provider: Any | None, prompt: str, deterministic, coerce) -> tuple
     if provider is None:
         return deterministic(), "deterministic"
     try:
-        payload = provider.complete_json(prompt, system=_SYSTEM)
+        payload = provider.complete_json(prompt, system=_system_prompt())
         result = coerce(payload)
         return result, "llm"
     except Exception:
@@ -115,9 +136,51 @@ def _str_list(value: Any, limit: int = 8) -> list[str]:
     return [str(x).strip() for x in value if str(x).strip()][:limit]
 
 
-def _candidate_lang(candidate: MatchCandidate) -> str:
+# Candidate-DECLARED language name -> app locale code, for the best-effort letter
+# language guess when no explicit comms locale is supplied. Only the app LOCALES
+# (en/cs/de/fr — the set i18n.LANG_NAMES models) are resolvable; any other declared
+# language is not a locale we can write in and is ignored (English stays the
+# fallback). Diacritic-free spellings are included so an ASCII-folded CV ("cesky",
+# "francais", "nemcina") still resolves. This is the only place a *free-text* language
+# name is mapped to a locale; an explicit --lang code goes through normalize_lang.
+_DECLARED_LANG_TO_LOCALE: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("cs", ("czech", "česk", "češ", "cesk", "ceš", "cest")),
+    ("de", ("german", "deutsch", "němč", "nemc")),
+    ("fr", ("french", "français", "francais")),
+    ("en", ("english", "anglič", "anglic")),
+)
+
+
+def _candidate_lang(candidate: MatchCandidate, *, market: MarketConfig = ACTIVE_MARKET) -> str:
+    """Best-effort English NAME of the language a candidate-facing letter should
+    render in, guessed from the candidate's DECLARED spoken languages
+    (``candidate.languages``) when no explicit comms locale is supplied.
+
+    Extended from the original hardcoded Czech/English binary to the full app LOCALE
+    set (en/cs/de/fr) via i18n's ``LANG_NAMES`` — so a candidate who lists only German
+    or French no longer silently collapses to an English letter.
+
+    LIMITATION — honest by design: ``candidate.languages`` lists what the person
+    SPEAKS, not their preferred correspondence locale, so a multilingual candidate is
+    inherently ambiguous. The reliable signal is an explicit locale field, which
+    :func:`_letter_lang` prefers over this guess (the TS seam passes the entry's
+    resolved comms locale in real flows); this function is only the fallback for direct
+    CLI / older callers. To stay conservative we resolve by priority: the active
+    market's home language wins when the candidate declares it (a Czech-market Czech
+    speaker → Czech), else English when declared (the lingua-franca tiebreak, so a
+    "German, English" speaker still gets English exactly as before), else the first
+    declared app locale, else English. This keeps every cs/en outcome byte-identical
+    and only ADDS detection for candidates who speak neither Czech nor English."""
+    from .i18n import DEFAULT_LANG, language_name
+
     blob = " ".join(candidate.languages).casefold()
-    return "Czech" if ("czech" in blob or "česk" in blob or "cesk" in blob) else "English"
+    declared = [code for code, aliases in _DECLARED_LANG_TO_LOCALE if any(a in blob for a in aliases)]
+    if not declared:
+        return language_name(DEFAULT_LANG)
+    for preferred in (market.home_lang, "en"):
+        if preferred in declared:
+            return language_name(preferred)
+    return language_name(declared[0])
 
 
 def _letter_lang(candidate: MatchCandidate, lang: str | None) -> str:
@@ -566,6 +629,34 @@ def rubric_for_candidate(archetype: str | None, role_family: str | None) -> list
     return [*rubric_for_archetype(archetype), *industry_axes_for(role_family)]
 
 
+def rubric_version_hash(rubric: list[dict]) -> str:
+    """A stable content hash of a resolved rubric slice — the "rubric version" a
+    scorecard stamps at write time so it can be re-evaluated against the exact scale
+    it was scored on, even after interview-rubrics.json revises (Direction 2).
+
+    Byte-identical to the TS `rubricVersionHash` (interview-rubric.ts): a delimiter-
+    joined canonical string (NOT JSON, so no cross-language canonicalization risk)
+    hashed with 64-bit FNV-1a over its UTF-8 bytes. Covers competency + description +
+    BARS anchors, so a reworded anchor advances the version. A cross-side parity test
+    (test_interview_rubrics.py + interview-rubric.test.ts) pins both to one literal."""
+    US = "␟"  # unit separator (competency fields)
+    RS = "␞"  # record separator (between competencies)
+    parts = []
+    for c in rubric:
+        anchors = c.get("anchors")
+        anchors_canon = (
+            US.join(f"{k}={anchors[k]}" for k in sorted(anchors, key=int)) if anchors else ""
+        )
+        parts.append(US.join([c["competency"], c["description"], anchors_canon]))
+    canon = RS.join(parts)
+    mask = 0xFFFFFFFFFFFFFFFF
+    h = 0xCBF29CE484222325  # FNV-1a 64-bit offset basis
+    for b in canon.encode("utf-8"):
+        h ^= b
+        h = (h * 0x100000001B3) & mask
+    return format(h, "016x")
+
+
 def _scorecard_confidence(notes: str, ratings: list[dict], total: int) -> dict:
     """Deterministic confidence in the scorecard, driven by how much the transcript
     actually supports. A short or thinly-evidenced interview yields a WIDE band
@@ -583,6 +674,84 @@ def _scorecard_confidence(notes: str, ratings: list[dict], total: int) -> dict:
     if n >= 2000 and assessed >= total:
         return {"level": "tight", "reason": "Full-length transcript with every competency evidenced."}
     return {"level": "moderate", "reason": "Partial evidence across the competencies."}
+
+
+def _coerce_entities(raw: Any) -> dict | None:
+    """Narrow the model's `entities` blob to the structured read-back record, or None
+    when there was no read-back to show. Grounded, defensive parsing (mirrors the
+    per-rating clamp): a non-dict, a missing field, or empty/malformed buckets never
+    fabricate an exchange. Returns None when EVERY bucket is empty so the key is
+    omitted and absence stays the honest "no read-back happened" signal — never an
+    invented one."""
+    if not isinstance(raw, dict):
+        return None
+
+    def _strs(v: Any) -> list[str]:
+        if not isinstance(v, list):
+            return []
+        out: list[str] = []
+        for x in v:
+            s = x.strip() if isinstance(x, str) else ""
+            if s:
+                out.append(s)
+        return out
+
+    confirmed_raw = _strs(raw.get("confirmed"))
+    unconfirmed_raw = _strs(raw.get("unconfirmed"))
+    corrected: list[dict] = []
+    for c in raw.get("corrected") or []:
+        if not isinstance(c, dict):
+            continue
+        heard = c.get("heard").strip() if isinstance(c.get("heard"), str) else ""
+        meant = c.get("meant").strip() if isinstance(c.get("meant"), str) else ""
+        if heard and meant:
+            corrected.append({"heard": heard, "meant": meant})
+    # Cross-bucket dedupe with a documented precedence so a token the model emits in
+    # more than one bucket renders in exactly ONE list. Precedence (highest first):
+    #   corrected.meant ("what they actually meant") > confirmed > unconfirmed.
+    # A token present in a higher bucket is dropped from every lower one — exact,
+    # trimmed string match, order preserved. Mirrors normalizeScorecardEntities (TS).
+    meant_set = {c["meant"] for c in corrected}
+    confirmed = [t for t in confirmed_raw if t not in meant_set]
+    confirmed_set = set(confirmed)
+    unconfirmed = [t for t in unconfirmed_raw if t not in meant_set and t not in confirmed_set]
+    if not confirmed and not corrected and not unconfirmed:
+        return None
+    return {"confirmed": confirmed, "corrected": corrected, "unconfirmed": unconfirmed}
+
+
+# Character budget for the transcript handed to the scorecard prompt. MUST match
+# MAX_SCORECARD_NOTES_CHARS in app/_lib/interview-transcript.ts — the TS side
+# already samples to this budget, so a TS-produced note passes through untouched
+# and only a non-TS caller is ever sampled here.
+MAX_SCORECARD_NOTES_CHARS = 6000
+
+
+def sample_scorecard_notes(notes: str | None, limit: int = MAX_SCORECARD_NOTES_CHARS) -> str:
+    """Head+tail sample of an interview transcript, preserving the CLOSING turns.
+
+    A naive ``notes[:limit]`` front-slice deletes the end of the call — which is
+    precisely where the interviewer's read-back of the candidate's stack lives.
+    The scorecard prompt instructs the model to treat that confirmation as the
+    AUTHORITATIVE record of the candidate's technologies, overriding earlier ASR
+    mishearings ("React" heard as "Rust"), so dropping it left the model trusting
+    a confirmation it could no longer see and silently falling back to the raw
+    early turns the prompt explicitly warns about (UAT TZ-VI-L1-02 / PVI-L1-01).
+
+    Mirrors the head+tail strategy the TS side already uses, with an in-band
+    marker so an elided transcript always announces itself rather than reading as
+    a complete one.
+    """
+    text = notes or ""
+    if len(text) <= limit:
+        return text
+    marker = "\n…[transcript elided]…\n"
+    budget = max(0, limit - len(marker))
+    # Bias to the tail: the read-back and the close matter more to a rating than
+    # the middle of the call, while the head still carries the role framing.
+    head = budget // 2
+    tail = budget - head
+    return f"{text[:head]}{marker}{text[len(text) - tail:]}"
 
 
 def interview_scorecard(candidate: MatchCandidate, job: Job, notes: str, *, lang: str = "en", provider: Any | None = None, github: Any | None = None):
@@ -613,7 +782,9 @@ def interview_scorecard(candidate: MatchCandidate, job: Job, notes: str, *, lang
     rubric_lines = "\n".join(_rubric_line(c) for c in rubric)
     prompt = (
         f"Synthesize a structured interview scorecard for {candidate.label} (role: {job.title}) from these "
-        f"interviewer notes / transcript:\n\"\"\"{notes[:4000]}\"\"\"\n\n"
+        # Head+tail sampled, NOT front-sliced: the read-back this prompt calls
+        # AUTHORITATIVE a few lines below lives at the END of the call.
+        f"interviewer notes / transcript:\n\"\"\"{sample_scorecard_notes(notes)}\"\"\"\n\n"
         # GH7 — repo evidence contextualizes the ratings (e.g. a thin transcript
         # answer on a skill the repos already corroborate); "" when absent, so
         # the evidence-less prompt stays byte-identical (same guarantee as the
@@ -625,9 +796,27 @@ def interview_scorecard(candidate: MatchCandidate, job: Job, notes: str, *, lang
         "Ground every rating in the transcript: the evidence MUST be a short, near-verbatim quote of the "
         "candidate's own words that justifies the score — do not paraphrase or invent. If the transcript "
         "does not cover a competency, set its evidence to an empty string and rate it 3 (not assessed).\n"
+        # Read-back trust rule (docs/_archive/interview-improvement-inputs.md §2/§5): the brief now has the
+        # agent read back the technologies it heard before closing; that confirmation turn — not the
+        # raw ASR earlier in the call — is the authoritative record of the candidate's stack.
+        "The transcript comes from voice recognition, which can corrupt technology and product names "
+        "(e.g. React heard as Rust, PostgreSQL heard as 'později SQL'). If the interviewer read back a "
+        "list of technologies near the end and the candidate confirmed or corrected it, treat that "
+        "confirmation/correction as the AUTHORITATIVE record of the candidate's technologies — where it "
+        "conflicts with an earlier mention, the confirmation wins. Do not credit a specific technology "
+        "that appears only in earlier, unconfirmed turns as an established skill: note it in the summary "
+        "as unconfirmed (possible transcription error) rather than asserting it.\n"
+        # scorecard-v5: emit that read-back as STRUCTURED data so the recruiter gets a cue, not just prose.
+        'If — and ONLY if — such a read-back exchange actually happened in the transcript, also return an '
+        '"entities" object capturing its outcome: "confirmed" = technologies the candidate confirmed as heard; '
+        '"corrected" = each mishearing the candidate fixed, as {"heard": what the transcript recorded, '
+        '"meant": what the candidate said it should be}; "unconfirmed" = technologies mentioned only in earlier, '
+        'unconfirmed turns and never reached in the read-back (possible transcription errors). If NO read-back '
+        'exchange occurred, set "entities" to null — never invent one.\n'
         'Return JSON: { "ratings": [ { "competency": str (exactly one of the above), "rating": int 1-5, '
         '"evidence": str (verbatim candidate quote, or "") } ], "summary": str, '
-        f'"recommendation": "{RECOMMENDATION_CHOICES}" }}. '
+        f'"recommendation": "{RECOMMENDATION_CHOICES}", '
+        '"entities": { "confirmed": [str], "corrected": [{"heard": str, "meant": str}], "unconfirmed": [str] } | null }. '
         "Include every competency, in the order listed. JSON only.\n"
         # summary + the recommendation rationale are recruiter-facing prose;
         # generate them in the requested language. The per-competency `evidence`
@@ -679,11 +868,19 @@ def interview_scorecard(candidate: MatchCandidate, job: Job, notes: str, *, lang
                 }
             )
         rec = coerce_recommendation(payload.get("recommendation"))
-        return {
+        out = {
             "ratings": ratings,
             "summary": str(payload.get("summary") or det["summary"]),
             "recommendation": rec,
         }
+        # scorecard-v5 — the structured read-back outcome. Attached ONLY when the model
+        # returned a well-formed, non-empty exchange; a null/absent/all-empty `entities`
+        # (no read-back happened) leaves the key off entirely, so consumers treat its
+        # absence as "no read-back" and render no chrome (mirrors the coverage rule).
+        entities = _coerce_entities(payload.get("entities"))
+        if entities is not None:
+            out["entities"] = entities
+        return out
 
     result, source = _generate(provider, prompt, deterministic, coerce)
     # Self-describe which rubric this was scored on (the compare grid renders the
@@ -691,6 +888,12 @@ def interview_scorecard(candidate: MatchCandidate, job: Job, notes: str, *, lang
     result["scoringModel"] = model
     result["confidence"] = _scorecard_confidence(notes, result.get("ratings") or [], len(rubric))
     result["promptVersion"] = SCORECARD_PROMPT_VERSION
+    # Direction 2 — stamp the rubric this scorecard was scored against (version hash +
+    # its competency keys) so it can be re-evaluated on the exact scale later, after
+    # interview-rubrics.json revises. Same shape the human scorecard POST stamps; the
+    # hash is byte-identical to the TS side (rubric_version_hash mirrors rubricVersionHash).
+    result["rubricVersion"] = rubric_version_hash(rubric)
+    result["rubricKeys"] = [c["competency"] for c in rubric]
     return result, source
 
 
@@ -749,13 +952,27 @@ def rematch_candidate(
 # Task 8 — Offer package (deterministic salary from the role band + LLM letter)
 # ============================================================================
 
-# Fallback bands (CZK/month gross) when a job carries no salary_band.
-_SENIORITY_DEFAULT_BAND: dict[str, list[int]] = {
-    "junior": [45000, 65000],
-    "medior": [65000, 95000],
-    "senior": [95000, 140000],
-    "lead": [130000, 185000],
-}
+# The seniority fallback bands used when a job carries no salary_band of its own
+# now live on MarketConfig (`seniority_default_bands`) — they were CZK/month
+# magnitudes stamped with the ACTIVE market's currency, so a re-homed deploy drafted
+# a candidate-facing "95,000 EUR gross monthly", wrong by ~25×. The Czech default
+# reproduces the previous literals byte-for-byte; a market with NO configured bands
+# returns no figure at all (see _fallback_band / draft_offer).
+
+
+def _fallback_band(job: Job, market: MarketConfig) -> tuple[int, int] | None:
+    """The market's seniority fallback band for ``job``, or ``None`` when the market
+    has none configured.
+
+    An unmapped/absent seniority resolves through ``"medior"``, reproducing the old
+    ``.get(seniority, [65000, 95000])`` fallback exactly for the Czech default.
+    ``None`` is the FAIL-SAFE answer for an uncalibrated market — never another
+    market's magnitudes relabelled in this one's currency."""
+    bands = market.seniority_default_bands
+    if not bands:
+        return None
+    band = bands.get((job.seniority or "medior").lower()) or bands.get("medior")
+    return (int(band[0]), int(band[1])) if band else None
 
 
 def _round_k(value: float) -> int:
@@ -764,28 +981,62 @@ def _round_k(value: float) -> int:
 
 def draft_offer(candidate: MatchCandidate, job: Job, m, *, lang: str | None = None, provider: Any | None = None):
     """Propose a number inside the role's salary band (scaled by fit) + draft the offer letter."""
-    band = list(getattr(job, "salary_band", None) or [])
-    if len(band) < 2 or band[0] <= 0 or band[1] < band[0]:
-        band = _SENIORITY_DEFAULT_BAND.get((job.seniority or "medior").lower(), [65000, 95000])
-    lo, hi = int(band[0]), int(band[1])
-    currency = "CZK"
-
-    # Position within the band scales with match strength (match 55 -> 10%, 95 -> 90%).
-    f = max(0.1, min(0.9, (m.total - 55) / 40.0))
-    recommended = max(lo, min(hi, _round_k(lo + (hi - lo) * f)))
+    market = ACTIVE_MARKET
+    band: tuple[int, int] | None = None
+    raw = list(getattr(job, "salary_band", None) or [])
+    if len(raw) >= 2 and raw[0] > 0 and raw[1] >= raw[0]:
+        band = (int(raw[0]), int(raw[1]))
+    else:
+        # No band on the job — fall back to the MARKET's seniority bands, which may
+        # legitimately be absent (an uncalibrated market). See _fallback_band.
+        band = _fallback_band(job, market)
+    # The offer figure is denominated in the ACTIVE market's currency, not a
+    # hardcoded "CZK" — byte-identical ("CZK") for the Czech default, but a re-homed
+    # market labels the offer in ITS own currency instead of silently mislabelling it.
+    currency = market.currency
     lang = _letter_lang(candidate, lang)
-    # Name the producer (REC-01/OO-L2-10): this number is a FRESH fit check run at
-    # draft time — NOT the entry's stored match score the approval-card header
-    # shows — so the prose must never read as bare "Match N/100".
-    rationale = (
-        f"Fresh fit check {m.total}/100 at offer draft places the offer at ~{int(round(f * 100))}% of the "
-        f"{lo:,}–{hi:,} {currency} band for this {job.seniority or 'mid'}-level role."
-    )
+    # The pay PERIOD is the market's too — "Gross monthly" was hardcoded beside a
+    # market-driven currency, so a year-denominated market claimed a monthly figure.
+    period_en = gross_period_phrase(market.period, "en")
+    period_cs = gross_period_phrase(market.period, "cs")
+
+    if band is None:
+        # FAIL SAFE. We hold no band for this market and the job carries none, so
+        # there is no defensible number — and an invented one reaches the candidate.
+        # Emit no figure: the draft still routes to the human offer_review gate
+        # (setApproval in automation-run.ts), where a recruiter sets the real one.
+        lo = hi = recommended = None
+        f = 0.0
+        rationale = (
+            f"No salary band is configured for the '{market.market_id}' market and this posting carries none, "
+            f"so no figure was proposed — set the {currency} amount when approving this offer. "
+            f"(Fresh fit check at offer draft: {m.total}/100.)"
+        )
+        figure_line = (
+            "Do NOT state, estimate, imply, or hint at any compensation figure, band, or range — none has been "
+            "decided. Say the compensation details will be confirmed in the conversation. "
+            "Convey genuine enthusiasm and invite them to discuss. Keep it concise."
+        )
+    else:
+        lo, hi = band
+        # Position within the band scales with match strength (match 55 -> 10%, 95 -> 90%).
+        f = max(0.1, min(0.9, (m.total - 55) / 40.0))
+        recommended = max(lo, min(hi, _round_k(lo + (hi - lo) * f)))
+        # Name the producer (REC-01/OO-L2-10): this number is a FRESH fit check run at
+        # draft time — NOT the entry's stored match score the approval-card header
+        # shows — so the prose must never read as bare "Match N/100".
+        rationale = (
+            f"Fresh fit check {m.total}/100 at offer draft places the offer at ~{int(round(f * 100))}% of the "
+            f"{lo:,}–{hi:,} {currency} band for this {job.seniority or 'mid'}-level role."
+        )
+        figure_line = (
+            f"{period_en.capitalize()} compensation offered: {recommended:,} {currency}. "
+            "Convey genuine enthusiasm, state the figure exactly once, and invite them to discuss. Keep it concise."
+        )
 
     prompt = (
         f"Draft a warm, professional job-offer message in {lang} for {candidate.label} for the role "
-        f"{job.title} at {job.company}. Gross monthly compensation offered: {recommended:,} {currency}. "
-        "Convey genuine enthusiasm, state the figure exactly once, and invite them to discuss. Keep it concise.\n"
+        f"{job.title} at {job.company}. " + figure_line + "\n"
         + _NEUTRAL_STYLE
         # OO-L1-04 — the response deadline is a per-offer lever chosen at approval
         # time and the start date is agreed later; both are APPENDED to the letter
@@ -797,18 +1048,31 @@ def draft_offer(candidate: MatchCandidate, job: Job, m, *, lang: str | None = No
     )
 
     def deterministic() -> dict:
+        # The pay sentence is dropped entirely when no band is configured — an offer
+        # letter that names no figure is honest; one that names an invented figure is
+        # not, and this letter is candidate-facing.
         if lang == "Czech":
             subject = f"Nabídka pozice {job.title} — {job.company}"
+            pay = (
+                f" Navrhovaná {period_cs} mzda je {recommended:,} {currency}."
+                if recommended is not None
+                else " Konkrétní podmínky odměňování rádi upřesníme při osobním jednání."
+            )
             body = (
                 f"Dobrý den {candidate.label},\n\nje nám potěšením nabídnout Vám pozici {job.title} ve společnosti "
-                f"{job.company}. Navrhovaná hrubá měsíční mzda je {recommended:,} {currency}. Rádi vše osobně probereme "
+                f"{job.company}.{pay} Rádi vše osobně probereme "
                 "a zodpovíme případné dotazy.\n\nS pozdravem,\nNáborový tým"
             )
         else:
             subject = f"Offer: {job.title} at {job.company}"
+            pay = (
+                f" The proposed {period_en} compensation is {recommended:,} {currency}."
+                if recommended is not None
+                else " We'll confirm the compensation details together when we talk."
+            )
             body = (
-                f"Hi {candidate.label},\n\nwe're delighted to offer you the {job.title} role at {job.company}. "
-                f"The proposed gross monthly compensation is {recommended:,} {currency}. We'd love to walk you through "
+                f"Hi {candidate.label},\n\nwe're delighted to offer you the {job.title} role at {job.company}.{pay} "
+                "We'd love to walk you through "
                 "the details and answer any questions.\n\nBest,\nThe hiring team"
             )
         return {"subject": subject, "body": body, "language": lang}
@@ -827,6 +1091,10 @@ def draft_offer(candidate: MatchCandidate, job: Job, m, *, lang: str | None = No
     result.update(
         {
             "currency": currency,
+            # All three are None together when the market has no configured band and
+            # the job carries none — the honest "we did not price this" shape. The
+            # draft still goes to the human offer_review gate, where the recruiter
+            # sets the figure; nothing downstream may invent one.
             "salaryMin": lo,
             "salaryMax": hi,
             "recommended": recommended,

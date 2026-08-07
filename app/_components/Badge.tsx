@@ -50,16 +50,33 @@ export function Badge({
   // `muted` recedes the badge to a neutral stone tint (icon follows currentColor),
   // for "zero / nothing here" counts that should not compete with what changed.
   // `dot` swaps the icon for a small pulsing status dot that inherits the tone's
-  // text color (a "live" signal echoing the Radio pulse used across the pipeline).
+  // text color (a "live" signal echoing the pipeline's live indicators).
+  //
+  // Accessible name, deliberately per-variant. This used to be a blanket
+  // `aria-label` on the bare <span>: a span maps to role="generic", for which ARIA
+  // PROHIBITS aria-label, so assistive tech is not required to expose it — and the
+  // token mappers below lean on labels far richer than the visible text ("Repo-signal
+  // review status: no owned public repositories to review"). So:
+  //   • richer ariaLabel supplied → role="img" + aria-label. img takes a name, and
+  //     it makes the badge one atomic object, replacing the terse visible text with
+  //     the full description instead of announcing both.
+  //   • no ariaLabel → NO role and NO label. The visible text is already the
+  //     accessible content; naming it would only duplicate it.
+  // Not role="status": that is an implicit live region, and these badges render
+  // statically in lists, which would fire spurious announcements on every paint.
+  const named = !!ariaLabel && ariaLabel !== label;
   return (
     <span
-      aria-label={ariaLabel ?? label}
+      role={named ? "img" : undefined}
+      aria-label={named ? ariaLabel : undefined}
       className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-sm font-semibold ${
         muted ? "bg-stone-100 text-stone-400" : TONE_CLASS[tone]
       } ${className}`}
     >
       {dot ? (
-        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-current" aria-hidden />
+        // Matches Skeleton's gate; globals.css also stops every .animate-pulse
+        // under reduced motion, this keeps the intent readable at the call site.
+        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-current motion-reduce:animate-none" aria-hidden />
       ) : Icon ? (
         <Icon className="h-3 w-3" aria-hidden />
       ) : null}
@@ -70,31 +87,52 @@ export function Badge({
 
 // ---- Token mappers: enum/string -> semantic badge content -------------------
 
+/** Localized low/medium/high confidence vocabulary, resolved by the CONSUMING
+ *  component (e.g. `report.confidence.*`) and passed in — same locale-dumb
+ *  doctrine as {@link ConfidenceBandCopy}/{@link FitTierLabels}. Omit to fall
+ *  back to the English labels below (additive, non-breaking). */
+export type ConfidenceLabels = Partial<Record<"high" | "medium" | "low" | "unknown", string>>;
+
 /** low / medium / high confidence (SalaryEstimate, MarketEvidence). */
-export function confidenceToken(value: string): BadgeContent {
+export function confidenceToken(value: string, labels?: ConfidenceLabels): BadgeContent {
   const v = (value || "").trim().toLowerCase();
-  if (v === "high") return { tone: "positive", icon: ShieldCheck, label: "High confidence" };
-  if (v === "medium" || v === "moderate") return { tone: "info", icon: CircleDot, label: "Medium confidence" };
-  if (v === "low") return { tone: "caution", icon: AlertTriangle, label: "Low confidence" };
-  return { tone: "neutral", icon: CircleDot, label: `${value || "Unknown"} confidence` };
+  if (v === "high") return { tone: "positive", icon: ShieldCheck, label: labels?.high ?? "High confidence" };
+  if (v === "medium" || v === "moderate") return { tone: "info", icon: CircleDot, label: labels?.medium ?? "Medium confidence" };
+  if (v === "low") return { tone: "caution", icon: AlertTriangle, label: labels?.low ?? "Low confidence" };
+  return { tone: "neutral", icon: CircleDot, label: labels?.unknown ?? `${value || "Unknown"} confidence` };
 }
+
+/** Localized confidence-band vocabulary, resolved by the CONSUMING component from
+ *  the `match.band.*` catalog and passed in — the shared Badge primitive stays
+ *  locale-dumb (repo doctrine), so the same band renders in the recruiter's
+ *  language on every match surface without the primitive importing next-intl.
+ *  See `useConfidenceBandCopy` in sub_match/MatchShared. */
+export type ConfidenceBandCopy = {
+  tight: { label: string; ariaLabel: string };
+  moderate: { label: string; ariaLabel: string };
+  wide: { label: string; ariaLabel: string };
+  /** Tooltip prefix (before the driver bullets) and the tight-band fallback line. */
+  title: { prefix: string; fallback: string };
+};
 
 /** Match confidence-band width: tight | moderate | wide (MatchResult.confidence.level).
  *  Note the inverse of {@link confidenceToken}'s prose scale — a *tight* band means
- *  *high* certainty (narrow score range), a *wide* band means low certainty. */
-export function confidenceBandToken(level: string): BadgeContent {
+ *  *high* certainty (narrow score range), a *wide* band means low certainty. The
+ *  visible + aria vocabulary is supplied localized by the caller (ConfidenceBandCopy). */
+export function confidenceBandToken(level: string, copy: ConfidenceBandCopy): BadgeContent {
   const v = (level || "").trim().toLowerCase();
-  if (v === "tight") return { tone: "positive", icon: ShieldCheck, label: "Tight band", ariaLabel: "Confidence band: tight — high certainty" };
-  if (v === "wide") return { tone: "caution", icon: AlertTriangle, label: "Wide band", ariaLabel: "Confidence band: wide — low certainty" };
-  return { tone: "info", icon: CircleDot, label: "Moderate band", ariaLabel: "Confidence band: moderate certainty" };
+  if (v === "tight") return { tone: "positive", icon: ShieldCheck, label: copy.tight.label, ariaLabel: copy.tight.ariaLabel };
+  if (v === "wide") return { tone: "caution", icon: AlertTriangle, label: copy.wide.label, ariaLabel: copy.wide.ariaLabel };
+  return { tone: "info", icon: CircleDot, label: copy.moderate.label, ariaLabel: copy.moderate.ariaLabel };
 }
 
 /** Tooltip text spelling out why a confidence band is as wide as it is — the
- *  drivers the scorer used to discard. Reused by the badge and the raw range. */
-export function confidenceBandTitle(drivers: string[] = []): string {
+ *  drivers the scorer used to discard. Reused by the badge and the raw range. The
+ *  prefix + fallback sentence are supplied localized by the caller. */
+export function confidenceBandTitle(drivers: string[] = [], copy: ConfidenceBandCopy["title"]): string {
   return drivers.length
-    ? `Why this band:\n• ${drivers.join("\n• ")}`
-    : "Narrow band — strong, verifiable evidence.";
+    ? `${copy.prefix}\n• ${drivers.join("\n• ")}`
+    : copy.fallback;
 }
 
 /** repo-signal review status: ok / empty / error / disabled (GithubAnalysis.codeReview).
@@ -115,24 +153,32 @@ export function isPrepFallback(source?: string | null): boolean {
   return (source || "").trim().toLowerCase() !== "llm";
 }
 
+/** Localized interview-prep-provenance vocabulary, resolved by the CONSUMING
+ *  component (`scheduleTab.prep.*`) and passed in — same locale-dumb doctrine as
+ *  {@link ConfidenceBandCopy}. Omit to fall back to the English copy below. */
+export type PrepSourceCopy = {
+  fallback: { label: string; ariaLabel: string };
+  ai: { label: string; ariaLabel: string };
+};
+
 /** Interview-prep generation provenance: an LLM-tailored plan vs the deterministic
  *  template fallback. The fallback carries generic questions and should be
  *  regenerated once the model is reachable, so it reads as a caution, not a
  *  positive — a degraded plan must never look identical to a real AI-tailored one. */
-export function prepSourceToken(source?: string | null): BadgeContent {
+export function prepSourceToken(source?: string | null, copy?: PrepSourceCopy): BadgeContent {
   if (isPrepFallback(source)) {
     return {
       tone: "caution",
       icon: FileText,
-      label: "Template fallback",
-      ariaLabel: "Interview prep generated from a deterministic template — the AI model was unavailable",
+      label: copy?.fallback.label ?? "Template fallback",
+      ariaLabel: copy?.fallback.ariaLabel ?? "Interview prep generated from a deterministic template — the AI model was unavailable",
     };
   }
   return {
     tone: "info",
     icon: Sparkles,
-    label: "Generated by AI",
-    ariaLabel: "Interview prep generated by AI, tailored from the candidate's CV",
+    label: copy?.ai.label ?? "Generated by AI",
+    ariaLabel: copy?.ai.ariaLabel ?? "Interview prep generated by AI, tailored from the candidate's CV",
   };
 }
 
@@ -179,9 +225,17 @@ const FIT_TIER: Record<FitTier, BadgeContent> = {
   partial: { tone: "caution", icon: MinusCircle, label: "Partial fit" },
 };
 
-export function fitTierToken(tier?: string | null): BadgeContent {
+/** Localized fit-tier vocabulary, supplied by the consuming component from the
+ *  `match.fitTier.*` catalog. Optional: a surface not yet localized (or an
+ *  off-surface caller) falls back to the English FIT_TIER labels, so this stays
+ *  additive and non-breaking. See `useFitTierLabels` in sub_match/MatchShared. */
+export type FitTierLabels = Partial<Record<FitTier | "unknown", string>>;
+
+export function fitTierToken(tier?: string | null, labels?: FitTierLabels): BadgeContent {
   const key = (tier ?? "").trim().toLowerCase();
-  return FIT_TIER[key as FitTier] ?? { tone: "neutral", icon: CircleDot, label: "Fit" };
+  const base = FIT_TIER[key as FitTier];
+  if (base) return labels?.[key as FitTier] ? { ...base, label: labels[key as FitTier] as string } : base;
+  return { tone: "neutral", icon: CircleDot, label: labels?.unknown ?? "Fit" };
 }
 
 // Threshold fallback for surfaces that hold only a numeric match score (e.g. the
@@ -207,8 +261,8 @@ export function recommendationToken(text: string): BadgeContent {
 
 // ---- Convenience wrappers for the common call sites ------------------------
 
-export function ConfidenceBadge({ value, className }: { value: string; className?: string }) {
-  return <Badge {...confidenceToken(value)} className={className} />;
+export function ConfidenceBadge({ value, labels, className }: { value: string; labels?: ConfidenceLabels; className?: string }) {
+  return <Badge {...confidenceToken(value, labels)} className={className} />;
 }
 
 export function CodeReviewStatusBadge({ status, className }: { status: string; className?: string }) {
@@ -220,15 +274,18 @@ export function CodeReviewStatusBadge({ status, className }: { status: string; c
 export function ConfidenceBandBadge({
   level,
   drivers = [],
+  copy,
   className,
 }: {
   level: string;
   drivers?: string[];
+  /** Localized band vocabulary from the caller (useConfidenceBandCopy). */
+  copy: ConfidenceBandCopy;
   className?: string;
 }) {
   return (
-    <span title={confidenceBandTitle(drivers)} className="inline-flex">
-      <Badge {...confidenceBandToken(level)} className={className} />
+    <span title={confidenceBandTitle(drivers, copy.title)} className="inline-flex">
+      <Badge {...confidenceBandToken(level, copy)} className={className} />
     </span>
   );
 }
@@ -242,15 +299,19 @@ export function ConfidenceRange({
   low,
   high,
   drivers = [],
+  copy,
   className,
 }: {
   low: number;
   high: number;
   drivers?: string[];
+  /** Localized band vocabulary from the caller (useConfidenceBandCopy); only the
+   *  tooltip prefix + fallback are used here. */
+  copy: ConfidenceBandCopy;
   className?: string;
 }) {
   return (
-    <span className={className} title={confidenceBandTitle(drivers)}>
+    <span className={className} title={confidenceBandTitle(drivers, copy.title)}>
       {low}–{high}
     </span>
   );
@@ -261,8 +322,8 @@ export function ProvenanceBadge({ value, className }: { value: string; className
 }
 
 /** "Generated by AI" / "Template fallback" chip for an interview-prep artifact. */
-export function PrepSourceBadge({ source, className }: { source?: string | null; className?: string }) {
-  return <Badge {...prepSourceToken(source)} className={className} />;
+export function PrepSourceBadge({ source, copy, className }: { source?: string | null; copy?: PrepSourceCopy; className?: string }) {
+  return <Badge {...prepSourceToken(source, copy)} className={className} />;
 }
 
 export function RecommendationBadge({ text, className }: { text: string; className?: string }) {
@@ -278,14 +339,18 @@ export function InterviewRecommendationBadge({ rec, className }: { rec: string; 
 export function FitTierBadge({
   tier,
   score,
+  labels,
   className,
 }: {
   tier?: string | null;
   // null = unscored — resolves to the neutral "no tier" token, never a "weak"
   // tier derived from a fabricated 0.
   score?: number | null;
+  /** Localized fit-tier vocabulary from the caller (useFitTierLabels); omit to
+   *  fall back to the English FIT_TIER labels. */
+  labels?: FitTierLabels;
   className?: string;
 }) {
   const resolved = tier ?? (score != null ? scoreToFitTier(score) : null);
-  return <Badge {...fitTierToken(resolved)} className={className} />;
+  return <Badge {...fitTierToken(resolved, labels)} className={className} />;
 }

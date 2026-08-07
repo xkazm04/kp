@@ -6,8 +6,8 @@
     "total_vacancies": 38553,
     "occupations_tracked": 956,
     "regions": 14,
-    "national_median": 29000,
-    "ispv_period": "rok 2025",
+    "national_median": 44200,
+    "ispv_period": "2025",
     "vacancies_date": "2026-07-03",
     "median_posting_age_days": 80,
     "posted_within_90d_pct": 54,
@@ -17,7 +17,13 @@
     "license": "CC BY 4.0",
     "attribution": "Data © MPSV ČR (Úřad práce ČR, ISPV), CC BY 4.0",
     "attribution_url": "https://data.mpsv.cz/web/data/volna-mista-za-celou-cr",
-    "coverage_note": "Live open vacancies registered at the Czech Labour Office. Higher-skill/IT and senior corporate roles are under-represented (posted on commercial boards), so those counts read low and Prague's vacancy-median skews toward service roles. Reference-salary bands use ISPV economy-wide earnings, which are not subject to that bias."
+    "coverage_note": "Two sources, kept apart on purpose. Vacancy counts are live openings registered at the Czech Labour Office (Úřad práce ČR) — real postings, though the register skews toward service, trades and operational roles, so higher-skill and senior corporate counts read low. Every salary figure comes instead from the official ISPV earnings survey (and its regional RSCP cut): what people are actually paid, not what a posting advertises. Where the survey has no figure for something, we leave it out rather than estimate it.",
+    "advertised_national_median": 29000,
+    "national_p25": 36000,
+    "national_p75": 54500,
+    "salary_source": "MPSV ČR — ISPV / Regionální statistika ceny práce (RSCP)",
+    "salary_period": "2025",
+    "earnings_refreshed_at": "2026-08-04T16:48:06.136Z"
   },
   "reference_salaries": [
     {
@@ -207,126 +213,154 @@
       "code": "CZ010",
       "name": "Hlavní město Praha",
       "vacancies": 7163,
-      "medianSalary": 24100,
-      "p25": 22400,
-      "p75": 32055
+      "medianSalary": 53600,
+      "p25": 43100,
+      "p75": 68300,
+      "advertisedMedian": 24100,
+      "employees_k": 671
     },
     {
       "krajId": "Kraj/27",
       "code": "CZ020",
       "name": "Středočeský kraj",
       "vacancies": 4106,
-      "medianSalary": 29000,
-      "p25": 23600,
-      "p75": 37500
+      "medianSalary": 45100,
+      "p25": 37300,
+      "p75": 56000,
+      "advertisedMedian": 29000,
+      "employees_k": 331
     },
     {
       "krajId": "Kraj/116",
       "code": "CZ064",
       "name": "Jihomoravský kraj",
       "vacancies": 3223,
-      "medianSalary": 30000,
-      "p25": 24000,
-      "p75": 38500
+      "medianSalary": 44300,
+      "p25": 37500,
+      "p75": 52400,
+      "advertisedMedian": 30000,
+      "employees_k": 346
     },
     {
       "krajId": "Kraj/132",
       "code": "CZ080",
       "name": "Moravskoslezský kraj",
       "vacancies": 2817,
-      "medianSalary": 31000,
-      "p25": 25000,
-      "p75": 40000
+      "medianSalary": 44100,
+      "p25": 35800,
+      "p75": 50700,
+      "advertisedMedian": 31000,
+      "employees_k": 308
     },
     {
       "krajId": "Kraj/35",
       "code": "CZ031",
       "name": "Jihočeský kraj",
       "vacancies": 2507,
-      "medianSalary": 31000,
-      "p25": 25000,
-      "p75": 38605
+      "medianSalary": 41900,
+      "p25": 33700,
+      "p75": 48800,
+      "advertisedMedian": 31000,
+      "employees_k": 152
     },
     {
       "krajId": "Kraj/94",
       "code": "CZ053",
       "name": "Pardubický kraj",
       "vacancies": 2111,
-      "medianSalary": 31000,
-      "p25": 25200,
-      "p75": 37500
+      "medianSalary": 41100,
+      "p25": 36700,
+      "p75": 49100,
+      "advertisedMedian": 31000,
+      "employees_k": 136
     },
     {
       "krajId": "Kraj/60",
       "code": "CZ042",
       "name": "Ústecký kraj",
       "vacancies": 1987,
-      "medianSalary": 30000,
-      "p25": 24000,
-      "p75": 38000
+      "medianSalary": 44900,
+      "p25": 37400,
+      "p75": 52300,
+      "advertisedMedian": 30000,
+      "employees_k": 186
     },
     {
       "krajId": "Kraj/124",
       "code": "CZ071",
       "name": "Olomoucký kraj",
       "vacancies": 1928,
-      "medianSalary": 31000,
-      "p25": 24750,
-      "p75": 38945
+      "medianSalary": 42000,
+      "p25": 35000,
+      "p75": 49900,
+      "advertisedMedian": 31000,
+      "employees_k": 148
     },
     {
       "krajId": "Kraj/86",
       "code": "CZ052",
       "name": "Královéhradecký kraj",
       "vacancies": 1912,
-      "medianSalary": 32625,
-      "p25": 26500,
-      "p75": 40000
+      "medianSalary": 43600,
+      "p25": 37800,
+      "p75": 55100,
+      "advertisedMedian": 32600,
+      "employees_k": 141
     },
     {
       "krajId": "Kraj/141",
       "code": "CZ072",
       "name": "Zlínský kraj",
       "vacancies": 1884,
-      "medianSalary": 30270,
-      "p25": 25000,
-      "p75": 37500
+      "medianSalary": 42400,
+      "p25": 34800,
+      "p75": 50800,
+      "advertisedMedian": 30300,
+      "employees_k": 150
     },
     {
       "krajId": "Kraj/43",
       "code": "CZ032",
       "name": "Plzeňský kraj",
       "vacancies": 1746,
-      "medianSalary": 31500,
-      "p25": 25190,
-      "p75": 40000
+      "medianSalary": 45900,
+      "p25": 37700,
+      "p75": 52800,
+      "advertisedMedian": 31500,
+      "employees_k": 153
     },
     {
       "krajId": "Kraj/108",
       "code": "CZ063",
       "name": "Kraj Vysočina",
       "vacancies": 1561,
-      "medianSalary": 32000,
-      "p25": 27000,
-      "p75": 39410
+      "medianSalary": 42600,
+      "p25": 35500,
+      "p75": 51900,
+      "advertisedMedian": 32000,
+      "employees_k": 121
     },
     {
       "krajId": "Kraj/78",
       "code": "CZ051",
       "name": "Liberecký kraj",
       "vacancies": 1258,
-      "medianSalary": 30000,
-      "p25": 25250,
-      "p75": 37914
+      "medianSalary": 42500,
+      "p25": 35500,
+      "p75": 51200,
+      "advertisedMedian": 30000,
+      "employees_k": 88
     },
     {
       "krajId": "Kraj/51",
       "code": "CZ041",
       "name": "Karlovarský kraj",
       "vacancies": 976,
-      "medianSalary": 30000,
-      "p25": 25000,
-      "p75": 37000
+      "medianSalary": 41500,
+      "p25": 34200,
+      "p75": 47800,
+      "advertisedMedian": 30000,
+      "employees_k": 45
     }
   ],
   "org_types": [
@@ -334,25 +368,28 @@
       "orgType": "private",
       "label": "Private sector",
       "vacancies": 37589,
-      "medianSalary": 29000,
-      "p25": 23000,
-      "p75": 37500
+      "medianSalary": 43800,
+      "p25": 35300,
+      "p75": 54500,
+      "advertisedMedian": 29000
     },
     {
       "orgType": "agency",
       "label": "Staffing agency",
       "vacancies": 827,
-      "medianSalary": 25500,
-      "p25": 22400,
-      "p75": 30000
+      "medianSalary": null,
+      "p25": null,
+      "p75": null,
+      "advertisedMedian": 25500
     },
     {
       "orgType": "public",
       "label": "Public sector",
       "vacancies": 137,
-      "medianSalary": 37415,
-      "p25": 33785,
-      "p75": 40370
+      "medianSalary": 47700,
+      "p25": 42100,
+      "p75": 54100,
+      "advertisedMedian": 37400
     }
   ],
   "demand": {

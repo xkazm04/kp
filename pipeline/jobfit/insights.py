@@ -7,6 +7,7 @@ from .models import (
     SalaryEstimate,
     ScoreBreakdown,
 )
+from .market_config import ACTIVE_MARKET
 from .salary_band import round_salary
 from .taxonomy import (
     COMPANY_ADJUSTMENTS,
@@ -16,13 +17,15 @@ from .taxonomy import (
 )
 
 
-# Defensive cap so stacked modifiers can't push the company multiplier into
-# unrealistic territory. 1.20 aligns with the upper end of the Kitalent
-# Prague multinational base premium (30–40% over local mid-market, which
-# Gemini already partly bakes into its raw range — the multiplier sits on
-# top of that).
-_MAX_ADJUSTMENT = 1.20
-_MIN_ADJUSTMENT = 0.75
+# Defensive clamp so stacked modifiers can't push the company multiplier into
+# unrealistic territory. The band is MARKET-calibrated (the Czech max, 1.20,
+# aligns with the upper end of the Kitalent Prague multinational base premium —
+# 30–40% over local mid-market, which Gemini already partly bakes into its raw
+# range, so the multiplier sits on top of that), so it lives on MarketConfig
+# beside the salary ceiling and re-homes when ACTIVE_MARKET flips instead of
+# staying a hardcoded Czech literal.
+_MAX_ADJUSTMENT = ACTIVE_MARKET.company_adjustment_max
+_MIN_ADJUSTMENT = ACTIVE_MARKET.company_adjustment_min
 
 
 def build_company_context(company_text: str | None) -> CompanyCompensationContext | None:

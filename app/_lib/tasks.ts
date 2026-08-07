@@ -1,26 +1,28 @@
+import { lifecycleByPosting } from "./db/devcase";
+import { getPipelineEntry, listActiveEntriesForAutomation } from "./db/pipeline";
+import { createTask, finishTask, getActiveTaskByDedupe, getTask, interruptStaleTasks, listQueuedTaskIds, listRunningTaskTimes, pruneFinishedTasks, markTaskRunning, setTaskProgress, type TaskRecord } from "./db/tasks";
+import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 import {
-  createTask,
-  finishTask,
-  getActiveTaskByDedupe,
-  getTask,
-  interruptStaleTasks,
-  lifecycleByPosting,
-  listQueuedTaskIds,
-  listActiveEntriesForAutomation,
-  markTaskRunning,
-  setTaskProgress,
-  type TaskRecord,
-} from "./db";
+  TASK_MAX_RUNTIME_MS,
+  TASK_RETENTION_DAYS,
+  MAINTENANCE_INTERVAL_MS,
+  tasksToReap,
+  taskRetentionCutoffIso,
+} from "./task-maintenance.ts";
 import { runAutomationTask } from "./automation-run";
 import { runReasoning } from "./reasoning-run";
 import { runAnalyze, type AnalyzeParams } from "./analyze-run";
 import { runDesignArtifacts, runEvaluateSubmission, runNeedAnalysis, type DevNeed } from "./devcase-run";
 import { runLifecycle } from "./devcase-orchestrator";
+import { RECENT_TASK_WINDOW_DAYS } from "./tasks-window";
+export { RECENT_TASK_WINDOW_DAYS } from "./tasks-window";
 import { runGroupEval } from "./group-eval-run";
 import { runJdBuild } from "./jd-build-run";
 import { runInterviewPrep } from "./interview-prep-run";
+import { runAgentFit } from "./agent-hire/transform-run";
 import { randomId } from "./random-id";
 import { buildDedupeKey } from "./task-dedupe";
+import { encodeTaskLabel } from "./task-label";
 
 // ---------------------------------------------------------------------------
 // In-process background-task runner. Works because `next dev` is one long-lived
@@ -36,7 +38,6 @@ const MAX_CONCURRENT = 2; // respect the Claude CLI subscription rate ceiling
 // runs are paged in on demand via the history endpoint. One knob shared by the
 // recent-list (GET /api/tasks) and history (GET /api/tasks/history) endpoints so
 // their windows can never drift apart and leak/duplicate tasks at the boundary.
-export const RECENT_TASK_WINDOW_DAYS = 7;
 export function recentTaskCutoffIso(): string {
   return new Date(Date.now() - RECENT_TASK_WINDOW_DAYS * 24 * 60 * 60 * 1000).toISOString();
 }
@@ -55,10 +56,25 @@ export type TaskCtx = {
 // kind string as HANDLERS — kept out of the Spec so the identity logic stays
 // pure and unit-testable and can return null ("no stable identity") for
 // incomplete params.
+//
+// `label` returns an ENCODED catalog reference (./task-label), never a sentence:
+// this module runs with no request locale and the row it writes is read later by
+// whoever has the screen open, in their language. Copy lives in `tasks.kind.*`.
 type Spec = {
   run: (ctx: TaskCtx) => Promise<unknown>;
   label: (p: Record<string, unknown>) => string;
 };
+
+// Free-text detail lifted off params for a label placeholder. Empty/absent
+// resolves to null so the caller can pick the "untitled" variant of the message
+// rather than rendering a dangling separator.
+function detail(...candidates: unknown[]): string | null {
+  for (const c of candidates) {
+    if (typeof c === "string" && c.trim()) return c;
+    if (typeof c === "number" && Number.isFinite(c)) return String(c);
+  }
+  return null;
+}
 
 async function batchScreen(ctx: TaskCtx): Promise<unknown> {
   const entries = listActiveEntriesForAutomation().filter((e) => e.stage === "Screened");
@@ -80,18 +96,76 @@ async function batchScreen(ctx: TaskCtx): Promise<unknown> {
   return summary;
 }
 
+// Draft tailored OUTREACH for a board-selected cohort — one background job that
+// runs the SAME per-candidate `outreach` automation the drawer's "Draft outreach"
+// action runs (runAutomationTask → the LLM/deterministic letter → dispatchOutreach,
+// which QUEUES the draft to the Outbox by default and only relays it when a channel
+// is configured; nothing is auto-sent in the demo default). Reaching a filtered
+// cohort of 8 was 8 drawer trips; this is one action. Per-candidate ISOLATION: one
+// entry's failure (not found, no profile, consent-suppressed, LLM error) never
+// aborts the others, and each id's outcome is reported back so the board can keep
+// the failures selected for retry while successes deselect — the same batch grammar
+// the synchronous move/decide endpoint uses. Drafting N letters is N LLM calls, so
+// it runs here (backgrounded) instead of blocking the recruiter. Outreach is the
+// ONLY drafting action batched from the board: its output lands in the Outbox as a
+// reviewable, releasable row, whereas a rejection draft is a drawer-only result.
+// Guard a runaway cohort (mirrors the sync batch endpoint's BATCH_CAP): the board
+// rarely selects this many, and each id is an LLM call, so the wall-clock watchdog
+// would otherwise reap a huge run mid-flight.
+const OUTREACH_COHORT_CAP = 200;
+
+async function batchOutreach(ctx: TaskCtx): Promise<unknown> {
+  const ids = (
+    Array.isArray(ctx.params.entryIds)
+      ? (ctx.params.entryIds as unknown[]).filter((x): x is string => typeof x === "string")
+      : []
+  ).slice(0, OUTREACH_COHORT_CAP);
+  const results: { id: string; ok: boolean; reason?: string }[] = [];
+  ctx.progress(0, ids.length, ids.length ? "Starting…" : "Nothing to draft");
+  let done = 0;
+  for (const id of ids) {
+    if (ctx.signal.aborted) break;
+    // Resolve the label for a friendly progress line; the entry is scoped to the
+    // task's tenant, so an id from another workspace resolves null here AND makes
+    // runAutomationTask throw "entry not found" — counted as a per-candidate failure.
+    const entry = getPipelineEntry(id, ctx.workspaceId);
+    try {
+      // lang is undefined by design: outreach is a LETTER task, so runAutomationTask
+      // resolves the CANDIDATE'S comms locale itself — the caller's UI locale must not
+      // override it. Mirrors the single-entry `automation` handler above.
+      await runAutomationTask(id, "outreach", "", ctx.signal, undefined, ctx.workspaceId);
+      results.push({ id, ok: true });
+    } catch (e) {
+      results.push({ id, ok: false, reason: e instanceof Error ? e.message : "Unexpected error." });
+    }
+    ctx.progress(++done, ids.length, entry?.candidateLabel ?? id);
+  }
+  const ok = results.filter((r) => r.ok).length;
+  return { ok, total: results.length, results };
+}
+
 const HANDLERS: Record<string, Spec> = {
   automation: {
     run: (ctx) => runAutomationTask(String(ctx.params.entryId), String(ctx.params.task), String(ctx.params.notes ?? ""), ctx.signal, undefined, ctx.workspaceId),
-    label: (p) => `${p.task} · ${p.entryLabel ?? p.entryId}`,
+    label: (p) => encodeTaskLabel("automation", { task: String(p.task ?? ""), entry: detail(p.entryLabel, p.entryId) ?? "" }),
   },
   reasoning: {
-    run: (ctx) => runReasoning(ctx.params, ctx.signal),
-    label: (p) => `Why this candidate · ${p.label ?? p.jobId}`,
+    run: (ctx) => runReasoning(ctx.params, ctx.signal, ctx.workspaceId),
+    label: (p) => encodeTaskLabel("reasoning", { label: detail(p.label, p.jobId) ?? "" }),
   },
   batch_screen: {
     run: batchScreen,
-    label: () => "AI-screen all matched candidates",
+    label: () => encodeTaskLabel("batchScreen"),
+  },
+  batch_outreach: {
+    run: batchOutreach,
+    label: (p) => {
+      const n = Array.isArray(p.entryIds) ? (p.entryIds as unknown[]).length : 0;
+      // The RAW number, never a formatted one: the message is an ICU plural and
+      // `intl-messageformat` renders the literal word `NaN` for a pre-formatted
+      // value (docs/architecture/localization.md).
+      return encodeTaskLabel("batchOutreach", { n });
+    },
   },
   analyze: {
     // The AI-candidate unit is debited INSIDE runAnalyze, only on a delivered non-cached
@@ -100,36 +174,53 @@ const HANDLERS: Record<string, Spec> = {
     run: (ctx) => runAnalyze(ctx.params as unknown as AnalyzeParams, ctx.progress, ctx.signal),
     label: (p) => {
       const variants = (p.variants as { label: string }[]) ?? [];
-      return `Analyze · ${variants[0]?.label ?? "CV"}${variants.length > 1 ? ` +${variants.length - 1}` : ""}`;
+      // "CV" is a do-not-translate term (docs/i18n/glossary.md), so the unnamed
+      // fallback rides along as a value rather than needing its own message.
+      const first = variants[0]?.label ?? "CV";
+      return encodeTaskLabel("analyze", { label: `${first}${variants.length > 1 ? ` +${variants.length - 1}` : ""}` });
     },
   },
   need_analysis: {
     run: (ctx) => runNeedAnalysis(ctx.params.need as DevNeed, ctx.signal),
-    label: (p) => `Need analysis · ${(p.need as { title?: string })?.title || "untitled"}`,
+    label: (p) => {
+      const title = detail((p.need as { title?: string })?.title);
+      return title ? encodeTaskLabel("needAnalysis", { title }) : encodeTaskLabel("needAnalysisUntitled");
+    },
   },
   design_artifacts: {
     run: (ctx) => runDesignArtifacts(ctx.params.need as DevNeed, (ctx.params.analysis as Record<string, unknown>) ?? {}, ctx.signal),
-    label: (p) => `Design artifacts · ${(p.need as { title?: string })?.title || "untitled"}`,
+    label: (p) => {
+      const title = detail((p.need as { title?: string })?.title);
+      return title ? encodeTaskLabel("designArtifacts", { title }) : encodeTaskLabel("designArtifactsUntitled");
+    },
   },
   evaluate_submission: {
     run: (ctx) => runEvaluateSubmission(String(ctx.params.submissionId), ctx.signal),
-    label: (p) => `Evaluate · ${p.candidateRef ?? p.submissionId ?? ""}`,
+    label: (p) => encodeTaskLabel("evaluateSubmission", { ref: detail(p.candidateRef, p.submissionId) ?? "" }),
   },
   lifecycle: {
     run: (ctx) => runLifecycle(String(ctx.params.lifecycleId), ctx.progress, ctx.signal),
-    label: (p) => `Lifecycle · ${p.title ?? p.lifecycleId ?? ""}`,
+    label: (p) => encodeTaskLabel("lifecycle", { title: detail(p.title, p.lifecycleId) ?? "" }),
   },
   group_eval: {
-    run: (ctx) => runGroupEval(ctx.params, ctx.signal),
-    label: (p) => `Group evaluation · ${p.roleTitle ?? p.roleKey ?? ""}`,
+    run: (ctx) => runGroupEval(ctx.params, ctx.signal, ctx.workspaceId),
+    label: (p) => encodeTaskLabel("groupEval", { role: detail(p.roleTitle, p.roleKey) ?? "" }),
   },
   jd_build: {
     run: (ctx) => runJdBuild(ctx.params, ctx.progress, ctx.signal),
-    label: (p) => `Build JD · ${p.title ?? "role"}`,
+    label: (p) => {
+      const title = detail(p.title);
+      return title ? encodeTaskLabel("jdBuild", { title }) : encodeTaskLabel("jdBuildUntitled");
+    },
   },
   interview_prep: {
     run: (ctx) => runInterviewPrep(ctx.params, ctx.signal, ctx.workspaceId),
-    label: (p) => `Interview prep · ${p.candidateLabel ?? p.entryId ?? ""}`,
+    label: (p) => encodeTaskLabel("interviewPrep", { candidate: detail(p.candidateLabel, p.entryId) ?? "" }),
+  },
+  // Agent-candidate bridge: job → AgentFitSpec transform (agent-hire/transform-run.ts).
+  agent_fit: {
+    run: (ctx) => runAgentFit(String(ctx.params.jobId), ctx.signal, ctx.workspaceId),
+    label: (p) => encodeTaskLabel("agentFit", { job: detail(p.jobTitle, p.jobId) ?? "" }),
   },
 };
 
@@ -137,6 +228,36 @@ let booted = false;
 let running = 0;
 const queue: string[] = [];
 const controllers = new Map<string, AbortController>();
+let lastMaintenanceMs = 0;
+
+// Opportunistic, throttled housekeeping driven off task submissions (NOT the
+// automation clock, which is separately monitored and can die — Finding 1):
+//   #2 reap orphaned 'running' rows past the wall-clock budget that have NO live
+//      in-process controller (a row this process isn't watching — e.g. left by a
+//      prior incarnation the boot sweep raced). A row we ARE watching is left to
+//      its own runOne watchdog, which is what actually frees the in-memory slot.
+//   #3 delete terminal rows older than the retention window so params_json /
+//      result_json blobs can't accumulate forever.
+// Best-effort and self-contained: any failure is logged and the next submission
+// retries. Exported so tests / callers can force a sweep.
+export function runMaintenance(nowMs: number = Date.now()): void {
+  if (nowMs - lastMaintenanceMs < MAINTENANCE_INTERVAL_MS) return;
+  lastMaintenanceMs = nowMs;
+  try {
+    for (const id of tasksToReap(listRunningTaskTimes(), nowMs)) {
+      if (controllers.has(id)) continue; // an in-process watchdog owns this one
+      finishTask(id, "interrupted", { error: "reaped: running past the wall-clock budget with no live handler" });
+    }
+  } catch (e) {
+    console.error("[tasks] stale-task reaper failed:", e);
+  }
+  try {
+    const pruned = pruneFinishedTasks(taskRetentionCutoffIso(nowMs));
+    if (pruned) console.log(`[tasks] pruned ${pruned} finished task(s) older than ${TASK_RETENTION_DAYS}d`);
+  } catch (e) {
+    console.error("[tasks] retention prune failed:", e);
+  }
+}
 
 // One-time, idempotent stale-task reconciliation for the current process. The
 // in-process queue is volatile, so rows a previous process left behind are split
@@ -174,22 +295,33 @@ export function isKnownKind(kind: string): boolean {
   return kind in HANDLERS;
 }
 
-export function startTask(kind: string, params: Record<string, unknown>): TaskRecord {
+export function startTask(
+  kind: string,
+  params: Record<string, unknown>,
+  // Tenant (P2): the workspace this run belongs to. Stamped on the task row so
+  // per-tenant reads (the reservation gate that counts in-flight runs, the /api/tasks
+  // poll) scope to the right team instead of lumping every tenant under the default.
+  // Defaults to the single workspace, so the single-tenant path is byte-identical.
+  workspaceId: string = DEFAULT_WORKSPACE_ID
+): TaskRecord {
   ensureRecovered();
+  runMaintenance(); // throttled reap + retention prune, piggy-backed on submissions
   const spec = HANDLERS[kind];
   if (!spec) throw new Error(`unknown task kind: ${kind}`);
   // A stable key may reuse an in-flight run; a null key means the identifying
   // params were missing/empty, so we must NOT dedupe — merging on a collapsed
   // constant like `analyze:undefined` would hand this caller an unrelated
   // candidate's task and result (idea-5e38b9ad). Reuse only with a real identity.
+  // Dedup is scoped to THIS workspace so one tenant's run never coalesces onto
+  // another's identical key.
   const stableKey = buildDedupeKey(kind, params);
   if (stableKey) {
-    const existing = getActiveTaskByDedupe(stableKey);
+    const existing = getActiveTaskByDedupe(stableKey, workspaceId);
     if (existing) return existing;
   }
   const id = randomId("t");
   const dedupeKey = stableKey ?? `${kind}:nodedupe:${id}`; // guaranteed-unique; never merges
-  const rec = createTask(id, kind, dedupeKey, spec.label(params), params);
+  const rec = createTask(id, kind, dedupeKey, spec.label(params), params, workspaceId);
   queue.push(id);
   pump();
   return rec;
@@ -245,18 +377,44 @@ async function runOne(id: string): Promise<void> {
   // marks the row failed and the finally decrements `running`, keeping the runner
   // self-correcting instead of permanently leaking a MAX_CONCURRENT slot.
   const controller = new AbortController();
+  // Wall-clock watchdog (Finding 2). A handler that HANGS (an LLM/HTTP call with
+  // no timeout, a stuck lock, SQLite contention) would otherwise never settle, so
+  // its row stays 'running' and holds one of only MAX_CONCURRENT slots forever;
+  // two hangs deadlock the whole queue. Race the handler against a hard budget:
+  // when it fires we abort (cooperative — a well-behaved handler bails) and treat
+  // the row as 'interrupted', so the finally ALWAYS frees the slot even if the
+  // handler never settles. This makes "a stuck handler holds a slot forever"
+  // impossible at the runner level rather than per handler.
+  let watchdog: ReturnType<typeof setTimeout> | undefined;
+  const TIMED_OUT = Symbol("timed-out");
   try {
     running += 1;
     controllers.set(id, controller);
     markTaskRunning(id);
-    const result = await spec.run({
+    const runPromise = spec.run({
       taskId: id,
       workspaceId: task.workspaceId,
       params: (task.params as Record<string, unknown>) ?? {},
       progress: (d, t, m) => setTaskProgress(id, d, t, m),
       signal: controller.signal,
     });
-    finishTask(id, controller.signal.aborted ? "canceled" : "succeeded", { result });
+    // A hung handler that loses this race is orphaned (a JS promise can't be
+    // force-killed); swallow any late rejection so it can't surface as an
+    // unhandledRejection after we've already moved the slot on.
+    runPromise.catch(() => {});
+    const timeout = new Promise<typeof TIMED_OUT>((resolve) => {
+      watchdog = setTimeout(() => {
+        controller.abort();
+        resolve(TIMED_OUT);
+      }, TASK_MAX_RUNTIME_MS);
+      (watchdog as { unref?: () => void }).unref?.(); // never keep the process alive for the watchdog alone
+    });
+    const outcome = await Promise.race([runPromise, timeout]);
+    if (outcome === TIMED_OUT) {
+      finishTask(id, "interrupted", { error: `exceeded the ${TASK_MAX_RUNTIME_MS}ms wall-clock budget` });
+    } else {
+      finishTask(id, controller.signal.aborted ? "canceled" : "succeeded", { result: outcome });
+    }
   } catch (error) {
     // The recovery write reuses the same (possibly contended) DB connection that may
     // have just failed markTaskRunning. Guard it: an unguarded throw here escapes
@@ -274,6 +432,7 @@ async function runOne(id: string): Promise<void> {
       );
     }
   } finally {
+    if (watchdog) clearTimeout(watchdog);
     controllers.delete(id);
     running -= 1;
     pump();

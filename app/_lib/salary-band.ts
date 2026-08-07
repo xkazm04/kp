@@ -93,10 +93,16 @@ export type MarketSalary = {
  * same role's salary differently (same band, currency, and monthly period).
  * Returns "" for an unavailable band, so the AI path omits the line and the
  * template slot renders blank.
+ *
+ * `locale` is the POSTING's language (the JD build's `lang`), not the recruiter's
+ * UI language: this string is baked into a stored document a candidate reads, so
+ * its digit grouping must match the language the rest of that document is written
+ * in — the same rule jobsMarkdown.ts states for `numberLocale`. Defaults to
+ * English with the rest of format.ts.
  */
-export function marketSalaryLabel(s: MarketSalary): string {
+export function marketSalaryLabel(s: MarketSalary, locale?: string): string {
   return s.available
-    ? formatSalaryRange(s.suggestedMinimum, s.suggestedMaximum, { currency: s.currency, period: "month" })
+    ? formatSalaryRange(s.suggestedMinimum, s.suggestedMaximum, { currency: s.currency, period: "month", locale })
     : "";
 }
 

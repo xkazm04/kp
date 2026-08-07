@@ -1,11 +1,22 @@
 import { ensureDb } from "./core";
+import { DEFAULT_ORG_ID } from "./organizations";
 
-// ---- Payment gate (docs/BILLING.md) ----------------------------------------
+// ---- Payment gate (docs/features/billing/README.md) ----------------------------------------
 // Plain row accessors only; plan catalog, entitlement math, gateway calls, and
 // webhook reduction live in app/_lib/billing/ so this file stays a dumb store.
-// Single-workspace model: billing_state has exactly one row (id='workspace').
+//
+// ORG-scoped (org-plan Phase 3, data layer): billing is per-ORG — one
+// subscription + one ledger per customer company, SHARED across the org's
+// teams (the tenancy manifest's billing doctrine; per-team workspace_id
+// scoping deliberately does not apply here). Every accessor defaults its
+// orgId to the single seeded org, so a pre-multi-org deployment reads and
+// writes exactly the rows it always did. The legacy billing_state row keeps
+// its historical PK (id 'workspace'); a new org's row uses its org id as the
+// PK — id is a pure function of the org, so the ON CONFLICT (id) upsert stays
+// one-row-per-org (also enforced by uq_billing_state_org).
 
 export type BillingStateRow = {
+  orgId: string;
   plan: string;
   status: string;
   provider: string | null;
@@ -16,15 +27,17 @@ export type BillingStateRow = {
   updatedAt: string;
 };
 
-const WORKSPACE = "workspace";
+/** The legacy single-row PK value — kept stable for the default org so existing
+ *  deployments' rows never rewrite. */
+const LEGACY_STATE_ID = "workspace";
 
-export function getBillingState(): BillingStateRow | null {
-  const db = ensureDb();
-  const r = db.prepare(`SELECT * FROM billing_state WHERE id = ?`).get(WORKSPACE) as
-    | Record<string, unknown>
-    | undefined;
-  if (!r) return null;
+function stateIdFor(orgId: string): string {
+  return orgId === DEFAULT_ORG_ID ? LEGACY_STATE_ID : orgId;
+}
+
+function rowToState(r: Record<string, unknown>): BillingStateRow {
   return {
+    orgId: (r.org_id as string) ?? DEFAULT_ORG_ID,
     plan: r.plan as string,
     status: r.status as string,
     provider: (r.provider as string) ?? null,
@@ -36,7 +49,37 @@ export function getBillingState(): BillingStateRow | null {
   };
 }
 
+export function getBillingState(orgId: string = DEFAULT_ORG_ID): BillingStateRow | null {
+  const db = ensureDb();
+  const r = db.prepare(`SELECT * FROM billing_state WHERE org_id = ?`).get(orgId) as
+    | Record<string, unknown>
+    | undefined;
+  return r ? rowToState(r) : null;
+}
+
+/** Resolve which org a provider webhook belongs to when the event carries no
+ *  metadata org: the org whose stored subscription (first — more specific) or
+ *  customer matches. Null when nothing matches (the ingest falls back to the
+ *  default org, preserving the single-org behavior). */
+export function billingOrgForProviderRefs(subscriptionId: string | null, customerId: string | null): string | null {
+  const db = ensureDb();
+  if (subscriptionId) {
+    const r = db.prepare(`SELECT org_id FROM billing_state WHERE provider_subscription_id = ?`).get(subscriptionId) as
+      | { org_id?: string | null }
+      | undefined;
+    if (r?.org_id) return r.org_id;
+  }
+  if (customerId) {
+    const r = db.prepare(`SELECT org_id FROM billing_state WHERE provider_customer_id = ?`).get(customerId) as
+      | { org_id?: string | null }
+      | undefined;
+    if (r?.org_id) return r.org_id;
+  }
+  return null;
+}
+
 export function upsertBillingState(input: {
+  orgId?: string;
   plan: string;
   status: string;
   provider?: string | null;
@@ -46,12 +89,14 @@ export function upsertBillingState(input: {
   currentPeriodEnd?: string | null;
 }): void {
   const db = ensureDb();
+  const orgId = input.orgId ?? DEFAULT_ORG_ID;
   db.prepare(
     `INSERT INTO billing_state
-       (id, plan, status, provider, provider_customer_id, provider_subscription_id,
+       (id, org_id, plan, status, provider, provider_customer_id, provider_subscription_id,
         current_period_start, current_period_end, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT (id) DO UPDATE SET
+       org_id = excluded.org_id,
        plan = excluded.plan,
        status = excluded.status,
        provider = excluded.provider,
@@ -61,7 +106,8 @@ export function upsertBillingState(input: {
        current_period_end = excluded.current_period_end,
        updated_at = excluded.updated_at`
   ).run(
-    WORKSPACE,
+    stateIdFor(orgId),
+    orgId,
     input.plan,
     input.status,
     input.provider ?? null,
@@ -74,16 +120,18 @@ export function upsertBillingState(input: {
 }
 
 /** Idempotency gate: true when this provider event id is new (caller should
- *  process it); false on a redelivery (caller must skip side effects). */
-export function insertBillingEvent(id: string, type: string, payloadJson: string): boolean {
+ *  process it); false on a redelivery (caller must skip side effects). The PK
+ *  (and thus the dedupe) is the provider's GLOBAL event id; org_id is recorded
+ *  attribution only. */
+export function insertBillingEvent(id: string, type: string, payloadJson: string, orgId: string = DEFAULT_ORG_ID): boolean {
   const db = ensureDb();
   const info = db
     .prepare(
-      `INSERT INTO billing_events (id, type, payload_json, received_at)
-       VALUES (?, ?, ?, ?)
+      `INSERT INTO billing_events (id, org_id, type, payload_json, received_at)
+       VALUES (?, ?, ?, ?, ?)
        ON CONFLICT (id) DO NOTHING`
     )
-    .run(id, type, payloadJson, new Date().toISOString());
+    .run(id, orgId, type, payloadJson, new Date().toISOString());
   return Number(info.changes) > 0;
 }
 
@@ -95,20 +143,22 @@ export function grantBillingCredits(input: {
   delta: number;
   reason: string;
   providerRef?: string | null;
+  orgId?: string;
 }): boolean {
   const db = ensureDb();
   const info = db
     .prepare(
-      `INSERT INTO billing_credits (meter, delta, reason, provider_ref, created_at)
-       VALUES (?, ?, ?, ?, ?)
+      `INSERT INTO billing_credits (org_id, meter, delta, reason, provider_ref, created_at)
+       VALUES (?, ?, ?, ?, ?, ?)
        ON CONFLICT (provider_ref) DO NOTHING`
     )
-    .run(input.meter, input.delta, input.reason, input.providerRef ?? null, new Date().toISOString());
+    .run(input.orgId ?? DEFAULT_ORG_ID, input.meter, input.delta, input.reason, input.providerRef ?? null, new Date().toISOString());
   return Number(info.changes) > 0;
 }
 
 export type BillingAlert = {
   id: number;
+  orgId: string;
   kind: string;
   detail: string;
   providerRef: string | null;
@@ -119,7 +169,7 @@ export type BillingAlert = {
 /** Record a durable "needs attention" billing signal (e.g. a paid-but-unmapped
  *  subscription). `providerRef` (when given) de-duplicates redeliveries so the same
  *  unresolved alert isn't inserted twice. Returns true when a new row was inserted. */
-export function recordBillingAlert(input: { kind: string; detail: string; providerRef?: string | null }): boolean {
+export function recordBillingAlert(input: { kind: string; detail: string; providerRef?: string | null; orgId?: string }): boolean {
   const db = ensureDb();
   // Don't pile up duplicate OPEN alerts for the same ref (a webhook redelivery).
   if (input.providerRef) {
@@ -129,21 +179,24 @@ export function recordBillingAlert(input: { kind: string; detail: string; provid
     if (dupe) return false;
   }
   const info = db
-    .prepare(`INSERT INTO billing_alerts (kind, detail, provider_ref, created_at) VALUES (?, ?, ?, ?)`)
-    .run(input.kind, input.detail, input.providerRef ?? null, new Date().toISOString());
+    .prepare(`INSERT INTO billing_alerts (org_id, kind, detail, provider_ref, created_at) VALUES (?, ?, ?, ?, ?)`)
+    .run(input.orgId ?? DEFAULT_ORG_ID, input.kind, input.detail, input.providerRef ?? null, new Date().toISOString());
   return Number(info.changes) > 0;
 }
 
 /** List billing alerts, unresolved first (newest first). Defaults to unresolved
- *  only — the "paid but dark" worklist for an admin surface / health check. */
+ *  only — the "paid but dark" worklist for an admin surface / health check.
+ *  DEPLOYMENT-scoped on purpose (no org filter): this is the operator's cross-
+ *  customer worklist, and each row carries its orgId for attribution. */
 export function listBillingAlerts(opts: { includeResolved?: boolean } = {}): BillingAlert[] {
   const db = ensureDb();
   const where = opts.includeResolved ? "" : "WHERE resolved_at IS NULL";
   const rows = db
-    .prepare(`SELECT id, kind, detail, provider_ref, created_at, resolved_at FROM billing_alerts ${where} ORDER BY id DESC`)
+    .prepare(`SELECT id, org_id, kind, detail, provider_ref, created_at, resolved_at FROM billing_alerts ${where} ORDER BY id DESC`)
     .all() as Array<Record<string, unknown>>;
   return rows.map((r) => ({
     id: Number(r.id),
+    orgId: (r.org_id as string) ?? DEFAULT_ORG_ID,
     kind: String(r.kind),
     detail: String(r.detail),
     providerRef: (r.provider_ref as string) ?? null,
@@ -152,25 +205,25 @@ export function listBillingAlerts(opts: { includeResolved?: boolean } = {}): Bil
   }));
 }
 
-export function creditBalance(meter: string): number {
+export function creditBalance(meter: string, orgId: string = DEFAULT_ORG_ID): number {
   const db = ensureDb();
-  const row = db.prepare(`SELECT COALESCE(SUM(delta), 0) AS n FROM billing_credits WHERE meter = ?`).get(meter) as {
-    n: number;
-  };
+  const row = db
+    .prepare(`SELECT COALESCE(SUM(delta), 0) AS n FROM billing_credits WHERE meter = ? AND org_id = ?`)
+    .get(meter, orgId) as { n: number };
   return row.n;
 }
 
-export function incrementBillingUsage(meter: string, period: string, qty: number): void {
+export function incrementBillingUsage(meter: string, period: string, qty: number, orgId: string = DEFAULT_ORG_ID): void {
   const db = ensureDb();
   db.prepare(
-    `INSERT INTO billing_usage (meter, period, qty) VALUES (?, ?, ?)
-     ON CONFLICT (meter, period) DO UPDATE SET qty = qty + excluded.qty`
-  ).run(meter, period, qty);
+    `INSERT INTO billing_usage (org_id, meter, period, qty) VALUES (?, ?, ?, ?)
+     ON CONFLICT (org_id, meter, period) DO UPDATE SET qty = qty + excluded.qty`
+  ).run(orgId, meter, period, qty);
 }
 
-export function billingUsageFor(meter: string, period: string): number {
+export function billingUsageFor(meter: string, period: string, orgId: string = DEFAULT_ORG_ID): number {
   const db = ensureDb();
-  const row = db.prepare(`SELECT qty FROM billing_usage WHERE meter = ? AND period = ?`).get(meter, period) as
+  const row = db.prepare(`SELECT qty FROM billing_usage WHERE meter = ? AND period = ? AND org_id = ?`).get(meter, period, orgId) as
     | { qty: number }
     | undefined;
   return row?.qty ?? 0;

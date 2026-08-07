@@ -9,10 +9,19 @@
  * data/market_pulse.json. The /market "Market Pulse" page reads that snapshot —
  * it never talks to Pumper at runtime.
  *
+ * Counts come from the vacancy register; every SALARY comes from the ISPV
+ * earnings survey. That split is the whole point — an advertised salary is a
+ * statistic about adverts, and reading pay off ÚP postings once put the
+ * national median at 29 000 Kč with Prague last. See scripts/lib/market-earnings.mjs.
+ *
  *   Reference salaries  ← ISPV economy-wide earnings (median + Q1/Q3/D9 deciles),
  *                         weighted by employment, rolled up to role_family.
- *   Locality map        ← per-kraj vacancy volume + median (mpsv-vpm region_agg).
- *   Org-type split      ← national median by public / private / agency.
+ *   Locality map        ← per-kraj vacancy volume (mpsv-vpm region_agg) + per-kraj
+ *                         earnings (ISPV regional/RSCP, fetched straight from
+ *                         data.mpsv.cz — not from Pumper).
+ *   Org-type split      ← vacancy counts by public / private / agency, with pay
+ *                         from the matching ISPV wage sphere (agencies have no
+ *                         sphere, so that tile carries no pay figure).
  *   In-demand roles     ← national open-vacancy counts by family + occupation;
  *                         momentum accrues across runs via market_pulse_history.
  *   JD references       ← representative postings per family (mpsv-vpm samples).
@@ -24,6 +33,7 @@
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
+import { fetchIspv, regionalEarnings, sphereEarnings, nationalEarnings } from "./lib/market-earnings.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const DATA = path.join(ROOT, "data");
@@ -158,35 +168,56 @@ async function main() {
     };
   });
 
-  // 2) locality map — per-kraj vacancy volume + median (region_agg, orgType "all")
+  // ISPV earnings — the source of every salary figure below. Fetched straight
+  // from data.mpsv.cz (public JSON, same host as the codelists above), so a
+  // rebuild depends on Pumper only for the counts.
+  console.log(`[market-pulse] fetching ISPV national + RSCP regional earnings …`);
+  const ispv = await fetchIspv();
+  const krajEarnings = regionalEarnings(ispv.regional);
+  const sphere = sphereEarnings(ispv.national);
+  const nation = nationalEarnings(ispv.national);
+
+  // 2) locality map — per-kraj vacancy volume (region_agg) + per-kraj EARNINGS
+  //    (RSCP). The advertised median rides along under its own name: the gap
+  //    between offered and actual pay is a real signal, it just isn't "median
+  //    salary".
   const regions = region
     .filter((x) => x.orgType === "all" && x.krajId !== "ALL")
     .map((x) => {
       const meta = kraje.get(x.krajId) || { name: x.krajId, nuts3: null };
+      const earnings = krajEarnings.get(x.krajId) || { median: null, p25: null, p75: null, employees_k: 0 };
       return {
         krajId: x.krajId,
         code: meta.nuts3,
         name: meta.name,
         vacancies: x.count,
-        medianSalary: num(x.salaryMedian),
-        p25: num(x.salaryP25),
-        p75: num(x.salaryP75),
+        medianSalary: earnings.median,
+        p25: earnings.p25,
+        p75: earnings.p75,
+        employees_k: earnings.employees_k,
+        advertisedMedian: r100(num(x.salaryMedian)),
       };
     })
     .sort((a, b) => b.vacancies - a.vacancies);
 
-  // 3) org-type split — national median by public / private / agency
+  // 3) org-type split — vacancy counts from the register, pay from the matching
+  //    ISPV wage sphere. `agency` has no sphere, so it carries no pay figure and
+  //    the page renders that tile as a count only.
   const ORG_LABEL = { private: "Private sector", public: "Public sector", agency: "Staffing agency" };
   const org_types = region
     .filter((x) => x.krajId === "ALL" && x.orgType !== "all")
-    .map((x) => ({
-      orgType: x.orgType,
-      label: ORG_LABEL[x.orgType] || x.orgType,
-      vacancies: x.count,
-      medianSalary: num(x.salaryMedian),
-      p25: num(x.salaryP25),
-      p75: num(x.salaryP75),
-    }))
+    .map((x) => {
+      const earnings = sphere[x.orgType];
+      return {
+        orgType: x.orgType,
+        label: ORG_LABEL[x.orgType] || x.orgType,
+        vacancies: x.count,
+        medianSalary: earnings ? earnings.median : null,
+        p25: earnings ? earnings.p25 : null,
+        p75: earnings ? earnings.p75 : null,
+        advertisedMedian: r100(num(x.salaryMedian)),
+      };
+    })
     .sort((a, b) => b.vacancies - a.vacancies);
 
   // 4) demand — national counts by family + occupation (kraj = ALL cells)
@@ -271,7 +302,6 @@ async function main() {
   history.push({ generated_at: now, total: nationalTotal, families: Object.fromEntries(top_families.map((t) => [t.family, t.vacancies])) });
   writeFileSync(histPath, JSON.stringify(history.slice(-40), null, 2) + "\n");
 
-  const ispvPeriod = wages.find((w) => w.obdobi)?.obdobi || null;
   const snapshot = {
     meta: {
       generated_at: now,
@@ -280,8 +310,13 @@ async function main() {
       total_vacancies: nationalTotal,
       occupations_tracked: new Set(agg.map((x) => x.czIsco)).size,
       regions: regions.length,
-      national_median: num(region.find((x) => x.krajId === "ALL" && x.orgType === "all")?.salaryMedian),
-      ispv_period: ispvPeriod,
+      national_median: nation.median,
+      national_p25: nation.p25,
+      national_p75: nation.p75,
+      advertised_national_median: r100(num(region.find((x) => x.krajId === "ALL" && x.orgType === "all")?.salaryMedian)),
+      salary_source: "MPSV ČR — ISPV / Regionální statistika ceny práce (RSCP)",
+      salary_period: ispv.period,
+      ispv_period: ispv.period,
       // vacancy freshness (from mpsv-vpm's recency-filtered corpus)
       vacancies_date: freshness.refDate ?? null,
       median_posting_age_days: freshness.medianPostedAgeDays ?? null,
@@ -293,7 +328,7 @@ async function main() {
       attribution: "Data © MPSV ČR (Úřad práce ČR, ISPV), CC BY 4.0",
       attribution_url: ATTRIBUTION_URL,
       coverage_note:
-        "Live open vacancies registered at the Czech Labour Office. Higher-skill/IT and senior corporate roles are under-represented (posted on commercial boards), so those counts read low and Prague's vacancy-median skews toward service roles. Reference-salary bands use ISPV economy-wide earnings, which are not subject to that bias.",
+        "Two sources, kept apart on purpose. Vacancy counts are live openings registered at the Czech Labour Office (Úřad práce ČR) — real postings, though the register skews toward service, trades and operational roles, so higher-skill and senior corporate counts read low. Every salary figure comes instead from the official ISPV earnings survey (and its regional RSCP cut): what people are actually paid, not what a posting advertises. Where the survey has no figure for something, we leave it out rather than estimate it.",
     },
     reference_salaries,
     regions,
@@ -311,6 +346,11 @@ async function main() {
   if (regions.length !== 14) problems.push(`expected 14 regions, got ${regions.length}`);
   if (!regions.every((r) => r.code)) problems.push("some regions missing NUTS3 code");
   if (!snapshot.meta.national_median) problems.push("no national median");
+  // A sanity floor, not a style rule: a national median in the twenties means
+  // a salary field is reading adverts again.
+  if (snapshot.meta.national_median && snapshot.meta.national_median < 35000)
+    problems.push(`national median ${snapshot.meta.national_median} looks like advertised pay, not earnings`);
+  if (regions.some((r) => r.medianSalary == null)) problems.push("some regions have no ISPV earnings median");
   if (top_occupations.length < 10) problems.push("few top occupations");
   if (problems.length) {
     console.error(`[market-pulse] VALIDATION WARNINGS: ${problems.join("; ")}`);

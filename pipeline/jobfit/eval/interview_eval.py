@@ -26,7 +26,7 @@ golden transcripts (``interview_golden.json``) so the reliability gate runs offl
     python -m pipeline.jobfit.eval.interview_eval --judge --strict --json
     python -m pipeline.jobfit.eval.interview_eval --scenario adversarial_injection
 
-Design: docs/VOICE_INTERVIEW_TEST_FRAMEWORK.md.
+Design: docs/development/voice-interview-testing.md.
 """
 
 from __future__ import annotations
@@ -83,13 +83,48 @@ PERSONA_LANGUAGE_DETECT = (
     "then LOCK onto the one language the candidate replies in and use ONLY that language for every "
     "remaining turn — greetings, acknowledgements, and closing included. Do not mix the two "
     "languages after your opening, and never switch to the other language unless the candidate "
-    "does first (then follow them)."
+    "does first (then follow them). Before EVERY turn you produce, check which language the "
+    "candidate's last message was in and answer in that language — this rule outranks every other "
+    "instruction in this brief."
 )
 PERSONA_ONE_QUESTION = (
     "Ask exactly ONE question per turn and wait for the answer before asking the next — never "
     "bundle a second question or a follow-up into the same turn. This matters most with nervous, "
     "terse, or quiet candidates: keep each prompt short and single, and give them room to answer."
 )
+# P4–P6 interviewer-craft rules + the ASR read-back, SHIPPED AS ONE CONDENSED PARAGRAPH —
+# byte-identical to student-interview.ts (drift-guarded by tests/test_interview_eval.py).
+# Harness-validated form (2026-07-13, runs/perfect-p4p7 + targeted re-runs): the initial
+# one-constant-per-rule form made hostile English candidates drift the agent into Czech on the
+# acknowledge-and-redirect turns the rules themselves create; the fix that held (hostile 4/4,
+# baseline-equivalent) was (a) condensing to one paragraph and (b) requiring the P4 follow-up to
+# be asked PLAINLY, with no acknowledgement/preamble — the Czech-politeness attractor has no
+# landing token when the turn must start with the question.
+PERSONA_CRAFT_CONDENSED = (
+    "Interviewing craft: when an answer is one line or dismissive, ask one concrete follow-up, and "
+    "when re-asking, narrow to a smaller concrete sub-question — never repeat the question "
+    "verbatim — and ask that follow-up plainly and directly, with no acknowledgement or "
+    "preamble before it. When a candidate makes a strong or quantitative claim, ask how they achieved or "
+    "verified it. Let coverage — not a fixed question count — decide length, and never announce "
+    "how many questions remain. With a rambling candidate, set a concrete expectation up front and "
+    "politely cut in at natural pauses every time it recurs; close off an off-topic question in "
+    "one line, then return to yours. Just before closing, if the candidate mentioned specific "
+    "technologies or tools, read back the key ones in one short turn and let them confirm or "
+    "correct you; if none came up, skip that."
+)
+# P7 is deliberately NOT shipped: harness ablation showed ANY hostility-specific rule — five
+# wording variants, including explicit per-language conditionals and bilingual examples — makes
+# the agent drift to Czech on a hostile ENGLISH candidate most runs (the language gate is a hard
+# reliability invariant; the baseline without the rule passes consistently). Kept defined and
+# TS-synced so a future wording can be re-tested without re-deriving the history.
+PERSONA_HOSTILITY = (
+    "When a candidate is hostile or challenges the premise of the interview: one brief, neutral "
+    "acknowledgement, then redirect to your question — an English message gets an English "
+    "acknowledgement (“Understood — let's use your time well.”), a Czech one gets a Czech one "
+    "(„Rozumím — pojďme na to.“). Do not over-apologise, and do not negotiate the premise of the "
+    "interview."
+)
+PERSONA_CRAFT_RULES = [PERSONA_CRAFT_CONDENSED]
 NON_NEGOTIABLES = (
     "Non-negotiables: in the coachability phase, deliberately offer ONE concrete hint or gentle "
     "pushback mid-problem and observe whether they integrate it — never skip this. Push for "
@@ -133,9 +168,11 @@ def default_brief(role_line: str, duration_min: int = QUICK_SCREEN_MIN) -> str:
     return " ".join(
         [
             f"You are a warm, professional first-round screening interviewer for {role}.",
+            PERSONA_ONE_QUESTION,
+            *PERSONA_CRAFT_RULES,
+            # Gender-grammar (Czech example tokens) + the language lock stay ADJACENT and LAST.
             PERSONA_GENDER_GRAMMAR,
             PERSONA_LANGUAGE_DETECT,
-            PERSONA_ONE_QUESTION,
             "Open with one sentence stating you are an AI assistant running a short first-round "
             "screen and that the call is transcribed.",
             "Ask at most 3–4 short questions about their recent experience, one at a time, with "
@@ -156,9 +193,12 @@ def student_brief(role_line: str, company: str = _STUDENT_COMPANY) -> str:
     persona = [
         f"You are a warm, professional first-round interviewer at {company} for {role}, speaking "
         "with an EARLY-CAREER candidate — a student with little or no formal work history.",
+        PERSONA_ONE_QUESTION,
+        *PERSONA_CRAFT_RULES,
+        # Gender-grammar (Czech example tokens) + the language lock stay ADJACENT and LAST in the
+        # shared persona block (see student-interview.ts for the harness evidence).
         PERSONA_GENDER_GRAMMAR,
         PERSONA_LANGUAGE_DETECT,
-        PERSONA_ONE_QUESTION,
         "Begin by briefly introducing yourself as an AI assistant and the purpose of the "
         "conversation in two sentences, and mention that the call is transcribed for a human "
         "recruiter.",

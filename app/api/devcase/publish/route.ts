@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDevCase } from "@/app/_lib/db";
+import { getDevCase } from "@/app/_lib/db/devcase";
 import { getAdapter } from "@/app/_lib/distribution";
 
 

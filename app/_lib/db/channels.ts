@@ -23,8 +23,9 @@ export type ChannelWebhookRecord = {
   jobTitle: string | null;
   lang: string | null;
   createdAt: string;
-  // Raw POSTs received — the connection LIVENESS signal (includes probes / pings /
-  // malformed bodies, so NOT a lead count).
+  // Raw AUTHENTICATED POSTs received — the connection LIVENESS signal (includes probes,
+  // pings, malformed bodies, rejected payloads and retries, so NOT a lead count). See
+  // recordChannelWebhookReceipt for the full contract.
   receivedCount: number;
   lastReceivedAt: string | null;
   firstReceivedAt: string | null;
@@ -124,8 +125,21 @@ export function revokeChannelWebhook(token: string, workspaceId: string = DEFAUL
 }
 
 /** Stamp one RECEIVED payload (count + timestamps) — the tab's connection LIVENESS
- *  signal, stamped for ANY POST (a probe, a malformed body, a closed-role hit). Not a
- *  lead count: use recordChannelWebhookAccepted for that. */
+ *  signal. ONE contract, implemented at exactly one call site (the receiver, right after
+ *  the token resolves): stamped for EVERY AUTHENTICATED POST, whatever becomes of its
+ *  payload — a probe, a malformed body, a closed-role hit, a 413/422 field-mapping
+ *  failure, a rate-limited-after-auth call, a duplicate delivery. It is NOT stamped when
+ *  no caller has authenticated: an unknown or revoked token (nothing to attribute the
+ *  receipt to) or a flood shed by the rate limiter before the token is read.
+ *
+ *  The doc used to say exactly this while the receiver stamped only after a TERMINAL
+ *  intake outcome, so a mis-mapped integration 422-ing on every lead looked identical to
+ *  a receiver nobody ever connected. Presence of a receipt now means "something is wired
+ *  and talking to this endpoint" and nothing more.
+ *
+ *  NOT a lead count — use recordChannelWebhookAccepted for that. The two counters answer
+ *  different questions ("is it connected?" vs "did it deliver candidates?") and the
+ *  Channels tab shows both. */
 export function recordChannelWebhookReceipt(token: string): void {
   const db = ensureDb();
   const now = new Date().toISOString();

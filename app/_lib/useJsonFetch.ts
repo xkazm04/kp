@@ -7,8 +7,9 @@ import { useCallback, useEffect, useState } from "react";
 // status, a body carrying `{ error }`, and `.json()` throwing on a non-JSON
 // (e.g. HTML 500) response. Ignores results after unmount.
 //
-// `reload()` re-runs the request (for a retry button on the error state) — it
-// resets to the loading state and bumps an internal nonce so the effect refires.
+// `reload()` re-runs the request (a retry button on the error state, or a
+// refresh after a write) by bumping an internal nonce so the effect refires. It
+// keeps whatever data is already rendered — see the note on the callback below.
 export function useJsonFetch<T>(
   url: string,
   errorLabel = "Couldn't load this."
@@ -19,7 +20,14 @@ export function useJsonFetch<T>(
 
   useEffect(() => {
     let alive = true;
-    fetch(url)
+    // Abort the in-flight request on unmount / url change / reload so a fetch that
+    // reaches a server-side CLI child (rediscover, winnability) SIGKILLs that child
+    // via request.signal instead of orphaning it to run to completion. The `alive`
+    // flag still gates every setState (an abort resolves in the SAME closure, so its
+    // guard already reads false); the AbortError is additionally swallowed so a race
+    // where the rejection lands before `alive` flips can never surface as an error.
+    const controller = new AbortController();
+    fetch(url, { signal: controller.signal })
       .then(async (r) => {
         const body = (await r.json().catch(() => null)) as (T & { error?: string }) | null;
         if (!alive) return;
@@ -37,19 +45,26 @@ export function useJsonFetch<T>(
         }
         setData(body as T);
       })
-      .catch(() => {
-        if (alive) setError(errorLabel);
+      .catch((err) => {
+        // An abort (unmount / url change / reload) is expected — never surface it as a
+        // load failure. Only a genuine fetch/parse failure sets the (reload-able) error.
+        if (!alive || controller.signal.aborted || (err as { name?: string })?.name === "AbortError") return;
+        setError(errorLabel);
       });
     return () => {
       alive = false;
+      controller.abort();
     };
   }, [url, errorLabel, nonce]);
 
-  // Clear to the loading state (so `data === null && error === null` reads true
-  // again) and bump the nonce to refire the effect. Done in this handler rather
-  // than inside the effect to avoid a synchronous setState in the effect body.
+  // Re-run the request. The last-good `data` is deliberately KEPT on the wire:
+  // a refresh must never blank content that is already on screen (loading
+  // choreography law 2, docs/design/loading-choreography.md) — the new payload simply
+  // replaces it when it lands. A retry from the error state has no data to keep,
+  // so it still reads as `data === null && error === null` (the loading
+  // condition) exactly as before. Done in this handler rather than inside the
+  // effect to avoid a synchronous setState in the effect body.
   const reload = useCallback(() => {
-    setData(null);
     setError(null);
     setNonce((n) => n + 1);
   }, []);

@@ -1,23 +1,20 @@
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
-import {
-  actOnPipelineEntry,
-  createPipelineEntry,
-  getPipelineEntry,
-  getProfileRecord,
-  hasEvent,
-  listCorpusJobs,
-  lookupPromptCache,
-  recordAutomationEvent,
-  rematchSourceEntry,
-  setApproval,
-  storePromptCache,
-} from "./db";
+import { lookupPromptCache, storePromptCache } from "./db/analyses";
+import { listCorpusJobs } from "./db/jobs";
+import { actOnPipelineEntry, createPipelineEntry, getPipelineEntry, hasEvent, recordAutomationEvent, rematchSourceEntry, setApproval } from "./db/pipeline";
+import { getProfileRecord } from "./db/profiles";
 import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "./python-runner";
 import { meterAllows } from "./billing";
 import { buildLlmConfigEnv } from "./llm-config";
-import { computeAutomationCacheKey, computeCorpusFingerprint, GITHUB_EVIDENCE_TASKS } from "./automation-cache-key";
+import {
+  computeAutomationCacheKey,
+  computeCorpusFingerprint,
+  GITHUB_EVIDENCE_TASKS,
+  LETTER_LANG_TASKS,
+  UI_LANG_TASKS,
+} from "./automation-cache-key";
 import { screenStageOutcome } from "./pipeline-stages";
 import { resolveCommsLocale } from "./comms-locale";
 import { getWorkspaceDefaultLocale } from "./db/workspaces";
@@ -34,32 +31,43 @@ import {
 // AND by the background-task runner (single + batch). The LLM engine is the
 // configured provider per KP_LLM_CONFIG (Claude CLI when unconfigured).
 export const AUTOMATION_VERSION: Record<string, string> = {
-  screen: "screening-v1",
+  // v2 — screen receives --lang (its rationale/strengths/redFlags are recruiter-
+  // facing prose) but its cache key ignored the locale, so a locale switch served
+  // the previous language's screening rationale for the full 168h TTL. The locale
+  // is now a key axis (UI_LANG_TASKS); bumped so the wrongly-shared v1 entries
+  // self-invalidate. Kept in lockstep with automation.SCREENING_PROMPT_VERSION.
+  screen: "screening-v2",
   // v2 — the candidate-facing letter tasks take an explicit --lang (the entry's
   // resolved comms locale) and their prompts carry the gender-neutral-Czech +
   // no-invented-terms directives; bumped so cached v1 letters self-invalidate.
   outreach: "outreach-v2",
   rejection: "rejection-v2",
   prep: "interview-prep-v1",
-  scorecard: "scorecard-v3",
+  // v5 — the read-back exchange is emitted as STRUCTURED `entities` (confirmed /
+  // corrected heard→meant / unconfirmed) beside the prose trust rule, so the recruiter
+  // gets a cue that "Rust" in the transcript meant React; bumped so cached v4
+  // scorecards self-invalidate and re-run with the structured field.
+  // v6 — same locale-axis fix as screen: the scorecard summary is recruiter-facing
+  // prose generated in the requested --lang, so the locale now splits its key;
+  // bumped so the wrongly-shared v5 entries self-invalidate.
+  scorecard: "scorecard-v6",
   rematch: "rematch-v1",
   // v3 — the offer payload carries its structured pricing basis (matchBasis, the
   // draft-time fresh fit check) and a rationale that names that producer
   // (REC-01/OO-L2-10); bumped so cached v2 payloads self-invalidate.
   offer: "offer-v3",
 };
-// The tasks whose output is a candidate-facing LETTER: their language is the
-// entry's resolved comms locale (explicit apply choice, else the workspace
-// default — comms-locale.resolveCommsLocale), passed to Python as --lang so the
-// letter and its deterministic chrome (subject fallback, offer terms/response
-// footers, GDPR footer) can never disagree (OO-L1-03's two-authorities defect).
-const LETTER_TASKS = new Set(["outreach", "rejection", "offer"]);
-// The tasks whose output is recruiter-facing NARRATIVE (screening rationale,
-// interview prep, scorecard summary — all surfaced in Decisions): their language
-// is the recruiter's UI locale (getServerLocale = the org's app language), passed
-// as --lang. It is also a cache axis so a locale change can't serve a cached
-// wrong-language narrative for the 168h TTL.
-const UI_LANG_TASKS = new Set(["prep", "screen", "scorecard"]);
+// LETTER_LANG_TASKS — candidate-facing letters; their language is the entry's
+// resolved comms locale (explicit apply choice, else the workspace default —
+// comms-locale.resolveCommsLocale), passed to Python as --lang so the letter and
+// its deterministic chrome (subject fallback, offer terms/response footers, GDPR
+// footer) can never disagree (OO-L1-03's two-authorities defect).
+// UI_LANG_TASKS — recruiter-facing NARRATIVE (screening rationale, interview prep,
+// scorecard summary — all surfaced in Decisions); their language is the recruiter's
+// UI locale (getServerLocale = the org's app language), passed as --lang.
+// BOTH are imported from automation-cache-key, where their union (LANG_KEYED_TASKS)
+// is the key's locale axis — so "receives --lang" and "keys on lang" are ONE set.
+const LETTER_TASKS = LETTER_LANG_TASKS;
 // Event kind for the generic "drafted" tasks — ONLY those that fall through to the
 // catch-all branch below (currently rejection + prep). screen/scorecard/offer/
 // rematch/outreach each have their own branch and record their own event, so they
@@ -171,6 +179,16 @@ export async function runAutomationTask(
       ? lang
       : getWorkspaceDefaultLocale()
     : undefined;
+  // Billing degrade, resolved BEFORE the key (not at spawn time): past the
+  // ai_candidates allowance the run spends the deterministic templates
+  // (`--no-llm`) instead of the model, and the two outputs must never share a
+  // cache entry — otherwise a quota-exhausted workspace's stubs keep serving for
+  // the full 168h TTL after the allowance resets (and vice versa). Same boolean
+  // feeds the key axis and the CLI flag, so they can't disagree.
+  // Tenancy: the degrade switch reads THIS entry's workspace billing state (the
+  // route passes currentWorkspace(), the batch sweep the entry's own team) — not
+  // the default workspace's, which used to decide it for every tenant alike.
+  const degraded = !meterAllows("ai_candidates", { workspace: workspaceId });
   const cacheKey = computeAutomationCacheKey({
     version,
     task,
@@ -186,6 +204,7 @@ export async function runAutomationTask(
     // Tasks in neither set (rematch) ignore it.
     lang: uiLang ?? letterLang,
     githubEvidenceJson: githubEvidenceJson ?? undefined,
+    degraded,
   });
 
   let payload = lookupPromptCache(cacheKey, version) as CliPayload | null;
@@ -200,7 +219,8 @@ export async function runAutomationTask(
       // Billing degrade: past the AI-candidates allowance, automation drafting
       // runs the deterministic templates (--no-llm) instead of blocking the
       // pipeline. Part of the analyze-debited candidate bundle — no extra debit.
-      if (!meterAllows("ai_candidates")) args.push("--no-llm");
+      // `degraded` is the SAME boolean folded into the cache key above.
+      if (degraded) args.push("--no-llm");
       if (task === "rematch") {
         args.push("--current-job-id", entry.jobId ?? "");
         // Score the SAME live corpus we fingerprinted into the cache key (not Python's

@@ -8,10 +8,12 @@ from pipeline.jobfit.jobs import (
     compute_entry_profile,
     ingest_raw_ad,
     normalize_job,
+    _EXTRACTION_PROMPT,
+    _EXTRACTION_SYSTEM,
     _reinterpret_must,
     _requirements_from,
 )
-from pipeline.jobfit.taxonomy import role_band
+from pipeline.jobfit.taxonomy import ROLE_FAMILY_SET, role_band
 
 
 SE_JUNIOR = {
@@ -218,7 +220,7 @@ class GraduateFriendlinessGoldenTest(unittest.TestCase):
     """Locks graduate_friendliness for representative junior/medior/senior specs so
     the score bands — which order the opportunities a zero-experience student sees —
     can't drift silently. Every constant exercised here is justified in
-    docs/GRADUATE_FRIENDLINESS.md; keep the doc, these values, and the formula in
+    docs/features/matching/README.md; keep the doc, these values, and the formula in
     pipeline/jobfit/jobs.compute_entry_profile in sync on any deliberate change.
     """
 
@@ -331,6 +333,85 @@ class FakeProvider:
     def complete_json(self, prompt: str, *, system: str | None = None):
         self.seen_prompt = prompt
         return self.payload
+
+
+# Non-tech ads the OLD parser could never emit: the extraction prompt hard-capped
+# role_family to software_engineering|data_ai|product_project, so a nurse/legal/
+# trades posting was forced into a wrong tech family. These records carry the family
+# the un-capped parser is now allowed to return.
+NURSE = {
+    "title": "Registered Nurse — ICU",
+    "company": "Fakultní nemocnice",
+    "location": "Brno",
+    "work_mode": "onsite",
+    "seniority": "medior",
+    "role_family": "healthcare_clinical",
+    "languages": ["Czech"],
+    "min_education": "bachelor",
+    "description": "Provide intensive nursing care; medication administration; patient monitoring.",
+    "requirements": [
+        {"skill": "Patient care", "kind": "must_have", "hardness": "prerequisite"},
+        {"skill": "Medication administration", "kind": "must_have", "hardness": "prerequisite"},
+    ],
+}
+LEGAL = {
+    "title": "Compliance Officer",
+    "company": "Retail Bank a.s.",
+    "location": "Praha",
+    "work_mode": "hybrid",
+    "seniority": "senior",
+    "role_family": "legal_compliance",
+    "languages": ["Czech", "English"],
+    "min_education": "master",
+    "description": "Own AML/KYC compliance; regulatory reporting; policy governance.",
+    "requirements": [
+        {"skill": "Regulatory compliance", "kind": "must_have", "hardness": "prerequisite"},
+        {"skill": "AML", "kind": "must_have", "hardness": "learnable"},
+    ],
+}
+TRADES = {
+    "title": "Industrial Electrician",
+    "company": "Výrobní závod",
+    "location": "Plzeň",
+    "work_mode": "onsite",
+    "seniority": "medior",
+    "role_family": "skilled_trades",
+    "languages": ["Czech"],
+    "description": "Install and maintain industrial electrical systems; troubleshoot faults.",
+    "requirements": [
+        {"skill": "Electrical installation", "kind": "must_have", "hardness": "prerequisite"},
+        {"skill": "Fault diagnosis", "kind": "must_have", "hardness": "learnable"},
+    ],
+}
+
+
+class NonTechIngestTest(unittest.TestCase):
+    """The parser is no longer capped to the three tech families (Direction 1): the
+    prompt enumerates every taxonomy family, the system prompt is not tech/Czech-
+    locked, and a non-tech ad keeps its correct role_family through normalize_job
+    (with a real anchor salary band for that family)."""
+
+    def test_system_prompt_is_not_tech_or_czech_locked(self) -> None:
+        self.assertNotIn("Czech tech market", _EXTRACTION_SYSTEM)
+        self.assertIn("any industry", _EXTRACTION_SYSTEM)
+
+    def test_prompt_offers_the_full_family_catalog_not_a_tech_triplet(self) -> None:
+        # The old literal enum was exactly these three, pipe-joined, and nothing else.
+        self.assertNotIn(
+            '"role_family": "software_engineering|data_ai|product_project"', _EXTRACTION_PROMPT
+        )
+        for fam in ("healthcare_clinical", "legal_compliance", "skilled_trades", "general_professional"):
+            self.assertIn(fam, _EXTRACTION_PROMPT, f"prompt omits family {fam!r}")
+
+    def test_nurse_legal_trades_ingest_with_correct_family(self) -> None:
+        for raw, expected in ((NURSE, "healthcare_clinical"), (LEGAL, "legal_compliance"), (TRADES, "skilled_trades")):
+            with self.subTest(family=expected):
+                job = ingest_raw_ad(f"prose for {expected}", provider=FakeProvider(raw))
+                self.assertIn(expected, ROLE_FAMILY_SET)
+                self.assertEqual(job.role_family, expected)
+                # A non-tech family still anchors a real market salary band + flags it.
+                self.assertEqual(len(job.salary_band), 2)
+                self.assertIn("salary_band", job.defaulted_fields)
 
 
 class IngestTest(unittest.TestCase):

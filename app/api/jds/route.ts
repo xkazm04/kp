@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
-import { countAnalysesByJd, listJds, saveJd } from "@/app/_lib/db";
+import { countAnalysesByJd } from "@/app/_lib/db/analyses";
+import { listJds, saveJd } from "@/app/_lib/db/jobs";
 import { listJobRoleMeta, listJobStatuses } from "@/app/_lib/job-ingest";
 import { jdJobId, validateJdFields } from "@/app/_lib/jd-limits";
 import { safeJsonError } from "@/app/_lib/api-response";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { requireOperator } from "@/app/_lib/auth/require-operator";
 
 
 export async function GET() {
@@ -44,6 +46,10 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  // Writing a JD to the library is a recruiter action, not a public one (GET above
+  // stays open). Gate before the body read. Open mode is a no-op, so dev/sim pass.
+  const denied = await requireOperator();
+  if (denied) return denied;
   let body: unknown;
   try {
     body = await request.json();

@@ -13,6 +13,37 @@ import { splitSanityChecks } from "./sanity-checks";
 // Pure + dependency-light (only the sanity-check classifier) so it's unit-testable
 // and degrades gracefully on any missing field — a partial/older payload still
 // produces a coherent dossier rather than throwing.
+//
+// WHOSE LANGUAGE: CANONICAL ENGLISH, BY DECISION (F15). This is the one downloadable
+// artifact kp does NOT localize, and the reasons are structural rather than a
+// backlog item — see docs/architecture/localization.md, "Where English is allowed to
+// exist" and the sealed-record rule.
+//
+//  1. It is a SEALED RECORD, not a screen. The repo already rules that "a sealed or
+//     persisted field keeps its canonical English, and the UI renders the localized
+//     mirror" — `approvedBy` and the screening `rationale` in the decision chain,
+//     `codeReview.summary` in a pipeline entry's evidence record. A dossier is that
+//     rule's export format: it exists so a reviewer can be shown WHAT WAS RECORDED.
+//  2. There is no language to pin it to. `AnalysisResult` carries no `lang` field
+//     (unlike a comms entry, a JD build or an interview-prep payload), so the only
+//     candidate is the request locale — which would make the SAME analysis export
+//     differently on Tuesday than on Monday because someone flipped the appearance
+//     menu. An auditable record has to be reproducible; a request-scoped one is not.
+//  3. Localizing the ~20 headings would produce a document that is no language at
+//     all. Everything under those headings — the evidence quotes lifted from the CV,
+//     `explanation`, `jobFit.summary`, the soft-signal `label`/`detail`, the
+//     sanity-check texts — is frozen payload from the run that produced it and cannot
+//     be translated at export time. Czech headings over English evidence is a worse
+//     artifact than an English one, and it hides which parts are the record.
+//
+// The recruiter-facing MIRROR of all of this is localized: the results panels render
+// the same numbers and evidence through `useTranslations()`. What leaves the app as a
+// record leaves in one stable language, which is exactly the split the decision chain
+// already draws.
+//
+// If this is ever revisited, the honest fix is upstream: stamp a `lang` on the
+// analysis at run time (the way `jd-build-run` does) so the dossier has a document
+// language to be pinned to — then it becomes a document-reader surface like the rest.
 
 function bullets(items: readonly string[] | null | undefined, empty = "—"): string {
   const list = (items ?? []).map((s) => String(s).trim()).filter(Boolean);

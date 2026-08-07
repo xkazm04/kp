@@ -1,11 +1,28 @@
 import Database from "better-sqlite3";
 import { openStore } from "./db-path";
+import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 
 // Direction #5 — durable scheduler state for the automation clock. Isolated
 // connection (job-ingest.ts / offers-store.ts pattern) so we don't touch the
 // fork-churned db.ts. Two tables: `scheduler` holds one row per job (enabled,
 // cadence, last/next run) so the clock survives restarts and never double-fires;
 // `scheduler_runs` is the durable run log surfaced in the UI.
+//
+// TENANCY (phase 1) — READ THIS BEFORE ADDING A WRITER.
+// Both tables are GLOBAL: no workspace_id column, one row per named job for the
+// whole installation. That is deliberate, not an oversight — the policy pass is a
+// single global sweep (automation-pass → listActiveEntriesForAutomation, documented
+// tenancy:global by design), so one clock and one run row describe it honestly.
+// The BLAST RADIUS of the enable/interval toggle is therefore GLOBAL: flipping
+// `enabled` here stops (or starts) automation for EVERY tenant, not just the caller's
+// team. That is why every surface that reaches setEnabled/setIntervalMinutes/tick
+// (currently only /api/automation/schedule) MUST sit behind requireOperator — an
+// installation operator, not a per-team recruiter, owns this switch. Per-tenant
+// clocks and schedules are phase 2; do NOT bolt a workspace filter onto the schedule
+// row without building them.
+// What IS per-tenant is the run log's payload: `decisions_json` holds per-entry rows
+// carrying candidate labels and rejection reasons across every team the sweep touched.
+// listRuns({ workspace }) filters those rows to one tenant — see decisionsForWorkspace.
 
 export const POLICY_JOB = "policy_pass";
 // AUTO6 — the interview-reminder sweep, registered as a second named job so the
@@ -57,8 +74,12 @@ function db(): Database.Database {
   }
   // AUTO1 retired (UAT M6 / GDPR Art. 22): unattended auto-reject was removed —
   // clock-computed rejections are always queued for a human on the Decisions gate.
-  // The reject_mode column is kept as a harmless additive no-op (never written or
-  // read) so existing DBs don't need a destructive migration.
+  // The reject_mode column is DEAD: never written, never read, no TS field maps to
+  // it. Kept as a harmless additive no-op so existing DBs don't need a destructive
+  // migration. The rule it used to switch now lives — unconditionally — in
+  // automation-pass.ts (see the "AUTO1 RETIRED" note above the apply loop); there is
+  // no "auto" mode to restore, so do not resurrect this column, drop it if/when a
+  // destructive migration is otherwise warranted.
   try {
     d.exec(`ALTER TABLE scheduler ADD COLUMN reject_mode TEXT`);
   } catch {
@@ -259,14 +280,49 @@ export type SchedulerRun = {
   job: string;
   trigger: string;
   status: string;
+  /** GLOBAL, as stored: the counts the pass produced across every tenant it swept.
+   *  Deliberately NOT recomputed per workspace — the run really did evaluate that
+   *  many entries, and silently shrinking the number would invent a per-tenant pass
+   *  that never happened. Read it as "the installation's run"; `decisionCount` below
+   *  is the honest per-tenant figure to show beside it. */
   summary: unknown;
+  /** Per-entry decision rows, filtered to `opts.workspace` when one is given. */
   decisions: unknown;
+  /** How many decision rows this READ is allowed to see — i.e. the caller tenant's
+   *  own rows (the full list when unfiltered). Pair it with the global `summary` so a
+   *  UI can say "N of the run's M decisions are yours" instead of implying the run
+   *  belonged to one team. */
+  decisionCount: number;
+  /** The workspace `decisions` was filtered to, or null for an unfiltered read. */
+  decisionsWorkspace: string | null;
   error: string | null;
   startedAt: string;
   finishedAt: string | null;
 };
 
-export function listRuns(limit = 10, job = POLICY_JOB): SchedulerRun[] {
+/** Filter a persisted decision list to ONE tenant.
+ *
+ *  Each row carries `workspaceId`, stamped by automation-pass from the entry snapshot.
+ *  Rows written before that stamp existed have none; they predate multi-tenancy, so
+ *  they are attributed to the default workspace — shown to it, never to anyone else.
+ *  No `workspace` argument means an unfiltered (internal / operator-global) read, so
+ *  callers on a request path must always pass one. Anything that isn't an array of
+ *  rows can't be filtered safely, so a scoped read of it yields nothing rather than
+ *  passing an unknown shape through. */
+export function decisionsForWorkspace(decisions: unknown, workspace?: string): unknown {
+  if (!workspace) return decisions;
+  if (!Array.isArray(decisions)) return decisions == null ? null : [];
+  return decisions.filter((d) => {
+    const ws = (d as { workspaceId?: unknown } | null)?.workspaceId;
+    return (typeof ws === "string" && ws ? ws : DEFAULT_WORKSPACE_ID) === workspace;
+  });
+}
+
+/** Recent runs of one job. `opts.workspace` scopes the DECISION ROWS to that tenant
+ *  (the run row + its summary stay global — see SchedulerRun.summary). Every
+ *  request-scoped caller must pass it; cross-tenant candidate labels and rejection
+ *  reasons must never leave the API. */
+export function listRuns(limit = 10, job = POLICY_JOB, opts: { workspace?: string } = {}): SchedulerRun[] {
   const rows = db()
     .prepare(`SELECT * FROM scheduler_runs WHERE job = ? ORDER BY started_at DESC LIMIT ?`)
     .all(job, limit) as Record<string, unknown>[];
@@ -278,13 +334,16 @@ export function listRuns(limit = 10, job = POLICY_JOB): SchedulerRun[] {
         return null;
       }
     };
+    const decisions = decisionsForWorkspace(parse(r.decisions_json), opts.workspace);
     return {
       id: r.id as number,
       job: r.job as string,
       trigger: r.trigger as string,
       status: r.status as string,
       summary: parse(r.summary_json),
-      decisions: parse(r.decisions_json),
+      decisions,
+      decisionCount: Array.isArray(decisions) ? decisions.length : 0,
+      decisionsWorkspace: opts.workspace ?? null,
       error: (r.error as string) ?? null,
       startedAt: r.started_at as string,
       finishedAt: (r.finished_at as string) ?? null,

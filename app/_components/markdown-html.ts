@@ -5,10 +5,11 @@
 //
 // Supported subset — matches app/_components/Markdown.tsx (the renderer) plus
 // <u> underline: # / ## / ### headings, - / * bullets, 1. ordered lists,
-// blank-line paragraphs, and inline **bold**, *italic*, `code`, <u>underline</u>.
+// blank-line paragraphs, and inline **bold**, *italic*, `code`, `[text](url)`
+// links, <u>underline</u>, and backslash escapes (`\*` prints a literal `*`).
 // Template {{placeholders}} carry no markdown meaning, so they pass through as
 // plain text untouched. The HTML side also tolerates the tags Chromium's
-// contentEditable emits (b/strong, i/em, u, div, br, span) so an edit round-trips.
+// contentEditable emits (a, b/strong, i/em, u, div, br, span) so an edit round-trips.
 
 const VOID_TAGS = new Set(["br", "hr", "img", "input"]);
 const BLOCK_TAGS = new Set(["p", "div", "h1", "h2", "h3", "h4", "h5", "h6", "ul", "ol", "li", "blockquote"]);
@@ -27,14 +28,51 @@ function decodeEntities(s: string): string {
     .replace(/&amp;/g, "&");
 }
 
+// A link href is emitted (or rendered) only when its scheme is safe — http(s) or
+// mailto. Anything else (javascript:, data:, vbscript:, …) returns null so the
+// caller renders the link as inert literal text, never an executable href. Shared
+// with Markdown.tsx so the renderer and the round-trip agree on what a link is.
+export function safeLinkHref(url: string): string | null {
+  const href = url.trim();
+  return /^(https?:\/\/|mailto:)/i.test(href) ? href : null;
+}
+
+// A contentEditable text node is LITERAL text, but `*` `` ` `` and a `<u>`-looking
+// run are STRUCTURAL in markdown — emitted verbatim they corrupt the public render
+// (a typed "use *args" would italicize; a stray `<u>…</u>` would underline). Escape
+// backslash first (so we don't double-escape), then the active characters, so the
+// renderer's escape-aware inline pass prints them literally and the round-trip is
+// lossless. Brackets are intentionally NOT escaped — a typed `[x](https://y)` is a
+// real link, and a non-URL scheme is rejected by safeLinkHref anyway.
+function escapeMarkdownText(s: string): string {
+  return s
+    .replace(/\\/g, "\\\\")
+    .replace(/([*`])/g, "\\$1")
+    .replace(/<(\/?u>)/gi, "\\<$1");
+}
+
+// A paragraph line that LITERALLY starts with a block marker (`# ` heading, `- `
+// bullet, `1. ` ordered) would be re-read by the renderer as that structure. Only
+// at the start of a line is the marker structural, so escape it there (per line, so
+// a <br>-joined run is covered). `*` bullets need no handling — escapeMarkdownText
+// already escaped the `*`. The renderer's inline pass unescapes `\#`/`\-`/`\.`.
+function escapeLeadingMarker(block: string): string {
+  return block
+    .split("\n")
+    .map((line) => line.replace(/^(\s*)(#{1,3}\s|-\s)/, "$1\\$2").replace(/^(\s*\d+)(\.\s)/, "$1\\$2"))
+    .join("\n");
+}
+
 // ── Markdown → HTML ─────────────────────────────────────────────────────────
 
-// Inline: the FIRST of **bold**, *italic*, `code`, <u>…</u> wins left-to-right
-// (bold before italic so `**` beats `*`); bold/italic/underline recurse so nested
-// emphasis renders, code is literal. Everything else is HTML-escaped so setting
-// innerHTML with the result is safe.
+// Inline: a `\`-escape wins first (so `\*` is a literal `*`), then `[text](url)`,
+// then the FIRST of **bold**, *italic*, `code`, <u>…</u> left-to-right (bold
+// before italic so `**` beats `*`); bold/italic/underline/link text recurse so
+// nested emphasis renders, code is literal. Everything else is HTML-escaped so
+// setting innerHTML with the result is safe.
+// Groups: 1 escaped char · 2 link text · 3 link url · 4 bold · 5 italic · 6 code · 7 underline.
 function inlineToHtml(text: string): string {
-  const re = /\*\*([\s\S]+?)\*\*|\*([\s\S]+?)\*|`([^`]+)`|<u>([\s\S]*?)<\/u>/;
+  const re = /\\([\\*`<#.-])|\[([^\]]+)\]\(([^)]+)\)|\*\*([\s\S]+?)\*\*|\*([\s\S]+?)\*|`([^`]+)`|<u>([\s\S]*?)<\/u>/;
   let out = "";
   let rest = text;
   while (rest.length) {
@@ -44,10 +82,16 @@ function inlineToHtml(text: string): string {
       break;
     }
     if (m.index > 0) out += escapeHtml(rest.slice(0, m.index));
-    if (m[1] !== undefined) out += `<strong>${inlineToHtml(m[1])}</strong>`;
-    else if (m[2] !== undefined) out += `<em>${inlineToHtml(m[2])}</em>`;
-    else if (m[3] !== undefined) out += `<code>${escapeHtml(m[3])}</code>`;
-    else out += `<u>${inlineToHtml(m[4])}</u>`;
+    if (m[1] !== undefined) out += escapeHtml(m[1]);
+    else if (m[2] !== undefined) {
+      const href = safeLinkHref(m[3]);
+      out += href
+        ? `<a href="${escapeHtml(href).replace(/"/g, "&quot;")}" target="_blank" rel="noopener noreferrer">${inlineToHtml(m[2])}</a>`
+        : escapeHtml(m[0]);
+    } else if (m[4] !== undefined) out += `<strong>${inlineToHtml(m[4])}</strong>`;
+    else if (m[5] !== undefined) out += `<em>${inlineToHtml(m[5])}</em>`;
+    else if (m[6] !== undefined) out += `<code>${escapeHtml(m[6])}</code>`;
+    else out += `<u>${inlineToHtml(m[7])}</u>`;
     rest = rest.slice(m.index + m[0].length);
   }
   return out;
@@ -107,7 +151,7 @@ export function markdownToHtml(md: string): string {
 
 // ── HTML → Markdown ─────────────────────────────────────────────────────────
 
-type HNode = { type: "text"; value: string } | { type: "el"; tag: string; children: HNode[] };
+type HNode = { type: "text"; value: string } | { type: "el"; tag: string; href?: string; children: HNode[] };
 
 // A minimal, forgiving HTML tokenizer → tree. Handles exactly the tags this editor
 // produces or Chromium's contentEditable emits; attributes are ignored, mismatched
@@ -134,6 +178,12 @@ function parseHtml(html: string): HNode[] {
       }
     } else {
       const el: Extract<HNode, { type: "el" }> = { type: "el", tag, children: [] };
+      // Attributes are otherwise ignored, but an <a>'s href must survive so a link
+      // round-trips (markdownToHtml emits <a href>, htmlToMarkdown must read it back).
+      if (tag === "a") {
+        const hrefMatch = /\bhref\s*=\s*("([^"]*)"|'([^']*)'|([^\s>]+))/i.exec(m[0]);
+        if (hrefMatch) el.href = decodeEntities(hrefMatch[2] ?? hrefMatch[3] ?? hrefMatch[4] ?? "");
+      }
       push(el);
       if (!(m[3] === "/" || VOID_TAGS.has(tag))) stack.push(el);
     }
@@ -150,7 +200,9 @@ function serializeInline(nodes: HNode[]): string {
   let out = "";
   for (const n of nodes) {
     if (n.type === "text") {
-      out += n.value;
+      // Escape markdown-active characters so literal `*`/`` ` ``/`<u>` typed into the
+      // editor can't be re-parsed as structure by the renderer (state-corruption).
+      out += escapeMarkdownText(n.value);
       continue;
     }
     switch (n.tag) {
@@ -165,8 +217,18 @@ function serializeInline(nodes: HNode[]): string {
       case "u":
         out += wrapU(n.children);
         break;
+      case "a": {
+        // Re-emit `[text](href)` when the href is safe; otherwise drop the link
+        // wrapper and keep just the text (never emit an unsafe scheme).
+        const inner = serializeInline(n.children);
+        const href = n.href ? safeLinkHref(n.href) : null;
+        out += href ? `[${inner}](${href})` : inner;
+        break;
+      }
       case "code":
-        out += "`" + serializeInline(n.children) + "`";
+        // Code content is LITERAL in markdown (the renderer never unescapes inside
+        // backticks), so serialize it raw — escaping `*` here would print a stray `\`.
+        out += "`" + serializeInlineRaw(n.children) + "`";
         break;
       case "br":
         out += "\n";
@@ -175,6 +237,18 @@ function serializeInline(nodes: HNode[]): string {
         // span / font / unknown inline wrapper — keep the text, drop the tag.
         out += serializeInline(n.children);
     }
+  }
+  return out;
+}
+
+// Raw inline text with no markdown escaping — for `<code>` bodies, whose content
+// the renderer treats as literal (so an escape would leak a backslash into it).
+function serializeInlineRaw(nodes: HNode[]): string {
+  let out = "";
+  for (const n of nodes) {
+    if (n.type === "text") out += n.value;
+    else if (n.tag === "br") out += "\n";
+    else out += serializeInlineRaw(n.children);
   }
   return out;
 }
@@ -205,7 +279,7 @@ function serializeBlocks(nodes: HNode[]): string {
   const flush = () => {
     if (!run.length) return;
     const s = serializeInline(run).trim();
-    if (s) blocks.push(s);
+    if (s) blocks.push(escapeLeadingMarker(s));
     run = [];
   };
   for (const n of nodes) {
@@ -246,7 +320,7 @@ function serializeBlocks(nodes: HNode[]): string {
           if (inner) blocks.push(inner);
         } else {
           const inline = serializeInline(n.children).trim();
-          if (inline) blocks.push(inline);
+          if (inline) blocks.push(escapeLeadingMarker(inline));
         }
         break;
       }

@@ -12,6 +12,7 @@ from pipeline.jobfit.llm.adapters.anthropic_api import AnthropicProvider
 from pipeline.jobfit.llm.adapters.azure_openai import AzureOpenAIProvider
 from pipeline.jobfit.llm.adapters.openai_api import OpenAIProvider
 from pipeline.jobfit.llm.base import (
+    _MAX_ATTEMPTS,
     LLMError,
     LLMResult,
     TextProvider,
@@ -75,6 +76,81 @@ class CompleteRetryTest(unittest.TestCase):
     def test_empty_prompt_rejected(self) -> None:
         with self.assertRaises(ValueError):
             FakeProvider([]).complete("   ")
+
+
+class _ClockedProvider(TextProvider):
+    """Provider whose _call advances a fake monotonic clock (never sleeps for real)
+    then raises a transient timeout — so the retry loop's treatment of `timeout` as
+    a TOTAL wall-clock deadline can be asserted deterministically. Each _call
+    consumes ``min(per_call_s, timeout)`` seconds (a real call can't outlast the
+    per-attempt timeout it was handed)."""
+
+    name = "clocked"
+
+    def __init__(self, clock: dict, per_call_s: float) -> None:
+        super().__init__(model="clocked-1", timeout=100)
+        self.clock = clock
+        self.per_call_s = per_call_s
+        self.timeouts: list[int] = []
+
+    def available(self) -> bool:
+        return True
+
+    def _call(self, prompt, *, system, timeout):
+        self.timeouts.append(timeout)
+        self.clock["t"] += min(self.per_call_s, timeout)
+        raise TimeoutError("upstream timed out")
+
+
+class OverallDeadlineTest(unittest.TestCase):
+    """The configured timeout is an OVERALL wall-clock ceiling across retries, not a
+    per-attempt one (bug-ui-scan 2026-07-09 #2). Asserted with a stubbed clock — no
+    real sleeps — so total wall-clock never reaches ~_MAX_ATTEMPTS × timeout."""
+
+    def _run(self, per_call_s: float):
+        clock = {"t": 1000.0}
+        prov = _ClockedProvider(clock, per_call_s=per_call_s)
+        with mock.patch("pipeline.jobfit.llm.base.time.monotonic", lambda: clock["t"]), \
+            mock.patch(
+                "pipeline.jobfit.llm.base.time.sleep",
+                lambda s: clock.__setitem__("t", clock["t"] + s),
+            ), \
+            mock.patch("pipeline.jobfit.llm.base.random.uniform", lambda _a, _b: 0.0), \
+            mock.patch("pipeline.jobfit.llm.base.monitor") as monitor:
+            try:
+                prov.complete("hi")
+                raised = None
+            except LLMError as exc:
+                raised = exc
+        return prov, clock, monitor, raised
+
+    def test_per_attempt_timeout_is_the_remaining_budget(self) -> None:
+        # 40s per attempt against a 100s total budget → all 3 attempts fit, but the
+        # per-attempt timeout SHRINKS toward the deadline (100 → 59 → 18).
+        prov, clock, _monitor, raised = self._run(per_call_s=40.0)
+        self.assertIsInstance(raised, LLMError)
+        self.assertEqual(len(prov.timeouts), _MAX_ATTEMPTS)
+        # Strictly decreasing — pre-fix every attempt got the full budget [100,100,100].
+        self.assertGreater(prov.timeouts[0], prov.timeouts[1])
+        self.assertGreater(prov.timeouts[1], prov.timeouts[2])
+        # Total wall-clock never exceeds the configured ceiling — pre-fix it was ~3×.
+        self.assertLessEqual(clock["t"] - 1000.0, 100.0)
+
+    def test_deadline_caps_attempts_and_meters_before_abort(self) -> None:
+        # 60s per attempt: after two attempts (~99s) too little budget remains for a
+        # third, so the loop STOPS early instead of running a 3rd full-budget attempt
+        # that would blow the deadline.
+        prov, clock, monitor, raised = self._run(per_call_s=60.0)
+        self.assertIsInstance(raised, LLMError)
+        # Fewer than _MAX_ATTEMPTS attempts — pre-fix always ran all 3.
+        self.assertLess(len(prov.timeouts), _MAX_ATTEMPTS)
+        self.assertLessEqual(clock["t"] - 1000.0, 100.0)
+        # The deadline stop is a distinct, labelled failure (pre-fix: bare LLMError
+        # with no subtype)…
+        self.assertEqual(raised.subtype, "deadline_exceeded")
+        # …and the ledger error is emitted BEFORE the raise, so a wall-clock stop
+        # never loses the metering line the way a SIGKILL past the deadline would.
+        self.assertTrue(monitor.emit_error.called)
 
 
 class CompleteJsonTest(unittest.TestCase):
@@ -274,6 +350,45 @@ class OpenAIAdapterTest(unittest.TestCase):
             out = provider.complete("hi")
         # 1000 in × $0.25/MTok + 1000 out × $2.00/MTok
         self.assertAlmostEqual(out.cost_usd, 0.00225)
+
+    def _complete_with_resp(self, resp) -> None:
+        provider = OpenAIProvider(model="gpt-5-mini", api_key="k")
+        fake_client = SimpleNamespace(
+            chat=SimpleNamespace(completions=SimpleNamespace(create=lambda **kw: resp))
+        )
+        with mock.patch.object(OpenAIProvider, "_make_client", return_value=fake_client):
+            provider.complete("hi")
+
+    def test_top_level_error_body_raises_not_metered(self) -> None:
+        # bug-ui-scan-2026-07-09 (#3): OpenRouter/OpenAI idiom — HTTP 200 whose body
+        # carries {"error": ...} and no usable choices. Pre-fix this coerced to
+        # text="" and the base metered it as a PAID success; now it raises.
+        resp = SimpleNamespace(
+            error={"message": "Provider returned error", "code": 502}, choices=[], usage=None
+        )
+        with self.assertRaises(LLMError) as ctx:
+            self._complete_with_resp(resp)
+        self.assertEqual(ctx.exception.subtype, "provider_error")
+
+    def test_empty_choices_raises(self) -> None:
+        # A 200 with no error object but an empty choices array is a failed proxied
+        # call, not an empty-prose answer — pre-fix it returned a text="" success.
+        resp = SimpleNamespace(choices=[], usage=None)
+        with self.assertRaises(LLMError) as ctx:
+            self._complete_with_resp(resp)
+        self.assertEqual(ctx.exception.subtype, "empty_choices")
+
+    def test_content_filter_finish_reason_raises(self) -> None:
+        # finish_reason=content_filter → no usable output; must surface as an error.
+        resp = SimpleNamespace(
+            choices=[
+                SimpleNamespace(message=SimpleNamespace(content=None), finish_reason="content_filter")
+            ],
+            usage=None,
+        )
+        with self.assertRaises(LLMError) as ctx:
+            self._complete_with_resp(resp)
+        self.assertEqual(ctx.exception.subtype, "content_filter")
 
     def test_available_false_without_key(self) -> None:
         provider = OpenAIProvider(model="gpt-5-mini")

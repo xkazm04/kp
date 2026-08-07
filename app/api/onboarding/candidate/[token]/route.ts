@@ -25,6 +25,12 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
     const body = (await request.json().catch(() => ({}))) as { answers?: Record<string, unknown> };
     const answers = body.answers && typeof body.answers === "object" ? body.answers : {};
     const result = submitCandidateIntake(token, answers);
+    // bug-ui-scan-2026-07-09 (offers-onboarding #2): an all-blank submit is a client
+    // validation gap, not an invalid link — 400 so it isn't mislabeled 404, and (the
+    // real fix) no intake row was written that would suppress the pre-boarding reminder.
+    if (!result.ok && result.empty) {
+      return NextResponse.json({ error: "Please share at least one detail before submitting." }, { status: 400 });
+    }
     // Only an accepted offer has an onboarding hand-off; anything else is not-found.
     if (!result.ok) return NextResponse.json({ error: "This onboarding link is not valid." }, { status: 404 });
     return jsonOk(result);

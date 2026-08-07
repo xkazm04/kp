@@ -7,14 +7,51 @@
 // extractor returns undefined unless it's fairly confident. Pure + testable;
 // richer field parsing (years, skills) stays server-side at submit (profile_cli).
 
-const EMAIL_RE = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/;
+const EMAIL_RE = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g;
 
-/** The first email-shaped token in the CV text, lowercased, or undefined. */
+// FINDING #5 (bug-ui-scan-2026-07-09, github-evidence-cv-utilities): how many lines
+// AFTER the guessed applicant name still count as their "contact block". The
+// candidate's own address sits on their name line or just below it; a referee's or a
+// former employer's address lives in a separate section outside this window.
+const EMAIL_BLOCK_LINES = 3;
+
+// Distinct, lowercased, length-valid email-shaped tokens in a chunk of text.
+function distinctEmails(text: string): string[] {
+  return [
+    ...new Set(
+      [...text.matchAll(EMAIL_RE)].map((m) => m[0].toLowerCase()).filter((e) => e.length <= 254)
+    ),
+  ];
+}
+
+/** A best-effort applicant email from the CV, lowercased, or undefined.
+ *
+ *  FINDING #5: the old code returned the FIRST email-shaped token regardless of whose
+ *  address it was, so a CV that lists a portfolio host, a former employer, or a
+ *  "References: john@bigco.com" block ABOVE the candidate's own address prefilled
+ *  someone else's email. "A wrong guess is worse than none," so we only return an
+ *  address we can attribute to the candidate:
+ *    - exactly one distinct address in the whole CV → unambiguous, return it;
+ *    - several distinct addresses → return the single address that appears in the
+ *      guessed name's contact block (their name line + the next few lines). If that
+ *      block has no address, or more than one, prefill nothing and let the candidate
+ *      type it — an ambiguous CV degrades to "candidate types it", never a confident
+ *      wrong default. */
 export function extractCvEmail(text: string): string | undefined {
-  const m = EMAIL_RE.exec(text);
-  if (!m) return undefined;
-  const email = m[0].toLowerCase();
-  return email.length <= 254 ? email : undefined;
+  const distinct = distinctEmails(text);
+  if (distinct.length === 0) return undefined;
+  if (distinct.length === 1) return distinct[0]; // one address in the whole CV — unambiguous
+
+  // Several distinct addresses: attribute one to the candidate only via their name's
+  // contact block, so an address listed elsewhere on the page can't win by position.
+  const name = guessCvName(text);
+  if (!name) return undefined; // no anchor to attribute an address → candidate types it
+  const lines = text.split(/\r?\n/);
+  const nameLine = lines.findIndex((line) => line.includes(name));
+  if (nameLine < 0) return undefined;
+  const block = lines.slice(nameLine, nameLine + EMAIL_BLOCK_LINES).join("\n");
+  const inBlock = distinctEmails(block);
+  return inBlock.length === 1 ? inBlock[0] : undefined;
 }
 
 // A header line we should NOT mistake for a name.

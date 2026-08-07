@@ -6,6 +6,9 @@
 // An LLM fallback for free-form phrasing can wrap this (parse here first, defer to
 // a model only on `unknown`) — kept out of the core so it stays import-free/tested.
 
+import { compareByMatchScoreDesc } from "./match-score";
+import type { PipelineEntry } from "./db/core";
+
 export type ParsedCommand =
   | { kind: "reject_below"; threshold: number; jobQuery: string | null }
   | { kind: "advance_top"; count: number }
@@ -85,4 +88,64 @@ export function describeCommand(cmd: ParsedCommand): string {
 /** Whether an intent mutates state (so the route requires an explicit confirm). */
 export function isMutating(cmd: ParsedCommand): boolean {
   return cmd.kind === "reject_below" || cmd.kind === "advance_top" || cmd.kind === "run_policy";
+}
+
+/** The candidate set a mutating command would touch (the preview), resolved over a
+ *  GIVEN entry list. PURE + read-only — never mutates. TENANCY: the caller passes
+ *  `listPipeline(workspaceId)`, so the scope is the CALLER's workspace; because the
+ *  execute path acts ONLY on what this returns, scoping the input list is what keeps
+ *  the NL command bar inside one tenant (it previously read the default workspace).
+ *  Empty for run_policy — it has no candidate preview (it runs the whole
+ *  deterministic pass with its own fairness backstops). */
+export function affected(cmd: ParsedCommand, entries: PipelineEntry[]): PipelineEntry[] {
+  const active = entries.filter((e) => e.status === "active");
+  if (cmd.kind === "reject_below") {
+    const q = cmd.jobQuery?.toLowerCase() ?? null;
+    return active.filter(
+      (e) =>
+        e.matchScore != null &&
+        e.matchScore < cmd.threshold &&
+        (!q || (e.jobTitle ?? "").toLowerCase().includes(q))
+    );
+  }
+  if (cmd.kind === "advance_top") {
+    // "Top N" is meaningful only over measured candidates: the filter excludes
+    // unscored entries (fail closed — same null-score policy as the screen wave),
+    // and the shared comparator ranks without ever fabricating a 0.
+    return [...active]
+      .filter((e) => e.matchScore != null && e.stage !== "Hired")
+      .sort(compareByMatchScoreDesc)
+      .slice(0, cmd.count);
+  }
+  return [];
+}
+
+/** Bind a `reject_below` confirm to the exact cohort the recruiter reviewed
+ *  (bug-ui pipeline #3). Preview and execute each independently query LIVE DB
+ *  state, so between the two POSTs a newly-scored applicant can slip below the
+ *  threshold and be rejected + emailed WITHOUT ever appearing in the preview the
+ *  operator vetted — a TOCTOU on the pipeline's most destructive, irreversible
+ *  action. The confirm therefore carries the previewed id set, and the execute
+ *  acts ONLY on ids that were BOTH previewed AND still match now:
+ *    - act:        previewed ∩ still-matching — reject exactly what was shown.
+ *    - droppedOut: previewed − still-matching — shown, but advanced/rejected/no
+ *                  longer below the line in the gap; skipped and reported.
+ *  Ids that newly match but were never previewed are silently excluded — that is
+ *  the whole contract: a confirm can only ever reject a SUBSET of what was shown,
+ *  never a candidate the recruiter never saw. `act` preserves previewed order and
+ *  is de-duplicated defensively. */
+export function resolveRejectTargets(
+  previewedIds: readonly string[],
+  stillMatchingIds: readonly string[]
+): { act: string[]; droppedOut: string[] } {
+  const matching = new Set(stillMatchingIds);
+  const seen = new Set<string>();
+  const act: string[] = [];
+  const droppedOut: string[] = [];
+  for (const id of previewedIds) {
+    if (seen.has(id)) continue;
+    seen.add(id);
+    (matching.has(id) ? act : droppedOut).push(id);
+  }
+  return { act, droppedOut };
 }

@@ -2,5 +2,18 @@
   "projectName": "kp",
   "createdAt": "2026-05-05T16:42:43.709Z",
   "updatedAt": "2026-05-05T16:42:43.709Z",
-  "customConfig": {}
+  "customConfig": {},
+  "hooks": {
+    "Stop": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node scripts/docs/check-doc-sync.mjs"
+          }
+        ]
+      }
+    ]
+  }
 }

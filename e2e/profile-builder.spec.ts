@@ -43,6 +43,9 @@ type ProfileGet = { profile: { archetype: string | null; completeness: number | 
 
 async function openBuilder(page: Page): Promise<void> {
   await page.goto("/?tab=profile");
+  // The "Build candidate profile" button sits beside the "Candidate view"
+  // projection toggle in ProfileTab, so it's reachable from the default List
+  // projection — no Matrix switch needed.
   const openBtn = page.getByRole("button", { name: "Build candidate profile" });
   const heading = page.getByRole("heading", { name: "Build a candidate profile" });
   await expect(openBtn).toBeVisible();
@@ -70,12 +73,42 @@ async function fillSkills(page: Page, skills: string[]): Promise<void> {
   }
 }
 
+// The shared Select is a custom combobox (button + role=listbox popup;
+// app/_components/Select.tsx), not a native <select> — open it by accessible
+// name, then click the option. An unlabeled combobox's accessible name is its
+// currently selected value.
+async function pickOption(page: Page, comboName: string, option: string): Promise<void> {
+  // Combos match by accessible name (every profile-form Select now carries an
+  // aria-label); the text fallback keeps value-named lookups working too.
+  const combo = page
+    .getByRole("combobox", { name: comboName, exact: true })
+    .or(page.getByRole("combobox").filter({ hasText: comboName }))
+    .first();
+  const listbox = page.getByRole("listbox").first();
+  // Retry the WHOLE open→pick→closed sequence: the trigger click can be lost to
+  // dev hydration, the popup can toggle shut between steps, and it can portal
+  // outside the headless viewport (normal clicks fail actionability there) — so
+  // the pick is a dispatched click on the option's text, which reaches React's
+  // handler regardless of position.
+  await expect(async () => {
+    // Gate the open-click on aria-expanded (the component's own state), not on
+    // popup visibility — clicking while a late open is still rendering would
+    // TOGGLE the menu shut and oscillate forever.
+    if ((await combo.getAttribute("aria-expanded")) !== "true") {
+      // dispatchEvent, not click(): in the taller bau layout the combo can sit
+      // under the floating dock, where click()'s actionability wait times out
+      // silently inside the catch and eats the whole retry budget.
+      await combo.dispatchEvent("click").catch(() => undefined);
+    }
+    await expect(listbox).toBeVisible({ timeout: 1500 });
+    await listbox.getByText(option, { exact: true }).first().dispatchEvent("click");
+    await expect(page.getByRole("listbox")).toHaveCount(0, { timeout: 1000 });
+  }).toPass({ timeout: 30_000 });
+}
+
 async function fillEvidence(page: Page, kind: string, title: string): Promise<void> {
-  // Target the evidence "kind" <select> by an option only it carries ("job"):
-  // skill-level / provenance / seniority / education selects never do, so this
-  // is position-independent. ("internship"/"thesis" also live in provenance, so
-  // they would not disambiguate.)
-  await page.locator("select").filter({ hasText: "job" }).first().selectOption(kind);
+  // The evidence "kind" combobox is named by its aria-label ("Evidence kind").
+  await pickOption(page, "Evidence kind", kind);
   await page.getByPlaceholder("Title").fill(title);
 }
 
@@ -105,9 +138,9 @@ test.describe("Profile builder — archetype routing + completeness", () => {
     // Selects (Pick) sit inside a wrapping <label> whose text includes every
     // <option>, which defeats getByLabel's label-text match — target them by
     // accessible name instead (the accname algorithm skips the embedded widget).
-    await page.getByRole("combobox", { name: "Education level", exact: true }).selectOption("master");
+    await pickOption(page, "Education level", "Master's");
     await page.getByLabel("Languages", { exact: true }).fill("Czech, English");
-    await page.getByRole("combobox", { name: "Seniority", exact: true }).selectOption("senior");
+    await pickOption(page, "Seniority", "Senior");
     await page.getByLabel("Years of experience", { exact: true }).fill("6");
     await fillSkills(page, ["TypeScript", "React", "SQL"]);
     await fillEvidence(page, "job", "Senior Engineer at Acme (2019–2024)");
@@ -128,9 +161,8 @@ test.describe("Profile builder — archetype routing + completeness", () => {
     const savedId = saved.saved?.id;
     expect(savedId, "save should persist and return an id").toBeTruthy();
 
-    // Editor closed → back at the candidates view.
-    await expect(page.getByRole("button", { name: "Build candidate profile" })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Build a candidate profile" })).toHaveCount(0);
+    // (The editor used to close itself on save; it now stays open on the saved
+    // state, so persistence is asserted via the GET below, not the UI.)
 
     // Persisted record reflects the routed archetype + score.
     const record = await page.request.get(`/api/profile?id=${savedId}`);
@@ -146,7 +178,7 @@ test.describe("Profile builder — archetype routing + completeness", () => {
     // education + languages are no longer auto-seeded (idea-fa7d5360); fill them so
     // the only remaining gap is the missing activity (→ 8/9 = 89%).
     // Role-based for the same wrapping-<label> reason as the experienced intake.
-    await page.getByRole("combobox", { name: "Education level", exact: true }).selectOption("bachelor");
+    await pickOption(page, "Education level", "Bachelor's");
     await page.getByLabel("Languages", { exact: true }).fill("Czech, English");
     await page.getByLabel("Aspirations / target roles", { exact: true }).fill("Junior frontend developer");
     await page.getByLabel("Study programme & specialisation", { exact: true }).fill("CS, ČVUT FEL — focus on ML");
@@ -170,9 +202,7 @@ test.describe("Profile builder — archetype routing + completeness", () => {
     const savedId = saved.saved?.id;
     expect(savedId, "save should persist and return an id").toBeTruthy();
 
-    await expect(page.getByRole("button", { name: "Build candidate profile" })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Build a candidate profile" })).toHaveCount(0);
-
+    // (Editor stays open on the saved state now — persistence asserted via GET.)
     const record = await page.request.get(`/api/profile?id=${savedId}`);
     const { profile } = (await record.json()) as ProfileGet;
     expect(profile.archetype).toBe("student");

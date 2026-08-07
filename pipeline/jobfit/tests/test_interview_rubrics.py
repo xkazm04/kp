@@ -129,6 +129,30 @@ class TestInterviewRubrics(unittest.TestCase):
         self.assertEqual(automation.rubric_for_candidate("bau", None), base)
         self.assertEqual(automation.rubric_for_candidate("bau", ""), base)
 
+    # ---- Direction 2: rubric version hash (cross-side parity) -----------------
+
+    def test_rubric_version_hash_matches_the_ts_stamp(self) -> None:
+        # The AI scorecard stamps result["rubricVersion"] = rubric_version_hash(rubric)
+        # so a stored scorecard can be re-evaluated against the EXACT scale it was
+        # scored on. These literals are the CROSS-SIDE PARITY ANCHOR: the TS
+        # interview-rubric.test.ts asserts the identical values for the same rubric
+        # slices via rubricVersionHash, so TS == Python is enforced in both CI lanes.
+        # If the rubric JSON changes, update BOTH sides together.
+        self.assertEqual(automation.rubric_version_hash(automation.rubric_for_archetype("bau")), "c5303546821999e1")
+        self.assertEqual(automation.rubric_version_hash(automation.rubric_for_archetype("student")), "981e0b005f004e88")
+        self.assertEqual(
+            automation.rubric_version_hash(automation.rubric_for_candidate("bau", "healthcare_clinical")),
+            "706059338ba7503e",
+        )
+
+    def test_rubric_version_hash_is_deterministic_and_content_sensitive(self) -> None:
+        base = automation.rubric_for_archetype("bau")
+        h = automation.rubric_version_hash(base)
+        self.assertRegex(h, r"^[0-9a-f]{16}$")
+        self.assertEqual(h, automation.rubric_version_hash(base), "re-hashing the same slice is stable")
+        # Appending industry axes is a different scale → a different version.
+        self.assertNotEqual(h, automation.rubric_version_hash(automation.rubric_for_candidate("bau", "healthcare_clinical")))
+
 
 if __name__ == "__main__":
     unittest.main()

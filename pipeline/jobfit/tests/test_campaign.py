@@ -27,6 +27,7 @@ from pipeline.jobfit.campaign import (
     draft_campaign_pack,
 )
 from pipeline.jobfit.jobs import Job
+from pipeline.jobfit.market_config import BERLIN_MARKET
 
 URL = "https://hire.example.com/apply/job-1/quick?lang=en"
 
@@ -53,9 +54,11 @@ class _FakeProvider:
         self._payload = payload
         self._exc = exc
         self.prompt: str | None = None
+        self.system: str | None = None
 
     def complete_json(self, prompt: str, *, system: str | None = None):
         self.prompt = prompt
+        self.system = system
         if self._exc:
             raise self._exc
         return self._payload
@@ -133,6 +136,62 @@ class DeterministicPackTests(unittest.TestCase):
         self.assertEqual(
             sorted(pack["warnings"]), sorted([WARN_NO_SALARY, WARN_NO_LOCATION, WARN_NO_SKILLS])
         )
+
+
+class MarketUnlockTests(unittest.TestCase):
+    """The campaign engine's market/currency identity flows from MarketConfig, not
+    a hardcoded Czech literal — while the Czech default stays byte-identical."""
+
+    def test_czech_default_salary_unit_is_unchanged(self):
+        # Byte-identical to the old hardcoded literal for both languages.
+        en = draft_campaign_pack(_job(), lang="en")[0]
+        self.assertIn("CZK/month", next(v for v in en["variants"] if v["hookType"] == "number")["hook"])
+        cs = draft_campaign_pack(_job(), lang="cs")[0]
+        self.assertIn("Kč/měsíc", next(v for v in cs["variants"] if v["hookType"] == "number")["hook"])
+
+    def test_non_czk_market_renders_its_own_unit(self):
+        # A EUR market must render its OWN unit — never silently relabel the figure CZK.
+        pack = draft_campaign_pack(_job(), lang="en", market=BERLIN_MARKET)[0]
+        number = next(v for v in pack["variants"] if v["hookType"] == "number")["hook"]
+        self.assertIn("EUR/month", number)
+        self.assertNotIn("CZK", number)
+        # In the market's home language it uses the native symbol + period word.
+        de = draft_campaign_pack(_job(), lang="de", market=BERLIN_MARKET)[0]
+        self.assertIn("€/Monat", next(v for v in de["variants"] if v["hookType"] == "number")["hook"])
+
+    def test_system_prompt_carries_the_configured_market(self):
+        # The market descriptor drives the LLM system prompt on every generation.
+        default = _FakeProvider(payload={"variants": []})
+        draft_campaign_pack(_job(), lang="en", provider=default)
+        self.assertIn("Czech tech market", default.system)
+
+        berlin = _FakeProvider(payload={"variants": []})
+        draft_campaign_pack(_job(), lang="en", provider=berlin, market=BERLIN_MARKET)
+        self.assertIn("German tech market", berlin.system)
+        self.assertNotIn("Czech", berlin.system)
+
+    def test_german_locale_output_is_native(self):
+        pack, _ = draft_campaign_pack(_job(), lang="de", apply_url=URL)
+        self.assertEqual(pack["language"], "de")
+        problem = next(v for v in pack["variants"] if v["hookType"] == "problem")
+        self.assertIn("Suchen Sie Ihre nächste Position", problem["hook"])
+        self.assertIn("30 Sekunden", problem["videoScript"]["cta"])
+        location = next(v for v in pack["variants"] if v["hookType"] == "location")
+        self.assertIn("Wir suchen in", location["hook"])
+
+    def test_french_locale_output_is_native(self):
+        pack, _ = draft_campaign_pack(_job(), lang="fr", apply_url=URL)
+        self.assertEqual(pack["language"], "fr")
+        problem = next(v for v in pack["variants"] if v["hookType"] == "problem")
+        self.assertIn("Vous cherchez votre prochain poste", problem["hook"])
+        # French typography: a narrow no-break space (U+202F) precedes the '?'.
+        self.assertIn(" ?", problem["hook"])
+        self.assertIn("30 secondes", problem["videoScript"]["cta"])
+
+    def test_de_and_fr_are_not_silently_collapsed_to_english(self):
+        de = draft_campaign_pack(_job(), lang="de")[0]
+        fr = draft_campaign_pack(_job(), lang="fr")[0]
+        self.assertEqual((de["language"], fr["language"]), ("de", "fr"))
 
 
 class CoerceBoundaryTests(unittest.TestCase):

@@ -1,7 +1,7 @@
 // E8 (Erika gap) — the versioned wire envelope the WebhookChannel POSTs to
 // COMMS_WEBHOOK_URL. This is kp's outbound EXPORT SCHEMA: one documented JSON
 // shape a relay maps onto any ATS / mail provider, instead of per-vendor
-// connectors. Full contract in docs/OUTBOUND_EXPORT.md.
+// connectors. Full contract in docs/features/comms/outbound-export.md.
 //
 // Stability rules:
 //   - `schema` names the version; kp.comm.v1 evolves ADDITIVELY only (new
@@ -22,15 +22,28 @@ export const COMM_SCHEMA = "kp.comm.v1" as const;
 // The kind vocabulary the pipeline dispatchers emit today (comms-dispatch.ts).
 // Documentation-adjacent, not enforcement: unknown kinds (e.g. dev-case comms)
 // pass through verbatim, and a relay should treat this list as open.
+//
+// PINNED TO THE SOURCE, not to a snapshot: this list claimed to be "the kinds the
+// dispatchers emit today" while listing 8 of 13 — a hand-maintained list drifts the
+// moment a dispatcher is added, and it is part of a PUBLISHED export contract an
+// integrator maps against, so the drift lands on them. comms-envelope.test.ts now
+// greps every `kind: "…"` passed to sendComm/sendCandidateComm in comms-dispatch.ts
+// and asserts SET EQUALITY with this array: a new dispatcher fails the test until it
+// is documented here, and a removed one fails it until it is dropped.
 export const KNOWN_COMM_KINDS = [
   "acknowledgement",
   "outreach",
   "rejection",
+  "ko_decline",
   "offer",
+  "offer_reminder",
   "interview_confirmation",
   "interview_reminder",
   "interview_invite",
+  "interviewer_brief",
+  "schedule_invite",
   "onboarding",
+  "onboarding_reminder",
 ] as const;
 
 // Structural subset of PipelineEntry (kept import-free so the module stays
@@ -61,7 +74,7 @@ export type CommEnvelope = {
     label: string | null;
     /** The captured contact address (E4) — the directly-deliverable recipient
      *  when present; `to` may hold a mere identifier (see the recipient
-     *  contract in docs/COMMS_DELIVERY.md). */
+     *  contract in docs/features/comms/README.md). */
     email: string | null;
     locale: string | null;
     sourceChannel: string | null;

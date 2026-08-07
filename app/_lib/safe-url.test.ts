@@ -94,6 +94,14 @@ test("assertPublicHttpsEndpoint rejects the SSRF pivots: metadata IP, loopback, 
   assert.throws(() => assertPublicHttpsEndpoint("https://[::1]/"), /IP address/);
 });
 
+test("assertPublicHttpsEndpoint rejects numeric IP encodings that resolve to loopback", () => {
+  // 127.0.0.1 in disguise — the OS resolver expands all of these back to an IP.
+  assert.throws(() => assertPublicHttpsEndpoint("https://2130706433/"), /IP address/); // 32-bit integer
+  assert.throws(() => assertPublicHttpsEndpoint("https://0x7f000001/"), /IP address/); // hex
+  assert.throws(() => assertPublicHttpsEndpoint("https://127.1/"), /IP address/); // class-collapsed short form
+  assert.throws(() => assertPublicHttpsEndpoint("https://127.0.1/"), /IP address/); // 3-octet short form
+});
+
 test("assertPublicHttpsEndpoint rejects internal/loopback hostnames", () => {
   assert.throws(() => assertPublicHttpsEndpoint("https://localhost"), /internal\/loopback/);
   assert.throws(() => assertPublicHttpsEndpoint("https://db.internal"), /internal\/loopback/);

@@ -5,7 +5,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { computeAdverseImpact, FOUR_FIFTHS, ADVERSE_IMPACT_MIN_COHORT } from "./adverse-impact.ts";
+import { computeAdverseImpact, parseGroupCounts, FOUR_FIFTHS, ADVERSE_IMPACT_MIN_COHORT } from "./adverse-impact.ts";
 
 test("classic EEOC example: 80% vs 40% selection flags the lower group", () => {
   const r = computeAdverseImpact([
@@ -159,4 +159,59 @@ test("a group exactly at the floor is reliable; one below it is not", () => {
   assert.equal(r.groups.find((g) => g.group === "at")!.reliable, true);
   assert.equal(r.groups.find((g) => g.group === "below")!.reliable, false);
   assert.equal(r.reliable, false, "only one group clears the floor, so nothing can be measured");
+});
+
+// bug-ui-scan 2026-07-09 (screening-decisions-records #4): parseGroupCounts must make a
+// malformed pasted row VISIBLE rather than silently dropping it. The reference group is
+// "highest rate among whatever parsed", so quietly discarding a mistyped line can change the
+// reference and flip a verdict on a legally-loaded fairness surface. The recruiter must see
+// that a row was ignored, and on which line.
+
+test("clean input: every row parses, nothing flagged malformed", () => {
+  const p = parseGroupCounts("Women, 40, 100\nMen, 80, 100");
+  assert.deepEqual(p.groups, [
+    { group: "Women", selected: 40, total: 100 },
+    { group: "Men", selected: 80, total: 100 },
+  ]);
+  assert.deepEqual(p.malformedRows, []);
+  assert.equal(p.nonBlankRows, 2);
+});
+
+test("a row with too few fields is reported malformed, by its 1-based line number", () => {
+  // The exact scenario in the finding: "Female, 12" has only two fields.
+  const p = parseGroupCounts("Male, 80, 100\nFemale, 12\nOther, 5, 20");
+  assert.deepEqual(p.groups, [
+    { group: "Male", selected: 80, total: 100 },
+    { group: "Other", selected: 5, total: 20 },
+  ]);
+  assert.deepEqual(p.malformedRows, [2], "line 2 must be surfaced, not silently dropped");
+  assert.equal(p.nonBlankRows, 3, "the ignored row still counts toward what the recruiter pasted");
+});
+
+test("a non-numeric or empty count is malformed, not a fabricated 0", () => {
+  const p = parseGroupCounts("A, x, 100\nB, , 50\nC, 3, 4");
+  assert.deepEqual(p.groups, [{ group: "C", selected: 3, total: 4 }]);
+  assert.deepEqual(p.malformedRows, [1, 2]);
+});
+
+test("an empty group name is malformed", () => {
+  const p = parseGroupCounts(", 10, 20\nReal, 10, 20");
+  assert.deepEqual(p.malformedRows, [1]);
+  assert.deepEqual(p.groups, [{ group: "Real", selected: 10, total: 20 }]);
+});
+
+test("blank/whitespace lines are ignored — neither parsed nor counted malformed", () => {
+  const p = parseGroupCounts("\nWomen, 40, 100\n   \nMen, 80, 100\n");
+  assert.equal(p.groups.length, 2);
+  assert.deepEqual(p.malformedRows, []);
+  assert.equal(p.nonBlankRows, 2, "empty lines do not inflate the row count");
+});
+
+test("dropping a malformed row can change the reference — so it must be visible", () => {
+  // Pasted four groups; row 3 is mistyped. Silently computing on the three that parsed
+  // would give a different picture than the recruiter believes they entered.
+  const p = parseGroupCounts("A, 30, 50\nB, 20, 50\nBROKEN LINE\nC, 45, 50");
+  assert.deepEqual(p.malformedRows, [3]);
+  assert.equal(p.groups.length, 3);
+  assert.equal(p.nonBlankRows, 4, "recruiter pasted 4 rows; the verdict runs on 3");
 });

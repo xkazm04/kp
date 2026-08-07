@@ -58,8 +58,14 @@ export function inviteMember(input: InviteMemberInput): Invite {
 }
 
 export type AcceptInviteInput = { token: string; name?: string | null; password: string };
+// bug-ui-scan-2026-07-09 (organizations-members-invites #3): the accept flow's
+// caller (the invite route) must sign the session for the team/role the invite
+// just granted — not an arbitrary "first" membership. Return the accepted
+// membership's workspaceId + role so the route never has to guess (it was using
+// listMembershipsForUser(...)[0], the OLDEST membership, signing a re-invited
+// member into their old team/role).
 export type AcceptResult =
-  | { ok: true; user: User }
+  | { ok: true; user: User; workspaceId: string; role: MemberRole }
   | { ok: false; reason: "invalid" | "weak_password" | "email_taken" | "already_active" };
 
 /** Redeem a pending invite: activate/create the user, set their password, and add
@@ -87,9 +93,12 @@ export function acceptInvite(input: AcceptInviteInput, now: number = Date.now())
   } else {
     user = createUser({ orgId: invite.orgId, email: invite.email, name: input.name ?? null, status: "active", password: input.password });
   }
-  upsertMembership(user.id, invite.workspaceId ?? DEFAULT_WORKSPACE_ID, invite.role);
+  // bug-ui-scan-2026-07-09 (organizations-members-invites #3): resolve the accepted
+  // team once and return it, so the session claims match the invite (not [0]).
+  const workspaceId = invite.workspaceId ?? DEFAULT_WORKSPACE_ID;
+  upsertMembership(user.id, workspaceId, invite.role);
   markInviteAccepted(input.token, now);
-  return { ok: true, user };
+  return { ok: true, user, workspaceId, role: invite.role };
 }
 
 // ---- Role / permission changes (with last-owner protection) ----------------

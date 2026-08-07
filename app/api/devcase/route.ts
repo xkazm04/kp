@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { listDevCases, saveDevCase } from "@/app/_lib/db";
+import { listDevCases, saveDevCase } from "@/app/_lib/db/devcase";
 import { enforceProbeGate } from "@/app/_lib/devcase-probe-audit";
 import { recordAudit } from "@/app/_lib/dev-control";
 

@@ -1,4 +1,4 @@
-"""Multi-provider LLM layer (docs/LLM_PROVIDER_LAYER.md).
+"""Multi-provider LLM layer (docs/architecture/llm-provider-layer.md).
 
 `resolve_provider(use_case)` returns a ClaudeCliProvider-compatible object —
 same `available()` / `complete()` / `complete_json()` / `map()` surface — routed

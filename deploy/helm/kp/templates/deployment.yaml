@@ -8,7 +8,7 @@ spec:
   # HARD single replica + Recreate: SQLite is single-writer on a RWO volume, so a
   # rolling update (two pods briefly) would contend for one DB file. Recreate stops
   # the old pod before starting the new one. Do NOT raise this without a Postgres
-  # backend (docs/POSTGRES_BACKEND.md).
+  # backend (docs/architecture/postgres-backend.md).
   replicas: 1
   strategy:
     type: Recreate

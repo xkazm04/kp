@@ -4,6 +4,8 @@
 // localStorage dev gate. The landing's sign-in CTAs call enterWorkspace(); the
 // sidebar's sign-out calls leaveWorkspace().
 
+import { track } from "../analytics/track";
+
 /** Enter the workspace from the public landing. Posts to the login endpoint with
  *  NO credentials:
  *   - open mode (no KP_OPERATOR_PASSWORD): the endpoint sets the entry marker (and
@@ -11,18 +13,29 @@
  *   - password mode: the empty POST is rejected (401), so we hand off to the
  *     /login form for the real sign-in.
  *  A hard navigation (not a client swap) so the pre-paint theme script re-runs
- *  with the new entered state. */
-export async function enterWorkspace(): Promise<void> {
+ *  with the new entered state.
+ *
+ *  `plan` carries the pricing tier the visitor picked (landing-marketing #1). The
+ *  tier buttons used to call this with no argument, so the single highest-intent
+ *  signal on the marketing surface was silently discarded. We persist it as a
+ *  `?plan=` query param on the entered/login URL so billing can preselect the plan
+ *  and analytics can attribute the intent. */
+export async function enterWorkspace(plan?: string): Promise<void> {
+  const query = plan ? `?plan=${encodeURIComponent(plan)}` : "";
+  // Fire-and-forget, before the hard navigation below — the picked pricing tier
+  // is the highest-intent signal on the marketing surface. No-op when Plausible
+  // isn't configured/loaded; never awaited, never allowed to delay entry.
+  track("workspace_entered", plan ? { plan } : undefined);
   try {
     const r = await fetch("/api/auth/login", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: "{}",
     });
-    window.location.assign(r.ok ? "/" : "/login");
+    window.location.assign(r.ok ? `/${query}` : `/login${query}`);
   } catch {
-    // Network/offline — fall back to the sign-in form.
-    window.location.assign("/login");
+    // Network/offline — fall back to the sign-in form (keep the plan intent).
+    window.location.assign(`/login${query}`);
   }
 }
 

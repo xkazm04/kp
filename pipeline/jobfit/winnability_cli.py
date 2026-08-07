@@ -6,10 +6,11 @@ Input JSON (stdin or --input-json):
                   | { "label": str, "candidate": {<MatchCandidate>} } ] }   # already a match candidate
 
 Output: the assess_winnability() dict (eligible/qualified counts, loosen-gate and
-demote-must-have deltas, salary vs market). Invoked by /api/jobs/[id]/winnability.
+demote-must-have deltas, salary vs market) plus a `skipped` list of any dropped
+entries ({id, label, reason}). Invoked by /api/jobs/[id]/winnability.
 The candidate-entry parsing mirrors recruiter_cli (row-level isolation: one
-malformed CV is skipped, not fatal) so the coach scores the exact same pool the
-recruiter ranking does.
+malformed CV is skipped — but RECORDED, not silently dropped — so the coach scores,
+and honestly reports, the exact same pool the recruiter ranking does.
 """
 
 from __future__ import annotations
@@ -51,9 +52,11 @@ def main(argv: list[str] | None = None) -> int:
             raise ValueError(f"job not found: {job_id}")
 
         candidates: list[MatchCandidate] = []
+        skipped: list[dict[str, str]] = []
         for i, entry in enumerate(raw.get("candidates") or []):
             if not isinstance(entry, dict):
                 continue
+            entry_id = entry.get("id") or f"cand-{i}"
             try:
                 if entry.get("profile"):
                     cand = build_match_candidate(CandidateProfileV2.model_validate(entry["profile"]))
@@ -61,15 +64,23 @@ def main(argv: list[str] | None = None) -> int:
                     cand = MatchCandidate.model_validate(entry["candidate"])
                 else:
                     continue
-            except Exception:
-                # One malformed entry (a partially-extracted CV) must not abort the
-                # whole assessment — skip it, mirroring recruiter_cli's isolation.
+            except Exception as exc:
+                # bug-ui-scan-2026-07-09 (pipeline-clis-script-bridges #4): a malformed
+                # entry (partially-extracted CV) must not abort the whole assessment —
+                # but dropping it SILENTLY computes the winnability grade over a smaller
+                # pool than the recruiter sees. Record id+label+reason (the exact shape
+                # recruiter_cli emits) so the denominator is honest and the UI can flag
+                # "N not assessed", instead of a bare `except: continue`.
+                skipped.append({"id": entry_id, "label": entry.get("label") or entry_id, "reason": str(exc)})
                 continue
             if entry.get("label"):
                 cand.label = entry["label"]
             candidates.append(cand)
 
         result = assess_winnability(candidates, job)
+        # Surface the dropped entries alongside the assessment so the pool the coach
+        # scored is auditable (bug-ui-scan-2026-07-09 #4).
+        result["skipped"] = skipped
     except Exception as exc:
         print(json.dumps({"error": str(exc), "status": 500}, ensure_ascii=False), file=sys.stderr)
         return 1

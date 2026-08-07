@@ -119,7 +119,9 @@ test("a lapsed deadline makes the link dead: respond reports expired, the row fl
   forceExpiry(offer.token);
 
   const result = await respondToOffer(offer.token, "accept");
-  assert.deepEqual(result, { ok: false, error: "This offer has expired.", expired: true });
+  // The refusal carries a CODE the candidate page localizes, not an English
+  // sentence; `expired` is what the route reads to answer 410 rather than 404.
+  assert.deepEqual(result, { ok: false, code: "OFFER_EXPIRED", expired: true });
   assert.equal(getOfferByToken(offer.token)!.status, "expired");
   assert.ok(hasEvent(entry.id, "offer_expired"));
   assert.equal(getPipelineEntry(entry.id)!.stage, "Offer", "an expired link must not move the entry");
@@ -127,7 +129,7 @@ test("a lapsed deadline makes the link dead: respond reports expired, the row fl
 
   // Unknown token stays a plain not-found.
   const missing = await respondToOffer("tk-does-not-exist", "accept");
-  assert.deepEqual(missing, { ok: false, error: "Offer not found." });
+  assert.deepEqual(missing, { ok: false, code: "OFFER_NOT_FOUND" });
 });
 
 test("lapseExpiredOffers sweeps every due open offer exactly once", () => {
@@ -161,6 +163,16 @@ test("sendDueOfferReminders dispatches each due offer once across sweeps", async
   const sent = await sendDueOfferReminders();
   assert.equal(sent, 1);
   assert.equal(await sendDueOfferReminders(), 0, "the claim persists — no duplicate nudge on the next tick");
+});
+
+test("offerView ships a SERVER-computed hoursRemaining so the countdown can't drift on a skewed client clock", () => {
+  // bug-ui-scan-2026-07-09 (offers-onboarding #5): the candidate page must render the
+  // hours-left from the server's clock, not Date.now() on an untrusted device.
+  const entry = entryAtOffer();
+  const offer = mintOffer(entry.id, 1); // 1-day TTL → ~24h out
+  const view = offerView(offer.token)!;
+  assert.equal(typeof view.hoursRemaining, "number", "the view must carry a server-side hours-left figure");
+  assert.ok(view.hoursRemaining! >= 23 && view.hoursRemaining! <= 24, `expected ~24h, got ${view.hoursRemaining}`);
 });
 
 test("getOrCreateOpenOffer reuses the one open offer per entry instead of minting a second live link", () => {

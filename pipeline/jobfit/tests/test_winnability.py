@@ -1,13 +1,26 @@
 from __future__ import annotations
 
+import contextlib
+import io
+import json
+import tempfile
 import unittest
+from pathlib import Path
 
+from pipeline.jobfit import winnability_cli
 from pipeline.jobfit.jobs import Job, JobRequirement
+from pipeline.jobfit.market_config import BERLIN_MARKET, CZECH_MARKET
 from pipeline.jobfit.matching import FIT_PROMISING_THRESHOLD, MatchCandidate, ko_filter, score_job
 from pipeline.jobfit.winnability import assess_winnability
 
 
 def _cand(label: str, skills: list[str], **kw) -> MatchCandidate:
+    # provenance_default is explicit: the shipped default is now `self_declared`, which
+    # discounts an unevidenced claim below the match threshold. Winnability is about
+    # which GATES (languages, must-haves, seniority) shrink an otherwise-capable pool,
+    # not about the evidence discount, so the synthetic pool is pinned to the
+    # professional tier — these are people who demonstrably have the stack.
+    kw.setdefault("provenance_default", "professional")
     return MatchCandidate(label=label, skills=skills, role_family="software_engineering", **kw)
 
 
@@ -93,6 +106,32 @@ class WinnabilityTest(unittest.TestCase):
         self.assertTrue(out["salary"]["belowMarket"])
         self.assertLess(out["salary"]["topVsMarketFloorPct"], 0)
 
+    def test_salary_verdict_is_silenced_across_a_currency_mismatch(self) -> None:
+        # Same below-floor band as test_salary_below_market_is_flagged, but the job
+        # is authored for a EUR market while the taxonomy/benchmark bands are CZK.
+        # The app does no FX, so the numeric "below market" test is meaningless —
+        # the verdict must be honestly ABSENT (None), never a confident-but-wrong
+        # "below market" flag, mirroring the TS isSameCurrency guard.
+        job = _job(role_family="software_engineering", seniority="senior", salary_band=[10000, 20000])
+        out = assess_winnability([_cand("c", ["python"])], job, market=BERLIN_MARKET)
+        salary = out["salary"]
+        self.assertFalse(salary["currencyComparable"])
+        self.assertEqual(salary["jobCurrency"], "EUR")
+        self.assertEqual(salary["marketCurrency"], "CZK")
+        self.assertIsNone(salary["belowMarket"])
+        self.assertNotIn("topVsMarketFloorPct", salary)
+        # The market band itself is still reported — only the cross-FX VERDICT is silenced.
+        self.assertIsNotNone(salary["marketBand"])
+
+    def test_same_currency_market_still_produces_the_verdict(self) -> None:
+        # The default (CZK) market and an explicit CZK market both compare normally,
+        # so the guard silences ONLY genuine mismatches, never same-currency ones.
+        job = _job(role_family="software_engineering", seniority="senior", salary_band=[10000, 20000])
+        out = assess_winnability([_cand("c", ["python"])], job, market=CZECH_MARKET)
+        self.assertTrue(out["salary"]["currencyComparable"])
+        self.assertTrue(out["salary"]["belowMarket"])
+        self.assertLess(out["salary"]["topVsMarketFloorPct"], 0)
+
     def test_empty_pool_is_zeroed_not_crashed(self) -> None:
         out = assess_winnability([], _job(requirements=[JobRequirement(skill="python")]))
         # Pin each zeroed field explicitly; the prior `assertEqual(out, {**out, ...})`
@@ -110,6 +149,148 @@ class WinnabilityTest(unittest.TestCase):
         job = _job(languages=["English"], requirements=[JobRequirement(skill="python")])
         out = assess_winnability(pool, job)
         self.assertEqual([g for g in out["looseGates"] if g["value"] == "English"], [])
+
+
+def _nurse(label: str, skills: list[str], **kw) -> MatchCandidate:
+    kw.setdefault("provenance_default", "professional")
+    return MatchCandidate(label=label, skills=skills, role_family="healthcare_clinical", **kw)
+
+
+class NonTechWinnabilityTest(unittest.TestCase):
+    """The same winnability contracts on a NON-TECH family.
+
+    Every fixture above is a ``software_engineering`` pool matched against Python
+    and Kafka, so the coach's two levers (hard gates, must-have demotion) were only
+    ever proven on tech vocabulary. They are family-agnostic; this proves it for
+    healthcare_clinical, whose skill graph is the deepest non-tech one (44 skill
+    terms, 85% carrying parents).
+    """
+
+    def test_language_gate_is_sole_blocker_and_loosening_recovers_them(self) -> None:
+        pool = [
+            _nurse("DE", ["intensive care"], languages=["German", "English"]),
+            _nurse("CZ-1", ["intensive care"], languages=["Czech"]),
+            _nurse("CZ-2", ["intensive care"], languages=["Czech"]),
+        ]
+        job = _job(
+            title="Registered Nurse — ICU",
+            role_family="healthcare_clinical",
+            languages=["German"],
+            requirements=[JobRequirement(skill="intensive care")],
+        )
+        out = assess_winnability(pool, job)
+        self.assertEqual(out["poolSize"], 3)
+        self.assertEqual(out["eligible"], 1)
+        gate = next(g for g in out["looseGates"] if g["kind"] == "language" and g["value"] == "German")
+        self.assertEqual(gate["eligibleDelta"], 2)
+
+    def test_demoting_an_unmet_must_have_raises_the_qualified_count(self) -> None:
+        # A senior ICU role that hard-requires ventilator management against a pool of
+        # medior nurses who have the core stack but not that one skill.
+        pool = [
+            _nurse("flip1", ["intensive care", "patient care", "triage"], seniority="medior"),
+            _nurse("flip2", ["intensive care", "patient care", "triage"], seniority="medior"),
+            _nurse("flip3", ["intensive care", "patient care", "triage"], seniority="medior"),
+            _nurse("has_vent", ["intensive care", "ventilator management", "patient care"], seniority="medior"),
+        ]
+        job = _job(
+            title="Senior ICU Nurse",
+            role_family="healthcare_clinical",
+            seniority="senior",
+            requirements=[
+                JobRequirement(skill="intensive care"),
+                JobRequirement(skill="ventilator management"),  # only `has_vent` has this
+                JobRequirement(skill="anesthesia"),
+            ],
+        )
+        out = assess_winnability(pool, job)
+        self.assertEqual(out["eligible"], 4)  # all four clear the hard gates
+        self.assertEqual(out["qualified"], 1)  # only `has_vent` reaches the bar
+        lever = next(m for m in out["looseMustHaves"] if m["skill"] == "ventilator management")
+        self.assertEqual(lever["missingAmongEligible"], 3)
+        # Recount independently through the production scorer, exactly like the tech
+        # fixture does, so the coach's delta is pinned to a real change.
+        demoted = job.model_copy(
+            update={
+                "requirements": [
+                    r.model_copy(update={"kind": "nice_to_have"})
+                    if r.skill == "ventilator management"
+                    else r
+                    for r in job.requirements
+                ]
+            }
+        )
+        demoted_qualified = sum(
+            1
+            for c in pool
+            if ko_filter(c, demoted)[0] and score_job(c, demoted).total >= FIT_PROMISING_THRESHOLD
+        )
+        self.assertEqual(demoted_qualified, 4)  # the three blocked-only-by-vent flip in
+        self.assertGreater(lever["qualifiedDelta"], 0)
+        self.assertEqual(lever["qualifiedDelta"], demoted_qualified - out["qualified"])
+        self.assertEqual(lever["qualifiedDelta"], 3)
+
+    def test_no_false_loosen_suggestion_when_gate_blocks_nobody(self) -> None:
+        pool = [_nurse("c", ["intensive care"], languages=["Czech"])]
+        job = _job(
+            role_family="healthcare_clinical",
+            languages=["Czech"],
+            requirements=[JobRequirement(skill="intensive care")],
+        )
+        out = assess_winnability(pool, job)
+        self.assertEqual([g for g in out["looseGates"] if g["value"] == "Czech"], [])
+
+
+class WinnabilityCliSkippedTest(unittest.TestCase):
+    """bug-ui-scan-2026-07-09 (pipeline-clis-script-bridges #4): a malformed candidate
+    must be RECORDED in `skipped` (not silently dropped), so the grade's denominator is
+    honest and the UI can flag "N not assessed"."""
+
+    def _run(self, payload: dict, job: dict) -> tuple[int, dict]:
+        with tempfile.TemporaryDirectory() as d:
+            inp = Path(d) / "in.json"
+            jobp = Path(d) / "job.json"
+            inp.write_text(json.dumps(payload), encoding="utf-8")
+            jobp.write_text(json.dumps(job), encoding="utf-8")
+            buf = io.StringIO()
+            # Redirect stdout to a StringIO (no .reconfigure) so main() skips its
+            # stdio reconfigure guard cleanly and we capture the JSON payload.
+            with contextlib.redirect_stdout(buf):
+                rc = winnability_cli.main(["--input-json", str(inp), "--job-json", str(jobp)])
+            return rc, json.loads(buf.getvalue().strip().splitlines()[-1])
+
+    def test_malformed_candidate_is_recorded_not_silently_dropped(self) -> None:
+        job = {"id": "job-1", "title": "Backend Engineer", "company": "Acme", "location": "Prague"}
+        payload = {
+            "jobId": "job-1",
+            "candidates": [
+                {"label": "Good", "candidate": {"label": "Good", "skills": ["python"], "role_family": "software_engineering"}},
+                # skillClaims must be a list — this profile fails CandidateProfileV2 validation.
+                {"id": "bad-1", "label": "Broken CV", "profile": {"skillClaims": "not-a-list"}},
+            ],
+        }
+        rc, out = self._run(payload, job)
+        self.assertEqual(rc, 0)
+        # The one valid candidate still scored — one bad row didn't poison the batch.
+        self.assertEqual(out["poolSize"], 1)
+        # The malformed entry is surfaced with id + label + reason (pre-fix: the key
+        # didn't exist at all — `out["skipped"]` raised KeyError).
+        self.assertEqual(len(out["skipped"]), 1)
+        self.assertEqual(out["skipped"][0]["id"], "bad-1")
+        self.assertEqual(out["skipped"][0]["label"], "Broken CV")
+        self.assertTrue(out["skipped"][0]["reason"])
+
+    def test_all_valid_pool_reports_empty_skipped(self) -> None:
+        job = {"id": "job-1", "title": "Backend Engineer", "company": "Acme", "location": "Prague"}
+        payload = {
+            "jobId": "job-1",
+            "candidates": [
+                {"label": "A", "candidate": {"label": "A", "skills": ["python"], "role_family": "software_engineering"}},
+            ],
+        }
+        rc, out = self._run(payload, job)
+        self.assertEqual(rc, 0)
+        self.assertEqual(out["skipped"], [])
 
 
 if __name__ == "__main__":

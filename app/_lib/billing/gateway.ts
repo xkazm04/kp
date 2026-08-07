@@ -1,4 +1,4 @@
-// The hedge seam (docs/BILLING.md): everything provider-specific sits behind
+// The hedge seam (docs/features/billing/README.md): everything provider-specific sits behind
 // this interface so a later Paddle (or other MoR) migration is a bounded swap —
 // implement BillingGateway + a product map, and the routes, reducer, DB tables,
 // and entitlement math stay untouched. Keep provider types OUT of this file.
@@ -22,8 +22,20 @@ export type BillingEvent = {
   customerId: string | null;
   subscriptionId: string | null;
   orderId: string | null;
+  // Units purchased on an order (Polar one-time products support a per-checkout
+  // quantity). mapPolarEvent always sets it (>= 1); optional so hand-built events
+  // (tests / other providers) may omit it — the reducer treats absent as 1. Pack
+  // grants multiply the fixed pack size by this so a multi-unit order isn't
+  // under-delivered. bug-ui-scan-2026-07-09 (billing-engine-webhooks #4)
+  quantity?: number;
   periodStart: string | null;
   periodEnd: string | null;
+  // The org this money event belongs to (org-plan Phase 3), read back from the
+  // checkout metadata our own createCheckout stamped (`kpOrgId` — providers
+  // propagate checkout metadata onto the subscription/order). Null/absent on
+  // pre-org subscriptions and hand-built test events — the ingest then falls
+  // back to the stored-state lookup, then the default org (sync.resolveBillingOrg).
+  orgId?: string | null;
   raw: unknown;
 };
 
@@ -47,7 +59,9 @@ export interface BillingGateway {
   readonly provider: string;
   /** Map of provider product ids → plans/packs (drives the reducer). */
   productMap(): ProductMap;
-  createCheckout(req: CheckoutRequest, opts: { successUrl: string }): Promise<Checkout>;
+  /** `orgId` (when given) is stamped into the checkout metadata so the resulting
+   *  subscription/order events attribute to the buying org (org-plan Phase 3). */
+  createCheckout(req: CheckoutRequest, opts: { successUrl: string; orgId?: string | null }): Promise<Checkout>;
   createPortalSession(customerId: string): Promise<{ url: string }>;
   /** Verify signature + freshness and normalize. MUST throw on a bad signature. */
   verifyWebhook(rawBody: string, headers: Record<string, string | null>): BillingEvent;

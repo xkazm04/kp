@@ -7,6 +7,7 @@ from pathlib import Path
 from pipeline.jobfit.extractors import extract_text
 from pipeline.jobfit.gemini import extract_profile_text_with_gemini
 from pipeline.jobfit.profiling import build_profile
+from pipeline.jobfit.tests._helpers import MIN_LINKEDIN_TEXT_LEN
 
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -32,7 +33,7 @@ class PdfParsingQualityTest(unittest.TestCase):
     def test_pypdf_extracts_linkedin_export_well(self) -> None:
         text = extract_text(LINKEDIN_PROFILE)
         summary = quality_summary(text)
-        self.assertGreater(summary["length"], 5000)
+        self.assertGreater(summary["length"], MIN_LINKEDIN_TEXT_LEN)
         self.assertEqual(summary["letter_spaced_hits"], 0)
 
     def test_pypdf_collapses_letter_spaced_text(self) -> None:

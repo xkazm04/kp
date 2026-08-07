@@ -9,7 +9,7 @@
 //
 // Prints JSON `{ "brief": "<the brief string>" }` to stdout. `--brief` ∈ default | student | case.
 // (`composeBrief`/grounded prep-chronology needs a live pipeline entry + DB, so it isn't emitted
-// headlessly here — default/student/case are the pure builders. See docs/VOICE_INTERVIEW_TEST_FRAMEWORK.md.)
+// headlessly here — default/student/case are the pure builders. See docs/development/voice-interview-testing.md.)
 
 import { defaultInterviewerInstructions } from "@/app/_lib/voice/index";
 import {

@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import { NextResponse } from "next/server";
+import { connection, NextResponse } from "next/server";
 import { SESSION_COOKIE } from "./edge-verify";
 import { currentWorkspaceId, DEMO_WORKSPACE, verifySession } from "./session";
 
@@ -23,6 +23,8 @@ export async function isOperator(): Promise<boolean> {
   if (!process.env.KP_OPERATOR_PASSWORD) return true;
   try {
     const jar = await cookies();
+    // Clock read inside verifySession → request-time (see currentSession()).
+    await connection();
     const session = verifySession(jar.get(SESSION_COOKIE)?.value);
     if (session === null) return false;
     // A public demo session (an anonymous, isolated "demo"-workspace cookie minted

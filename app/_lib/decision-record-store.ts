@@ -2,6 +2,7 @@ import Database from "better-sqlite3";
 import { openStore } from "./db-path";
 import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 import { decisionContentHash, decisionContentMac } from "./decision-hash";
+import { chunk, SQL_IN_CHUNK } from "./entries-param";
 
 // Decision System of Record (moonshot D) — a tamper-evident hash chain of
 // consequential hiring decisions, stored in SQLite (a hash chain, NOT a
@@ -153,6 +154,8 @@ function db(): Database.Database {
     /* column already exists — idempotent */
   }
   d.exec(`CREATE INDEX IF NOT EXISTS idx_decision_records_ws_seq ON decision_records(workspace_id, seq)`);
+  // Clean-arm read (heldOutEntryIds) filters by (kind, workspace_id).
+  d.exec(`CREATE INDEX IF NOT EXISTS idx_decision_records_ws_kind ON decision_records(workspace_id, kind)`);
   _db = d;
   return d;
 }
@@ -193,7 +196,7 @@ function rowToRecord(r: DecisionRow): DecisionRecord {
 /** Seal one decision into the chain. Atomic: reading the latest hash and inserting
  *  happen in ONE transaction so two concurrent seals can't both link off the same
  *  prev and fork the chain (better-sqlite3 is synchronous; the tx serializes them). */
-export function sealDecisionRecord(input: DecisionRecordInput): DecisionRecord {
+export function sealDecisionRecord(input: DecisionRecordInput, workspaceOverride?: string): DecisionRecord {
   const d = db();
   const createdAt = new Date().toISOString();
   const payload = recordPayload(input, createdAt);
@@ -202,12 +205,23 @@ export function sealDecisionRecord(input: DecisionRecordInput): DecisionRecord {
     // Tenant (P1): the record joins its subject entry's workspace chain (candidateRef is
     // the pipeline entry id). Guarded: a system decision with no matching entry, or an
     // isolated store without pipeline_entries, seals onto the default workspace's chain.
+    //
+    // EXPLICIT OVERRIDE: a NON-ENTRY ref (e.g. a policy seal keyed on
+    // "policy:screening:<ws>") matches no pipeline_entries row, so the entry-derived
+    // resolution below would silently fall back to the DEFAULT workspace even when the
+    // caller already holds the authenticated one. Such callers pass workspaceOverride so
+    // the policy record lands on THEIR chain, not the default. Entry-backed refs pass
+    // nothing and keep the entry-derived resolution as their default.
     let workspaceId = DEFAULT_WORKSPACE_ID;
-    try {
-      const ws = d.prepare(`SELECT workspace_id FROM pipeline_entries WHERE id = ?`).get(input.candidateRef) as { workspace_id?: string } | undefined;
-      workspaceId = ws?.workspace_id ?? DEFAULT_WORKSPACE_ID;
-    } catch {
-      /* pipeline_entries absent on this connection — seal onto the default chain */
+    if (workspaceOverride) {
+      workspaceId = workspaceOverride;
+    } else {
+      try {
+        const ws = d.prepare(`SELECT workspace_id FROM pipeline_entries WHERE id = ?`).get(input.candidateRef) as { workspace_id?: string } | undefined;
+        workspaceId = ws?.workspace_id ?? DEFAULT_WORKSPACE_ID;
+      } catch {
+        /* pipeline_entries absent on this connection — seal onto the default chain */
+      }
     }
     // Link off the latest hash IN THIS WORKSPACE — a per-tenant chain, so one team's
     // seals never enter another's proof (org plan §6). Read its key_id too, to refuse a
@@ -262,9 +276,9 @@ export function sealDecisionRecord(input: DecisionRecordInput): DecisionRecord {
  *  effect that must NEVER abort or fail the decision it records (a hire, a
  *  scorecard, an offer). Logs + returns null on failure (e.g. KP-less env, DB
  *  lock). Use this at every decision call site instead of a hand-rolled try/catch. */
-export function sealDecisionSafe(input: DecisionRecordInput): DecisionRecord | null {
+export function sealDecisionSafe(input: DecisionRecordInput, workspaceOverride?: string): DecisionRecord | null {
   try {
-    return sealDecisionRecord(input);
+    return sealDecisionRecord(input, workspaceOverride);
   } catch (error) {
     console.warn(`[decision-record] seal failed for kind="${input.kind}" ref="${input.candidateRef}":`, error);
     return null;
@@ -283,6 +297,51 @@ export function listDecisionRecords(opts?: { candidateRef?: string; limit?: numb
       : d.prepare(`SELECT * FROM decision_records WHERE workspace_id = ? ORDER BY seq DESC LIMIT ?`).all(workspaceId, limit)
   ) as DecisionRow[];
   return rows.map(rowToRecord);
+}
+
+/** Batched sibling of {@link listDecisionRecords}: read the latest records for a WHOLE
+ *  SET of candidate refs in one (chunked) query instead of one query per ref. Both the
+ *  reconsider queue and the analytics log used to call listDecisionRecords({candidateRef})
+ *  INSIDE a map over up to 50 rows — up to 50 SELECTs per load, on every live-refresh
+ *  (decision-io-diet). This collapses that to ⌈refs/SQL_IN_CHUNK⌉ queries.
+ *
+ *  SEMANTICS ARE PER-REF, byte-identical to calling listDecisionRecords once per ref:
+ *  the returned Map has one entry per requested ref (an empty array when that ref has no
+ *  records — exactly what the per-ref read returns), and each array is that ref's records
+ *  ordered `seq DESC` and capped to `limit` PER REF — the limit is NOT a global cap across
+ *  the batch. We fetch every matching row for the ref set ordered `seq DESC` and, walking
+ *  in that order, push into each ref's bucket only while it is under `limit`, which yields
+ *  the same top-`limit` slice per ref the per-ref `ORDER BY seq DESC LIMIT ?` produces. The
+ *  IN list is chunked under the SQLite variable floor (chunk/SQL_IN_CHUNK), the same idiom
+ *  entryIdsWithEvent uses; because ordering/capping happens per ref, the chunk boundary
+ *  never affects a ref's result (a ref lands wholly within one chunk — refs are de-duped). */
+export function listDecisionRecordsForRefs(
+  refs: string[],
+  opts?: { limit?: number; workspaceId?: string }
+): Map<string, DecisionRecord[]> {
+  const out = new Map<string, DecisionRecord[]>();
+  const uniqueRefs = Array.from(new Set(refs.filter(Boolean)));
+  // Pre-seed every requested ref with an empty array so map.get(ref) is always an array,
+  // matching the per-ref read's "no records → []" contract for callers.
+  for (const ref of uniqueRefs) out.set(ref, []);
+  if (uniqueRefs.length === 0) return out;
+  const d = db();
+  const limit = Math.min(Math.max(Math.trunc(opts?.limit ?? 200), 1), 1000);
+  const workspaceId = opts?.workspaceId ?? DEFAULT_WORKSPACE_ID;
+  for (const idsChunk of chunk(uniqueRefs, SQL_IN_CHUNK)) {
+    const placeholders = idsChunk.map(() => "?").join(", ");
+    const rows = d
+      .prepare(
+        `SELECT * FROM decision_records WHERE candidate_ref IN (${placeholders}) AND workspace_id = ? ORDER BY seq DESC`
+      )
+      .all(...idsChunk, workspaceId) as DecisionRow[];
+    for (const r of rows) {
+      const bucket = out.get(r.candidate_ref);
+      // Rows arrive seq DESC; take only the first `limit` per ref = the per-ref top slice.
+      if (bucket && bucket.length < limit) bucket.push(rowToRecord(r));
+    }
+  }
+  return out;
 }
 
 /** Recompute the entire chain in seq order and confirm each link's prev_hash and
@@ -324,4 +383,39 @@ export function verifyDecisionChain(workspaceId: string = DEFAULT_WORKSPACE_ID):
     prevHash = r.content_hash;
   }
   return { ok: true, count: rows.length, brokenAtSeq: null };
+}
+
+/** The kind the screening wave seals when it spares a would-be auto-reject to form
+ *  the calibration clean arm (screen-wave.ts). Kept here beside the store so the
+ *  reader and the writer agree on the literal. */
+export const SCREEN_WAVE_HOLDOUT_KIND = "screen_wave_holdout";
+/** The kind the wave seals for an actual auto-rejection. */
+export const AUTO_REJECTED_KIND = "auto_rejected";
+
+/** Entry ids that form the calibration CLEAN ARM for this workspace (UAT
+ *  KAT-L1-001): candidates the screening wave SPARED from auto-rejection, whose
+ *  eventual outcome the score therefore did not mechanically produce.
+ *
+ *  A candidate spared by one wave can be auto-rejected by a LATER wave (e.g. the
+ *  holdout rate was lowered) — at which point their reject IS score-caused again, so
+ *  they are removed from the clean arm. The set is therefore (holdout refs) MINUS
+ *  (auto-rejected refs): membership survives only while the sparing still stands. */
+export function heldOutEntryIds(workspaceId: string = DEFAULT_WORKSPACE_ID): Set<string> {
+  const d = db();
+  const spared = d
+    .prepare(`SELECT DISTINCT candidate_ref FROM decision_records WHERE kind = ? AND workspace_id = ?`)
+    .all(SCREEN_WAVE_HOLDOUT_KIND, workspaceId) as { candidate_ref: string }[];
+  if (spared.length === 0) return new Set();
+  const rejected = new Set(
+    (
+      d
+        .prepare(`SELECT DISTINCT candidate_ref FROM decision_records WHERE kind = ? AND workspace_id = ?`)
+        .all(AUTO_REJECTED_KIND, workspaceId) as { candidate_ref: string }[]
+    ).map((r) => r.candidate_ref)
+  );
+  const out = new Set<string>();
+  for (const r of spared) {
+    if (!rejected.has(r.candidate_ref)) out.add(r.candidate_ref);
+  }
+  return out;
 }

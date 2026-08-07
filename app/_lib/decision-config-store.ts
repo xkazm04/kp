@@ -92,6 +92,29 @@ export function setDecisionConfig(
   const result = validateDecisionConfig(phase, config);
   if (!result.ok) throw new DecisionConfigError(result.error);
   const d = db();
+  // familyFloors preservation (family-floors follow-up): the screening row is
+  // written WHOLESALE, but most writers (the rules modal) predate familyFloors and
+  // simply omit the key — omission means "no opinion", not "clear the overrides".
+  // When the validated config carries no familyFloors and THIS TIER's stored row
+  // does, carry them forward. An EXPLICIT `familyFloors: {}` still clears (the
+  // validator keeps an empty present map), so clearing stays expressible.
+  if (result.phase === "screening" && !("familyFloors" in result.config)) {
+    const existing = (
+      scope === "org"
+        ? d.prepare(`SELECT config_json FROM decision_config WHERE phase = ? AND workspace_id IS NULL`).get(result.phase)
+        : d.prepare(`SELECT config_json FROM decision_config WHERE phase = ? AND workspace_id = ?`).get(result.phase, workspaceId)
+    ) as { config_json: string } | undefined;
+    if (existing) {
+      try {
+        const stored = JSON.parse(existing.config_json) as { familyFloors?: Record<string, number> };
+        if (stored.familyFloors && Object.keys(stored.familyFloors).length > 0) {
+          (result.config as Record<string, unknown>).familyFloors = stored.familyFloors;
+        }
+      } catch {
+        /* unreadable stored row — nothing to preserve */
+      }
+    }
+  }
   const json = JSON.stringify(result.config);
   const now = new Date().toISOString();
   // Delete-then-insert into EXACTLY one tier (org NULL vs team id) — a clean tiered upsert

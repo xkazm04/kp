@@ -1,15 +1,30 @@
 ---
 type: tiger/models-index
-last_updated: 2026-06-20
+last_updated: 2026-07-15
 ---
 
 # models/ — Lens-3 benchmark rollups
 
-**No benchmark has run yet.** Lens 3 (model × thinking-level optimization) was
-deferred in the [[2026-06-20-init-scan]] session: the default `/tiger run` is L1
-only, and a meaningful cost comparison is **blocked** until the cost-stamping gaps
-are fixed ([[_plumbing]] findings 2 & 3 — 3/4 adapters return `cost_usd=None` and
-`MTOK_PRICES` omits every non-Anthropic model, so the bench's cost column is blank).
+**Benchmarked so far** (all Claude-only, blind Fable judge):
+- [[models/match-reasoning|match-reasoning]] (2026-07-15) → **keep haiku / claude_cli** (near-parity; no upgrade).
+- [[models/github-analysis|github-analysis]] (2026-07-16) → **Claude-portable**; prefer sonnet≥haiku (haiku prose over-claim). Strengthens finding #7 (kill the TS bypass).
+- [[models/cv-analysis|cv-analysis]] (2026-07-16) → **keep Gemini** (multimodal-only). Injection-resistance + EUR currency-inference held on ALL tiers; sonnet hallucinated tenure → add a derived-fact post-check.
+- [[models/grounded-salary|grounded-salary]] (2026-07-16) → **keep Gemini** (web grounding is the point). Surfaced finding #20 **live**: a hardcoded-CZK prompt traps every model on a non-CZ role. Promote #20.
+- [[models/automation|automation]] (2026-07-16) → **keep haiku for screen** (verdict-stable, routing-safe). CZ prose: **do NOT upgrade** — sonnet was the *worst* cell (violated the gender-neutral rule twice); keep deterministic templates + add a slashed-gender/vocative post-check.
+
+**Meta-lesson across 5 benchmarks:** for these sites the model tier is rarely the lever —
+a bigger model even *lost three times* (haiku's prose slip aside: sonnet hallucinated CV
+tenure, and sonnet violated the CZ gender-neutral rule in BOTH prose tasks). The real levers
+are **prompt fixes** (CZK lock, name-unmet-must-haves) and **cheap post-checks**
+(strength-cites-a-real-token, derived-fact consistency, slashed-gender/vocative) — all
+model-independent. **Every benchmarked site keeps its current production model.**
+
+The cost-stamping blocker is **cleared** ([[_plumbing]] F2/F3 resolved 2026-07-15), so
+recipe A (`bench_cli`) can now populate real cost/latency columns. The 2026-07-15 run used
+recipe B (keyless subagent matrix) under the **Claude-only** engine constraint, judged by
+Fable 5. Note the in-repo model-quality matrix ([[bench-judge]]) already covers ~15 text ops;
+Tiger Lens 3 targets its blind spots (multimodal cv_analysis, github_analysis, grounded_salary,
+voice) + a cross-tier quality read the built-in matrix doesn't judge the same way.
 
 ## When ready, run Lens 3
 1. Fix [[_plumbing]] F2/F3 (cost stamping) first.
@@ -25,11 +40,12 @@ are fixed ([[_plumbing]] findings 2 & 3 — 3/4 adapters return `cost_usd=None` 
    input; judge cells with a SEPARATE model. Cache each cell here keyed
    (call-site, model, thinking, input-hash).
 
-## First targets to benchmark (hypotheses from L1)
-- [[automation]] subtasks — uniformly haiku-class; is there downgrade headroom on the
-  cheaper subtasks, and does the routing-critical `screen` verdict or candidate-facing
-  `outreach`/`rejection` prose want an *upgrade*?
-- [[match-reasoning]] — high traffic; cheapest cell that still clears Petra's senior bar.
+## Targets to benchmark (hypotheses from L1)
+- ~~[[automation]] subtasks~~ ✅ **DONE 2026-07-16** → keep haiku (screen verdict-stable); CZ prose keep templates (bigger model regressed on neutrality).
+- ~~[[match-reasoning]]~~ ✅ **DONE 2026-07-15** → keep haiku.
+- ~~[[github-analysis]]~~ ✅ **DONE 2026-07-16** → Claude-portable, prefer sonnet.
+- ~~[[cv-analysis]]~~ ✅ **DONE 2026-07-16** (reasoning slice) → keep Gemini (multimodal).
+- ~~[[grounded-salary]]~~ ✅ **DONE 2026-07-16** → keep Gemini + fix #20 (proven live).
 - [[campaign-pack]] — already sonnet (but the override is dead, see [[campaign-pack]] F1);
   confirm sonnet earns its cost over haiku for copywriting once routing is fixed.
 

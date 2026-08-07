@@ -63,6 +63,12 @@ const {
   DEMO_CASE_SCENARIO,
 } = await import("@/app/_lib/student-interview.ts");
 
+// F5 — the plan's copy is a PARAMETER now (the pure-builder rule), loaded from the
+// real catalog so these assertions also prove the `scheduleTab.prep.studentPlan`
+// keys the loader reads actually exist.
+const { studentPrepStrings } = await import("@/app/_lib/interview-prep-strings.ts");
+const S = await studentPrepStrings("en");
+
 test("STUDENT_SCRIPT and the duration ARE the JSON (no re-hardcoded copy)", () => {
   assert.deepEqual(STUDENT_SCRIPT, SOURCE.phases);
   assert.equal(STUDENT_SCRIPT_MIN, SOURCE.durationMin);
@@ -134,7 +140,7 @@ const PREP_QUESTIONS = [
 ];
 
 test("student prep plan is the six phases, in script order", () => {
-  const plan = studentPrepRunOfShow(PREP_QUESTIONS, ["SQL depth"], "Bea", "Junior Backend");
+  const plan = studentPrepRunOfShow(PREP_QUESTIONS, ["SQL depth"], "Bea", "Junior Backend", S);
   assert.deepEqual(
     plan.chronology.map((b) => b.topic),
     SOURCE.phases.map((p) => p.phase)
@@ -142,13 +148,13 @@ test("student prep plan is the six phases, in script order", () => {
 });
 
 test("student prep duration equals the script total and the last block end", () => {
-  const plan = studentPrepRunOfShow(PREP_QUESTIONS, [], null, null);
+  const plan = studentPrepRunOfShow(PREP_QUESTIONS, [], null, null, S);
   assert.equal(plan.durationMin, STUDENT_SCRIPT_MIN);
   assert.equal(plan.chronology[plan.chronology.length - 1].toMin, plan.durationMin);
 });
 
 test("CV-derived questions land on personal phases only; case phases keep the script probe", () => {
-  const plan = studentPrepRunOfShow(PREP_QUESTIONS, [], null, null);
+  const plan = studentPrepRunOfShow(PREP_QUESTIONS, [], null, null, S);
   const grounded = new Set(SOURCE.phases.filter((p) => p.caseGrounded).map((p) => p.phase));
   const prepTexts = PREP_QUESTIONS.map((q) => q.question);
   for (const block of plan.chronology) {
@@ -164,14 +170,14 @@ test("CV-derived questions land on personal phases only; case phases keep the sc
 
 test("question overflow is capped at two per personal phase", () => {
   const many = Array.from({ length: 12 }, (_, i) => ({ question: `Q${i}?` }));
-  const plan = studentPrepRunOfShow(many, [], null, null);
+  const plan = studentPrepRunOfShow(many, [], null, null, S);
   for (const block of plan.chronology) {
     assert.ok(block.questions.length <= 3, `${block.topic}: probe + at most 2 CV questions`);
   }
 });
 
 test("student prep signals carry the hint-uptake check", () => {
-  const plan = studentPrepRunOfShow([], ["SQL depth"], null, null);
+  const plan = studentPrepRunOfShow([], ["SQL depth"], null, null, S);
   assert.ok(plan.signals.some((s) => s.includes("coachability")), "hint-uptake signal present");
   assert.ok(plan.signals.includes("SQL depth"), "focus areas survive");
 });

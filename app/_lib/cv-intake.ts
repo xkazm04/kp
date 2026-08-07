@@ -1,8 +1,10 @@
 import { buildApplicantProfile } from "@/app/_lib/applicant-profile";
 import { applyDedupeKey, FALLBACK_ARCHETYPE } from "@/app/_lib/apply";
 import type { ApplyAnswers } from "@/app/_lib/apply-intake";
-import { createPipelineEntry, getJob, getJobWorkspace, recordEntryConsent, DEFAULT_WORKSPACE_ID } from "@/app/_lib/db";
-import { markSimTitle } from "@/app/features/simulation/constants";
+import { getJob, getJobWorkspace } from "@/app/_lib/db/jobs";
+import { createPipelineEntry, recordEntryConsent } from "@/app/_lib/db/pipeline";
+import { DEFAULT_WORKSPACE_ID } from "@/app/_lib/db/workspaces";
+import { markSimTitle } from "@/app/features/shell/simulation/constants";
 import { dispatchApplicationReceived } from "@/app/_lib/comms-dispatch";
 import { randomId } from "@/app/_lib/random-id";
 import {

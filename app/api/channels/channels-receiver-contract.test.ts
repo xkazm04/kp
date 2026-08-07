@@ -1,0 +1,77 @@
+// inbound-setup-honesty — SOURCE GUARDS over the two channel-receiver contracts that
+// were silently broken (repo pattern, cf. channels-tenancy.test.ts). Both live at a
+// route/UI seam that the NextRequest-based route tests cannot exercise in this
+// environment, so they are pinned structurally.
+//
+//   (1) LIVENESS: received_count is documented in db/channels.ts as stamped for ANY
+//       authenticated POST — the Channels "Received" column and the row's Listening
+//       badge are built on it. The receiver actually stamped it only after a TERMINAL
+//       intake outcome, so 400/410/413/422/429 and duplicate_ignored all returned
+//       unstamped: a mis-mapped integration failing on every lead was indistinguishable
+//       from a receiver nobody ever connected. The stamp must now happen exactly once,
+//       immediately after the token resolves, and NOT before authentication (an unknown
+//       token or a rate-limited flood attributes to nobody).
+//
+//   (2) AUTO-SELECT: POST /api/channels/webhooks answers `{ webhook }`, but the Add
+//       modal read `p.token` — always undefined, so onCreated("") fired and adding a
+//       second receiver left the setup guide and CV sim on the OLD one (the wrong
+//       endpoint shown for the just-created role). The producer side is `satisfies`-
+//       pinned for tsc; this guards the consumer read and the envelope key together.
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import path from "node:path";
+
+const dir = path.dirname(fileURLToPath(import.meta.url));
+const read = (...p: string[]) => readFileSync(path.join(dir, ...p), "utf8");
+
+const receiverSrc = read("inbound", "[token]", "route.ts");
+const webhooksSrc = read("webhooks", "route.ts");
+const modalSrc = read("..", "..", "features", "hiring", "channels", "ChannelsAddReceiverModal.tsx");
+const channelsDbSrc = read("..", "..", "_lib", "db", "channels.ts");
+
+test("the liveness receipt is stamped exactly once, right after the token authenticates", () => {
+  const stamps = [...receiverSrc.matchAll(/recordChannelWebhookReceipt\(token\)/g)];
+  assert.equal(stamps.length, 1, "ONE contract means ONE call site — not one per terminal outcome");
+
+  const stampAt = stamps[0].index!;
+  const authAt = receiverSrc.indexOf("getActiveChannelWebhook(token)");
+  const rateLimitAt = receiverSrc.indexOf("rateLimit(");
+  assert.ok(authAt >= 0 && rateLimitAt >= 0, "guard the guard: the auth + rate-limit steps are still recognizable");
+
+  assert.ok(rateLimitAt < stampAt, "a flood shed before the token is read must stamp nothing");
+  assert.ok(authAt < stampAt, "the receipt is attributed to an AUTHENTICATED caller");
+
+  // It must precede every payload branch, so a rejected body still proves liveness.
+  for (const marker of ['contentType.includes("multipart/form-data")', '"Payload too large."', "missing_email", "intakeLead(", "duplicate_ignored"]) {
+    const at = receiverSrc.indexOf(marker);
+    assert.ok(at >= 0, `guard the guard: "${marker}" still exists in the receiver`);
+    assert.ok(stampAt < at, `the receipt must be stamped before the "${marker}" branch can return unstamped`);
+  }
+});
+
+test("the ACCEPTED lead counter stays separate and stays gated on a real new candidate", () => {
+  const accepted = [...receiverSrc.matchAll(/recordChannelWebhookAccepted\(token\)/g)];
+  assert.equal(accepted.length, 2, "one per intake branch (CV upload, JSON lead)");
+  assert.match(receiverSrc, /if \(outcome\.created\) recordChannelWebhookAccepted/, "CV branch: only a new candidate");
+  assert.match(receiverSrc, /if \(!outcome\.duplicate\) recordChannelWebhookAccepted/, "JSON branch: never a duplicate");
+});
+
+test("the documented liveness contract names the authenticated-POST boundary", () => {
+  const doc = channelsDbSrc.slice(channelsDbSrc.indexOf("/** Stamp one RECEIVED payload"));
+  assert.match(doc, /AUTHENTICATED POST/, "the doc states the boundary the receiver implements");
+  assert.match(doc, /unknown or revoked token/i, "the doc states what is NOT stamped");
+  assert.doesNotMatch(
+    doc.slice(0, doc.indexOf("export function recordChannelWebhookReceipt")),
+    /stamped for ANY POST\b/,
+    "the pre-fix wording (which the receiver never implemented) must not survive"
+  );
+});
+
+test("receiver creation returns the `{ webhook }` envelope and the modal reads its token", () => {
+  assert.match(webhooksSrc, /satisfies \{ webhook: ChannelWebhookRecord \}/, "the response shape is tsc-pinned");
+  assert.match(modalSrc, /webhook\?: ChannelWebhookRecord/, "the modal types the response it parses");
+  assert.match(modalSrc, /onCreated\(p\.webhook\?\.token \?\? ""\)/, "auto-select reads the token off the envelope");
+  assert.doesNotMatch(modalSrc, /onCreated\(typeof p\.token/, "the dead top-level `token` read must not come back");
+});

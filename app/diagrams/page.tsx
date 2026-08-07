@@ -1,9 +1,9 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { getTranslations } from "next-intl/server";
 import { PlantUml } from "@/app/_components/puml/PlantUml";
 import { DIAGRAM_STATUS_TOKENS } from "@/app/_components/puml/constants";
-import { WorkspaceShell } from "@/app/features/WorkspaceNav";
+import { WorkspaceShell } from "@/app/features/shell/WorkspaceNav";
 import { PipelineExplorer } from "./PipelineExplorer";
+import { readDiagramSource } from "./readDiagramSource";
 
 // Renders per-request under the dynamic-locale layout and builds heavy PlantUML
 // SVGs from disk on demand — there is no useful static shell, so Block it under
@@ -13,55 +13,20 @@ export const instant = false;
 // Renders the real architecture sources straight from docs/diagrams/*.puml
 // (read server-side, so the page always reflects the committed source) through
 // our own PlantUML renderer — the stress test for big, nested-package diagrams.
+// The on-disk read + module-scope cache live in ./readDiagramSource; those .puml
+// files reach the standalone production runtime via next.config.ts's
+// `outputFileTracingIncludes` for the /diagrams route.
 
-
-// docs/diagrams/*.puml are committed build artifacts: in production they never
-// change at runtime, so reading them from disk on every (force-dynamic) request
-// is pure repeated I/O. Cache each read by filename in module scope. In
-// development we always re-read so edits to the .puml sources show up live
-// without a restart — preserving the "always reflects the committed source"
-// behavior the page comment describes. A failed read is never cached, so a file
-// that appears later still recovers.
-const sourceCache = new Map<string, string>();
-
-function readDiagramSource(file: string): string {
-  const isProd = process.env.NODE_ENV === "production";
-  if (isProd) {
-    const cached = sourceCache.get(file);
-    if (cached !== undefined) return cached;
-  }
-  let source: string;
-  try {
-    source = readFileSync(join(process.cwd(), "docs", "diagrams", file), "utf8");
-  } catch {
-    return ""; // missing/unreadable — the page shows "Could not read …"; don't cache it
-  }
-  if (isProd) sourceCache.set(file, source);
-  return source;
-}
-
-const DIAGRAMS: { file: string; label: string; blurb: string; featured?: boolean }[] = [
-  {
-    file: "15-automated-pipeline-tobe.puml",
-    label: "live pipeline — JD → hire",
-    blurb:
-      "The end-to-end pipeline from authoring a job description to a hired candidate, with each wired step grouped under its simulation phase (Design JD · Source · Intake · Screen · Interview · Offer · Hired). All five gap directions are wired — click any step to open its real implementation: which UI module calls which function, against which data tables.",
-    featured: true,
-  },
-  {
-    file: "01-system-architecture-v1.puml",
-    label: "v1 — original CV analysis",
-    blurb: "Where it began: one CV → at most one JD → a single Gemini call.",
-  },
-  {
-    file: "02-system-architecture-v2.puml",
-    label: "v2 — matching platform (now built)",
-    blurb:
-      "The matching platform now powering the app: job-ad ingestion, archetype routing, the KO→score matching engine (deterministic, Claude-CLI reasoning), and the taxonomy graph. The embedding/semantic bridge is still planned.",
-  },
+// bug-ui-scan-2026-07-09 (architecture-diagrams #3): the user-facing label/blurb
+// for each diagram live in messages/*.json (items.<key>.*); only the on-disk file
+// name and layout flags stay here.
+const DIAGRAMS: { file: string; key: "tobe" | "v1" | "v2"; featured?: boolean }[] = [
+  { file: "15-automated-pipeline-tobe.puml", key: "tobe", featured: true },
+  { file: "01-system-architecture-v1.puml", key: "v1" },
+  { file: "02-system-architecture-v2.puml", key: "v2" },
 ];
 
-function Legend() {
+function Legend({ live, gate, gap }: { live: string; gate: string; gap: string }) {
   return (
     <ul className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-meta text-steel">
       <li className="flex items-center gap-2">
@@ -69,40 +34,43 @@ function Legend() {
           className="inline-block h-3.5 w-5 rounded border"
           style={{ background: DIAGRAM_STATUS_TOKENS.live.fill, borderColor: DIAGRAM_STATUS_TOKENS.live.stroke }}
         />
-        live / automated
+        {live}
       </li>
       <li className="flex items-center gap-2">
         <span
           className="inline-block h-3.5 w-5 rounded border"
           style={{ background: DIAGRAM_STATUS_TOKENS.gate.fill, borderColor: DIAGRAM_STATUS_TOKENS.gate.stroke }}
         />
-        human gate (kept by design)
+        {gate}
       </li>
       <li className="flex items-center gap-2">
         <span
           className="inline-block h-3.5 w-5 rounded border border-dashed"
           style={{ background: DIAGRAM_STATUS_TOKENS.gap.fill, borderColor: DIAGRAM_STATUS_TOKENS.gap.stroke }}
         />
-        remaining gap (shown inside a step)
+        {gap}
       </li>
     </ul>
   );
 }
 
-export default function DiagramsPage() {
+export default async function DiagramsPage() {
+  // bug-ui-scan-2026-07-09 (architecture-diagrams #3): page chrome / legend /
+  // blurbs are localized; the diagram BODIES stay code identifiers (untranslated).
+  const t = await getTranslations("diagrams");
   const items = DIAGRAMS.map((d) => ({ ...d, source: readDiagramSource(d.file) }));
 
   return (
     <WorkspaceShell active="about">
       <header className="border-b border-stone-200 pb-5">
-        <p className="text-meta uppercase text-coral">Architecture</p>
-        <h1 className="mt-1 font-serif text-display text-ink">System diagrams</h1>
+        <p className="text-meta uppercase text-coral">{t("eyebrow")}</p>
+        <h1 className="mt-1 font-serif text-display text-ink">{t("title")}</h1>
         <p className="mt-2 max-w-3xl text-body text-steel">
-          The PlantUML sources in <code className="rounded bg-stone-100 px-1 py-0.5 text-[0.9em]">docs/diagrams/</code>{" "}
-          rendered live by our own renderer — same component-diagram syntax, our styling. The{" "}
-          <span className="font-medium text-moss">tinted</span> elements are v2-new
-          (<code className="rounded bg-stone-100 px-1 py-0.5 text-[0.9em]">{"<<v2>>"}</code>); dashed arrows are
-          optional or asynchronous links.
+          {t.rich("intro", {
+            path: () => <code className="rounded bg-stone-100 px-1 py-0.5 text-[0.9em]">docs/diagrams/</code>,
+            tag: () => <code className="rounded bg-stone-100 px-1 py-0.5 text-[0.9em]">{"<<v2>>"}</code>,
+            moss: (chunks) => <span className="font-medium text-moss">{chunks}</span>,
+          })}
         </p>
       </header>
 
@@ -110,11 +78,13 @@ export default function DiagramsPage() {
         {items.map((it) => (
           <section key={it.file} className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
             <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <h2 className="font-serif text-h2 text-ink">{it.label}</h2>
+              <h2 className="font-serif text-h2 text-ink">{t(`items.${it.key}.label`)}</h2>
               <code className="text-meta text-steel">docs/diagrams/{it.file}</code>
             </div>
-            <p className="mt-1 max-w-3xl text-base leading-7 text-steel">{it.blurb}</p>
-            {it.featured ? <Legend /> : null}
+            <p className="mt-1 max-w-3xl text-base leading-7 text-steel">{t(`items.${it.key}.blurb`)}</p>
+            {it.featured ? (
+              <Legend live={t("legend.live")} gate={t("legend.gate")} gap={t("legend.gap")} />
+            ) : null}
             {it.source ? (
               it.featured ? (
                 <PipelineExplorer source={it.source} />
@@ -122,7 +92,7 @@ export default function DiagramsPage() {
                 <PlantUml source={it.source} scale="natural" className="mt-4" expandable />
               )
             ) : (
-              <p className="mt-4 text-sm text-coral">Could not read {it.file}.</p>
+              <p className="mt-4 text-sm text-coral">{t("readError", { file: it.file })}</p>
             )}
           </section>
         ))}

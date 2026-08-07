@@ -18,6 +18,9 @@
 // only the shape.
 
 import type { InterviewRecommendation } from "@/app/_lib/interview-recommendation";
+// Type-only, and therefore erased at compile — interview-rubric.ts imports
+// ScorecardRating back from here, so a VALUE import either way would be a cycle.
+import type { RubricCoverage } from "@/app/_lib/interview-rubric";
 
 /** One competency scored on the fixed interview rubric: a 1..RATING_MAX rating
  *  and the verbatim evidence quote behind it. `evidence` is absent on a
@@ -26,7 +29,82 @@ export type ScorecardRating = {
   competency: string;
   rating: number;
   evidence?: string;
+  // Set on a rating whose competency isn't in the entry's CURRENT rubric — the
+  // same "off-rubric" concept CompareInterviews surfaces (compareCohorts.ts). The
+  // human-scorecard POST flags these at the trust boundary rather than rejecting
+  // them: a record outlives rubric revisions by design, so an off-taxonomy or
+  // since-renamed axis is KEPT and marked, never silently dropped. Absent (the
+  // common case) means on-rubric.
+  offRubric?: boolean;
 };
+
+// The cross-language "no real assessment" sentinel. The Python synthesis emits
+// several spellings of the auto-synthesis-unavailable placeholder (e.g. "Not
+// assessed.", "Not assessed (auto-synthesis unavailable)."), and its own guards
+// key on the PREFIX contract `startswith("Not assessed")` (automation.py,
+// live_case.py). This is the single TS mirror of that contract — matching the
+// prefix, not one exact spelling, so a placeholder never leaks into a surface that
+// renders `evidence` as if it were a verbatim quote (interview-simulation
+// -comparison #2). Mirrors the interview-recommendation.ts single-source pattern.
+const PLACEHOLDER_EVIDENCE_PREFIX = "Not assessed";
+
+/** True when a rating's `evidence` is the placeholder emitted for an unassessed
+ *  axis (any "Not assessed…" spelling), so callers can filter it out of an
+ *  evidence/quote list instead of showing boilerplate as a real quote. */
+export function isPlaceholderEvidence(evidence: string | null | undefined): boolean {
+  return !evidence || evidence.startsWith(PLACEHOLDER_EVIDENCE_PREFIX);
+}
+
+/** The structured outcome of the closing READ-BACK exchange (scorecard-v5): the
+ *  voice agent reads back the technologies it heard and the candidate confirms or
+ *  corrects them, so a recruiter sees that "Rust" in the raw transcript actually
+ *  meant React — a cue, not just a line buried in the summary. Present ONLY when an
+ *  actual read-back happened; absent (null/undefined) when it didn't, never invented.
+ *  Rides on the AI scorecard object, so consent redaction drops it with the rest of
+ *  the verbatim synthesis. */
+export type ScorecardEntities = {
+  /** Technologies the candidate confirmed as heard — the authoritative stack. */
+  confirmed: string[];
+  /** ASR mishears the candidate fixed in the read-back: heard → what they meant. */
+  corrected: { heard: string; meant: string }[];
+  /** Mentioned only in earlier, unconfirmed turns and never reached in the read-back
+   *  — a possible transcription error, flagged rather than asserted as a skill. */
+  unconfirmed: string[];
+};
+
+/** Narrow a raw, stored `entities` blob (unvalidated JSON on a persisted scorecard)
+ *  to a clean ScorecardEntities, or null when there is no read-back to show.
+ *  Defensive at the trust boundary like the modal's cleanRating: a legacy row, a
+ *  partial synthesis, or a non-Python provider can carry any shape. Returns null when
+ *  every bucket is empty so absence renders no chrome (the "no read-back" signal). */
+export function normalizeScorecardEntities(raw: unknown): ScorecardEntities | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  const strList = (v: unknown): string[] =>
+    Array.isArray(v) ? v.map((x) => (typeof x === "string" ? x.trim() : "")).filter(Boolean) : [];
+  const confirmedRaw = strList(r.confirmed);
+  const unconfirmedRaw = strList(r.unconfirmed);
+  const corrected = (Array.isArray(r.corrected) ? r.corrected : [])
+    .map((c) => {
+      if (!c || typeof c !== "object") return null;
+      const o = c as Record<string, unknown>;
+      const heard = typeof o.heard === "string" ? o.heard.trim() : "";
+      const meant = typeof o.meant === "string" ? o.meant.trim() : "";
+      return heard && meant ? { heard, meant } : null;
+    })
+    .filter((c): c is { heard: string; meant: string } => c !== null);
+  // Cross-bucket dedupe with a documented precedence so a token the model emits in
+  // more than one bucket renders in exactly ONE list. Precedence (highest first):
+  //   corrected.meant ("what they actually meant") > confirmed > unconfirmed.
+  // A token present in a higher bucket is dropped from every lower one — exact,
+  // trimmed string match, order preserved. Mirrors automation._coerce_entities.
+  const meantSet = new Set(corrected.map((c) => c.meant));
+  const confirmed = confirmedRaw.filter((t) => !meantSet.has(t));
+  const confirmedSet = new Set(confirmed);
+  const unconfirmed = unconfirmedRaw.filter((t) => !meantSet.has(t) && !confirmedSet.has(t));
+  if (confirmed.length === 0 && corrected.length === 0 && unconfirmed.length === 0) return null;
+  return { confirmed, corrected, unconfirmed };
+}
 
 /** The structured interview scorecard: per-competency ratings, a one-line
  *  summary, and the canonical advance|hold|reject verdict. Every field is
@@ -36,8 +114,28 @@ export type Scorecard = {
   ratings?: ScorecardRating[];
   summary?: string;
   recommendation?: InterviewRecommendation;
+  // The structured read-back outcome (scorecard-v5) — present only when the call
+  // actually closed with a technologies read-back; consumers guard it before render.
+  entities?: ScorecardEntities | null;
   // Who produced this scorecard. Omitted on the AI-synthesized one (treated as
   // "ai" by consumers, the historical default); set to "human" for one a recruiter
   // filled against the rubric (PREP1), so a surface showing both can label them.
   source?: "ai" | "human";
+  // The rubric this scorecard was scored against, stamped at write time (Direction
+  // 2). `rubricVersion` is a stable content hash of the resolved rubric slice
+  // (rubricVersionHash / automation.rubric_version_hash — identical across TS+Python);
+  // `rubricKeys` is that slice's competency KEY list. Together they are the minimal
+  // shape to re-evaluate off-rubric against the EXACT scale it was scored on, so a
+  // later interview-rubrics.json revision can't retroactively mark a once-valid axis
+  // off-rubric (flagOffRubricRatingsWithKeys prefers them). BOTH are optional: a
+  // legacy row omits them and every consumer falls back to the current rubric,
+  // behaving exactly as before.
+  rubricVersion?: string;
+  rubricKeys?: string[];
+  // WHAT that rubric actually covered — specifically whether the role-family
+  // industry axes were in it, and if not, why (rubricCoverage). `rubricKeys` shows
+  // the axes that WERE scored; this states the ones that weren't, which a key list
+  // can never do. Absent on a legacy row and on the AI-synthesized scorecard (the
+  // Python scorer does not stamp it yet), so consumers must treat it as optional.
+  rubricCoverage?: RubricCoverage;
 };

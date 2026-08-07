@@ -19,7 +19,7 @@ export const STEP_DETAILS: Record<string, StepDetail> = {
     status: "live",
     summary:
       "A recruiter's free-text need (optionally a GitHub repo) becomes a publishable Markdown JD via the devcase need→design chain, then is persisted — and ingested into the matchable corpus.",
-    files: ["app/features/sub_library/*", "app/_lib/jd-build-run.ts", "app/api/jds/save/route.ts", "pipeline/jobfit/devcase/devcase_cli.py"],
+    files: ["app/features/library/jds/*", "app/_lib/jd-build-run.ts", "app/api/jds/save/route.ts", "pipeline/jobfit/devcase/devcase_cli.py"],
     puml: `[Library · JdBuilder] <<auto>> as ui
 [runJdBuild\\ndevcase_cli need->design] as fn
 [POST /api/jds/save\\nsaveJd + ingestJobAd] as api
@@ -67,7 +67,7 @@ api ..> boards`,
     status: "live",
     summary:
       "A CV (PDF/DOCX/TXT/MD) uploaded in the Analyze tab is bridged to the Python analysis CLI as a subprocess and the result is saved. The guided Profile form persists a structured V2 profile.",
-    files: ["app/features/sub_analyze/*", "app/api/analyze/route.ts", "app/_lib/analyze-run.ts", "pipeline/jobfit/pipeline.py"],
+    files: ["app/features/tools/analyze/*", "app/api/analyze/route.ts", "app/_lib/analyze-run.ts", "pipeline/jobfit/pipeline.py"],
     puml: `actor "Candidate" as c
 [Analyze / Profile tab] <<auto>> as ui
 [POST /api/analyze] as api
@@ -111,7 +111,7 @@ prof --> db`,
     status: "live",
     summary:
       "A normalized candidate is filtered by hard knock-out gates, then scored against the job corpus with archetype-aware weights over the taxonomy hierarchy. Surfaced in the Match tab and the Matrix grid.",
-    files: ["app/features/sub_match/*", "app/features/sub_matrix/*", "app/api/match/route.ts", "pipeline/jobfit/matching.py"],
+    files: ["app/features/tools/match/*", "app/features/insights/matrix/*", "app/api/match/route.ts", "pipeline/jobfit/matching.py"],
     puml: `[Match / Matrix tab] <<auto>> as ui
 [POST /api/match\\n/api/matrix] as api
 [matching.ko_filter\\nscore_job] as fn
@@ -126,7 +126,7 @@ fn --> ui : ranked + bands`,
     status: "live",
     summary:
       "Fairness-gated screening (Task 1) runs the Claude CLI with a deterministic fallback. Available one-by-one at both pre-interview stages: at Accepted it triages a fresh applicant into Screened; at Screened it advances toward Interview. Confident matches advance; early-career and low-confidence are held for the Decisions queue — never auto-rejected.",
-    files: ["app/features/sub_pipeline/CandidateDrawer.tsx", "app/_lib/automation-run.ts", "pipeline/jobfit/automation.py"],
+    files: ["app/features/hiring/pipeline/PipelineCandidateDrawer.tsx", "app/_lib/automation-run.ts", "pipeline/jobfit/automation.py"],
     puml: `[CandidateDrawer\\n"Screen with AI"] <<auto>> as ui
 [runAutomationTask\\nscreen] as fn
 [automation_cli screen\\nClaude CLI + fallback] as cli
@@ -141,7 +141,7 @@ fn --> db : advance / hold`,
     status: "gate",
     summary:
       "The deliberate human-in-the-loop gate: held candidates, rejections, and approvals are a recruiter's call. The AI recommendation rides along as context; the action is a click.",
-    files: ["app/features/sub_decisions/*", "app/api/pipeline/[id]/route.ts", "app/_lib/db.ts (actOnPipelineEntry)"],
+    files: ["app/features/hiring/decisions/*", "app/api/pipeline/[id]/route.ts", "app/_lib/db.ts (actOnPipelineEntry)"],
     puml: `[DecisionsTab\\nAiReviewCard] <<gate>> as ui
 [POST /api/pipeline/[id]] as api
 [actOnPipelineEntry] as fn
@@ -155,7 +155,7 @@ fn --> db : UPDATE stage`,
     status: "live",
     summary:
       "Direction #3: outreach and rejection messages are drafted (Claude CLI + fallback) and actually dispatched through the comms channel (queued by default, sent when COMMS_WEBHOOK_URL is set). The recipient is still the candidate label — an email/ATS field is the enrichment hook.",
-    files: ["app/features/sub_pipeline/CandidateDrawer.tsx", "app/_lib/automation-run.ts", "app/_lib/comms-dispatch.ts", "app/_lib/comms.ts"],
+    files: ["app/features/hiring/pipeline/PipelineCandidateDrawer.tsx", "app/_lib/automation-run.ts", "app/_lib/comms-dispatch.ts", "app/_lib/comms.ts"],
     puml: `[CandidateDrawer\\n"Draft outreach"] <<auto>> as ui
 [runAutomationTask\\noutreach] as fn
 [dispatchOutreach\\ncomms-dispatch.ts] as disp
@@ -173,7 +173,7 @@ send ..> rcpt`,
     status: "live",
     summary:
       "The recruiter creates a grounded voice screen (questions from Task 4 prep); the candidate takes it in-browser (OpenAI Realtime or ElevenLabs). On hang-up the transcript synthesizes a scorecard (Task 5) and sets scorecard_review for the Interview→Offer gate. Slot scheduling is still hardcoded.",
-    files: ["app/features/sub_pipeline/CandidateDrawer.tsx", "app/api/interview/*", "app/_lib/interview-run.ts", "app/_lib/voice/*", "app/_components/voice/VoiceInterview.tsx"],
+    files: ["app/features/hiring/pipeline/PipelineCandidateDrawer.tsx", "app/api/interview/*", "app/_lib/interview-run.ts", "app/_lib/voice/*", "app/_components/voice/VoiceInterview.tsx"],
     puml: `[CandidateDrawer\\n"Voice screen"] <<auto>> as ui
 [POST /api/interview/create\\nbuildGroundedInterview · Task 4] <<auto>> as create
 database "interview_sessions" as iv
@@ -198,7 +198,7 @@ create ..> slot`,
     status: "gate",
     summary:
       "The offer figure is deterministic (role band × fit) and the letter auto-drafts. A human approves it (the gate), which EXTENDS the offer and dispatches it to the candidate.",
-    files: ["app/features/sub_pipeline/CandidateDrawer.tsx", "app/_lib/automation-run.ts", "app/_lib/offers-store.ts", "app/_lib/comms-dispatch.ts"],
+    files: ["app/features/hiring/pipeline/PipelineCandidateDrawer.tsx", "app/_lib/automation-run.ts", "app/_lib/offers-store.ts", "app/_lib/comms-dispatch.ts"],
     puml: `[CandidateDrawer\\n"Draft offer"] <<auto>> as ui
 [runAutomationTask\\noffer] as fn
 [setApproval\\noffer_review] as ap

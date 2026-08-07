@@ -1,4 +1,4 @@
-// Payment gate (docs/BILLING.md) — public surface of the billing module.
+// Payment gate (docs/features/billing/README.md) — public surface of the billing module.
 // Provider-agnostic by construction: routes and product code import from here
 // and gateway.ts only; polar.ts is an implementation detail behind
 // polarGatewayFromEnv().
@@ -6,6 +6,7 @@
 export { BillingConfigError } from "./gateway";
 export type { BillingEvent, BillingGateway, Checkout, CheckoutRequest, ProductMap } from "./gateway";
 export {
+  billingOrgForWorkspace,
   billingOverview,
   entitledPlan,
   hasActiveSubscription,
@@ -32,4 +33,4 @@ export {
 } from "./plans";
 export { polarGatewayFromEnv } from "./polar";
 export { reduceBillingEvent, type BillingAction } from "./reduce";
-export { applyBillingAction, ingestBillingWebhook, type IngestResult } from "./sync";
+export { applyBillingAction, ingestBillingWebhook, resolveBillingOrg, type IngestResult } from "./sync";

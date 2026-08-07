@@ -3,9 +3,10 @@ import { writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import Database from "better-sqlite3";
 import { openStore } from "./db-path";
-import type { JobRecord } from "./db";
+import type { JobRecord } from "./db/core";
 import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "./python-runner";
+import { buildLlmConfigEnv } from "./llm-config";
 
 // Direction #1: turn authored/ingested job descriptions into structured,
 // matchable Job rows. insertJob writes into the SHARED `jobs` table (so
@@ -30,7 +31,13 @@ function db(): Database.Database {
   // status: NULL = seeded/live corpus, authored JDs are 'draft' until published.
   // workspace_id: NULL = the shared reference corpus, a team's authored openings
   // carry their id.
-  for (const sql of [`ALTER TABLE jobs ADD COLUMN status TEXT`, `ALTER TABLE jobs ADD COLUMN workspace_id TEXT`]) {
+  // published_at: first flip to 'published' (see setJobStatus) — the cycle start
+  // every publish-anchored metric needs. Mirrored from core.ts on this connection.
+  for (const sql of [
+    `ALTER TABLE jobs ADD COLUMN status TEXT`,
+    `ALTER TABLE jobs ADD COLUMN workspace_id TEXT`,
+    `ALTER TABLE jobs ADD COLUMN published_at TEXT`,
+  ]) {
     try {
       d.exec(sql);
     } catch {
@@ -142,6 +149,16 @@ export function insertJob(
  *  abandoned role — the apply surface stops accepting, the catalog badges it.
  *  NULL status (seeded corpus job) remains "live". */
 export function setJobStatus(jobId: string, status: "draft" | "published" | "closed"): void {
+  // published_at is the cycle start for publish-anchored metrics, so it records
+  // when the role FIRST went live: COALESCE keeps the original stamp when a closed
+  // role is republished, and the write is a no-op for draft/closed. Without this,
+  // status says only whether a job is live now — never since when.
+  if (status === "published") {
+    db()
+      .prepare(`UPDATE jobs SET status = ?, published_at = COALESCE(published_at, ?) WHERE id = ?`)
+      .run(status, new Date().toISOString(), jobId);
+    return;
+  }
   db().prepare(`UPDATE jobs SET status = ? WHERE id = ?`).run(status, jobId);
 }
 
@@ -214,7 +231,13 @@ async function runJobsCli(cliArgs: string[], fileName: string, payload: unknown,
     const isText = fileName.endsWith(".txt");
     await writeFile(p, isText ? String(payload) : JSON.stringify(payload), "utf-8");
     const flag = isText ? "--ad-file" : "--record-json";
-    const { result } = spawnPython(["-m", "pipeline.jobfit.jobs_cli", ...cliArgs, flag, p], { signal });
+    // buildLlmConfigEnv: the ingest command resolves the jd_ingest use case —
+    // without this env the configured BYOM provider/key re-route is silently dead
+    // (tiger 2026-08-05 coverage sweep; normalize is deterministic and unaffected).
+    const { result } = spawnPython(["-m", "pipeline.jobfit.jobs_cli", ...cliArgs, flag, p], {
+      signal,
+      env: buildLlmConfigEnv(),
+    });
     const { stdout, stderr, exitCode } = await result;
     if (exitCode !== 0) throw new Error(parseStderrError(stderr, exitCode).message);
     return parsePythonJson<JobCliOut>(stdout, stderr);

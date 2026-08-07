@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
-import { entryIdsWithEvent, getJob, listEntriesForJob } from "@/app/_lib/db";
+import { getJob } from "@/app/_lib/db/jobs";
+import { entryIdsWithEvent, listEntriesForJob } from "@/app/_lib/db/pipeline";
 import { buildCandidatePool } from "@/app/_lib/candidate-pool";
+import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { rankPoolForJob } from "@/app/_lib/recruiter-run";
 import { PipelineError } from "@/app/_lib/python-runner";
 
@@ -14,8 +16,9 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     }
 
     // Shared pool (v2 profiles + saved CV analyses) — the same population
-    // rediscovery scores, so the two views never diverge.
-    const entries = buildCandidatePool();
+    // rediscovery scores, so the two views never diverge. Workspace-scoped so a
+    // job only ranks against its own tenant's candidates.
+    const { entries, truncated } = buildCandidatePool(await currentWorkspace());
 
     if (entries.length === 0) {
       return NextResponse.json({ job: null, candidates: [], note: "No saved candidates yet." });
@@ -51,7 +54,9 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
       row.inPipeline = entry?.stage ?? null;
       row.outreachSent = entry ? reachedEntryIds.has(entry.id) : false;
     }
-    return NextResponse.json(payload);
+    // Honest cap signal: true means the corpus exceeds the pool caps, so some
+    // candidates were never scored here (the overflow is excluded, not ranked low).
+    return NextResponse.json({ ...payload, poolTruncated: truncated });
   } catch (error) {
     // A recruiter_cli failure surfaces as a PipelineError carrying the CLI's
     // status/code (e.g. a 400 invalid_input), so a user-fixable failure stays a

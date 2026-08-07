@@ -1,46 +1,40 @@
 # Ship Loop — state
 
 ## Context refresher
-- App: kp — "KP studio, talent matching": Next.js 16 + React 19 hiring workspace (18 tabs) + Python jobfit pipeline; better-sqlite3; 3 LLM engines; Polar billing; dual-theme; en+cs. Branch main.
-- Ship bar (CP3, user): PUBLIC PRODUCT PATH. Verdicts V1+V2+V4a+V4b adopted. Now executing via the ENTERPRISE E-track (E0-E6, docs/ENTERPRISE_READINESS.md) which subsumes the tenancy pillar.
-- RESUMED at CP7 (2026-07-05). During the CP6→CP7 pause, PARALLEL CLI sessions shipped 13 enterprise commits (E0 tenancy P1, E3 brand, E4 self-host/offline/model-endpoints/Helm/slim, Postgres audit) WITHOUT the loop's gate → CI went red on every push today. M7 = reconcile & re-green.
-- SYNCED: local main == origin/main == 222bedf (M7 re-green 6e3ac90/7873b39/6fcd7d6 → M8 landing launch 284aebd SEO + 222bedf gate). A parallel session is still authoring the tenancy Phase 2 WIP (uncommitted: jobs/group_evals/pipeline/analytics/profiles/offers/sim scoping + tests) — LEFT for that session, not the loop's to commit.
-- M8 LANDING LAUNCHED (item 3 ☑): '/' server-gates landing↔dashboard (real session / kp_entered marker), open-mode entry (no 503 lock-out), all dead CTAs rewired, SEO added, theme pre-paint decoupled. Verified live + full gate green. Follow-up: public demo CTA still tenancy-blocked (KP_DEMO_ENABLED).
-- OPEN USER ACTIONS: item 6 rotate .env.local keys (still open since CP1) · E-track go-forward (finish E0→E1 SSO vs return to product pillars) · confirm the tenancy P2 WIP is the parallel session's to land.
-- ⚠ GOVERNANCE: parallel sessions committing straight to main bypass the loop's green-gate discipline (root-caused CI red all day). M7's .npmrc fix restores cold-install; going forward the gate must run before pushes.
+- App: kp — "KP studio, talent matching": Next.js 16 + React 19 hiring workspace (18 tabs) + Python jobfit pipeline; better-sqlite3; 3 LLM engines; Polar billing; dual-theme; en+cs. Loop's home branch: main.
+- Ship bar (CP3, user): PUBLIC PRODUCT PATH. Verdicts V1+V2+V4a+V4b adopted; ENTERPRISE E-track (docs/ENTERPRISE_READINESS.md) subsumes the tenancy pillar.
+- SKILL ADOPTED (CP9, 2026-07-27): procedure now codified in .claude/skills/ship-loop/SKILL.md (adapted back from the personas repo's codification). State stays here.
+- RESUMED at CP9 (2026-07-27) after the CP8 pause. Since CP8, parallel sessions shipped 11+ commits to main out-of-band (comms delivery + failure-truth, apply intake integrity, calibration holdout, matching evidence-gating — see git log 222bedf..283c5c1). Local main 283c5c1 is 4 commits AHEAD of origin/main 7ac77a8 (unpushed).
+- WORKSPACE (CP9, user): loop executes in worktree C:/Users/kazda/kiro/kp-m9 on branch ship-loop/m9 (off local main). The primary checkout sits on vibeman/ambiguity-ui-wave1 with ~60 uncommitted foreign files — NOT the loop's to touch. main is also checked out in .claude/worktrees/perfect-merge.
+- M9 (user pick): AI-Act pack (26) + CI-discipline guard (50) + premise-sweep (1/2/40). EXECUTED — commits on ship-loop/m9: e9ebb52 (50 pre-push gate hook), 0417b1b (51 relay env docs), 501f95d (26 docs/AI_ACT_CONFORMITY.md), abba8ce (reconcile: 7 lint errors ungated pushes left on main — lint is NOT in ci.yml, which is why CI stayed green while lint rotted; the new hook closes this).
+- Gate (M9): typecheck ✓ · lint 0 err (390 warn) · unit 2425/2425 · python gate ✓ · build ✓ · e2e 5 passed/7 key-gated — FULL GREEN. The e2e suite had been unrunnable since M8 (dead dev-auth seed + 3 UI drifts) — repaired in e027e70; spawned items 54/55. M9 = 5 commits on ship-loop/m9: e9ebb52, 0417b1b, 501f95d, abba8ce, e027e70.
+- CP10 (user): MERGE+PUSH ✓ (rebased onto the again-moved main — 6 more out-of-band commits; item 51 dropped as subsumed by 7004983) and M10 = AI-Act code closure ✓. CI RE-GREENED (run 30268242229, first green since 07-09; fixes: numpy dep, skip baseline 5 in run_gated + ci.yml env).
+- M10 EXECUTED (agent-built, orchestrator-verified, all on ship-loop/m9→main): d531dad item 53 (neutrality INVARIANT HOLDS byte-identically across cs/vi/uk/ar/Roma names + sentinel; calibration_drift Art.72 seed) · 3f49c4c item 52 (AiDisclosure complete + candidate Art.86 redacted decision history) · 7eeedd8 items 54+55a (create CTA both projections; 4 Selects aria-labeled). Gate FULL GREEN incl. e2e 5/5. Pushed 9c219f7→7eeedd8.
+- AI-Act pack status post-M10: ALL code gaps closed (G3, G9, G10-seed, G11, plus 54/55a hygiene) — remaining gaps are documentation/process (G1 risk-mgmt doc, G2 Annex IV/instructions-for-use, G4/G5/G7 audit epic, G13 posture doc, G14 CE scaffolding) + 55b dock overlap (diagnosed, cheap fix known).
+- OPEN USER DECISIONS at CP11: (a) item 6 rotate .env.local keys (open since CP1); (b) next milestone — candidates: G1/G2 conformity DOCS (writing work, evidence exists; completes the AI-Act story), 41 E1 SSO (L), 25 Teamio spike, 42/43 E2 audit+GDPR, 55b dock fix (S).
 
-## Scorecard (updated at CP7, 2026-07-05 — post-M7 re-green; enterprise E-track folded in)
-Deltas since CP6: Ops deploy story DONE (E4 self-host/Helm/slim) BUT CI regressed red all day (parallel pushes bypassed the gate) → M7 restored it (npm-ci ERESOLVE + react-is + lint + prerender). Tenancy (dim 2/6) advancing via E0 (P1 done, P2 in WIP). Dims below still reflect the day-1 baseline except where noted.
+## Scorecard (updated at CP9/M9, 2026-07-27)
+Deltas since CP7/CP8: tenancy DONE (dim 2/6 ↑), comms delivery DONE out-of-band (dim 2 pillar closed), AI-Act pack DONE (dim 9 ↑), lint discipline restored + guarded (dim 1/8).
 | # | Dimension | Score | Evidence | Top gaps |
 |---|-----------|-------|----------|----------|
-| 1 | Build & types | 🟢 | typecheck 0 · lint 0 err · unit 1237 · py 717 · build ✓ · e2e 5/5 | 373 lint warnings |
-| 2 | Functional completeness | 🟢 | sim live-proven; delivery-honest surfaces; locale everywhere; canonical score | PILLARS: comms delivery (1), tenancy (2), landing (3) — the ship bar |
-| 3 | Tests | 🟢 | 1237 unit (+182 day-1) + 717 py (+22); CI green | analytics/devcase/interviews stores; comms callbacks |
-| 4 | Simulated UAT | 🟢 | full run (238 findings) + 11/11 uat bug items FIXED same-day (28-38 all ☑) | re-run /uat after pillars to re-certify |
-| 5 | Billing & LLM value | 🟢 | ledger COMPLETE (flagship + github + voice + deterministic fallbacks) + usage panel + canonical score + acting-score calibration (n 0→21) + prompt bounds | Polar end-to-end still sandbox (pillar-adjacent) |
-| 6 | Auth & security | 🟡 | decisions gated; voice leak fixed; GDPR links absolute; spend throttled; match-0 dead | ships OPEN over PII (tenancy pillar); LIVE keys → USER rotate (6) |
-| 7 | UX/UI polish | 🟢 | route chrome, toasts, honesty vocabulary, provenance labels, mobile fixes | recipe drive (24, cut candidate) |
-| 8 | Ops readiness | 🟢 | deploy story DONE (E4 self-host: Dockerfile+guide, Helm chart, image 1.78GB→465MB, KP_OFFLINE, self-hosted model endpoints); CI RESTORED at CP7 (was red all day) | CI-discipline regression (parallel pushes skipped the gate); Node-20 action SHA bump (cosmetic); engine-preflight readiness dot (follow-up) |
-| 9 | Value & market reality | 🟡 | value-case.md verdicts adopted; unit econ proven | execute Teamio spike (25) + AI-Act pack (26; clock 2026-08-02) |
+| 1 | Build & types | 🟢 | typecheck 0 · lint 0 err (M9 re-green; was 7 err from ungated pushes) · unit 2425 · build ✓ | ~390 lint warnings; lint absent from ci.yml (hook covers pushes; add to CI later) |
+| 2 | Functional completeness | 🟢 | ALL 3 PILLARS CLOSED: comms delivery (relay+callback, verified), tenancy E0 (0 gaps, fail-closed guard), landing launched (M8) | relay config UI (51 residual); public-demo CTA KP_DEMO_ENABLED flip |
+| 3 | Tests | 🟢 | 2425 unit (+1103 since day-1) + python gate; ~20 tenancy test files; e2e restored 5/5 (had rotted unnoticed since M8 — nothing runs it but the loop) | name-neutrality eval missing (53); e2e not in CI (keys — deterministic subset could run keyless) |
+| 4 | Simulated UAT | 🟡 | day-1 full run + fixes still stand; heavy churn since (comms/tenancy/matching) unrecertified | re-run /uat to re-certify post-pillar reality |
+| 5 | Billing & LLM value | 🟢 | ledger complete + usage panel + calibration holdout clean arm (out-of-band) | Polar e2e still sandbox; E6 org billing |
+| 6 | Auth & security | 🟡→🟢 | tenancy DONE + identity layer (orgs/memberships/invites/roles); decision chains per-tenant HMAC | E1 SSO (41), E2 audit_events (42), USER: rotate keys (6) |
+| 7 | UX/UI polish | 🟢 | (unchanged from CP7) + honest no-relay labeling everywhere | AiDisclosure missing on /status + /onboarding (52) |
+| 8 | Ops readiness | 🟢 | CI green; deploy story done; NEW: pre-push gate hook prevents the CP7 ungated-push failure mode | lint not in ci.yml; SIEM/audit export (42) |
+| 9 | Value & market reality | 🟢 | AI-Act conformity pack SHIPPED (docs/AI_ACT_CONFORMITY.md) 6 days before the 2026-08-02 applicability date; verdict: Art.14+12 posture strong, gaps mostly docs/process (G1-G14 register) | Teamio spike (25); risk-mgmt doc G1; instructions-for-use G2 |
 
-## Day-1 ledger (2026-07-02 → 03)
-M1 correctness+cost (4,7,8,9,12,15,21) · M2 tests+CI (5,10,11) · M3 UX+value lens (14,18,19,20) · M4 full /uat (13) · M5 bug waves (28-32,34-38) · M6 quick wins (16,17,22,23,33)
-Commits: cf0d63c 8ef6392 d903e8d 517ff33 2ae3f01 ff68217 30f4c3e 5b11553 3c65bcb d21320a → merge 3395b4c (PUSHED, CI green) → 11aa76e b5aa2ad 9fbd384 3f03857 (PUSHED at CP6)
-Interruptions: session limit ×3 (M3 agents, M4 uat ×2) — all resumed from transcript/checkpoint, zero work lost.
-
-## Enterprise E-track ledger (2026-07-04→05, PARALLEL sessions — outside the loop's gate)
-13 commits d359dc3→3fe42f1: M2 backgrounded JD gen · org/multiuser + CV-intake + channels studio (9925545) · E4 self-host packaging+guide (185a502) · E5 self-hosted model endpoints (a3f0c85) · E4b KP_OFFLINE no-egress (f7d8c97) · E3 Postgres seam audit (2a5f7a4) · E3 brand/white-label (dc21fdd, a14db7d) · E-slim image (eec5a92) · E-SH-2 Helm (c792dc4) · E0 tenancy P1 campaign_packs+jobs+group_evals (3fe42f1). Effect: deploy story (#27) effectively DONE; tenancy (#40/#2) underway. Cost: pushed red — CI failed every run.
-
-## M7 re-green ledger (2026-07-05, CP7)
-M7 reconcile & re-green — mine: 6e3ac90 (useOrgMembers set-state-in-effect + /invite instant=false) · 7873b39 (.npmrc legacy-peer-deps → the actual CI-red root cause: npm ci ERESOLVE on the pinned next canary) · 6fcd7d6 (react-is direct dep — legacy-peer-deps had dropped recharts' peer, breaking the build). Parallel session in the same window: 6e6a534 (market-pulse ISPV salary anchors). Tenancy P2 WIP still uncommitted (parallel session's). RESULT: CI GREEN on 6fcd7d6 (run 28745269439, 2m26s) — first green all day. main==origin==6fcd7d6.
+## Ledgers (compressed — day-1..3 detail in journal.md + archive)
+- Day-1 (07-02/03): M1-M6, commits cf0d63c→3f03857. Day-2/3 (07-04/05): 13 parallel enterprise commits (E0 P1/E3/E4) + M7 re-green (6e3ac90/7873b39/6fcd7d6) + M8 landing (284aebd/222bedf).
+- Out-of-band (07-05→07-27): 222bedf→283c5c1 incl. comms delivery/callback/failure-truth, apply intake, calibration holdout + leakage disclosure, matching evidence-gating (docs/SCORING_REBASELINE.md), group-eval governance. Last 4 (3a1ad8a/c87def0/283c5c1 + f911815) UNPUSHED on local main.
+- M9 (07-27, worktree kp-m9, branch ship-loop/m9): e9ebb52 · 0417b1b · 501f95d · abba8ce. Gate green (e2e note in journal).
 
 ## Remaining backlog (open)
-- PILLARS: 1 comms delivery (M) · 3 landing launch (M) still open. 2 tenancy (L) NOW IN PROGRESS via E0 (P1 committed: campaign_packs/jobs/group_evals; P2 in parallel-session WIP: pipeline/analytics/profiles/offers/sim + tests).
-- ENTERPRISE E-track (docs/ENTERPRISE_READINESS.md): 40 E0 tenancy IN PROGRESS · 44 E3 brand DONE · 45 E4 self-host DONE (subsumes 27 deploy story) · 41 E1 SSO/RBAC, 42/43 E2 audit+GDPR, 46 E5 SOC2, 47 E6 org-billing OPEN · Postgres seam audit done (E3/§).
-- 25 Teamio spike (M) · 26 AI-Act pack (M, clock 2026-08-02) · 24 recipe drive (cut candidate) · 6 USER: rotate keys (STILL OPEN).
-- Follow-ups: ci.yml Node-20 action SHA bump (annotation, cosmetic); engine-preflight BYOM-aware readiness dot; going forward — RUN THE GATE before pushing (parallel-session discipline gap that reddened CI).
+- 6 USER: rotate keys (open since CP1) · 24 recipe drive (cut candidate) · 25 Teamio spike · 41 E1 SSO (L) · 42 E2a audit (L) · 43 E2b GDPR/DPA (M, now seeded by the AI-Act pack's G1/G2) · 46 E5 SOC2 (L) · 47 E6 org billing (M) · 51 relay config UI residual (S) · 52 AI-Act candidate surfaces (M) · 53 neutrality eval + drift alarm (M).
 
 ## Checkpoint history
-- CP0-CP2 AFK (M1-M3) · CP3 USER: ship bar/merge+push/verdicts/M4 · CP4 AFK (M5 bug waves) · CP5 AFK (M6 quick wins, push held) · CP6 (2026-07-03): LOOP PAUSED — final report delivered; awaiting push decision, key rotation, tenancy go/no-go.
-- CP7 (2026-07-05): RESUME. Reconciled 13 parallel enterprise commits shipped during the pause (CI red all day). M7 = reconcile & re-green: fixed lint (set-state-in-effect), /invite prerender, and the real CI-red root cause (npm ci ERESOLVE on pinned next canary → .npmrc legacy-peer-deps + react-is direct dep). Pushed 6e3ac90/7873b39/6fcd7d6. Feature WIP (tenancy P2) left to the parallel session. Then user → "product pillar" → "landing launch" = M8.
-- CP8 (2026-07-05): LOOP PAUSED. M8 landing launch shipped (284aebd SEO + 222bedf gate: server-gate '/' + open-mode entry + CTA rewiring + theme decouple), verified live + CI green. Day-3 = M7 (CI restored) + M8 (landing live). User → "Pause here". Re-invoke to resume; open threads: tenancy P2 (parallel session), item 6 keys (USER), demo-CTA tenancy unblock, comms delivery (1), E1 SSO.
+- CP0-CP2 AFK (M1-M3) · CP3 USER: ship bar/verdicts · CP4-CP5 AFK (M5/M6) · CP6 pause · CP7 (07-05) resume: M7 re-green · CP8 (07-05) pause after M8 landing.
+- CP9 (2026-07-27): RESUME, user present. Skill adopted; workspace = worktree off main; M9 = AI-Act pack + CI guard + premise-sweep. All executed + gate green. HOLDS at CP10 for: merge/push decision, key rotation, next milestone.

@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import unittest
+from dataclasses import replace
+from unittest import mock
 
 from pipeline.jobfit import automation
+from pipeline.jobfit.market_config import BERLIN_MARKET, CZECH_MARKET
 from pipeline.jobfit.matching import MatchCandidate, score_job
 
 from pipeline.jobfit.tests._helpers import mkjob as _mkjob
@@ -16,9 +19,15 @@ def mkjob(**over):
     return _mkjob(**base)
 
 
+# provenance_default is explicit on BAU: the shipped default is now `self_declared`,
+# which discounts an unevidenced claim below the match threshold. This fixture is the
+# "experienced hire who clearly HAS the skills" input to the screening policy — these
+# tests are about the automation routing, not about the evidence discount — so it pins
+# the professional tier. STUDENT deliberately keeps the default: an early-career
+# candidate's self-declared skills are exactly the case the discount is for.
 BAU = MatchCandidate(
     skills=["Python", "Django"], seniority="senior", role_family="software_engineering",
-    languages=["English"], archetype="bau",
+    languages=["English"], archetype="bau", provenance_default="professional",
 )
 STUDENT = MatchCandidate(
     skills=["HTML"], seniority="junior", role_family="software_engineering", languages=["English"],
@@ -143,9 +152,11 @@ class _CaptureProvider:
     def __init__(self, payload):
         self.payload = payload
         self.prompt = None
+        self.system = None
 
     def complete_json(self, prompt, system=None):
         self.prompt = prompt
+        self.system = system
         return self.payload
 
 
@@ -197,6 +208,89 @@ class RecommendationContractTest(unittest.TestCase):
         cap = _CaptureProvider({"ratings": [], "summary": "s", "recommendation": "🤷 maybe"})
         result, _ = automation.interview_scorecard(BAU, job, "notes", provider=cap)
         self.assertEqual(result["recommendation"], "hold")
+
+
+class MarketPersonaTest(unittest.TestCase):
+    """The HR-automation system persona is MarketConfig-driven (mirrors campaign.py
+    round 9 / group_compare.py round 10), not a hardcoded "Czech tech market"
+    literal. Byte-identical for the Czech default; a re-homed market names ITS market."""
+
+    def test_czech_default_is_byte_identical(self):
+        # The exact bytes of the old "_SYSTEM" literal.
+        expected = (
+            "You are an HR automation assistant for the Czech tech market. Be concise, specific, fair, and "
+            "grounded only in the supplied facts. Write in the requested language. Output strict JSON only."
+        )
+        self.assertEqual(automation._system_prompt(), expected)
+        from pipeline.jobfit.market_config import CZECH_MARKET
+
+        self.assertEqual(automation._system_prompt(CZECH_MARKET), expected)
+
+    def test_berlin_flip_names_the_active_market(self):
+        # A re-homed market names ITS market instead of biasing every task Czech.
+        berlin = automation._system_prompt(BERLIN_MARKET)
+        self.assertIn("German tech market", berlin)
+        self.assertNotIn("Czech", berlin)
+
+    def test_persona_reaches_the_model(self):
+        # The derived persona is what the provider is actually handed as `system`.
+        job = mkjob()
+        cap = _CaptureProvider({"recommendation": "advance", "confidence": 90})
+        automation.screen_candidate(BAU, job, score_job(BAU, job), provider=cap)
+        self.assertEqual(cap.system, automation._system_prompt())
+
+
+class CandidateLangTest(unittest.TestCase):
+    """`_candidate_lang` covers the app LOCALES (en/cs/de/fr) via i18n.LANG_NAMES,
+    not just the old Czech/English binary. cs/en outcomes stay byte-identical; de/fr
+    speakers are newly detected instead of silently collapsing to an English letter."""
+
+    @staticmethod
+    def _cand(*langs):
+        return MatchCandidate(
+            skills=["Python"], seniority="senior", role_family="software_engineering",
+            languages=list(langs), archetype="bau",
+        )
+
+    def test_czech_and_english_are_unchanged(self):
+        # Byte-identical to the old binary under the Czech default market.
+        self.assertEqual(automation._candidate_lang(self._cand("Czech", "English")), "Czech")
+        self.assertEqual(automation._candidate_lang(self._cand("English")), "English")
+        self.assertEqual(automation._candidate_lang(self._cand("Čeština")), "Czech")
+        # No modelled language declared → English fallback (as before).
+        self.assertEqual(automation._candidate_lang(self._cand()), "English")
+        self.assertEqual(automation._candidate_lang(self._cand("Spanish")), "English")
+
+    def test_english_wins_the_tiebreak_over_a_third_language(self):
+        # A "German, English" speaker still gets English (the conservative lingua-franca
+        # tiebreak), exactly as the old binary did — we don't regress multilingual CVs.
+        self.assertEqual(automation._candidate_lang(self._cand("German", "English")), "English")
+
+    def test_de_and_fr_only_speakers_are_newly_detected(self):
+        # The whole point: a candidate who speaks NEITHER Czech nor English is no
+        # longer silently written to in English.
+        self.assertEqual(automation._candidate_lang(self._cand("German")), "German")
+        self.assertEqual(automation._candidate_lang(self._cand("Deutsch")), "German")
+        self.assertEqual(automation._candidate_lang(self._cand("Français")), "French")
+        self.assertEqual(automation._candidate_lang(self._cand("Francais")), "French")
+
+    def test_home_language_wins_under_a_rehomed_market(self):
+        from pipeline.jobfit.market_config import CZECH_MARKET
+
+        # Czech market: a Czech+German speaker gets Czech (home lang wins).
+        self.assertEqual(
+            automation._candidate_lang(self._cand("Czech", "German"), market=CZECH_MARKET), "Czech"
+        )
+        # Berlin market (home_lang=de): the SAME candidate now gets German.
+        self.assertEqual(
+            automation._candidate_lang(self._cand("Czech", "German"), market=BERLIN_MARKET), "German"
+        )
+
+    def test_letter_lang_prefers_an_explicit_locale_over_the_guess(self):
+        # The reliable signal still wins: an explicit --lang overrides the heuristic.
+        cand = self._cand("German")
+        self.assertEqual(automation._letter_lang(cand, "fr"), "French")
+        self.assertEqual(automation._letter_lang(cand, None), "German")
 
 
 class GithubEvidenceBlockTest(unittest.TestCase):
@@ -314,6 +408,80 @@ class DraftsTest(unittest.TestCase):
         self.assertEqual(automation._scorecard_confidence("x" * 1000, full, n)["level"], "moderate")
 
 
+class ReadbackEntitiesTest(unittest.TestCase):
+    """scorecard-v5 — the closing read-back becomes STRUCTURED `entities`. Contract/
+    parse-level only (no live LLM): a canned provider payload proves the coercer keeps
+    a real exchange and drops an absent one, never inventing a read-back."""
+
+    def setUp(self):
+        self.job = mkjob()
+
+    def test_prompt_asks_for_structured_entities(self):
+        # The v5 prompt must instruct the model to emit the structured contract.
+        cap = _CaptureProvider({"ratings": [], "summary": "s", "recommendation": "hold"})
+        automation.interview_scorecard(BAU, self.job, "notes", provider=cap)
+        self.assertIn('"entities"', cap.prompt)
+        self.assertIn('"corrected"', cap.prompt)
+        self.assertIn("read-back", cap.prompt)
+
+    def test_readback_correction_survives_coercion(self):
+        # A transcript WITH a read-back correction: Rust heard, React meant.
+        cap = _CaptureProvider({
+            "ratings": [], "summary": "s", "recommendation": "advance",
+            "entities": {
+                "confirmed": ["PostgreSQL", " Docker "],
+                "corrected": [{"heard": "Rust", "meant": "React"}, {"heard": "", "meant": "x"}],
+                "unconfirmed": ["Kubernetes", 42, ""],
+            },
+        })
+        result, _ = automation.interview_scorecard(BAU, self.job, "notes", provider=cap)
+        ent = result["entities"]
+        self.assertEqual(ent["confirmed"], ["PostgreSQL", "Docker"])  # trimmed
+        self.assertEqual(ent["corrected"], [{"heard": "Rust", "meant": "React"}])  # half-empty pair dropped
+        self.assertEqual(ent["unconfirmed"], ["Kubernetes"])  # non-strings/blanks dropped
+
+    def test_cross_bucket_dedupe_precedence(self):
+        # PARITY FIXTURE — kept byte-identical to the input/expected literals in
+        # app/_lib/interview-scorecard.test.ts ("cross-bucket dedupe ..."). A token in
+        # more than one bucket renders once, precedence corrected.meant > confirmed >
+        # unconfirmed. "React" is a corrected.meant (also redundantly confirmed +
+        # unconfirmed); "Docker" is confirmed AND unconfirmed.
+        cap = _CaptureProvider({
+            "ratings": [], "summary": "s", "recommendation": "advance",
+            "entities": {
+                "confirmed": ["React", "Docker", "PostgreSQL"],
+                "corrected": [{"heard": "Rust", "meant": "React"}],
+                "unconfirmed": ["Docker", "Kubernetes", "React"],
+            },
+        })
+        result, _ = automation.interview_scorecard(BAU, self.job, "notes", provider=cap)
+        ent = result["entities"]
+        self.assertEqual(ent["confirmed"], ["Docker", "PostgreSQL"])  # "React" dropped (corrected.meant)
+        self.assertEqual(ent["corrected"], [{"heard": "Rust", "meant": "React"}])
+        self.assertEqual(ent["unconfirmed"], ["Kubernetes"])  # "Docker" (confirmed) + "React" (meant) dropped
+
+    def test_no_readback_omits_entities(self):
+        # A transcript WITHOUT any read-back: entities null / absent → key omitted
+        # entirely (never fabricated), so consumers render no chrome.
+        for payload_entities in (None, {}, {"confirmed": [], "corrected": [], "unconfirmed": []}, "not-a-dict"):
+            cap = _CaptureProvider({
+                "ratings": [], "summary": "s", "recommendation": "hold", "entities": payload_entities,
+            })
+            result, _ = automation.interview_scorecard(BAU, self.job, "notes", provider=cap)
+            self.assertNotIn("entities", result, repr(payload_entities))
+
+    def test_entities_absent_when_key_missing(self):
+        # No `entities` key at all in the model payload → omitted.
+        cap = _CaptureProvider({"ratings": [], "summary": "s", "recommendation": "hold"})
+        result, _ = automation.interview_scorecard(BAU, self.job, "notes", provider=cap)
+        self.assertNotIn("entities", result)
+
+    def test_deterministic_has_no_entities(self):
+        # The keyless deterministic fallback never read anything back.
+        result, _ = automation.interview_scorecard(BAU, self.job, "notes", provider=None)
+        self.assertNotIn("entities", result)
+
+
 class RematchTest(unittest.TestCase):
     def test_finds_best_alternative_excluding_current(self):
         cur = mkjob(title="Cur Python", requirements=[{"skill": "Python", "kind": "must_have", "hardness": "prerequisite"}])
@@ -350,11 +518,88 @@ class OfferTest(unittest.TestCase):
         lo, _ = automation.draft_offer(weak, job, score_job(weak, job), provider=None)
         self.assertGreaterEqual(hi["recommended"], lo["recommended"])
 
+    def test_offer_currency_is_the_active_market_czk_by_default(self):
+        # Byte-identical: the Czech default labels the offer "CZK" as before.
+        job = mkjob()
+        out, _ = automation.draft_offer(BAU, job, score_job(BAU, job), provider=None)
+        self.assertEqual(out["currency"], "CZK")
+        self.assertIn("CZK", out["body"])
+
+    def test_offer_currency_follows_a_flipped_market(self):
+        # Re-homing the active market re-labels the offer in ITS currency instead of
+        # a hardcoded "CZK" — proving the literal now reads MarketConfig.
+        job = mkjob()
+        with mock.patch.object(automation, "ACTIVE_MARKET", BERLIN_MARKET):
+            out, _ = automation.draft_offer(BAU, job, score_job(BAU, job), provider=None)
+        self.assertEqual(out["currency"], "EUR")
+        self.assertIn("EUR", out["body"])
+        self.assertNotIn("CZK", out["body"])
+
     def test_offer_falls_back_to_seniority_band_without_role_band(self):
         # a role_family/seniority with no role_band still yields a usable band
         out, _ = automation.draft_offer(BAU, mkjob(role_family="other", seniority="lead"), score_job(BAU, mkjob(role_family="other", seniority="lead")), provider=None)
         self.assertGreater(out["recommended"], 0)
         self.assertLessEqual(out["salaryMin"], out["recommended"])
+
+    def test_seniority_fallback_bands_are_the_czech_market_config(self):
+        # The fallback bands moved from a hardcoded CZK dict onto MarketConfig; the
+        # Czech default must reproduce the previous literals EXACTLY (existing offer
+        # letters are byte-compatible).
+        self.assertEqual(
+            dict(CZECH_MARKET.seniority_default_bands),
+            {"junior": (45000, 65000), "medior": (65000, 95000), "senior": (95000, 140000), "lead": (130000, 185000)},
+        )
+        # An unmapped seniority resolves through "medior" — the old
+        # `.get(seniority, [65000, 95000])` fallback, unchanged.
+        job = mkjob(role_family="other", seniority="principal")
+        job.salary_band = []  # normalize_job always derives one; clear it to reach the fallback
+        out, _ = automation.draft_offer(BAU, job, score_job(BAU, job), provider=None)
+        self.assertEqual((out["salaryMin"], out["salaryMax"]), (65000, 95000))
+
+    def test_uncalibrated_market_proposes_no_figure_at_all(self):
+        # THE FIX: the fallback bands were CZK/month magnitudes stamped with the
+        # ACTIVE market's currency, so a Berlin deploy drafted a candidate-facing
+        # "95,000 EUR gross monthly" — wrong by ~25x. BERLIN_MARKET configures no
+        # bands, so the honest answer is NO number, not a relabelled Czech one.
+        job = mkjob(role_family="other", seniority="lead")
+        job.salary_band = []  # the posting states no pay range -> the MARKET must answer
+        with mock.patch.object(automation, "ACTIVE_MARKET", BERLIN_MARKET):
+            out, _ = automation.draft_offer(BAU, job, score_job(BAU, job), provider=None)
+        self.assertIsNone(out["recommended"])
+        self.assertIsNone(out["salaryMin"])
+        self.assertIsNone(out["salaryMax"])
+        # The rationale says WHY, in the recruiter's words, and still ships to the
+        # human offer_review gate (the TS seam approves every offer draft).
+        self.assertIn("No salary band is configured", out["rationale"])
+        # …and the candidate-facing letter names no figure whatsoever.
+        self.assertFalse(any(ch.isdigit() for ch in out["body"]), out["body"])
+        self.assertNotIn("95,000", out["body"])
+        # The draft-time fit check is still reported — only the PRICE is withheld.
+        self.assertEqual(out["matchBasis"], score_job(BAU, job).total)
+
+    def test_uncalibrated_market_withholds_the_figure_in_czech_too(self):
+        job = mkjob(role_family="other", seniority="lead")
+        job.salary_band = []
+        with mock.patch.object(automation, "ACTIVE_MARKET", BERLIN_MARKET):
+            out, _ = automation.draft_offer(BAU, job, score_job(BAU, job), lang="cs", provider=None)
+        self.assertEqual(out["language"], "Czech")
+        self.assertIsNone(out["recommended"])
+        self.assertNotIn("mzda je", out["body"])
+        self.assertFalse(any(ch.isdigit() for ch in out["body"]), out["body"])
+
+    def test_pay_period_word_follows_the_market_not_a_hardcoded_month(self):
+        # "Gross monthly" / "hrubá měsíční" were hardcoded beside a market-driven
+        # currency, so a year-denominated market claimed a MONTHLY figure. Both
+        # language paths now read the market's period.
+        yearly = replace(CZECH_MARKET, period="year")
+        job = mkjob()
+        with mock.patch.object(automation, "ACTIVE_MARKET", yearly):
+            en, _ = automation.draft_offer(BAU, job, score_job(BAU, job), provider=None)
+            cs, _ = automation.draft_offer(BAU, job, score_job(BAU, job), lang="cs", provider=None)
+        self.assertIn("gross annual", en["body"])
+        self.assertNotIn("gross monthly", en["body"])
+        self.assertIn("hrubá roční", cs["body"])
+        self.assertNotIn("hrubá měsíční", cs["body"])
 
     def test_letter_lang_override_beats_cv_guess(self):
         # Backlog #34: the TS seam passes the ENTRY's resolved comms locale; it must

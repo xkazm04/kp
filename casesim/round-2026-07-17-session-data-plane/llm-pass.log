@@ -1,0 +1,9 @@
+| persona | framing | tooling | judgment | architecture | transfer | transferScore | prompts | clarify | briefPaste | bulkPaste | canaries | baseSim | source |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| delegator | 55 | 50 | 68 | 48 | 55 | 53 | 2 | 1 | 0.976 | Y | c1:addr,c2:addr | 0.01 | partial |
+| gamer | 68 | 72 | 84 | 64 | 71 | 70 | 4 | 2 | 0.0 | - | c1:flag,c2:addr | 0.0 | partial |
+| minimal | 35 | 52 | 34 | 45 | 40 | 37 | 3 | 0 | 0.0 | - | c1:prop,c2:prop | 0.0 | partial |
+| prompt-crafter | 54 | 66 | 50 | 44 | 48 | 47 | 7 | 1 | 0.0 | - | c1:prop,c2:prop | 0.0 | partial |
+| verifier | 66 | 74 | 64 | 58 | 60 | 59 | 5 | 4 | 0.0 | - | c1:prop,c2:addr | 0.0 | partial |
+
+discrimination: FAIL (verifier:59 > delegator:53 > prompt-crafter:47 > minimal:37)
