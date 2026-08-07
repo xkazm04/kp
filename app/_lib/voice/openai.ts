@@ -114,17 +114,28 @@ export function buildOpenAiSessionPayload(opts: {
   transcriptionModel: string;
   voice: string;
   language?: string | null;
+  // RELAY mode (docs/architecture/voice-conversation-plane.md): the provider is
+  // ONLY the speech transport — server VAD still segments utterances and
+  // transcribes them, but the model must NEVER answer on its own
+  // (create_response: false); replies are injected explicitly by the client via
+  // response.create with the exact text OUR engine produced. This is what keeps
+  // the conversational brain vendor-neutral.
+  relay?: boolean;
 }): { session: Record<string, unknown> } {
   const transcription: { model: string; language?: string } = { model: opts.transcriptionModel };
   const lang = normalizeTranscriptionLanguage(opts.language);
   if (lang) transcription.language = lang;
+  const input: Record<string, unknown> = { transcription };
+  if (opts.relay) {
+    input.turn_detection = { type: "server_vad", create_response: false, interrupt_response: true };
+  }
   return {
     session: {
       type: "realtime",
       model: opts.model,
       instructions: opts.instructions,
       audio: {
-        input: { transcription },
+        input,
         output: { voice: opts.voice },
       },
     },
@@ -139,7 +150,15 @@ export class OpenAiVoiceAdapter implements VoiceAdapter {
     return missingVoiceEnv(this).length === 0;
   }
 
-  async connect({ instructions, language }: { instructions: string; language?: string | null }): Promise<OpenAiConnect> {
+  async connect({
+    instructions,
+    language,
+    relay,
+  }: {
+    instructions: string;
+    language?: string | null;
+    relay?: boolean;
+  }): Promise<OpenAiConnect> {
     const key = process.env.OPENAI_API_KEY;
     if (!key) throw new Error("OPENAI_API_KEY is not set");
     const model = openAiRealtimeModel();
@@ -152,7 +171,7 @@ export class OpenAiVoiceAdapter implements VoiceAdapter {
       // path pins it client-side for the same reason). Unknown locale → payload
       // unchanged from the bilingual-open default.
       body: JSON.stringify(
-        buildOpenAiSessionPayload({ model, instructions, transcriptionModel: TRANSCRIPTION_MODEL, voice: VOICE, language }),
+        buildOpenAiSessionPayload({ model, instructions, transcriptionModel: TRANSCRIPTION_MODEL, voice: VOICE, language, relay }),
       ),
     });
 

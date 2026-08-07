@@ -32,6 +32,7 @@ export function JdsIntakePanel({ onPromoted }: { onPromoted?: () => void }) {
     promote,
     voiceNote,
     applyVoiceResult,
+    applyVoiceExchange,
   } = useIntakeLogic(onPromoted);
   // Work-sample case design at promote — explicit opt-in (JD-builder checklist semantics).
   const [withCase, setWithCase] = useState(false);
@@ -137,7 +138,17 @@ export function JdsIntakePanel({ onPromoted }: { onPromoted?: () => void }) {
           sending={sending}
           closed={closed}
           onSend={send}
-          voiceSlot={!closed ? <JdsIntakeVoice intakeId={active.id} disabled={sending} onCompleted={applyVoiceResult} /> : null}
+          voiceSlot={
+            !closed ? (
+              <JdsIntakeVoice
+                intakeId={active.id}
+                disabled={sending}
+                transcript={active.transcript}
+                onExchange={applyVoiceExchange}
+                onSweep={applyVoiceResult}
+              />
+            ) : null
+          }
         />
         <JdsIntakeBriefPanel brief={active.brief} />
       </div>

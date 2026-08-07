@@ -64,6 +64,10 @@ USE_CASE_REQUIREMENTS: dict[str, frozenset[str]] = {
     # Role-intake dialog with a hiring requestor (intake.py) — one JSON turn
     # per exchange (reply + updated RoleBrief).
     "role_intake": frozenset({CAP_JSON}),
+    # The FAST voice thread of the intake (run_voice_turn): plain-text spoken
+    # utterances at speech pace — pin a fast model here without touching the
+    # text dialog's routing. No JSON capability required by design.
+    "role_intake_voice": frozenset(),
     "github_analysis": frozenset({CAP_JSON}),
     "cv_analysis": frozenset({CAP_FILE_INPUT}),
     "profile_extract": frozenset({CAP_FILE_INPUT}),

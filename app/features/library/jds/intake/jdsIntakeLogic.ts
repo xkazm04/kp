@@ -197,6 +197,30 @@ export function useIntakeLogic(onPromoted?: () => void) {
     []
   );
 
+  // One completed VOICE exchange (fast thread): append the spoken pair to the
+  // open session; a deterministic fast turn carries its inline-extracted brief.
+  // A spoken confirmed close flips the status exactly like the text plane.
+  const applyVoiceExchange = useCallback(
+    (payload: { userText: string; reply: string; done: boolean; brief?: RoleBrief }) => {
+      setActive((s) =>
+        s
+          ? {
+              ...s,
+              transcript: [
+                ...s.transcript,
+                { role: "candidate", text: payload.userText },
+                { role: "interviewer", text: payload.reply },
+              ],
+              ...(payload.brief ? { brief: payload.brief, title: payload.brief.title || s.title } : {}),
+              ...(payload.done ? { status: "complete" as const } : {}),
+            }
+          : s
+      );
+      if (payload.done) void loadList();
+    },
+    [loadList]
+  );
+
   const closeSession = useCallback(() => {
     activeIdRef.current = null;
     setActive(null);
@@ -218,5 +242,6 @@ export function useIntakeLogic(onPromoted?: () => void) {
     promote,
     voiceNote,
     applyVoiceResult,
+    applyVoiceExchange,
   };
 }

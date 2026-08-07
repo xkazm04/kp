@@ -3,21 +3,35 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { BTN_SECONDARY } from "@/app/_components/ui/recipes";
-import { startOpenAiCall, teardownOpenAi, type OaiRefs } from "@/app/_components/voice/transport/openai";
+import {
+  cancelSpeech,
+  speakText,
+  startOpenAiCall,
+  teardownOpenAi,
+  type OaiRefs,
+} from "@/app/_components/voice/transport/openai";
 import type { RoleBrief } from "@/app/_lib/rolespec";
 import type { VoiceTurn } from "@/app/_lib/voice/types";
+import {
+  completeTurn,
+  enqueueUtterance,
+  initialOrchestratorState,
+  spokenOpener,
+  type OrchestratorState,
+} from "./voiceOrchestration";
 
-// Voice input mode for the intake dialog — a deliberately LEAN sibling of the
-// candidate VoiceInterview (no consent gate, no provider picker, no phase
-// machine): mic button → OpenAI Realtime call → hang up → the transcript posts
-// to /voice-complete and the extracted brief lands back in the session. Voice
-// is an INPUT MODE: the session stays open and the text plane keeps the
-// read-back/confirm contract. Reuses the shared OpenAI WebRTC transport
-// (transport/openai.ts) so the wire protocol lives in one place.
+// Voice input mode for the intake dialog — the ORCHESTRATED design
+// (docs/architecture/voice-conversation-plane.md): the provider session is a
+// pure speech transport (relay mode, it never answers on its own); every
+// transcribed utterance goes to /voice-turn where OUR engine produces the next
+// spoken line, which we inject via speakText. The brief fills DURING the call
+// through the periodic extraction sweep (/voice-complete without turns). All
+// dialog state is server-side after every exchange, so a drop or a transport
+// swap loses at most the utterance in flight (posted by the recovery path).
 
 type Phase = "idle" | "connecting" | "live" | "processing";
 
-export type VoiceCompletePayload = {
+export type VoiceSweepPayload = {
   transcript: VoiceTurn[];
   brief: RoleBrief;
   shape: "power_unit" | "story" | null;
@@ -28,11 +42,18 @@ export type VoiceCompletePayload = {
 export function JdsIntakeVoice({
   intakeId,
   disabled,
-  onCompleted,
+  transcript,
+  onExchange,
+  onSweep,
 }: {
   intakeId: string;
   disabled: boolean;
-  onCompleted: (payload: VoiceCompletePayload) => void;
+  /** The session transcript (for continuing the pending question aloud). */
+  transcript: { role: string; text: string }[];
+  /** One completed voice exchange — append the pair to the open session. */
+  onExchange: (payload: { userText: string; reply: string; done: boolean; brief?: RoleBrief }) => void;
+  /** A periodic/final extraction sweep landed — fold the authoritative result in. */
+  onSweep: (payload: VoiceSweepPayload) => void;
 }) {
   const t = useTranslations("library.tab.intake.voice");
   const [phase, setPhase] = useState<Phase>("idle");
@@ -41,10 +62,12 @@ export function JdsIntakeVoice({
   const [error, setError] = useState(false);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const turnsRef = useRef<VoiceTurn[]>([]);
   const finalizedRef = useRef(false);
   const reachedLiveRef = useRef(false);
-  // The transport's ref bundle — plain ref boxes, per its contract.
+  const orchestratorRef = useRef<OrchestratorState>(initialOrchestratorState);
+  // The utterance whose /voice-turn POST is in flight — the recovery payload if
+  // the tab dies before the exchange persisted.
+  const inFlightRef = useRef<string | null>(null);
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const micRef = useRef<MediaStream | null>(null);
   const dcRef = useRef<RTCDataChannel | null>(null);
@@ -81,30 +104,80 @@ export function JdsIntakeVoice({
     return () => window.clearTimeout(timer);
   }, [intakeId]);
 
+  // The periodic extraction thread: sweep the STORED transcript (no body) and
+  // fold the authoritative brief into the panel. Fire-and-forget by design.
+  const sweep = async () => {
+    try {
+      const res = await fetch(`/api/intake/${encodeURIComponent(intakeId)}/voice-complete`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      if (res.ok) onSweep((await res.json()) as VoiceSweepPayload);
+    } catch {
+      /* the next sweep (or hang-up) catches up — extraction lag is by design */
+    }
+  };
+
+  // The fast thread: one utterance → the engine's next spoken line.
+  const dispatch = async (message: string) => {
+    inFlightRef.current = message;
+    let done = false;
+    try {
+      const res = await fetch(`/api/intake/${encodeURIComponent(intakeId)}/voice-turn`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = (await res.json()) as { reply: string; done: boolean; brief?: RoleBrief };
+      done = data.done;
+      speakText(refs(), data.reply);
+      onExchange({ userText: message, reply: data.reply, done: data.done, brief: data.brief });
+    } catch {
+      setError(true);
+    } finally {
+      inFlightRef.current = null;
+      const { state, next, extract } = completeTurn(orchestratorRef.current, done);
+      orchestratorRef.current = state;
+      if (extract) void sweep();
+      if (next) void dispatch(next);
+      if (done) {
+        // Let the closing line play out before hanging up.
+        window.setTimeout(() => void finish(), 6000);
+      }
+    }
+  };
+
+  const onUtterance = (text: string) => {
+    // Barge-in: the requestor talking over the agent cancels the spoken reply.
+    if (speaking) cancelSpeech(refs());
+    const { state, dispatch: message } = enqueueUtterance(orchestratorRef.current, text);
+    orchestratorRef.current = state;
+    if (message) void dispatch(message);
+  };
+
   const finish = async () => {
     if (finalizedRef.current) return;
     finalizedRef.current = true;
-    // A final utterance may still be buffered as streamed deltas at hang-up.
-    if (candBufRef.current.trim()) {
-      turnsRef.current.push({ role: "candidate", text: candBufRef.current.trim(), at: new Date().toISOString() });
-      candBufRef.current = "";
+    // Recovery: anything not yet persisted server-side — a buffered final
+    // utterance, a queued one, or the one whose POST was in flight.
+    const stray: VoiceTurn[] = [];
+    const leftovers = [inFlightRef.current ?? "", ...orchestratorRef.current.queue, candBufRef.current];
+    for (const text of leftovers) {
+      if (text.trim()) stray.push({ role: "candidate", text: text.trim(), at: new Date().toISOString() });
     }
+    candBufRef.current = "";
     teardownOpenAi(refs(), { setSpeaking, setUnstable: () => {}, setAudioBlocked: () => {} });
-    const turns = turnsRef.current;
-    turnsRef.current = [];
-    if (turns.length === 0) {
-      setPhase("idle");
-      return;
-    }
     setPhase("processing");
     try {
       const res = await fetch(`/api/intake/${encodeURIComponent(intakeId)}/voice-complete`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ turns }),
+        body: JSON.stringify(stray.length > 0 ? { turns: stray } : {}),
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      onCompleted((await res.json()) as VoiceCompletePayload);
+      if (res.ok) onSweep((await res.json()) as VoiceSweepPayload);
+      else if (res.status !== 400) throw new Error(`HTTP ${res.status}`);
     } catch {
       setError(true);
     } finally {
@@ -118,7 +191,7 @@ export function JdsIntakeVoice({
     setPhase("connecting");
     finalizedRef.current = false;
     reachedLiveRef.current = false;
-    turnsRef.current = [];
+    orchestratorRef.current = initialOrchestratorState;
     try {
       const res = await fetch(`/api/intake/${encodeURIComponent(intakeId)}/voice-connect`, { method: "POST" });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -128,16 +201,25 @@ export function JdsIntakeVoice({
         finalizedRef,
         reachedLiveRef,
         pushTurn: (role, text) => {
-          if (text.trim()) turnsRef.current.push({ role, text: text.trim(), at: new Date().toISOString() });
+          // Relay mode: assistant transcript events echo OUR injected lines —
+          // the exchange is already recorded server-side, so only the
+          // requestor's utterances drive anything here.
+          if (role === "candidate") onUtterance(text);
         },
         setSpeaking,
         setUnstable: () => {},
         setAudioBlocked: () => {},
         setAwaitingMic: () => {},
-        setLive: () => setPhase("live"),
+        setLive: () => {
+          setPhase("live");
+          // Continue the SAME conversation: speak the pending question from
+          // the text thread instead of restarting.
+          const opener = spokenOpener(transcript);
+          if (opener) speakText(refs(), opener);
+        },
         clearConnectTimer: () => {},
-        // A terminal drop ends the call but keeps what was said — the
-        // transcript still posts, so nothing spoken is lost.
+        // A terminal drop keeps everything already persisted; recovery posts
+        // whatever was still in flight.
         onDrop: () => void finish(),
       });
     } catch {
@@ -148,7 +230,6 @@ export function JdsIntakeVoice({
   };
 
   useEffect(() => {
-    // Unmount = hang up; the finalized guard makes this a no-op after a normal end.
     return () => {
       finalizedRef.current = true;
       teardownOpenAi(refs(), { setSpeaking: () => {}, setUnstable: () => {}, setAudioBlocked: () => {} });
@@ -162,7 +243,7 @@ export function JdsIntakeVoice({
 
   return (
     <>
-      {/* The interviewer's voice — hidden element the transport streams into. */}
+      {/* The agent's voice — hidden element the transport streams into. */}
       {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
       <audio ref={audioRef} autoPlay className="hidden" />
       {phase === "idle" ? (

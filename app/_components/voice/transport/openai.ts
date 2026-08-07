@@ -89,6 +89,46 @@ export function teardownOpenAi(refs: OaiRefs, cues: OaiCues) {
   }
 }
 
+/** RELAY mode (voice-conversation-plane.md): speak an utterance OUR engine
+ *  produced. The session was minted with create_response:false, so the model
+ *  never talks on its own — this is the only way audio leaves the agent. The
+ *  response.create instruction pins verbatim delivery; the spoken text still
+ *  flows back through the normal assistant transcript events, so the
+ *  transcript accumulates identically to the provider-brain path. */
+export function speakText(refs: OaiRefs, text: string): boolean {
+  const dc = refs.dc.current;
+  if (!dc || dc.readyState !== "open" || !text.trim()) return false;
+  try {
+    dc.send(
+      JSON.stringify({
+        type: "response.create",
+        response: {
+          instructions:
+            "Say exactly the following, verbatim, in its own language, with natural spoken delivery. " +
+            "Do not add, translate, or omit anything:\n" +
+            text,
+        },
+      })
+    );
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** RELAY mode: stop the current spoken reply (barge-in — the requestor started
+ *  talking over the agent). Best-effort; server VAD's interrupt_response
+ *  already ducks audio, this also cancels the in-flight response. */
+export function cancelSpeech(refs: OaiRefs): void {
+  const dc = refs.dc.current;
+  if (!dc || dc.readyState !== "open") return;
+  try {
+    dc.send(JSON.stringify({ type: "response.cancel" }));
+  } catch {
+    /* best-effort */
+  }
+}
+
 export function applyOaiTranscriptEvent(
   ev: Record<string, unknown>,
   refs: OaiRefs,

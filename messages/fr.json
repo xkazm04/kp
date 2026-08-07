@@ -1173,6 +1173,7 @@
     "INTAKE_MESSAGE_FAILED": "Impossible de traiter ce message. Veuillez réessayer.",
     "INTAKE_PROMOTE_FAILED": "Impossible de créer la fiche de poste à partir de ce brief. Veuillez réessayer.",
     "INTAKE_VOICE_CONNECT_FAILED": "Impossible de démarrer l'appel vocal. Veuillez réessayer.",
+    "INTAKE_VOICE_TURN_FAILED": "Impossible de traiter cette réplique. Veuillez réessayer.",
     "INTAKE_VOICE_COMPLETE_FAILED": "Impossible de traiter la transcription de l'appel. Veuillez réessayer."
   },
   "resilience": {

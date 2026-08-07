@@ -78,7 +78,10 @@ export interface VoiceAdapter {
   /** True when the required API keys/agent are configured. */
   available(): boolean;
   /** Mint browser-safe, short-lived credentials for one session. */
-  connect(opts: { instructions: string; language?: string | null }): Promise<VoiceConnect>;
+  // `relay` (optional; OpenAI honors it, others may ignore): transport-only
+  // mode — VAD + transcription stay on, the provider NEVER speaks on its own;
+  // utterances are injected by the caller (voice-conversation-plane.md).
+  connect(opts: { instructions: string; language?: string | null; relay?: boolean }): Promise<VoiceConnect>;
 }
 
 /** Which of an adapter's requiredEnv vars are currently unset — empty when the
